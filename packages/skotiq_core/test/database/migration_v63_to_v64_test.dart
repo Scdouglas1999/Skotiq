@@ -59,7 +59,7 @@ void main() {
       final db = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
       addTearDown(db.close);
       final version = await db.customSelect('PRAGMA user_version').getSingle();
-      expect(version.data['user_version'], 64);
+      expect(version.data['user_version'], db.schemaVersion);
       final rows = await db
           .customSelect(
             'SELECT id, guide_camera_id, guide_camera_name, '

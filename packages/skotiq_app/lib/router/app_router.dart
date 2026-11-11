@@ -351,10 +351,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             redirect: (context, state) =>
                 calibrationSettingsRedirect(state.uri),
             pageBuilder: (context, state) => CustomTransitionPage(
-              // Deep-link a specific section via `?section=<key>` (see
-              // kSettingsSectionIndex); null/unknown opens the first category.
+              // `?section=<key>` opens that section; an unknown or missing key
+              // opens the first one.
               child: SettingsScreen(
-                initialSection: state.uri.queryParameters['section'],
+                initialSection: SettingsSectionId.resolve(
+                  state.uri.queryParameters['section'],
+                ),
               ),
               transitionsBuilder: PageTransitions.scaleFadeTransition,
               transitionDuration: const Duration(milliseconds: 300),

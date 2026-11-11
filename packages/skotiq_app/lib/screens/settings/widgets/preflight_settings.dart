@@ -44,14 +44,6 @@ class PreflightSettings extends ConsumerStatefulWidget {
 }
 
 class _PreflightSettingsState extends ConsumerState<PreflightSettings> {
-  final _polarAgeController = TextEditingController();
-
-  @override
-  void dispose() {
-    _polarAgeController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(appSettingsProvider);
@@ -136,7 +128,6 @@ class _PreflightSettingsState extends ConsumerState<PreflightSettings> {
                   subtitle:
                       'Sequence pre-flight flags the polar alignment if the last recorded run is older than this. Set to 0 to disable the check.',
                   trailing: SettingsNumberInput(
-                    controller: _polarAgeController,
                     authoritativeValue:
                         settings.polarAlignmentMaxAgeDays.toDouble(),
                     authorityKey: authority,

@@ -5,6 +5,7 @@ import '../../models/darkroom/delivery.dart';
 import '../../models/darkroom/recipe.dart' show DarkroomWireFormatException;
 import '../../providers/database_provider.dart';
 import '../database.dart';
+import '../epoch_seconds.dart';
 
 /// A destination row was addressed by an id that has no row.
 class ArtifactDestinationMissingException implements Exception {
@@ -75,12 +76,8 @@ class DeliveryTargetsRead {
 /// Data-access object for the v58 `delivery_targets` table — the configured
 /// places the night's artifacts are delivered to.
 ///
-/// The table is managed with raw DDL (see
-/// [SkotiqDatabase._createDarkroomTables]) rather than a drift `Table`
-/// class, so this DAO is a plain class that reads/writes through the database's
-/// `customSelect`/`customInsert`/`customStatement` APIs — mirroring
-/// [MosaicProjectsDao] and [CampaignsDao]. It is deliberately NOT a
-/// `@DriftAccessor`.
+/// The table is declared in `database/schema/darkroom.drift`; this DAO queries
+/// with SQL through the database's `customSelect` / `customStatement` APIs.
 ///
 /// NO SECRETS IN `config_json`. Every write runs [assertNoSecretsInConfig],
 /// which throws [DeliveryConfigSecretException] when the config carries key
@@ -123,8 +120,8 @@ class DeliveryTargetsDao {
     }
     assertNoSecretsInConfig(configJson);
 
-    final created = _toEpochSeconds(createdAt ?? DateTime.now());
-    final updated = updatedAt == null ? created : _toEpochSeconds(updatedAt);
+    final created = toEpochSeconds(createdAt ?? DateTime.now());
+    final updated = updatedAt == null ? created : toEpochSeconds(updatedAt);
     return _db.customInsert(
       'INSERT INTO delivery_targets('
       'name, kind, config_json, enabled, content_json, secret_ref, '
@@ -197,7 +194,7 @@ class DeliveryTargetsDao {
     if (configJson != null) assertNoSecretsInConfig(configJson);
     await _require(id);
 
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     await _db.customUpdate(
       'UPDATE delivery_targets SET '
       'name = COALESCE(?, name), '
@@ -227,7 +224,7 @@ class DeliveryTargetsDao {
   /// cannot express a null, so clearing has its own call.
   Future<ArtifactDestination> clearSecretRef(int id, {DateTime? now}) async {
     await _require(id);
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     await _db.customUpdate(
       'UPDATE delivery_targets SET secret_ref = NULL, updated_at = ? '
       'WHERE id = ?',
@@ -305,7 +302,7 @@ class DeliveryTargetsDao {
   /// `kind` and `enabled` carry SQLite `CHECK` constraints on this table;
   /// `content_json` does NOT — it is free text the DAO writes from
   /// [ArtifactContent] and reads back through it (see
-  /// `_createDarkroomTables`). [DarkroomWireFormatException] says "the column
+  /// `schema/darkroom.drift`). [DarkroomWireFormatException] says "the column
   /// is CHECK-constrained, so this row is corrupt" about every darkroom
   /// column it is raised for, which for a `content_json` value points the
   /// operator at a database constraint that never ran and calls a row corrupt
@@ -352,16 +349,10 @@ class DeliveryTargetsDao {
         row.read<String>('content_json'),
       ),
       secretRef: row.readNullable<String>('secret_ref'),
-      createdAt: _fromEpochSeconds(row.read<int>('created_at')),
-      updatedAt: _fromEpochSeconds(row.read<int>('updated_at')),
+      createdAt: fromEpochSeconds(row.read<int>('created_at')),
+      updatedAt: fromEpochSeconds(row.read<int>('updated_at')),
     );
   }
-
-  static int _toEpochSeconds(DateTime when) =>
-      when.toUtc().millisecondsSinceEpoch ~/ 1000;
-
-  static DateTime _fromEpochSeconds(int seconds) =>
-      DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
 }
 
 /// Riverpod provider for [DeliveryTargetsDao].

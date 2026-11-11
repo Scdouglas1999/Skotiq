@@ -15,7 +15,7 @@ import '../providers/settings_provider.dart';
 // Prefixed: settings_provider.dart also exports a legacy `HorizonProfile`;
 // the in-sequence TargetSchedulerNode uses the scheduler samples-based one.
 import 'scheduler/horizon_profile.dart' as sched_horizon;
-import 'quality_stop_migration.dart';
+import '../database/quality_stop_migration.dart';
 import 'sequence_wire_codec.dart';
 
 part 'sequence_file_service/sequence_encoder.dart';

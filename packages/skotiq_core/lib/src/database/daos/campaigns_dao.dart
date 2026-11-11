@@ -4,17 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/campaign.dart';
 import '../../providers/database_provider.dart';
 import '../database.dart';
+import '../epoch_seconds.dart';
 
 /// Data-access object for the v43 `campaigns` table — the durable NINA-style
 /// multi-night `(target, filter, accepted, desired, last_date)` campaign
 /// counter.
 ///
-/// The table is managed with raw DDL (see
-/// [SkotiqDatabase._createCampaignsTable]) rather than a drift `Table`
-/// class, so this DAO is a plain class that reads/writes through the database's
-/// `customSelect`/`customInsert`/`customStatement` APIs — mirroring
-/// [NightReportsDao] and `IntegrationGoalService`. It is deliberately NOT a
-/// `@DriftAccessor`.
+/// The table is declared in `database/schema/planning.drift`; this DAO queries
+/// with SQL through the database's `customSelect` / `customStatement` APIs.
 ///
 /// This DAO is ADDITIVE bookkeeping: it never feeds the live `SchedulerEngine`
 /// goals-complete reject (which stays a read-only derivation over
@@ -44,7 +41,7 @@ class CampaignsDao {
     required int desiredCount,
     DateTime? now,
   }) async {
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     final existing = await _findRow(targetId, filter);
     if (existing != null) {
       final id = existing.read<int>('id');
@@ -84,7 +81,7 @@ class CampaignsDao {
     DateTime? capturedAt,
   }) async {
     if (delta <= 0) return null;
-    final at = _toEpochSeconds(capturedAt ?? DateTime.now());
+    final at = toEpochSeconds(capturedAt ?? DateTime.now());
     final existing = await _findRow(targetId, filter);
     if (existing != null) {
       final id = existing.read<int>('id');
@@ -158,17 +155,11 @@ class CampaignsDao {
       filter: row.read<String>('filter'),
       acceptedCount: row.read<int>('accepted_count'),
       desiredCount: row.read<int>('desired_count'),
-      lastCaptureAt: lastDate == null ? null : _fromEpochSeconds(lastDate),
-      createdAt: _fromEpochSeconds(row.read<int>('created_at')),
-      updatedAt: _fromEpochSeconds(row.read<int>('updated_at')),
+      lastCaptureAt: lastDate == null ? null : fromEpochSeconds(lastDate),
+      createdAt: fromEpochSeconds(row.read<int>('created_at')),
+      updatedAt: fromEpochSeconds(row.read<int>('updated_at')),
     );
   }
-
-  static int _toEpochSeconds(DateTime when) =>
-      when.toUtc().millisecondsSinceEpoch ~/ 1000;
-
-  static DateTime _fromEpochSeconds(int seconds) =>
-      DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
 }
 
 /// Riverpod provider for [CampaignsDao].

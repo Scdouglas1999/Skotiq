@@ -36,6 +36,7 @@ import 'chart_axis.dart';
 import 'science_onboarding/science_ladder_card.dart';
 import 'science_onboarding/science_empty_onramp.dart';
 import 'science_onboarding/science_nav_row_card.dart';
+import '../../settings/settings_sections.dart';
 
 part 'science_analytics_tab/navigation_and_snapshots.dart';
 part 'science_analytics_tab/science_info_and_series_chart.dart';

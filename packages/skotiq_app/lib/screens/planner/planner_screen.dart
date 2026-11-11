@@ -28,6 +28,7 @@ import 'widgets/progress_tab_content.dart';
 import 'widgets/projects_tab_content.dart';
 import 'widgets/scheduler_tab_content.dart';
 import 'widgets/week_forecast_strip.dart';
+import '../settings/settings_sections.dart';
 // File split: the rest of this library lives in `planner_screen_parts/`.
 // Each part is `part of '../planner_screen.dart';` and contains a cohesive
 // group of private widgets / helpers. Imports are owned here so part files

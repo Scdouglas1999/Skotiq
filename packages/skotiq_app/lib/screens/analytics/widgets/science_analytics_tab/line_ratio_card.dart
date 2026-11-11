@@ -166,7 +166,10 @@ class _LineRatioCardState extends ConsumerState<_LineRatioCard> {
                   : narrowbandEnabled == null
                       ? null
                       : !narrowbandEnabled
-                          ? () => context.push('/settings?section=science')
+                          ? () => openSettings(
+                                context,
+                                SettingsSectionId.science,
+                              )
                           : widget.sessionId == null
                               ? null
                               : _generateLineRatios,

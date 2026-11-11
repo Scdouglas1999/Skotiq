@@ -1,0 +1,182 @@
+-- Post-session products: live-stack results, integrated masters and the frames
+-- folded into them, the master-flat library, night reports, narrowband
+-- composites and calibration tags.
+-- Timestamps are INTEGER unix seconds (UTC) unless a column says otherwise.
+
+import '../tables/captured_images.dart';
+import '../tables/equipment_profiles.dart';
+import '../tables/imaging_sessions.dart';
+import '../tables/targets.dart';
+
+-- One row per finished live stack. is_color is 0/1; channels is 1 (mono) or 3
+-- (interleaved RGB).
+CREATE TABLE stacked_results (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id INTEGER,
+  target_id INTEGER,
+  target_name TEXT,
+  width INTEGER NOT NULL,
+  height INTEGER NOT NULL,
+  frames_stacked INTEGER NOT NULL,
+  frames_attempted INTEGER NOT NULL,
+  integration_secs REAL NOT NULL,
+  avg_alignment_residual REAL,
+  avg_hfr REAL,
+  "filter" TEXT,
+  is_color INTEGER NOT NULL DEFAULT 0,
+  channels INTEGER NOT NULL DEFAULT 1,
+  exported_image_path TEXT,
+  created_at INTEGER NOT NULL
+) AS StackedResultRow;
+
+CREATE INDEX IF NOT EXISTS idx_stacked_results_session ON stacked_results(session_id);
+CREATE INDEX IF NOT EXISTS idx_stacked_results_target ON stacked_results(target_id);
+
+-- One row per archival integrated master: a one-shot batch integration
+-- (status 'finalized', sidecar_path NULL) or a multi-night accumulating master
+-- (status 'accumulating' while subs are still folded in; sidecar_path is the
+-- resumable accumulator state, kept after finalize so more nights can be
+-- added). The wcs_* columns are the plate-solved WCS in CD-matrix form.
+CREATE TABLE integrated_masters (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  target_id INTEGER REFERENCES targets(id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  master_fits_path TEXT,
+  preview_png_path TEXT,
+  sidecar_path TEXT,
+  rejection_map_path TEXT,
+  status TEXT NOT NULL DEFAULT 'finalized',
+  accumulation_mode TEXT NOT NULL DEFAULT 'batch',
+  channels INTEGER NOT NULL DEFAULT 1,
+  width INTEGER NOT NULL DEFAULT 0,
+  height INTEGER NOT NULL DEFAULT 0,
+  frame_count INTEGER NOT NULL DEFAULT 0,
+  total_integration_seconds REAL NOT NULL DEFAULT 0.0,
+  "filter" TEXT,
+  settings_json TEXT NOT NULL DEFAULT '{}',
+  stats_json TEXT NOT NULL DEFAULT '{}',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  rejection_map_preview_path TEXT,
+  coverage_map_path TEXT,
+  coverage_map_preview_path TEXT,
+  color_calibrated_path TEXT,
+  annotated_preview_path TEXT,
+  background_extracted INTEGER NOT NULL DEFAULT 0,
+  target_snr REAL,
+  target_integration_s REAL,
+  improvement_curve_json TEXT,
+  wcs_crval1 REAL,
+  wcs_crval2 REAL,
+  wcs_crpix1 REAL,
+  wcs_crpix2 REAL,
+  wcs_cd1_1 REAL,
+  wcs_cd1_2 REAL,
+  wcs_cd2_1 REAL,
+  wcs_cd2_2 REAL,
+  background_extracted_path TEXT,
+  deconvolved_path TEXT,
+  star_reduced_path TEXT
+) AS IntegratedMasterRow;
+
+CREATE INDEX IF NOT EXISTS idx_integrated_masters_target ON integrated_masters (target_id);
+CREATE INDEX IF NOT EXISTS idx_integrated_masters_status ON integrated_masters (status);
+CREATE INDEX IF NOT EXISTS idx_integrated_masters_created ON integrated_masters (created_at);
+
+-- Which captured subs are folded into which master. The UNIQUE pair is the
+-- dedup guard: a sub is never counted twice across runs.
+CREATE TABLE integrated_master_frames (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  master_id INTEGER NOT NULL REFERENCES integrated_masters(id) ON DELETE CASCADE,
+  image_id INTEGER NOT NULL REFERENCES captured_images(id) ON DELETE CASCADE,
+  weight REAL,
+  alignment_residual_px REAL,
+  accepted INTEGER NOT NULL DEFAULT 1,
+  rejection_reason TEXT,
+  folded_at INTEGER NOT NULL,
+  snr REAL,
+  fwhm REAL,
+  eccentricity REAL,
+  UNIQUE(master_id, image_id)
+) AS IntegratedMasterFrameRow;
+
+CREATE INDEX IF NOT EXISTS idx_integrated_master_frames_master ON integrated_master_frames (master_id);
+CREATE INDEX IF NOT EXISTS idx_integrated_master_frames_image ON integrated_master_frames (image_id);
+
+-- Master-flat artifacts, the counterpart of dark_library. Not flat_history,
+-- which records flat-exposure measurements for the exposure planner.
+CREATE TABLE flat_library (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  file_path TEXT NOT NULL,
+  "filter" TEXT,
+  equipment_profile_id INTEGER REFERENCES equipment_profiles(id) ON DELETE SET NULL,
+  optical_train_id TEXT,
+  temperature REAL,
+  gain INTEGER NOT NULL DEFAULT 0,
+  "offset" INTEGER NOT NULL DEFAULT 0,
+  bin_x INTEGER NOT NULL DEFAULT 1,
+  bin_y INTEGER NOT NULL DEFAULT 1,
+  width INTEGER,
+  height INTEGER,
+  flat_kind TEXT NOT NULL DEFAULT 'sky',
+  master_frame_count INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+) AS FlatLibraryRow;
+
+CREATE INDEX IF NOT EXISTS idx_flat_library_filter ON flat_library ("filter");
+CREATE INDEX IF NOT EXISTS idx_flat_library_profile ON flat_library (equipment_profile_id);
+CREATE INDEX IF NOT EXISTS idx_flat_library_match ON flat_library ("filter", gain, bin_x, bin_y);
+
+-- One Night Doctor report per session and/or target. findings_json is the
+-- serialized findings, headline the one-line verdict, score 0..100.
+CREATE TABLE night_reports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id INTEGER REFERENCES imaging_sessions(id) ON DELETE CASCADE,
+  target_id INTEGER REFERENCES targets(id) ON DELETE SET NULL,
+  score INTEGER NOT NULL DEFAULT 0,
+  headline TEXT NOT NULL DEFAULT '',
+  findings_json TEXT NOT NULL DEFAULT '[]',
+  created_at INTEGER NOT NULL
+) AS NightReportRow;
+
+CREATE INDEX IF NOT EXISTS idx_night_reports_session ON night_reports (session_id);
+CREATE INDEX IF NOT EXISTS idx_night_reports_target ON night_reports (target_id);
+CREATE INDEX IF NOT EXISTS idx_night_reports_created ON night_reports (created_at);
+
+-- One row per applied palette combine. component_master_ids is a JSON array of
+-- integrated_masters ids; palette is the palette name (SHO, HOO, ...).
+CREATE TABLE narrowband_composites (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  target_id INTEGER REFERENCES targets(id) ON DELETE SET NULL,
+  palette TEXT NOT NULL DEFAULT '',
+  component_master_ids TEXT NOT NULL DEFAULT '[]',
+  output_path TEXT NOT NULL,
+  width INTEGER NOT NULL DEFAULT 0,
+  height INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+) AS NarrowbandCompositeRow;
+
+CREATE INDEX IF NOT EXISTS idx_narrowband_composites_target ON narrowband_composites (target_id);
+
+-- User tags and notes plus the FITS-read camera id for a calibration master,
+-- keyed by (master_type, master_id) where master_id is the row id in
+-- dark_library / flat_library / defect_maps. The shared_* / license /
+-- provenance_json / published_remote_id columns are null until the master is
+-- shared to the hub.
+CREATE TABLE calibration_tags (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  master_type TEXT NOT NULL,
+  master_id INTEGER NOT NULL,
+  tags_json TEXT NOT NULL DEFAULT '[]',
+  notes TEXT,
+  camera_id TEXT,
+  shared_by TEXT,
+  shared_at INTEGER,
+  license TEXT,
+  provenance_json TEXT,
+  published_remote_id TEXT,
+  updated_at INTEGER NOT NULL,
+  UNIQUE(master_type, master_id)
+) AS CalibrationTagRow;
+
+CREATE INDEX IF NOT EXISTS idx_calibration_tags_camera ON calibration_tags (camera_id);

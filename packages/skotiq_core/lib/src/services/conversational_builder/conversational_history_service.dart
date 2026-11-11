@@ -4,18 +4,11 @@
 // dedicated table so the user can see what they've asked the AI to
 // build and what came back. The history is also surfaced in the
 // Sequencer history tab labelled as "Conversational" entries.
-//
-// We follow the same DDL convention NotesService uses:
-// the table is created with `IF NOT EXISTS` on first access so the
-// service stays tolerant of a database that pre-dates this feature.
-// This keeps the schema migration out of the drift-codegen path and
-// avoids forcing every developer to re-run `melos run generate` just
-// to land a new feature table.
 
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:uuid/uuid.dart';
 
 import '../../database/database.dart' as db;
@@ -84,31 +77,8 @@ class ConversationalHistoryEntry {
 
 /// CRUD + reactive watch for the `conversational_builds` table.
 class ConversationalHistoryService {
-  static const String _tableSql =
-      'CREATE TABLE IF NOT EXISTS conversational_builds ('
-      'id TEXT PRIMARY KEY NOT NULL,'
-      'created_at INTEGER NOT NULL,'
-      'user_prompt TEXT NOT NULL,'
-      'provider_name TEXT NOT NULL,'
-      'provider_kind TEXT NOT NULL,'
-      'rounds INTEGER NOT NULL,'
-      'successful INTEGER NOT NULL,'
-      'prompt_tokens INTEGER,'
-      'completion_tokens INTEGER,'
-      'total_tokens INTEGER,'
-      'issues_json TEXT NOT NULL DEFAULT \'[]\','
-      'accepted_sequence_id TEXT,'
-      'system_prompt TEXT NOT NULL DEFAULT \'\','
-      'replies_json TEXT NOT NULL DEFAULT \'[]\''
-      ')';
-
-  static const String _createdIndexSql =
-      'CREATE INDEX IF NOT EXISTS idx_conversational_builds_created '
-      'ON conversational_builds (created_at)';
-
   final db.SkotiqDatabase _db;
   final Uuid _uuid;
-  bool _schemaEnsured = false;
 
   final StreamController<void> _mutations = StreamController<void>.broadcast();
 
@@ -119,13 +89,6 @@ class ConversationalHistoryService {
 
   Future<void> dispose() async {
     if (!_mutations.isClosed) await _mutations.close();
-  }
-
-  Future<void> _ensureSchema() async {
-    if (_schemaEnsured) return;
-    await _db.customStatement(_tableSql);
-    await _db.customStatement(_createdIndexSql);
-    _schemaEnsured = true;
   }
 
   /// Record a new conversational build attempt.
@@ -141,7 +104,6 @@ class ConversationalHistoryService {
     required String systemPrompt,
     required List<String> rawReplies,
   }) async {
-    await _ensureSchema();
     final entry = ConversationalHistoryEntry(
       id: _uuid.v4(),
       createdAt: DateTime.now(),
@@ -156,28 +118,23 @@ class ConversationalHistoryService {
       systemPrompt: systemPrompt,
       repliesJson: jsonEncode(rawReplies),
     );
-    await _db.customStatement(
-      'INSERT INTO conversational_builds ('
-      'id, created_at, user_prompt, provider_name, provider_kind, '
-      'rounds, successful, prompt_tokens, completion_tokens, total_tokens, '
-      'issues_json, accepted_sequence_id, system_prompt, replies_json'
-      ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [
-        entry.id,
-        entry.createdAt.millisecondsSinceEpoch,
-        entry.userPrompt,
-        entry.providerName,
-        entry.providerKind,
-        entry.rounds,
-        entry.successful ? 1 : 0,
-        entry.usage?.promptTokens,
-        entry.usage?.completionTokens,
-        entry.usage?.totalTokens,
-        entry.issuesJson,
-        entry.acceptedSequenceId,
-        entry.systemPrompt,
-        entry.repliesJson,
-      ],
+    await _db.conversationalBuildsDao.insertBuild(
+      db.ConversationalBuildsCompanion.insert(
+        id: entry.id,
+        createdAt: entry.createdAt.millisecondsSinceEpoch,
+        userPrompt: entry.userPrompt,
+        providerName: entry.providerName,
+        providerKind: entry.providerKind,
+        rounds: entry.rounds,
+        successful: entry.successful ? 1 : 0,
+        promptTokens: Value(entry.usage?.promptTokens),
+        completionTokens: Value(entry.usage?.completionTokens),
+        totalTokens: Value(entry.usage?.totalTokens),
+        issuesJson: Value(entry.issuesJson),
+        acceptedSequenceId: Value(entry.acceptedSequenceId),
+        systemPrompt: Value(entry.systemPrompt),
+        repliesJson: Value(entry.repliesJson),
+      ),
     );
     if (!_mutations.isClosed) _mutations.add(null);
     return entry;
@@ -187,37 +144,21 @@ class ConversationalHistoryService {
   /// Used after the user clicks "Accept" in the dialog — we don't
   /// want to lose the prompt history if they accept later.
   Future<void> markAccepted(String entryId, String sequenceId) async {
-    await _ensureSchema();
-    final affected = await _db.customUpdate(
-      'UPDATE conversational_builds SET accepted_sequence_id = ? '
-      'WHERE id = ?',
-      variables: [
-        Variable.withString(sequenceId),
-        Variable.withString(entryId),
-      ],
+    final affected = await _db.conversationalBuildsDao.setAcceptedSequence(
+      entryId,
+      sequenceId,
     );
     if (affected > 0 && !_mutations.isClosed) _mutations.add(null);
   }
 
   /// Fetch the most recent N entries, newest first.
   Future<List<ConversationalHistoryEntry>> recent({int limit = 50}) async {
-    await _ensureSchema();
-    final rows = await _db
-        .customSelect(
-          'SELECT * FROM conversational_builds '
-          'ORDER BY created_at DESC LIMIT ?',
-          variables: [Variable.withInt(limit)],
-        )
-        .get();
+    final rows = await _db.conversationalBuildsDao.recentBuilds(limit);
     return rows.map(_rowToEntry).toList();
   }
 
   Future<int> deleteEntry(String id) async {
-    await _ensureSchema();
-    final affected = await _db.customUpdate(
-      'DELETE FROM conversational_builds WHERE id = ?',
-      variables: [Variable.withString(id)],
-    );
+    final affected = await _db.conversationalBuildsDao.deleteBuild(id);
     if (affected > 0 && !_mutations.isClosed) _mutations.add(null);
     return affected;
   }
@@ -230,10 +171,10 @@ class ConversationalHistoryService {
     }
   }
 
-  ConversationalHistoryEntry _rowToEntry(QueryRow row) {
-    final pt = row.readNullable<int>('prompt_tokens');
-    final ct = row.readNullable<int>('completion_tokens');
-    final tt = row.readNullable<int>('total_tokens');
+  ConversationalHistoryEntry _rowToEntry(db.ConversationalBuildRow row) {
+    final pt = row.promptTokens;
+    final ct = row.completionTokens;
+    final tt = row.totalTokens;
     LlmUsage? usage;
     if (pt != null || ct != null || tt != null) {
       usage = LlmUsage(
@@ -243,20 +184,18 @@ class ConversationalHistoryService {
       );
     }
     return ConversationalHistoryEntry(
-      id: row.read<String>('id'),
-      createdAt: DateTime.fromMillisecondsSinceEpoch(
-        row.read<int>('created_at'),
-      ),
-      userPrompt: row.read<String>('user_prompt'),
-      providerName: row.read<String>('provider_name'),
-      providerKind: row.read<String>('provider_kind'),
-      rounds: row.read<int>('rounds'),
-      successful: row.read<int>('successful') == 1,
+      id: row.id,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+      userPrompt: row.userPrompt,
+      providerName: row.providerName,
+      providerKind: row.providerKind,
+      rounds: row.rounds,
+      successful: row.successful == 1,
       usage: usage,
-      issuesJson: row.read<String>('issues_json'),
-      acceptedSequenceId: row.readNullable<String>('accepted_sequence_id'),
-      systemPrompt: row.read<String>('system_prompt'),
-      repliesJson: row.read<String>('replies_json'),
+      issuesJson: row.issuesJson,
+      acceptedSequenceId: row.acceptedSequenceId,
+      systemPrompt: row.systemPrompt,
+      repliesJson: row.repliesJson,
     );
   }
 }

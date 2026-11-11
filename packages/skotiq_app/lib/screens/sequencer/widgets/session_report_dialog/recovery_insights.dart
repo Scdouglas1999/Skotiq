@@ -257,7 +257,7 @@ class _SessionInsightTileState extends ConsumerState<_SessionInsightTile> {
       // isn't left stranded beneath the dialog.
       final router = GoRouter.maybeOf(context);
       Navigator.of(context).pop();
-      router?.go('/settings?section=autofocus');
+      router?.goToSettings(SettingsSectionId.autofocus);
       return;
     }
   }

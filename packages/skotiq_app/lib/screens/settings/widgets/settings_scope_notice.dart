@@ -5,42 +5,21 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../link_rig/link_rig_dialog.dart';
-
-/// Where a Settings section's values live on a linked client.
-enum SettingsScope { imagingHost, thisDevice }
-
-/// Sections whose values belong to the device showing them: its look, what
-/// it draws over a frame, its own link to the host, its help and its own app
-/// version. Every other section reads and writes the imaging host's settings.
-/// A section listed here keeps only keys in `deviceLocalSettingKeys`.
-const Set<String> _thisDeviceSections = {
-  'appearance',
-  'annotations',
-  'connection',
-  'help',
-  'about',
-  'updates',
-  'replay-debug',
-};
-
-SettingsScope settingsScopeFor(String sectionKey) =>
-    _thisDeviceSections.contains(sectionKey)
-        ? SettingsScope.thisDevice
-        : SettingsScope.imagingHost;
+import '../settings_sections.dart';
 
 /// On a linked client, one line above a Settings section saying whose
 /// settings these are. Shows nothing on the machine that owns the rig.
 class SettingsScopeNotice extends ConsumerWidget {
-  const SettingsScopeNotice({super.key, required this.sectionKey});
+  const SettingsScopeNotice({super.key, required this.section});
 
-  final String sectionKey;
+  final SettingsSectionId section;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final backend = ref.watch(backendProvider);
     if (backend is! NetworkBackend) return const SizedBox.shrink();
     final colors = SkotiqColors.of(context);
-    final onHost = settingsScopeFor(sectionKey) == SettingsScope.imagingHost;
+    final onHost = !section.onThisDevice;
     // A desktop linked with the one-tap pairing holds a control token, which
     // the host refuses for settings writes. Say so before the operator edits
     // anything, and offer the code pairing that grants the access.

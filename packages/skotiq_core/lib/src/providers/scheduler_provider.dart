@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/network_backend.dart';
@@ -17,15 +16,11 @@ import '../models/scheduler/scheduler_readiness.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/sequence/active_plan_owner.dart';
 import '../models/sequence/sequence_models.dart';
-import '../services/planning/project_service.dart'
-    show
-        projectTargetsProjectIndexSql,
-        projectTargetsSchemaSql,
-        projectsSchemaSql;
 import '../services/logging_service.dart' show loggingServiceProvider;
 import '../services/safe_rig_service.dart';
 import '../services/disk_space_guard.dart' show kSafetyMarginBytes;
 import '../services/scheduler/horizon_profile.dart';
+import '../services/scheduler/horizon_profile_store.dart';
 import '../services/scheduler/integration_goal_service.dart';
 import '../services/scheduler/scheduler_engine.dart';
 import '../services/scheduler/scheduler_log.dart' show schedulerLogSinkFor;

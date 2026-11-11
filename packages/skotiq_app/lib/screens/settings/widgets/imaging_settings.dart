@@ -17,14 +17,7 @@ class ImagingSettings extends ConsumerStatefulWidget {
 }
 
 class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
-  final _patternController = TextEditingController();
   String? _patternError;
-
-  @override
-  void dispose() {
-    _patternController.dispose();
-    super.dispose();
-  }
 
   /// Refuse to persist a pattern the capture pipeline would reject.
   ///
@@ -36,7 +29,9 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
     final check = checkNamingPattern(value);
     if (!check.isValid) {
       if (mounted) setState(() => _patternError = check.error);
-      throw ArgumentError.value(value, 'fileNamingPattern', check.error);
+      throw SettingWriteHandled(
+        ArgumentError.value(value, 'fileNamingPattern', check.error),
+      );
     }
     if (mounted) setState(() => _patternError = null);
     await ref.read(appSettingsProvider.notifier).setFileNamingPattern(value);
@@ -131,7 +126,6 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
                   subtitle:
                       r'Variables: $TARGET, $FILTER, $DATE, $SEQ, $EXPOSURE',
                   trailing: SettingsTextInput(
-                    controller: _patternController,
                     authoritativeValue: settings.fileNamingPattern,
                     authorityKey: authority,
                     width: widget.isMobile ? 160 : 220,

@@ -48,7 +48,7 @@ void main() {
 
     expect(
       find.textContaining('Per-event routing (Settings → Notification Routing) '
-          'maps each event to its transports and is what actually delivers'),
+          'maps each event to its transports and is the only thing that sends'),
       findsOneWidget,
     );
   });

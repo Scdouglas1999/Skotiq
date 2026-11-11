@@ -5,11 +5,9 @@
 /// capture targets ([MosaicProjectPanel] rows) and, once stitched, to the final
 /// integrated mosaic master.
 ///
-/// The two records map 1:1 to the raw-DDL `mosaic_projects` / `mosaic_panels`
-/// tables (see [SkotiqDatabase._createMosaicTables]) and are read/written
-/// via the plain [MosaicProjectsDao] / [MosaicPanelsDao]
-/// (`customSelect`/`customInsert`), mirroring `CampaignsDao` /
-/// `NarrowbandCompositesDao`.
+/// The two records map 1:1 to the `mosaic_projects` / `mosaic_panels` tables
+/// (see `database/schema/mosaic.drift`) and are read/written via
+/// [MosaicProjectsDao] / [MosaicPanelsDao].
 ///
 /// Naming note: the capture-geometry value object [MosaicPanel] in
 /// `services/mosaic_service.dart` is an in-memory generation result and already

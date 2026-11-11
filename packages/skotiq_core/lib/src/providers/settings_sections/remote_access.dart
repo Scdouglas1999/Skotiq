@@ -13,13 +13,9 @@ part of '../settings_provider.dart';
 
 /// Setters for the optional local web-control server.
 extension RemoteAccessSettingsSection on AppSettingsNotifier {
-  Future<void> setWebServerEnabled(bool value) async {
-    await _saveSetting('web_server_enabled', value.toString());
-    _patchState((s) => s.copyWith(webServerEnabled: value));
-  }
+  Future<void> setWebServerEnabled(bool value) =>
+      _set(AppSettingDefs.webServerEnabled, value);
 
-  Future<void> setWebServerPort(int value) async {
-    await _saveSetting('web_server_port', value.toString());
-    _patchState((s) => s.copyWith(webServerPort: value));
-  }
+  Future<void> setWebServerPort(int value) =>
+      _set(AppSettingDefs.webServerPort, value);
 }

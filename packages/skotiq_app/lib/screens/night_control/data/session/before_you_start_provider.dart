@@ -21,11 +21,14 @@ import 'conditions_provider.dart';
 import 'equipment_summary_provider.dart';
 import 'session_format.dart';
 import 'session_stats_provider.dart';
+import '../../../settings/settings_sections.dart';
 
-const String _siteRoute = '/settings?section=location';
-const String _folderRoute = '/settings?section=files-storage';
+final String _siteRoute = settingsLocation(SettingsSectionId.location);
+final String _folderRoute =
+    settingsLocation(SettingsSectionId.filesStorage);
 const String _solverRoute = '/settings/plate-solving';
-const String _weatherRoute = '/settings?section=weather-safety';
+final String _weatherRoute =
+    settingsLocation(SettingsSectionId.weatherSafety);
 
 /// The plate solver the operator picked, and whether it is installed.
 @immutable

@@ -47,37 +47,22 @@ extension PlateSolveSettingsSection on AppSettingsNotifier {
 
   Future<void> _syncPlateSolverProjection(PlateSolverChoice choice) async {
     final label = choice.settingLabel;
-    await _saveSetting('plate_solver', label);
-    _patchState((s) => s.copyWith(plateSolver: label));
+    await _set(AppSettingDefs.plateSolver, label);
   }
 
-  Future<void> setAstapPath(String value) async {
-    await _saveSetting('astap_path', value);
-    _patchState((s) => s.copyWith(astapPath: value));
-  }
+  Future<void> setAstapPath(String value) => _set(AppSettingDefs.astapPath, value);
 
-  Future<void> setAstrometryPath(String value) async {
-    await _saveSetting('astrometry_path', value);
-    _patchState((s) => s.copyWith(astrometryPath: value));
-  }
+  Future<void> setAstrometryPath(String value) =>
+      _set(AppSettingDefs.astrometryPath, value);
 
-  Future<void> setPlateSolveTimeout(int value) async {
-    await _saveSetting('plate_solve_timeout', value.toString());
-    _patchState((s) => s.copyWith(plateSolveTimeout: value));
-  }
+  Future<void> setPlateSolveTimeout(int value) =>
+      _set(AppSettingDefs.plateSolveTimeout, value);
 
-  Future<void> setPlateSolveSearchRadius(double value) async {
-    await _saveSetting('plate_solve_search_radius', value.toString());
-    _patchState((s) => s.copyWith(plateSolveSearchRadius: value));
-  }
+  Future<void> setPlateSolveSearchRadius(double value) =>
+      _set(AppSettingDefs.plateSolveSearchRadius, value);
 
-  Future<void> setBlindSolve(bool value) async {
-    await _saveSetting('blind_solve', value.toString());
-    _patchState((s) => s.copyWith(blindSolve: value));
-  }
+  Future<void> setBlindSolve(bool value) => _set(AppSettingDefs.blindSolve, value);
 
-  Future<void> setCenteringSyncMount(bool value) async {
-    await _saveSetting('centering_sync_mount', value.toString());
-    _patchState((s) => s.copyWith(centeringSyncMount: value));
-  }
+  Future<void> setCenteringSyncMount(bool value) =>
+      _set(AppSettingDefs.centeringSyncMount, value);
 }

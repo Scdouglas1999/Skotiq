@@ -4,16 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/imaging/integrated_master.dart';
 import '../../providers/database_provider.dart';
 import '../database.dart';
+import '../epoch_seconds.dart';
 
 /// Data-access object for the v41 `integrated_masters` + `integrated_master_frames`
 /// tables — the persisted provenance for every archival integrated master the
 /// post-session pipeline produces.
 ///
-/// The tables are managed with raw DDL (see
-/// [SkotiqDatabase._createPostSessionTables]) rather than drift `Table`
-/// classes, so this DAO is a plain class that reads/writes through the
-/// database's `customSelect`/`customStatement`/`customInsert` APIs — mirroring
-/// [StackedResultsDao]. It is deliberately NOT a `@DriftAccessor`.
+/// The tables are declared in `database/schema/post_session.drift`; this DAO queries
+/// with SQL through the database's `customSelect` / `customStatement` APIs.
 ///
 /// SQLite errors propagate, the `(master_id, image_id)` UNIQUE constraint
 /// guards against double-folding a sub, and reads map nullable columns to the
@@ -93,8 +91,8 @@ class IntegratedMastersDao {
         Variable<String>(filter),
         Variable<String>(settingsJson),
         Variable<String>(statsJson),
-        Variable<int>(_toEpochSeconds(createdAt ?? now)),
-        Variable<int>(_toEpochSeconds(updatedAt ?? now)),
+        Variable<int>(toEpochSeconds(createdAt ?? now)),
+        Variable<int>(toEpochSeconds(updatedAt ?? now)),
       ],
     );
   }
@@ -179,7 +177,7 @@ class IntegratedMastersDao {
   }) {
     final sets = <String>['updated_at = ?'];
     final vars = <Variable<Object>>[
-      Variable<int>(_toEpochSeconds(DateTime.now().toUtc())),
+      Variable<int>(toEpochSeconds(DateTime.now().toUtc())),
     ];
     void put(String col, Variable<Object> v) {
       sets.add('$col = ?');
@@ -261,7 +259,7 @@ class IntegratedMastersDao {
   }) {
     final sets = <String>['updated_at = ?'];
     final vars = <Variable<Object>>[
-      Variable<int>(_toEpochSeconds(DateTime.now().toUtc())),
+      Variable<int>(toEpochSeconds(DateTime.now().toUtc())),
     ];
     void put(String col, Variable<Object> v) {
       sets.add('$col = ?');
@@ -327,7 +325,7 @@ class IntegratedMastersDao {
         Variable<double>(cd1_2),
         Variable<double>(cd2_1),
         Variable<double>(cd2_2),
-        Variable<int>(_toEpochSeconds(DateTime.now().toUtc())),
+        Variable<int>(toEpochSeconds(DateTime.now().toUtc())),
         Variable<int>(id),
       ],
       updateKind: UpdateKind.update,
@@ -346,7 +344,7 @@ class IntegratedMastersDao {
   }) {
     final sets = <String>['updated_at = ?'];
     final vars = <Variable<Object>>[
-      Variable<int>(_toEpochSeconds(DateTime.now().toUtc())),
+      Variable<int>(toEpochSeconds(DateTime.now().toUtc())),
     ];
     void put(String col, Variable<Object> v) {
       sets.add('$col = ?');
@@ -443,7 +441,7 @@ class IntegratedMastersDao {
         Variable<double>(alignmentResidualPx),
         Variable<int>(accepted ? 1 : 0),
         Variable<String>(rejectionReason),
-        Variable<int>(_toEpochSeconds((foldedAt ?? DateTime.now()).toUtc())),
+        Variable<int>(toEpochSeconds((foldedAt ?? DateTime.now()).toUtc())),
         Variable<double>(snr),
         Variable<double>(fwhm),
         Variable<double>(eccentricity),
@@ -530,7 +528,7 @@ class IntegratedMastersDao {
         alignmentResidualPx: r.readNullable<double>('alignment_residual_px'),
         accepted: r.read<int>('accepted') != 0,
         rejectionReason: r.readNullable<String>('rejection_reason'),
-        foldedAt: _fromEpochSeconds(r.read<int>('folded_at')),
+        foldedAt: fromEpochSeconds(r.read<int>('folded_at')),
       );
     }).toList();
   }
@@ -563,8 +561,8 @@ class IntegratedMastersDao {
       filter: row.readNullable<String>('filter'),
       settingsJson: row.read<String>('settings_json'),
       statsJson: row.read<String>('stats_json'),
-      createdAt: _fromEpochSeconds(row.read<int>('created_at')),
-      updatedAt: _fromEpochSeconds(row.read<int>('updated_at')),
+      createdAt: fromEpochSeconds(row.read<int>('created_at')),
+      updatedAt: fromEpochSeconds(row.read<int>('updated_at')),
       wcsCrval1: row.readNullable<double>('wcs_crval1'),
       wcsCrval2: row.readNullable<double>('wcs_crval2'),
       wcsCrpix1: row.readNullable<double>('wcs_crpix1'),
@@ -581,12 +579,6 @@ class IntegratedMastersDao {
       colorCalibratedPath: row.readNullable<String>('color_calibrated_path'),
     );
   }
-
-  static int _toEpochSeconds(DateTime when) =>
-      when.toUtc().millisecondsSinceEpoch ~/ 1000;
-
-  static DateTime _fromEpochSeconds(int seconds) =>
-      DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
 }
 
 /// Riverpod provider for [IntegratedMastersDao].

@@ -4,17 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/darkroom/darkroom_job.dart';
 import '../../providers/database_provider.dart';
 import '../database.dart';
+import '../epoch_seconds.dart';
 import '../sqlite_busy.dart';
 
 /// Data-access object for the v58 `darkroom_jobs` table — the durable dawn-job
 /// queue.
 ///
-/// The table is managed with raw DDL (see
-/// [SkotiqDatabase._createDarkroomTables]) rather than a drift `Table`
-/// class, so this DAO is a plain class that reads/writes through the database's
-/// `customSelect`/`customInsert`/`customStatement` APIs — mirroring
-/// [MosaicProjectsDao] and [CampaignsDao]. It is deliberately NOT a
-/// `@DriftAccessor`.
+/// The table is declared in `database/schema/darkroom.drift`; this DAO queries
+/// with SQL through the database's `customSelect` / `customStatement` APIs.
 ///
 /// TYPED TRANSITIONS. Every state-changing method reads the row's current state
 /// first and refuses a move [DarkroomJobState.canTransitionTo] rejects, with a
@@ -23,11 +20,11 @@ import '../sqlite_busy.dart';
 /// that thinks it holds a job it does not must find out.
 ///
 /// CRASH RECOVERY is NOT here. Re-queueing rows left `running` by a dead
-/// process happens once, in `beforeOpen`
-/// (`SkotiqDatabase._recoverInterruptedDarkroomJobs`), because the rule
-/// that makes it sound — nothing can still be running at the moment the
-/// database opens — only holds at open. A second implementation reachable at
-/// other times would re-queue a job a live executor is holding.
+/// process happens once, at start-up (`recoverFromPreviousProcessExit`),
+/// because the rule that makes it sound — nothing can still be running when
+/// the process has only just opened the database — only holds then. A second
+/// implementation reachable at other times would re-queue a job a live
+/// executor is holding.
 ///
 /// LOCK CONTENTION. Every state-changing write runs under
 /// [retryWhileSqliteBusy], on top of the connection-wide
@@ -54,7 +51,7 @@ class DarkroomJobsDao {
     String? note,
     DateTime? createdAt,
   }) {
-    final at = _toEpochSeconds(createdAt ?? DateTime.now());
+    final at = toEpochSeconds(createdAt ?? DateTime.now());
     return retryWhileSqliteBusy(
       () => _db.customInsert(
         'INSERT INTO darkroom_jobs('
@@ -125,7 +122,7 @@ class DarkroomJobsDao {
   /// increments, `started_at` is stamped, and any error text from a previous
   /// attempt is cleared. Returns the job as it now stands.
   Future<DarkroomJob> markRunning(int id, {DateTime? now}) {
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     return retryWhileSqliteBusy(() async {
       // Inside the retry so a re-attempt re-reads the row: the transition is
       // re-checked against what is actually stored, and a busy `UPDATE`
@@ -211,7 +208,7 @@ class DarkroomJobsDao {
   /// Finish a running job: state becomes [DarkroomJobState.done], progress
   /// reaches 1.0, `finished_at` is stamped. Returns the job as it now stands.
   Future<DarkroomJob> markDone(int id, {String? note, DateTime? now}) {
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     return retryWhileSqliteBusy(() async {
       await _requireTransition(id, DarkroomJobState.done);
       await _db.customUpdate(
@@ -233,7 +230,7 @@ class DarkroomJobsDao {
   /// the report can state how far the attempt got. Returns the job as it now
   /// stands.
   Future<DarkroomJob> markFailed(int id, String errorText, {DateTime? now}) {
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     return retryWhileSqliteBusy(() async {
       await _requireTransition(id, DarkroomJobState.failed);
       await _db.customUpdate(
@@ -254,7 +251,7 @@ class DarkroomJobsDao {
   /// Cancel a queued or running job, recording [reason] as its error text.
   /// Progress is left where it stopped. Returns the job as it now stands.
   Future<DarkroomJob> markCancelled(int id, {String? reason, DateTime? now}) {
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     return retryWhileSqliteBusy(() async {
       await _requireTransition(id, DarkroomJobState.cancelled);
       await _db.customUpdate(
@@ -347,17 +344,11 @@ class DarkroomJobsDao {
       note: row.readNullable<String>('note'),
       errorText: row.readNullable<String>('error_text'),
       attempts: row.read<int>('attempts'),
-      createdAt: _fromEpochSeconds(row.read<int>('created_at')),
-      startedAt: startedAt == null ? null : _fromEpochSeconds(startedAt),
-      finishedAt: finishedAt == null ? null : _fromEpochSeconds(finishedAt),
+      createdAt: fromEpochSeconds(row.read<int>('created_at')),
+      startedAt: startedAt == null ? null : fromEpochSeconds(startedAt),
+      finishedAt: finishedAt == null ? null : fromEpochSeconds(finishedAt),
     );
   }
-
-  static int _toEpochSeconds(DateTime when) =>
-      when.toUtc().millisecondsSinceEpoch ~/ 1000;
-
-  static DateTime _fromEpochSeconds(int seconds) =>
-      DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
 }
 
 /// Riverpod provider for [DarkroomJobsDao].

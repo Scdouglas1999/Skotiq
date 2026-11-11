@@ -9,14 +9,12 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
 
 import '../utils/skotiq_data_directory.dart';
 
-import '../models/darkroom/darkroom_job.dart' show kDarkroomJobMaxAttempts;
-import '../models/settings/app_settings.dart' show kDefaultAccentColorHex;
-import '../services/quality_stop_migration.dart';
+import '../settings/app_settings_install_rows.dart';
 import 'integrity_check.dart' as integrity;
 import 'integrity_check.dart'
     show DatabaseRecoveryMarker, QuarantinedDatabaseCheck;
-import 'integration_stage_marker.dart';
-import 'session_orphan_sweep.dart';
+import 'quality_stop_migration.dart';
+import 'recovery/crash_recovery.dart';
 import 'solved_rotation_repair.dart';
 import 'single_instance_lock.dart';
 import 'sqlite_busy.dart';
@@ -71,6 +69,12 @@ import 'daos/constellation_contributions_dao.dart';
 import 'daos/coimaging_sessions_dao.dart';
 import 'daos/transient_detections_dao.dart';
 import 'daos/living_sky_retention_dao.dart';
+import 'daos/planning_dao.dart';
+import 'daos/notes_journal_dao.dart';
+import 'daos/sequence_decisions_dao.dart';
+import 'daos/conversational_builds_dao.dart';
+import 'daos/darkroom_state_dao.dart';
+import 'daos/frame_forensics_dao.dart';
 
 part 'database.g.dart';
 part 'database/migration_strategy.dart';
@@ -102,12 +106,20 @@ part 'database/migration_v61.dart';
 part 'database/migration_v62.dart';
 part 'database/migration_v63.dart';
 part 'database/migration_v64.dart';
+part 'database/migration_v65.dart';
 part 'database/schema_helpers.dart';
 part 'database/default_settings.dart';
 part 'database/connection.dart';
 
 /// The main database class for Skotiq
 @DriftDatabase(
+  include: {
+    'schema/post_session.drift',
+    'schema/mosaic.drift',
+    'schema/darkroom.drift',
+    'schema/planning.drift',
+    'schema/run_records.drift',
+  },
   tables: [
     EquipmentProfiles,
     ImagingSessions,
@@ -178,6 +190,12 @@ part 'database/connection.dart';
     CoImagingSessionsDao,
     TransientDetectionsDao,
     LivingSkyRetentionDao,
+    PlanningDao,
+    NotesJournalDao,
+    SequenceDecisionsDao,
+    ConversationalBuildsDao,
+    DarkroomStateDao,
+    FrameForensicsDao,
   ],
 )
 class SkotiqDatabase extends _$SkotiqDatabase {
@@ -187,10 +205,32 @@ class SkotiqDatabase extends _$SkotiqDatabase {
   SkotiqDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 64;
+  int get schemaVersion => 65;
 
   @override
   MigrationStrategy get migration => _buildMigrationStrategy();
+
+  /// The directory holding this connection's database file, or null when the
+  /// database has no file (an in-memory test connection).
+  ///
+  /// Asked of SQLite rather than re-derived from
+  /// [resolveDefaultDatabaseFile]: a test opens an explicit temp file and a
+  /// headless daemon opens `SKOTIQ_DATABASE_DIR`, and `database_list`
+  /// reports whichever one this connection actually holds.
+  Future<Directory?> databaseDirectory() async {
+    final rows = await customSelect('PRAGMA database_list').get();
+    for (final row in rows) {
+      if (row.data['name'] != 'main') continue;
+      // `file` is the empty string for an in-memory database and null on the
+      // builds that omit the column — neither has a directory to put a marker
+      // in, and both are answered by "no directory" rather than by a path
+      // derived from nothing.
+      final file = row.data['file'];
+      if (file is! String || file.isEmpty) return null;
+      return Directory(p.dirname(file));
+    }
+    return null;
+  }
 
   /// One-shot UI hook: returns a [DatabaseRecoveryMarker] iff the previous
   /// app launch rotated a corrupt database into a forensic backup, then

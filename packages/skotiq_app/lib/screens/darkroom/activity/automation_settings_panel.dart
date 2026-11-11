@@ -1,20 +1,14 @@
 import '../processing_options_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/user_facing_error.dart';
 import '../../session_review/auto_integration_service.dart';
 import '../../settings/delivery_settings.dart';
-import '../../settings/settings_screen.dart' show SettingsSectionRequest;
+import '../../settings/settings_sections.dart';
 import 'activity_panel.dart';
-
-void _openSettings(BuildContext context, String sectionKey) {
-  SettingsSectionRequest.raise(sectionKey);
-  context.go('/settings?section=$sectionKey');
-}
 
 /// What Delivery holds for the night right now, in one sentence, from the
 /// same verdict the Delivery page states for each destination.
@@ -136,7 +130,10 @@ class _AutomationSettingsPanelState
             onChanged: (on) => _save((a) => a.setCalibrate(on)),
             link: (
               'Calibration options',
-              () => _openSettings(context, 'end-of-night-calibration'),
+              () => openSettings(
+                context,
+                SettingsSectionId.endOfNightCalibration,
+              ),
             ),
           ),
           _Step(
@@ -196,7 +193,10 @@ class _AutomationSettingsPanelState
             enabled: loaded && s.build,
             disabledReason: s.build ? null : 'Needs Build masters.',
             onChanged: (on) => _save((a) => a.setDeliver(on)),
-            link: ('Destinations', () => _openSettings(context, 'delivery')),
+            link: (
+              'Destinations',
+              () => openSettings(context, SettingsSectionId.delivery),
+            ),
           ),
           _Step(
             number: 4,
@@ -211,7 +211,7 @@ class _AutomationSettingsPanelState
             onChanged: (on) => _save((a) => a.setMorningMessage(on)),
             link: (
               'Notifications',
-              () => _openSettings(context, 'notifications'),
+              () => openSettings(context, SettingsSectionId.notifications),
             ),
             last: true,
           ),

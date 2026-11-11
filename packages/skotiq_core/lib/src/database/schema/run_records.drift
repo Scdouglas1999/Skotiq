@@ -1,0 +1,93 @@
+-- Records written while a run executes or right after it: the notes journal,
+-- the replay decision log, conversational-build history and frame forensics.
+-- Timestamps are INTEGER unix seconds (UTC) unless a column says otherwise.
+
+import '../tables/captured_images.dart';
+
+-- Per-target and per-run notes. created_at / updated_at are unix MILLISECONDS.
+--
+-- id is a UUID, never reused. target_id is a logical identifier (a catalog id
+-- such as "M31", or the display name), not targets.id, so renaming or
+-- recreating a target row does not orphan its notes. sequence_run_id points
+-- at sequence_runs without a foreign key, so deleting an old run keeps the
+-- note. tags_json / attachments_json are JSON arrays of strings; sentiment is
+-- the emoji from the auto-prompt dropdown, or NULL.
+CREATE TABLE notes_journal (
+  id TEXT PRIMARY KEY NOT NULL,
+  target_id TEXT NOT NULL,
+  sequence_run_id INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  title TEXT,
+  body TEXT NOT NULL,
+  tags_json TEXT NOT NULL DEFAULT '[]',
+  attachments_json TEXT NOT NULL DEFAULT '[]',
+  sentiment TEXT
+) AS NotesJournalRow;
+
+CREATE INDEX IF NOT EXISTS idx_notes_journal_target ON notes_journal (target_id);
+CREATE INDEX IF NOT EXISTS idx_notes_journal_run ON notes_journal (sequence_run_id);
+CREATE INDEX IF NOT EXISTS idx_notes_journal_created ON notes_journal (created_at);
+
+-- Replay decision log, one row per executor decision. sequence_run_id has no
+-- foreign key: the log outlives the run row. category is the DecisionCategory
+-- wire key.
+CREATE TABLE sequence_decisions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  sequence_run_id INTEGER,
+  timestamp_unix_ms INTEGER NOT NULL,
+  category TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  details_json TEXT NOT NULL DEFAULT '{}',
+  node_id TEXT
+) AS SequenceDecisionRow;
+
+CREATE INDEX IF NOT EXISTS idx_sequence_decisions_run ON sequence_decisions (sequence_run_id);
+CREATE INDEX IF NOT EXISTS idx_sequence_decisions_timestamp ON sequence_decisions (timestamp_unix_ms);
+CREATE INDEX IF NOT EXISTS idx_sequence_decisions_category ON sequence_decisions (category);
+CREATE INDEX IF NOT EXISTS idx_sequence_decisions_run_ts ON sequence_decisions (sequence_run_id, timestamp_unix_ms);
+
+-- History of conversational sequence builds. created_at is unix MILLISECONDS.
+CREATE TABLE conversational_builds (
+  id TEXT PRIMARY KEY NOT NULL,
+  created_at INTEGER NOT NULL,
+  user_prompt TEXT NOT NULL,
+  provider_name TEXT NOT NULL,
+  provider_kind TEXT NOT NULL,
+  rounds INTEGER NOT NULL,
+  successful INTEGER NOT NULL,
+  prompt_tokens INTEGER,
+  completion_tokens INTEGER,
+  total_tokens INTEGER,
+  issues_json TEXT NOT NULL DEFAULT '[]',
+  accepted_sequence_id TEXT,
+  system_prompt TEXT NOT NULL DEFAULT '',
+  replies_json TEXT NOT NULL DEFAULT '[]'
+) AS ConversationalBuildRow;
+
+CREATE INDEX IF NOT EXISTS idx_conversational_builds_created ON conversational_builds (created_at);
+
+-- Why a frame was rejected, with the evidence.
+CREATE TABLE frame_forensics (
+  id TEXT PRIMARY KEY NOT NULL,
+  captured_image_id INTEGER REFERENCES captured_images(id) ON DELETE CASCADE,
+  session_id TEXT,
+  sequence_run_id INTEGER,
+  node_id TEXT,
+  frame_index INTEGER NOT NULL,
+  total_frames INTEGER NOT NULL,
+  reject_path TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  likely_cause TEXT NOT NULL DEFAULT 'unknown',
+  evidence_json TEXT NOT NULL DEFAULT '[]',
+  environment_json TEXT NOT NULL DEFAULT '{}',
+  hfr REAL,
+  eccentricity REAL,
+  star_count INTEGER,
+  created_at INTEGER NOT NULL
+) AS FrameForensicsRow;
+
+CREATE INDEX IF NOT EXISTS idx_frame_forensics_session ON frame_forensics (session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_frame_forensics_run ON frame_forensics (sequence_run_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_frame_forensics_cause ON frame_forensics (likely_cause, created_at);
+CREATE INDEX IF NOT EXISTS idx_frame_forensics_image ON frame_forensics (captured_image_id);

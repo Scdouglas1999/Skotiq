@@ -20,10 +20,9 @@ extension _SkotiqDatabaseMigrationV54 on SkotiqDatabase {
   /// v52/v53 style — because the v2–v17 migration chain recreates tables from
   /// the CURRENT Drift schema (which already declares these), so a blind
   /// `createTable` / `ADD COLUMN` would throw on upgrade paths that pass through
-  /// such a step. The table-level `@TableIndex` (the unique
-  /// `(hubKey, tileId, healpixOrder)` key) is materialized by `createTable`, and
-  /// `_createCustomIndexes` is re-run by the migration strategy afterwards, so
-  /// no extra index DDL is needed here.
+  /// such a step. Whatever index a step here does not create itself is created
+  /// by the pass that closes every upgrade (`_createMissing` over the whole
+  /// schema).
   ///
   /// Drift stores `DateTime` as an INTEGER (epoch), so `atlas_folded_at` is
   /// declared `INTEGER` in the raw ALTER below.

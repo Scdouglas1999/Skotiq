@@ -177,7 +177,7 @@ void main() {
         db,
       ).readAll()).undecodable.single.reason;
       // `content_json` carries no CHECK constraint (see
-      // `_createDarkroomTables`); saying it does points the operator at a
+      // `schema/darkroom.drift`); saying it does points the operator at a
       // database rule that never ran.
       expect(reason, isNot(contains('CHECK')));
       expect(reason, contains('hdr_composite'));

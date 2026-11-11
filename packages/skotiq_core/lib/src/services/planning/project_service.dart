@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../backend/network_backend.dart';
@@ -10,46 +10,6 @@ import '../../models/planning/project_progress.dart';
 import '../../providers/backend_provider.dart';
 import '../../providers/database_provider.dart';
 import '../scheduler/integration_goal_service.dart';
-
-/// SQL schema for the multi-night planner's `projects` and `project_targets`
-/// tables.
-///
-/// These are managed outside Drift's `@DriftDatabase` declaration (which would
-/// require a codegen pass) by issuing raw `CREATE TABLE IF NOT EXISTS`
-/// statements on first access — the dominant v27+ scheduler-stack convention
-/// (`integration_goals`, `target_constraints`, `horizon_profiles`,
-/// `stacked_results`). The canonical schema lives in
-/// `database.dart`'s `_createProjectsTables()` (migration v40); the DDL is
-/// duplicated here verbatim so a fresh test database constructed without
-/// running the migration still works. The two MUST stay identical.
-const _projectsSchema = '''
-CREATE TABLE IF NOT EXISTS projects(
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  description TEXT,
-  color_argb INTEGER,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-)
-''';
-
-const _projectTargetsSchema = '''
-CREATE TABLE IF NOT EXISTS project_targets(
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  target_id INTEGER NOT NULL REFERENCES targets(id) ON DELETE CASCADE,
-  priority_override INTEGER,
-  added_at INTEGER NOT NULL,
-  UNIQUE(project_id, target_id)
-)
-''';
-
-const _projectTargetsProjectIndex =
-    'CREATE INDEX IF NOT EXISTS idx_project_targets_project '
-    'ON project_targets (project_id)';
-const _projectTargetsTargetIndex =
-    'CREATE INDEX IF NOT EXISTS idx_project_targets_target '
-    'ON project_targets (target_id)';
 
 /// Persistence + business-logic for multi-night planning projects.
 ///
@@ -62,22 +22,13 @@ const _projectTargetsTargetIndex =
 /// derived from `captured_images` (the single source of truth) so it cannot
 /// drift out of sync when a frame is rejected, deleted, or re-graded.
 ///
-/// The `projects` / `project_targets` tables are created with raw DDL and are
-/// invisible to Drift's reactive `watch()` graph, so this class exposes a
-/// manual broadcast [watchChanges] stream that every mutation method fires —
-/// mirroring [IntegrationGoalService.watchAll]. The UI layer listens to it to
+/// Every mutation method fires the broadcast [watchChanges] stream, mirroring
+/// [IntegrationGoalService.watchAll]. The UI layer listens to it to
 /// invalidate derived providers.
 class ProjectService {
   final db.SkotiqDatabase _db;
   final IntegrationGoalService _goalService;
 
-  bool _schemaEnsured = false;
-
-  // Manual change-notification channel for the raw `projects` /
-  // `project_targets` tables: Drift's reactive `watch()` only fires for tables
-  // it knows about via codegen, and these tables are created out-of-band with
-  // raw SQL. Every mutation method below calls `_notifyMutated()` so listeners
-  // of [watchChanges] see the change immediately.
   final StreamController<void> _mutations = StreamController<void>.broadcast();
 
   /// Non-null on a remote SLAVE: the `projects` / `project_targets` tables and
@@ -111,21 +62,7 @@ class ProjectService {
     await _mutations.close();
   }
 
-  /// Idempotently create the planner tables on first access. Defensive: the
-  /// v40 migration normally creates them, but a fresh test database built with
-  /// `SkotiqDatabase.forTesting` may skip migrations, and re-running the
-  /// DDL on an existing schema is a no-op (`IF NOT EXISTS`).
-  Future<void> _ensureSchema() async {
-    if (_schemaEnsured) return;
-    await _db.customStatement(_projectsSchema);
-    await _db.customStatement(_projectTargetsSchema);
-    await _db.customStatement(_projectTargetsProjectIndex);
-    await _db.customStatement(_projectTargetsTargetIndex);
-    _schemaEnsured = true;
-  }
-
-  /// Current wall-clock time in Unix seconds (UTC), the storage convention for
-  /// the scheduler-stack raw tables.
+  /// Current wall-clock time in Unix seconds (UTC), as these tables store it.
   static int _nowUnix() =>
       DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
 
@@ -139,22 +76,15 @@ class ProjectService {
     int? colorArgb,
   }) async {
     _assertLocalWrite('createProject');
-    await _ensureSchema();
     final now = _nowUnix();
-    final id = await _db.customInsert(
-      'INSERT INTO projects (name, description, color_argb, created_at, updated_at) '
-      'VALUES (?, ?, ?, ?, ?)',
-      variables: [
-        Variable.withString(name),
-        description == null
-            ? const Variable<String>(null)
-            : Variable.withString(description),
-        colorArgb == null
-            ? const Variable<int>(null)
-            : Variable.withInt(colorArgb),
-        Variable.withInt(now),
-        Variable.withInt(now),
-      ],
+    final id = await _db.planningDao.insertProject(
+      db.ProjectsCompanion.insert(
+        name: name,
+        description: Value(description),
+        colorArgb: Value(colorArgb),
+        createdAt: now,
+        updatedAt: now,
+      ),
     );
     _notifyMutated();
     return id;
@@ -165,7 +95,6 @@ class ProjectService {
   /// mutation timestamp). Requires a non-null [Project.id].
   Future<void> updateProject(Project project) async {
     _assertLocalWrite('updateProject');
-    await _ensureSchema();
     final id = project.id;
     if (id == null) {
       throw ArgumentError.value(
@@ -174,10 +103,14 @@ class ProjectService {
         'updateProject requires a persisted project with a non-null id',
       );
     }
-    await _db.customStatement(
-      'UPDATE projects SET name = ?, description = ?, color_argb = ?, updated_at = ? '
-      'WHERE id = ?',
-      [project.name, project.description, project.colorArgb, _nowUnix(), id],
+    await _db.planningDao.updateProject(
+      id,
+      db.ProjectsCompanion(
+        name: Value(project.name),
+        description: Value(project.description),
+        colorArgb: Value(project.colorArgb),
+        updatedAt: Value(_nowUnix()),
+      ),
     );
     _notifyMutated();
   }
@@ -187,8 +120,7 @@ class ProjectService {
   /// enabled in the database's `beforeOpen`).
   Future<void> deleteProject(int id) async {
     _assertLocalWrite('deleteProject');
-    await _ensureSchema();
-    await _db.customStatement('DELETE FROM projects WHERE id = ?', [id]);
+    await _db.planningDao.deleteProject(id);
     _notifyMutated();
   }
 
@@ -198,13 +130,7 @@ class ProjectService {
     if (remote != null) {
       return remote.getProjects();
     }
-    await _ensureSchema();
-    final rows = await _db
-        .customSelect(
-          'SELECT id, name, description, color_argb, created_at, updated_at '
-          'FROM projects ORDER BY updated_at DESC, id DESC',
-        )
-        .get();
+    final rows = await _db.planningDao.allProjects();
     return rows.map(_rowToProject).toList();
   }
 
@@ -218,16 +144,8 @@ class ProjectService {
       }
       return null;
     }
-    await _ensureSchema();
-    final row = await _db
-        .customSelect(
-          'SELECT id, name, description, color_argb, created_at, updated_at '
-          'FROM projects WHERE id = ?',
-          variables: [Variable.withInt(id)],
-        )
-        .getSingleOrNull();
-    if (row == null) return null;
-    return _rowToProject(row);
+    final row = await _db.planningDao.project(id);
+    return row == null ? null : _rowToProject(row);
   }
 
   // Membership
@@ -242,18 +160,13 @@ class ProjectService {
     int? priorityOverride,
   }) async {
     _assertLocalWrite('addTarget');
-    await _ensureSchema();
-    await _db.customInsert(
-      'INSERT OR IGNORE INTO project_targets '
-      '(project_id, target_id, priority_override, added_at) VALUES (?, ?, ?, ?)',
-      variables: [
-        Variable.withInt(projectId),
-        Variable.withInt(targetId),
-        priorityOverride == null
-            ? const Variable<int>(null)
-            : Variable.withInt(priorityOverride),
-        Variable.withInt(_nowUnix()),
-      ],
+    await _db.planningDao.addProjectTarget(
+      db.ProjectTargetsCompanion.insert(
+        projectId: projectId,
+        targetId: targetId,
+        priorityOverride: Value(priorityOverride),
+        addedAt: _nowUnix(),
+      ),
     );
     _notifyMutated();
   }
@@ -265,10 +178,9 @@ class ProjectService {
     required int targetId,
   }) async {
     _assertLocalWrite('removeTarget');
-    await _ensureSchema();
-    await _db.customStatement(
-      'DELETE FROM project_targets WHERE project_id = ? AND target_id = ?',
-      [projectId, targetId],
+    await _db.planningDao.removeProjectTarget(
+      projectId: projectId,
+      targetId: targetId,
     );
     _notifyMutated();
   }
@@ -282,11 +194,10 @@ class ProjectService {
     int? priorityOverride,
   }) async {
     _assertLocalWrite('setPriorityOverride');
-    await _ensureSchema();
-    await _db.customStatement(
-      'UPDATE project_targets SET priority_override = ? '
-      'WHERE project_id = ? AND target_id = ?',
-      [priorityOverride, projectId, targetId],
+    await _db.planningDao.setProjectTargetPriority(
+      projectId: projectId,
+      targetId: targetId,
+      priorityOverride: priorityOverride,
     );
     _notifyMutated();
   }
@@ -297,14 +208,7 @@ class ProjectService {
     if (remote != null) {
       return remote.getProjectTargets(projectId);
     }
-    await _ensureSchema();
-    final rows = await _db
-        .customSelect(
-          'SELECT id, project_id, target_id, priority_override, added_at '
-          'FROM project_targets WHERE project_id = ? ORDER BY added_at ASC, id ASC',
-          variables: [Variable.withInt(projectId)],
-        )
-        .get();
+    final rows = await _db.planningDao.projectTargetsOf(projectId);
     return rows.map(_rowToProjectTarget).toList();
   }
 
@@ -316,15 +220,8 @@ class ProjectService {
       final targets = await remote.getProjectTargets(projectId);
       return targets.map((t) => t.targetId).toList();
     }
-    await _ensureSchema();
-    final rows = await _db
-        .customSelect(
-          'SELECT target_id FROM project_targets WHERE project_id = ? '
-          'ORDER BY added_at ASC, id ASC',
-          variables: [Variable.withInt(projectId)],
-        )
-        .get();
-    return rows.map((r) => r.read<int>('target_id')).toList();
+    final rows = await _db.planningDao.projectTargetsOf(projectId);
+    return rows.map((r) => r.targetId).toList();
   }
 
   // Progress derivation
@@ -349,7 +246,6 @@ class ProjectService {
       // slave's local DB is empty, so compute it host-side and mirror it.
       return remote.getProjectProgress(projectId);
     }
-    await _ensureSchema();
     final project = await getProject(projectId);
     if (project == null) {
       throw StateError('Project $projectId not found');
@@ -360,12 +256,7 @@ class ProjectService {
 
     for (final membership in memberships) {
       final targetId = membership.targetId;
-      final targetRow = await _db
-          .customSelect(
-            'SELECT name, ra, dec FROM targets WHERE id = ?',
-            variables: [Variable.withInt(targetId)],
-          )
-          .getSingleOrNull();
+      final targetRow = await _db.targetsDao.getTargetById(targetId);
       if (targetRow == null) {
         throw StateError(
           'Project $projectId references target $targetId, which no longer '
@@ -393,9 +284,9 @@ class ProjectService {
       targetProgress.add(
         ProjectTargetProgress(
           targetId: targetId,
-          targetName: targetRow.read<String>('name'),
-          raHours: targetRow.read<double>('ra'),
-          decDegrees: targetRow.read<double>('dec'),
+          targetName: targetRow.name,
+          raHours: targetRow.ra,
+          decDegrees: targetRow.dec,
           filters: lines,
         ),
       );
@@ -411,34 +302,27 @@ class ProjectService {
 
   // Row mappers
 
-  Project _rowToProject(QueryRow row) {
+  Project _rowToProject(db.ProjectRow row) {
     return Project.fromRow(
-      id: row.read<int>('id'),
-      name: row.read<String>('name'),
-      description: row.readNullable<String>('description'),
-      colorArgb: row.readNullable<int>('color_argb'),
-      createdAtUnix: row.read<int>('created_at'),
-      updatedAtUnix: row.read<int>('updated_at'),
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      colorArgb: row.colorArgb,
+      createdAtUnix: row.createdAt,
+      updatedAtUnix: row.updatedAt,
     );
   }
 
-  ProjectTarget _rowToProjectTarget(QueryRow row) {
+  ProjectTarget _rowToProjectTarget(db.ProjectTargetRow row) {
     return ProjectTarget.fromRow(
-      id: row.read<int>('id'),
-      projectId: row.read<int>('project_id'),
-      targetId: row.read<int>('target_id'),
-      priorityOverride: row.readNullable<int>('priority_override'),
-      addedAtUnix: row.read<int>('added_at'),
+      id: row.id,
+      projectId: row.projectId,
+      targetId: row.targetId,
+      priorityOverride: row.priorityOverride,
+      addedAtUnix: row.addedAt,
     );
   }
 }
-
-/// DDL strings exported so other call sites (e.g. a future scheduler engine
-/// init that ensures every planner table exists in one place) can reuse them.
-const String projectsSchemaSql = _projectsSchema;
-const String projectTargetsSchemaSql = _projectTargetsSchema;
-const String projectTargetsProjectIndexSql = _projectTargetsProjectIndex;
-const String projectTargetsTargetIndexSql = _projectTargetsTargetIndex;
 
 final projectServiceProvider = Provider<ProjectService>((ref) {
   final backend = ref.watch(backendProvider);

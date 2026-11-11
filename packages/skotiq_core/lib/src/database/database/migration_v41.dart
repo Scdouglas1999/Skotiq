@@ -22,7 +22,7 @@ extension _SkotiqDatabaseMigrationV41 on SkotiqDatabase {
   /// migration is re-runnable.
   Future<void> _upgradeSchemaV41(Migrator m, int from) async {
     if (from < 41) {
-      await _createPostSessionTables();
+      await _createPostSessionTables(m);
     }
   }
 }

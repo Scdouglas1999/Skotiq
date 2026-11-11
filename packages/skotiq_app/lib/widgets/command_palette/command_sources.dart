@@ -8,14 +8,13 @@ import 'package:skotiq_astro/skotiq_astro.dart' show CelestialObject;
 
 import '../../localization/skotiq_localizations.dart';
 import '../../screens/settings/settings_catalog.dart';
-import '../../screens/settings/settings_screen.dart'
-    show SettingsSectionRequest;
 import '../../screens/equipment/utils/connect_all_action.dart';
 import '../../screens/settings/settings_search_index.g.dart';
 import '../../screens/shell/shell_navigation.dart';
 import '../../services/mount_command_service.dart';
 import '../../services/sequence_action_service.dart';
 import 'command_entry.dart';
+import '../../screens/settings/settings_sections.dart';
 
 /// Every rail destination, every Settings section, and the screens that own a
 /// route but no rail slot.
@@ -139,7 +138,7 @@ List<CommandEntry> buildScreenEntries(BuildContext context) {
           label: section.label,
           hint: group.displayTitle,
           keywords: section.keywords,
-          invoke: (context, ref) => _openSettingsSection(context, section.key),
+          invoke: (context, ref) => openSettings(context, section.id),
         ),
       );
     }
@@ -194,22 +193,13 @@ List<CommandEntry> buildSettingEntries(BuildContext context, String query) {
           label: label,
           hint: section.label,
           keywords: label == term ? const [] : [term],
-          invoke: (context, ref) => _openSettingsSection(context, sectionKey),
+          invoke: (context, ref) =>
+              openSettings(context, SettingsSectionId.resolve(sectionKey)),
         ),
       );
     }
   });
   return entries;
-}
-
-/// Deep-link into a Settings section.
-///
-/// Raised as an EVENT as well as a route, because a second invocation while
-/// Settings is already open carries an identical route and would otherwise
-/// move nothing. This is the same pair the top bar's Settings shortcut used.
-void _openSettingsSection(BuildContext context, String sectionKey) {
-  SettingsSectionRequest.raise(sectionKey);
-  context.go('/settings?section=$sectionKey');
 }
 
 /// The things the palette DOES.

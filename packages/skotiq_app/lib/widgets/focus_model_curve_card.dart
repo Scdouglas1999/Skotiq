@@ -48,6 +48,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'focuser_backlash/focuser_backlash_offer.dart';
+import '../screens/settings/settings_sections.dart';
 part 'focus_model_curve_card/chart.dart';
 part 'focus_model_curve_card/actions.dart';
 part 'focus_model_curve_card/filter_offsets.dart';
@@ -210,13 +211,12 @@ class _FocusModelCurveCardState extends ConsumerState<FocusModelCurveCard> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
-          // `focus-model` is a supported Settings alias for the merged
-          // Autofocus section. If this package is embedded without a router or
-          // callback, leave the InkWell honestly disabled.
+          // The focus model is part of the Autofocus section. Without a router
+          // or callback the InkWell stays disabled.
           onTap: onOpenFullScreen ??
               (router == null
                   ? null
-                  : () => router.go('/settings?section=focus-model')),
+                  : () => router.goToSettings(SettingsSectionId.autofocus)),
           child: _frame(colors, child: content),
         ),
       );

@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../utils/exported_file_reveal.dart';
 import '../../utils/snackbar_helper.dart';
+import '../settings/settings_sections.dart';
 
 /// Directory the desktop save dialog should open in.
 ///
@@ -106,7 +107,7 @@ class _DiagnosticDumpScreenState extends ConsumerState<DiagnosticDumpScreen> {
                     context.pop();
                   } else {
                     // Tooltip says "Back to help" — land on Help & Tutorials.
-                    context.go('/settings?section=help');
+                    openSettings(context, SettingsSectionId.help);
                   }
                 },
               ),

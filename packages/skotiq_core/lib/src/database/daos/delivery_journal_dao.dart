@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/darkroom/delivery.dart';
 import '../../providers/database_provider.dart';
 import '../database.dart';
+import '../epoch_seconds.dart';
 
 /// An outcome was recorded for a (destination, job, file) that has no journal
 /// row — nothing ever recorded an attempt for it.
@@ -27,12 +28,8 @@ class DeliveryJournalMissingException implements Exception {
 /// Data-access object for the v58 `delivery_journal` table — what was sent
 /// where, how big it was, and how it ended.
 ///
-/// The table is managed with raw DDL (see
-/// [SkotiqDatabase._createDarkroomTables]) rather than a drift `Table`
-/// class, so this DAO is a plain class that reads/writes through the database's
-/// `customSelect`/`customInsert`/`customStatement` APIs — mirroring
-/// [MosaicProjectsDao] and [CampaignsDao]. It is deliberately NOT a
-/// `@DriftAccessor`.
+/// The table is declared in `database/schema/darkroom.drift`; this DAO queries
+/// with SQL through the database's `customSelect` / `customStatement` APIs.
 ///
 /// UPSERT ON RETRY. `(target_id, job_id, file_path)` is the row identity, so a
 /// file retried overnight keeps ONE row carrying its running `attempts` count
@@ -90,7 +87,7 @@ class DeliveryJournalDao {
         'a file size cannot be negative',
       );
     }
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     await _db.customStatement(
       'INSERT INTO delivery_journal('
       'target_id, job_id, file_path, bytes, state, attempts, '
@@ -151,7 +148,7 @@ class DeliveryJournalDao {
         'a file size cannot be negative',
       );
     }
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     await _db.customStatement(
       'INSERT INTO delivery_journal('
       'target_id, job_id, file_path, bytes, state, attempts, last_error, '
@@ -189,7 +186,7 @@ class DeliveryJournalDao {
     DateTime? now,
   }) async {
     await _require(targetId, jobId, filePath);
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     await _db.customUpdate(
       'UPDATE delivery_journal SET state = ?, checksum = COALESCE(?, checksum), '
       'bytes = COALESCE(NULLIF(?, 0), bytes), '
@@ -270,7 +267,7 @@ class DeliveryJournalDao {
     DateTime? now,
   }) async {
     await _require(targetId, jobId, filePath);
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     await _db.customUpdate(
       'UPDATE delivery_journal SET state = ?, attempts = 0, '
       'delivered_at = NULL, updated_at = ? '
@@ -369,7 +366,7 @@ class DeliveryJournalDao {
     DateTime? now,
   }) async {
     await _require(targetId, jobId, filePath);
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     await _db.customUpdate(
       'UPDATE delivery_journal SET state = ?, last_error = ?, updated_at = ? '
       'WHERE target_id = ? AND job_id = ? AND file_path = ? AND state <> ?',
@@ -415,17 +412,11 @@ class DeliveryJournalDao {
       state: DeliveryAttemptState.fromWire(row.read<String>('state')),
       attempts: row.read<int>('attempts'),
       lastError: row.readNullable<String>('last_error'),
-      createdAt: _fromEpochSeconds(row.read<int>('created_at')),
-      updatedAt: _fromEpochSeconds(row.read<int>('updated_at')),
-      deliveredAt: deliveredAt == null ? null : _fromEpochSeconds(deliveredAt),
+      createdAt: fromEpochSeconds(row.read<int>('created_at')),
+      updatedAt: fromEpochSeconds(row.read<int>('updated_at')),
+      deliveredAt: deliveredAt == null ? null : fromEpochSeconds(deliveredAt),
     );
   }
-
-  static int _toEpochSeconds(DateTime when) =>
-      when.toUtc().millisecondsSinceEpoch ~/ 1000;
-
-  static DateTime _fromEpochSeconds(int seconds) =>
-      DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
 }
 
 /// Riverpod provider for [DeliveryJournalDao].

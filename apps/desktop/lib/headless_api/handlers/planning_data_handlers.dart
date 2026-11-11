@@ -334,30 +334,9 @@ class PlanningDataHandlers implements RouteSource {
   /// GET /api/horizon-profiles
   Future<Response> handleGetHorizonProfiles(Request request) async {
     try {
-      final db = container.read(databaseProvider);
-      // Ensure the table exists before reading (mirrors the loader's defensive
-      // DDL — a host that has never opened the scheduler UI may not have it).
-      // DDL inlined because the canonical constant is hidden from the barrel;
-      // it is `CREATE TABLE IF NOT EXISTS`, so this is a no-op on an existing
-      // schema and stays identical to ProjectService/IntegrationGoalService.
-      await db.customStatement(
-        'CREATE TABLE IF NOT EXISTS horizon_profiles ('
-        'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-        'name TEXT NOT NULL, '
-        'samples_json TEXT NOT NULL)',
+      final profiles = await loadHorizonProfiles(
+        container.read(databaseProvider),
       );
-      final rows = await db
-          .customSelect('SELECT id, name, samples_json FROM horizon_profiles')
-          .get();
-      final profiles = rows
-          .map(
-            (row) => HorizonProfile.fromRow(
-              id: row.read<int>('id'),
-              name: row.read<String>('name'),
-              samplesJson: row.read<String>('samples_json'),
-            ),
-          )
-          .toList();
       return jsonOk({'profiles': profiles.map((p) => p.toJson()).toList()});
     } catch (e) {
       return jsonInternalServerError({

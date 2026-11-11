@@ -5,6 +5,10 @@ import 'package:drift/drift.dart';
 @DataClassName('EquipmentProfile')
 @TableIndex(name: 'idx_profiles_name', columns: {#name})
 @TableIndex(name: 'idx_profiles_active', columns: {#isActive})
+@TableIndex.sql(
+  'CREATE UNIQUE INDEX idx_profiles_single_active '
+  'ON equipment_profiles (is_active) WHERE is_active = 1',
+)
 class EquipmentProfiles extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text().withLength(min: 1, max: 100)();

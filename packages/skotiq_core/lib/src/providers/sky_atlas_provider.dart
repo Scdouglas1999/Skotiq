@@ -11,7 +11,8 @@ import '../database/tables/sky_atlas_tables.dart' show skyAtlasHealpixOrder;
 import '../models/backend/event_types.dart';
 import '../models/backend/host_mutation_event.dart';
 import '../services/logging_service.dart';
-import '../services/notification_service.dart' show notificationServiceProvider;
+import '../services/notification_service.dart'
+    show NotificationEvent, notificationServiceProvider;
 import '../services/sky_atlas/sky_atlas_models.dart';
 import '../services/sky_atlas/sky_atlas_service.dart';
 import '../services/sky_atlas/sky_atlas_seam.dart';
@@ -74,14 +75,15 @@ final skyAtlasServiceProvider = Provider<SkyAtlasService>((ref) {
       unawaited(
         ref
             .read(notificationServiceProvider)
-            .notifyCustom(
+            .notify(
+              event: NotificationEvent.custom,
               title: 'Your Sky atlas is full',
               message:
                   'The atlas uses $usedGb GB, its $limitGb GB limit. New '
                   'frames are not being added; nothing was deleted. Raise the '
                   'limit or compress stored tiles in Settings > Science.',
             )
-            .catchError((Object _) => false),
+            .then<void>((_) {}, onError: (Object _) {}),
       );
     },
     onAtlasChanged: () => ref

@@ -17,11 +17,9 @@ class _LoadedAppSettings extends AppSettingsNotifier {
       );
 }
 
-class _MockNotificationService extends Mock implements NotificationService {}
-
-/// The legacy `app_settings`-backed Discord row is a remote-controller-only
-/// surface now (locally the keyring-backed section owns Discord), so this
-/// authority test drives it through a [NetworkBackend] stand-in.
+/// The synced Discord row is shown on a linked client only (on the host the
+/// transport section owns Discord), so this authority test drives it through
+/// a [NetworkBackend] stand-in.
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
 _MockNetworkBackend _networkBackend() {
@@ -68,10 +66,7 @@ void main() {
       addTearDown(hostA.dispose);
       addTearDown(hostB.dispose);
       final result = Completer<bool>();
-      final service = _MockNotificationService();
-      when(
-        () => service.testDiscordWebhook('https://discord.example/test'),
-      ).thenAnswer((_) => result.future);
+      final probed = <String>[];
       late _SwappableBackendNotifier backendNotifier;
 
       await pumpAppScreen(
@@ -85,7 +80,14 @@ void main() {
             return backendNotifier;
           }),
           appSettingsProvider.overrideWith(_LoadedAppSettings.new),
-          notificationServiceProvider.overrideWithValue(service),
+          notificationTransportProbeProvider.overrideWithValue((
+            transport,
+          ) async {
+            probed.add((transport as DiscordTransport).config.webhookUrl);
+            return await result.future
+                ? NotificationResult.ok()
+                : NotificationResult.fail('refused');
+          }),
         ],
       );
       await tester.pump();
@@ -95,9 +97,7 @@ void main() {
       await tester.pump();
       await tester.tap(_discordTestButton());
       await tester.tap(_discordTestButton());
-      verify(
-        () => service.testDiscordWebhook('https://discord.example/test'),
-      ).called(1);
+      expect(probed, ['https://discord.example/test']);
       await tester.pump();
 
       var button = tester.widget<SkotiqButton>(_discordTestButton());

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -11,6 +10,7 @@ import '../../widgets/weather/radar_timeline_scrubber.dart';
 import '../../widgets/weather/weather_status_card.dart';
 import '../../widgets/weather/satellite_legend.dart';
 import '../../widgets/tutorial_keys/weather_keys.dart';
+import '../settings/settings_sections.dart';
 
 part 'weather_screen/header_and_radar_controls.dart';
 part 'weather_screen/safety_and_settings.dart';
@@ -168,7 +168,7 @@ class _WeatherScreenState extends ConsumerState<WeatherScreen>
                 monitoring: safetyState.monitoringEnabled,
                 onRefresh: _refreshWeatherData,
                 onSettingsTap: () =>
-                    context.go('/settings?section=weather-safety'),
+                    openSettings(context, SettingsSectionId.weatherSafety),
                 isLoading: settingsLoading || weatherStatus.isLoading,
               ),
               // ONE banner, for the highest-priority problem only (02 rule 4).
@@ -183,7 +183,7 @@ class _WeatherScreenState extends ConsumerState<WeatherScreen>
                     safetyState.monitoringEnabled,
                 onRetry: _refreshWeatherData,
                 onOpenSettings: () =>
-                    context.go('/settings?section=weather-safety'),
+                    openSettings(context, SettingsSectionId.weatherSafety),
               ),
               Expanded(
                 child: settingsLoading

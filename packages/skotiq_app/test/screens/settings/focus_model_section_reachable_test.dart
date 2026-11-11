@@ -8,8 +8,8 @@ import '../../harness/harness.dart';
 
 /// Focus Model shipped with no way to open it.
 ///
-/// `kMergedSectionAliases` mapped `focus-model` onto `autofocus` and
-/// `kSettingsSectionIndex` listed the key, so every deep link and search hit
+/// The `focus-model` alias mapped onto `autofocus`, so every deep link and
+/// search hit
 /// resolved successfully — to an Autofocus pane that did not contain the widget.
 /// Repo-wide, `FocusModelSettings`'s only references were inside its own
 /// declaration: a whole settings screen with no route into it, which the
@@ -20,8 +20,10 @@ import '../../harness/harness.dart';
 /// renders the pane.
 void main() {
   test('the focus-model key still merges into Autofocus', () {
-    expect(kMergedSectionAliases['focus-model'], 'autofocus');
-    expect(kSettingsSectionIndex.containsKey('focus-model'), isTrue);
+    expect(
+      SettingsSectionId.resolve('focus-model'),
+      SettingsSectionId.autofocus,
+    );
   });
 
   testWidgets('the Autofocus section renders the Focus Model pane', (

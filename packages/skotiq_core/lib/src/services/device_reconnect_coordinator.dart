@@ -838,12 +838,12 @@ class DeviceReconnectCoordinator {
       try {
         _ref
             .read(notificationServiceProvider)
-            .notifyCustom(
+            .notify(
+              event: NotificationEvent.custom,
               title: 'Device Reconnected',
               message:
                   '${type.displayName} ($deviceId) has been reconnected '
                   'successfully and is back online.',
-              priority: NotificationPriority.normal,
             );
       } on Object catch (e) {
         _safeLog(

@@ -73,11 +73,10 @@ class EmailTransport extends NotificationTransport {
   EmailTransportConfig get config => _config;
 
   @override
-  Future<NotificationResult> send({
-    required NotificationCategory category,
-    required String title,
-    required String body,
-  }) async {
+  Future<NotificationResult> send(NotificationMessage message) async {
+    final category = message.category;
+    final title = message.title;
+    final body = message.body;
     if (!isConfigured) {
       return NotificationResult.fail('Email not configured');
     }

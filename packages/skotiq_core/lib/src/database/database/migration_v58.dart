@@ -12,7 +12,7 @@ extension _SkotiqDatabaseMigrationV58 on SkotiqDatabase {
   ///   * `delivery_targets` / `delivery_journal` — where the night's artifacts
   ///     go and what happened to each file.
   ///
-  /// See `tables/darkroom_tables.dart` for the canonical schema, the parent
+  /// See `schema/darkroom.drift` for the schema, the parent
   /// delete policy, the crash-recovery contract, and the no-secrets rule on
   /// `delivery_targets.config_json`.
   ///
@@ -21,7 +21,7 @@ extension _SkotiqDatabaseMigrationV58 on SkotiqDatabase {
   /// from the current schema.
   Future<void> _upgradeSchemaV58(Migrator m, int from) async {
     if (from < 58) {
-      await _createDarkroomTables();
+      await _createDarkroomTables(m);
     }
   }
 }

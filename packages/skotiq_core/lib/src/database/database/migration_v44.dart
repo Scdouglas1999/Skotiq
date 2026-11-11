@@ -32,7 +32,7 @@ extension _SkotiqDatabaseMigrationV44 on SkotiqDatabase {
   Future<void> _upgradeSchemaV44(Migrator m, int from) async {
     if (from < 44) {
       await _ensureIntegratedMastersV44Columns();
-      await _createNarrowbandCompositesTable();
+      await _createNarrowbandCompositesTable(m);
     }
   }
 }

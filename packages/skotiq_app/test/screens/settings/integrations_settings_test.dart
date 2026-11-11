@@ -272,7 +272,7 @@ void main() {
     await tester.tap(find.text('Open Notification Routing'));
     await _pumpFrames(tester);
 
-    expect(navigated, contains('notification-routing'));
+    expect(navigated, ['notifications']);
   });
 
   testWidgets('renders one row per registered plugin', (tester) async {

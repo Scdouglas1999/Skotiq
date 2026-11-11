@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../backend/network_backend.dart';
@@ -8,50 +8,7 @@ import '../../database/database.dart' as db;
 import '../../models/scheduler/integration_goal.dart';
 import '../../providers/backend_provider.dart';
 import '../../providers/database_provider.dart';
-import 'scheduler_queue_service.dart' show schedulerRemovedTargetsSchemaSql;
 import '../../utils/resilient_poll_stream.dart';
-
-/// SQL schema for the three scheduler tables.
-///
-/// Tables are managed outside drift's `@DriftDatabase` declaration (which
-/// would require codegen) by issuing raw `CREATE TABLE IF NOT EXISTS`
-/// statements on first access. Schema is additive only; no migrations are
-/// needed because the tables are new and operator data is not at risk.
-const _integrationGoalsSchema = '''
-CREATE TABLE IF NOT EXISTS integration_goals (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  target_id INTEGER NOT NULL REFERENCES targets(id) ON DELETE CASCADE,
-  filter TEXT NOT NULL,
-  exposure_seconds REAL NOT NULL,
-  frame_count INTEGER NOT NULL,
-  priority INTEGER NOT NULL DEFAULT 5,
-  created_at INTEGER NOT NULL,
-  UNIQUE(target_id, filter, exposure_seconds)
-)
-''';
-
-const _targetConstraintsSchema = '''
-CREATE TABLE IF NOT EXISTS target_constraints (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  target_id INTEGER NOT NULL REFERENCES targets(id) ON DELETE CASCADE,
-  kind TEXT NOT NULL,
-  payload_json TEXT NOT NULL,
-  enabled INTEGER NOT NULL DEFAULT 1
-)
-''';
-
-const _horizonProfilesSchema = '''
-CREATE TABLE IF NOT EXISTS horizon_profiles (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  samples_json TEXT NOT NULL
-)
-''';
-
-const _integrationGoalsTargetIndex =
-    'CREATE INDEX IF NOT EXISTS idx_integration_goals_target ON integration_goals (target_id)';
-const _targetConstraintsTargetIndex =
-    'CREATE INDEX IF NOT EXISTS idx_target_constraints_target ON target_constraints (target_id)';
 
 /// Persistence + business-logic for integration goals.
 ///
@@ -62,12 +19,8 @@ const _targetConstraintsTargetIndex =
 /// reports 'L', etc.
 class IntegrationGoalService {
   final db.SkotiqDatabase _db;
-  bool _schemaEnsured = false;
-  // Manual change-notification channel for the raw `integration_goals`
-  // table: drift's reactive `watch()` only fires for tables it knows about
-  // via codegen, and this table is created out-of-band with raw SQL.
   // Every mutation method below calls `_notifyMutated()` so subscribers of
-  // [watchAll] see the change immediately.
+  // [watchAll] see the change immediately, on the host and on a slave alike.
   final StreamController<void> _mutations = StreamController<void>.broadcast();
 
   /// When non-null this service is running on a remote SLAVE: the goals live
@@ -86,13 +39,6 @@ class IntegrationGoalService {
     await _mutations.close();
   }
 
-  Future<void> _ensureSchema() async {
-    if (_schemaEnsured) return;
-    await _db.customStatement(_integrationGoalsSchema);
-    await _db.customStatement(_integrationGoalsTargetIndex);
-    _schemaEnsured = true;
-  }
-
   /// Putting work on a target puts it back in the scheduler queue.
   ///
   /// An earlier "Remove from scheduler" left the target INELIGIBLE
@@ -101,13 +47,8 @@ class IntegrationGoalService {
   /// while the autopilot went on ignoring the target. Enforced here, in the one
   /// place goals are written, so the slave gets it too: its upsert runs on the
   /// host through `/api/integration-goals`.
-  Future<void> _readmitToSchedulerQueue(int targetId) async {
-    await _db.customStatement(schedulerRemovedTargetsSchemaSql);
-    await _db.customStatement(
-      'DELETE FROM scheduler_removed_targets WHERE target_id = ?',
-      [targetId],
-    );
-  }
+  Future<void> _readmitToSchedulerQueue(int targetId) =>
+      _db.planningDao.readmitToSchedulerQueue(targetId);
 
   /// Insert a new integration goal. The (target_id, filter, exposure)
   /// uniqueness constraint replaces an existing row with the same key so
@@ -120,37 +61,31 @@ class IntegrationGoalService {
       _notifyMutated();
       return id;
     }
-    await _ensureSchema();
+    final dao = _db.planningDao;
     await _readmitToSchedulerQueue(goal.targetId);
-    final existing = await _db
-        .customSelect(
-          'SELECT id FROM integration_goals WHERE target_id = ? AND filter = ? AND exposure_seconds = ?',
-          variables: [
-            Variable.withInt(goal.targetId),
-            Variable.withString(goal.filter),
-            Variable.withReal(goal.exposureSeconds),
-          ],
-        )
-        .getSingleOrNull();
-    if (existing != null) {
-      final id = existing.read<int>('id');
-      await _db.customStatement(
-        'UPDATE integration_goals SET frame_count = ?, priority = ? WHERE id = ?',
-        [goal.frameCount, goal.priority, id],
+    final existingId = await dao.integrationGoalId(
+      targetId: goal.targetId,
+      filter: goal.filter,
+      exposureSeconds: goal.exposureSeconds,
+    );
+    if (existingId != null) {
+      await dao.updateIntegrationGoal(
+        existingId,
+        frameCount: goal.frameCount,
+        priority: goal.priority,
       );
       _notifyMutated();
-      return id;
+      return existingId;
     }
-    final inserted = await _db.customInsert(
-      'INSERT INTO integration_goals (target_id, filter, exposure_seconds, frame_count, priority, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-      variables: [
-        Variable.withInt(goal.targetId),
-        Variable.withString(goal.filter),
-        Variable.withReal(goal.exposureSeconds),
-        Variable.withInt(goal.frameCount),
-        Variable.withInt(goal.priority),
-        Variable.withInt(goal.createdAt.toUtc().millisecondsSinceEpoch ~/ 1000),
-      ],
+    final inserted = await dao.insertIntegrationGoal(
+      db.IntegrationGoalsCompanion.insert(
+        targetId: goal.targetId,
+        filter: goal.filter,
+        exposureSeconds: goal.exposureSeconds,
+        frameCount: goal.frameCount,
+        priority: Value(goal.priority),
+        createdAt: goal.createdAt.toUtc().millisecondsSinceEpoch ~/ 1000,
+      ),
     );
     _notifyMutated();
     return inserted;
@@ -163,10 +98,7 @@ class IntegrationGoalService {
       _notifyMutated();
       return;
     }
-    await _ensureSchema();
-    await _db.customStatement('DELETE FROM integration_goals WHERE id = ?', [
-      goalId,
-    ]);
+    await _db.planningDao.deleteIntegrationGoal(goalId);
     _notifyMutated();
   }
 
@@ -180,11 +112,7 @@ class IntegrationGoalService {
       _notifyMutated();
       return;
     }
-    await _ensureSchema();
-    await _db.customStatement(
-      'DELETE FROM integration_goals WHERE target_id = ?',
-      [targetId],
-    );
+    await _db.planningDao.deleteIntegrationGoalsForTarget(targetId);
     _notifyMutated();
   }
 
@@ -197,8 +125,7 @@ class IntegrationGoalService {
       _notifyMutated();
       return;
     }
-    await _ensureSchema();
-    await _db.customStatement('DELETE FROM integration_goals');
+    await _db.planningDao.deleteAllIntegrationGoals();
     _notifyMutated();
   }
 
@@ -221,7 +148,6 @@ class IntegrationGoalService {
       );
       return;
     }
-    await _ensureSchema();
     yield await listAll();
     await for (final _ in _mutations.stream) {
       yield await listAll();
@@ -233,14 +159,7 @@ class IntegrationGoalService {
     if (remote != null) {
       return remote.getIntegrationGoals(targetId: targetId);
     }
-    await _ensureSchema();
-    final rows = await _db
-        .customSelect(
-          'SELECT id, target_id, filter, exposure_seconds, frame_count, priority, created_at '
-          'FROM integration_goals WHERE target_id = ? ORDER BY priority DESC, filter ASC',
-          variables: [Variable.withInt(targetId)],
-        )
-        .get();
+    final rows = await _db.planningDao.integrationGoalsForTarget(targetId);
     return rows.map(_rowToGoal).toList();
   }
 
@@ -249,12 +168,7 @@ class IntegrationGoalService {
     if (remote != null) {
       return remote.getIntegrationGoals();
     }
-    await _ensureSchema();
-    final rows = await _db
-        .customSelect(
-          'SELECT id, target_id, filter, exposure_seconds, frame_count, priority, created_at FROM integration_goals',
-        )
-        .get();
+    final rows = await _db.planningDao.allIntegrationGoals();
     return rows.map(_rowToGoal).toList();
   }
 
@@ -284,16 +198,10 @@ class IntegrationGoalService {
       // empty local DB, or every goal looks 0/N and ranking/dwell is wrong.
       return remote.getCapturedFrameCount(targetId: targetId, filter: filter);
     }
-    final rows = await _db
-        .customSelect(
-          "SELECT COUNT(*) AS c FROM captured_images "
-          "WHERE target_id = ? AND frame_type = 'light' AND is_accepted = 1 "
-          "AND LOWER(filter) = LOWER(?)",
-          variables: [Variable.withInt(targetId), Variable.withString(filter)],
-        )
-        .get();
-    if (rows.isEmpty) return 0;
-    return rows.first.read<int>('c');
+    return _db.planningDao.acceptedLightFrameCount(
+      targetId: targetId,
+      filter: filter,
+    );
   }
 
   /// Return all goals for a target paired with their captured counts.
@@ -310,16 +218,16 @@ class IntegrationGoalService {
     return out;
   }
 
-  IntegrationGoal _rowToGoal(QueryRow row) {
+  IntegrationGoal _rowToGoal(db.IntegrationGoalRow row) {
     return IntegrationGoal(
-      id: row.read<int>('id'),
-      targetId: row.read<int>('target_id'),
-      filter: row.read<String>('filter'),
-      exposureSeconds: row.read<double>('exposure_seconds'),
-      frameCount: row.read<int>('frame_count'),
-      priority: row.read<int>('priority'),
+      id: row.id,
+      targetId: row.targetId,
+      filter: row.filter,
+      exposureSeconds: row.exposureSeconds,
+      frameCount: row.frameCount,
+      priority: row.priority,
       createdAt: DateTime.fromMillisecondsSinceEpoch(
-        row.read<int>('created_at') * 1000,
+        row.createdAt * 1000,
         isUtc: true,
       ),
     );
@@ -335,11 +243,3 @@ final integrationGoalServiceProvider = Provider<IntegrationGoalService>((ref) {
   ref.onDispose(() => service.dispose());
   return service;
 });
-
-/// Re-used DDL strings exported so the scheduler engine init can ensure
-/// all three tables exist in one place.
-const String integrationGoalsSchemaSql = _integrationGoalsSchema;
-const String integrationGoalsTargetIndexSql = _integrationGoalsTargetIndex;
-const String targetConstraintsSchemaSql = _targetConstraintsSchema;
-const String targetConstraintsTargetIndexSql = _targetConstraintsTargetIndex;
-const String horizonProfilesSchemaSql = _horizonProfilesSchema;

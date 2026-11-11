@@ -16,9 +16,11 @@ import '../mount/night_panel_parts.dart';
 import 'night_solve_tab.dart';
 import 'recent_solves_provider.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import '../../../settings/settings_sections.dart';
 
 /// Where the solver settings live.
-const String kNightSolveSettingsRoute = '/settings?section=plate-solving';
+final String kNightSolveSettingsRoute =
+    settingsLocation(SettingsSectionId.plateSolving);
 
 /// Rotation within this many degrees of the target needs no correction.
 const double kNightRotationToleranceDeg = 0.5;

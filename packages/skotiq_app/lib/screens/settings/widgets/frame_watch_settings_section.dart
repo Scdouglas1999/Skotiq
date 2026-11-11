@@ -26,14 +26,6 @@ class FrameWatchSettingsSection extends ConsumerStatefulWidget {
 
 class _FrameWatchSettingsSectionState
     extends ConsumerState<FrameWatchSettingsSection> {
-  final TextEditingController _driftController = TextEditingController();
-
-  @override
-  void dispose() {
-    _driftController.dispose();
-    super.dispose();
-  }
-
   Future<void> _save(Future<void> Function() write) async {
     try {
       await write();
@@ -77,7 +69,6 @@ class _FrameWatchSettingsSectionState
               'are marked Off target while automatic recentering is enabled.',
           trailing: SettingsNumberInput(
             key: const ValueKey('frame-watch-drift-limit'),
-            controller: _driftController,
             authoritativeValue: settings.driftLimitArcsec,
             authorityKey: ref.watch(backendProvider),
             suffix: 'arcsec',

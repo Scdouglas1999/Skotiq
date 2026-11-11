@@ -7,7 +7,7 @@ import 'package:skotiq_app/screens/settings/settings_catalog.dart';
 /// items.
 ///
 /// `SettingsGroupDef.title` is a structural identifier that has to stay English
-/// (see [kGroupTitles]), so rendering it as the header puts "Apariencia" and
+/// (see [SettingsGroupId.title]), so rendering it as the header puts "Apariencia" and
 /// "Ubicación" under a header saying "EQUIPMENT" in Spanish. `displayTitle` is
 /// the localized one.
 void main() {
@@ -55,7 +55,7 @@ void main() {
     final spanish = await groupsFor(tester, const Locale('es'));
     expect(
       spanish.map((g) => g.title).toList(),
-      kGroupTitles,
+      [for (final group in SettingsGroupId.values) group.title],
       reason:
           'structural ids must not follow the locale; callers match on them '
           'without a BuildContext',

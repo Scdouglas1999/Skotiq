@@ -151,8 +151,8 @@ class NightFinding {
 /// quality [score] (0..100), a one-line [headline], and the ranked
 /// [findings].
 ///
-/// This is the Dart mirror of the raw-DDL `night_reports` row (see
-/// `database/tables/post_session_tables.dart`). [sessionId] / [targetId] are
+/// This is the Dart mirror of the `night_reports` row (see
+/// `database/schema/post_session.drift`). [sessionId] / [targetId] are
 /// nullable so a report can be attached to a session, a target, or both.
 class NightReport {
   final int? sessionId;

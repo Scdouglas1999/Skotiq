@@ -28,7 +28,7 @@ class _NotificationCrossLinkSection extends StatelessWidget {
             variant: ButtonVariant.secondary,
             size: isMobile ? ButtonSize.small : ButtonSize.medium,
             onPressed: () =>
-                context.go('/settings?section=notification-routing'),
+                openSettings(context, SettingsSectionId.notifications),
           ),
         ),
       ],

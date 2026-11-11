@@ -8,28 +8,13 @@
 /// and a new presentation preference has to be added on purpose.
 library;
 
+import '../../settings/app_settings_codec.dart';
+
 /// Exact `app_settings` keys that belong to the device rendering the UI.
-const Set<String> deviceLocalSettingKeys = {
-  // Look and window chrome.
-  'theme',
-  'accent_color',
-  'font_size',
-  'ui_scale',
-  'sidebar_collapsed',
-  'start_minimized',
-  'confirm_before_closing',
+final Set<String> deviceLocalSettingKeys = {
+  // Application settings declared as belonging to this computer.
+  ...AppSettingsCodec.thisComputerKeys,
   'glance_mode_enabled',
-  // Where this machine keeps its own database and logs.
-  'database_path',
-  'logs_path',
-  // Panel layout and per-screen view state.
-  'sequencer.toolbox_collapsed',
-  'sequencer.properties_collapsed',
-  'sequencer.snippet_palette_visible',
-  'sequencer.toolbox_tab',
-  'sequencer.active_tab',
-  'sequencer.left_panel_width',
-  'sequencer.right_panel_width',
   'sequencer_density_v1',
   'sequence_overview_visible_v1',
   'thumbnail_strip_prefs_v1',
@@ -44,7 +29,6 @@ const Set<String> deviceLocalSettingKeys = {
   'tutorials_enabled',
   'imaging.depthlock_hint_dismissed',
   'session_insights.dismissed',
-  'smart_night.prompt_dismissed_day_key',
   'equipment_onboarding_draft',
   // Per-device credentials and migrations of this device's own keyring.
   'location_google_geolocation_key',

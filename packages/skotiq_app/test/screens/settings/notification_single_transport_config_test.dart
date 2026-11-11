@@ -7,9 +7,9 @@
 // empty, and its "Test Discord" answers "Please enter a Discord webhook URL".
 // Same for Pushover.
 //
-// The keyring-backed section is the single local configuration, and it adopts
-// (and keeps in step) the legacy plaintext keys the pre-router
-// `NotificationService` still sends from.
+// The keyring-backed section is the single local configuration, and the
+// credentials an install saved before the router existed are carried into it
+// when the config is first read, not by the widget.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -89,7 +89,7 @@ void main() {
   );
 
   testWidgets(
-    'a legacy plaintext webhook is adopted, so the one section never claims '
+    'an earlier plaintext webhook is carried over, so the one section never claims '
     'Discord is unconfigured',
     (tester) async {
       final handle = await _pumpNotifications(tester);

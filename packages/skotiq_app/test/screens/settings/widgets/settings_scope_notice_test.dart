@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_app/screens/settings/settings_sections.dart';
 import 'package:skotiq_app/screens/settings/widgets/settings_scope_notice.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -26,7 +27,9 @@ Future<void> _pump(WidgetTester tester, String key, SkotiqBackend? backend) {
       ],
       child: MaterialApp(
         theme: SkotiqTheme.dark,
-        home: Scaffold(body: SettingsScopeNotice(sectionKey: key)),
+        home: Scaffold(
+          body: SettingsScopeNotice(section: SettingsSectionId.resolve(key)!),
+        ),
       ),
     ),
   );

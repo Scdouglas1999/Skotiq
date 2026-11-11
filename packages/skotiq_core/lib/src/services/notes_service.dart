@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:uuid/uuid.dart';
 
 import '../database/database.dart' as db;
@@ -10,12 +10,8 @@ import '../utils/duration_format.dart';
 /// Persistence + business logic for per-target /
 /// per-run notes.
 ///
-/// Manages the `notes_journal` table directly with raw SQL: the table
-/// lives outside the `@DriftDatabase` declaration to avoid forcing a
-/// codegen pass (same convention as the v27 scheduler tables and the
-/// v28 defect_maps table). The service:
-///   * Lazily ensures the schema on first access via [_ensureSchema] so
-///     a freshly-installed service is tolerant of a pre-v29 connection.
+/// Stores notes in the `notes_journal` table through [db.NotesJournalDao].
+/// The service:
 ///   * Broadcasts a manual change-notification on every mutation so
 ///     consumers of [watchTargetNotes] / [watchRunNotes] see updates
 ///     without polling.
@@ -26,35 +22,7 @@ import '../utils/duration_format.dart';
 /// "M31" remains visible the next time the operator opens M31, which is
 /// the whole point of the journal feature.
 class NotesService {
-  /// SQL schema, kept here so a single source declares the table shape.
-  /// Mirrors the migration block in `database.dart` v29 and the fresh
-  /// install bootstrap in `_createCustomIndexes`. Idempotent: every
-  /// statement is `IF NOT EXISTS`.
-  static const String schemaCreateTableSql =
-      'CREATE TABLE IF NOT EXISTS notes_journal ('
-      'id TEXT PRIMARY KEY NOT NULL,'
-      'target_id TEXT NOT NULL,'
-      'sequence_run_id INTEGER,'
-      'created_at INTEGER NOT NULL,'
-      'updated_at INTEGER NOT NULL,'
-      'title TEXT,'
-      'body TEXT NOT NULL,'
-      'tags_json TEXT NOT NULL DEFAULT \'[]\','
-      'attachments_json TEXT NOT NULL DEFAULT \'[]\','
-      'sentiment TEXT)';
-
-  static const String schemaTargetIndexSql =
-      'CREATE INDEX IF NOT EXISTS idx_notes_journal_target '
-      'ON notes_journal (target_id)';
-  static const String schemaRunIndexSql =
-      'CREATE INDEX IF NOT EXISTS idx_notes_journal_run '
-      'ON notes_journal (sequence_run_id)';
-  static const String schemaCreatedIndexSql =
-      'CREATE INDEX IF NOT EXISTS idx_notes_journal_created '
-      'ON notes_journal (created_at)';
-
   final db.SkotiqDatabase _db;
-  bool _schemaEnsured = false;
   final Uuid _uuid;
 
   /// Mutation broadcaster. Every insert / update / delete emits a
@@ -74,15 +42,6 @@ class NotesService {
 
   Future<void> dispose() async {
     if (!_mutations.isClosed) await _mutations.close();
-  }
-
-  Future<void> _ensureSchema() async {
-    if (_schemaEnsured) return;
-    await _db.customStatement(schemaCreateTableSql);
-    await _db.customStatement(schemaTargetIndexSql);
-    await _db.customStatement(schemaRunIndexSql);
-    await _db.customStatement(schemaCreatedIndexSql);
-    _schemaEnsured = true;
   }
 
   void _notifyMutated() {
@@ -107,7 +66,6 @@ class NotesService {
     if (targetId.isEmpty) {
       throw ArgumentError.value(targetId, 'targetId', 'must be non-empty');
     }
-    await _ensureSchema();
     final now = DateTime.now();
     final note = JournalNote(
       id: _uuid.v4(),
@@ -121,23 +79,19 @@ class NotesService {
       attachments: List<String>.unmodifiable(attachments),
       sentiment: sentiment,
     );
-    await _db.customStatement(
-      'INSERT INTO notes_journal '
-      '(id, target_id, sequence_run_id, created_at, updated_at, '
-      'title, body, tags_json, attachments_json, sentiment) '
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [
-        note.id,
-        note.targetId,
-        note.sequenceRunId,
-        _toEpochMs(note.createdAt),
-        _toEpochMs(note.updatedAt),
-        note.title,
-        note.body,
-        JournalNote.encodeStringList(note.tags),
-        JournalNote.encodeStringList(note.attachments),
-        note.sentiment,
-      ],
+    await _db.notesJournalDao.insertNote(
+      db.NotesJournalCompanion.insert(
+        id: note.id,
+        targetId: note.targetId,
+        sequenceRunId: Value(note.sequenceRunId),
+        createdAt: _toEpochMs(note.createdAt),
+        updatedAt: _toEpochMs(note.updatedAt),
+        title: Value(note.title),
+        body: note.body,
+        tagsJson: Value(JournalNote.encodeStringList(note.tags)),
+        attachmentsJson: Value(JournalNote.encodeStringList(note.attachments)),
+        sentiment: Value(note.sentiment),
+      ),
     );
     _notifyMutated();
     return note;
@@ -157,7 +111,6 @@ class NotesService {
     bool clearTitle = false,
     bool clearSentiment = false,
   }) async {
-    await _ensureSchema();
     final existing = await getNoteById(id);
     if (existing == null) {
       throw StateError('Note $id not found');
@@ -172,19 +125,18 @@ class NotesService {
       clearSentiment: clearSentiment,
       updatedAt: DateTime.now(),
     );
-    await _db.customStatement(
-      'UPDATE notes_journal SET '
-      'title = ?, body = ?, tags_json = ?, attachments_json = ?, '
-      'sentiment = ?, updated_at = ? WHERE id = ?',
-      [
-        updated.title,
-        updated.body,
-        JournalNote.encodeStringList(updated.tags),
-        JournalNote.encodeStringList(updated.attachments),
-        updated.sentiment,
-        _toEpochMs(updated.updatedAt),
-        updated.id,
-      ],
+    await _db.notesJournalDao.updateNote(
+      updated.id,
+      db.NotesJournalCompanion(
+        title: Value(updated.title),
+        body: Value(updated.body),
+        tagsJson: Value(JournalNote.encodeStringList(updated.tags)),
+        attachmentsJson: Value(
+          JournalNote.encodeStringList(updated.attachments),
+        ),
+        sentiment: Value(updated.sentiment),
+        updatedAt: Value(_toEpochMs(updated.updatedAt)),
+      ),
     );
     _notifyMutated();
     return updated;
@@ -192,11 +144,7 @@ class NotesService {
 
   /// Delete a single note by id. No-op when the id does not exist.
   Future<int> deleteNote(String id) async {
-    await _ensureSchema();
-    final affected = await _db.customUpdate(
-      'DELETE FROM notes_journal WHERE id = ?',
-      variables: [Variable.withString(id)],
-    );
+    final affected = await _db.notesJournalDao.deleteNote(id);
     if (affected > 0) _notifyMutated();
     return affected;
   }
@@ -204,42 +152,21 @@ class NotesService {
   // Reads
 
   Future<JournalNote?> getNoteById(String id) async {
-    await _ensureSchema();
-    final rows = await _db
-        .customSelect(
-          'SELECT * FROM notes_journal WHERE id = ?',
-          variables: [Variable.withString(id)],
-        )
-        .get();
-    if (rows.isEmpty) return null;
-    return _rowToNote(rows.first);
+    final row = await _db.notesJournalDao.noteById(id);
+    return row == null ? null : _rowToNote(row);
   }
 
   /// All notes attached to [targetId], chronological (oldest → newest).
   /// The display order — newest-first — is the caller's responsibility
   /// (most UI uses [JournalNote.createdAt] descending).
   Future<List<JournalNote>> notesForTarget(String targetId) async {
-    await _ensureSchema();
-    final rows = await _db
-        .customSelect(
-          'SELECT * FROM notes_journal WHERE target_id = ? '
-          'ORDER BY created_at DESC',
-          variables: [Variable.withString(targetId)],
-        )
-        .get();
+    final rows = await _db.notesJournalDao.notesForTarget(targetId);
     return rows.map(_rowToNote).toList();
   }
 
   /// All notes attached to a specific sequence run.
   Future<List<JournalNote>> notesForRun(int runId) async {
-    await _ensureSchema();
-    final rows = await _db
-        .customSelect(
-          'SELECT * FROM notes_journal WHERE sequence_run_id = ? '
-          'ORDER BY created_at DESC',
-          variables: [Variable.withInt(runId)],
-        )
-        .get();
+    final rows = await _db.notesJournalDao.notesForRun(runId);
     return rows.map(_rowToNote).toList();
   }
 
@@ -247,10 +174,7 @@ class NotesService {
   /// UI and as a fallback when the targets directory enumerates all
   /// referenced target ids.
   Future<List<JournalNote>> allNotes() async {
-    await _ensureSchema();
-    final rows = await _db
-        .customSelect('SELECT * FROM notes_journal ORDER BY created_at DESC')
-        .get();
+    final rows = await _db.notesJournalDao.allNotes();
     return rows.map(_rowToNote).toList();
   }
 
@@ -258,37 +182,13 @@ class NotesService {
   /// insensitive) and/or [tags] (any-of). When both are supplied the
   /// match is the intersection. Returns newest-first.
   ///
-  /// The tag predicate uses a LIKE on the JSON-encoded tags blob, which
-  /// is acceptable for the small per-user dataset. We wrap the tag in
-  /// `"..."` to avoid matching substrings of other tag names (e.g.
-  /// "see" matching "seeing").
+  /// A tag matches as a whole: searching for "see" does not return a note
+  /// tagged "seeing".
   Future<List<JournalNote>> searchNotes({
     String? query,
     List<String> tags = const <String>[],
   }) async {
-    await _ensureSchema();
-    final clauses = <String>[];
-    final variables = <Variable>[];
-    if (query != null && query.isNotEmpty) {
-      clauses.add("(LOWER(body) LIKE ? OR LOWER(COALESCE(title, '')) LIKE ?)");
-      final like = '%${query.toLowerCase()}%';
-      variables.add(Variable.withString(like));
-      variables.add(Variable.withString(like));
-    }
-    for (final tag in tags) {
-      // Match the tag wrapped in JSON-string quotes so we don't match
-      // partial tag strings. e.g. searching for "see" must NOT match
-      // a note tagged "seeing".
-      clauses.add('tags_json LIKE ?');
-      variables.add(Variable.withString('%"$tag"%'));
-    }
-    final where = clauses.isEmpty ? '' : 'WHERE ${clauses.join(' AND ')} ';
-    final rows = await _db
-        .customSelect(
-          'SELECT * FROM notes_journal ${where}ORDER BY created_at DESC',
-          variables: variables,
-        )
-        .get();
+    final rows = await _db.notesJournalDao.searchNotes(text: query, tags: tags);
     return rows.map(_rowToNote).toList();
   }
 
@@ -322,20 +222,18 @@ class NotesService {
 
   // Internals
 
-  JournalNote _rowToNote(QueryRow row) {
+  JournalNote _rowToNote(db.NotesJournalRow row) {
     return JournalNote(
-      id: row.read<String>('id'),
-      targetId: row.read<String>('target_id'),
-      sequenceRunId: row.readNullable<int>('sequence_run_id'),
-      createdAt: _fromEpochMs(row.read<int>('created_at')),
-      updatedAt: _fromEpochMs(row.read<int>('updated_at')),
-      title: row.readNullable<String>('title'),
-      body: row.read<String>('body'),
-      tags: JournalNote.decodeStringList(row.readNullable<String>('tags_json')),
-      attachments: JournalNote.decodeStringList(
-        row.readNullable<String>('attachments_json'),
-      ),
-      sentiment: row.readNullable<String>('sentiment'),
+      id: row.id,
+      targetId: row.targetId,
+      sequenceRunId: row.sequenceRunId,
+      createdAt: _fromEpochMs(row.createdAt),
+      updatedAt: _fromEpochMs(row.updatedAt),
+      title: row.title,
+      body: row.body,
+      tags: JournalNote.decodeStringList(row.tagsJson),
+      attachments: JournalNote.decodeStringList(row.attachmentsJson),
+      sentiment: row.sentiment,
     );
   }
 

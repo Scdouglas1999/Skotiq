@@ -144,7 +144,7 @@ void main() {
       );
       expect(subtitle, contains('Gates the built-in error alert.'));
       expect(subtitle, contains('alert sound'));
-      expect(subtitle, contains('Discord/Pushover webhook'));
+      expect(subtitle, contains('Custom row of per-event routing'));
       // The claim that started this: it must never come back.
       expect(subtitle, isNot(contains('no longer sends anything')));
     });

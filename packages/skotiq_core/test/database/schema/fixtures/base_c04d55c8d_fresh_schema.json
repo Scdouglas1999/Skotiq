@@ -1,0 +1,9023 @@
+{
+ "tables": {
+  "app_settings": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "key",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "value",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "updated_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "sqlite_autoindex_app_settings_1": {
+     "unique": 1,
+     "origin": "u",
+     "partial": 0,
+     "columns": [
+      "key desc=0 coll=BINARY"
+     ],
+     "sql": null
+    }
+   }
+  },
+  "astrometry_residual_vectors": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "captured_image_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "x",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "y",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "dx_arcsec",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "dy_arcsec",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "magnitude_arcsec",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "recommendation_code",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "timestamp",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "captured_image_id->captured_images(id) update=NO ACTION delete=CASCADE match=NONE",
+    "session_id->imaging_sessions(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_astrometry_residual_vectors_timestamp": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "timestamp desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_astrometry_residual_vectors_timestamponastrometry_residual_vectors(timestamp)"
+    },
+    "idx_astrometry_residual_vectors_session": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_astrometry_residual_vectors_sessiononastrometry_residual_vectors(session_id)"
+    },
+    "idx_astrometry_residual_vectors_image": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "captured_image_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_astrometry_residual_vectors_imageonastrometry_residual_vectors(captured_image_id)"
+    }
+   }
+  },
+  "calibration_tags": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "master_type",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "master_id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "tags_json",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "''",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "notes",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "camera_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "shared_by",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "shared_at",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "license",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "provenance_json",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "published_remote_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "updated_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_calibration_tags_camera": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "camera_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_calibration_tags_cameraoncalibration_tags(camera_id)"
+    },
+    "sqlite_autoindex_calibration_tags_1": {
+     "unique": 1,
+     "origin": "u",
+     "partial": 0,
+     "columns": [
+      "master_type desc=0 coll=BINARY",
+      "master_id desc=0 coll=BINARY"
+     ],
+     "sql": null
+    }
+   }
+  },
+  "campaigns": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "target_id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "filter",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "accepted_count",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "desired_count",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "last_date",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "updated_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "target_id->targets(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_campaigns_target": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "target_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_campaigns_targetoncampaigns(target_id)"
+    },
+    "sqlite_autoindex_campaigns_1": {
+     "unique": 1,
+     "origin": "u",
+     "partial": 0,
+     "columns": [
+      "target_id desc=0 coll=BINARY",
+      "filter desc=0 coll=BINARY"
+     ],
+     "sql": null
+    }
+   }
+  },
+  "captured_images": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "file_path",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "file_name",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "file_format",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'fits'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "file_size",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "target_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "frame_type",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'light'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "exposure_duration",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "gain",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "offset",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "bin_x",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "bin_y",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "filter",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "sensor_temp",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "cooler_power",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "hfr",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "star_count",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "background",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "noise",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "quality_score",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "guiding_rms_ra",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "guiding_rms_dec",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "guiding_rms_total",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "mount_ra",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "mount_dec",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "mount_altitude",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "mount_azimuth",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "pier_side",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "focuser_position",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "focuser_temp",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "rotator_angle",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "is_plate_solved",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "solved_ra",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "solved_dec",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "solved_rotation",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "solved_pixel_scale",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "captured_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "atlas_folded_at",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "is_accepted",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "rejection_reason",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "producing_node_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "producing_run_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "runtime_grade",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "eccentricity",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "fwhm",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "solved_cd1_1",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "solved_cd1_2",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "solved_cd2_1",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "solved_cd2_2",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "solved_sip",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "thumbnail_path",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "plate_solve_failed_at",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "session_id->imaging_sessions(id) update=NO ACTION delete=CASCADE match=NONE",
+    "target_id->targets(id) update=NO ACTION delete=SET NULL match=NONE"
+   ],
+   "checks": [
+    "is_acceptedin(0,1)",
+    "is_plate_solvedin(0,1)"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_images_node_captured_at": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "producing_node_id desc=0 coll=BINARY",
+      "captured_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_images_node_captured_atoncaptured_images(producing_node_id,captured_at)"
+    },
+    "idx_images_producing_run": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "producing_run_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_images_producing_runoncaptured_images(producing_run_id)"
+    },
+    "idx_images_producing_node": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "producing_node_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_images_producing_nodeoncaptured_images(producing_node_id)"
+    },
+    "idx_images_session_captured_at": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY",
+      "captured_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_images_session_captured_atoncaptured_images(session_id,captured_at)"
+    },
+    "idx_images_session_frame": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY",
+      "frame_type desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_images_session_frameoncaptured_images(session_id,frame_type)"
+    },
+    "idx_images_accepted": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "is_accepted desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_images_acceptedoncaptured_images(is_accepted)"
+    },
+    "idx_images_filter": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "filter desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_images_filteroncaptured_images(filter)"
+    },
+    "idx_images_captured_at": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "captured_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_images_captured_atoncaptured_images(captured_at)"
+    },
+    "idx_images_frame_type": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "frame_type desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_images_frame_typeoncaptured_images(frame_type)"
+    },
+    "idx_images_target": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "target_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_images_targetoncaptured_images(target_id)"
+    },
+    "idx_images_session": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_images_sessiononcaptured_images(session_id)"
+    }
+   }
+  },
+  "co_imaging_sessions": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "hub_key",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "target_name",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "target_ra_deg",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "target_dec_deg",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "role",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'contribute'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "claim_token",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "framing_offset_index",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "framing_offset_ra_arcsec",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "framing_offset_dec_arcsec",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "contributed_frames",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "contributed_integration_seconds",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "active",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "joined_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "updated_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [],
+   "checks": [
+    "activein(0,1)"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_coimaging_sessions_key": {
+     "unique": 1,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "hub_key desc=0 coll=BINARY",
+      "session_id desc=0 coll=BINARY"
+     ],
+     "sql": "createuniqueindexidx_coimaging_sessions_keyonco_imaging_sessions(hub_key,session_id)"
+    }
+   }
+  },
+  "constellation_contributions": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "hub_key",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "tile_id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "healpix_order",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "last_contributed_at",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "last_contributed_label",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "contribution_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "contributed_frames",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "contributed_integration_seconds",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "last_pulled_frames",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "last_pulled_integration_seconds",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "last_pulled_at",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "joined",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "target_name",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "target_ra_deg",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "target_dec_deg",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "updated_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [],
+   "checks": [
+    "joinedin(0,1)"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_constellation_contributions_key": {
+     "unique": 1,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "hub_key desc=0 coll=BINARY",
+      "tile_id desc=0 coll=BINARY",
+      "healpix_order desc=0 coll=BINARY"
+     ],
+     "sql": "createuniqueindexidx_constellation_contributions_keyonconstellation_contributions(hub_key,tile_id,healpix_order)"
+    }
+   }
+  },
+  "dark_library": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "file_path",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "exposure_time",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "temperature",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "gain",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "offset",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "bin_x",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "bin_y",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "frame_type",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'dark'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "width",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "height",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "master_dark_path",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "master_frame_count",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_dark_library_created": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "created_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_dark_library_createdondark_library(created_at)"
+    },
+    "idx_dark_library_match": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "frame_type desc=0 coll=BINARY",
+      "exposure_time desc=0 coll=BINARY",
+      "gain desc=0 coll=BINARY",
+      "bin_x desc=0 coll=BINARY",
+      "bin_y desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_dark_library_matchondark_library(frame_type,exposure_time,gain,bin_x,bin_y)"
+    },
+    "idx_dark_library_gain": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "gain desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_dark_library_gainondark_library(gain)"
+    },
+    "idx_dark_library_temperature": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "temperature desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_dark_library_temperatureondark_library(temperature)"
+    },
+    "idx_dark_library_exposure": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "exposure_time desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_dark_library_exposureondark_library(exposure_time)"
+    },
+    "idx_dark_library_frame_type": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "frame_type desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_dark_library_frame_typeondark_library(frame_type)"
+    }
+   }
+  },
+  "darkroom_jobs": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "kind",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'dawn'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "state",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'queued'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "progress",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "note",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "error_text",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "attempts",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "started_at",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "finished_at",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "session_id->imaging_sessions(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [
+    "attempts>=0",
+    "kindin('dawn','manual')",
+    "progress>=0.0andprogress<=1.0",
+    "statein('queued','running','cancelled','done','failed')"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_darkroom_jobs_created": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "created_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_darkroom_jobs_createdondarkroom_jobs(created_at)"
+    },
+    "idx_darkroom_jobs_session": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_darkroom_jobs_sessionondarkroom_jobs(session_id)"
+    },
+    "idx_darkroom_jobs_state": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "state desc=0 coll=BINARY",
+      "created_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_darkroom_jobs_stateondarkroom_jobs(state,created_at)"
+    }
+   }
+  },
+  "defect_maps": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "camera_id",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "width",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "height",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "temperature_bucket_decicelsius",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "bitmap",
+     "type": "BLOB",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "defective_pixel_count",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "file_path",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "last_rebuilt_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_defect_maps_lookup": {
+     "unique": 1,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "camera_id desc=0 coll=BINARY",
+      "width desc=0 coll=BINARY",
+      "height desc=0 coll=BINARY",
+      "temperature_bucket_decicelsius desc=0 coll=BINARY"
+     ],
+     "sql": "createuniqueindexidx_defect_maps_lookupondefect_maps(camera_id,width,height,temperature_bucket_decicelsius)"
+    }
+   }
+  },
+  "delivery_journal": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "target_id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "job_id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "file_path",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "bytes",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "checksum",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "state",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'retrying'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "attempts",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "last_error",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "updated_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "delivered_at",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "job_id->darkroom_jobs(id) update=NO ACTION delete=CASCADE match=NONE",
+    "target_id->delivery_targets(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [
+    "attempts>=0",
+    "bytes>=0",
+    "statein('delivered','failed','retrying')"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_delivery_journal_state": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "state desc=0 coll=BINARY",
+      "updated_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_delivery_journal_stateondelivery_journal(state,updated_at)"
+    },
+    "idx_delivery_journal_job": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "job_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_delivery_journal_jobondelivery_journal(job_id)"
+    },
+    "idx_delivery_journal_target": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "target_id desc=0 coll=BINARY",
+      "state desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_delivery_journal_targetondelivery_journal(target_id,state)"
+    },
+    "sqlite_autoindex_delivery_journal_1": {
+     "unique": 1,
+     "origin": "u",
+     "partial": 0,
+     "columns": [
+      "target_id desc=0 coll=BINARY",
+      "job_id desc=0 coll=BINARY",
+      "file_path desc=0 coll=BINARY"
+     ],
+     "sql": null
+    }
+   }
+  },
+  "delivery_targets": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "name",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "kind",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "config_json",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'{}'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "enabled",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "content_json",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "''",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "secret_ref",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "updated_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [],
+   "checks": [
+    "enabledin(0,1)",
+    "kindin('watched_folder','sftp','peer')"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_delivery_targets_name": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "name desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_delivery_targets_nameondelivery_targets(name)"
+    },
+    "idx_delivery_targets_enabled": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "enabled desc=0 coll=BINARY",
+      "kind desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_delivery_targets_enabledondelivery_targets(enabled,kind)"
+    }
+   }
+  },
+  "equipment_profiles": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "name",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "description",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "camera_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "mount_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "focuser_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "filter_wheel_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "guider_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "guide_camera_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "rotator_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "dome_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "weather_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "safety_monitor_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "switch_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "cover_calibrator_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "focal_length",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "aperture",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "focal_ratio",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "default_gain",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "default_offset",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "default_bin_x",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "default_bin_y",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "default_cooling_temp",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "cool_on_connect",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "default_centering_exposure",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "filter_names",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "filter_focus_offsets",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "meridian_flip_overrides",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "camera_name",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "mount_name",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "focuser_name",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "filter_wheel_name",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "guider_name",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "guide_camera_name",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "rotator_name",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "safety_monitor_name",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "switch_name",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "telescope_name",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "telescope_focal_length",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "telescope_aperture",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "guide_focal_length",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "profile_icon",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "profile_color",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "sort_order",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "is_default",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "updated_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "is_active",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [],
+   "checks": [
+    "cool_on_connectin(0,1)",
+    "is_activein(0,1)",
+    "is_defaultin(0,1)"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_profiles_single_active": {
+     "unique": 1,
+     "origin": "c",
+     "partial": 1,
+     "columns": [
+      "is_active desc=0 coll=BINARY"
+     ],
+     "sql": "createuniqueindexidx_profiles_single_activeonequipment_profiles(is_active)whereis_active=1"
+    },
+    "idx_profiles_active": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "is_active desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_profiles_activeonequipment_profiles(is_active)"
+    },
+    "idx_profiles_name": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "name desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_profiles_nameonequipment_profiles(name)"
+    }
+   }
+  },
+  "flat_history": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "equipment_profile_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "filter_name",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "exposure_time",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "histogram_target",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "actual_adu",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "panel_brightness",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "sky_adu_rate",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "twilight_phase",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "gain",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "binning",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "timestamp",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "equipment_profile_id->equipment_profiles(id) update=NO ACTION delete=SET NULL match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_flat_history_timestamp": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "timestamp desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_flat_history_timestamponflat_history(timestamp)"
+    },
+    "idx_flat_history_filter": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "filter_name desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_flat_history_filteronflat_history(filter_name)"
+    },
+    "idx_flat_history_profile": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "equipment_profile_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_flat_history_profileonflat_history(equipment_profile_id)"
+    }
+   }
+  },
+  "flat_library": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "file_path",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "filter",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "equipment_profile_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "optical_train_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "temperature",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "gain",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "offset",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "bin_x",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "bin_y",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "width",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "height",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "flat_kind",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'sky'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "master_frame_count",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "equipment_profile_id->equipment_profiles(id) update=NO ACTION delete=SET NULL match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_flat_library_match": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "filter desc=0 coll=BINARY",
+      "gain desc=0 coll=BINARY",
+      "bin_x desc=0 coll=BINARY",
+      "bin_y desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_flat_library_matchonflat_library(filter,gain,bin_x,bin_y)"
+    },
+    "idx_flat_library_profile": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "equipment_profile_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_flat_library_profileonflat_library(equipment_profile_id)"
+    },
+    "idx_flat_library_filter": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "filter desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_flat_library_filteronflat_library(filter)"
+    }
+   }
+  },
+  "focus_models": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "uuid",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "equipment_profile_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "filter_name",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "filter_index",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "temperature_compensation_slope",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "focus_offset_relative_to_lum",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "intercept_at_reference_temp",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "reference_temp_celsius",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "10.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "last_trained_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "training_run_count",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "confidence_score",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "last_used_at",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "training_samples_json",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "''",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "max_training_samples",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "50",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "consecutive_bad_predictions",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "accumulated_drift_steps",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "updated_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "equipment_profile_id->equipment_profiles(id) update=NO ACTION delete=SET NULL match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_focus_models_last_used": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "last_used_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_focus_models_last_usedonfocus_models(last_used_at)"
+    },
+    "idx_focus_models_profile_filter": {
+     "unique": 1,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "equipment_profile_id desc=0 coll=BINARY",
+      "filter_name desc=0 coll=BINARY"
+     ],
+     "sql": "createuniqueindexidx_focus_models_profile_filteronfocus_models(equipment_profile_id,filter_name)"
+    },
+    "idx_focus_models_profile": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "equipment_profile_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_focus_models_profileonfocus_models(equipment_profile_id)"
+    }
+   }
+  },
+  "frame_forensics": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "captured_image_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "sequence_run_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "node_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "frame_index",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "total_frames",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "reject_path",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "reason",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "likely_cause",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'unknown'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "evidence_json",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "''",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "environment_json",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'{}'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "hfr",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "eccentricity",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "star_count",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "captured_image_id->captured_images(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": false,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_frame_forensics_image": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "captured_image_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_frame_forensics_imageonframe_forensics(captured_image_id)"
+    },
+    "idx_frame_forensics_cause": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "likely_cause desc=0 coll=BINARY",
+      "created_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_frame_forensics_causeonframe_forensics(likely_cause,created_at)"
+    },
+    "idx_frame_forensics_run": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "sequence_run_id desc=0 coll=BINARY",
+      "created_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_frame_forensics_runonframe_forensics(sequence_run_id,created_at)"
+    },
+    "idx_frame_forensics_session": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY",
+      "created_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_frame_forensics_sessiononframe_forensics(session_id,created_at)"
+    },
+    "sqlite_autoindex_frame_forensics_1": {
+     "unique": 1,
+     "origin": "pk",
+     "partial": 0,
+     "columns": [
+      "id desc=0 coll=BINARY"
+     ],
+     "sql": null
+    }
+   }
+  },
+  "frame_photometric_calibration": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "captured_image_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "is_calibrated",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "zero_point",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "limiting_mag3_sigma",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "limiting_mag5_sigma",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "matched_star_count",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "calibration_rms",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "catalog_source",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'auto'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "solver_id",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'unknown'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "filter",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "photometric_band",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "band_is_standard",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "zero_point_error",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "timestamp",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "captured_image_id->captured_images(id) update=NO ACTION delete=CASCADE match=NONE",
+    "session_id->imaging_sessions(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [
+    "band_is_standardin(0,1)",
+    "is_calibratedin(0,1)"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_frame_photometric_calibration_solver": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "solver_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_frame_photometric_calibration_solveronframe_photometric_calibration(solver_id)"
+    },
+    "idx_frame_photometric_calibration_timestamp": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "timestamp desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_frame_photometric_calibration_timestamponframe_photometric_calibration(timestamp)"
+    },
+    "idx_frame_photometric_calibration_session": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_frame_photometric_calibration_sessiononframe_photometric_calibration(session_id)"
+    },
+    "idx_frame_photometric_calibration_image": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "captured_image_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_frame_photometric_calibration_imageonframe_photometric_calibration(captured_image_id)"
+    }
+   }
+  },
+  "guide_rms_history": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "mount_id",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "target_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "total_rms_arcsec",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "sample_count",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "exposure_seconds",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "recorded_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_guide_rms_mount_recent": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "mount_id desc=0 coll=BINARY",
+      "recorded_at desc=1 coll=BINARY"
+     ],
+     "sql": "createindexidx_guide_rms_mount_recentonguide_rms_history(mount_id,recorded_atdesc)"
+    }
+   }
+  },
+  "image_metadata": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "image_id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "key",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "value",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "comment",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "image_id->captured_images(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_metadata_key": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "key desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_metadata_keyonimage_metadata(key)"
+    },
+    "idx_metadata_image": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "image_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_metadata_imageonimage_metadata(image_id)"
+    }
+   }
+  },
+  "imaging_sessions": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "name",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "profile_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "target_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "start_time",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "end_time",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "total_exposures",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "successful_exposures",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "failed_exposures",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "total_integration_secs",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "avg_temperature",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "avg_humidity",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "avg_seeing",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "avg_hfr",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "avg_guiding_rms",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "autofocus_count",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "notes",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "status",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'completed'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "sequence_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "equipment_snapshot",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "profile_id->equipment_profiles(id) update=NO ACTION delete=SET NULL match=NONE",
+    "sequence_id->sequences(id) update=NO ACTION delete=SET NULL match=NONE",
+    "target_id->targets(id) update=NO ACTION delete=SET NULL match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_sessions_sequence": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "sequence_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sessions_sequenceonimaging_sessions(sequence_id)"
+    },
+    "idx_sessions_status": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "status desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sessions_statusonimaging_sessions(status)"
+    },
+    "idx_sessions_start": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "start_time desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sessions_startonimaging_sessions(start_time)"
+    },
+    "idx_sessions_profile": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "profile_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sessions_profileonimaging_sessions(profile_id)"
+    },
+    "idx_sessions_target": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "target_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sessions_targetonimaging_sessions(target_id)"
+    }
+   }
+  },
+  "integrated_master_frames": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "master_id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "image_id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "weight",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "alignment_residual_px",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "accepted",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "rejection_reason",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "folded_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "snr",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "fwhm",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "eccentricity",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "image_id->captured_images(id) update=NO ACTION delete=CASCADE match=NONE",
+    "master_id->integrated_masters(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_integrated_master_frames_image": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "image_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_integrated_master_frames_imageonintegrated_master_frames(image_id)"
+    },
+    "idx_integrated_master_frames_master": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "master_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_integrated_master_frames_masteronintegrated_master_frames(master_id)"
+    },
+    "sqlite_autoindex_integrated_master_frames_1": {
+     "unique": 1,
+     "origin": "u",
+     "partial": 0,
+     "columns": [
+      "master_id desc=0 coll=BINARY",
+      "image_id desc=0 coll=BINARY"
+     ],
+     "sql": null
+    }
+   }
+  },
+  "integrated_masters": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "target_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "name",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "master_fits_path",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "preview_png_path",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "sidecar_path",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "rejection_map_path",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "status",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'finalized'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "accumulation_mode",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'batch'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "channels",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "width",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "height",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "frame_count",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "total_integration_seconds",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "filter",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "settings_json",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'{}'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "stats_json",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'{}'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "updated_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "rejection_map_preview_path",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "coverage_map_path",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "coverage_map_preview_path",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "color_calibrated_path",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "annotated_preview_path",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "background_extracted",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "target_snr",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "target_integration_s",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "improvement_curve_json",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "wcs_crval1",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "wcs_crval2",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "wcs_crpix1",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "wcs_crpix2",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "wcs_cd1_1",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "wcs_cd1_2",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "wcs_cd2_1",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "wcs_cd2_2",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "background_extracted_path",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "deconvolved_path",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "star_reduced_path",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "target_id->targets(id) update=NO ACTION delete=SET NULL match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_integrated_masters_created": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "created_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_integrated_masters_createdonintegrated_masters(created_at)"
+    },
+    "idx_integrated_masters_status": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "status desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_integrated_masters_statusonintegrated_masters(status)"
+    },
+    "idx_integrated_masters_target": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "target_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_integrated_masters_targetonintegrated_masters(target_id)"
+    }
+   }
+  },
+  "line_ratio_products": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "h_alpha_image_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "oiii_image_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "sii_image_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "ratio_sii_ha",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "ratio_oiii_ha",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "ratio_sii_oiii",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "roi_json",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "export_path",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "h_alpha_image_id->captured_images(id) update=NO ACTION delete=SET NULL match=NONE",
+    "oiii_image_id->captured_images(id) update=NO ACTION delete=SET NULL match=NONE",
+    "session_id->imaging_sessions(id) update=NO ACTION delete=CASCADE match=NONE",
+    "sii_image_id->captured_images(id) update=NO ACTION delete=SET NULL match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_line_ratio_products_timestamp": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "created_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_line_ratio_products_timestamponline_ratio_products(created_at)"
+    },
+    "idx_line_ratio_products_session": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_line_ratio_products_sessiononline_ratio_products(session_id)"
+    }
+   }
+  },
+  "living_sky_retention": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "scope",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "last_pruned_at",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "last_pruned_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "pruned_count",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "note",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "updated_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_living_sky_retention_scope": {
+     "unique": 1,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "scope desc=0 coll=BINARY"
+     ],
+     "sql": "createuniqueindexidx_living_sky_retention_scopeonliving_sky_retention(scope)"
+    }
+   }
+  },
+  "mosaic_panels": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "project_id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "panel_index",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "center_ra",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "center_dec",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "target_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "integrated_master_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "captured_count",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "status",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'pending'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "assigned_rig_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "assigned_user_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "claim_token",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "uploaded_master_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "integrated_master_id->integrated_masters(id) update=NO ACTION delete=SET NULL match=NONE",
+    "project_id->mosaic_projects(id) update=NO ACTION delete=CASCADE match=NONE",
+    "target_id->targets(id) update=NO ACTION delete=SET NULL match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_mosaic_panels_master": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "integrated_master_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_mosaic_panels_masteronmosaic_panels(integrated_master_id)"
+    },
+    "idx_mosaic_panels_project": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "project_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_mosaic_panels_projectonmosaic_panels(project_id)"
+    },
+    "sqlite_autoindex_mosaic_panels_1": {
+     "unique": 1,
+     "origin": "u",
+     "partial": 0,
+     "columns": [
+      "project_id desc=0 coll=BINARY",
+      "panel_index desc=0 coll=BINARY"
+     ],
+     "sql": null
+    }
+   }
+  },
+  "mosaic_projects": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "target_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "name",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "rows",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "cols",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "overlap_pct",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "15.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "position_angle_deg",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "status",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'planning'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "output_master_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "updated_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "hub_mosaic_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "collab_role",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "collab_status",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "output_master_id->integrated_masters(id) update=NO ACTION delete=SET NULL match=NONE",
+    "target_id->targets(id) update=NO ACTION delete=SET NULL match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_mosaic_projects_hub": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "hub_mosaic_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_mosaic_projects_hubonmosaic_projects(hub_mosaic_id)"
+    },
+    "idx_mosaic_projects_status": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "status desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_mosaic_projects_statusonmosaic_projects(status)"
+    },
+    "idx_mosaic_projects_target": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "target_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_mosaic_projects_targetonmosaic_projects(target_id)"
+    }
+   }
+  },
+  "moving_object_candidates": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "captured_image_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "candidate_id",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "ra_degrees",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "dec_degrees",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "motion_arcsec_per_minute",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "position_angle_degrees",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "confidence",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "is_known_object",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "object_name",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "source",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'local'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "magnitude",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "magnitude_band",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "timestamp",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "captured_image_id->captured_images(id) update=NO ACTION delete=CASCADE match=NONE",
+    "session_id->imaging_sessions(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [
+    "is_known_objectin(0,1)"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_moving_object_candidates_object": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "candidate_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_moving_object_candidates_objectonmoving_object_candidates(candidate_id)"
+    },
+    "idx_moving_object_candidates_timestamp": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "timestamp desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_moving_object_candidates_timestamponmoving_object_candidates(timestamp)"
+    },
+    "idx_moving_object_candidates_session": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_moving_object_candidates_sessiononmoving_object_candidates(session_id)"
+    },
+    "idx_moving_object_candidates_image": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "captured_image_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_moving_object_candidates_imageonmoving_object_candidates(captured_image_id)"
+    }
+   }
+  },
+  "narrator_events": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "captured_image_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "timestamp",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "event_type",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "category",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "severity",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "headline",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "body",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "evidence_json",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "dedupe_key",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "pinned",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "captured_image_id->captured_images(id) update=NO ACTION delete=SET NULL match=NONE",
+    "session_id->imaging_sessions(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [
+    "pinnedin(0,1)"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_narrator_events_dedupe": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY",
+      "dedupe_key desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_narrator_events_dedupeonnarrator_events(session_id,dedupe_key)"
+    },
+    "idx_narrator_events_timestamp": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "timestamp desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_narrator_events_timestamponnarrator_events(timestamp)"
+    },
+    "idx_narrator_events_image": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "captured_image_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_narrator_events_imageonnarrator_events(captured_image_id)"
+    },
+    "idx_narrator_events_session": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_narrator_events_sessiononnarrator_events(session_id)"
+    }
+   }
+  },
+  "narrowband_composites": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "target_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "palette",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "''",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "component_master_ids",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "''",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "output_path",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "width",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "height",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "target_id->targets(id) update=NO ACTION delete=SET NULL match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_narrowband_composites_target": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "target_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_narrowband_composites_targetonnarrowband_composites(target_id)"
+    }
+   }
+  },
+  "night_reports": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "target_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "score",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "headline",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "''",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "findings_json",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "''",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "session_id->imaging_sessions(id) update=NO ACTION delete=CASCADE match=NONE",
+    "target_id->targets(id) update=NO ACTION delete=SET NULL match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_night_reports_created": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "created_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_night_reports_createdonnight_reports(created_at)"
+    },
+    "idx_night_reports_target": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "target_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_night_reports_targetonnight_reports(target_id)"
+    },
+    "idx_night_reports_session": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_night_reports_sessiononnight_reports(session_id)"
+    }
+   }
+  },
+  "notes_journal": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "target_id",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "sequence_run_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "updated_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "title",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "body",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "tags_json",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "''",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "attachments_json",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "''",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "sentiment",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [],
+   "checks": [],
+   "autoincrement": false,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_notes_journal_created": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "created_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_notes_journal_createdonnotes_journal(created_at)"
+    },
+    "idx_notes_journal_run": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "sequence_run_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_notes_journal_runonnotes_journal(sequence_run_id)"
+    },
+    "idx_notes_journal_target": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "target_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_notes_journal_targetonnotes_journal(target_id)"
+    },
+    "sqlite_autoindex_notes_journal_1": {
+     "unique": 1,
+     "origin": "pk",
+     "partial": 0,
+     "columns": [
+      "id desc=0 coll=BINARY"
+     ],
+     "sql": null
+    }
+   }
+  },
+  "observation_logs": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "timestamp",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "object_name",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "object_type",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "catalog_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "ra",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "dec",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "altitude",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "azimuth",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "notes",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "rating",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "equipment_profile_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "seeing_conditions",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "transparency",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "location_name",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "latitude",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "longitude",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "equipment_profile_id->equipment_profiles(id) update=NO ACTION delete=SET NULL match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_obs_logs_profile": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "equipment_profile_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_obs_logs_profileonobservation_logs(equipment_profile_id)"
+    },
+    "idx_obs_logs_rating": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "rating desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_obs_logs_ratingonobservation_logs(rating)"
+    },
+    "idx_obs_logs_catalog_id": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "catalog_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_obs_logs_catalog_idonobservation_logs(catalog_id)"
+    },
+    "idx_obs_logs_object_name": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "object_name desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_obs_logs_object_nameonobservation_logs(object_name)"
+    },
+    "idx_obs_logs_timestamp": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "timestamp desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_obs_logs_timestamponobservation_logs(timestamp)"
+    }
+   }
+  },
+  "observing_list_items": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "list_id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "object_name",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "catalog_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "object_type",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "ra",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "dec",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "magnitude",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "size_arcmin",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "notes",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "sort_order",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "added_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "list_id->observing_lists(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_observing_list_items_sort": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "list_id desc=0 coll=BINARY",
+      "sort_order desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_observing_list_items_sortonobserving_list_items(list_id,sort_order)"
+    },
+    "idx_observing_list_items_catalog": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "catalog_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_observing_list_items_catalogonobserving_list_items(catalog_id)"
+    },
+    "idx_observing_list_items_list": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "list_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_observing_list_items_listonobserving_list_items(list_id)"
+    },
+    "sqlite_autoindex_observing_list_items_1": {
+     "unique": 1,
+     "origin": "u",
+     "partial": 0,
+     "columns": [
+      "list_id desc=0 coll=BINARY",
+      "catalog_id desc=0 coll=BINARY"
+     ],
+     "sql": null
+    }
+   }
+  },
+  "observing_lists": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "name",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "description",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "sort_order",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "updated_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_observing_lists_sort_order": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "sort_order desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_observing_lists_sort_orderonobserving_lists(sort_order)"
+    },
+    "idx_observing_lists_name": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "name desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_observing_lists_nameonobserving_lists(name)"
+    }
+   }
+  },
+  "photometric_transforms": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "equipment_profile_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "filter_name",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "color_term",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "extinction_coefficient",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "zero_point",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "rms_residual",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "matched_star_count",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "catalog_source",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'auto'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "fit_data_json",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "date_computed",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "equipment_profile_id->equipment_profiles(id) update=NO ACTION delete=SET NULL match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_photometric_transforms_profile": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "equipment_profile_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_photometric_transforms_profileonphotometric_transforms(equipment_profile_id)"
+    },
+    "idx_photometric_transforms_date": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "date_computed desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_photometric_transforms_dateonphotometric_transforms(date_computed)"
+    },
+    "idx_photometric_transforms_filter": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "filter_name desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_photometric_transforms_filteronphotometric_transforms(filter_name)"
+    }
+   }
+  },
+  "photometry_measurements": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "captured_image_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "object_id",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "role",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'target'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "x",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "y",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "flux",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "differential_magnitude",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "standard_magnitude",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "snr",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "uncertainty",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "is_outlier",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "filter",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "timestamp",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "captured_image_id->captured_images(id) update=NO ACTION delete=CASCADE match=NONE",
+    "session_id->imaging_sessions(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [
+    "is_outlierin(0,1)"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_photometry_measurements_object": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "object_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_photometry_measurements_objectonphotometry_measurements(object_id)"
+    },
+    "idx_photometry_measurements_timestamp": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "timestamp desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_photometry_measurements_timestamponphotometry_measurements(timestamp)"
+    },
+    "idx_photometry_measurements_session": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_photometry_measurements_sessiononphotometry_measurements(session_id)"
+    },
+    "idx_photometry_measurements_image": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "captured_image_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_photometry_measurements_imageonphotometry_measurements(captured_image_id)"
+    }
+   }
+  },
+  "polar_alignment_history": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "equipment_profile_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "initial_azimuth_error",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "initial_altitude_error",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "initial_total_error",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "final_azimuth_error",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "final_altitude_error",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "final_total_error",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "started_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "completed_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "auto_completed",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "is_north",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "config_json",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "equipment_profile_id->equipment_profiles(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [
+    "auto_completedin(0,1)",
+    "is_northin(0,1)"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_polar_history_completed": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "completed_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_polar_history_completedonpolar_alignment_history(completed_at)"
+    },
+    "idx_polar_history_started": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "started_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_polar_history_startedonpolar_alignment_history(started_at)"
+    },
+    "idx_polar_history_profile": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "equipment_profile_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_polar_history_profileonpolar_alignment_history(equipment_profile_id)"
+    }
+   }
+  },
+  "project_targets": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "project_id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "target_id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "priority_override",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "added_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "project_id->projects(id) update=NO ACTION delete=CASCADE match=NONE",
+    "target_id->targets(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_project_targets_target": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "target_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_project_targets_targetonproject_targets(target_id)"
+    },
+    "idx_project_targets_project": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "project_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_project_targets_projectonproject_targets(project_id)"
+    },
+    "sqlite_autoindex_project_targets_1": {
+     "unique": 1,
+     "origin": "u",
+     "partial": 0,
+     "columns": [
+      "project_id desc=0 coll=BINARY",
+      "target_id desc=0 coll=BINARY"
+     ],
+     "sql": null
+    }
+   }
+  },
+  "projects": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "name",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "description",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "color_argb",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "updated_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {}
+  },
+  "psf_field_tiles": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "captured_image_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "tile_row",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "tile_col",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "star_count",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "median_fwhm",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "median_hfr",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "median_eccentricity",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "roundness",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "timestamp",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "captured_image_id->captured_images(id) update=NO ACTION delete=CASCADE match=NONE",
+    "session_id->imaging_sessions(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_psf_field_tiles_timestamp": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "timestamp desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_psf_field_tiles_timestamponpsf_field_tiles(timestamp)"
+    },
+    "idx_psf_field_tiles_session": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_psf_field_tiles_sessiononpsf_field_tiles(session_id)"
+    },
+    "idx_psf_field_tiles_image": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "captured_image_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_psf_field_tiles_imageonpsf_field_tiles(captured_image_id)"
+    }
+   }
+  },
+  "recipes": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "target_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "master_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "base_master_path",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "name",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "''",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "steps_json",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "''",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_by",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'autopilot'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "draft_notes_json",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "''",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "parent_recipe_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "divergence_index",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "schema_version",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "updated_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "master_id->integrated_masters(id) update=NO ACTION delete=SET NULL match=NONE",
+    "parent_recipe_id->recipes(id) update=NO ACTION delete=RESTRICT match=NONE",
+    "session_id->imaging_sessions(id) update=NO ACTION delete=SET NULL match=NONE",
+    "target_id->targets(id) update=NO ACTION delete=SET NULL match=NONE"
+   ],
+   "checks": [
+    "(parent_recipe_idisnull)=(divergence_indexisnull)",
+    "created_byin('autopilot','user')",
+    "divergence_indexisnullordivergence_index>=0",
+    "schema_version>=1"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_recipes_created": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "created_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_recipes_createdonrecipes(created_at)"
+    },
+    "idx_recipes_base_master": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "base_master_path desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_recipes_base_masteronrecipes(base_master_path)"
+    },
+    "idx_recipes_parent": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "parent_recipe_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_recipes_parentonrecipes(parent_recipe_id)"
+    },
+    "idx_recipes_master": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "master_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_recipes_masteronrecipes(master_id)"
+    },
+    "idx_recipes_session": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_recipes_sessiononrecipes(session_id)"
+    },
+    "idx_recipes_target": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "target_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_recipes_targetonrecipes(target_id)"
+    }
+   }
+  },
+  "science_frame_quality_metrics": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "captured_image_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "timestamp",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "median",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "mean",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "std_dev",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "mad",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "background",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "noise",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "snr",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "dynamic_range_p1_p99",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "low_clip_percent",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "high_clip_percent",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "uniformity_cv",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "gradient_x",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "gradient_y",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "processing_tier",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'live'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "processing_ms",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "captured_image_id->captured_images(id) update=NO ACTION delete=CASCADE match=NONE",
+    "session_id->imaging_sessions(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_science_frame_quality_metrics_session_layer_timestamp": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY",
+      "processing_tier desc=0 coll=BINARY",
+      "timestamp desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_science_frame_quality_metrics_session_layer_timestamponscience_frame_quality_metrics(session_id,processing_tier,timestamp)"
+    },
+    "idx_science_frame_quality_metrics_image": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "captured_image_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_science_frame_quality_metrics_imageonscience_frame_quality_metrics(captured_image_id)"
+    }
+   }
+  },
+  "science_session_config": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "photometry_enabled",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "calibration_enabled",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "transparency_enabled",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "psf_map_enabled",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "residuals_enabled",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "moving_objects_enabled",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "narrowband_enabled",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "psf_grid_rows",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "4",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "psf_grid_cols",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "6",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "transparency_alert_threshold",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "70.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "updated_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "session_id->imaging_sessions(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [
+    "calibration_enabledin(0,1)",
+    "moving_objects_enabledin(0,1)",
+    "narrowband_enabledin(0,1)",
+    "photometry_enabledin(0,1)",
+    "psf_map_enabledin(0,1)",
+    "residuals_enabledin(0,1)",
+    "transparency_enabledin(0,1)"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_science_session_config_session_unique": {
+     "unique": 1,
+     "origin": "c",
+     "partial": 1,
+     "columns": [
+      "session_id desc=0 coll=BINARY"
+     ],
+     "sql": "createuniqueindexidx_science_session_config_session_uniqueonscience_session_config(session_id)wheresession_idisnotnull"
+    },
+    "idx_science_session_config_session": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_science_session_config_sessiononscience_session_config(session_id)"
+    }
+   }
+  },
+  "science_tile_metrics": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "captured_image_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "timestamp",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "layer_type",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "tile_row",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "tile_col",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "sample_count",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "value",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "p05",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "p50",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "p95",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "aux_value",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "captured_image_id->captured_images(id) update=NO ACTION delete=CASCADE match=NONE",
+    "session_id->imaging_sessions(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_science_tile_metrics_image_layer": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "captured_image_id desc=0 coll=BINARY",
+      "layer_type desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_science_tile_metrics_image_layeronscience_tile_metrics(captured_image_id,layer_type)"
+    },
+    "idx_science_tile_metrics_session_layer_timestamp": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY",
+      "layer_type desc=0 coll=BINARY",
+      "timestamp desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_science_tile_metrics_session_layer_timestamponscience_tile_metrics(session_id,layer_type,timestamp)"
+    }
+   }
+  },
+  "sequence_checkpoints": {
+   "columns": [
+    {
+     "name": "sequence_id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "current_node_id",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "state_json",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "completed_frames",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "total_frames",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "current_target_index",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "checkpointed_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "sequence_id->sequences(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": false,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_checkpoints_checkpointed_at": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "checkpointed_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_checkpoints_checkpointed_atonsequence_checkpoints(checkpointed_at)"
+    }
+   }
+  },
+  "sequence_decisions": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "sequence_run_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "timestamp_unix_ms",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "category",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "summary",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "details_json",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'{}'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "node_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_sequence_decisions_run_ts": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "sequence_run_id desc=0 coll=BINARY",
+      "timestamp_unix_ms desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sequence_decisions_run_tsonsequence_decisions(sequence_run_id,timestamp_unix_ms)"
+    },
+    "idx_sequence_decisions_category": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "category desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sequence_decisions_categoryonsequence_decisions(category)"
+    },
+    "idx_sequence_decisions_timestamp": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "timestamp_unix_ms desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sequence_decisions_timestamponsequence_decisions(timestamp_unix_ms)"
+    },
+    "idx_sequence_decisions_run": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "sequence_run_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sequence_decisions_runonsequence_decisions(sequence_run_id)"
+    }
+   }
+  },
+  "sequence_nodes": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "node_id",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "sequence_id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "target_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "node_type",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "specific_type",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "name",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "properties",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'{}'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "recovery_config",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "parent_node_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "order_index",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "is_enabled",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "sequence_id->sequences(id) update=NO ACTION delete=CASCADE match=NONE",
+    "target_id->targets(id) update=NO ACTION delete=SET NULL match=NONE"
+   ],
+   "checks": [
+    "is_enabledin(0,1)"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_nodes_node_id": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "node_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_nodes_node_idonsequence_nodes(node_id)"
+    },
+    "idx_nodes_type": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "node_type desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_nodes_typeonsequence_nodes(node_type)"
+    },
+    "idx_nodes_target": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "target_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_nodes_targetonsequence_nodes(target_id)"
+    },
+    "idx_nodes_parent": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "parent_node_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_nodes_parentonsequence_nodes(parent_node_id)"
+    },
+    "idx_nodes_sequence": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "sequence_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_nodes_sequenceonsequence_nodes(sequence_id)"
+    }
+   }
+  },
+  "sequence_runs": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "sequence_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "sequence_name",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "started_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "ended_at",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "status",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'running'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "stats_json",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'{}'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "sequence_snapshot_json",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "sequence_id->sequences(id) update=NO ACTION delete=SET NULL match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_sequence_runs_status": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "status desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sequence_runs_statusonsequence_runs(status)"
+    },
+    "idx_sequence_runs_started": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "started_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sequence_runs_startedonsequence_runs(started_at)"
+    },
+    "idx_sequence_runs_sequence": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "sequence_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sequence_runs_sequenceonsequence_runs(sequence_id)"
+    }
+   }
+  },
+  "sequence_versions": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "sequence_id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "snapshot_json",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "label",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "sequence_id->sequences(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_sequence_versions_created": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "created_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sequence_versions_createdonsequence_versions(created_at)"
+    },
+    "idx_sequence_versions_sequence": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "sequence_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sequence_versions_sequenceonsequence_versions(sequence_id)"
+    }
+   }
+  },
+  "sequences": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "name",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "description",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "root_node_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "estimated_duration_mins",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "updated_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "is_template",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "tags_json",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "''",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "is_favorite",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [],
+   "checks": [
+    "is_favoritein(0,1)",
+    "is_templatein(0,1)"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_sequences_updated": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "updated_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sequences_updatedonsequences(updated_at)"
+    },
+    "idx_sequences_template": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "is_template desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sequences_templateonsequences(is_template)"
+    },
+    "idx_sequences_name": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "name desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sequences_nameonsequences(name)"
+    }
+   }
+  },
+  "session_diagnostics": {
+   "columns": [
+    {
+     "name": "session_id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "recovery_history_json",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "''",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "optical_train_baseline_json",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "optical_train_current_json",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "recorded_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "session_id->imaging_sessions(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": false,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {}
+  },
+  "sky_atlas_folds": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "tile_id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "healpix_order",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "folded_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "frames_added",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "weight_added",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "integration_seconds_added",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "rejected",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "contributor",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "''",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "label",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "session_id->imaging_sessions(id) update=NO ACTION delete=SET NULL match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_sky_atlas_folds_contributor": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "contributor desc=0 coll=BINARY",
+      "tile_id desc=0 coll=BINARY",
+      "healpix_order desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sky_atlas_folds_contributoronsky_atlas_folds(contributor,tile_id,healpix_order)"
+    },
+    "idx_sky_atlas_folds_session": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sky_atlas_folds_sessiononsky_atlas_folds(session_id)"
+    },
+    "idx_sky_atlas_folds_tile_time": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "tile_id desc=0 coll=BINARY",
+      "healpix_order desc=0 coll=BINARY",
+      "folded_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sky_atlas_folds_tile_timeonsky_atlas_folds(tile_id,healpix_order,folded_at)"
+    }
+   }
+  },
+  "sky_atlas_regions": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "name",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "kind",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "center_ra_deg",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "center_dec_deg",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "radius_deg",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "target_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "tile_count",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "integration_seconds",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "target_id->targets(id) update=NO ACTION delete=SET NULL match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_sky_atlas_regions_target": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "target_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sky_atlas_regions_targetonsky_atlas_regions(target_id)"
+    }
+   }
+  },
+  "sky_tiles": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "tile_id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "healpix_order",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "channels",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "center_ra_deg",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "center_dec_deg",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "coverage_mean",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "total_frames",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "integration_seconds",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "swarm_overlay_frames",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "swarm_overlay_integration_seconds",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "sidecar_path",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "last_fold_session_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "last_fold_at",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "region_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "last_fold_session_id->imaging_sessions(id) update=NO ACTION delete=SET NULL match=NONE",
+    "region_id->sky_atlas_regions(id) update=NO ACTION delete=SET NULL match=NONE"
+   ],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_sky_tiles_dec": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "center_dec_deg desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sky_tiles_deconsky_tiles(center_dec_deg)"
+    },
+    "idx_sky_tiles_region": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "region_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_sky_tiles_regiononsky_tiles(region_id)"
+    },
+    "idx_sky_tiles_pixel": {
+     "unique": 1,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "tile_id desc=0 coll=BINARY",
+      "healpix_order desc=0 coll=BINARY"
+     ],
+     "sql": "createuniqueindexidx_sky_tiles_pixelonsky_tiles(tile_id,healpix_order)"
+    }
+   }
+  },
+  "stacked_results": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "target_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "target_name",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "width",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "height",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "frames_stacked",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "frames_attempted",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "integration_secs",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "avg_alignment_residual",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "avg_hfr",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "filter",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "is_color",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "channels",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "exported_image_path",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [],
+   "checks": [],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_stacked_results_target": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "target_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_stacked_results_targetonstacked_results(target_id)"
+    },
+    "idx_stacked_results_session": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_stacked_results_sessiononstacked_results(session_id)"
+    }
+   }
+  },
+  "targets": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "name",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "catalog_id",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "object_type",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "ra",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "dec",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "position_angle",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "magnitude",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "constellation",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "size_arcmin",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "min_altitude",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "30.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "priority",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "5",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "total_planned_subs",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "captured_subs",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "total_integration_secs",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "goal_integration_secs",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "filter_progress",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "notes",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "created_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "updated_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "is_favorite",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [],
+   "checks": [
+    "is_favoritein(0,1)"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_targets_object_type": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "object_type desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_targets_object_typeontargets(object_type)"
+    },
+    "idx_targets_favorite": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "is_favorite desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_targets_favoriteontargets(is_favorite)"
+    },
+    "idx_targets_priority": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "priority desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_targets_priorityontargets(priority)"
+    },
+    "idx_targets_catalog": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "catalog_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_targets_catalogontargets(catalog_id)"
+    },
+    "idx_targets_name": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "name desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_targets_nameontargets(name)"
+    }
+   }
+  },
+  "transient_detections": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "captured_image_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "tile_id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "detected_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "ra_deg",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "dec_deg",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "residual_flux",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "delta_mag",
+     "type": "REAL",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "snr",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "fwhm",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "eccentricity",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "position_angle_deg",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "kind",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "catalog_match",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "confidence",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "reviewed",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "dismissed",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "captured_image_id->captured_images(id) update=NO ACTION delete=SET NULL match=NONE",
+    "session_id->imaging_sessions(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [
+    "dismissedin(0,1)",
+    "reviewedin(0,1)"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_transient_detections_confirmed": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "reviewed desc=0 coll=BINARY",
+      "dismissed desc=0 coll=BINARY",
+      "detected_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_transient_detections_confirmedontransient_detections(reviewed,dismissed,detected_at)"
+    },
+    "idx_transient_detections_dismissed": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "dismissed desc=0 coll=BINARY",
+      "tile_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_transient_detections_dismissedontransient_detections(dismissed,tile_id)"
+    },
+    "idx_transient_detections_detected": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "detected_at desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_transient_detections_detectedontransient_detections(detected_at)"
+    },
+    "idx_transient_detections_tile": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "tile_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_transient_detections_tileontransient_detections(tile_id)"
+    },
+    "idx_transient_detections_session": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_transient_detections_sessionontransient_detections(session_id)"
+    }
+   }
+  },
+  "transparency_samples": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "captured_image_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "session_id",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "transparency_percent",
+     "type": "REAL",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "extinction_coefficient",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "quality_bucket",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'unknown'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "confidence",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "0.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "filter",
+     "type": "TEXT",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "extinction_measured",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "timestamp",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [
+    "captured_image_id->captured_images(id) update=NO ACTION delete=CASCADE match=NONE",
+    "session_id->imaging_sessions(id) update=NO ACTION delete=CASCADE match=NONE"
+   ],
+   "checks": [
+    "extinction_measuredin(0,1)"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_transparency_samples_timestamp": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "timestamp desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_transparency_samples_timestampontransparency_samples(timestamp)"
+    },
+    "idx_transparency_samples_session": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "session_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_transparency_samples_sessionontransparency_samples(session_id)"
+    },
+    "idx_transparency_samples_image": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "captured_image_id desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_transparency_samples_imageontransparency_samples(captured_image_id)"
+    }
+   }
+  },
+  "tutorial_progress": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "category",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "last_step_index",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "completed",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "started_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "completed_at",
+     "type": "INTEGER",
+     "notnull": 0,
+     "default": null,
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "dismissed",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [],
+   "checks": [
+    "completedin(0,1)",
+    "dismissedin(0,1)"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {
+    "idx_tutorial_progress_category": {
+     "unique": 0,
+     "origin": "c",
+     "partial": 0,
+     "columns": [
+      "category desc=0 coll=BINARY"
+     ],
+     "sql": "createindexidx_tutorial_progress_categoryontutorial_progress(category)"
+    },
+    "sqlite_autoindex_tutorial_progress_1": {
+     "unique": 1,
+     "origin": "u",
+     "partial": 0,
+     "columns": [
+      "category desc=0 coll=BINARY"
+     ],
+     "sql": null
+    }
+   }
+  },
+  "weather_settings": {
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": null,
+     "pk": 1,
+     "hidden": 0
+    },
+    {
+     "name": "trigger_distance_km",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "30.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "cloud_density_threshold",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "60.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "lead_time_minutes",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "15",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "weather_safety_enabled",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "max_humidity_percent",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "90.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "max_wind_speed_kph",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "30.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "max_cloud_cover_percent",
+     "type": "REAL",
+     "notnull": 1,
+     "default": "80.0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "auto_park_enabled",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "1",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "auto_resume_enabled",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "0",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "preferred_provider",
+     "type": "TEXT",
+     "notnull": 1,
+     "default": "'auto'",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "refresh_interval_seconds",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "300",
+     "pk": 0,
+     "hidden": 0
+    },
+    {
+     "name": "updated_at",
+     "type": "INTEGER",
+     "notnull": 1,
+     "default": "cast(strftime('%s',current_timestamp)asinteger)",
+     "pk": 0,
+     "hidden": 0
+    }
+   ],
+   "foreignKeys": [],
+   "checks": [
+    "auto_park_enabledin(0,1)",
+    "auto_resume_enabledin(0,1)",
+    "weather_safety_enabledin(0,1)"
+   ],
+   "autoincrement": true,
+   "withoutRowid": false,
+   "strict": false,
+   "indexes": {}
+  }
+ },
+ "other": {}
+}

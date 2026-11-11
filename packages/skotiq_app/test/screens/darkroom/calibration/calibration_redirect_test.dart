@@ -43,9 +43,9 @@ void main() {
     });
 
     test('the merged keys resolve to the one Calibration entry', () {
-      expect(resolveSectionKey('dark-library'), 'calibration');
-      expect(resolveSectionKey('calibration-library'), 'calibration');
-      expect(resolveSectionKey('calibration'), 'calibration');
+      expect(SettingsSectionId.resolve('dark-library')?.key, 'calibration');
+      expect(SettingsSectionId.resolve('calibration-library')?.key, 'calibration');
+      expect(SettingsSectionId.resolve('calibration')?.key, 'calibration');
     });
 
     testWidgets('opening the Settings entry goes to the Calibration tab', (

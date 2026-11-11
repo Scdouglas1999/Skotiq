@@ -27,8 +27,6 @@ class AdaptiveConditionsSettings extends ConsumerStatefulWidget {
 
 class _AdaptiveConditionsSettingsState
     extends ConsumerState<AdaptiveConditionsSettings> {
-  final _thresholdController = TextEditingController();
-  final _hysteresisController = TextEditingController();
   final _weightControllers = <String, TextEditingController>{
     'transparency': TextEditingController(),
     'seeing': TextEditingController(),
@@ -39,8 +37,6 @@ class _AdaptiveConditionsSettingsState
 
   @override
   void dispose() {
-    _thresholdController.dispose();
-    _hysteresisController.dispose();
     for (final controller in _weightControllers.values) {
       controller.dispose();
     }
@@ -102,7 +98,6 @@ class _AdaptiveConditionsSettingsState
                       'When the live conditions score falls below this 0-100 floor, the scheduler can swap to a better target.',
                   trailing: SettingsNumberInput(
                     key: const ValueKey('adaptiveSwapThresholdInput'),
-                    controller: _thresholdController,
                     authoritativeValue: settings.adaptiveSwapDefaultThreshold,
                     authorityKey: authority,
                     suffix: '',
@@ -124,7 +119,6 @@ class _AdaptiveConditionsSettingsState
                       'Minimum seconds between adaptive target swaps. Range 0-3600.',
                   trailing: SettingsNumberInput(
                     key: const ValueKey('adaptiveSwapHysteresisInput'),
-                    controller: _hysteresisController,
                     authoritativeValue:
                         settings.adaptiveSwapDefaultHysteresisSecs,
                     authorityKey: authority,

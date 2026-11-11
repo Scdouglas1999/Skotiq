@@ -519,8 +519,8 @@ enum MeridianMonitorDecision {
 ///
 /// When the trigger fires the monitor does BOTH of:
 ///   1. Alert — `flipExecutionStateProvider` -> `executing`,
-///      `NotificationService.notifyMeridianFlip` (Discord / Pushover /
-///      push per `pushNotificationOnFlip`), and a diagnostics log entry.
+///      `NotificationService.notifyMeridianFlip` (per
+///      `pushNotificationOnFlip`), and a diagnostics log entry.
 ///   2. Execute — `backend.performMeridianFlip(...)`, which runs the
 ///      canonical native `MeridianFlipExecutor` standalone (same engine,
 ///      timeouts, altitude check, re-center and refocus as the in-sequence
@@ -797,7 +797,7 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
           _ref
               .read(notificationServiceProvider)
               .notifyMeridianFlip(isStarting: false)
-              .catchError((Object e, StackTrace s) => false),
+              .then<void>((_) {}, onError: (Object _) {}),
         );
       }
       return true;
@@ -860,20 +860,22 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
 
     if (settings.pushNotificationOnFlip) {
       // Why: the operator opted into push notifications for flip events.
-      // Route through NotificationService so Discord / Pushover / system push
-      // all honor the toggle. Errors here are reported but never propagate —
+      // Route through NotificationService so every routed transport honors
+      // the toggle. Errors here are reported but never propagate —
       // a missed notification must not stall the monitor.
       unawaited(
         _ref
             .read(notificationServiceProvider)
             .notifyMeridianFlip(isStarting: true)
-            .catchError((Object e, StackTrace s) {
-              logger.error(
-                'Failed to dispatch meridian flip notification: $e',
-                source: 'MeridianFlipStandaloneMonitor',
-              );
-              return false;
-            }),
+            .then<void>(
+              (_) {},
+              onError: (Object e) {
+                logger.error(
+                  'Failed to dispatch meridian flip notification: $e',
+                  source: 'MeridianFlipStandaloneMonitor',
+                );
+              },
+            ),
       );
     }
   }

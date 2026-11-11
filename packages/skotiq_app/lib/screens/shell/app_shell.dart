@@ -38,6 +38,7 @@ import 'widgets/skotiq_bottom_navigation.dart';
 // Conditional import for window_manager (desktop only)
 import 'app_shell_stub.dart' if (dart.library.io) 'app_shell_desktop.dart'
     as window_impl;
+import '../settings/settings_sections.dart';
 
 part 'app_shell_parts/_startup_checkpoint.dart';
 part 'app_shell_parts/_mobile_settings_bar.dart';
@@ -499,7 +500,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                               SafeArea(
                                 bottom: false,
                                 child: _MobileSettingsBar(
-                                  onOpenSettings: () => context.go('/settings'),
+                                  onOpenSettings: () => openSettings(context),
                                 ),
                               ),
 

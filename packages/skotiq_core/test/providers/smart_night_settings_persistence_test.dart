@@ -20,7 +20,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart'
-    show AppSettingsState, AppSettingsStateCopyWith;
+    show AppSettingsState;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

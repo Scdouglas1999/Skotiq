@@ -16,6 +16,14 @@
 //   * `notification_transport_discord`    -> DiscordTransportConfig.toJson() (no webhook URL)
 //   * `notification_transport_mqtt`       -> MqttTransportConfig.toJson() (no password)
 //   * `notification_secrets_migrated_v2`  -> 'true' once one-shot migration done.
+//   * `notification_legacy_credentials_carried_v1` -> 'true' once the
+//     pre-router Discord/Pushover credentials have been carried over.
+//
+// The transport configs are the only credentials anything sends with. The
+// `discordWebhook` / `pushoverKey` / `pushoverUser` app settings are what the
+// app sent with before the router existed; they stay as the wire a linked
+// client edits the host's Discord/Pushover config through (app settings sync
+// to the host, the keyring does not), and this file keeps the two in step.
 //
 // We deliberately keep one key per transport so a corrupt blob in one
 // (say, the user pasted invalid JSON into a webhook header field) only
@@ -45,6 +53,7 @@ import '../services/notification/transports/webhook_transport.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'push_notification_provider.dart';
+import 'settings_provider.dart';
 import 'ui_notification_provider.dart';
 
 const String _kRoutingMatrixSettingKey = 'notification_routing_matrix';
@@ -160,6 +169,117 @@ final notificationSecretsMigrationProvider = FutureProvider<bool>((ref) async {
   final store = ref.read(secretsStoreProvider);
   return store.migrateFromPlaintext(dao);
 });
+
+const String _kLegacyCredentialsCarriedKey =
+    'notification_legacy_credentials_carried_v1';
+
+/// The routing rows the pre-router senders posted every message of: the
+/// built-in alerts travel under `custom`, the morning message under
+/// `darkroomDraftReady`.
+const _legacySenderRows = [
+  NotificationCategory.custom,
+  NotificationCategory.darkroomDraftReady,
+];
+
+/// One-time carry-over for an install that configured Discord or Pushover
+/// before the router existed, so it keeps receiving what it received.
+///
+/// The credential goes into the transport's keyring slot unless that slot
+/// already holds one (a stored credential is never replaced or blanked), and
+/// the transport is added to the rows the old senders posted under. Runs
+/// before the Discord, Pushover and matrix configs are first read on the
+/// host. A linked client skips it: its local database is not the host's.
+///
+/// A failure is logged and retried on the next launch; it must not take the
+/// transport configs down with it.
+final legacyNotificationCredentialsProvider = FutureProvider<void>((ref) async {
+  await ref.read(notificationSecretsMigrationProvider.future);
+  if (ref.read(diagnosticsBackendProvider) is NetworkBackend) return;
+  final dao = ref.read(settingsDaoProvider);
+  final secrets = ref.read(secretsStoreProvider);
+  try {
+    if (await dao.getSetting(_kLegacyCredentialsCarriedKey) == 'true') return;
+    final settings = await ref.read(appSettingsProvider.future);
+    final webhook = settings.discordWebhook.trim();
+    final token = settings.pushoverKey.trim();
+    final user = settings.pushoverUser.trim();
+    final carried = <NotificationTransportKind>[];
+
+    if (webhook.isNotEmpty) {
+      if (!await secrets.has(SecretField.discordWebhookUrl)) {
+        await secrets.write(SecretField.discordWebhookUrl, webhook);
+      }
+      carried.add(NotificationTransportKind.discord);
+    }
+    if (token.isNotEmpty && user.isNotEmpty) {
+      if (!await secrets.has(SecretField.pushoverApiToken) &&
+          !await secrets.has(SecretField.pushoverUserKey)) {
+        await secrets.write(SecretField.pushoverApiToken, token);
+        await secrets.write(SecretField.pushoverUserKey, user);
+      }
+      carried.add(NotificationTransportKind.pushover);
+    }
+
+    if (carried.isNotEmpty) {
+      final raw = await dao.getSetting(_kRoutingMatrixSettingKey);
+      var matrix = raw == null
+          ? NotificationRoutingMatrix.defaults()
+          : NotificationRoutingMatrix.fromJson(
+              jsonDecode(raw) as Map<String, dynamic>,
+            );
+      for (final row in _legacySenderRows) {
+        final rule = matrix.ruleFor(row);
+        matrix = matrix.withRule(
+          row,
+          rule.copyWith(
+            transports: [
+              ...rule.transports,
+              for (final kind in carried)
+                if (!rule.transports.contains(kind)) kind,
+            ],
+          ),
+        );
+      }
+      await dao.setSetting(
+        _kRoutingMatrixSettingKey,
+        jsonEncode(matrix.toJson()),
+      );
+    }
+    await dao.setSetting(_kLegacyCredentialsCarriedKey, 'true');
+  } catch (e, stackTrace) {
+    developer.log(
+      '[NotificationProviders] Could not carry the earlier Discord/Pushover '
+      'settings into notification routing: $e',
+      name: 'NotificationProviders',
+      level: 1000,
+      error: e,
+      stackTrace: stackTrace,
+    );
+  }
+});
+
+/// Keeps the app-settings copy of a credential in step after a transport
+/// save, but only where one already exists: a secret is never copied out of
+/// the keyring into app settings (which ride export and backup) for the first
+/// time.
+Future<void> _mirrorToAppSettings(
+  List<({String current, String value, Future<void> Function(String) set})>
+  fields,
+) async {
+  if (fields.every((f) => f.current.isEmpty)) return;
+  try {
+    for (final field in fields) {
+      if (field.current != field.value) await field.set(field.value);
+    }
+  } catch (e) {
+    developer.log(
+      '[NotificationProviders] Could not update the app-settings copy of a '
+      'transport credential: $e',
+      name: 'NotificationProviders',
+      level: 900,
+    );
+  }
+}
 
 // Per-transport config notifiers
 
@@ -353,7 +473,7 @@ class PushoverConfigNotifier extends AsyncNotifier<PushoverTransportConfig>
     with _SerializedAsyncWrites<PushoverTransportConfig> {
   @override
   Future<PushoverTransportConfig> build() async {
-    await ref.read(notificationSecretsMigrationProvider.future);
+    await ref.read(legacyNotificationCredentialsProvider.future);
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
     final raw = await dao.getSetting(
@@ -414,6 +534,22 @@ class PushoverConfigNotifier extends AsyncNotifier<PushoverTransportConfig>
         transport: 'Pushover',
       );
       state = AsyncData(config);
+      final legacy = ref.read(appSettingsProvider).valueOrNull;
+      if (legacy != null) {
+        final settings = ref.read(appSettingsProvider.notifier);
+        await _mirrorToAppSettings([
+          (
+            current: legacy.pushoverKey,
+            value: config.apiToken,
+            set: settings.setPushoverKey,
+          ),
+          (
+            current: legacy.pushoverUser,
+            value: config.userKey,
+            set: settings.setPushoverUser,
+          ),
+        ]);
+      }
     });
   }
 }
@@ -487,7 +623,7 @@ class DiscordConfigNotifier extends AsyncNotifier<DiscordTransportConfig>
     with _SerializedAsyncWrites<DiscordTransportConfig> {
   @override
   Future<DiscordTransportConfig> build() async {
-    await ref.read(notificationSecretsMigrationProvider.future);
+    await ref.read(legacyNotificationCredentialsProvider.future);
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
     final raw = await dao.getSetting(
@@ -547,6 +683,16 @@ class DiscordConfigNotifier extends AsyncNotifier<DiscordTransportConfig>
         transport: 'Discord',
       );
       state = AsyncData(config);
+      final legacy = ref.read(appSettingsProvider).valueOrNull;
+      if (legacy != null) {
+        await _mirrorToAppSettings([
+          (
+            current: legacy.discordWebhook,
+            value: config.webhookUrl,
+            set: ref.read(appSettingsProvider.notifier).setDiscordWebhook,
+          ),
+        ]);
+      }
     });
   }
 }
@@ -616,6 +762,7 @@ class RoutingMatrixNotifier extends AsyncNotifier<NotificationRoutingMatrix>
     with _SerializedAsyncWrites<NotificationRoutingMatrix> {
   @override
   Future<NotificationRoutingMatrix> build() async {
+    await ref.read(legacyNotificationCredentialsProvider.future);
     final dao = ref.read(settingsDaoProvider);
     final raw = await dao.getSetting(_kRoutingMatrixSettingKey);
     if (raw == null) return NotificationRoutingMatrix.defaults();
@@ -839,6 +986,39 @@ final notificationRouterProvider = Provider<NotificationRouter>((ref) {
     next.whenData(router.updateMatrix);
   });
 
+  // A linked client has no access to this host's keyring; it edits Discord
+  // and Pushover through the three app settings that sync here. Whatever it
+  // changes becomes the transport config.
+  ref.listen(appSettingsProvider, (prev, next) {
+    final before = prev?.valueOrNull;
+    final after = next.valueOrNull;
+    if (before == null || after == null) return;
+    if (before.discordWebhook != after.discordWebhook) {
+      final webhook = after.discordWebhook.trim();
+      final cfg = ref.read(discordTransportConfigProvider).valueOrNull;
+      if (cfg != null && cfg.webhookUrl != webhook) {
+        _saveFromAppSettings(
+          ref
+              .read(discordTransportConfigProvider.notifier)
+              .save(cfg.copyWith(webhookUrl: webhook)),
+        );
+      }
+    }
+    if (before.pushoverKey != after.pushoverKey ||
+        before.pushoverUser != after.pushoverUser) {
+      final token = after.pushoverKey.trim();
+      final user = after.pushoverUser.trim();
+      final cfg = ref.read(pushoverTransportConfigProvider).valueOrNull;
+      if (cfg != null && (cfg.apiToken != token || cfg.userKey != user)) {
+        _saveFromAppSettings(
+          ref
+              .read(pushoverTransportConfigProvider.notifier)
+              .save(cfg.copyWith(apiToken: token, userKey: user)),
+        );
+      }
+    }
+  });
+
   ref.onDispose(() {
     // Don't await — provider disposal is synchronous.
     unawaited(router.dispose());
@@ -846,6 +1026,39 @@ final notificationRouterProvider = Provider<NotificationRouter>((ref) {
 
   return router;
 });
+
+void _saveFromAppSettings(Future<void> save) {
+  unawaited(
+    save.catchError((Object e) {
+      developer.log(
+        '[NotificationProviders] Could not apply a credential edited from a '
+        'linked client: $e',
+        name: 'NotificationProviders',
+        level: 1000,
+      );
+    }),
+  );
+}
+
+/// Sends one test message through a transport built from credentials that
+/// are not the stored config (what a linked client has typed, before the host
+/// has them), then disposes it.
+final notificationTransportProbeProvider =
+    Provider<Future<NotificationResult> Function(NotificationTransport)>((ref) {
+      return (transport) async {
+        try {
+          return await transport.send(
+            NotificationMessage(
+              category: NotificationCategory.custom,
+              title: 'Skotiq test',
+              body: 'This is a test notification from Skotiq.',
+            ),
+          );
+        } finally {
+          await transport.dispose();
+        }
+      };
+    });
 
 /// Transport kinds that currently hold enough configuration to actually
 /// deliver.

@@ -26,16 +26,6 @@ class PlateSolveParametersSection extends ConsumerStatefulWidget {
 
 class _PlateSolveParametersSectionState
     extends ConsumerState<PlateSolveParametersSection> {
-  final _timeoutController = TextEditingController();
-  final _radiusController = TextEditingController();
-
-  @override
-  void dispose() {
-    _timeoutController.dispose();
-    _radiusController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(appSettingsProvider);
@@ -75,7 +65,6 @@ class _PlateSolveParametersSectionState
               title: 'Timeout',
               subtitle: 'Maximum time to attempt a solve before giving up',
               trailing: SettingsNumberInput(
-                controller: _timeoutController,
                 authoritativeValue: settings.plateSolveTimeout.toDouble(),
                 authorityKey: authority,
                 suffix: 'sec',
@@ -95,7 +84,6 @@ class _PlateSolveParametersSectionState
               helpId: FieldHelpId.plateSolverSearchRadius,
               subtitle: 'How far around the expected position to search',
               trailing: SettingsNumberInput(
-                controller: _radiusController,
                 authoritativeValue: settings.plateSolveSearchRadius,
                 authorityKey: authority,
                 suffix: '°',

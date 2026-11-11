@@ -17,7 +17,7 @@ extension _SkotiqDatabaseMigrationV46 on SkotiqDatabase {
   /// also runs from `onCreate` so fresh installs get the table too.
   Future<void> _upgradeSchemaV46(Migrator m, int from) async {
     if (from < 46) {
-      await _createCalibrationTagsTable();
+      await _createCalibrationTagsTable(m);
     }
   }
 }
