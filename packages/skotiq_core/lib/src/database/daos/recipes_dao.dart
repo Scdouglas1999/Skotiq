@@ -8,6 +8,8 @@ import '../../providers/database_provider.dart';
 import '../database.dart';
 import '../epoch_seconds.dart';
 
+part 'recipes_dao.g.dart';
+
 /// A recipe row was addressed by an id that has no row.
 class RecipeMissingException implements Exception {
   final int recipeId;
@@ -119,11 +121,8 @@ class RecipeDraftNote {
   String toString() => '$opId: $outcome — $reason';
 }
 
-/// Data-access object for the v58 `recipes` table — the non-destructive
-/// operation stack replayed over a linear master, and the branch graph over it.
-///
-/// The table is declared in `database/schema/darkroom.drift`; this DAO queries
-/// with SQL through the database's `customSelect` / `customStatement` APIs.
+/// Reads and writes for `recipes`: the non-destructive operation stack
+/// replayed over a linear master, and the branch graph over it.
 ///
 /// BRANCHING. A branch is a row carrying both `parent_recipe_id` and the
 /// `divergence_index` into that parent's step list; a root recipe carries
@@ -138,22 +137,10 @@ class RecipeDraftNote {
 /// from: the branch would go on rendering while describing a lineage that never
 /// happened. A user who genuinely wants the whole line gone calls
 /// [deleteRecipeSubtree], which is explicit about what it destroys.
-class RecipesDao {
-  RecipesDao(this._db);
-
-  final SkotiqDatabase _db;
-
-  /// The columns a [DarkroomRecipe] is built from.
-  ///
-  /// `draft_notes_json` is deliberately absent: it is provenance about the pass
-  /// that composed the stack, not part of the recipe every branch walk and
-  /// sibling listing carries, and reading it on every row would decode a JSON
-  /// array per recipe for the one screen that shows it. [draftNotesOf] reads it
-  /// on its own.
-  static const String _columns =
-      'id, target_id, session_id, master_id, base_master_path, name, '
-      'steps_json, created_by, parent_recipe_id, divergence_index, '
-      'schema_version, created_at, updated_at';
+@DriftAccessor(include: {'../schema/darkroom.drift'})
+class RecipesDao extends DatabaseAccessor<SkotiqDatabase>
+    with _$RecipesDaoMixin {
+  RecipesDao(super.db);
 
   /// Insert a recipe row and return its id.
   ///
@@ -195,27 +182,22 @@ class RecipesDao {
 
     final created = toEpochSeconds(createdAt ?? DateTime.now());
     final updated = updatedAt == null ? created : toEpochSeconds(updatedAt);
-    return _db.customInsert(
-      'INSERT INTO recipes('
-      'target_id, session_id, master_id, base_master_path, name, steps_json, '
-      'created_by, draft_notes_json, parent_recipe_id, divergence_index, '
-      'schema_version, created_at, updated_at'
-      ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      variables: [
-        Variable<int>(targetId),
-        Variable<int>(sessionId),
-        Variable<int>(masterId),
-        Variable<String>(baseMasterPath),
-        Variable<String>(name),
-        Variable<String>(stepsJson),
-        Variable<String>(createdBy.wire),
-        Variable<String>(_encodeDraftNotes(draftNotes)),
-        Variable<int>(parentRecipeId),
-        Variable<int>(divergenceIndex),
-        Variable<int>(schemaVersion),
-        Variable<int>(created),
-        Variable<int>(updated),
-      ],
+    return into(recipes).insert(
+      RecipesCompanion.insert(
+        targetId: Value(targetId),
+        sessionId: Value(sessionId),
+        masterId: Value(masterId),
+        baseMasterPath: baseMasterPath,
+        name: Value(name),
+        stepsJson: Value(stepsJson),
+        createdBy: Value(createdBy.wire),
+        draftNotesJson: Value(_encodeDraftNotes(draftNotes)),
+        parentRecipeId: Value(parentRecipeId),
+        divergenceIndex: Value(divergenceIndex),
+        schemaVersion: Value(schemaVersion),
+        createdAt: created,
+        updatedAt: updated,
+      ),
     );
   }
 
@@ -254,64 +236,28 @@ class RecipesDao {
 
   /// Fetch a recipe by id, or null when absent.
   Future<DarkroomRecipe?> getById(int id) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM recipes WHERE id = ? LIMIT 1',
-          variables: [Variable<int>(id)],
-        )
-        .get();
-    if (rows.isEmpty) return null;
-    return _map(rows.first);
+    final row = await (select(
+      recipes,
+    )..where((r) => r.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _map(row);
   }
 
   /// Every recipe over one linear master FITS, newest first.
-  Future<List<DarkroomRecipe>> listForMaster(String baseMasterPath) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM recipes WHERE base_master_path = ? '
-          'ORDER BY created_at DESC, id DESC',
-          variables: [Variable<String>(baseMasterPath)],
-        )
-        .get();
-    return rows.map(_map).toList();
-  }
+  Future<List<DarkroomRecipe>> listForMaster(String baseMasterPath) =>
+      _list((r) => r.baseMasterPath.equals(baseMasterPath), newestFirst: true);
 
   /// Every recipe produced from one imaging session, newest first.
-  Future<List<DarkroomRecipe>> listForSession(int sessionId) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM recipes WHERE session_id = ? '
-          'ORDER BY created_at DESC, id DESC',
-          variables: [Variable<int>(sessionId)],
-        )
-        .get();
-    return rows.map(_map).toList();
-  }
+  Future<List<DarkroomRecipe>> listForSession(int sessionId) =>
+      _list((r) => r.sessionId.equals(sessionId), newestFirst: true);
 
   /// Every recipe for one target, newest first.
-  Future<List<DarkroomRecipe>> listForTarget(int targetId) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM recipes WHERE target_id = ? '
-          'ORDER BY created_at DESC, id DESC',
-          variables: [Variable<int>(targetId)],
-        )
-        .get();
-    return rows.map(_map).toList();
-  }
+  Future<List<DarkroomRecipe>> listForTarget(int targetId) =>
+      _list((r) => r.targetId.equals(targetId), newestFirst: true);
 
   /// The direct branches of [id], oldest first. Empty when [id] is a leaf — and
   /// also when [id] has no row, which [getById] distinguishes.
-  Future<List<DarkroomRecipe>> childrenOf(int id) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM recipes WHERE parent_recipe_id = ? '
-          'ORDER BY created_at ASC, id ASC',
-          variables: [Variable<int>(id)],
-        )
-        .get();
-    return rows.map(_map).toList();
-  }
+  Future<List<DarkroomRecipe>> childrenOf(int id) =>
+      _list((r) => r.parentRecipeId.equals(id), newestFirst: false);
 
   /// The lineage of [id]: the recipe itself, then its parent, up to the root.
   ///
@@ -380,17 +326,13 @@ class RecipesDao {
       );
     }
     final at = toEpochSeconds(now ?? DateTime.now());
-    return _db.customUpdate(
-      'UPDATE recipes SET steps_json = ?, '
-      'schema_version = COALESCE(?, schema_version), updated_at = ? '
-      'WHERE id = ?',
-      variables: [
-        Variable<String>(stepsJson),
-        Variable<int>(schemaVersion),
-        Variable<int>(at),
-        Variable<int>(id),
-      ],
-      updateKind: UpdateKind.update,
+    return _write(
+      id,
+      RecipesCompanion(
+        stepsJson: Value(stepsJson),
+        schemaVersion: Value.absentIfNull(schemaVersion),
+        updatedAt: Value(at),
+      ),
     );
   }
 
@@ -406,14 +348,16 @@ class RecipesDao {
   /// [DarkroomWireFormatException] when the stored text is not an array of
   /// notes — this app is the only writer, so unreadable text is corruption.
   Future<List<RecipeDraftNote>> draftNotesOf(int id) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT draft_notes_json FROM recipes WHERE id = ? LIMIT 1',
-          variables: [Variable<int>(id)],
-        )
-        .get();
-    if (rows.isEmpty) throw RecipeMissingException(id);
-    return _decodeDraftNotes(rows.first.read<String>('draft_notes_json'));
+    final draftNotesJson = recipes.draftNotesJson;
+    final raw =
+        await (selectOnly(recipes)
+              ..addColumns([draftNotesJson])
+              ..where(recipes.id.equals(id))
+              ..limit(1))
+            .map((row) => row.read(draftNotesJson)!)
+            .getSingleOrNull();
+    if (raw == null) throw RecipeMissingException(id);
+    return _decodeDraftNotes(raw);
   }
 
   /// Replace a recipe's draft account, bumping `updated_at`. Returns the number
@@ -428,14 +372,12 @@ class RecipesDao {
     DateTime? now,
   }) {
     final at = toEpochSeconds(now ?? DateTime.now());
-    return _db.customUpdate(
-      'UPDATE recipes SET draft_notes_json = ?, updated_at = ? WHERE id = ?',
-      variables: [
-        Variable<String>(_encodeDraftNotes(notes)),
-        Variable<int>(at),
-        Variable<int>(id),
-      ],
-      updateKind: UpdateKind.update,
+    return _write(
+      id,
+      RecipesCompanion(
+        draftNotesJson: Value(_encodeDraftNotes(notes)),
+        updatedAt: Value(at),
+      ),
     );
   }
 
@@ -443,10 +385,9 @@ class RecipesDao {
   /// number of rows changed.
   Future<int> rename(int id, String name, {DateTime? now}) {
     final at = toEpochSeconds(now ?? DateTime.now());
-    return _db.customUpdate(
-      'UPDATE recipes SET name = ?, updated_at = ? WHERE id = ?',
-      variables: [Variable<String>(name), Variable<int>(at), Variable<int>(id)],
-      updateKind: UpdateKind.update,
+    return _write(
+      id,
+      RecipesCompanion(name: Value(name), updatedAt: Value(at)),
     );
   }
 
@@ -462,11 +403,7 @@ class RecipesDao {
             ..sort();
       throw RecipeHasChildrenException(id, ids);
     }
-    return _db.customUpdate(
-      'DELETE FROM recipes WHERE id = ?',
-      variables: [Variable<int>(id)],
-      updateKind: UpdateKind.delete,
-    );
+    return _delete(id);
   }
 
   /// Delete [id] and every recipe descended from it, deepest branches first so
@@ -478,17 +415,9 @@ class RecipesDao {
     for (final recipe in descendants.reversed) {
       final recipeId = recipe.id;
       if (recipeId == null) continue;
-      deleted += await _db.customUpdate(
-        'DELETE FROM recipes WHERE id = ?',
-        variables: [Variable<int>(recipeId)],
-        updateKind: UpdateKind.delete,
-      );
+      deleted += await _delete(recipeId);
     }
-    deleted += await _db.customUpdate(
-      'DELETE FROM recipes WHERE id = ?',
-      variables: [Variable<int>(id)],
-      updateKind: UpdateKind.delete,
-    );
+    deleted += await _delete(id);
     return deleted;
   }
 
@@ -528,21 +457,47 @@ class RecipesDao {
     }
   }
 
-  DarkroomRecipe _map(QueryRow row) {
+  /// The recipes [filter] selects, ordered by creation time then id.
+  Future<List<DarkroomRecipe>> _list(
+    Expression<bool> Function(Recipes r) filter, {
+    required bool newestFirst,
+  }) async {
+    final mode = newestFirst ? OrderingMode.desc : OrderingMode.asc;
+    final rows =
+        await (select(recipes)
+              ..where(filter)
+              ..orderBy([
+                (r) => OrderingTerm(expression: r.createdAt, mode: mode),
+                (r) => OrderingTerm(expression: r.id, mode: mode),
+              ]))
+            .get();
+    return rows.map(_map).toList();
+  }
+
+  Future<int> _write(int id, RecipesCompanion changes) =>
+      (update(recipes)..where((r) => r.id.equals(id))).write(changes);
+
+  Future<int> _delete(int id) =>
+      (delete(recipes)..where((r) => r.id.equals(id))).go();
+
+  /// Builds the [DarkroomRecipe]. `draft_notes_json` is not part of it: it is
+  /// provenance about the pass that composed the stack, decoded only by
+  /// [draftNotesOf] for the one screen that shows it.
+  DarkroomRecipe _map(RecipeRow row) {
     return DarkroomRecipe(
-      id: row.read<int>('id'),
-      targetId: row.readNullable<int>('target_id'),
-      sessionId: row.readNullable<int>('session_id'),
-      masterId: row.readNullable<int>('master_id'),
-      baseMasterPath: row.read<String>('base_master_path'),
-      name: row.read<String>('name'),
-      stepsJson: row.read<String>('steps_json'),
-      createdBy: RecipeAuthor.fromWire(row.read<String>('created_by')),
-      parentRecipeId: row.readNullable<int>('parent_recipe_id'),
-      divergenceIndex: row.readNullable<int>('divergence_index'),
-      schemaVersion: row.read<int>('schema_version'),
-      createdAt: fromEpochSeconds(row.read<int>('created_at')),
-      updatedAt: fromEpochSeconds(row.read<int>('updated_at')),
+      id: row.id,
+      targetId: row.targetId,
+      sessionId: row.sessionId,
+      masterId: row.masterId,
+      baseMasterPath: row.baseMasterPath,
+      name: row.name,
+      stepsJson: row.stepsJson,
+      createdBy: RecipeAuthor.fromWire(row.createdBy),
+      parentRecipeId: row.parentRecipeId,
+      divergenceIndex: row.divergenceIndex,
+      schemaVersion: row.schemaVersion,
+      createdAt: fromEpochSeconds(row.createdAt),
+      updatedAt: fromEpochSeconds(row.updatedAt),
     );
   }
 }
