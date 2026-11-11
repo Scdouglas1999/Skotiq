@@ -17,7 +17,6 @@ import 'dart:io';
 Future<void> main() async {
   final failures = <String>[];
 
-  // Locate the production tool relative to this self-test.
   final selfPath = Platform.script.toFilePath();
   final toolPath = selfPath.replaceFirst(
     'stale_comment_audit_self_test.dart',

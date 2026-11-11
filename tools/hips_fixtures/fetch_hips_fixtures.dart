@@ -76,7 +76,6 @@ const double fieldRaDeg = 10.6847;
 /// The fixture field centre, declination in degrees (M31).
 const double fieldDecDeg = 41.2687;
 
-/// Human-readable field name.
 const String fieldName = 'M31 (Andromeda Galaxy)';
 
 /// The HEALPix order the survey publishes its Allsky whole-sky preview at.
@@ -186,7 +185,6 @@ Future<int> main(List<String> args) async {
   return 0;
 }
 
-/// Parsed command-line flags.
 class _Flags {
   final Directory? outDir;
   final bool dryRun;
