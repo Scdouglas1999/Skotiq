@@ -374,6 +374,7 @@ native/skotiq_native/bridge/src/api/post_session/uniform_delivery.rs	deliver	unw
 native/skotiq_native/bridge/src/api/post_session/uniform_delivery.rs	deliver	unwrap_or_literal	1	V0651	let count = header.get_int("NFRAMES").unwrap_or(0);
 native/skotiq_native/bridge/src/api/secondary_rig.rs	new_secondary_session_id	unwrap_or_literal	1	V0121	.unwrap_or(0);
 native/skotiq_native/bridge/src/api/sequencer/event_bridge.rs	run_sequencer_event_loop	unwrap_or_default	1	V0709	node_id: node_id.clone().unwrap_or_default(),
+native/skotiq_native/bridge/src/api/sequencer/lifecycle.rs	pause_command_does_not_announce_a_pause_itself	rust_let_underscore	1	U2-12	let _ = crate::api::sequencer::api_sequencer_pause().await;
 native/skotiq_native/bridge/src/api/sequencer/lifecycle.rs	starting_a_run_seeds_the_site_from_app_settings	rust_let_underscore	1	V0689	let _ = api_sequencer_start().await;
 native/skotiq_native/bridge/src/api/sequencer/mosaic.rs	from	unwrap_or_default	1	V0782	auth_token: s.config.auth_token.clone().unwrap_or_default(),
 native/skotiq_native/bridge/src/api/sequencer/mosaic.rs	from	unwrap_or_default	1	V0782	watermark_template: s.config.watermark_text.clone().unwrap_or_default(),
