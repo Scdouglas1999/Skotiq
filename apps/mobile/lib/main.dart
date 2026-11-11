@@ -434,7 +434,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
       }
 
       // Full UI parity: phones and tablets both route through the shared
-      // GoRouter shell (`SkotiqApp(isMobile: true)`).
+      // GoRouter shell (`SkotiqApp`).
       return Consumer(
         builder: (context, ref, _) {
           // Activate location sync
@@ -487,7 +487,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
           // Check for checkpoint on first connection
           _checkForCheckpoint(context, ref);
 
-          return const SkotiqApp(isMobile: true);
+          return const SkotiqApp();
         },
       );
     } catch (e, stackTrace) {

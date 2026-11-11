@@ -18,7 +18,7 @@
 // device pickers inside the wizard.
 //
 // The wizard is reached from `mobile_dashboard_screen.dart` and any
-// `SkotiqApp(isMobile: true)` shell when `shouldRunFirstRunSetup`
+// `SkotiqApp` shell when `shouldRunFirstRunSetup`
 // resolves true. It writes the `firstRunCompleted` flag through
 // `MobilePreferences` so it never auto-appears again, even if a future
 // connection lands on a server with the same empty state.

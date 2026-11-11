@@ -55,7 +55,7 @@ void main() {
               .overrideWith((ref) async => const <SessionRecoveryInfo>[]),
           quickStartContextProvider.overrideWith((ref) async => null),
         ],
-        child: const SkotiqApp(isDesktop: false, isMobile: false),
+        child: const SkotiqApp(isDesktop: false),
       ),
     );
 

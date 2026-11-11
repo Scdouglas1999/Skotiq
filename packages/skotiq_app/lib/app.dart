@@ -21,11 +21,9 @@ import 'package:skotiq_app/widgets/equipment_onboarding_launcher.dart';
 import 'package:skotiq_app/widgets/auto_integration_launcher.dart';
 
 class SkotiqApp extends ConsumerWidget {
-  final bool isMobile;
   final bool isDesktop;
 
   const SkotiqApp({
-    this.isMobile = false,
     this.isDesktop = false,
     super.key,
   });
