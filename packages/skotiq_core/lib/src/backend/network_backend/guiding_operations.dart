@@ -276,6 +276,10 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
   @override
   Future<Phd2CalibrationData> phd2GetCalibrationData() async {
     final response = await _post('phd2/get-calibration-data', {});
+    return _calibrationFromJson(response);
+  }
+
+  Phd2CalibrationData _calibrationFromJson(Map<String, dynamic> response) {
     final isCalibrated = response['isCalibrated'] as bool;
     return Phd2CalibrationData(
       isCalibrated: isCalibrated,
@@ -418,6 +422,24 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
       'guider/star-image?deviceId=${Uri.encodeQueryComponent(deviceId)}&size=$size',
     );
     return _starImageFromJson(response);
+  }
+
+  @override
+  Future<Phd2Status> guiderGetStatus({required String deviceId}) async {
+    final response = await _get(
+      'guider/status?deviceId=${Uri.encodeQueryComponent(deviceId)}',
+    );
+    return Phd2Status.fromJson(response);
+  }
+
+  @override
+  Future<Phd2CalibrationData> guiderGetCalibration({
+    required String deviceId,
+  }) async {
+    final response = await _get(
+      'guider/calibration?deviceId=${Uri.encodeQueryComponent(deviceId)}',
+    );
+    return _calibrationFromJson(response);
   }
 
   @override

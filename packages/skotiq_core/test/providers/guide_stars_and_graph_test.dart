@@ -201,7 +201,7 @@ void main() {
         when(
           () => backend.eventStream,
         ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
-        when(() => backend.phd2GetStatus()).thenAnswer(
+        when(() => backend.guiderGetStatus(deviceId: any(named: 'deviceId'))).thenAnswer(
           (_) async => const Phd2Status(
             state: 'Guiding',
             connected: true,
@@ -246,7 +246,7 @@ void main() {
       when(
         () => backend.eventStream,
       ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
-      when(() => backend.phd2GetStatus()).thenAnswer(
+      when(() => backend.guiderGetStatus(deviceId: any(named: 'deviceId'))).thenAnswer(
         (_) async => const Phd2Status(state: 'Guiding', connected: true),
       );
 
@@ -263,7 +263,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 10));
 
       expect(container.read(guideStarsProvider), isEmpty);
-      verifyNever(() => backend.phd2GetStatus());
+      verifyNever(() => backend.guiderGetStatus(deviceId: any(named: 'deviceId')));
     });
 
     test('setStars seeds the list (UI/test hook)', () async {
@@ -289,7 +289,9 @@ void main() {
         when(
           () => backend.eventStream,
         ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
-        when(backend.phd2GetStatus).thenAnswer((_) => statusCompleter.future);
+        when(
+          () => backend.guiderGetStatus(deviceId: any(named: 'deviceId')),
+        ).thenAnswer((_) => statusCompleter.future);
 
         final container = _container(backend);
         container.read(guiderStateProvider.notifier)
@@ -320,7 +322,9 @@ void main() {
         when(
           () => backend.eventStream,
         ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
-        when(backend.phd2GetStatus).thenAnswer((_) => statusCompleter.future);
+        when(
+          () => backend.guiderGetStatus(deviceId: any(named: 'deviceId')),
+        ).thenAnswer((_) => statusCompleter.future);
 
         final container = _container(backend);
         container.read(guiderStateProvider.notifier)
@@ -330,10 +334,14 @@ void main() {
         container.read(phd2StateProvider.notifier).state = Phd2State.guiding;
         async.flushMicrotasks();
 
-        verify(backend.phd2GetStatus).called(1);
+        verify(
+          () => backend.guiderGetStatus(deviceId: any(named: 'deviceId')),
+        ).called(1);
         async.elapse(const Duration(seconds: 5));
         async.flushMicrotasks();
-        verifyNever(backend.phd2GetStatus);
+        verifyNever(
+          () => backend.guiderGetStatus(deviceId: any(named: 'deviceId')),
+        );
 
         statusCompleter.complete(
           const Phd2Status(state: 'Guiding', connected: true),
@@ -341,7 +349,9 @@ void main() {
         async.flushMicrotasks();
         async.elapse(const Duration(seconds: 1));
         async.flushMicrotasks();
-        verify(backend.phd2GetStatus).called(1);
+        verify(
+          () => backend.guiderGetStatus(deviceId: any(named: 'deviceId')),
+        ).called(1);
       });
     });
   });

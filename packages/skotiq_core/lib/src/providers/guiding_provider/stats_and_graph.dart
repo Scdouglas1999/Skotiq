@@ -313,7 +313,7 @@ class GuideStarsNotifier extends StateNotifier<List<GuideStar>> {
     if (!_isBuiltin || guiderId == null) return;
     _pollInFlight = true;
     try {
-      final status = await backend.phd2GetStatus();
+      final status = await backend.guiderGetStatus(deviceId: guiderId);
       if (!mounted ||
           generation != _pollGeneration ||
           !identical(backend, ref.read(backendProvider)) ||
