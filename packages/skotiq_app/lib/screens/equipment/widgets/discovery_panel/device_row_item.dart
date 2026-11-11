@@ -150,7 +150,7 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
       if (mounted &&
           generation == _assignGeneration &&
           backendOwner.isCurrentBackend(authority)) {
-        context.showErrorSnackBar('Failed to create a profile: $e');
+        context.showErrorSnackBar(failureText('Failed to create a profile', e));
       }
     } finally {
       if (mounted && generation == _assignGeneration) {
