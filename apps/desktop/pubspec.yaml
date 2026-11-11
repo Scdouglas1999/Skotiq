@@ -142,9 +142,3 @@ flutter:
     - web_run_watch/css/
     - web_run_watch/js/
     - web_run_watch/icons/
-    # Planetarium v2 — core + stars-hyg catalog packs (see assets/planetarium/catalogs/README.md).
-    # Run build_opengnc / build_hyg_tiles before release builds so payloads exist beside pack.json.
-    - assets/planetarium/catalogs/README.md
-    - assets/planetarium/catalogs/core/
-    - assets/planetarium/catalogs/stars-hyg-v1/pack.json
-    - assets/planetarium/catalogs/stars-hyg-v1/tiles/
