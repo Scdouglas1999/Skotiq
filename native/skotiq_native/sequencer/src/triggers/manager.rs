@@ -1,6 +1,6 @@
 //! [`TriggerManager`] — the collection of active triggers and its tick.
 
-use super::{Trigger, TriggerState};
+use super::{StandardTrigger, Trigger, TriggerOrigin, TriggerState};
 use crate::{RecoveryAction, TriggerType};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -14,12 +14,17 @@ use tokio::sync::RwLock;
 #[must_use = "a firing that is neither dispatched nor deliberately dropped is lost"]
 pub struct Firing {
     trigger_id: String,
+    origin: TriggerOrigin,
     action: RecoveryAction,
 }
 
 impl Firing {
     pub fn trigger_id(&self) -> &str {
         &self.trigger_id
+    }
+
+    pub fn origin(&self) -> TriggerOrigin {
+        self.origin
     }
 
     /// The trigger's configured action, before the operator's park and
@@ -70,31 +75,32 @@ impl TriggerManager {
         self.triggers.iter_mut().find(|t| t.id == id)
     }
 
-    /// Apply the operator's meridian-flip settings to the standard
-    /// `meridian_flip` trigger.
-    ///
-    /// `create_standard_triggers` seeds that trigger with
-    /// `MeridianFlipConfig::default()`, so without this every trigger-driven flip
-    /// runs on Rust defaults and the Settings → Meridian Flip panel is inert for
-    /// the path that fires on a real night. Both the trigger's own config (which
-    /// decides WHEN to fire) and the recovery action's config (which decides HOW
-    /// the flip runs) are updated, so the threshold and the step sequence cannot
-    /// drift apart.
-    ///
-    /// Returns `true` when the trigger was found and updated.
+    /// A standard trigger, when it is armed.
+    pub fn standard(&self, trigger: StandardTrigger) -> Option<&Trigger> {
+        self.get_trigger(trigger.id())
+    }
+
+    pub fn standard_mut(&mut self, trigger: StandardTrigger) -> Option<&mut Trigger> {
+        self.get_trigger_mut(trigger.id())
+    }
+
     /// The meridian-flip trigger's config, when one is registered.
     pub fn meridian_flip_config(&self) -> Option<&crate::MeridianFlipConfig> {
-        self.triggers
-            .iter()
-            .find(|t| t.id == "meridian_flip")
+        self.standard(StandardTrigger::MeridianFlip)
             .and_then(|t| match &t.trigger_type {
                 TriggerType::MeridianFlip { config } => Some(config),
                 _ => None,
             })
     }
 
+    /// Apply the operator's meridian-flip settings to the standard flip
+    /// trigger: both its condition (when to fire) and its action (how the
+    /// flip runs), so the threshold and the step sequence cannot drift apart.
+    /// Without this a trigger-driven flip runs on the built-in defaults.
+    ///
+    /// Returns `true` when the trigger was found and updated.
     pub fn set_meridian_flip_config(&mut self, config: crate::MeridianFlipConfig) -> bool {
-        let Some(trigger) = self.get_trigger_mut("meridian_flip") else {
+        let Some(trigger) = self.standard_mut(StandardTrigger::MeridianFlip) else {
             return false;
         };
         if let TriggerType::MeridianFlip { config: existing } = &mut trigger.trigger_type {
@@ -146,10 +152,7 @@ impl TriggerManager {
     pub fn disarm_autofocus_triggers(&mut self) -> Vec<String> {
         let mut disarmed = Vec::new();
         for trigger in &mut self.triggers {
-            if trigger
-                .id
-                .starts_with(crate::executor::RECOVERY_NODE_TRIGGER_PREFIX)
-            {
+            if trigger.origin().is_recovery_node() {
                 continue;
             }
             if matches!(trigger.recovery_action, RecoveryAction::Autofocus) && trigger.enabled {
@@ -236,6 +239,7 @@ impl TriggerManager {
                 }
                 fired.push(Firing {
                     trigger_id: trigger.id.clone(),
+                    origin: trigger.origin(),
                     action: trigger.recovery_action.clone(),
                 });
             }
@@ -318,233 +322,11 @@ impl TriggerManager {
         }
     }
 
-    /// Create standard triggers
+    /// Arm every standard trigger with its defaults.
     pub fn create_standard_triggers(&mut self) {
-        // HFR degradation trigger
-        self.add_trigger(
-            Trigger::new(
-                "hfr_degraded",
-                "HFR Degradation",
-                TriggerType::HfrDegraded {
-                    threshold_percent: 20.0,
-                    absolute_threshold: 0.0,
-                    consecutive_frames: 3,
-                },
-                RecoveryAction::Autofocus,
-            )
-            // 5 min cooldown: an autofocus run takes 2-4 min on typical rigs,
-            // so a shorter cooldown would re-fire before the previous AF could
-            // settle the HFR baseline and would loop AF indefinitely.
-            .with_cooldown(300),
-        );
-
-        // Meridian flip trigger - uses MeridianFlip recovery action
-        self.add_trigger(
-            Trigger::new(
-                "meridian_flip",
-                "Meridian Flip",
-                TriggerType::MeridianFlip {
-                    config: crate::MeridianFlipConfig::default(),
-                },
-                RecoveryAction::MeridianFlip(crate::MeridianFlipConfig::default()),
-            )
-            // A meridian flip + re-center + refocus takes 5-8 min; 10 min
-            // cooldown is the structural guarantee against the double-flip
-            // bug fixed at the state-machine level.
-            .with_cooldown(600),
-        );
-
-        // Guiding failure trigger
-        self.add_trigger(
-            Trigger::new(
-                "guiding_failed",
-                "Guiding Failure",
-                TriggerType::GuidingFailed {
-                    rms_threshold: 2.0,
-                    duration_secs: 30.0,
-                    // 300s preserves the previous hardcoded
-                    // retention; users can change it via UI/profile JSON.
-                    rms_retention_secs: crate::default_guiding_rms_retention_secs(),
-                },
-                RecoveryAction::Retry { max_attempts: 3 },
-            )
-            .with_cooldown(60),
-        );
-
-        // Altitude limit trigger
-        self.add_trigger(
-            Trigger::new(
-                "altitude_limit",
-                "Altitude Limit",
-                TriggerType::AltitudeLimit { min_altitude: 30.0 },
-                RecoveryAction::NextTarget,
-            )
-            .with_cooldown(60),
-        );
-
-        // Weather safety trigger
-        self.add_trigger(
-            Trigger::new(
-                "weather_unsafe",
-                "Weather Unsafe",
-                TriggerType::WeatherUnsafe,
-                RecoveryAction::ParkAndAbort,
-            )
-            // Weather safety must re-fire every poll while conditions are
-            // unsafe — a cooldown could mask a brief moment of clearance
-            // followed by re-degradation, letting the sequence resume into
-            // worsening conditions.
-            .with_cooldown(0),
-        );
-
-        // Temperature shift trigger
-        self.add_trigger(
-            Trigger::new(
-                "temperature_shift",
-                "Temperature Shift",
-                TriggerType::TemperatureShift { degrees: 2.0 },
-                RecoveryAction::Autofocus,
-            )
-            .with_cooldown(600),
-        );
-
-        // Filter change trigger (for focus offsets)
-        self.add_trigger(
-            Trigger::new(
-                "filter_change",
-                "Filter Change",
-                TriggerType::FilterChange,
-                RecoveryAction::Continue, // Handle via filter focus offsets
-            )
-            .with_cooldown(0),
-        );
-
-        // Dawn approaching trigger (automatic morning shutdown)
-        self.add_trigger(
-            Trigger::new(
-                "dawn_approaching",
-                "Dawn Approaching",
-                TriggerType::DawnApproaching {
-                    minutes_before: 30.0,
-                }, // 30 min before astronomical twilight
-                RecoveryAction::ParkAndAbort,
-            )
-            .with_cooldown(0), // No cooldown for safety
-        );
-
-        // Mount tracking lost trigger
-        self.add_trigger(
-            Trigger::new(
-                "mount_tracking_lost",
-                "Mount Tracking Lost",
-                TriggerType::MountTrackingLost,
-                RecoveryAction::Pause,
-            )
-            .with_cooldown(60), // 60 second cooldown
-        );
-
-        // Dome shutter not open trigger
-        self.add_trigger(
-            Trigger::new(
-                "dome_shutter_not_open",
-                "Dome Shutter Not Open",
-                TriggerType::DomeShutterNotOpen,
-                RecoveryAction::ParkAndAbort,
-            )
-            .with_cooldown(0), // No cooldown for safety
-        );
-
-        // Guide star lost trigger
-        self.add_trigger(
-            Trigger::new(
-                "guide_star_lost",
-                "Guide Star Lost",
-                TriggerType::GuideStarLost,
-                RecoveryAction::Pause,
-            )
-            .with_cooldown(30), // 30 second cooldown
-        );
-
-        // Focus drift detection trigger.
-        // defaults pulled from the shared
-        // `default_focus_drift_*` helpers so config loaders and this builder
-        // cannot diverge.
-        self.add_trigger(
-            Trigger::new(
-                "focus_drift",
-                "Focus Drift",
-                TriggerType::FocusDrift {
-                    window_size: crate::default_focus_drift_window_size(),
-                    min_increasing_count: crate::default_focus_drift_min_increasing_count(),
-                    min_total_increase: crate::default_focus_drift_min_total_increase(),
-                },
-                RecoveryAction::Autofocus,
-            )
-            .with_cooldown(600), // 10 minute cooldown (same as temperature shift)
-        );
-
-        // Humidity threshold: the ceiling has exactly ONE definition — the Dart
-        // `maxHumidityPercent` → `WeatherThresholdEvaluator` → pushed verdict →
-        // `WeatherUnsafe` trigger, which maps to `RecoveryCause::WeatherUnsafe`.
-        // No standard humidity trigger is auto-added here: a hardcoded
-        // `max_percent` would be a second, divergent gate that judges the same
-        // reading differently from the operator's setting. The `HumidityThreshold`
-        // trigger TYPE remains available for an explicitly added per-sequence node
-        // with its own threshold and recovery action. See
-        // `weather_threshold_evaluator.dart` and the parity test.
-
-        // plate-solve drift trigger. Default 30 px is a pragmatic
-        // mid-range value: small enough to catch real drift before it becomes
-        // image-ruining, large enough to ignore single-pixel jitter from
-        // imperfect plate-solve solutions. Recovery is `Recenter`, not Pause,
-        // so the sequence keeps imaging.
-        self.add_trigger(
-            Trigger::new(
-                "drift_limit",
-                "Plate-Solve Drift Limit",
-                TriggerType::DriftLimit { max_pixels: 30.0 },
-                RecoveryAction::Recenter,
-            )
-            .with_cooldown(120), // 2 min cooldown so a single recenter is given time to settle
-        );
-
-        // standard `DitherInterval` trigger so periodic dithering
-        // happens in sequences that don't include an explicit Dither node.
-        // Default cadence 5 frames matches typical mosaic guidance. Recovery
-        // is `Dither(default config)`; users override via UI/profile JSON.
-        self.add_trigger(
-            Trigger::new(
-                "dither_interval",
-                "Dither Interval",
-                TriggerType::DitherInterval { every_n_frames: 5 },
-                RecoveryAction::Dither(crate::DitherConfig::default()),
-            )
-            .with_cooldown(0), // Cadence is exposure-count-driven; no time-based cooldown.
-        );
-
-        // Standard `AutofocusInterval` trigger so periodic refocus happens in
-        // sequences that lack an explicit Autofocus node between bursts. Wired
-        // symmetrically with `DitherInterval` so disabling either is
-        // straightforward.
-        //
-        // Default cadence `default_autofocus_interval_frames()` (25 frames)
-        // matches typical "AF every ~30 min" for 60-90 s subs. Users override
-        // via UI/profile JSON. Recovery is `Autofocus` so the trigger-monitor
-        // dispatch reaches `execute_autofocus` with the live device IDs.
-        //
-        // No time-based cooldown: the cadence is already exposure-count driven,
-        // and a duplicate cooldown would mask the user's setting.
-        self.add_trigger(
-            Trigger::new(
-                "autofocus_interval",
-                "Autofocus Interval",
-                TriggerType::AutofocusInterval {
-                    every_n_frames: crate::default_autofocus_interval_frames(),
-                },
-                RecoveryAction::Autofocus,
-            )
-            .with_cooldown(0),
-        );
+        for trigger in StandardTrigger::ALL {
+            self.add_trigger(trigger.build());
+        }
     }
 }
 

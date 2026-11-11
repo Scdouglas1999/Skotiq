@@ -60,7 +60,7 @@ impl Dispatcher {
                     && trigger.cooldown_secs == Some(120)
             });
             if is_default {
-                manager.remove_trigger("drift_limit");
+                manager.remove_trigger(StandardTrigger::DriftLimit.id());
             }
         }
         let trigger_state = args.trigger_manager.read().await.state();

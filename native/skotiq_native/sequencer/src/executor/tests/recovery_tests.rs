@@ -1133,10 +1133,7 @@ fn each_recoverable_trigger_maps_to_the_cause_that_fixes_it() {
         ("guide_star_lost", RecoveryCause::GuideStarLost),
         ("guiding_failed", RecoveryCause::GuideStarLost),
         ("mount_tracking_lost", RecoveryCause::MountTrackingLost),
-        ("on_tracking_limit_hit", RecoveryCause::MountTrackingLost),
         ("weather_unsafe", RecoveryCause::WeatherUnsafe),
-        ("humidity_threshold", RecoveryCause::WeatherUnsafe),
-        ("temperature_limit", RecoveryCause::WeatherUnsafe),
         ("focus_drift", RecoveryCause::FocusDriftCritical),
     ];
     for (trigger_id, cause) in table {

@@ -40,15 +40,12 @@ impl TriggerActionContext {
 
 #[derive(Debug, Clone)]
 pub(super) struct SequenceRecoveryTriggerSpec {
+    pub(super) node_id: NodeId,
     pub(super) trigger_id: String,
     pub(super) trigger_name: String,
     pub(super) trigger_type: TriggerType,
     pub(super) recovery_action: RecoveryAction,
     pub(super) custom_branch_node_id: Option<NodeId>,
-}
-
-pub(super) fn recovery_node_trigger_id(node_id: &str) -> String {
-    format!("{}{}", RECOVERY_NODE_TRIGGER_PREFIX, node_id)
 }
 
 pub(super) fn sequence_recovery_trigger_specs(
@@ -63,7 +60,8 @@ pub(super) fn sequence_recovery_trigger_specs(
             };
             let trigger_type = config.trigger.clone()?;
             Some(SequenceRecoveryTriggerSpec {
-                trigger_id: recovery_node_trigger_id(&node.id),
+                node_id: node.id.clone(),
+                trigger_id: crate::triggers::recovery_node_trigger_id(&node.id),
                 trigger_name: format!("Recovery: {}", node.name),
                 trigger_type,
                 recovery_action: config.recovery_action.clone(),

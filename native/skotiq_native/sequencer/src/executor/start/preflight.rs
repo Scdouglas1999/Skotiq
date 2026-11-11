@@ -173,7 +173,7 @@ impl SequenceExecutor {
         let meridian_auto_centers = {
             let manager = self.trigger_manager.read().await;
             manager
-                .get_trigger("meridian_flip")
+                .standard(StandardTrigger::MeridianFlip)
                 .filter(|t| t.enabled)
                 .and_then(|t| match &t.trigger_type {
                     TriggerType::MeridianFlip { config } => Some(config.auto_center),

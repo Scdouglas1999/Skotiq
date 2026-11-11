@@ -1,7 +1,7 @@
 //! The [`Trigger`] record and its condition evaluation.
 
 use super::state::looks_like_tracking_limit_hit;
-use super::{TriggerState, FOCUS_DRIFT_WINDOW_MAX};
+use super::{StandardTrigger, TriggerOrigin, TriggerState, FOCUS_DRIFT_WINDOW_MAX};
 use crate::{RecoveryAction, TriggerType};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
@@ -58,6 +58,9 @@ pub struct Trigger {
     pub trigger_type: TriggerType,
     pub recovery_action: RecoveryAction,
     pub enabled: bool,
+    /// Set when the trigger is built, never from serialized data.
+    #[serde(skip)]
+    origin: TriggerOrigin,
     #[serde(skip)]
     pub cooldown_secs: Option<u64>,
     /// When this trigger's action was last dispatched. Only a dispatch starts
@@ -137,12 +140,19 @@ impl Trigger {
         recovery_action: RecoveryAction,
     ) -> Self {
         let (trigger_type, clamp_warning) = clamp_focus_drift_window(trigger_type);
+        let id = id.into();
+        // The id is the trigger's identity: one built under a standard id is
+        // that standard trigger.
+        let origin = StandardTrigger::from_id(&id)
+            .map(TriggerOrigin::Standard)
+            .unwrap_or_default();
         Self {
-            id: id.into(),
+            id,
             name: name.into(),
             trigger_type,
             recovery_action,
             enabled: true,
+            origin,
             cooldown_secs: None,
             last_triggered: None,
             hfr_bad_frame_count: 0,
@@ -185,6 +195,27 @@ impl Trigger {
             },
             recovery_action,
         ))
+    }
+
+    /// The trigger a sequence Recovery node declares.
+    pub fn for_recovery_node(
+        node_id: &str,
+        name: impl Into<String>,
+        trigger_type: TriggerType,
+        recovery_action: RecoveryAction,
+    ) -> Self {
+        let mut trigger = Self::new(
+            super::recovery_node_trigger_id(node_id),
+            name,
+            trigger_type,
+            recovery_action,
+        );
+        trigger.origin = TriggerOrigin::RecoveryNode;
+        trigger
+    }
+
+    pub fn origin(&self) -> TriggerOrigin {
+        self.origin
     }
 
     /// Set cooldown duration

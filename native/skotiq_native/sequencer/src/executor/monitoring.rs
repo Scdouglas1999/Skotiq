@@ -274,38 +274,6 @@ pub(crate) fn apply_mount_tracking_poll(
     just_lost
 }
 
-/// The first-class [`crate::recovery::RecoveryCause`] a standard trigger maps
-/// to, or `None` for a trigger with no automatic recovery semantic (an
-/// operator-defined watchdog, FilterChange, and the rest).
-///
-/// A trigger with a cause can be handed to the recovery driver, which FREEZES
-/// THE NODE TREE for the length of its attempt ladder. That freeze is the part
-/// that matters: it is the only thing that stops the capture loop from taking
-/// more frames while a device the run depends on is known to be broken.
-///
-/// `guiding_failed` is here for exactly that reason. Its standard action is
-/// `Retry { max_attempts: 3 }`, and on the trigger side a `Retry` had no
-/// operation to re-run — it incremented a counter and logged "requested retry
-/// attempt 1/3" while the run went on exposing. Measured on 2026-09-14: the
-/// trigger fired at 02:59:10, 03:00:11 and 03:01:11 with guiding RMS far past
-/// its 2.0 px threshold, and three 180 s lights were taken across those two
-/// minutes. Every one was rejected. Since the owner's 2026-10-06 decision that
-/// hand-off happens only when the operator turned on "Stop the run for quality
-/// problems"; by default the trigger notifies (see `apply_quality_policy`).
-pub fn trigger_recovery_cause(trigger_id: &str) -> Option<crate::recovery::RecoveryCause> {
-    match trigger_id {
-        "guide_star_lost" | "guiding_failed" => Some(crate::recovery::RecoveryCause::GuideStarLost),
-        "mount_tracking_lost" | "on_tracking_limit_hit" => {
-            Some(crate::recovery::RecoveryCause::MountTrackingLost)
-        }
-        "weather_unsafe" | "humidity_threshold" | "temperature_limit" => {
-            Some(crate::recovery::RecoveryCause::WeatherUnsafe)
-        }
-        "focus_drift" => Some(crate::recovery::RecoveryCause::FocusDriftCritical),
-        _ => None,
-    }
-}
-
 /// What a fired trigger does once the operator's park settings are applied.
 #[derive(Debug, Clone)]
 pub(crate) struct FiredTriggerAction {
@@ -419,9 +387,9 @@ fn flip_trigger_point(config: &crate::MeridianFlipConfig) -> String {
 ///     the run resumes when both the hardware and the app's verdict read safe.
 ///   * Dawn approaching still ends the run, without parking or closing.
 ///
-/// Matched on the standard trigger ids only. A Recovery node the operator put
-/// in the sequence with Park and Abort is their explicit choice for that
-/// sequence and is left alone.
+/// Only the standard triggers have a park setting. A Recovery node the
+/// operator put in the sequence with Park and Abort is their explicit choice
+/// for that sequence and is left alone.
 ///
 /// `weather_advisory_only` is true when the unsafe weather rests only on a
 /// forecast or cloud model (see
@@ -429,21 +397,24 @@ fn flip_trigger_point(config: &crate::MeridianFlipConfig) -> String {
 /// forecast never parks the mount or ends the run, whatever the park setting:
 /// it holds the run, which resumes on its own when the sky clears.
 pub(crate) fn apply_park_policy(
-    trigger_id: &str,
+    origin: TriggerOrigin,
     action: RecoveryAction,
     policy: ParkPolicy,
     weather_advisory_only: bool,
 ) -> FiredTriggerAction {
     let parks = matches!(action, RecoveryAction::ParkAndAbort);
-    match trigger_id {
-        "weather_unsafe" if parks && (weather_advisory_only || !policy.park_on_unsafe_weather) => {
+    let park_setting = origin.standard().and_then(|trigger| trigger.spec().park_setting);
+    match park_setting {
+        Some(ParkSetting::OnUnsafeWeather)
+            if parks && (weather_advisory_only || !policy.park_on_unsafe_weather) =>
+        {
             FiredTriggerAction {
                 action: RecoveryAction::Pause,
                 end_without_parking: false,
                 notify_only: false,
             }
         }
-        "dawn_approaching" if parks && !policy.park_before_dawn => FiredTriggerAction {
+        Some(ParkSetting::BeforeDawn) if parks && !policy.park_before_dawn => FiredTriggerAction {
             action,
             end_without_parking: true,
             notify_only: false,
@@ -455,9 +426,6 @@ pub(crate) fn apply_park_policy(
         },
     }
 }
-
-/// The standard trigger that judges guiding by its RMS.
-pub(crate) const GUIDING_FAILED_TRIGGER_ID: &str = "guiding_failed";
 
 /// Whether `action` stops the run: pauses it, hands it to the recovery driver
 /// (which freezes the node tree), or ends it.
@@ -488,7 +456,7 @@ pub(crate) fn is_quality_trigger(trigger_type: &TriggerType) -> bool {
 /// by itself. A quality trigger whose action does not stop the run (an
 /// autofocus, a recenter, a dither) still runs it.
 pub(crate) fn apply_quality_policy(
-    trigger_id: &str,
+    origin: TriggerOrigin,
     trigger_type: Option<&TriggerType>,
     fired: FiredTriggerAction,
     stop_on_quality_problems: bool,
@@ -496,7 +464,9 @@ pub(crate) fn apply_quality_policy(
     let quality_stop = !stop_on_quality_problems
         && stops_the_run(&fired.action)
         && (trigger_type.is_some_and(is_quality_trigger)
-            || trigger_id == GUIDING_FAILED_TRIGGER_ID);
+            // The guiding trigger is a quality trigger even when it was
+            // removed since it fired and its type is no longer known.
+            || origin == TriggerOrigin::Standard(StandardTrigger::GuidingFailed));
     // An operator-authored Notify always notifies.
     if matches!(fired.action, RecoveryAction::Notify) || quality_stop {
         FiredTriggerAction {

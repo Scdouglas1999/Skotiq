@@ -46,7 +46,9 @@ impl SequenceExecutor {
 
         let trigger_state = {
             let manager = self.trigger_manager.read().await;
-            let Some(trigger) = manager.get_trigger("meridian_flip").filter(|t| t.enabled) else {
+            let Some(trigger) = manager
+                .standard(StandardTrigger::MeridianFlip)
+                .filter(|t| t.enabled) else {
                 return Err("The run's meridian flip trigger is turned off.".to_string());
             };
             if trigger.is_in_cooldown() {
