@@ -580,70 +580,7 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
       });
     }
 
-    final int fileLength;
-    final DateTime mtime;
-    try {
-      fileLength = await file.length();
-      mtime = await file.lastModified();
-    } on PathAccessException catch (e) {
-      _logWarning('Permission denied reading dark $iid: $e');
-      return jsonForbidden({
-        'error': 'permission_denied',
-        'path': entry.filePath,
-      });
-    } on FileSystemException catch (e) {
-      return jsonInternalServerError({
-        'error': 'stat_failed',
-        'detail': e.message,
-      });
-    }
-
-    final fileName = p.basename(entry.filePath);
-    final lower = fileName.toLowerCase();
-    String contentType;
-    if (lower.endsWith('.fits') || lower.endsWith('.fit')) {
-      contentType = 'application/fits';
-    } else if (lower.endsWith('.xisf')) {
-      contentType = 'application/x-xisf';
-    } else {
-      contentType = 'application/octet-stream';
-    }
-
-    final etag = '"dark-$iid-${mtime.millisecondsSinceEpoch}"';
-    final rangeHeader = request.headers['range'];
-    final ifRange = request.headers['if-range'];
-    final ifRangeMatches = ifRange == null || ifRange == etag;
-    final shouldHonourRange = rangeHeader != null && ifRangeMatches;
-
-    if (!shouldHonourRange) {
-      return attachmentResponse(
-        file.openRead(),
-        fileName: fileName,
-        contentType: contentType,
-        contentLength: fileLength,
-        headers: {'accept-ranges': 'bytes', 'etag': etag},
-      );
-    }
-
-    final int rangeStart;
-    final int rangeEnd;
-    try {
-      final parsed = parseRangeHeader(rangeHeader, fileLength);
-      rangeStart = parsed.start;
-      rangeEnd = parsed.end;
-    } on FormatException catch (e) {
-      return rangeNotSatisfiableResponse(fileLength, reason: e.message);
-    }
-
-    return partialContentResponse(
-      file.openRead(rangeStart, rangeEnd + 1),
-      start: rangeStart,
-      end: rangeEnd,
-      totalLength: fileLength,
-      contentType: contentType,
-      fileName: fileName,
-      headers: {'etag': etag},
-    );
+    return fileDownloadResponse(request, file, etagKey: 'dark-$iid');
   }
 
   /// DELETE /api/calibration/darks/{id}?deleteFile=true

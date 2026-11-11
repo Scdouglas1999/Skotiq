@@ -78,12 +78,8 @@ pub async fn api_sequencer_pause() -> Result<(), SkotiqError> {
         .await
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to pause sequence: {}", e)))?;
 
-    get_state().publish_event(create_event_auto_id(
-        EventSeverity::Info,
-        EventCategory::Sequencer,
-        EventPayload::Sequencer(SequencerEvent::Paused),
-    ));
-
+    // The executor announces the pause itself when its run state turns
+    // Paused (see `event_bridge`), as it does for a pause a trigger makes.
     Ok(())
 }
 
@@ -485,5 +481,27 @@ mod executor_site_tests {
             (Some(41.5), Some(-71.25)),
             "the run started with no observing site even though app settings had one"
         );
+    }
+    /// The run announces its own pause when its state turns Paused, so the
+    /// Pause command must not announce one as well: the log showed every
+    /// operator pause twice. With no run there is nothing to pause at all.
+    #[tokio::test]
+    async fn pause_command_does_not_announce_a_pause_itself() {
+        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
+            .lock()
+            .await;
+        let mut events = get_state().event_bus.subscribe();
+
+        let _ = crate::api::sequencer::api_sequencer_pause().await;
+
+        while let Ok(event) = events.try_recv() {
+            assert!(
+                !matches!(
+                    event.payload,
+                    crate::event::EventPayload::Sequencer(crate::event::SequencerEvent::Paused)
+                ),
+                "the Pause command published a Paused event of its own"
+            );
+        }
     }
 }

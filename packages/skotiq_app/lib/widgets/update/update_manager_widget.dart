@@ -61,24 +61,22 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
   @override
   void initState() {
     super.initState();
-    // Check for staged updates immediately (from previous LAN push)
+    // An update staged by an earlier run, downloaded or pushed.
     Future.delayed(const Duration(seconds: 1), _checkForStagedUpdate);
 
     // Check for updates on startup after a short delay
     Future.delayed(const Duration(seconds: 3), _checkForUpdates);
 
-    _lanPushFailures = ref
-        .read(updateProvider.notifier)
-        .lanPushFailures
-        .listen((error) {
-          if (!mounted) return;
-          developer.log(
-            'LAN push error: $error',
-            name: 'UpdateManager',
-            level: 1000,
-          );
-          _showErrorBanner('LAN push error: $error');
-        });
+    _lanPushFailures =
+        ref.read(updateProvider.notifier).lanPushFailures.listen((error) {
+      if (!mounted) return;
+      developer.log(
+        'LAN push error: $error',
+        name: 'UpdateManager',
+        level: 1000,
+      );
+      _showErrorBanner('LAN push error: $error');
+    });
   }
 
   Future<void> _checkForStagedUpdate() async {
@@ -100,13 +98,13 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
         name: 'UpdateManager',
         level: 800,
       );
-      _showLanPushBannerDirect(state.availableUpdate?.version ?? 'Unknown');
+      _showReadyBanner(state.availableUpdate?.version ?? 'Unknown');
     } else {
       developer.log('No staged update found', name: 'UpdateManager');
     }
   }
 
-  void _showLanPushBannerDirect(String version, {bool autoDismiss = true}) {
+  void _showReadyBanner(String version, {bool autoDismiss = true}) {
     if (!mounted) return;
     final generation = ++_bannerGeneration;
 
@@ -309,7 +307,7 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
 
     final dialogContext = _dialogContext();
     if (dialogContext == null) {
-      _showLanPushBannerDirect(
+      _showReadyBanner(
         state.availableUpdate?.version ?? '',
         autoDismiss: false,
       );
@@ -328,7 +326,7 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
       },
       onRestartLater: () {
         // Keep a persistent apply banner so the staged update stays reachable.
-        _showLanPushBannerDirect(
+        _showReadyBanner(
           state.availableUpdate?.version ?? '',
           autoDismiss: false,
         );
@@ -362,8 +360,7 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
     ref.listen<UpdateState>(updateProvider, (previous, next) {
       // An update pushed over the LAN while another was already staged does
       // not change the status, only what is staged.
-      final restaged =
-          previous?.status == UpdateStatus.staged &&
+      final restaged = previous?.status == UpdateStatus.staged &&
           next.status == UpdateStatus.staged &&
           previous?.stagingPath != next.stagingPath;
       if (previous?.status != next.status || restaged) {
@@ -384,7 +381,7 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
               _showErrorBanner(next.errorMessage!);
               break;
             }
-            // If banner is already showing (from LAN push), don't show dialog
+            // The banner already offers it.
             if (_showingBanner) {
               developer.log(
                 'Banner already showing, skipping dialog',
@@ -398,9 +395,9 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
                 previous?.status == UpdateStatus.verifying) {
               // Will be handled by download dialog
             } else {
-              // For non-LAN push staged updates, show banner instead of dialog
-              // (dialogs don't work in MaterialApp.builder context)
-              _showLanPushBannerDirect(
+              // A LAN push: a banner, because dialogs do not work in the
+              // MaterialApp.builder context.
+              _showReadyBanner(
                 next.availableUpdate?.version ?? 'Unknown',
               );
             }
@@ -486,9 +483,8 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
             width: 320, // Fixed width to avoid unbounded constraints
             child: Material(
               color: Colors.transparent,
-              child: UpdateReceivedBanner(
+              child: UpdateReadyBanner(
                 version: _bannerVersion,
-                source: 'LAN Push',
                 onRestart: () {
                   _hideBanner();
                   ref.read(updateProvider.notifier).applyUpdate();

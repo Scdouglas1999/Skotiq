@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
@@ -19,6 +21,7 @@ import '../route_table.dart';
 ///   GET    /api/calibration-library            — list masters (filters)
 ///   POST   /api/calibration-library/match      — best master per type + why
 ///   PUT    `/api/calibration-library/<type>/<id>/tags` — set tags/notes
+///   GET    `/api/calibration-library/<type>/<id>/file` — the master's file
 ///   DELETE `/api/calibration-library/<type>/<id>`      — delete row (+ file?)
 class CalibrationLibraryHandlers implements RouteSource {
   @override
@@ -30,6 +33,7 @@ class CalibrationLibraryHandlers implements RouteSource {
     CalibrationLibraryApi.publish: handlePublish,
     CalibrationLibraryApi.retract: handleRetract,
     CalibrationLibraryApi.setTags: handleSetTags,
+    CalibrationLibraryApi.download: handleDownload,
     CalibrationLibraryApi.delete: handleDelete,
   };
 
@@ -413,6 +417,39 @@ class CalibrationLibraryHandlers implements RouteSource {
       );
     }
     return jsonOk(updated.toJson());
+  }
+
+  /// GET `/api/calibration-library/<type>/<id>/file` — the master's file,
+  /// with Range support. Darks, flats and defect maps are numbered apart, so
+  /// the type is part of which file is meant.
+  Future<Response> handleDownload(
+    Request request,
+    String typeRaw,
+    String idRaw,
+  ) async {
+    final type = _requireType(typeRaw);
+    final id = _requireId(idRaw);
+    final record = await _service.getRecord(type, id);
+    if (record == null) {
+      throw HandlerFailure(
+        code: 'calibration_master_not_found',
+        message: 'No calibration master with that type/id',
+        statusCode: 404,
+      );
+    }
+    final path = record.filePath;
+    if (path == null || !await File(path).exists()) {
+      throw HandlerFailure(
+        code: 'calibration_master_file_missing',
+        message: 'The file of this calibration master is not on disk',
+        statusCode: 404,
+      );
+    }
+    return fileDownloadResponse(
+      request,
+      File(path),
+      etagKey: '${calibrationMasterTypeWireName(type)}-$id',
+    );
   }
 
   /// DELETE `/api/calibration-library/<type>/<id>[?deleteFile=true]`.

@@ -1,7 +1,7 @@
 // Contract tests for the simple (non-resumable) streaming downloads:
-// NetworkBackend.downloadServerLogFile + downloadDark, both backed by the
-// shared `_downloadToFile` transport helper. These use a real in-process
-// HttpServer because the helper streams through dart:io's HttpClient,
+// NetworkBackend.downloadServerLogFile + downloadCalibrationMaster, both
+// backed by the shared `_downloadToFile` transport helper. These use a real
+// in-process HttpServer because the helper streams through dart:io's HttpClient,
 // which the FakeNetworkClient (`MockClient`) cannot intercept — same
 // reason the image streaming contract test does.
 import 'dart:io';
@@ -146,7 +146,8 @@ void main() {
       );
     });
 
-    test('downloadDark hits the calibration route and validates ids', () async {
+    test('downloadCalibrationMaster asks for the master by type and id',
+        () async {
       const bytes = [70, 73, 84, 83]; // "FITS"
       String? requestedPath;
       final server = await _server((request) async {
@@ -159,19 +160,17 @@ void main() {
       addTearDown(() => server.close(force: true));
       final backend = _backend(server);
       addTearDown(backend.dispose);
-      final directory = await Directory.systemTemp.createTemp('skotiq-darkdl-');
+      final directory = await Directory.systemTemp.createTemp('skotiq-masterdl-');
       addTearDown(() => directory.delete(recursive: true));
-      final path = '${directory.path}/master_dark.fits';
+      final path = '${directory.path}/master_flat.fits';
 
-      await backend.downloadDark(7, path);
-      expect(await File(path).readAsBytes(), bytes);
-      expect(requestedPath, '/api/calibration/darks/7/download');
-
-      // The id guard throws synchronously, before any transport work.
-      expect(
-        () => backend.downloadDark(0, '${directory.path}/unused.fits'),
-        throwsArgumentError,
+      await backend.downloadCalibrationMaster(
+        type: 'flat',
+        id: 7,
+        localPath: path,
       );
+      expect(await File(path).readAsBytes(), bytes);
+      expect(requestedPath, '/api/calibration-library/flat/7/file');
     });
   });
 }

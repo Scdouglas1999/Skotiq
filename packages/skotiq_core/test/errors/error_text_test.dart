@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:skotiq_core/skotiq_core.dart';
 
 void main() {
@@ -70,6 +71,26 @@ void main() {
         ),
       );
       expect(text, 'Could not reach 192.0.2.10:4400 (Connection refused)');
+    });
+
+    test('a host that refuses the connection is named by the address asked '
+        'for, without the socket dump', () async {
+      final closed = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final port = closed.port;
+      await closed.close();
+
+      Object? error;
+      try {
+        await http.get(Uri.parse('http://127.0.0.1:$port/api/sessions'));
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error, isA<http.ClientException>());
+      expect(
+        userFacingError(error),
+        'Could not reach 127.0.0.1:$port (Connection refused)',
+      );
     });
 
     test('typed backend errors give their user message', () {

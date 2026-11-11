@@ -172,7 +172,13 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
     // Local host: drive the Rust hot-plug diff pass directly. This invalidates
     // the native discovery cache and emits device_discovered/device_lost events
     // for any deltas (see bridge/src/api/hotplug.rs::api_rescan_devices).
-    await bridge.apiRescanDevices();
+    // The sweep this side keeps goes with it, or a Scan right after would
+    // list the devices from before the rescan.
+    try {
+      await bridge.apiRescanDevices();
+    } finally {
+      _NativeProcessState.discovery.forget();
+    }
   }
 
   /// The native registry's connected devices. If the read fails, the last

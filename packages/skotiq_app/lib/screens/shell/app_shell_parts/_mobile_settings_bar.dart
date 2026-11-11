@@ -38,11 +38,18 @@ class _MobileSettingsBar extends StatelessWidget {
       child: Row(
         children: [
           // The wordmark yields before the caption buttons do: on a very
-          // narrow window the lockup may ellipsize, but close must not vanish.
+          // narrow window the lockup scales down, but close must not vanish.
           const Flexible(
-            child: SkotiqLockup(markSize: 18),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: SkotiqLockup(markSize: 18),
+            ),
           ),
           const Spacer(),
+          // The link to the imaging host, as the wide top band shows it: a
+          // linked client must see whether its host answers at every width.
+          const RemoteConnectionIndicator(compact: true),
           SkotiqIconButton(
             key: TutorialKeys.navSettings,
             icon: SkotiqIcons.settings,

@@ -1107,6 +1107,12 @@
         "field": "Integration budget",
         "new": "set",
         "old": "(none)"
+      },
+      {
+        "describe": "Brightness tier: (none) → medium",
+        "field": "Brightness tier",
+        "new": "medium",
+        "old": "(none)"
       }
     ],
     "label": "Target \"M31\"",

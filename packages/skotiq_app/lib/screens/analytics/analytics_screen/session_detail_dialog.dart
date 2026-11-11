@@ -301,7 +301,7 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
                       ),
                       error: (err, stack) => _AnalyticsError(
                         title: 'Frames did not load',
-                        message: err.toString(),
+                        error: err,
                       ),
                     ),
                   ],

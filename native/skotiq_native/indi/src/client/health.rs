@@ -37,25 +37,15 @@ impl IndiClient {
             return Ok(());
         }
 
-        // Use compare_exchange to atomically acquire the keepalive lock
-        // This prevents overlapping keepalive checks if previous check didn't complete
-        if self
-            .keepalive_in_progress
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-            .is_err()
-        {
+        let Some(_in_progress) = KeepaliveInProgress::acquire(&self.keepalive_in_progress) else {
             tracing::debug!("Skipping keepalive: another keepalive check is in progress");
             return Ok(());
-        }
+        };
 
-        let result = self.do_keepalive_check().await;
-
-        self.keepalive_in_progress.store(false, Ordering::SeqCst);
-
-        result
+        self.do_keepalive_check().await
     }
 
-    /// Internal keepalive check logic (called while holding keepalive_in_progress lock)
+    /// Internal keepalive check logic (called while holding the keepalive flag)
     pub(super) async fn do_keepalive_check(&mut self) -> IndiResult<()> {
         let keepalive_interval_ms = self.timeout_config.keepalive_interval_secs * 1000;
         let keepalive_timeout_ms = keepalive_interval_ms * 2; // Response timeout is 2x interval
@@ -307,6 +297,25 @@ impl IndiClient {
 
     pub async fn reconnect_attempts(&self) -> u32 {
         self.reconnect_attempts.load(Ordering::SeqCst)
+    }
+}
+
+/// Holds the keepalive flag for one check and releases it when the check ends,
+/// by return or by being dropped mid-send: a flag left set skips every later
+/// keepalive, so a dead connection would never be noticed.
+struct KeepaliveInProgress(Arc<AtomicBool>);
+
+impl KeepaliveInProgress {
+    fn acquire(flag: &Arc<AtomicBool>) -> Option<Self> {
+        flag.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .ok()
+            .map(|_| Self(flag.clone()))
+    }
+}
+
+impl Drop for KeepaliveInProgress {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::SeqCst);
     }
 }
 

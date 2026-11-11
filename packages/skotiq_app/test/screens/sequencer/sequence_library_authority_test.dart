@@ -139,4 +139,47 @@ void main() {
     verify(() => repositoryA.loadSequence(1)).called(1);
     verifyNever(() => repositoryB.loadSequence(any()));
   });
+
+  testWidgets('a loaded plan matches its saved copy, so pre-flight sees no '
+      'changes since the last run', (tester) async {
+    final host = _MockBackend();
+    final repository = _MockSequenceRepository();
+    final saved = Sequence(
+      id: '1',
+      databaseId: 1,
+      name: 'Orion run',
+      createdAt: DateTime(2026, 7, 13, 20),
+      modifiedAt: DateTime(2026, 7, 13, 20),
+      rootNodeId: 'root',
+      nodes: {
+        'root': InstructionSetNode(
+          id: 'root',
+          name: 'Orion run',
+          childIds: const ['set'],
+        ),
+        'set': InstructionSetNode(id: 'set', name: 'Lights', parentId: 'root'),
+      },
+    );
+    when(() => repository.loadSequence(1)).thenAnswer((_) async => saved);
+    final editor = CurrentSequenceNotifier();
+    await _pumpLibrary(
+      tester,
+      hostA: host,
+      hostB: host,
+      repositoryA: repository,
+      repositoryB: repository,
+      editor: editor,
+    );
+
+    await tester.tap(find.byTooltip('Load'));
+    await tester.pump();
+    await tester.pump();
+
+    final loaded = editor.state!;
+    expect(loaded.databaseId, 1);
+    expect(
+      const SequenceDiffService().diff(previous: saved, current: loaded).isEmpty,
+      isTrue,
+    );
+  });
 }

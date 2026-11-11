@@ -608,6 +608,7 @@
     "orderIndex": 0,
     "parentNodeId": "root",
     "properties": {
+      "brightnessTierHint": "medium",
       "comment": "north panel",
       "decDegrees": 41.27,
       "endBefore": 1773549900000,

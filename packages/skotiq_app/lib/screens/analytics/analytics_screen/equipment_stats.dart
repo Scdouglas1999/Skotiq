@@ -56,7 +56,7 @@ class _EquipmentStatsTab extends ConsumerWidget {
           alignment: Alignment.topCenter,
           child: _AnalyticsError(
             title: 'Equipment stats did not load',
-            message: err.toString(),
+            error: err,
             onRetry: () => ref.invalidate(allDbImagesProvider),
           ),
         ),

@@ -726,6 +726,28 @@ async fn test_check_keepalive_skips_when_not_connected() {
 }
 
 #[tokio::test]
+async fn test_keepalive_dropped_mid_send_lets_the_next_check_run() {
+    let mut client = IndiClient::new("localhost", Some(7624));
+    client.connected.store(true, Ordering::SeqCst);
+    client
+        .last_keepalive_response_ms
+        .store(current_time_ms(), Ordering::SeqCst);
+    client.last_keepalive_ms.store(0, Ordering::SeqCst);
+    // A full writer queue that nobody drains holds the keepalive send forever.
+    let (tx, _rx) = mpsc::channel(1);
+    tx.send("queued".to_string()).await.unwrap();
+    client.tx = Some(tx);
+
+    let check = tokio::time::timeout(Duration::from_millis(50), client.check_keepalive()).await;
+    assert!(
+        check.is_err(),
+        "the send should still be waiting when the check is dropped"
+    );
+
+    assert!(!client.is_keepalive_in_progress());
+}
+
+#[tokio::test]
 async fn test_time_since_last_keepalive_response() {
     let client = IndiClient::new("localhost", Some(7624));
 

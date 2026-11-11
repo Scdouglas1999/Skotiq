@@ -541,6 +541,7 @@
       ]
     },
     "n-TargetHeader": {
+      "brightnessTierHint": "medium",
       "childIds": [],
       "comment": "north panel",
       "decDegrees": 41.27,

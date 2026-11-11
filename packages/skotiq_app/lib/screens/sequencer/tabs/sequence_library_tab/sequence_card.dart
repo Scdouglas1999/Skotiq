@@ -673,40 +673,9 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
       return;
     }
 
-    // Create a copy with new IDs so we don't modify the saved one
-    final newNodes = <String, SequenceNode>{};
-    final idMapping = <String, String>{};
-
-    for (final entry in source.nodes.entries) {
-      idMapping[entry.key] = const Uuid().v4();
-    }
-
-    for (final entry in source.nodes.entries) {
-      final oldNode = entry.value;
-      final newId = idMapping[entry.key]!;
-      final newParentId =
-          oldNode.parentId != null ? idMapping[oldNode.parentId] : null;
-      final newChildIds =
-          oldNode.childIds.map((id) => idMapping[id] ?? id).toList();
-
-      newNodes[newId] = oldNode.copyWith(
-        id: newId,
-        parentId: newParentId,
-        childIds: newChildIds,
-      );
-    }
-
-    final newRootId =
-        source.rootNodeId != null ? idMapping[source.rootNodeId] : null;
-
-    final loadedSequence = Sequence.create(
-      name: source.name,
-      description: source.description,
-      nodes: newNodes,
-      rootNodeId: newRootId,
-      isTemplate: false,
-      databaseId: source.databaseId, // Keep reference to original
-    );
+    // The editor keeps the saved node ids: runs, captured frames and the
+    // pre-flight "changed since the last run" check all match nodes by id.
+    final loadedSequence = source.copyWith(isTemplate: false);
 
     final editor = ref.read(currentSequenceProvider.notifier);
     try {

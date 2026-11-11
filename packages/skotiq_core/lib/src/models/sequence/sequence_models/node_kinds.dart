@@ -174,6 +174,12 @@ final _targetEndWhen = NodeField<TargetHeaderNode, TargetTrigger?>(
   FieldCodec.json((t) => t!.toJson(), TargetTrigger.fromJson),
   omitWhenNull: true,
 );
+final _targetBrightnessTier = NodeField<TargetHeaderNode, BrightnessTier?>(
+  'brightnessTierHint',
+  (n) => n.brightnessTierHint,
+  FieldCodec.optionalNamed(BrightnessTier.values),
+  omitWhenNull: true,
+);
 final _targetPollSecs = NodeField<TargetHeaderNode, int>(
   'triggerPollIntervalSecs',
   (n) => n.triggerPollIntervalSecs,
@@ -1049,6 +1055,7 @@ abstract final class NodeKinds {
       _targetStartWhen,
       _targetEndWhen,
       _targetPollSecs,
+      _targetBrightnessTier,
     ],
     build: (v) => TargetHeaderNode(
       targetName: v(_targetName),
@@ -1065,6 +1072,7 @@ abstract final class NodeKinds {
       startWhen: v(_targetStartWhen),
       endWhen: v(_targetEndWhen),
       triggerPollIntervalSecs: v(_targetPollSecs),
+      brightnessTierHint: v(_targetBrightnessTier),
     ),
     describe: (n) => 'Target "${n.targetName}"',
     diff: [
@@ -1094,6 +1102,11 @@ abstract final class NodeKinds {
       NodeDiffLine.summary(
         'Integration budget',
         (n) => n.integrationBudget == null ? '(none)' : 'set',
+      ),
+      NodeDiffLine.of(
+        _targetBrightnessTier,
+        'Brightness tier',
+        (v) => v?.name ?? '(none)',
       ),
     ],
   );

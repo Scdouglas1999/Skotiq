@@ -472,17 +472,15 @@ class UpdateReadyDialog extends StatelessWidget {
   }
 }
 
-/// Small notification banner for LAN push updates received.
-class UpdateReceivedBanner extends StatelessWidget {
+/// The banner that keeps a downloaded, verified update one press away.
+class UpdateReadyBanner extends StatelessWidget {
   final String version;
-  final String source;
   final VoidCallback onRestart;
   final VoidCallback onDismiss;
 
-  const UpdateReceivedBanner({
+  const UpdateReadyBanner({
     super.key,
     required this.version,
-    required this.source,
     required this.onRestart,
     required this.onDismiss,
   });
@@ -505,56 +503,67 @@ class UpdateReceivedBanner extends StatelessWidget {
           border: Border.all(color: colors.primary.withValues(alpha: 0.3)),
           boxShadow: SkotiqTokens.shadowMd,
         ),
-        child: Row(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              padding: SkotiqTokens.paddingSm,
-              decoration: BoxDecoration(
-                color: colors.primary.withValues(alpha: 0.1),
-                borderRadius: SkotiqTokens.borderRadiusMd,
-              ),
-              child: Icon(
-                LucideIcons.download,
-                color: colors.primary,
-                size: SkotiqTokens.iconSm,
-              ),
-            ),
-            const SizedBox(width: SkotiqTokens.spaceMd),
-            Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Update Received',
-                    style: SkotiqTypography.bodyMedium.copyWith(
-                      color: colors.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
+            Row(
+              children: [
+                Container(
+                  padding: SkotiqTokens.paddingSm,
+                  decoration: BoxDecoration(
+                    color: colors.primary.withValues(alpha: 0.1),
+                    borderRadius: SkotiqTokens.borderRadiusMd,
                   ),
-                  Text(
-                    'Version $version from $source',
-                    style: SkotiqTypography.caption.copyWith(
-                      color: colors.textMuted,
-                    ),
+                  child: Icon(
+                    LucideIcons.download,
+                    color: colors.primary,
+                    size: SkotiqTokens.iconSm,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: SkotiqTokens.spaceMd),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Update ready',
+                        style: SkotiqTypography.bodyMedium.copyWith(
+                          color: colors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        'Version $version installs when Skotiq restarts',
+                        style: SkotiqTypography.caption.copyWith(
+                          color: colors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            SkotiqButton(
-              label: 'Later',
-              onPressed: onDismiss,
-              variant: ButtonVariant.ghost,
-              size: ButtonSize.small,
-            ),
-            const SizedBox(width: SkotiqTokens.spaceSm),
-            SkotiqButton(
-              label: 'Restart',
-              icon: LucideIcons.refreshCw,
-              onPressed: onRestart,
-              variant: ButtonVariant.primary,
-              size: ButtonSize.small,
+            const SizedBox(height: SkotiqTokens.spaceMd),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                SkotiqButton(
+                  label: 'Later',
+                  onPressed: onDismiss,
+                  variant: ButtonVariant.ghost,
+                  size: ButtonSize.small,
+                ),
+                const SizedBox(width: SkotiqTokens.spaceSm),
+                SkotiqButton(
+                  label: 'Restart',
+                  icon: LucideIcons.refreshCw,
+                  onPressed: onRestart,
+                  variant: ButtonVariant.primary,
+                  size: ButtonSize.small,
+                ),
+              ],
             ),
           ],
         ),
