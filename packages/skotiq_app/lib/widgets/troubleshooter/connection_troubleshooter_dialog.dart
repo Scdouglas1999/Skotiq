@@ -35,11 +35,16 @@ class ConnectionTroubleshooterDialog extends StatefulWidget {
   /// caller had no error text (e.g. an empty discovery result).
   final String? rawError;
 
+  /// What the device or its driver said went wrong, in its own words, when it
+  /// said anything. Shown above the steps: it is often the whole answer.
+  final String? reason;
+
   const ConnectionTroubleshooterDialog({
     super.key,
     required this.deviceType,
     required this.driverType,
     this.rawError,
+    this.reason,
   });
 
   /// Shows the troubleshooter dialog and resolves to `true` if the user chose
@@ -49,6 +54,7 @@ class ConnectionTroubleshooterDialog extends StatefulWidget {
     required DeviceType deviceType,
     required DriverType driverType,
     String? rawError,
+    String? reason,
   }) async {
     final result = await showDialog<bool>(
       context: context,
@@ -56,6 +62,7 @@ class ConnectionTroubleshooterDialog extends StatefulWidget {
         deviceType: deviceType,
         driverType: driverType,
         rawError: rawError,
+        reason: reason,
       ),
     );
     return result ?? false;
@@ -129,6 +136,18 @@ class _ConnectionTroubleshooterDialogState
             title: _diagnosis.headline,
             message: _diagnosis.plainLanguage,
           ),
+          if (widget.reason case final reason? when reason.trim().isNotEmpty) ...[
+            const SizedBox(height: SkotiqTokens.spaceLg),
+            Text(
+              'The ${widget.deviceType.noun} reported',
+              style: SkotiqTypography.eyebrow.copyWith(color: colors.textMuted),
+            ),
+            const SizedBox(height: SkotiqTokens.spaceXs),
+            SelectableText(
+              reason,
+              style: SkotiqTypography.body.copyWith(color: colors.textPrimary),
+            ),
+          ],
           const SizedBox(height: SkotiqTokens.spaceXl),
 
           Text(
