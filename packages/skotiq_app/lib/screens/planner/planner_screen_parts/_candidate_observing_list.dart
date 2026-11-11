@@ -22,10 +22,13 @@ class _CandidateObservingListDialog extends ConsumerStatefulWidget {
 }
 
 class _CandidateObservingListDialogState
-    extends ConsumerState<_CandidateObservingListDialog> {
+    extends ConsumerState<_CandidateObservingListDialog>
+    with HostBoundDialogState<_CandidateObservingListDialog> {
   late final TextEditingController _nameController;
-  late final SkotiqBackend _authority;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
+  @override
+  String get hostChangedMessage =>
+      'The connected host changed. Adding the target was canceled.';
+
   bool _creating = false;
   bool _saving = false;
   String? _error;
@@ -39,33 +42,14 @@ class _CandidateObservingListDialogState
   void initState() {
     super.initState();
     _nameController = TextEditingController();
-    _authority = ref.read(backendProvider);
     _loadExistingMembership();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (previous == null || identical(previous, next) || !mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'The connected host changed. Adding the target was canceled.',
-            ),
-          ),
-        );
-        closeAuthorityBoundDialog(context);
-      },
-    );
   }
 
   @override
   void dispose() {
-    _backendSubscription?.close();
     _nameController.dispose();
     super.dispose();
   }
-
-  bool get _isCurrentAuthority =>
-      identical(ref.read(backendProvider), _authority);
 
   /// Mark the lists this target is already in, so the user is not invited to
   /// perform an add that can only be a no-op. Best-effort: a failure leaves
@@ -77,7 +61,7 @@ class _CandidateObservingListDialogState
       final lists = await ref
           .read(observingListNotifierProvider.notifier)
           .getListsContaining(catalogId);
-      if (!mounted || !_isCurrentAuthority) return;
+      if (!mounted || host.isStale) return;
       setState(() {
         _listsContaining = lists.map((list) => list.id).toSet();
       });
@@ -87,7 +71,7 @@ class _CandidateObservingListDialogState
   }
 
   Future<void> _addToList(int listId) async {
-    if (_saving || !_isCurrentAuthority) return;
+    if (_saving || host.isStale) return;
     setState(() {
       _saving = true;
       _error = null;
@@ -103,7 +87,7 @@ class _CandidateObservingListDialogState
           magnitude: widget.suggestion.magnitude,
           sizeArcmin: widget.suggestion.sizeArcmin,
         );
-    if (!mounted || !_isCurrentAuthority) return;
+    if (!mounted || host.isStale) return;
 
     final uiState = ref.read(observingListNotifierProvider);
     if (id == null) {
@@ -137,7 +121,7 @@ class _CandidateObservingListDialogState
       setState(() => _error = 'Enter a list name');
       return;
     }
-    if (_saving || !_isCurrentAuthority) return;
+    if (_saving || host.isStale) return;
 
     setState(() {
       _saving = true;
@@ -155,7 +139,7 @@ class _CandidateObservingListDialogState
           magnitude: widget.suggestion.magnitude,
           sizeArcmin: widget.suggestion.sizeArcmin,
         );
-    if (!mounted || !_isCurrentAuthority) return;
+    if (!mounted || host.isStale) return;
 
     if (id == null) {
       setState(() {

@@ -313,11 +313,14 @@ class _CreateObservingListDialog extends ConsumerStatefulWidget {
 }
 
 class _CreateObservingListDialogState
-    extends ConsumerState<_CreateObservingListDialog> {
+    extends ConsumerState<_CreateObservingListDialog>
+    with HostBoundDialogState<_CreateObservingListDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
-  late final SkotiqBackend _authority;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
+  @override
+  String get hostChangedMessage =>
+      'The connected host changed. List creation canceled.';
+
   bool _saving = false;
   String? _nameError;
 
@@ -326,25 +329,10 @@ class _CreateObservingListDialogState
     super.initState();
     _nameController = TextEditingController();
     _descriptionController = TextEditingController();
-    _authority = ref.read(backendProvider);
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (previous == null || identical(previous, next) || !mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content:
-                Text('The connected host changed. List creation canceled.'),
-          ),
-        );
-        closeAuthorityBoundDialog(context);
-      },
-    );
   }
 
   @override
   void dispose() {
-    _backendSubscription?.close();
     _nameController.dispose();
     _descriptionController.dispose();
     super.dispose();
@@ -356,7 +344,7 @@ class _CreateObservingListDialogState
       setState(() => _nameError = 'Enter a list name');
       return;
     }
-    if (!identical(ref.read(backendProvider), _authority)) return;
+    if (host.isStale) return;
 
     setState(() {
       _saving = true;
@@ -369,7 +357,7 @@ class _CreateObservingListDialogState
               description: description.isEmpty ? null : description,
             );
 
-    if (!mounted || !identical(ref.read(backendProvider), _authority)) return;
+    if (!mounted || host.isStale) return;
     if (id == null) {
       setState(() => _saving = false);
       final message = ref.read(observingListNotifierProvider).errorMessage ??

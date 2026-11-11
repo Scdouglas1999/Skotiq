@@ -361,6 +361,9 @@ export 'src/backend/skotiq_backend.dart';
 export 'src/backend/ffi_backend.dart';
 export 'src/backend/network_backend.dart';
 export 'src/backend/disconnected_backend.dart';
+export 'src/backend/remote_host.dart';
+export 'src/backend/roles/host_data/observing_lists_store.dart';
+export 'src/providers/async_scope.dart';
 // Single seam for the typed sequencer/run event surface — app/headless UI
 // consume the bridge event union + display helpers through here instead of
 // importing package:skotiq_bridge directly.

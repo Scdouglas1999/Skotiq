@@ -198,15 +198,11 @@ class _ObservingListManagementCard extends ConsumerWidget {
                   onTap: isSaving
                       ? null
                       : () async {
-                          final authority = ref.read(backendProvider);
+                          final host = ref.backendScope();
                           final id = await ref
                               .read(observingListNotifierProvider.notifier)
                               .duplicateList(list.id);
-                          if (!context.mounted ||
-                              !identical(
-                                  ref.read(backendProvider), authority)) {
-                            return;
-                          }
+                          if (!context.mounted || host.isStale) return;
                           final state = ref.read(observingListNotifierProvider);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -258,11 +254,14 @@ class _ObservingListEditorDialog extends ConsumerStatefulWidget {
 }
 
 class _ObservingListEditorDialogState
-    extends ConsumerState<_ObservingListEditorDialog> {
+    extends ConsumerState<_ObservingListEditorDialog>
+    with HostBoundDialogState<_ObservingListEditorDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
-  late final SkotiqBackend _authority;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
+  @override
+  String get hostChangedMessage =>
+      'The connected host changed. List editing canceled.';
+
   bool _saving = false;
   String? _nameError;
 
@@ -274,24 +273,10 @@ class _ObservingListEditorDialogState
     _nameController = TextEditingController(text: widget.list?.name ?? '');
     _descriptionController =
         TextEditingController(text: widget.list?.description ?? '');
-    _authority = ref.read(backendProvider);
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (previous == null || identical(previous, next) || !mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('The connected host changed. List editing canceled.'),
-          ),
-        );
-        closeAuthorityBoundDialog(context);
-      },
-    );
   }
 
   @override
   void dispose() {
-    _backendSubscription?.close();
     _nameController.dispose();
     _descriptionController.dispose();
     super.dispose();
@@ -303,7 +288,7 @@ class _ObservingListEditorDialogState
       setState(() => _nameError = 'Enter a list name');
       return;
     }
-    if (!identical(ref.read(backendProvider), _authority)) return;
+    if (host.isStale) return;
 
     setState(() {
       _saving = true;
@@ -323,7 +308,7 @@ class _ObservingListEditorDialogState
             ) !=
             null;
 
-    if (!mounted || !identical(ref.read(backendProvider), _authority)) return;
+    if (!mounted || host.isStale) return;
     if (!success) {
       setState(() => _saving = false);
       final state = ref.read(observingListNotifierProvider);
@@ -409,43 +394,21 @@ class _DeleteObservingListDialog extends ConsumerStatefulWidget {
 }
 
 class _DeleteObservingListDialogState
-    extends ConsumerState<_DeleteObservingListDialog> {
-  late final SkotiqBackend _authority;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
+    extends ConsumerState<_DeleteObservingListDialog>
+    with HostBoundDialogState<_DeleteObservingListDialog> {
+  @override
+  String get hostChangedMessage =>
+      'The connected host changed. List deletion canceled.';
+
   bool _deleting = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _authority = ref.read(backendProvider);
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (previous == null || identical(previous, next) || !mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content:
-                Text('The connected host changed. List deletion canceled.'),
-          ),
-        );
-        closeAuthorityBoundDialog(context);
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _backendSubscription?.close();
-    super.dispose();
-  }
-
   Future<void> _delete() async {
-    if (!identical(ref.read(backendProvider), _authority)) return;
+    if (host.isStale) return;
     setState(() => _deleting = true);
     final success = await ref
         .read(observingListNotifierProvider.notifier)
         .deleteList(widget.list.id);
-    if (!mounted || !identical(ref.read(backendProvider), _authority)) return;
+    if (!mounted || host.isStale) return;
     if (!success) {
       setState(() => _deleting = false);
       final state = ref.read(observingListNotifierProvider);
