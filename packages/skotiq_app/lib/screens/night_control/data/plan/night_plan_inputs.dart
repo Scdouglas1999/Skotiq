@@ -53,10 +53,6 @@ extension NightClockTimes on Clock {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Manual-action state
-// ---------------------------------------------------------------------------
-
 /// The manual-action controller's state, for "Paused for autofocus".
 final nightPlanActionStateSeamProvider = Provider<ManualActionState>(
   (ref) => ref.watch(nightActionStateProvider),
@@ -72,10 +68,6 @@ final nightPlanArmedStartSeamProvider = Provider<DateTime?>((ref) {
   if (armedAt == null) return null;
   return ref.watch(clockProvider).toNightClock(armedAt);
 });
-
-// ---------------------------------------------------------------------------
-// The plan, flattened
-// ---------------------------------------------------------------------------
 
 /// One enabled node of the plan, in execution order.
 class NightPlanEntry {
@@ -219,10 +211,6 @@ final nightPlanTreeProvider = Provider<NightPlanTree?>((ref) {
   return buildNightPlanTree(sequence);
 });
 
-// ---------------------------------------------------------------------------
-// The estimate
-// ---------------------------------------------------------------------------
-
 /// One run of [SequenceTimeEstimator] over the loaded plan. Instants, not
 /// operator-clock times. Everything here is an estimate.
 class NightPlanTiming {
@@ -316,10 +304,6 @@ final nightPlanTimingProvider = Provider<NightPlanTiming?>((ref) {
   return NightPlanTiming(anchor: anchor, timings: timings, total: total);
 });
 
-// ---------------------------------------------------------------------------
-// Recorded node times
-// ---------------------------------------------------------------------------
-
 /// When this session's nodes started and finished, from the in-memory event
 /// history. Instants. Empty after an app restart, and limited to the events
 /// the history still holds.
@@ -384,10 +368,6 @@ final nightNodeEventTimesProvider = Provider<NightNodeEventTimes>((ref) {
     completedStatus: status,
   );
 });
-
-// ---------------------------------------------------------------------------
-// Frame counts
-// ---------------------------------------------------------------------------
 
 /// Frames an exposure node has captured in its current pass, and planned.
 ///

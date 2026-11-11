@@ -1,10 +1,6 @@
 // The manual-action contract that P2 implements.
 part of '../night_control_contracts.dart';
 
-// ---------------------------------------------------------------------------
-// Manual actions (P2)
-// ---------------------------------------------------------------------------
-
 /// One action-bar button.
 @immutable
 class ManualActionVm {

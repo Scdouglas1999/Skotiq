@@ -280,7 +280,6 @@ final nightCoolerHistoryProvider = Provider<NightSeriesVm>((ref) {
 class NightFocusShift {
   const NightFocusShift({required this.at, this.steps, this.tempSince});
 
-  /// When the run finished.
   final DateTime at;
 
   /// The focuser's move: the first position read after the run less the

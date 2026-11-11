@@ -1,10 +1,6 @@
 // Header, night strip and left-column view models.
 part of '../night_control_contracts.dart';
 
-// ---------------------------------------------------------------------------
-// Header and timeline
-// ---------------------------------------------------------------------------
-
 /// Enabled state of one header control (Pause, Skip step, Start now...).
 /// Which controls exist is decided by [NightHeaderVm.phase]; this only says
 /// whether the shown one can be pressed.
@@ -191,7 +187,6 @@ enum NightRunEnding {
   /// The run reached the end of its plan.
   completed,
 
-  /// The run failed.
   failed,
 
   /// The run was stopped, or ended at dawn; it settles idle, which does not
@@ -280,10 +275,6 @@ class NightTimelineVm {
         Object.hashAll(windows),
       );
 }
-
-// ---------------------------------------------------------------------------
-// Left column
-// ---------------------------------------------------------------------------
 
 /// One sample of a time series. A null [y] is a gap, never a zero.
 @immutable

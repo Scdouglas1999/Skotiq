@@ -1,10 +1,6 @@
 // Center-column and right-panel view models.
 part of '../night_control_contracts.dart';
 
-// ---------------------------------------------------------------------------
-// Center column
-// ---------------------------------------------------------------------------
-
 /// One thumbnail in the frame strip.
 @immutable
 class StripFrameVm {
@@ -234,10 +230,6 @@ class NightSeriesVm {
         sampleCount,
       );
 }
-
-// ---------------------------------------------------------------------------
-// Right panel
-// ---------------------------------------------------------------------------
 
 /// One cell of a metric grid ("2.13 / HFR −0.04").
 @immutable

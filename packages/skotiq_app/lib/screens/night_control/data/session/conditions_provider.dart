@@ -47,7 +47,6 @@ class NightSafetyReading {
   /// Until when the operator has set the verdict aside; null when not.
   final DateTime? overrideUntil;
 
-  /// Why the operator set it aside.
   final String? overrideReason;
 
   /// What the run's own recent frames say about the sky.

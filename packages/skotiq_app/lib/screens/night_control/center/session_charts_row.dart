@@ -30,10 +30,6 @@ import 'frame_stage.dart' show nightIsBeforeRun;
 
 part 'session_charts_ready.dart';
 
-// ---------------------------------------------------------------------------
-// The row
-// ---------------------------------------------------------------------------
-
 class SessionChartsRow extends ConsumerWidget {
   const SessionChartsRow({super.key});
 
