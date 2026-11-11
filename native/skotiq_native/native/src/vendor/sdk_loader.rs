@@ -24,28 +24,30 @@
 //! (struct + impl) while delegating path search and library opening to the
 //! runtime helper [`open_vendor_library`].
 //!
-//! # Migration pattern
+//! # What a vendor gets
 //!
-//! Replace the per-vendor `struct XyzSdk { ... }`, `static XYZ_SDK`, and
-//! `impl XyzSdk { fn load() ... fn get() ... }` blocks with a single
-//! `load_vendor_sdk!` invocation. The macro generates the same public surface
-//! (`XyzSdk::get() -> Option<&'static XyzSdk>` and per-field `unsafe extern "C" fn`
-//! function pointers), so call sites at the use site (e.g.
-//! `unsafe { (sdk.start_exposure)(...) }`) do not change. A symbol's type may be
-//! written inline or given as the vendor's existing `type Xyz = unsafe extern
-//! "C" fn(..)` alias, so a migration never has to retype an FFI signature.
+//! One `load_vendor_sdk!` invocation declares the function-pointer table and
+//! an [`SdkSlot`] that owns the lazily loaded table together with the lock
+//! that serializes calls into it. Call sites reach the table only through an
+//! [`SdkGuard`] (`XyzSdk::lock().await?`), so a vendor function cannot be
+//! called without the lock, and a helper that runs under its caller's lock
+//! takes `sdk: &XyzSdk` from that guard. A missing library is reported as
+//! `NativeError::SdkNotInstalled`, a library that opens but lacks a required
+//! symbol as `NativeError::SdkError`. A symbol's type may be written inline or
+//! given as the vendor's existing `type Xyz = unsafe extern "C" fn(..)` alias.
 //!
-//! See `zwo.rs` for the canonical example covering all three SDK loaders
-//! (`AsiSdk`, `EafSdk`, `EfwSdk`), and `atik.rs` for `optional_symbols` —
-//! entry points a vendor only added in a later SDK release, which must not fail
-//! the whole load.
+//! See `zwo/` for the canonical example covering three libraries with three
+//! locks (`AsiSdk`, `EafSdk`, `EfwSdk`), `player_one/` for two libraries on
+//! one lock (`shared_lock:`), and `atik/` or `qhy/` for `optional_symbols`:
+//! entry points a vendor only added in a later SDK release, which must not
+//! fail the whole load.
 //!
-//! On the macro: zwo, fli, svbony, moravian, atik, player_one (camera + filter
-//! wheel), gphoto2. Still hand-rolled: qhy (custom `resolve_qhy_symbol` plus a
-//! separate initialization latch), fujifilm (Windows-only), touptek (needs a
-//! `HashMap<brand, Sdk>` for its ~10 rebrands — the documented exception, which
-//! should compose `open_vendor_library` + `resolve_symbol` rather than adopt the
-//! macro). ioptron/lx200/skywatcher are serial protocols with no SDK to load.
+//! On the macro: zwo, qhy, fli, svbony, moravian, atik, player_one (camera +
+//! filter wheel), gphoto2, fujifilm. The one exception is touptek, whose
+//! white-label brands are chosen by name at run time: it keeps a map of
+//! per-brand tables behind one [`SdkLock`] and a closure accessor that demands
+//! the held lock. ioptron/lx200/skywatcher are serial protocols with no SDK
+//! to load.
 
 use crate::traits::NativeError;
 use std::path::PathBuf;
@@ -230,6 +232,12 @@ pub struct SdkLockGuard<T: 'static> {
 }
 
 impl<T: 'static> SdkLockGuard<T> {
+    /// The table, loaded on first use, for as long as this lock is held. For
+    /// callers that keep holding the lock whether or not the SDK is there.
+    pub fn table(&self) -> Result<&T, NativeError> {
+        self.slot.table().map_err(SdkUnavailable::to_native_error)
+    }
+
     /// Load the SDK (first use only) while keeping the lock.
     pub fn load(self) -> Result<SdkGuard<T>, NativeError> {
         let table = self.slot.table().map_err(SdkUnavailable::to_native_error)?;
@@ -492,12 +500,19 @@ pub unsafe fn resolve_symbol<T: Copy>(
     }
 }
 
+/// The exported C name of a symbol declared as `b"Name\0"`, for diagnostics:
+/// it is what a user can look for in the library with `nm` or `dumpbin`.
+pub fn symbol_name(symbol_with_nul: &'static [u8], fallback: &'static str) -> &'static str {
+    symbol_with_nul
+        .strip_suffix(b"\0")
+        .and_then(|name| std::str::from_utf8(name).ok())
+        .unwrap_or(fallback)
+}
+
 /// Declarative SDK loader generator.
 ///
-/// Generates the per-vendor SDK struct (function-pointer table), a
-/// `OnceLock<Option<Self>>` singleton, and `impl Sdk { fn get() -> Option<&'static Self> }`
-/// from a single declarative block. Public API matches the hand-written
-/// pattern that preceded it so call sites do not change.
+/// Generates the per-vendor SDK struct (function-pointer table) and its
+/// [`SdkSlot`] from a single declarative block.
 ///
 /// # Example
 ///
@@ -507,9 +522,10 @@ pub unsafe fn resolve_symbol<T: Copy>(
 ///     vendor_name: "ZWO ASI Camera",
 ///     sdk_struct: AsiSdk,
 ///     sdk_static: ASI_SDK,
-///     // Each platform's candidate library paths. The macro evaluates the
-///     // expression at call time so dynamic paths (e.g. exe-relative) work.
+///     // Called on first use, so dynamic paths (e.g. exe-relative) work.
 ///     candidate_paths_fn: collect_asi_candidate_paths,
+///     // Optional: serialize this library on another library's lock.
+///     // shared_lock: VENDOR_SDK_LOCK,
 ///     symbols: {
 ///         get_num_cameras: b"ASIGetNumOfConnectedCameras\0"
 ///             => unsafe extern "C" fn() -> std::ffi::c_int,
@@ -527,18 +543,20 @@ pub unsafe fn resolve_symbol<T: Copy>(
 ///     open_camera: unsafe extern "C" fn(c_int) -> c_int,
 ///     _library: libloading::Library,
 /// }
-/// static ASI_SDK: std::sync::OnceLock<Option<AsiSdk>> = std::sync::OnceLock::new();
+/// static ASI_SDK: SdkSlot<AsiSdk> = SdkSlot::new(AsiSdk::load_for_slot);
 /// impl AsiSdk {
-///     fn load() -> Option<Self> { ... open library, resolve symbols ... }
-///     pub fn get() -> Option<&'static AsiSdk> { ASI_SDK.get_or_init(Self::load).as_ref() }
+///     pub async fn lock() -> Result<SdkGuard<AsiSdk>, NativeError> { ... }
+///     pub fn installed() -> Result<SdkLoaded<AsiSdk>, NativeError> { ... }
+///     pub fn slot() -> &'static SdkSlot<AsiSdk> { ... }
+///     pub fn is_available() -> bool { ... }
 ///     pub fn required_symbol_names() -> &'static [&'static str] { ... }
 /// }
 /// ```
 ///
 /// Symbol resolution errors are logged at `error` level (see
-/// [`resolve_symbol`]); the function returns `None` so call sites can treat
-/// "SDK absent" and "SDK present but symbol missing" the same way (driver
-/// simply unavailable). Detailed diagnostics are emitted via `tracing`.
+/// [`resolve_symbol`]) and surface as `NativeError::SdkError`; a library that
+/// cannot be found or opened is logged at `debug` and surfaces as
+/// `NativeError::SdkNotInstalled`.
 #[macro_export]
 macro_rules! load_vendor_sdk {
     (@slot $sdk:ident) => {
@@ -627,7 +645,10 @@ macro_rules! load_vendor_sdk {
                                     &library,
                                     &library_path,
                                     $sym_bytes,
-                                    stringify!($field),
+                                    $crate::vendor::sdk_loader::symbol_name(
+                                        $sym_bytes,
+                                        stringify!($field),
+                                    ),
                                 )?
                             },
                         )*
@@ -646,7 +667,10 @@ macro_rules! load_vendor_sdk {
                                         tracing::debug!(
                                             "{}: optional symbol '{}' not present in '{}': {}",
                                             $vendor_name,
-                                            stringify!($opt_field),
+                                            $crate::vendor::sdk_loader::symbol_name(
+                                                $opt_sym_bytes,
+                                                stringify!($opt_field),
+                                            ),
                                             library_path.display(),
                                             e
                                         );
@@ -713,24 +737,6 @@ macro_rules! load_vendor_sdk {
             /// Whether the SDK is usable on this host.
             pub fn is_available() -> bool {
                 $sdk_static.is_available()
-            }
-
-            // MIGRATION-ONLY: removed once every vendor uses the guard.
-            pub fn get() -> Option<&'static Self> {
-                $sdk_static.installed().ok().map(|sdk| sdk.unlocked())
-            }
-
-            // MIGRATION-ONLY
-            pub fn get_or_reason() -> Result<&'static Self, &'static str> {
-                match $sdk_static.unavailable() {
-                    Some(why) => Err(why.detail()),
-                    None => Ok($sdk_static.installed().ok().unwrap().unlocked()),
-                }
-            }
-
-            // MIGRATION-ONLY
-            pub fn load_error() -> Option<&'static str> {
-                $sdk_static.unavailable().map(|why| why.detail())
             }
 
             /// List of C symbol names this SDK requires. Returned in the order
@@ -841,19 +847,29 @@ mod tests {
     #[test]
     fn generated_loader_reports_why_an_absent_sdk_failed() {
         // The whole point of the shared loader: a vendor can tell the user
-        // "no SDK here" apart from "your SDK is missing symbol X", instead of
-        // collapsing both into a bare `None`.
+        // "no SDK here" apart from "your SDK is missing symbol X".
         assert!(!AbsentSdk::is_available());
-        assert!(AbsentSdk::get().is_none());
 
-        let reason = AbsentSdk::load_error().expect("a failed load must carry a reason");
+        let why = AbsentSdk::slot()
+            .unavailable()
+            .expect("a failed load must carry a reason");
+        assert!(matches!(why, SdkUnavailable::NotInstalled(_)), "{why:?}");
+        let reason = why.detail();
         assert!(reason.contains("Absent Test Vendor"), "reason: {reason}");
         assert!(
             reason.contains("candidate library paths"),
             "reason: {reason}"
         );
-        assert_eq!(AbsentSdk::get_or_reason().err(), Some(reason));
         assert_eq!(AbsentSdk::required_symbol_names(), &["do_nothing"]);
+    }
+
+    #[test]
+    fn symbol_names_in_diagnostics_are_the_exported_c_names() {
+        assert_eq!(
+            symbol_name(b"ASIOpenCamera\0", "open_camera"),
+            "ASIOpenCamera"
+        );
+        assert_eq!(symbol_name(b"no terminator", "fallback"), "fallback");
     }
 
     #[tokio::test]

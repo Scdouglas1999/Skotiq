@@ -162,7 +162,7 @@ async fn set_cooler_propagates_sdk_failure_without_mutating_state() {
     cam.connected = true;
     cam.has_cooler = true;
     // handle is None and the QHY SDK is not loaded in tests, so
-    // set_control_async fails at QhySdk::get() with SdkNotLoaded.
+    // set_control_async fails at QhySdk::lock() with SdkNotInstalled.
 
     let result = cam.set_cooler(true, Some(-15.0)).await;
     assert!(
