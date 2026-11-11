@@ -11,10 +11,6 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 // These functions are ignored because they are not marked as `pub`: `alpaca_device_info`, `alpaca_device_type`, `alpaca_sweep_cache`, `ascom_device_is_hidden`, `drivers_for_device_type`, `query_indi_device_serial_from_client`, `query_indi_serials_for_server`, `run_alpaca_sweep`, `scan_alpaca_for_type`, `scan_ascom_for_type`, `scan_devices_for_pair`, `scan_indi_for_type`, `scan_native_for_type_with`, `scan_native_for_type`, `scan_simulator_for_type`, `simulator_display_name`, `simulator_for_type`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `scan_native_for_type_public`
 
-/// Discover available Alpaca devices on the network
-Future<List<DeviceInfo>> apiDiscoverAlpacaDevices() =>
-    RustLib.instance.api.crateApiDiscoveryApiDiscoverAlpacaDevices();
-
 /// Discover Alpaca devices at a specific server address
 Future<List<DeviceInfo>> apiDiscoverAlpacaAtAddress({
   required String host,

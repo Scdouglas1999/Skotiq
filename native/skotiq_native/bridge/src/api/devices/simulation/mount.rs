@@ -515,26 +515,6 @@ pub async fn api_mount_set_tracking(device_id: String, enabled: u8) -> Result<()
         .map_err(SkotiqError::from)
 }
 
-/// Slew mount to alt/az coordinates (simulator handler)
-pub async fn api_mount_slew_alt_az(
-    device_id: String,
-    altitude: f64,
-    azimuth: f64,
-) -> Result<(), SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.mount_slew_alt_az(&device_id, altitude, azimuth)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Find mount home position (simulator handler)
-pub async fn api_mount_find_home(device_id: String) -> Result<(), SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.mount_find_home(&device_id)
-        .await
-        .map_err(SkotiqError::from)
-}
-
 /// Pulse guide the mount in a direction for a duration
 pub async fn api_mount_pulse_guide(
     device_id: String,

@@ -34,10 +34,6 @@ Future<void> apiSecondaryRigStop() =>
 Future<SecondaryRigStatusApi> apiSecondaryRigGetStatus() =>
     RustLib.instance.api.crateApiSecondaryRigApiSecondaryRigGetStatus();
 
-/// Whether a secondary rig is currently armed.
-Future<bool> apiSecondaryRigIsArmed() =>
-    RustLib.instance.api.crateApiSecondaryRigApiSecondaryRigIsArmed();
-
 /// FRB-facing configuration for arming the secondary rig. Mirrors
 /// [`SecondaryRigConfig`] plus the dither-coordination policy + frame metadata.
 class SecondaryRigConfigApi {

@@ -39,22 +39,6 @@ pub async fn filter_wheel_set_position(
         .map_err(SkotiqError::from)
 }
 
-/// Get filter wheel position
-pub async fn filter_wheel_get_position(device_id: String) -> Result<i32, SkotiqError> {
-    get_device_manager()
-        .filter_wheel_get_position(&device_id)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Get filter wheel configuration (count, names)
-pub async fn filter_wheel_get_config(device_id: String) -> Result<(i32, Vec<String>), SkotiqError> {
-    get_device_manager()
-        .filter_wheel_get_config(&device_id)
-        .await
-        .map_err(SkotiqError::from)
-}
-
 /// Set camera gain
 pub async fn set_camera_gain(device_id: String, gain: i32) -> Result<(), SkotiqError> {
     let mgr = get_device_manager();

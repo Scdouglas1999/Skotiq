@@ -33,14 +33,6 @@ Future<void> apiConnectDeviceExpecting({
   expectedModel: expectedModel,
 );
 
-/// Get the display name for a device that's already registered in the device manager.
-/// Returns None if the device isn't registered.
-/// This avoids running a full discovery just to resolve a device name.
-Future<String?> apiGetDeviceDisplayName({required String deviceId}) => RustLib
-    .instance
-    .api
-    .crateApiConnectionApiGetDeviceDisplayName(deviceId: deviceId);
-
 /// Disconnect from a device
 Future<void> apiDisconnectDevice({
   required DeviceType deviceType,

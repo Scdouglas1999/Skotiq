@@ -419,14 +419,6 @@ Future<void> apiSequencerSetActiveSequenceRunId({
       sequenceRunId: sequenceRunId,
     );
 
-/// Replay Debug — read back the currently-stamped
-/// `sequence_runs.id`. Used by tests and as a sanity check from the
-/// Dart side.
-Future<PlatformInt64?> apiSequencerGetActiveSequenceRunId() => RustLib
-    .instance
-    .api
-    .crateApiSequencerRuntimeConfigApiSequencerGetActiveSequenceRunId();
-
 /// Replay Debug — runtime toggle for decision emission. When
 /// `enabled = false`, the executor short-circuits all decision sends
 /// (no channel publish, no allocation) so power users who don't want
@@ -436,10 +428,6 @@ Future<void> apiSequencerSetDecisionLoggingEnabled({required bool enabled}) =>
         .crateApiSequencerRuntimeConfigApiSequencerSetDecisionLoggingEnabled(
           enabled: enabled,
         );
-
-/// Replay Debug — readback for the runtime toggle.
-Future<bool> apiSequencerGetDecisionLoggingEnabled() => RustLib.instance.api
-    .crateApiSequencerRuntimeConfigApiSequencerGetDecisionLoggingEnabled();
 
 /// Push the latest composite sky-conditions score to the executor. All
 /// fields are optional because the Dart composer may not have every axis

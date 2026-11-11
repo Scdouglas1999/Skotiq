@@ -174,30 +174,6 @@ impl EventBus {
         self.publish(event)
     }
 
-    /// Publish an event with correlation ID for grouping related events
-    pub fn publish_correlated(
-        &self,
-        severity: EventSeverity,
-        category: EventCategory,
-        payload: EventPayload,
-        correlation_id: &str,
-        caused_by: Option<u64>,
-    ) -> u64 {
-        let event_id = self.next_sequence();
-        let event = SkotiqEvent {
-            event_id,
-            timestamp: chrono::Utc::now().timestamp_millis(),
-            severity,
-            category,
-            payload,
-            caused_by,
-            correlation_id: Some(correlation_id.to_string()),
-            device_id: None,
-        };
-
-        self.publish(event)
-    }
-
     /// Subscribe to receive events
     pub fn subscribe(&self) -> broadcast::Receiver<SkotiqEvent> {
         self.sender.subscribe()
@@ -206,11 +182,6 @@ impl EventBus {
     /// Get the number of active subscribers
     pub fn subscriber_count(&self) -> usize {
         self.sender.receiver_count()
-    }
-
-    /// Get the current sequence number (useful for debugging)
-    pub fn current_sequence(&self) -> u64 {
-        self.sequence.load(Ordering::SeqCst)
     }
 
     /// Get statistics about the event bus
@@ -226,13 +197,6 @@ impl EventBus {
             subscriber_count: self.sender.receiver_count(),
             events_by_category,
         }
-    }
-
-    /// Check if there's capacity for more events
-    pub fn has_capacity(&self) -> bool {
-        // Broadcast channels don't have a way to check capacity directly
-        // We rely on the lagged error handling
-        true
     }
 
     /// Get the configured capacity

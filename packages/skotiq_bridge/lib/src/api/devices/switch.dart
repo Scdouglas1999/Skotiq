@@ -40,15 +40,6 @@ Future<String> apiSwitchGetName({
   switchId: switchId,
 );
 
-/// Get the description of a switch
-Future<String> apiSwitchGetDescription({
-  required String deviceId,
-  required int switchId,
-}) => RustLib.instance.api.crateApiDevicesSwitchApiSwitchGetDescription(
-  deviceId: deviceId,
-  switchId: switchId,
-);
-
 /// Get the numeric value of a switch
 Future<double> apiSwitchGetValue({
   required String deviceId,
@@ -67,31 +58,4 @@ Future<void> apiSwitchSetValue({
   deviceId: deviceId,
   switchId: switchId,
   value: value,
-);
-
-/// Get the minimum value for a switch
-Future<double> apiSwitchGetMinValue({
-  required String deviceId,
-  required int switchId,
-}) => RustLib.instance.api.crateApiDevicesSwitchApiSwitchGetMinValue(
-  deviceId: deviceId,
-  switchId: switchId,
-);
-
-/// Get the maximum value for a switch
-Future<double> apiSwitchGetMaxValue({
-  required String deviceId,
-  required int switchId,
-}) => RustLib.instance.api.crateApiDevicesSwitchApiSwitchGetMaxValue(
-  deviceId: deviceId,
-  switchId: switchId,
-);
-
-/// Check if a switch can be written to
-Future<bool> apiSwitchCanWrite({
-  required String deviceId,
-  required int switchId,
-}) => RustLib.instance.api.crateApiDevicesSwitchApiSwitchCanWrite(
-  deviceId: deviceId,
-  switchId: switchId,
 );

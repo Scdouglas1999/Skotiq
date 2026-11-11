@@ -661,42 +661,6 @@ pub(crate) async fn run_sequencer_event_loop(
     }
 }
 
-/// Stream of sequencer events (separate from main event stream for real-time progress)
-#[flutter_rust_bridge::frb(ignore)]
-pub fn api_sequencer_event_stream() -> impl futures::Stream<Item = String> {
-    let rx = {
-        let executor = get_sequence_executor().blocking_read();
-        executor.subscribe()
-    };
-
-    async_stream::stream! {
-        let mut rx = rx;
-        loop {
-            match rx.recv().await {
-                Ok(event) => {
-                    if let Ok(json) = serde_json::to_string(&event) {
-                        yield json;
-                    }
-                }
-                Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
-                    // Update the global dropped event counter
-                    let previous_total = TOTAL_DROPPED_EVENTS.fetch_add(n, Ordering::Relaxed);
-                    let new_total = previous_total + n;
-
-                    tracing::warn!(
-                        "[SEQUENCER_EVENT_STREAM] Event stream lagged! Skipped {} events (total dropped: {}). \
-                        Consider increasing buffer size or optimizing event handling.",
-                        n, new_total
-                    );
-                }
-                Err(tokio::sync::broadcast::error::RecvError::Closed) => {
-                    break;
-                }
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod frame_event_capture_tests {
     use crate::api::sequencer::typed_sequencer_event_from_progress_detail;

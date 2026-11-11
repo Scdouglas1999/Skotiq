@@ -66,29 +66,8 @@ pub fn api_get_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
-/// Get the current log directory path
-#[flutter_rust_bridge::frb(sync)]
-pub fn api_get_log_directory() -> Option<String> {
-    crate::get_log_directory()
-}
-
 /// Get the current log file path (today's log)
 #[flutter_rust_bridge::frb(sync)]
 pub fn api_get_current_log_file() -> Option<String> {
     crate::get_current_log_file()
-}
-
-/// List all available log files
-pub fn api_list_log_files() -> Vec<String> {
-    crate::list_log_files()
-}
-
-/// Read a log file's contents
-pub fn api_read_log_file(path: String) -> Result<String, SkotiqError> {
-    crate::read_log_file(path)
-}
-
-/// Export all logs to a single file for diagnostics
-pub fn api_export_logs(output_path: String) -> Result<(), SkotiqError> {
-    crate::export_logs_to_file(output_path)
 }

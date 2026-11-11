@@ -16,45 +16,6 @@ pub async fn api_sequencer_load_json(json: String) -> Result<(), SkotiqError> {
     Ok(())
 }
 
-/// Load a sequence from a definition struct
-pub async fn api_sequencer_load(definition: SequenceDefinitionApi) -> Result<(), SkotiqError> {
-    tracing::info!("Loading sequence: {}", definition.name);
-
-    // Convert API nodes to internal nodes
-    let nodes: Result<Vec<NodeDefinition>, SkotiqError> = definition
-        .nodes
-        .iter()
-        .map(|n| {
-            let node_type: NodeType = serde_json::from_str(&n.config_json)
-                .map_err(|e| SkotiqError::InvalidInput(format!("Invalid node config: {}", e)))?;
-
-            Ok(NodeDefinition {
-                id: n.id.clone(),
-                name: n.name.clone(),
-                node_type,
-                enabled: n.enabled,
-                children: n.children.clone(),
-            })
-        })
-        .collect();
-
-    let internal_definition = SequenceDefinition {
-        id: definition.id,
-        name: definition.name,
-        description: definition.description,
-        nodes: nodes?,
-        root_node_id: definition.root_node_id,
-        metadata: std::collections::HashMap::new(),
-    };
-
-    let mut executor = get_sequence_executor().write().await;
-    executor
-        .load_sequence(internal_definition)
-        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to load sequence: {}", e)))?;
-
-    Ok(())
-}
-
 /// Seed the executor's observing site from app settings when nothing has
 /// pushed one yet.
 ///

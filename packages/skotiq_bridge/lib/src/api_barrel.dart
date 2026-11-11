@@ -4,10 +4,7 @@
 library;
 
 export 'api.dart';
-export 'api/api_version.dart';
 export 'api/connection.dart';
-export 'api/connection/alpaca_connections.dart';
-export 'api/connection/ascom_connections.dart';
 export 'api/darkroom/entrypoints.dart';
 export 'api/depthlock.dart';
 export 'api/devices/camera.dart';
@@ -47,9 +44,7 @@ export 'api/sequencer.dart';
 export 'api/sequencer/event_bridge.dart';
 export 'api/sequencer/lifecycle.dart';
 export 'api/sequencer/mosaic.dart';
-export 'api/sequencer/node_factory.dart';
 export 'api/sequencer/runtime_config.dart';
-export 'api/session.dart';
 export 'api/sky_atlas.dart';
 export 'api/sky_atlas/frames.dart';
 export 'api/sky_atlas/regions.dart';

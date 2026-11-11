@@ -205,7 +205,7 @@ impl UnifiedDeviceOps {
             .first_connected_device_id(DeviceType::Mount)
             .await?;
 
-        match mount_get_coordinates(mount_id.clone()).await {
+        match get_device_manager().mount_get_coordinates(&mount_id).await {
             Ok((ra_hours, dec_degrees)) => {
                 // Altitude is derived, not read back: `mount_get_status` would
                 // report it but costs a full capability sweep per saved frame

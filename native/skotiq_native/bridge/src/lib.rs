@@ -387,13 +387,6 @@ fn init_native_internal(log_directory: Option<String>) -> Result<(), SkotiqError
     Ok(())
 }
 
-/// Initialize the native bridge (legacy, console-only logging)
-/// Must be called once at app startup
-#[flutter_rust_bridge::frb(sync)]
-pub fn init_native() -> Result<(), SkotiqError> {
-    init_native_with_logging(None)
-}
-
 /// Get the current log directory path
 #[flutter_rust_bridge::frb(sync)]
 pub fn get_log_directory() -> Option<String> {
@@ -409,53 +402,6 @@ pub fn get_current_log_file() -> Option<String> {
             .to_string_lossy()
             .to_string()
     })
-}
-
-/// List all available log files
-pub fn list_log_files() -> Vec<String> {
-    if let Some(log_dir) = LOG_DIR.get() {
-        if let Ok(entries) = std::fs::read_dir(log_dir) {
-            return entries
-                .filter_map(|e| e.ok())
-                .filter(|e| e.file_name().to_string_lossy().starts_with("skotiq.log"))
-                .map(|e| e.path().to_string_lossy().to_string())
-                .collect();
-        }
-    }
-    Vec::new()
-}
-
-/// Read a log file's contents
-pub fn read_log_file(path: String) -> Result<String, SkotiqError> {
-    std::fs::read_to_string(&path)
-        .map_err(|e| SkotiqError::IoError(format!("Failed to read log file: {}", e)))
-}
-
-/// Export all logs to a single file for diagnostics
-pub fn export_logs_to_file(output_path: String) -> Result<(), SkotiqError> {
-    let mut output = std::fs::File::create(&output_path)
-        .map_err(|e| SkotiqError::IoError(format!("Failed to create export file: {}", e)))?;
-
-    use std::io::Write;
-
-    // Write header
-    writeln!(output, "=== Skotiq Log Export ===").ok();
-    writeln!(output, "Exported: {}", chrono::Local::now().to_rfc3339()).ok();
-    writeln!(output, "").ok();
-
-    // Write all log files in chronological order
-    let mut log_files = list_log_files();
-    log_files.sort();
-
-    for log_file in log_files {
-        writeln!(output, "\n=== {} ===\n", log_file).ok();
-        if let Ok(content) = std::fs::read_to_string(&log_file) {
-            write!(output, "{}", content).ok();
-        }
-    }
-
-    tracing::info!("Logs exported to: {}", output_path);
-    Ok(())
 }
 
 /// Clean up old log files, keeping only the most recent N days
@@ -518,12 +464,6 @@ fn cleanup_old_logs(log_dir: &PathBuf, keep_days: i64) {
     }
 }
 
-/// Get the version of the native library
-#[flutter_rust_bridge::frb(sync)]
-pub fn get_native_version() -> String {
-    env!("CARGO_PKG_VERSION").to_string()
-}
-
 // FFI boundary panic safety
 
 /// Run a synchronous operation with panic catching: a panic becomes
@@ -540,30 +480,6 @@ where
             tracing::error!("Panic caught at FFI boundary: {}", panic_msg);
             Err(SkotiqError::Internal(format!(
                 "Internal panic: {}",
-                panic_msg
-            )))
-        }
-    }
-}
-
-/// Run a future with panic catching: a panic during polling becomes
-/// `SkotiqError::Internal` rather than unwinding across the FFI boundary.
-/// The future is wrapped in `AssertUnwindSafe` so async code can be caught.
-pub(crate) async fn catch_panic_async<F, T>(f: F) -> Result<T, SkotiqError>
-where
-    F: std::future::Future<Output = Result<T, SkotiqError>>,
-{
-    // Use tokio's spawn_blocking with catch_unwind for the future
-    // Note: For truly async code, we catch panics differently
-    let result = AssertUnwindSafe(f).catch_unwind().await;
-
-    match result {
-        Ok(inner_result) => inner_result,
-        Err(panic_payload) => {
-            let panic_msg = extract_panic_message(&panic_payload);
-            tracing::error!("Async panic caught at FFI boundary: {}", panic_msg);
-            Err(SkotiqError::Internal(format!(
-                "Internal panic in async operation: {}",
                 panic_msg
             )))
         }
@@ -588,29 +504,4 @@ fn extract_panic_message(payload: &Box<dyn std::any::Any + Send>) -> String {
 /// created. An alias for [`ensure_runtime`]; it never panics.
 pub(crate) fn get_runtime() -> Result<&'static Runtime, SkotiqError> {
     ensure_runtime()
-}
-
-/// Execute a future on the global runtime from a synchronous FFI entry point,
-/// converting runtime-initialization failure and any panic in the async code
-/// into a `SkotiqError`.
-pub fn run_async_safe<F, T>(future: F) -> Result<T, SkotiqError>
-where
-    F: std::future::Future<Output = Result<T, SkotiqError>> + Send + 'static,
-    T: Send + 'static,
-{
-    let runtime = get_runtime()?;
-
-    // Wrap in catch_unwind for panic safety
-    match panic::catch_unwind(AssertUnwindSafe(|| {
-        runtime.block_on(async { catch_panic_async(future).await })
-    })) {
-        Ok(result) => result,
-        Err(panic_payload) => {
-            let msg = extract_panic_message(&panic_payload);
-            Err(SkotiqError::Internal(format!(
-                "Panic during async execution: {}",
-                msg
-            )))
-        }
-    }
 }
