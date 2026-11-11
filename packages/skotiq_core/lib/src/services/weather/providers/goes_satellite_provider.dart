@@ -161,7 +161,8 @@ class GoesSatelliteProvider extends RadarProvider {
 
   /// Fetches and decodes the GOES IR WMS image for one timestamp into a
   /// [RadarFrame] with a real per-cell cloud-intensity grid over the FOV.
-  /// Returns a no-data frame when the image cannot be fetched or decoded.
+  /// Returns a no-data frame when the server answers without a usable image;
+  /// throws when it cannot be reached.
   Future<RadarFrame> _decodeFrame(DateTime timestamp, _FovBounds fov) async {
     final url = _getMapUrl(fov);
     const wmsOptions = {'transparent': 'true'};
@@ -178,6 +179,11 @@ class GoesSatelliteProvider extends RadarProvider {
           level: 900,
         );
       }
+    } on http.ClientException {
+      // GOES has no index request, so this image is the only network call. If
+      // it cannot be reached the fetch failed; a no-data frame stamped "now"
+      // would read as a fresh satellite update.
+      rethrow;
     } catch (e) {
       developer.log(
         'GOES GetMap fetch failed: $e',

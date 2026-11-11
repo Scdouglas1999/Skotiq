@@ -15,6 +15,7 @@ Future<void> _pumpCard(
   WidgetTester tester, {
   DateTime? lastUpdate,
   WeatherAlert? alert,
+  bool fetchFailed = false,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -22,7 +23,11 @@ Future<void> _pumpCard(
         theme: SkotiqTheme.dark,
         home: Scaffold(
           body: SingleChildScrollView(
-            child: WeatherStatusCard(lastUpdate: lastUpdate, alert: alert),
+            child: WeatherStatusCard(
+              lastUpdate: lastUpdate,
+              alert: alert,
+              fetchFailed: fetchFailed,
+            ),
           ),
         ),
       ),
@@ -66,5 +71,48 @@ void main() {
     );
 
     expect(find.text('Waiting for weather data'), findsNothing);
+  });
+
+  // ux walk-2 F37: offline, the card said a green "Clear" and "Updated 3 sec
+  // ago" under a "Weather data unavailable" banner.
+  testWidgets('no data and a failed fetch never claims a condition',
+      (tester) async {
+    await _pumpCard(tester, fetchFailed: true);
+
+    expect(find.text('Clear'), findsNothing);
+    expect(find.text('Unknown'), findsOneWidget);
+    expect(find.text('No weather data received'), findsOneWidget);
+    expect(find.textContaining('Updated'), findsNothing);
+  });
+
+  testWidgets('before the first fetch the card is checking, not clear',
+      (tester) async {
+    await _pumpCard(tester);
+
+    expect(find.text('Clear'), findsNothing);
+    expect(find.text('Checking'), findsOneWidget);
+  });
+
+  testWidgets('a failed refresh keeps the last level and says how old it is',
+      (tester) async {
+    await _pumpCard(
+      tester,
+      fetchFailed: true,
+      lastUpdate: DateTime.now().subtract(const Duration(minutes: 25)),
+      alert: WeatherAlert(
+        level: AlertLevel.clear,
+        message: 'No clouds nearby',
+        cloudDensityPercent: 5,
+        distanceKm: 0,
+        generatedAt: DateTime.now(),
+      ),
+    );
+
+    expect(find.text('Clear'), findsOneWidget);
+    expect(find.text('Last data 25 min ago'), findsOneWidget);
+    expect(find.textContaining('Updated'), findsNothing);
+    final label = tester.widget<Text>(find.text('Clear'));
+    final colors = SkotiqColors.of(tester.element(find.text('Clear')));
+    expect(label.style?.color, colors.textMuted);
   });
 }

@@ -261,6 +261,7 @@ class _WeatherScreenState extends ConsumerState<WeatherScreen>
           alert: alert,
           motion: motion,
           lastUpdate: weatherStatus.lastUpdate,
+          fetchFailed: weatherStatus.errorMessage != null,
           cloudCoverPercent: cloudCoverPercent,
           alertRadiusKm: alertRadiusKm,
           expanded: _statusCardExpanded,
