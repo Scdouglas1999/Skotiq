@@ -1103,7 +1103,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtlTlDark': 'dark {time}',
     'nightCtlTlNow': 'now {time}',
     'nightCtlTlDawn': 'dawn {time}',
-    'nightCtlTlWindowEnd': '{name} → {time}',
+    'nightCtlTlWindowEnd': '{name} until {time}',
     'nightCtlTlSemantics':
         'Night from sunset {sunset} to sunrise {sunrise}, now {now}',
     'nightCtlTlSemWindow': '{name} until {time}',
@@ -2700,7 +2700,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtlTlDark': 'oscuro {time}',
     'nightCtlTlNow': 'ahora {time}',
     'nightCtlTlDawn': 'alba {time}',
-    'nightCtlTlWindowEnd': '{name} → {time}',
+    'nightCtlTlWindowEnd': '{name} hasta {time}',
     'nightCtlTlSemantics':
         'Noche desde la puesta de sol {sunset} hasta la salida {sunrise}, ahora {now}',
     'nightCtlTlSemWindow': '{name} hasta {time}',
