@@ -1,19 +1,10 @@
-// Thin adapter between [UpdateService] and the headless API's
-// `UpdateHandlers`.
+// The update state machine: one per process, over the one [UpdateService].
 //
-// Why the indirection: `UpdateService` is bound to the host filesystem
-// (the install directory, the staging directory, the on-disk `ready.json`
-// marker) and to `Process.start(updater.exe)` for apply. Substituting a
-// real instance in a unit test would require either filesystem doubles or
-// process doubles — both invasive. By having `UpdateHandlers` depend on
-// this abstract surface, the headless test suite can pass a fake
-// controller that records calls + drives the `events` stream synthetically
-// without touching disk.
-//
-// The default implementation wraps a real `UpdateService` and bridges its
-// state-changing methods onto a broadcast stream of typed `UpdateEvent`s
-// so the headless server can fan-out update lifecycle to paired phones
-// over the existing WebSocket transport.
+// `UpdateService` is bound to the host filesystem (the install directory, the
+// staging directory, the on-disk `ready.json` marker) and to
+// `Process.start(updater.exe)` for apply. The REST handlers and the windows
+// both depend on this surface, so their tests can pass a fake that records
+// calls and drives the streams without touching disk.
 
 import 'dart:async';
 import 'dart:convert';
@@ -22,13 +13,17 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../models/update_manifest.dart';
+import 'android_installer.dart';
 import 'update_service.dart';
 
-/// Lifecycle states the headless API exposes to clients. Mirrors
-/// `UpdateStatus` but with names tuned for the REST surface — e.g. the
-/// REST surface combines `available` + `upToDate` into a single `idle`
-/// view, while keeping `staged` as a discrete state because the apply
-/// gate hinges on it.
+/// The GitHub project shipped builds read releases from.
+const String kSkotiqReleaseOwner = 'Scdouglas1999';
+const String kSkotiqReleaseRepo = 'Skotiq';
+
+/// The states of an update, from check to install. There is one of these per
+/// process: the REST surface reports it as is, and the windows show it through
+/// `UpdateNotifier`, which adds only what a prompt needs (skipped and deferred
+/// versions).
 enum UpdateLifecycleState {
   /// No update activity in progress.
   idle,
@@ -377,14 +372,64 @@ class UpdateFailedEvent extends UpdateEvent {
   };
 }
 
-/// Adapter the headless API depends on. Wraps a real [UpdateService] and
-/// bridges its state-changing methods onto a broadcast stream of typed
-/// [UpdateEvent]s. Tests substitute a fake controller that records calls
-/// and drives the [events] stream directly.
+/// The one owner of the [UpdateService] in a process and the one state
+/// machine for checking, downloading, receiving a pushed update, and applying.
 ///
-/// The controller owns the service lifecycle so the bootstrap does not
-/// need to track disposal of two objects.
+/// The REST handlers call it directly; the windows go through
+/// `UpdateNotifier`. Every transition is published on [statusChanges] and the
+/// client-facing ones also as typed [UpdateEvent]s on [events].
 class UpdateController {
+  /// Builds the controller a shipped build uses.
+  ///
+  /// An explicit update server wins: that is how an appliance is pointed at a
+  /// private build host, and how the OTA tests drive a loopback mock. With
+  /// none set, the source is the project's GitHub releases. `SKOTIQ_UPDATE_SERVER`
+  /// and `SKOTIQ_UPDATE_CHANNEL` are read here and nowhere else.
+  factory UpdateController.forApp({
+    required String currentVersion,
+    required int currentBuildNumber,
+    required Future<Directory> Function() dataDirectory,
+    Future<void> Function()? applySafetyCheck,
+    UpdateService? service,
+    String? serverUrl,
+    String channel = 'stable',
+    Map<String, String>? environment,
+  }) {
+    final env = environment ?? Platform.environment;
+    final envUrl = env['SKOTIQ_UPDATE_SERVER']?.trim() ?? '';
+    final resolvedUrl = (serverUrl?.trim().isNotEmpty ?? false)
+        ? serverUrl!.trim()
+        : envUrl;
+    final envChannel = env['SKOTIQ_UPDATE_CHANNEL']?.trim() ?? '';
+    final resolvedChannel = envChannel.isNotEmpty ? envChannel : channel;
+
+    final updateService =
+        service ??
+        UpdateService(
+          currentVersion: currentVersion,
+          currentBuildNumber: currentBuildNumber,
+          applicationSupportDirectoryProvider: dataDirectory,
+        );
+    if (resolvedUrl.isNotEmpty) {
+      updateService.configure(serverUrl: resolvedUrl, channel: resolvedChannel);
+    } else {
+      updateService.configureGithubSource(
+        owner: kSkotiqReleaseOwner,
+        repo: kSkotiqReleaseRepo,
+        channel: resolvedChannel,
+      );
+    }
+    return UpdateController(
+      service: updateService,
+      currentVersion: currentVersion,
+      currentBuildNumber: currentBuildNumber,
+      stateDirectory: dataDirectory,
+      channel: resolvedChannel,
+      serverUrl: resolvedUrl.isEmpty ? null : resolvedUrl,
+      applySafetyCheck: applySafetyCheck,
+    );
+  }
+
   final UpdateService _service;
   final Future<void> Function() _applySafetyCheck;
   final String _currentVersion;
@@ -396,10 +441,12 @@ class UpdateController {
   /// Where the controller persists `last_update_check.txt` /
   /// `last_update_applied.txt`. Supplied by the bootstrap (the same
   /// `applicationSupport` directory the service uses for staging).
-  final Directory _stateDir;
+  final Future<Directory> Function() _stateDir;
 
   final StreamController<UpdateEvent> _eventsController =
       StreamController<UpdateEvent>.broadcast();
+  final StreamController<UpdateControllerStatus> _statusController =
+      StreamController<UpdateControllerStatus>.broadcast(sync: true);
 
   UpdateControllerStatus _status = const UpdateControllerStatus(
     state: UpdateLifecycleState.idle,
@@ -413,6 +460,18 @@ class UpdateController {
   /// is only verified once).
   UpdateManifest? _lastManifest;
   bool _lastOfferRequiresManualUpgrade = false;
+
+  /// What the most recent completed check answered, with the release notes
+  /// and the reason when there is nothing to install.
+  UpdateCheckResult? _lastCheckResult;
+
+  /// The update on disk waiting to be applied, and the manifest it came from.
+  StagedUpdate? _staged;
+  UpdateManifest? _stagedManifest;
+
+  int _downloadedBytes = 0;
+  int _totalBytes = 0;
+  Future<void>? _bootstrap;
 
   /// Monotonic counter bumped by [abortInFlight]. An in-flight
   /// [checkForUpdates] captures this on entry and skips its terminal status
@@ -428,7 +487,7 @@ class UpdateController {
     required UpdateService service,
     required String currentVersion,
     required int currentBuildNumber,
-    required Directory stateDirectory,
+    required Future<Directory> Function() stateDirectory,
     String channel = 'stable',
     String? serverUrl,
     DateTime Function()? now,
@@ -442,9 +501,12 @@ class UpdateController {
        _stateDir = stateDirectory,
        _now = now ?? DateTime.now;
 
-  /// Hydrate persisted state markers from disk. Must be awaited before
-  /// the controller is exposed via the API.
-  Future<void> bootstrap() async {
+  /// Reads what earlier runs left on disk: the check and apply timestamps, a
+  /// pending install to verify, a staged update. Runs once; later calls wait
+  /// for the same read. Await it before reading [status].
+  Future<void> bootstrap() => _bootstrap ??= _readPersistedState();
+
+  Future<void> _readPersistedState() async {
     _lastUpdateCheck = await _readTimestamp('last_update_check.txt');
     _lastUpdateApplied = await _readTimestamp('last_update_applied.txt');
 
@@ -474,6 +536,8 @@ class UpdateController {
     // check).
     final staged = await _service.getStagedUpdate();
     if (staged != null) {
+      _staged = staged;
+      _stagedManifest = await _service.readStagedManifest();
       if (_status.state == UpdateLifecycleState.failed) {
         _status = UpdateControllerStatus(
           state: UpdateLifecycleState.failed,
@@ -491,6 +555,7 @@ class UpdateController {
         );
       }
     }
+    _updateStatus(_status);
   }
 
   /// Lifecycle event stream. Replays nothing on subscribe; clients should
@@ -500,6 +565,37 @@ class UpdateController {
   /// Current snapshot. Cheap synchronous read; the controller maintains
   /// this in memory and rebuilds on every state transition.
   UpdateControllerStatus get status => _status;
+
+  /// Every new [status], as it is set.
+  Stream<UpdateControllerStatus> get statusChanges => _statusController.stream;
+
+  /// The answer of the most recent completed check, or null before one.
+  UpdateCheckResult? get lastCheckResult => _lastCheckResult;
+
+  /// The manifest of the update on offer or being downloaded.
+  UpdateManifest? get offeredManifest => _lastManifest;
+
+  /// The update on disk waiting to be applied.
+  StagedUpdate? get staged => _staged;
+
+  /// The manifest the staged update came from, when it can still be read.
+  UpdateManifest? get stagedManifest => _stagedManifest;
+
+  /// Bytes received and expected for the transfer in progress.
+  int get downloadedBytes => _downloadedBytes;
+  int get totalBytes => _totalBytes;
+
+  /// Whether a check has anywhere to look.
+  bool get hasUpdateSource => _service.hasUpdateSource;
+
+  /// A one-shot notice the service queued (a corrupted staging marker it
+  /// recovered from, for example), or null.
+  UpdateNotice? takePendingNotice() => _service.takePendingNotice();
+
+  /// The version the operator chose never to be offered.
+  Future<String?> readSkippedVersion() => _service.readSkippedVersion();
+  Future<void> writeSkippedVersion(String? version) =>
+      _service.writeSkippedVersion(version);
 
   /// The running app's version string (e.g. `2.5.0`).
   String get currentVersion => _currentVersion;
@@ -557,6 +653,7 @@ class UpdateController {
     // longer sees on screen.
     _lastManifest = null;
     _lastOfferRequiresManualUpgrade = false;
+    _lastCheckResult = null;
     _updateStatus(
       _status = UpdateControllerStatus(
         state: UpdateLifecycleState.checking,
@@ -577,6 +674,7 @@ class UpdateController {
       }
       _lastManifest = result.manifest;
       _lastOfferRequiresManualUpgrade = result.requiresManualUpgrade;
+      _lastCheckResult = result;
       _lastUpdateCheck = _now();
       await _writeTimestamp('last_update_check.txt', _lastUpdateCheck!);
 
@@ -684,6 +782,8 @@ class UpdateController {
         totalBytes: manifest.compressedSize,
       ),
     );
+    _downloadedBytes = 0;
+    _totalBytes = manifest.compressedSize;
     _updateStatus(
       UpdateControllerStatus(
         state: UpdateLifecycleState.downloading,
@@ -696,6 +796,8 @@ class UpdateController {
       await _service.downloadAndStage(
         manifest,
         onProgress: (downloaded, total, progress) {
+          _downloadedBytes = downloaded;
+          _totalBytes = total == 0 ? manifest.compressedSize : total;
           _updateStatus(
             UpdateControllerStatus(
               state: UpdateLifecycleState.downloading,
@@ -736,6 +838,8 @@ class UpdateController {
           'staging directory may have been wiped concurrently.',
         );
       }
+      _staged = staged;
+      _stagedManifest = manifest;
 
       _updateStatus(
         UpdateControllerStatus(
@@ -868,6 +972,49 @@ class UpdateController {
                 outcome != UpdateApplyOutcome.handedToPlatformInstaller,
           ),
         );
+        if (outcome == UpdateApplyOutcome.handedToPlatformInstaller) {
+          // Stay staged: if the user declines the system prompt, the verified
+          // download is still on disk and Install can be pressed again.
+          _updateStatus(
+            UpdateControllerStatus(
+              state: UpdateLifecycleState.staged,
+              stagedVersion: staged.version,
+              stagedAt: staged.stagedAt,
+            ),
+          );
+        }
+      } on AndroidInstallException catch (e) {
+        if (!e.isPermissionDenied) {
+          _updateStatus(
+            UpdateControllerStatus(
+              state: UpdateLifecycleState.failed,
+              stagedVersion: staged.version,
+              stagedAt: staged.stagedAt,
+              lastError: e.toString(),
+            ),
+          );
+          _eventsController.add(
+            UpdateFailedEvent(
+              jobId: jobId,
+              phase: 'apply',
+              error: e.toString(),
+            ),
+          );
+          rethrow;
+        }
+        final opened = await _openInstallPermissionSettings();
+        _updateStatus(
+          UpdateControllerStatus(
+            state: UpdateLifecycleState.staged,
+            stagedVersion: staged.version,
+            stagedAt: staged.stagedAt,
+            message: opened
+                ? 'Allow Skotiq to install apps on the screen that just '
+                      'opened, then come back and install the update again.'
+                : 'Allow Skotiq to install apps (Settings > Apps > Skotiq > '
+                      'Install unknown apps), then install the update again.',
+          ),
+        );
       } catch (e) {
         _updateStatus(
           UpdateControllerStatus(
@@ -886,6 +1033,48 @@ class UpdateController {
       _endOperation('apply');
     }
   }
+
+  /// Android 8+ keeps "install unknown apps" off for each app until the user
+  /// allows it, so the first update on every phone is refused this way. Opens
+  /// the screen where it is granted; the update stays staged, and Install
+  /// works again once the switch is on.
+  Future<bool> _openInstallPermissionSettings() async {
+    try {
+      await openInstallPermissionSettings();
+      return true;
+    } on AndroidInstallException {
+      return false;
+    }
+  }
+
+  /// A pushed update was received, verified and staged at [stagingPath].
+  void lanPushReceived(UpdateManifest manifest, String stagingPath) {
+    final stagedAt = _now();
+    _staged = StagedUpdate(
+      version: manifest.version,
+      buildNumber: manifest.buildNumber,
+      stagedAt: stagedAt,
+      extractPath: stagingPath,
+    );
+    _stagedManifest = manifest;
+    _updateStatus(
+      UpdateControllerStatus(
+        state: UpdateLifecycleState.staged,
+        stagedVersion: manifest.version,
+        stagedAt: stagedAt,
+        progressPct: 100.0,
+      ),
+    );
+  }
+
+  /// A pushed update was refused or broke off. What is on disk is unchanged,
+  /// so the status is too; listeners hear about it as a failed event.
+  void lanPushFailed(String error) {
+    _eventsController.add(UpdateFailedEvent(phase: lanPushPhase, error: error));
+  }
+
+  /// The [UpdateFailedEvent.phase] of a failed LAN push.
+  static const lanPushPhase = 'push';
 
   /// Abort an in-flight check / download. Throws [StateError] when there
   /// is nothing to abort.
@@ -982,6 +1171,8 @@ class UpdateController {
       );
     }
     await _service.clearStagedUpdate();
+    _staged = null;
+    _stagedManifest = null;
     _updateStatus(
       const UpdateControllerStatus(
         state: UpdateLifecycleState.idle,
@@ -1058,11 +1249,13 @@ class UpdateController {
   /// Release any resources held by the controller (HTTP client, sockets).
   Future<void> dispose() async {
     await _eventsController.close();
+    await _statusController.close();
     _service.dispose();
   }
 
   void _updateStatus(UpdateControllerStatus next) {
     _status = next;
+    if (!_statusController.isClosed) _statusController.add(next);
   }
 
   void _beginOperation(String operation) {
@@ -1100,7 +1293,7 @@ class UpdateController {
   }
 
   Future<DateTime?> _readTimestamp(String fileName) async {
-    final file = File(p.join(_stateDir.path, fileName));
+    final file = File(p.join((await _stateDir()).path, fileName));
     if (!await file.exists()) return null;
     try {
       final raw = (await file.readAsString()).trim();
@@ -1112,7 +1305,7 @@ class UpdateController {
   }
 
   Future<void> _writeTimestamp(String fileName, DateTime ts) async {
-    final file = File(p.join(_stateDir.path, fileName));
+    final file = File(p.join((await _stateDir()).path, fileName));
     await file.parent.create(recursive: true);
     await file.writeAsString(ts.toUtc().toIso8601String());
   }

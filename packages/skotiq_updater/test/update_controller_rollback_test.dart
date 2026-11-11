@@ -27,7 +27,7 @@ void main() {
         service: service,
         currentVersion: '2.1.0',
         currentBuildNumber: 42,
-        stateDirectory: tempRoot,
+        stateDirectory: () async => tempRoot,
       );
     });
 

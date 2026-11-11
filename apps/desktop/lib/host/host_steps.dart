@@ -6,10 +6,12 @@ import 'package:skotiq_app/skotiq_app.dart';
 import 'package:skotiq_app/startup/always_on_services.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
+import 'package:skotiq_updater/skotiq_updater.dart';
 
 import '../desktop_app_bootstrap.dart';
 import '../headless/headless_disk_watchdog_bootstrap.dart';
 import '../headless/host_checkpoint_directory.dart';
+import '../headless_api/update_wiring.dart';
 import 'host_auto_connect.dart';
 import 'host_server.dart';
 import 'host_startup.dart';
@@ -313,40 +315,68 @@ String _redactToken(String token) {
 /// Listens for an update pushed over the LAN and answers the pusher's
 /// discovery probe, so `push_update` can find this host.
 ///
-/// The two hosts receive differently: the GUI hands a pushed update to its
-/// update dialog and must do so with Remote Access off, so it runs its own
-/// receiver; the daemon applies one through the server's update controller.
-/// Both answer discovery the same way. A build with no update key compiled in
-/// cannot verify a push, so it neither listens nor answers.
+/// A received update goes to the process's update controller, which is what
+/// the update dialog and `/api/system/update/*` both show. The receiver runs
+/// with Remote Access off too. A build with no update key compiled in cannot
+/// verify a push, so it neither listens nor answers.
 Future<void> _startUpdateReceiver(HostStartup host) async {
-  bool Function()? isReceiving;
-  switch (host.kind) {
-    case HostKind.gui:
-      isReceiving = await startGuiLanPushReceiver(
-        logger: host.logger,
-        appVersion: host.appVersion.version,
-        appBuildNumber: host.appVersion.buildNumber,
+  final logger = host.logger;
+  final source = host.logSource;
+  final controller = host.container.read(updateControllerProvider);
+  final receiver = LanPushReceiver(
+    currentVersion: host.appVersion.version,
+    currentBuildNumber: host.appVersion.buildNumber,
+    dataDirectory: resolveSkotiqDataDirectory,
+    pushSecret: await getOrCreatePushSecret(logger, logSource: source),
+  );
+  receiver.onUpdateReceived = (manifest, stagingPath) {
+    logger.info(
+      'Update received via LAN push',
+      source: source,
+      fields: {'version': manifest.version},
+    );
+    controller.lanPushReceived(manifest, stagingPath);
+  };
+  receiver.onProgress = (received, total, progress, message) {
+    logger.debug(
+      'LAN push progress',
+      source: source,
+      fields: {
+        'progress_pct': (progress * 100).toStringAsFixed(1),
+        'received': received,
+        'total': total,
+        'message': message,
+      },
+    );
+  };
+  receiver.onError = (error) {
+    logger.error('LAN push error', source: source, fields: {'error': error});
+    controller.lanPushFailed(error);
+  };
+  try {
+    await receiver.startServer();
+  } catch (e) {
+    if ('$e'.contains('no trusted public key compiled in')) {
+      // Unsigned local/development builds deliberately disable LAN updates.
+      // This is an expected capability state, not an operational failure.
+      logger.info(
+        'LAN push receiver disabled for this unsigned build',
+        source: source,
       );
-    case HostKind.daemon:
-      final stack = host.daemonServer?.updateStack;
-      if (stack == null) return;
-      try {
-        await stack.lanPushReceiver.startServer();
-        host.logger.info(
-          'LAN push receiver started on port 45680',
-          source: host.logSource,
-        );
-        isReceiving = () => false;
-      } catch (e) {
-        host.logger.warning(
-          'LAN push receiver did not start (no trusted public key '
-          'compiled in?). HTTPS pull updates remain available.',
-          source: host.logSource,
-          fields: {'error': '$e'},
-        );
-      }
+    } else {
+      logger.warning(
+        'LAN push receiver did not start. HTTPS pull updates remain '
+        'available.',
+        source: source,
+        fields: {'error': '$e'},
+      );
+    }
+    return;
   }
-  if (isReceiving == null) return;
+  host.onStop('LAN push receiver', receiver.stopServer);
+  logger.info('LAN push receiver started on port 45680', source: source);
+  bool isReceiving() => receiver.versionInfo['isReceiving'] == true;
+
   if (host.daemonConfig?.bindLocalOnly ?? false) {
     // A loopback-only daemon was asked not to announce itself on the LAN.
     return;

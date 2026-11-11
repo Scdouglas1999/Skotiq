@@ -181,7 +181,7 @@ void main() {
       service: service,
       currentVersion: '7.1.0',
       currentBuildNumber: 28,
-      stateDirectory: dataDir,
+      stateDirectory: () async => dataDir,
     );
     final events = <UpdateEvent>[];
     final sub = controller.events.listen(events.add);

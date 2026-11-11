@@ -25,6 +25,10 @@ import 'handler_test_helpers.dart';
 /// Records every call so the test can assert exactly which controller
 /// methods the handler hit and with what arguments.
 class _FakeUpdateController implements UpdateController {
+  /// The handlers use only what is overridden below.
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
   final StreamController<UpdateEvent> _events =
       StreamController<UpdateEvent>.broadcast();
 

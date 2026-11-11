@@ -5,14 +5,12 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
-import 'package:skotiq_updater/skotiq_updater.dart';
 // Why still imported: UpdatePushDiscovery (LAN update-push responder) lives in
 // skotiq_remote_protocol/discovery.dart. The package carries no server of
 // its own; only the discovery primitives are used here.
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:path/path.dart' as path;
 
-import 'headless_api/update_wiring.dart';
 import 'host/host_server.dart';
 import 'secret_file.dart';
 
@@ -300,84 +298,6 @@ class GuiRemoteAccess {
         .read(webServerStateProvider.notifier)
         .setConnectedClients(server.connectedClientCount);
   }
-}
-
-/// Starts the GUI's receiver for updates pushed over the LAN. A received
-/// update is handed to the update dialog through [LanPushNotifier].
-///
-/// Returns a function that says whether a push is arriving right now, or null
-/// when the receiver did not start (an unsigned build has no key to verify a
-/// push with, so it does not listen).
-Future<bool Function()?> startGuiLanPushReceiver({
-  required LoggingService logger,
-  required String appVersion,
-  required int appBuildNumber,
-}) async {
-  try {
-    var isReceivingLanPush = false;
-    final pushSecret = await getOrCreatePushSecret(
-      logger,
-      logSource: _logSource,
-    );
-    final lanPushReceiver = LanPushReceiver(
-      currentVersion: appVersion,
-      currentBuildNumber: appBuildNumber,
-      dataDirectory: resolveSkotiqDataDirectory,
-      pushSecret: pushSecret,
-    );
-    lanPushReceiver.onUpdateReceived = (manifest, stagingPath) {
-      isReceivingLanPush = false;
-      logger.info(
-        'Update received via LAN push',
-        source: _logSource,
-        fields: {'version': manifest.version},
-      );
-      LanPushNotifier.notifyUpdateReceived(manifest, stagingPath);
-    };
-    lanPushReceiver.onProgress = (received, total, progress, message) {
-      isReceivingLanPush = total > 0 && received < total;
-      logger.debug(
-        'LAN push progress',
-        source: _logSource,
-        fields: {
-          'progress_pct': (progress * 100).toStringAsFixed(1),
-          'received': received,
-          'total': total,
-          'message': message,
-        },
-      );
-      LanPushNotifier.notifyProgress(received, total, progress, message);
-    };
-    lanPushReceiver.onError = (error) {
-      isReceivingLanPush = false;
-      logger.error(
-        'LAN push error',
-        source: _logSource,
-        fields: {'error': error},
-      );
-      LanPushNotifier.notifyError(error);
-    };
-    await lanPushReceiver.startServer();
-    logger.info('LAN push receiver started on port 45680', source: _logSource);
-    return () => isReceivingLanPush;
-  } catch (e) {
-    final message = '$e';
-    if (message.contains('no trusted public key compiled in')) {
-      // Unsigned local/development builds deliberately disable LAN updates.
-      // This is an expected capability state, not an operational failure.
-      logger.info(
-        'LAN push receiver disabled for this unsigned build',
-        source: _logSource,
-      );
-    } else {
-      logger.warning(
-        'LAN push receiver failed',
-        source: _logSource,
-        fields: {'error': message},
-      );
-    }
-  }
-  return null;
 }
 
 /// Initialise the global catalog manager. Failures are non-fatal — the rest
