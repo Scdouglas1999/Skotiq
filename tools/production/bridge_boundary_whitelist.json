@@ -1,69 +1,53 @@
 {
-  "_comment": "Reviewed, pragmatic exceptions to the architecture rule that skotiq_core is the only Dart package allowed to import package:skotiq_bridge (docs/architecture.md \u00a71). Only two kinds of file qualify: (1) the desktop headless appliance layer, which IS the local hardware owner on the appliance (the FfiBackend-equivalent at the network seam, architecture \u00a74-5) and legitimately drives Rust directly rather than going back through a network backend; (2) thin UI files that only need a bridge *data type* (an enum/struct) for display, where re-modeling the type in core would be churn for no behavioral benefit. UI files that call bridge *functions* (image processing, stretch, PHD2 control) are NOT whitelisted - those are real boundary leaks and must move behind a skotiq_core role. The audit loader reads only the 'file' and 'reason' keys. See docs/production-readiness/bridge-boundary-plan.md.",
+  "_comment": "Reviewed, pragmatic exceptions to the architecture rule that skotiq_core is the only Dart package allowed to import package:skotiq_bridge (docs/architecture.md §1). An exception is granted to an import, not to a path: the import carries a `// bridge-boundary: <id>` comment on the line above it, and this file holds the reason for each id, so the exception follows the import when its file moves or is renamed. Only two kinds of import qualify: (1) the desktop headless appliance layer, which IS the local hardware owner on the appliance (the FfiBackend-equivalent at the network seam, architecture §4-5) and legitimately drives Rust directly rather than going back through a network backend; (2) thin UI files that only need a bridge *data type* (an enum/struct) for display, where re-modeling the type in core would be churn for no behavioral benefit. UI files that call bridge *functions* (image processing, stretch, PHD2 control) are NOT whitelisted - those are real boundary leaks and must move behind a skotiq_core role. The audit loader reads only the 'id' and 'reason' keys. See docs/production-readiness/bridge-boundary-plan.md.",
   "allow": [
     {
-      "file": "apps/desktop/lib/desktop_logging_init.dart",
+      "id": "desktop_logging_init",
       "reason": "Native library bootstrap (bridge.NativeBridge) at process start; pre-backend init, legitimately app-local."
     },
     {
-      "file": "apps/desktop/lib/headless_api/handlers/auxiliary_handlers.dart",
-      "reason": "Headless appliance layer: the desktop binary is the local hardware owner (FfiBackend-equivalent at the network seam, architecture \u00a74-5). Cover/calibrator/switch API + state enums."
+      "id": "auxiliary_handlers",
+      "reason": "Headless appliance layer: the desktop binary is the local hardware owner (FfiBackend-equivalent at the network seam, architecture §4-5). Cover/calibrator/switch API + state enums."
     },
     {
-      "file": "apps/desktop/lib/headless_api/handlers/depthlock_handlers.dart",
+      "id": "depthlock_handlers",
       "reason": "Headless appliance layer: catches bridge_error.SkotiqError to shape HTTP error responses for the DepthLock goal endpoints on the local hardware owner. The import is used for that typed catch alone — no bridge function is called, the goal work itself goes through the skotiq_core DepthLock backend role. Same reviewed exception already granted to device_handlers.dart, guiding_handlers.dart, run_watch_handlers.dart and validation.dart; the typed match is what keeps these handlers off string-sniffing the error text, which the fail-closed handlers_e_tostring rule forbids."
     },
     {
-      "file": "apps/desktop/lib/headless_api/handlers/device_handlers.dart",
+      "id": "device_handlers",
       "reason": "Headless appliance layer: its camera_handlers part catches bridge_error.SkotiqError to shape HTTP error responses on the local hardware owner; error type is the bridge's contract."
     },
     {
-      "file": "apps/desktop/lib/headless_api/handlers/dome_handlers.dart",
+      "id": "dome_handlers",
       "reason": "Headless appliance layer: dome API + ShutterState/ShutterStatus enums on the local hardware owner."
     },
     {
-      "file": "apps/desktop/lib/headless_api/handlers/guiding_handlers.dart",
+      "id": "guiding_handlers",
       "reason": "Headless appliance layer: catches bridge.SkotiqError to shape HTTP error responses on the local hardware owner. Matches the exception already granted to device_handlers.dart and validation.dart for the same purpose. The typed match replaced string-sniffing the error text, which the fail-closed handlers_e_tostring rule forbids."
     },
     {
-      "file": "apps/desktop/lib/headless_api/handlers/imaging_handlers.dart",
+      "id": "imaging_handlers",
       "reason": "Headless appliance layer: image calibration/FITS read on the local hardware owner."
     },
     {
-      "file": "apps/desktop/lib/headless_api/handlers/post_session_handlers.dart",
+      "id": "post_session_handlers",
       "reason": "Headless appliance layer: stacking/integration/photometry pipeline on the local hardware owner."
     },
     {
-      "file": "apps/desktop/lib/headless_api/handlers/run_watch_handlers.dart",
+      "id": "run_watch_handlers",
       "reason": "Headless appliance layer: catches bridge_error.SkotiqError to distinguish an empty capture buffer from a real camera fault when shaping the live-preview HTTP response. Same reviewed exception already granted to device_handlers.dart, guiding_handlers.dart and validation.dart; the typed match replaced string-sniffing the error text, which the fail-closed handlers_e_tostring rule forbids."
     },
     {
-      "file": "apps/desktop/lib/headless_api/handlers/science_handlers.dart",
+      "id": "science_handlers",
       "reason": "Headless appliance layer: apiReadFitsFile on the local hardware owner."
     },
     {
-      "file": "apps/desktop/lib/headless_api/handlers/sequencer_handlers.dart",
+      "id": "sequencer_handlers",
       "reason": "Headless appliance layer: secondary-rig API + SecondaryRigConfigApi on the local hardware owner."
     },
     {
-      "file": "apps/desktop/lib/headless_api/validation.dart",
+      "id": "headless_validation",
       "reason": "Headless appliance layer: catches bridge_error.SkotiqError to shape HTTP error responses; error type is the bridge's contract."
-    },
-    {
-      "file": "packages/skotiq_app/lib/screens/guiding/guiding_screen.dart",
-      "reason": "Thin UI: its desktop/mobile section parts display the Phd2State enum (data type only, no bridge function calls)."
-    },
-    {
-      "file": "packages/skotiq_app/lib/screens/imaging/widgets/guiding_active_chip.dart",
-      "reason": "Thin UI: displays Phd2State enum (data type only, no bridge function calls)."
-    },
-    {
-      "file": "packages/skotiq_app/lib/screens/sequencer/widgets/secondary_rig_card.dart",
-      "reason": "Thin UI: displays SecondaryRigStatusApi struct (data type only, no bridge function calls)."
-    },
-    {
-      "file": "packages/skotiq_app/lib/widgets/guide_health_card.dart",
-      "reason": "Thin UI: displays Phd2State enum (data type only, no bridge function calls)."
     }
   ]
 }

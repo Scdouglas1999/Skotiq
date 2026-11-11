@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/services/observation_report_service.dart';
+// bridge-boundary: science_handlers
 import 'package:skotiq_bridge/skotiq_bridge.dart' show apiReadFitsFile;
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart'
