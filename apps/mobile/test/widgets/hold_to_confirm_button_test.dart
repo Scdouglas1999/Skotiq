@@ -173,7 +173,9 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 50));
     expect(hold.evaluate().length, greaterThan(before));
-    expect(find.text('Hold to stop'), findsWidgets);
+    // The tooltip opens the frame after the press.
+    await tester.pump();
+    expect(find.text('Hold to stop'), findsOneWidget);
     await gesture.up();
     await tester.pumpAndSettle();
   });

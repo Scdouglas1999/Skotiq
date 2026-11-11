@@ -1,4 +1,3 @@
-import '../theme/skotiq_tokens.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -39,9 +38,9 @@ class HoldToConfirmButton extends StatefulWidget {
   /// wants to stop the sequence does not feel like they are fighting the UI.
   final Duration duration;
 
-  /// What the gesture asks for, e.g. "Hold to stop": the tooltip on hover
-  /// and after a press too short to count, and the label drawn over the
-  /// child while the user holds. If null, the semantics label stands in.
+  /// What the gesture asks for, e.g. "Hold to stop": the tooltip on hover,
+  /// while the user holds and after a press too short to count. If null,
+  /// the semantics label stands in.
   final String? confirmText;
 
   /// When false, all gestures are ignored and the visual stays in its
@@ -90,9 +89,6 @@ class _HoldToConfirmButtonState extends State<HoldToConfirmButton>
   bool _confirmedThisHold = false;
 
   final GlobalKey<TooltipState> _tooltip = GlobalKey<TooltipState>();
-
-  /// The least height that leaves room for [confirmText] over the child.
-  static const double _overlayMinHeight = 40;
 
   @override
   void initState() {
@@ -259,47 +255,6 @@ class _HoldToConfirmButtonState extends State<HoldToConfirmButton>
                     ),
                   ),
                 ),
-              // Drawn over the child only where it fits below the child's own
-              // label; a short button gets the tooltip instead.
-              if (_holding && widget.confirmText != null)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: LayoutBuilder(
-                      builder: (context, box) =>
-                          box.maxHeight < _overlayMinHeight
-                          ? const SizedBox.shrink()
-                          : Align(
-                              alignment: Alignment.bottomCenter,
-                              child: Padding(
-                                padding: const EdgeInsets.only(bottom: 4),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: theme.colorScheme.surface.withValues(
-                                      alpha: 0.85,
-                                    ),
-                                    borderRadius: BorderRadius.circular(
-                                      SkotiqTokens.radiusXs,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    widget.confirmText!,
-                                    style: theme.textTheme.labelSmall?.copyWith(
-                                      color: ringColor,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ),
-                            ),
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
@@ -342,7 +297,7 @@ class _HoldPainter extends CustomPainter {
     final sweep = progress.clamp(0.0, 1.0);
     canvas.save();
     canvas.clipRect(Rect.fromLTWH(0, 0, size.width * sweep, size.height));
-    canvas.drawRRect(rrect, Paint()..color = color.withValues(alpha: 0.28));
+    canvas.drawRRect(rrect, Paint()..color = color.withValues(alpha: 0.45));
     canvas.restore();
 
     // Background track (dim) so the user perceives "how far to go".
