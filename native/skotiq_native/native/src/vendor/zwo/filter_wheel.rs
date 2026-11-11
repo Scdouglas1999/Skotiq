@@ -5,8 +5,6 @@ use crate::load_vendor_sdk;
 use crate::vendor::sdk_loader::vendor_library_candidates;
 use std::path::PathBuf;
 
-// EFW filter wheel SDK
-
 /// EFW Info structure from SDK
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -132,9 +130,6 @@ pub(crate) fn check_efw_error(code: c_int) -> Result<(), DriverError> {
     }
 }
 
-// Filter wheel implementation
-
-/// ZWO EFW Filter Wheel implementation
 #[derive(Debug)]
 pub struct ZwoFilterWheel {
     pub(crate) filterwheel_id: i32,
@@ -147,7 +142,6 @@ pub struct ZwoFilterWheel {
 }
 
 impl ZwoFilterWheel {
-    /// Create a new ZWO filter wheel instance
     pub fn new(filterwheel_id: i32) -> Self {
         Self {
             filterwheel_id,
@@ -263,13 +257,11 @@ impl DeviceDriver for ZwoFilterWheel {
             )));
         }
 
-        // Open filter wheel
         // SAFETY: filterwheel_id was matched against the SDK-issued IDs
         // immediately above.
         let result = unsafe { (sdk.open)(self.filterwheel_id) };
         check_efw_error(result)?;
 
-        // Create cleanup guard to close the filter wheel if subsequent operations fail
         let filterwheel_id = self.filterwheel_id;
         let locked_sdk: &EfwSdk = &sdk;
         let cleanup_guard = CleanupGuard::new(|| {
@@ -281,7 +273,6 @@ impl DeviceDriver for ZwoFilterWheel {
             let _ = unsafe { (locked_sdk.close)(filterwheel_id) };
         });
 
-        // Get properties
         // SAFETY: EFWInfo is `#[repr(C)]` POD; zeroed is a valid initial state.
         let mut info: EFWInfo = unsafe { std::mem::zeroed() };
         // SAFETY: `info` is a valid stack pointer; filterwheel_id was successfully opened above.
@@ -291,7 +282,6 @@ impl DeviceDriver for ZwoFilterWheel {
         self.slot_count = info.slot_num;
         self.name = safe_cstr_to_string(info.name.as_ptr(), 64);
 
-        // Initialize default filter names
         self.filter_names = (0..self.slot_count)
             .map(|i| format!("Filter {}", i + 1))
             .collect();
@@ -320,7 +310,6 @@ impl DeviceDriver for ZwoFilterWheel {
                 None
             };
 
-        // All operations succeeded - defuse the cleanup guard
         cleanup_guard.defuse();
 
         self.connected = true;
@@ -420,7 +409,6 @@ impl FilterWheelDriver for ZwoFilterWheel {
 
         let sdk = EfwSdk::installed()?;
 
-        // Validate position
         if position < 0 || position >= self.slot_count {
             return Err(DriverError::InvalidParameter(format!(
                 "Invalid position {}. Valid range: 0-{}",
@@ -501,9 +489,6 @@ impl FilterWheelDriver for ZwoFilterWheel {
     }
 }
 
-// Filter wheel discovery
-
-/// ZWO filter wheel discovery info
 pub struct ZwoFilterWheelDiscoveryInfo {
     pub filterwheel_id: i32,
     pub name: String,
@@ -513,12 +498,10 @@ pub struct ZwoFilterWheelDiscoveryInfo {
     pub discovery_index: usize,
 }
 
-/// Check if EFW SDK is available
 pub fn is_efw_sdk_available() -> bool {
     EfwSdk::is_available()
 }
 
-/// Get EFW SDK status
 pub fn get_efw_sdk_status() -> (bool, String) {
     match EfwSdk::installed() {
         Ok(sdk) => (
@@ -540,7 +523,6 @@ pub(crate) fn efw_sdk_version_from_sdk(sdk: &EfwSdk) -> Option<String> {
         .map(|version| format!("ZWO EFW SDK v{version}"))
 }
 
-/// Discover ZWO EFW filter wheels
 pub async fn discover_filter_wheels() -> Result<Vec<ZwoFilterWheelDiscoveryInfo>, DriverError> {
     let sdk = match EfwSdk::installed() {
         Ok(sdk) => sdk,

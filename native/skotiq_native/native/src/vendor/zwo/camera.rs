@@ -91,7 +91,6 @@ impl FrameBufferStats {
     }
 }
 
-/// ZWO ASI Camera implementation
 #[derive(Debug)]
 pub struct ZwoCamera {
     pub(crate) camera_id: i32,
@@ -118,10 +117,8 @@ pub struct ZwoCamera {
     pub(crate) current_height: i32,
     pub(crate) image_type: ASIImgType,
 
-    // Current settings tracking
     pub(crate) current_gain: i32,
     pub(crate) current_offset: i32,
-    // Exposure metadata tracking
     pub(crate) exposure_time: f64,
     // The ASI SDK may leave ASI_EXP_SUCCESS latched after StopExposure. Track
     // whether Skotiq still owns an active acquisition so an aborted frame
@@ -134,7 +131,6 @@ pub struct ZwoCamera {
 }
 
 impl ZwoCamera {
-    /// Create a new ZWO camera instance
     pub fn new(camera_id: i32) -> Self {
         Self {
             camera_id,
@@ -157,7 +153,6 @@ impl ZwoCamera {
         }
     }
 
-    /// Load camera info from SDK
     pub(crate) fn load_camera_info(&mut self, sdk: &AsiSdk) -> Result<(), DriverError> {
         // ASIGetCameraProperty takes the current enumeration index, while every
         // camera operation takes ASICameraInfo::CameraID. Resolve the stable ID
@@ -237,10 +232,8 @@ impl ZwoCamera {
         Some(sn.id.iter().map(|b| format!("{:02x}", b)).collect())
     }
 
-    /// Get camera name using safe string conversion
     pub(crate) fn camera_name(&self) -> String {
         if let Some(info) = &self.camera_info {
-            // Use safe string conversion with bounded length
             safe_cstr_to_string(info.name.as_ptr(), 64)
         } else {
             format!("ZWO Camera {}", self.camera_id)
@@ -480,21 +473,17 @@ impl ZwoCamera {
     ) -> Result<(i32, i32, i32), DriverError> {
         let sdk = AsiSdk::lock().await?;
 
-        // Get number of controls
         let mut num_controls: c_int = 0;
         // SAFETY: `num_controls` is a valid stack pointer; camera_id is valid (camera opened during connect).
         let result = unsafe { (sdk.get_num_controls)(self.camera_id, &mut num_controls) };
         check_asi_error(result)?;
 
-        // Search for the specific control
         for i in 0..num_controls {
             // SAFETY: ASIControlCaps is `#[repr(C)]` POD; zeroed is a safe initial state per SDK contract.
             let mut caps: ASIControlCaps = unsafe { std::mem::zeroed() };
             // SAFETY: `caps` is a valid stack pointer; `i` is bounded by num_controls returned by the SDK above; camera_id is valid.
             let result = unsafe { (sdk.get_control_caps)(self.camera_id, i, &mut caps) };
             if result == 0 {
-                // Check if this is the control we're looking for
-                // The control_type field tells us which control this is
                 if caps.control_type as c_int == target_control as c_int {
                     // Why: caps fields are `c_long` (i32 on Windows, i64 on Linux);
                     // ZWO controls never exceed i32 in practice (gain <= 600,

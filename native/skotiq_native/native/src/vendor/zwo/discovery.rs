@@ -6,7 +6,6 @@ use std::sync::{Mutex, PoisonError};
 use std::time::{Duration, Instant};
 use tokio::sync::watch;
 
-/// ZWO camera discovery info
 #[derive(Clone)]
 pub struct ZwoDiscoveryInfo {
     /// Stable SDK CameraID used by ASIOpenCamera and all subsequent operations.
@@ -19,7 +18,6 @@ pub struct ZwoDiscoveryInfo {
     pub sdk_version: Option<String>,
 }
 
-/// Check if ZWO SDK is available
 pub fn is_sdk_available() -> bool {
     AsiSdk::is_available()
 }
