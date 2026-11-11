@@ -258,7 +258,6 @@ class _OnboardingCameraDefaultsStepState
             'your camera differs.'
         : null;
 
-    // Reflect the applied preset in the editable fields.
     _gainController.text = preset.recommendedGain.toString();
     _offsetController.text = preset.recommendedOffset.toString();
     _binXController.text = preset.recommendedBinX.toString();

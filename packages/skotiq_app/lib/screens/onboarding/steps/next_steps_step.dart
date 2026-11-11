@@ -163,7 +163,6 @@ class _SummaryLine extends StatelessWidget {
   /// True when the value is a measurement and takes the mono ramp.
   final bool mono;
 
-  /// Width of the key column.
   static const double _keyWidth = 132;
 
   @override

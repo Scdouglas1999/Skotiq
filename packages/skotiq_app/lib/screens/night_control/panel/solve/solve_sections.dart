@@ -178,7 +178,6 @@ class NightSolveRotationSection extends ConsumerWidget {
 class NightRecentSolvesSection extends ConsumerWidget {
   const NightRecentSolvesSection({super.key});
 
-  /// Rows shown.
   static const int rows = 6;
 
   @override
