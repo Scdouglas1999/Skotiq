@@ -101,13 +101,11 @@ class CompassOverlayPainter extends CustomPainter {
     final centerX = center.dx;
     final centerY = center.dy;
 
-    // Semi-transparent background circle
     final bgPaint = Paint()
       ..color = ImageOverlayColors.labelBackground
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, radius, bgPaint);
 
-    // Border
     final borderPaint = Paint()
       ..color = ImageOverlayColors.labelBorder
       ..style = PaintingStyle.stroke
@@ -241,7 +239,6 @@ class ScaleBarPainter extends CustomPainter {
   /// Width of the image in pixels (at native resolution).
   final double imageWidthPixels;
 
-  /// Current zoom level applied to the image.
   final double zoomLevel;
 
   /// Margin from the corner of the canvas.
@@ -308,7 +305,6 @@ class ScaleBarPainter extends CustomPainter {
       }
     }
 
-    // Convert chosen angular size to viewport pixels
     final barLengthPixels = (bestArcsec / pixelScaleArcsecPerPixel) * zoomLevel;
 
     // Clamp to reasonable range to avoid tiny or huge bars
@@ -354,7 +350,6 @@ class ScaleBarPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
     canvas.drawRRect(bgRect, bgPaint);
 
-    // Draw the horizontal bar
     final barPaint = Paint()
       ..color = _overlayInk
       ..strokeWidth = 2.0
@@ -367,7 +362,6 @@ class ScaleBarPainter extends CustomPainter {
       barPaint,
     );
 
-    // Tick marks at each end
     canvas.drawLine(
       Offset(barX, barY - tickHeight),
       Offset(barX, barY),

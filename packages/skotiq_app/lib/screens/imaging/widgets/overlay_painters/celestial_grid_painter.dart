@@ -47,7 +47,6 @@ class CelestialGridPainter extends CustomPainter {
       corners.add(plateSolve.pixelToSky(px, py));
     }
 
-    // Find Dec range (straightforward min/max)
     var minDec = corners[0].dec;
     var maxDec = corners[0].dec;
     for (final c in corners) {
@@ -69,11 +68,9 @@ class CelestialGridPainter extends CustomPainter {
     minRa -= padding;
     maxRa += padding;
 
-    // Clamp Dec to valid range
     minDec = minDec.clamp(-90.0, 90.0);
     maxDec = maxDec.clamp(-90.0, 90.0);
 
-    // Select grid spacing based on FOV
     final spacingDeg = _selectSpacing(fovDeg);
 
     final linePaint = Paint()
@@ -81,7 +78,6 @@ class CelestialGridPainter extends CustomPainter {
       ..strokeWidth = _gridStrokeWidth
       ..style = PaintingStyle.stroke;
 
-    // Clip to canvas bounds
     canvas.save();
     canvas.clipRect(Offset.zero & size);
 
@@ -97,7 +93,6 @@ class CelestialGridPainter extends CustomPainter {
     // For RA we use the same degree spacing
     final firstRa = (minRa / spacingDeg).floor() * spacingDeg;
     for (var ra = firstRa; ra <= maxRa; ra += spacingDeg) {
-      // Normalize RA for display
       var raNorm = ra;
       while (raNorm < 0) {
         raNorm += 360;
@@ -128,7 +123,6 @@ class CelestialGridPainter extends CustomPainter {
       final t = i / _samplesPerLine;
       final ra = minRa + t * (maxRa - minRa);
 
-      // Normalize RA for skyToPixel
       var raNorm = ra;
       while (raNorm < 0) {
         raNorm += 360;
@@ -159,7 +153,6 @@ class CelestialGridPainter extends CustomPainter {
     if (firstVisiblePoint != null) {
       canvas.drawPath(path, paint);
 
-      // Label at the left edge of the line
       final label = _formatDec(dec);
       _drawLabel(canvas, size, firstVisiblePoint, label,
           alignment: _LabelEdge.left);
@@ -206,7 +199,6 @@ class CelestialGridPainter extends CustomPainter {
     if (firstVisiblePoint != null) {
       canvas.drawPath(path, paint);
 
-      // Label at the top edge of the line
       final label = _formatRa(raNorm);
       _drawLabel(canvas, size, firstVisiblePoint, label,
           alignment: _LabelEdge.top);
@@ -250,16 +242,13 @@ class CelestialGridPainter extends CustomPainter {
 
     switch (alignment) {
       case _LabelEdge.left:
-        // Clamp to left edge, vertically at the point
         labelX = position.dx.clamp(2.0, maxLabelX);
         labelY = (position.dy - textHeight / 2).clamp(2.0, maxLabelY);
       case _LabelEdge.top:
-        // Horizontally at the point, clamp to top edge
         labelX = (position.dx - textWidth / 2).clamp(2.0, maxLabelX);
         labelY = position.dy.clamp(2.0, maxLabelY);
     }
 
-    // Draw background
     final bgRect = Rect.fromLTWH(
       labelX - padding,
       labelY - padding,
@@ -272,16 +261,13 @@ class CelestialGridPainter extends CustomPainter {
       Paint()..color = _labelBgColor,
     );
 
-    // Draw text
     canvas.drawParagraph(paragraph, Offset(labelX, labelY));
   }
 
-  /// Select appropriate grid spacing for the given FOV
   double _selectSpacing(double fovDeg) {
     // Target 5-8 grid lines across the image
     const targetLines = 6.0;
 
-    // For narrow fields (< 1 degree), use arcminute-scale spacings
     if (fovDeg < 1.0) {
       for (final spacing in _narrowSpacingsDeg) {
         final lines = fovDeg / spacing;
@@ -300,7 +286,6 @@ class CelestialGridPainter extends CustomPainter {
       return bestSpacing;
     }
 
-    // For wider fields, use degree-scale spacings
     for (final spacing in _wideSpacingsDeg) {
       final lines = fovDeg / spacing;
       if (lines >= 4 && lines <= 10) return spacing;
@@ -324,7 +309,6 @@ class CelestialGridPainter extends CustomPainter {
   ({double min, double max}) _computeRaRange(List<double> raValues) {
     if (raValues.isEmpty) return (min: 0.0, max: 360.0);
 
-    // Sort RA values
     final sorted = List<double>.from(raValues)..sort();
 
     // Find the largest gap between consecutive RA values

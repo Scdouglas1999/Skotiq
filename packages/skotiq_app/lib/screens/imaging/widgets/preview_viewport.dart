@@ -38,7 +38,6 @@ class PreviewViewportGeometry {
   final Offset imageOffset;
 }
 
-/// Builds one overlay for a laid-out preview.
 typedef PreviewOverlayBuilder = Widget Function(
     BuildContext context, PreviewViewportGeometry geometry);
 

@@ -28,7 +28,6 @@ class PersistedBoolNotifier extends StateNotifier<bool> {
     }
   }
 
-  /// Sets the value and remembers it.
   Future<void> set(bool value) async {
     _chosen = true;
     state = value;

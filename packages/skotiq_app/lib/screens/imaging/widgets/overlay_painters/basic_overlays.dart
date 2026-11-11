@@ -52,14 +52,12 @@ class CrosshairOverlayPainter extends CustomPainter {
     final centerX = size.width / 2;
     final centerY = size.height / 2;
 
-    // Horizontal line
     canvas.drawLine(
       Offset(0, centerY),
       Offset(size.width, centerY),
       paint,
     );
 
-    // Vertical line
     canvas.drawLine(
       Offset(centerX, 0),
       Offset(centerX, size.height),
@@ -92,12 +90,10 @@ class GridOverlayPainter extends CustomPainter {
 
     const gridSize = 50.0;
 
-    // Vertical lines
     for (double x = gridSize; x < size.width; x += gridSize) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
     }
 
-    // Horizontal lines
     for (double y = gridSize; y < size.height; y += gridSize) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
@@ -135,19 +131,16 @@ class StarOverlayPainter extends CustomPainter {
       final x = star.x * zoomLevel + imageOffset.dx;
       final y = star.y * zoomLevel + imageOffset.dy;
 
-      // Skip stars outside the visible area
       if (x < -50 || x > size.width + 50 || y < -50 || y > size.height + 50) {
         continue;
       }
 
       final position = Offset(x, y);
 
-      // Draw circle around star (radius based on HFR)
       final radius = (star.hfr * zoomLevel).clamp(3.0, 30.0);
       canvas.drawCircle(position, radius, fillPaint);
       canvas.drawCircle(position, radius, paint);
 
-      // Draw crosshair
       const crosshairSize = 3.0;
       canvas.drawLine(
         Offset(x - crosshairSize, y),

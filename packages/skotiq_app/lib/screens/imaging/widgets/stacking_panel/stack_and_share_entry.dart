@@ -1,7 +1,5 @@
 part of '../stacking_panel.dart';
 
-// Private widgets
-
 /// The Stack-and-Share launcher button (component C10).
 ///
 /// A secondary [SkotiqButton] that opens [StackAndShareDialog] for the

@@ -44,7 +44,6 @@ class PreviewHistogramVisibleNotifier extends StateNotifier<bool> {
     }
   }
 
-  /// Shows or hides the histogram and remembers the choice.
   Future<void> setVisible(bool visible) async {
     _chosen = true;
     state = visible;

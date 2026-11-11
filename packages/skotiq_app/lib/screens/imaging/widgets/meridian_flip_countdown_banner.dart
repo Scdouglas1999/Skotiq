@@ -441,7 +441,6 @@ String formatTimeToFlip(Duration remaining) {
   if (remaining <= Duration.zero) {
     return 'now';
   }
-  // Round up to the next whole minute.
   final totalMinutes = (remaining.inSeconds + 59) ~/ 60;
   final hours = totalMinutes ~/ 60;
   final minutes = totalMinutes % 60;
@@ -544,7 +543,6 @@ String pierSideLabel(String raw) {
   }
 }
 
-/// Internal presentation descriptor produced by [_resolveSpec].
 class _BannerSpec {
   const _BannerSpec({
     required this.severity,
