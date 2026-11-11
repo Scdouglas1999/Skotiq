@@ -626,7 +626,6 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
     if (configured.trim().isNotEmpty) {
       return p.join(configured.trim(), 'masters');
     }
-    // Fall back to the documents dir under a masters subfolder.
-    return p.join('.', 'masters');
+    return (await _ref.read(darkroomMastersRootProvider.future)).path;
   }
 }

@@ -21,6 +21,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_core/src/services/post_session_seam.dart' as seam;
 
 import '../../harness/mock_database.dart';
+import '../../harness/temporary_data_directory.dart';
 
 const String _registrationFailure =
     'registration failed: too few stars to register: '
@@ -134,6 +135,7 @@ class _ShortfallSeam implements PostSessionSeam {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  useTemporaryDataDirectory();
 
   late SkotiqDatabase db;
   late ProviderContainer container;
