@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 
-/// GlobalKeys for Equipment tutorial targets
 class EquipmentTutorialKeys {
   static final profileSelector =
       GlobalKey(debugLabel: 'equipment_profile_selector');

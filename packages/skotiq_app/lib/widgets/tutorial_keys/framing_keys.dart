@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 
-/// GlobalKeys for Framing tutorial targets
 class FramingTutorialKeys {
   static final targetSearch = GlobalKey(debugLabel: 'framing_target_search');
   static final canvas = GlobalKey(debugLabel: 'framing_canvas');

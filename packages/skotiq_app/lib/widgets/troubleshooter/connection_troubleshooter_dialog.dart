@@ -131,7 +131,6 @@ class _ConnectionTroubleshooterDialogState
           ),
           const SizedBox(height: SkotiqTokens.spaceXl),
 
-          // The ordered remediation playbook.
           Text(
             'Try these steps',
             style: SkotiqTypography.h5.copyWith(color: colors.textPrimary),

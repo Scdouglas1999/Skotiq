@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 
-/// GlobalKeys for Sequencer tutorial targets
 class SequencerTutorialKeys {
   static final tabBuilder = GlobalKey(debugLabel: 'sequencer_tab_builder');
   static final tabTemplates = GlobalKey(debugLabel: 'sequencer_tab_templates');

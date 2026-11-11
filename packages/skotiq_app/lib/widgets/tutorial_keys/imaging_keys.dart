@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 
-/// GlobalKeys for Imaging tutorial targets
 class ImagingTutorialKeys {
   static final tabBar = GlobalKey(debugLabel: 'imaging_tab_bar');
   static final previewArea = GlobalKey(debugLabel: 'imaging_preview_area');

@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 
-/// GlobalKeys for Planetarium tutorial targets
 class PlanetariumTutorialKeys {
   static final skyView = GlobalKey(debugLabel: 'planetarium_sky_view');
   static final search = GlobalKey(debugLabel: 'planetarium_search');
