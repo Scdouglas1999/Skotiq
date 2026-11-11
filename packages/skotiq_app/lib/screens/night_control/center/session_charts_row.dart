@@ -73,7 +73,8 @@ class SessionChartsRow extends ConsumerWidget {
 }
 
 /// The single column's charts: one card per page, the next one peeking in
-/// so the row reads as swipeable.
+/// under a fade, and a dot per chart saying which one is shown, so the row
+/// reads as swipeable rather than cut off.
 class _Pager extends StatefulWidget {
   const _Pager({required this.cells});
 
@@ -84,7 +85,11 @@ class _Pager extends StatefulWidget {
 }
 
 class _PagerState extends State<_Pager> {
-  final PageController _controller = PageController(viewportFraction: 0.9);
+  static const double _viewportFraction = 0.9;
+
+  final PageController _controller =
+      PageController(viewportFraction: _viewportFraction);
+  int _page = 0;
 
   @override
   void dispose() {
@@ -95,9 +100,11 @@ class _PagerState extends State<_Pager> {
   @override
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
-    return PageView(
+    final last = _page == widget.cells.length - 1;
+    final pager = PageView(
       controller: _controller,
       padEnds: false,
+      onPageChanged: (page) => setState(() => _page = page),
       children: <Widget>[
         for (final cell in widget.cells)
           DecoratedBox(
@@ -106,6 +113,42 @@ class _PagerState extends State<_Pager> {
             ),
             child: cell,
           ),
+      ],
+    );
+    return Stack(
+      children: <Widget>[
+        Positioned.fill(
+          child: last
+              ? pager
+              : ShaderMask(
+                  blendMode: BlendMode.dstIn,
+                  shaderCallback: (bounds) => const LinearGradient(
+                    colors: <Color>[Color(0xFFFFFFFF), Color(0x33FFFFFF)],
+                    stops: <double>[_viewportFraction, 1],
+                  ).createShader(bounds),
+                  child: pager,
+                ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 3,
+          child: ExcludeSemantics(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                for (var i = 0; i < widget.cells.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 3),
+                    child: StatusDot(
+                      color: i == _page ? colors.primary : colors.textMuted,
+                      size: 5,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }

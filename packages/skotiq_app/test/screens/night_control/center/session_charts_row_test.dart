@@ -8,6 +8,8 @@ import 'package:skotiq_app/screens/night_control/center/session_charts_row.dart'
 import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
+import 'package:skotiq_app/screens/night_control/night_control_layout.dart'
+    show NightControlMode;
 import 'package:skotiq_app/utils/guide_distance.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -84,6 +86,27 @@ void main() {
     );
     expect(tester.takeException(), isNull);
     handle.dispose();
+  });
+
+  testWidgets(
+      'in one column the charts page with a dot each, the first one '
+      'marked', (tester) async {
+    await pumpCenter(
+      tester,
+      centerOverrides(NightFixtures.running()),
+      child: const SessionChartsRow(),
+      size: const Size(420, 140),
+      mode: NightControlMode.singleColumn,
+    );
+    final dots = tester
+        .widgetList<StatusDot>(find.byType(StatusDot))
+        .where((d) => d.size == 5)
+        .toList();
+    expect(dots, hasLength(3));
+    final colors = tester.element(find.byType(SessionChartsRow)).skotiqColors;
+    expect(dots.first.color, colors.primary);
+    expect(dots.last.color, colors.textMuted);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('the guide chart and its legend read in pixels', (tester) async {

@@ -3,6 +3,7 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/widgets/overlay_painters.dart';
@@ -339,6 +340,30 @@ void overlayTests() {
     await tester.pump();
     expect(starCircles(), findsNothing);
     expect(find.textContaining('2 stars'), findsNothing);
+  });
+
+  testWidgets('on a phone-width stage the star count and HFR are not cut',
+      (tester) async {
+    final image = testFrame();
+    final container = await pumpCenter(
+      tester,
+      <Override>[
+        ...centerOverrides(NightFixtures.running(), image: image),
+        currentFrameStarsProvider.overrideWith((ref) async => _twoStars),
+      ],
+      child: const FrameStage(),
+      size: const Size(400, 320),
+    );
+    container.read(currentImageProvider.notifier).state = image;
+    await tester.pump();
+    await tester.tap(find.text('Stars'));
+    await tester.pump();
+    await tester.pump();
+    final status = tester.renderObject<RenderParagraph>(
+      find.textContaining('HFR 2.30 px'),
+    );
+    expect(status.didExceedMaxLines, isFalse);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Stars says when it is still looking', (tester) async {
