@@ -17,7 +17,7 @@ import 'package:skotiq_app/startup/always_on_services.dart';
 import 'package:skotiq_app/startup/startup_surface_queue.dart';
 import 'package:skotiq_app/widgets/database_recovery_launcher.dart';
 import 'package:skotiq_app/widgets/equipment_onboarding_launcher.dart';
-import 'package:skotiq_app/widgets/auto_integration_launcher.dart';
+import 'package:skotiq_app/widgets/night_end_toasts.dart';
 
 class SkotiqApp extends ConsumerWidget {
   final bool isDesktop;
@@ -201,7 +201,7 @@ class StartupPrompts extends StatelessWidget {
     (child) => YourSkyOffNoticeChecker(child: child),
     (child) => MountSiteReconciliationListener(child: child),
     (child) => LinkedPendingStartListener(child: child),
-    (child) => AutoIntegrationLauncher(child: child),
+    (child) => NightEndToasts(child: child),
   ];
 
   @override

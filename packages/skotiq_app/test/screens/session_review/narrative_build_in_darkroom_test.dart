@@ -19,19 +19,10 @@ class _FixedStateController extends SessionReviewController {
   _FixedStateController(super.ref, super.scope, this._seed);
 
   final SessionReviewState _seed;
-  int reIntegrateCalls = 0;
 
   @override
   Future<void> loadSmartData({bool recomputeNightReport = false}) async {
     state = _seed;
-  }
-
-  @override
-  Future<PostSessionIntegrationOutcome?> reIntegrate(
-    IntegrationSettings settings,
-  ) async {
-    reIntegrateCalls++;
-    return null;
   }
 
   @override
@@ -117,8 +108,7 @@ void main() {
   }
 
   testWidgets(
-      'the build action opens the target\'s framing check and integrates '
-      'nothing here', (tester) async {
+      'the build action opens the target\'s framing check', (tester) async {
     final (controller, router) = await pump(
       tester,
       SessionReviewState(
@@ -143,7 +133,6 @@ void main() {
       'target': 'NGC 891',
       'view': 'framing',
     });
-    expect(controller.reIntegrateCalls, 0);
   });
 
   testWidgets('a session with no target opens the Darkroom target list',

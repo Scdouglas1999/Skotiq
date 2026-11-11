@@ -10,7 +10,6 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/session_review/auto_integration_service.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import 'night_end_fakes.dart';
@@ -37,7 +36,7 @@ void main() {
       ),
     );
     addTearDown(container.dispose);
-    container.read(autoIntegrationCoordinatorProvider);
+    container.read(nightEndCoordinatorProvider);
     return container;
   }
 
@@ -233,7 +232,7 @@ void main() {
       '/darkroom?tab=targets&target=NGC891',
     );
     expect(
-      app.read(autoIntegrationCompletionProvider)!.result.message,
+      app.read(nightEndCompletionProvider)!.toast.message,
       'NGC891: masters ready from 3 nights.',
     );
 

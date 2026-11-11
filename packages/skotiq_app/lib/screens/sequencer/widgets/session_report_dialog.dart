@@ -106,7 +106,7 @@ class _ReportBody extends ConsumerWidget {
     // The client ROLE, not the connection: a desktop launched with
     // `--remote-host` that has not reached its rig is `Disconnected`, so
     // `backend.remoteHost != null` read false for the whole pre-handshake
-    // window — and this button then offered "Review & Integrate" on a machine
+    // window — and this button then offered "Session review" on a machine
     // that owns none of the host's subs and pushed it onto the host-only wall.
     final isRemote = ref.watch(isRemoteClientProvider);
     return SkotiqDialog(
@@ -123,7 +123,7 @@ class _ReportBody extends ConsumerWidget {
       actions: [
         if (report.sessionId > 0)
           SkotiqButton(
-            label: isRemote ? 'Review on imaging host' : 'Review & Integrate',
+            label: isRemote ? 'Review on imaging host' : 'Session review',
             icon: LucideIcons.sparkles,
             variant: ButtonVariant.outline,
             size: ButtonSize.small,

@@ -13,7 +13,7 @@ class SessionReviewState {
   /// Target display name (used when persisting a master), or null.
   final String? targetName;
 
-  /// The integration settings the next run / re-integrate will use.
+  /// The integration settings the A/B compare and the accumulating masters use.
   final IntegrationSettings settings;
 
   /// Persisted masters for this target (newest first); empty when none. This is
@@ -22,7 +22,7 @@ class SessionReviewState {
   final List<IntegratedMaster> masters;
 
   /// The persisted master that actually belongs to the scope under review — the
-  /// one the hero image, the smart panels and the finishing actions operate on.
+  /// one the hero image, the smart panels and deconvolution operate on.
   /// Null when this session/target has no master yet.
   ///
   /// Resolved from the `integrated_master_frames` fold records for the subs in
@@ -34,15 +34,9 @@ class SessionReviewState {
 
   final bool loading;
 
-  /// True while an integration / accumulation run is in flight.
+  /// True while an accumulation run is in flight.
   final bool integrating;
 
-  /// Coarse 0..1 progress of the running integration, or null when unknown.
-  final double? integrationProgress;
-
-  /// The most-recent integration outcome (drives the "image ready" banner +
-  /// master viewer), or null before any run this session.
-  final PostSessionIntegrationOutcome? lastOutcome;
 
   /// A user-facing error from the last failed action, or null.
   final String? error;
@@ -115,26 +109,10 @@ class SessionReviewState {
   /// backbone (night report / curve / growth / annotations).
   final bool loadingSmartData;
 
-  /// True while a catalog colour-calibration re-integration is in flight.
-  final bool calibrating;
-
-  final bool extractingBackground;
-
   final bool deconvolving;
 
-  final bool reducingStars;
-
-  final bool combiningNarrowband;
-
-  /// The most-recently applied narrowband palette composite (the persisted
-  /// `narrowband_composites` row written by [SessionReviewController.runNarrowband]),
-  /// or null when none has been produced this session. Drives the workbench's
-  /// composite result card.
+  /// The newest narrowband composite an earlier build combined here, or null.
   final NarrowbandComposite? narrowbandComposite;
-
-  /// Every persisted narrowband composite in scope, newest first — the
-  /// "composites" list read from [NarrowbandCompositesDao]. Empty until loaded.
-  final List<NarrowbandComposite> narrowbandComposites;
 
   const SessionReviewState({
     this.subs = const [],
@@ -146,8 +124,6 @@ class SessionReviewState {
     this.reviewedMaster,
     this.loading = true,
     this.integrating = false,
-    this.integrationProgress,
-    this.lastOutcome,
     this.error,
     this.darkroomJob,
     this.interruptedPassNotice,
@@ -160,53 +136,23 @@ class SessionReviewState {
     this.viewMode = SessionReviewViewMode.narrative,
     this.progress,
     this.loadingSmartData = false,
-    this.calibrating = false,
-    this.extractingBackground = false,
     this.deconvolving = false,
-    this.reducingStars = false,
-    this.combiningNarrowband = false,
     this.narrowbandComposite,
-    this.narrowbandComposites = const [],
   });
 
   /// On-disk coverage-map PNG for the reviewed master, when drizzle wrote one.
   String? get coverageMapPath => reviewedMaster?.coverageMapPreviewPath;
 
-  /// The single-channel narrowband masters available to the
-  /// `NarrowbandMixerPanel`: in-scope masters whose filter reads as narrowband
-  /// (Ha / OIII / SII / NII / Hb), labelled by filter. A derived view over
-  /// [masters] so the mixer composes off [SessionReviewState] alone.
-  List<NarrowbandChannelRef> get narrowbandChannels {
-    const hints = ['ha', 'oiii', 'o3', 'sii', 's2', 'nii', 'n2', 'hb'];
-    final out = <NarrowbandChannelRef>[];
-    for (final m in masters) {
-      final filter = (m.filter ?? '').trim();
-      final norm = filter.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
-      if (norm.isEmpty || !hints.any(norm.contains)) continue;
-      out.add(NarrowbandChannelRef(
-        masterId: m.id,
-        label: filter,
-        fitsPath: m.masterFitsPath,
-      ));
-    }
-    return out;
-  }
-
-  /// True when any long-running finishing / integration action is in flight —
-  /// the views disable their action buttons while this holds.
-  bool get busy =>
-      integrating ||
-      calibrating ||
-      extractingBackground ||
-      deconvolving ||
-      reducingStars ||
-      combiningNarrowband;
+  /// True while an accumulation or a deconvolution is in flight; the views
+  /// disable their action buttons while this holds.
+  bool get busy => integrating || deconvolving;
 
   /// Light subs only (the integration population is always lights).
   List<DbCapturedImage> get lights =>
       subs.where((s) => s.frameType == 'light').toList(growable: false);
 
-  /// Accepted light subs — the population an integration run consumes.
+  /// Accepted light subs — the population the A/B compare and accumulation
+  /// consume.
   List<DbCapturedImage> get acceptedLights =>
       lights.where((s) => s.isAccepted).toList(growable: false);
 
@@ -224,9 +170,6 @@ class SessionReviewState {
     bool clearReviewedMaster = false,
     bool? loading,
     bool? integrating,
-    double? integrationProgress,
-    bool clearProgress = false,
-    PostSessionIntegrationOutcome? lastOutcome,
     String? error,
     bool clearError = false,
     DarkroomJob? darkroomJob,
@@ -247,14 +190,8 @@ class SessionReviewState {
     ({String phase, double fraction})? progress,
     bool clearLiveProgress = false,
     bool? loadingSmartData,
-    bool? calibrating,
-    bool? extractingBackground,
     bool? deconvolving,
-    bool? reducingStars,
-    bool? combiningNarrowband,
     NarrowbandComposite? narrowbandComposite,
-    bool clearNarrowbandComposite = false,
-    List<NarrowbandComposite>? narrowbandComposites,
   }) {
     return SessionReviewState(
       subs: subs ?? this.subs,
@@ -267,10 +204,6 @@ class SessionReviewState {
           clearReviewedMaster ? null : (reviewedMaster ?? this.reviewedMaster),
       loading: loading ?? this.loading,
       integrating: integrating ?? this.integrating,
-      integrationProgress: clearProgress
-          ? null
-          : (integrationProgress ?? this.integrationProgress),
-      lastOutcome: lastOutcome ?? this.lastOutcome,
       error: clearError ? null : (error ?? this.error),
       darkroomJob: clearDarkroomJob ? null : (darkroomJob ?? this.darkroomJob),
       interruptedPassNotice: clearInterruptedPassNotice
@@ -291,15 +224,8 @@ class SessionReviewState {
       viewMode: viewMode ?? this.viewMode,
       progress: clearLiveProgress ? null : (progress ?? this.progress),
       loadingSmartData: loadingSmartData ?? this.loadingSmartData,
-      calibrating: calibrating ?? this.calibrating,
-      extractingBackground: extractingBackground ?? this.extractingBackground,
       deconvolving: deconvolving ?? this.deconvolving,
-      reducingStars: reducingStars ?? this.reducingStars,
-      combiningNarrowband: combiningNarrowband ?? this.combiningNarrowband,
-      narrowbandComposite: clearNarrowbandComposite
-          ? null
-          : (narrowbandComposite ?? this.narrowbandComposite),
-      narrowbandComposites: narrowbandComposites ?? this.narrowbandComposites,
+      narrowbandComposite: narrowbandComposite ?? this.narrowbandComposite,
     );
   }
 }

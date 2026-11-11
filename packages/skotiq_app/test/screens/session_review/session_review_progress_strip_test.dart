@@ -6,8 +6,7 @@
 // event on the shared progress stream, and nothing ever cleared it — so a
 // "Preview… 100%" strip stayed pinned under the header indefinitely (it
 // survived a Narrative/Workbench round-trip and was still there 13 minutes
-// later), claiming a job was still running. `integrate()` cleared it; every
-// other seam-driven action did not.
+// later), claiming a job was still running.
 //
 // These drive the real screen against a real controller and a seam that emits
 // the same terminal event the native side does, and assert on what is rendered.

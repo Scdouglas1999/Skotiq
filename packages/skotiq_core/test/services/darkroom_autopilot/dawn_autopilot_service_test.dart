@@ -2255,6 +2255,35 @@ void main() {
     expect(live.map((j) => j.id), [older, newer]);
   });
 
+  test('a Stop over a session cancels every queued pass and leaves a finished '
+      'one as it ended', () async {
+    final sessionId = await insertSession();
+    final jobs = DarkroomJobsDao(db);
+    final first = await jobs.enqueue(
+      sessionId: sessionId,
+      kind: DarkroomJobKind.manual,
+    );
+    final second = await jobs.enqueue(
+      sessionId: sessionId,
+      kind: DarkroomJobKind.manual,
+    );
+    final done = await jobs.enqueue(
+      sessionId: sessionId,
+      kind: DarkroomJobKind.manual,
+    );
+    await jobs.markRunning(done);
+    await jobs.markDone(done);
+
+    await buildService().cancelLivePassesForSession(
+      sessionId,
+      reason: 'Stopped from the Darkroom pass view',
+    );
+
+    expect((await jobs.getById(first))!.state, DarkroomJobState.cancelled);
+    expect((await jobs.getById(second))!.state, DarkroomJobState.cancelled);
+    expect((await jobs.getById(done))!.state, DarkroomJobState.done);
+  });
+
   test('a night that rendered no draft never announces "0 drafts"', () async {
     final sessionId = await insertSession();
     final imageId = await insertSub(sessionId: sessionId);

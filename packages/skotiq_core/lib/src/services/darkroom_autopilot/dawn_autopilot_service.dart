@@ -557,6 +557,19 @@ class DawnAutopilotService {
     }
   }
 
+  /// Ask every pass live over [sessionId] to stop.
+  ///
+  /// Every live job is stopped, not only the newest, so no pass over the
+  /// session runs on to delivery after a Stop.
+  Future<void> cancelLivePassesForSession(
+    int sessionId, {
+    String? reason,
+  }) async {
+    for (final job in await liveJobsForSession(sessionId)) {
+      await requestCancel(job.id!, reason: reason);
+    }
+  }
+
   /// Run the job [jobId] holds.
   ///
   /// Never throws: every ending — done, cancelled, failed — is recorded on the

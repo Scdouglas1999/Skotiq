@@ -89,9 +89,6 @@ class _CleanVerdictWarnedMaster extends SessionReviewController {
 
   @override
   Future<void> refresh() async {}
-
-  @override
-  Future<void> loadComposites() async {}
 }
 
 void main() {

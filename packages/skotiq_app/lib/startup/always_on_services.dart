@@ -4,7 +4,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 import '../screens/imaging/widgets/depthlock/depthlock_hint.dart';
 import '../screens/night_control/data/plan/scheduler_provider.dart';
 import '../screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
-import '../screens/session_review/auto_integration_service.dart';
 import '../services/location_sync_service.dart';
 
 /// What this process is, decided once at launch.
@@ -236,10 +235,10 @@ final List<AlwaysOnService> alwaysOnServices = [
     'the Night Narrator detectors for the active session',
   ),
   AlwaysOnService(
-    'post-session integration',
-    autoIntegrationCoordinatorProvider,
+    'night-end automation',
+    nightEndCoordinatorProvider,
     _everyRole,
-    'integration starting by itself when a run completes',
+    'the night-end build, delivery and morning message when a run ends',
   ),
   AlwaysOnService(
     'end-of-night calibration',

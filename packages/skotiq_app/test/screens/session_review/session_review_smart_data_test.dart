@@ -82,15 +82,9 @@ class _FakeSeam implements PostSessionSeam {
           Map<String, dynamic> args) async =>
       throw UnimplementedError();
 
-  /// Records the combine request so the test can assert the controller wired
-  /// the palette + inputs correctly; returns a synthetic composite path.
-  Map<String, dynamic>? lastCombineArgs;
-
   @override
-  Future<String> combineChannels(Map<String, dynamic> args) async {
-    lastCombineArgs = args;
-    return args['output'] as String;
-  }
+  Future<String> combineChannels(Map<String, dynamic> args) async =>
+      throw UnimplementedError();
 
   @override
   Future<MosaicStitchResult> stitchMosaic(Map<String, dynamic> args) async =>
@@ -253,13 +247,6 @@ void main() {
     expect(state().acceptedCount, 4);
   });
 
-  test('narrowbandChannels lists only narrowband-filtered masters', () async {
-    controller();
-    await waitUntilLoaded();
-    // A luminance-only session exposes no narrowband channels.
-    expect(state().narrowbandChannels, isEmpty);
-  });
-
   /// Record fold rows for [masterId] over this session's subs, exactly as the
   /// post-session pipeline's `_persist` does. The reviewed-master resolution is
   /// by fold record (a master with no folds belongs to no review), so a seeded
@@ -415,16 +402,6 @@ void main() {
     expect(result.outcome, CullOutcome.staleCurve);
     expect(result.rejected, 0);
     expect(state().acceptedCount, 4);
-  });
-
-  test('runNarrowband errors when fewer than two channels are available',
-      () async {
-    final c = controller();
-    await waitUntilLoaded();
-    final out = await c.runNarrowband('sho', const []);
-    expect(out, isNull);
-    expect(state().error, isNotNull);
-    expect(fakeSeam.lastCombineArgs, isNull);
   });
 
   group('header title identifies the session, not "the night"', () {

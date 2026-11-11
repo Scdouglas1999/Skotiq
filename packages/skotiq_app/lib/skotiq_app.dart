@@ -48,7 +48,6 @@ export 'screens/sequencer/widgets/trigger_configuration_dialog.dart';
 
 export 'services/app_update.dart';
 export 'services/location_sync_service.dart';
-export 'screens/session_review/auto_integration_service.dart';
 export 'services/plugin_node_dispatcher_wiring.dart';
 export 'services/plugin_node_palette_wiring.dart';
 export 'services/plugin_enablement_wiring.dart';
