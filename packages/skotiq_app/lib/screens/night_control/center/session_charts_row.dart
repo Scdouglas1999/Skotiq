@@ -43,70 +43,49 @@ class SessionChartsRow extends ConsumerWidget {
         ? const <Widget>[_FocusCard(), _GuiderIdleCard(), _CoolingCard()]
         : const <Widget>[_HfrChart(), _GuideChart(), _TemperatureChart()];
 
-    final single = density?.mode == NightControlMode.singleColumn;
+    // In a single column the page scrolls, so the cards stack at full width.
+    // A pager with the next card peeking in read as clipped cards, and a
+    // mouse could not turn its pages.
+    if (density?.mode == NightControlMode.singleColumn) {
+      return Container(
+        color: colors.surface,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            for (final cell in cells)
+              Container(
+                height: height,
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: colors.border)),
+                ),
+                child: cell,
+              ),
+          ],
+        ),
+      );
+    }
     return Container(
       height: height,
       decoration: BoxDecoration(
         color: colors.surface,
         border: Border(top: BorderSide(color: colors.border)),
       ),
-      child: single
-          ? _Pager(cells: cells)
-          : Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                for (var i = 0; i < cells.length; i++)
-                  Expanded(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        border: i < cells.length - 1
-                            ? Border(right: BorderSide(color: colors.border))
-                            : const Border(),
-                      ),
-                      child: cells[i],
-                    ),
-                  ),
-              ],
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          for (var i = 0; i < cells.length; i++)
+            Expanded(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: i < cells.length - 1
+                      ? Border(right: BorderSide(color: colors.border))
+                      : const Border(),
+                ),
+                child: cells[i],
+              ),
             ),
-    );
-  }
-}
-
-/// The single column's charts: one card per page, the next one peeking in
-/// so the row reads as swipeable.
-class _Pager extends StatefulWidget {
-  const _Pager({required this.cells});
-
-  final List<Widget> cells;
-
-  @override
-  State<_Pager> createState() => _PagerState();
-}
-
-class _PagerState extends State<_Pager> {
-  final PageController _controller = PageController(viewportFraction: 0.9);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.skotiqColors;
-    return PageView(
-      controller: _controller,
-      padEnds: false,
-      children: <Widget>[
-        for (final cell in widget.cells)
-          DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border(right: BorderSide(color: colors.border)),
-            ),
-            child: cell,
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

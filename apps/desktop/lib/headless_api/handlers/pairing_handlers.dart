@@ -204,6 +204,15 @@ typedef ClearAuthFailures = void Function(String clientKey);
 /// code on a headless appliance.
 const String kPairingCodeFileName = 'pairing-code.txt';
 
+/// Where a host whose logging writes to [logger]'s directory keeps the code it
+/// made: `<appSupport>/pairing-code.txt` beside `<appSupport>/logs`. Null when
+/// logging never initialised.
+String? operatorPairingCodePath(LoggingService logger) {
+  final logDir = logger.logDirectory;
+  if (logDir == null || logDir.isEmpty) return null;
+  return p.join(p.dirname(logDir), kPairingCodeFileName);
+}
+
 class PairingHandlers implements RouteSource {
   @override
   Map<ApiEndpoint, Function> get routes => {
@@ -258,22 +267,14 @@ class PairingHandlers implements RouteSource {
   void _logError(String message) =>
       logger.error(message, source: 'PairingHandlers');
 
-  /// Resolve the directory the pairing-code file lives in, or `null` when no
+  /// Absolute path of the operator's pairing-code file, or `null` when no
   /// location can be determined (logging never initialised).
-  String? get _resolvedCodeDirectory {
-    final injected = operatorCodeDirectory;
-    if (injected != null && injected.isNotEmpty) return injected;
-    final logDir = logger.logDirectory;
-    if (logDir == null || logDir.isEmpty) return null;
-    // `<appSupport>/logs` -> `<appSupport>`.
-    return p.dirname(logDir);
-  }
-
-  /// Absolute path of the operator's pairing-code file, or `null`.
   String? get pairingCodeFilePath {
-    final dir = _resolvedCodeDirectory;
-    if (dir == null) return null;
-    return p.join(dir, kPairingCodeFileName);
+    final injected = operatorCodeDirectory;
+    if (injected != null && injected.isNotEmpty) {
+      return p.join(injected, kPairingCodeFileName);
+    }
+    return operatorPairingCodePath(logger);
   }
 
   /// Write [code] where a headless operator can actually read it.
@@ -409,6 +410,14 @@ class PairingHandlers implements RouteSource {
       print(
         '[PAIRING] code=${result.code} '
         'expires=${result.expiresAt.toUtc().toIso8601String()}',
+      );
+    } else if (codePath != null) {
+      // Where, never what: an operator watching the console learns which file
+      // to open the moment a computer asks to pair.
+      // ignore: avoid_print
+      print(
+        '[PAIRING] A computer asked to pair. The code is in $codePath for '
+        '${service.codeLifetime.inMinutes} minutes.',
       );
     }
     return jsonOk(

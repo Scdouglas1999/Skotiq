@@ -12,6 +12,8 @@ import 'package:skotiq_updater/skotiq_updater.dart';
 import '../desktop_app_bootstrap.dart';
 import '../headless/headless_disk_watchdog_bootstrap.dart';
 import '../headless/host_checkpoint_directory.dart';
+import '../headless_api/handlers/pairing_handlers.dart'
+    show operatorPairingCodePath;
 import '../headless_api/update_wiring.dart';
 import 'host_auto_connect.dart';
 import 'host_server.dart';
@@ -289,15 +291,22 @@ Future<void> _startDaemonServer(HostStartup host) async {
   for (final stop in running.stopSteps.reversed) {
     host.onStop(stop.name, stop.action);
   }
-  await _printConnectBanner(running, config.bindLocalOnly);
+  await _printConnectBanner(
+    running,
+    config.bindLocalOnly,
+    pairingCodePath: operatorPairingCodePath(host.logger),
+    pairingPrintCodes: config.pairingPrintCodes,
+  );
 }
 
 /// The daemon's console is its only screen: say where to connect. The token
 /// is redacted because console output is captured to files.
 Future<void> _printConnectBanner(
   RunningHostServer running,
-  bool bindLocalOnly,
-) async {
+  bool bindLocalOnly, {
+  required String? pairingCodePath,
+  required bool pairingPrintCodes,
+}) async {
   final server = running.server;
   final scheme = server.isTlsActive ? 'https' : 'http';
   final tls = running.tls;
@@ -322,6 +331,19 @@ Future<void> _printConnectBanner(
     if (tls != null) {
       stdout.writeln(
         '  TLS fingerprint (SPKI SHA-256): ${tls.publicKeyFingerprintSha256}',
+      );
+    }
+    if (pairingCodePath != null) {
+      // This daemon has no screen: say where the code a computer asks for
+      // goes, before anyone asks.
+      stdout.writeln(
+        '\n  To link a computer, press Link on it. A code it asks for',
+      );
+      stdout.writeln('  is written to $pairingCodePath');
+      stdout.writeln(
+        pairingPrintCodes
+            ? '  and printed here.'
+            : '  (start with --pairing-print-codes to see codes here too).',
       );
     }
     if (localIp != null) {

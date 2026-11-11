@@ -21,23 +21,17 @@ Future<String> getOrCreatePushSecret(
 }) async {
   final appData = appDataDir ?? await resolveSkotiqDataDirectory();
   final secretFile = File(p.join(appData.path, 'push_secret.txt'));
-
-  if (await secretFile.exists()) {
-    final secret = (await secretFile.readAsString()).trim();
-    if (secret.isNotEmpty) {
-      // Repair a file an older build created world-readable.
-      await restrictSecretFile(secretFile);
-      return secret;
-    }
-  }
-
-  final secret = LanPushReceiver.generatePushSecret();
-  await writeSecretFile(secretFile, secret);
-  logger.info(
-    'Generated new LAN push secret. Configure this on the push tool.',
-    source: logSource,
-    fields: {'secret_path': secretFile.path},
+  final secret = await readOrCreateSecretFile(
+    secretFile,
+    LanPushReceiver.generatePushSecret,
   );
-  return secret;
+  if (secret.created) {
+    logger.info(
+      'Generated new LAN push secret. Configure this on the push tool.',
+      source: logSource,
+      fields: {'secret_path': secretFile.path},
+    );
+  }
+  return secret.value;
 }
 

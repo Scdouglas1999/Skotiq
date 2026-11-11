@@ -459,35 +459,46 @@ class SkotiqDiscovery {
         name: 'SkotiqDiscovery',
       );
 
-      socket.listen((RawSocketEvent event) {
-        if (event != RawSocketEvent.read) return;
-        final datagram = socket!.receive();
-        if (datagram == null) return;
-        try {
-          final server = tryParseResponsePacket(
-            utf8.decode(datagram.data),
-            datagram.address.address,
-          );
-          if (server == null) return;
-          final webPort = server.webPort;
-          final host = server.host;
-          final key = '$host:$webPort';
-          if (seen.contains(key)) return;
-          seen.add(key);
-          servers.add(server);
+      socket.listen(
+        (RawSocketEvent event) {
+          if (event != RawSocketEvent.read) return;
+          final datagram = socket!.receive();
+          if (datagram == null) return;
+          try {
+            final server = tryParseResponsePacket(
+              utf8.decode(datagram.data),
+              datagram.address.address,
+            );
+            if (server == null) return;
+            final webPort = server.webPort;
+            final host = server.host;
+            final key = '$host:$webPort';
+            if (seen.contains(key)) return;
+            seen.add(key);
+            servers.add(server);
+            developer.log(
+              'Found server: ${servers.last.name} at $host',
+              name: 'SkotiqDiscovery',
+              level: 800,
+            );
+          } catch (e) {
+            developer.log(
+              'Error parsing packet: $e',
+              name: 'SkotiqDiscovery',
+              level: 1000,
+            );
+          }
+        },
+        onError: (Object e) {
+          // A probe that cannot be sent (no route on this interface) is reported
+          // here, not thrown by send().
           developer.log(
-            'Found server: ${servers.last.name} at $host',
+            'Discovery socket error: $e',
             name: 'SkotiqDiscovery',
-            level: 800,
+            level: 900,
           );
-        } catch (e) {
-          developer.log(
-            'Error parsing packet: $e',
-            name: 'SkotiqDiscovery',
-            level: 1000,
-          );
-        }
-      });
+        },
+      );
 
       // Structured probe — the server validates the prefix; the JSON body is
       // the forward-compat hook for adding device-id / pairing fields without

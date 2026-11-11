@@ -97,7 +97,7 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
   List<DiscoveredServer> _found = const [];
   bool _browsing = false;
   final _manualHost = TextEditingController();
-  final _manualPort = TextEditingController(text: '8080');
+  final _manualPort = TextEditingController(text: '$kDefaultHeadlessPort');
   bool _checkingManual = false;
   String? _manualError;
 
@@ -113,6 +113,11 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
   bool _busy = false;
   String? _error;
   bool _identityChanged = false;
+
+  // A host with no screen makes its code on request and says where it put it.
+  RemotePairingStartResult? _codeMade;
+  bool _requestingCode = false;
+  bool _oneTapRefused = false;
 
   // Linked.
   LinkedRig? _linked;
@@ -174,6 +179,12 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
   }
 
   Future<void> _checkManualAddress() async {
+    // "192.168.1.32:8099" typed whole: the port goes to its own field.
+    final typed = splitHostAndPort(_manualHost.text);
+    if (typed.port != null) {
+      _manualHost.text = typed.host;
+      _manualPort.text = '${typed.port}';
+    }
     final host = _manualHost.text.trim();
     final port = int.tryParse(_manualPort.text.trim());
     if (host.isEmpty) {
@@ -211,6 +222,8 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
       _host = host;
       _error = null;
       _identityChanged = false;
+      _codeMade = null;
+      _oneTapRefused = false;
       _fullAccess = widget.request.fullAccess || !host.lanPairing;
     });
     if (!refresh) return;
@@ -253,13 +266,50 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
       await _finish(host, pairing);
     } on RigPairingFailure catch (failure) {
       if (!mounted) return;
+      final wantsCode =
+          failure.kind == RigPairingFailureKind.oneTapUnavailable;
+      if (wantsCode && _hasNoScreen(host)) {
+        setState(() {
+          _busy = false;
+          _oneTapRefused = true;
+        });
+        await _requestCode();
+        return;
+      }
       setState(() {
         _busy = false;
         _error = _describe(failure, host);
       });
-      if (failure.kind == RigPairingFailureKind.oneTapUnavailable) {
-        _codeFocus.requestFocus();
-      }
+      if (wantsCode) _codeFocus.requestFocus();
+    }
+  }
+
+  /// A headless host has no Remote access screen to show a code on.
+  static bool _hasNoScreen(DiscoveredServer host) =>
+      host.hostMode == 'headless';
+
+  Future<void> _requestCode() async {
+    final host = _host;
+    if (host == null || _requestingCode) return;
+    setState(() {
+      _requestingCode = true;
+      _error = null;
+    });
+    try {
+      final made = await ref.read(rigLinkServiceProvider).requestCode(host);
+      if (!mounted) return;
+      setState(() {
+        _requestingCode = false;
+        _codeMade = made;
+        _code.clear();
+      });
+      _codeFocus.requestFocus();
+    } on RigPairingFailure catch (failure) {
+      if (!mounted) return;
+      setState(() {
+        _requestingCode = false;
+        _error = _describe(failure, host);
+      });
     }
   }
 
@@ -324,8 +374,11 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
         return "That code doesn't match the one $name shows. Check it and "
             'try again.';
       case RigPairingFailureKind.expiredCode:
-        return 'That code has expired or was already used. Start pairing '
-            'again on $name and type the new code.';
+        return _hasNoScreen(host)
+            ? 'That code has expired or was already used. Press Get a new '
+                  'code and type the one $name makes.'
+            : 'That code has expired or was already used. Start pairing '
+                  'again on $name and type the new code.';
       case RigPairingFailureKind.rateLimited:
         return '$name paused pairing after several wrong codes. Wait a '
             'minute and try again.';
@@ -504,8 +557,9 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
         const SizedBox(height: SkotiqTokens.spaceXs),
         Text(
           _manualError ??
-              'The port is shown on that computer under Settings > Remote '
-                  'access.',
+              'Skotiq listens on port $kDefaultHeadlessPort unless it was '
+                  'changed there: see Settings > Remote access on that '
+                  'computer, or the console of a headless one.',
           style: SkotiqTypography.caption.copyWith(
             color: _manualError == null ? colors.textMuted : colors.error,
           ),
@@ -597,14 +651,44 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
               ),
               const SizedBox(height: SkotiqTokens.spaceXs),
               Text(
-                'On $name, open Settings > Remote access and press Start '
-                'pairing. Type the code it shows, for example '
-                'ORBIT-NEBULA-4821.',
+                _hasNoScreen(host)
+                    ? '$name has no screen, so it keeps the code on its own '
+                          'disk and never sends it over the network. Press '
+                          'Get a code, then type the code from $name here, '
+                          'for example ORBIT-NEBULA-4821.'
+                    : 'On $name, open Settings > Remote access and press '
+                          'Start pairing. Type the code it shows, for example '
+                          'ORBIT-NEBULA-4821.',
                 style: SkotiqTypography.caption.copyWith(
                   color: colors.textSecondary,
                   height: 1.4,
                 ),
               ),
+              if (_hasNoScreen(host)) ...[
+                const SizedBox(height: SkotiqTokens.spaceMd),
+                SkotiqButton(
+                  key: const ValueKey('link.requestCode'),
+                  label: _codeMade == null ? 'Get a code' : 'Get a new code',
+                  icon: LucideIcons.keyRound,
+                  variant: ButtonVariant.secondary,
+                  size: ButtonSize.small,
+                  isLoading: _requestingCode,
+                  onPressed: _busy || _loadingHost || _requestingCode
+                      ? null
+                      : _requestCode,
+                ),
+                if (_codeMade case final made?) ...[
+                  const SizedBox(height: SkotiqTokens.spaceSm),
+                  _CodeWhereabouts(
+                    key: const ValueKey('link.codeWhereabouts'),
+                    text: describeCodeWhereabouts(
+                      name,
+                      made,
+                      askedForCode: _oneTapRefused,
+                    ),
+                  ),
+                ],
+              ],
               const SizedBox(height: SkotiqTokens.spaceMd),
               Row(
                 children: [
@@ -711,6 +795,45 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
   }
 }
 
+/// `host:port` typed into the address field, split. An address with more than
+/// one colon is IPv6 and is left whole unless written `[address]:port`.
+@visibleForTesting
+({String host, int? port}) splitHostAndPort(String raw) {
+  final text = raw.trim();
+  final match = RegExp(r'^\[(.+)\]:(\d{1,5})$').firstMatch(text) ??
+      RegExp(r'^([^:]+):(\d{1,5})$').firstMatch(text);
+  if (match == null) return (host: text, port: null);
+  return (host: match.group(1)!, port: int.parse(match.group(2)!));
+}
+
+/// Where a headless host put the code it made, for the person who has to go
+/// and read it: "home made a code, valid until 21:05. Read it from ...".
+@visibleForTesting
+String describeCodeWhereabouts(
+  String name,
+  RemotePairingStartResult made, {
+  required bool askedForCode,
+}) {
+  final until = ClockFormat.hm(made.expiresAt.toLocal());
+  final lead = askedForCode
+      ? '$name asks for a code before it links a computer. It made one, '
+            'valid until $until.'
+      : '$name made a code, valid until $until.';
+  final delivery = made.delivery;
+  if (delivery == null) return '$lead Read it on $name.';
+  final places = [
+    if (delivery.operatorFile)
+      'the file ${delivery.operatorFileName} in its Skotiq data folder (its '
+          'console names that folder when Skotiq starts)',
+    if (delivery.console) 'its console',
+  ];
+  if (places.isEmpty) {
+    return '$name made a code but could not save it anywhere you can read. '
+        'Start Skotiq there with --pairing-print-codes, then get a new code.';
+  }
+  return '$lead Read it on $name from ${places.join(', or from ')}.';
+}
+
 /// "Windows · Skotiq 8.2.1 · 192.168.1.32:8099"
 @visibleForTesting
 String describeDiscoveredHost(DiscoveredServer host) {
@@ -795,6 +918,36 @@ class _HostRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _CodeWhereabouts extends StatelessWidget {
+  const _CodeWhereabouts({super.key, required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SkotiqColors.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: Icon(LucideIcons.info, size: 14, color: colors.info),
+        ),
+        const SizedBox(width: SkotiqTokens.spaceSm),
+        Expanded(
+          child: Text(
+            text,
+            style: SkotiqTypography.caption.copyWith(
+              color: colors.textPrimary,
+              height: 1.4,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

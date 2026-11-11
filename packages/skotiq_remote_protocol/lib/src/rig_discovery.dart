@@ -206,7 +206,15 @@ class RigDiscovery {
   }) async {
     final client = (clientFactory ?? MDnsClient.new)();
     try {
-      await client.start();
+      // A query that cannot be sent (no route on this interface) is reported
+      // on the socket's stream, not thrown by lookup().
+      await client.start(
+        onError: (Object e) => developer.log(
+          'mDNS socket error: $e',
+          name: 'RigDiscovery',
+          level: 900,
+        ),
+      );
     } catch (e) {
       developer.log(
         'mDNS client could not start: $e',

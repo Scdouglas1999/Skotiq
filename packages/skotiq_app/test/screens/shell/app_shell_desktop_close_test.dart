@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/shell/app_shell_desktop.dart';
+import 'package:skotiq_app/screens/shell/shell_exit_recorder.dart';
 
 class _Host extends StatefulWidget {
   const _Host();
@@ -80,6 +81,33 @@ void main() {
     await sendClose();
     await tester.pump();
     expect(asked, 2);
+    expect(calls, isNot(contains('destroy')));
+    disposeWindowManager(state);
+  });
+
+  testWidgets(
+      'an accepted close records the clean exit, starts the restart, then '
+      'ends the process through the entry point instead of the window '
+      'teardown', (tester) async {
+    await tester.pumpWidget(const _Host());
+    final state = tester.state<_HostState>(find.byType(_Host));
+    final steps = <String>[];
+    void recorder(String reason) => steps.add('recorded: $reason');
+    ShellExit.register(recorder);
+    ShellExit.registerRelaunch(() async => steps.add('spawned'));
+    ShellExit.registerEnd(() async => steps.add('ended'));
+    addTearDown(() {
+      ShellExit.unregister(recorder);
+      ShellExit.registerEnd(null);
+    });
+
+    initWindowManager(state, onCloseRequested: () async => true);
+    final restarted = ShellExit.requestRelaunch();
+    await sendClose();
+    await tester.pump();
+
+    expect(steps, ['recorded: Window closed', 'spawned', 'ended']);
+    expect(await restarted, isTrue);
     expect(calls, isNot(contains('destroy')));
     disposeWindowManager(state);
   });

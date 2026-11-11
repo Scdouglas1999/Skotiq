@@ -263,50 +263,42 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
 
   List<Widget> _buildActions() {
     return [
-      _IconButton(
-        colors: widget.colors,
+      SkotiqIconButton(
         icon: _expanded ? LucideIcons.chevronUp : LucideIcons.chevronDown,
         tooltip: _expanded ? 'Hide preview' : 'Preview',
         onPressed: _togglePreview,
       ),
-      _IconButton(
-        colors: widget.colors,
+      SkotiqIconButton(
         icon: LucideIcons.history,
         tooltip: 'View run history',
         onPressed: () => _openHistory(context),
       ),
-      _IconButton(
-        colors: widget.colors,
+      SkotiqIconButton(
         icon: LucideIcons.gitBranch,
         tooltip: 'Version history',
         onPressed: () => _openVersionHistory(context),
       ),
-      _IconButton(
-        colors: widget.colors,
+      SkotiqIconButton(
         icon: LucideIcons.tags,
         tooltip: 'Edit tags',
         onPressed: () => _editTags(context),
       ),
-      _IconButton(
-        colors: widget.colors,
+      SkotiqIconButton(
         icon: LucideIcons.folderOpen,
         tooltip: 'Load',
         onPressed: () => _loadSequence(context),
       ),
-      _IconButton(
-        colors: widget.colors,
+      SkotiqIconButton(
         icon: LucideIcons.copy,
         tooltip: 'Duplicate',
         onPressed: () => _duplicateSequence(context),
       ),
-      _IconButton(
-        colors: widget.colors,
+      SkotiqIconButton(
         icon: LucideIcons.upload,
         tooltip: 'Export',
         onPressed: () => _exportSequence(context),
       ),
-      _IconButton(
-        colors: widget.colors,
+      SkotiqIconButton(
         icon: LucideIcons.trash2,
         tooltip: 'Delete',
         color: widget.colors.error,

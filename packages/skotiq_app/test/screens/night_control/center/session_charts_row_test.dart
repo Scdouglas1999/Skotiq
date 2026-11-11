@@ -8,6 +8,7 @@ import 'package:skotiq_app/screens/night_control/center/session_charts_row.dart'
 import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
+import 'package:skotiq_app/screens/night_control/night_control_layout.dart';
 import 'package:skotiq_app/utils/guide_distance.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -213,6 +214,30 @@ void main() {
     expect(find.text('Cooling'), findsOneWidget);
     expect(find.text('since 18:22'), findsOneWidget);
     expect(_allText(tester), contains('sensor −7.4 °C'));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('in a single column the cards stack at full width',
+      (tester) async {
+    await pumpCenter(
+      tester,
+      centerOverrides(NightFixtures.ready()),
+      child: const SessionChartsRow(),
+      size: const Size(420, 900),
+      mode: NightControlMode.singleColumn,
+    );
+    final focus = tester.getRect(find.text('Focus'));
+    final guiding = tester.getRect(find.text('Guiding'));
+    final cooling = tester.getRect(find.text('Cooling'));
+    expect(guiding.top, greaterThan(focus.bottom));
+    expect(cooling.top, greaterThan(guiding.bottom));
+    for (final title in [focus, guiding, cooling]) {
+      expect(title.left, lessThan(40));
+      expect(title.right, lessThanOrEqualTo(420));
+    }
+    expect(find.text('Start looping'), findsOneWidget);
+    expect(tester.getRect(find.text('Start looping')).right,
+        lessThanOrEqualTo(420));
     expect(tester.takeException(), isNull);
   });
 

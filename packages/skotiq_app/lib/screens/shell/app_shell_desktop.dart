@@ -19,9 +19,8 @@ class _WindowCloseListener extends WindowListener {
     final closeDecision = await onCloseRequested?.call();
     final shouldClose = closeDecision != false;
     if (shouldClose) {
-      // Say so BEFORE destroying the window: the entry point's session record
-      // is what tells the next launch whether the previous one ended on
-      // purpose, and nothing after destroy() runs.
+      // Say so BEFORE the process ends: the entry point's session record is
+      // what tells the next launch whether the previous one ended on purpose.
       ShellExit.recordClean('Window closed');
       // A role switch asked for this close: start the next process now. It
       // waits for this one to release the database before it opens a window.
@@ -31,7 +30,12 @@ class _WindowCloseListener extends WindowListener {
         developer.log('[AppShell] Relaunch failed: $e',
             name: 'AppShell', level: 1000, error: e);
       }
-      await windowManager.destroy();
+      final end = ShellExit.endProcess;
+      if (end != null) {
+        await end();
+      } else {
+        await windowManager.destroy();
+      }
     } else {
       ShellExit.cancelPendingRelaunch();
     }
