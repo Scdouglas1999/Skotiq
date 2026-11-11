@@ -29,9 +29,8 @@ impl NativeDevice for GPhoto2Camera {
             self.port_path
         );
 
-        let sdk = GPhoto2Sdk::installed().map_err(|e| {
+        let sdk = GPhoto2Sdk::installed().inspect_err(|_| {
             tracing::error!("Cannot connect to DSLR camera: libgphoto2 not loaded");
-            e
         })?;
 
         let sdk = sdk.lock().await;

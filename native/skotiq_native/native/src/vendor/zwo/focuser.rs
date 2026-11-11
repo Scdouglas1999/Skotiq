@@ -205,9 +205,8 @@ impl NativeDevice for ZwoFocuser {
     async fn connect(&mut self) -> Result<(), NativeError> {
         tracing::info!("Connecting to ZWO EAF focuser ID {}...", self.focuser_id);
 
-        let sdk = EafSdk::installed().map_err(|e| {
+        let sdk = EafSdk::installed().inspect_err(|_| {
             tracing::error!("Cannot connect to ZWO EAF: EAF SDK not loaded");
-            e
         })?;
 
         // Hold the EAF SDK lock for the connect sequence

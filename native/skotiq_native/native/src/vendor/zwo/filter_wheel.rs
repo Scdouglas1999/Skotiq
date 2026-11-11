@@ -227,9 +227,8 @@ impl NativeDevice for ZwoFilterWheel {
             self.filterwheel_id
         );
 
-        let efw = EfwSdk::installed().map_err(|e| {
+        let efw = EfwSdk::installed().inspect_err(|_| {
             tracing::error!("Cannot connect to ZWO EFW: EFW SDK not loaded");
-            e
         })?;
 
         // Hold the EFW SDK lock for the connect sequence

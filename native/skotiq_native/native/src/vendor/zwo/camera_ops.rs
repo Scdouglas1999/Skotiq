@@ -40,9 +40,8 @@ impl NativeDevice for ZwoCamera {
     async fn connect(&mut self) -> Result<(), NativeError> {
         tracing::info!("Connecting to ZWO camera ID {}...", self.camera_id);
 
-        let sdk = AsiSdk::installed().map_err(|e| {
+        let sdk = AsiSdk::installed().inspect_err(|_| {
             tracing::error!("Cannot connect to ZWO camera: ASI SDK not loaded");
-            e
         })?;
 
         // Hold the SDK lock for all SDK operations during connect
