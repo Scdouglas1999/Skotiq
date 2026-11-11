@@ -163,7 +163,13 @@ class FileSystemHandlers implements RouteSource {
     // root canonicalize to a normalized absolute path that still resolves under
     // the root, so in-root validation (including new sub-directories) is
     // unaffected.
-    final roots = await _resolveBrowseRoots();
+    // The host's own configured folders are answerable even before they
+    // exist: a linked client asks whether this host's capture folder is there,
+    // and "not there yet" is the answer, not a refusal.
+    final roots = [
+      ...await _resolveBrowseRoots(),
+      ...await _configuredFolders(),
+    ];
     final canonicalRequested = await _canonicalize(directory.path);
     if (!_isPathUnderAnyRoot(canonicalRequested, roots)) {
       _logError(
@@ -272,6 +278,21 @@ class FileSystemHandlers implements RouteSource {
     }
 
     return roots;
+  }
+
+  /// The folders this host's settings name (captures, sequences, logs),
+  /// whether or not they exist yet.
+  Future<List<_BrowseRoot>> _configuredFolders() async {
+    final settings = container.read(appSettingsProvider).valueOrNull;
+    return [
+      for (final (label, path) in [
+        ('Image Output', settings?.imageOutputPath),
+        ('Sequences', settings?.sequencesPath),
+        ('Logs', settings?.logsPath),
+      ])
+        if (path != null && path.trim().isNotEmpty)
+          _BrowseRoot(label: label, canonicalPath: await _canonicalize(path)),
+    ];
   }
 
   List<_ConfiguredBrowseRoot> _parseBrowseRootsEnv(

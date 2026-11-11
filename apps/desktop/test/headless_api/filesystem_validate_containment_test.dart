@@ -171,6 +171,53 @@ void main() {
       expect(probes, isEmpty);
     });
 
+    test('answers for the host\'s configured capture folder before it '
+        'exists, instead of refusing it', () async {
+      final parent = await Directory.systemTemp.createTemp(
+        'skotiq_validate_captures_',
+      );
+      addTearDown(() => parent.delete(recursive: true));
+      final captures = '${parent.path}${Platform.pathSeparator}captures';
+      final hostContainer = ProviderContainer(
+        overrides: [
+          appSettingsProvider.overrideWith(
+            () => _TestSettings(
+              const AppSettingsState().copyWith(imageOutputPath: captures),
+            ),
+          ),
+        ],
+      );
+      addTearDown(hostContainer.dispose);
+      await hostContainer.read(appSettingsProvider.future);
+      final hostHandlers = FileSystemHandlers(
+        hostContainer,
+        environment: const {},
+      );
+
+      Future<Map> check() async {
+        final response = await translateHandlerErrors(
+          hostHandlers.handleValidateDirectory(
+            Request(
+              'POST',
+              Uri.parse('http://localhost/api/files/validate'),
+              body: jsonEncode({'path': captures, 'mustExist': true}),
+            ),
+          ),
+        );
+        expect(response.statusCode, HttpStatus.ok);
+        return jsonDecode(await response.readAsString()) as Map;
+      }
+
+      final missing = await check();
+      expect(missing['exists'], isFalse);
+      expect(missing['valid'], isFalse);
+
+      await Directory(captures).create();
+      final present = await check();
+      expect(present['exists'], isTrue);
+      expect(present['valid'], isTrue);
+    });
+
     test('reports empty path as a plain validation error (no containment '
         'check needed)', () async {
       final response = await validate({'path': ''});
@@ -184,6 +231,10 @@ void main() {
 }
 
 class _TestSettings extends AppSettingsNotifier {
+  _TestSettings([this.initial = const AppSettingsState()]);
+
+  final AppSettingsState initial;
+
   @override
-  Future<AppSettingsState> build() async => const AppSettingsState();
+  Future<AppSettingsState> build() async => initial;
 }
