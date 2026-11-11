@@ -180,8 +180,8 @@ extension _CrashRecovery on SkotiqDatabase {
   /// drafts were produced, and `GET /api/sessions/active` kept serving the dead
   /// run's counters while the live run captured.
   ///
-  /// Runs on every boot path because `beforeOpen` does: the GUI and the
-  /// headless daemon open the same [SkotiqDatabase].
+  /// Runs on both hosts: the GUI and the headless daemon share one start-up
+  /// step list.
   ///
   /// The close itself — status, back-dated `end_time`, appended note — is
   /// [kCloseOrphanedSessionsSql], shared with the sequence-start close in
@@ -316,8 +316,7 @@ extension _CrashRecovery on SkotiqDatabase {
   /// Whether [sessionId] already carries a narrator event under [dedupeKey].
   ///
   /// The session-scoped half of [NarratorEventsDao.hasDedupeKey]'s rule, asked
-  /// in SQL because this runs inside `beforeOpen`, where the DAOs are not yet
-  /// usable. No time window is needed: every night gets a fresh session id, so
+  /// in SQL like the rest of this file. No time window is needed: every night gets a fresh session id, so
   /// a key can only collide with an earlier event of the SAME night — which is
   /// exactly the duplicate worth suppressing.
   Future<bool> _narratorEventExists(int sessionId, String dedupeKey) async {

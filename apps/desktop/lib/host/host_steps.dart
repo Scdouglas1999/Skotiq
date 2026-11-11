@@ -220,14 +220,15 @@ final List<HostStartupStep> hostStartupSteps = [
   ),
 ];
 
-/// Re-queues the Darkroom jobs and closes the sessions a dead process left
-/// open.
+/// Closes the runs and sessions, re-queues the Darkroom jobs and rebuilds the
+/// session statistics a dead process left behind.
 ///
-/// Opening the database still does this as a side effect today. The work is
-/// being moved into a function of its own (untangle package i-settings-db);
-/// this step is where that function is called, after the database is known
-/// to open and before anything reads a job or a session.
-Future<void> _recoverInterruptedWork(HostStartup host) async {}
+/// Once per process, after the database is known to open and before anything
+/// starts or reads a run, a session or a Darkroom job: the recovery treats
+/// every row still marked live as residue, so a later call would close this
+/// process's own work. A linked client owns no runs and does not call it.
+Future<void> _recoverInterruptedWork(HostStartup host) =>
+    recoverFromPreviousProcessExit(host.container.read(databaseProvider));
 
 Future<void> _startDaemonServer(HostStartup host) async {
   final config = host.daemonConfig!;

@@ -14,7 +14,6 @@ import 'integrity_check.dart' as integrity;
 import 'integrity_check.dart'
     show DatabaseRecoveryMarker, QuarantinedDatabaseCheck;
 import 'quality_stop_migration.dart';
-import 'recovery/crash_recovery.dart';
 import 'solved_rotation_repair.dart';
 import 'single_instance_lock.dart';
 import 'sqlite_busy.dart';

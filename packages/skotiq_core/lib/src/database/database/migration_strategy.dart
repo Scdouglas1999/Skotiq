@@ -68,10 +68,6 @@ extension _SkotiqDatabaseMigration on SkotiqDatabase {
           );
         }
 
-        // Until start-up calls this itself; see the function for what it
-        // needs. Nothing else in this file depends on it.
-        await recoverFromPreviousProcessExit(this);
-
         // WHY a second integrity check here in addition to the pre-flight in
         // `_openConnection()`: the pre-flight catches corruption present
         // when the app starts, but cannot catch in-session corruption from a

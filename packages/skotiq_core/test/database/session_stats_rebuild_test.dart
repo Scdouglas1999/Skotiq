@@ -5,6 +5,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
+import 'recovered_database.dart';
+
 /// `imaging_sessions.total_exposures` / `total_integration_secs` are
 /// denormalised counters that SessionService accumulates in memory and flushes
 /// when the session ends. A session that never ends cleanly — a crash, a power
@@ -63,7 +65,7 @@ void main() {
   test(
     'an interrupted session recovers its stats from the frames on record',
     () async {
-      final first = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+      final first = RecoveredDatabase(NativeDatabase(dbFile));
       // A session that captured six 30s frames and then died before ending.
       final sessionId = await addSession(first);
       for (var i = 0; i < 6; i++) {
@@ -77,7 +79,7 @@ void main() {
       expect(before.totalIntegrationSecs, 0);
       await first.close();
 
-      final second = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+      final second = RecoveredDatabase(NativeDatabase(dbFile));
       addTearDown(second.close);
       final after = await (second.select(
         second.imagingSessions,
@@ -92,7 +94,7 @@ void main() {
   );
 
   test('a cleanly-ended session keeps its own richer counters', () async {
-    final first = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+    final first = RecoveredDatabase(NativeDatabase(dbFile));
     // 5 exposures recorded, of which only 3 produced an image row: the other
     // two FAILED. A failed exposure leaves no frame behind, so recomputing
     // from `captured_images` would silently erase it.
@@ -107,7 +109,7 @@ void main() {
     }
     await first.close();
 
-    final second = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+    final second = RecoveredDatabase(NativeDatabase(dbFile));
     addTearDown(second.close);
     final after = await (second.select(
       second.imagingSessions,
@@ -119,11 +121,11 @@ void main() {
   });
 
   test('a session that genuinely captured nothing stays at zero', () async {
-    final first = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+    final first = RecoveredDatabase(NativeDatabase(dbFile));
     final sessionId = await addSession(first);
     await first.close();
 
-    final second = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+    final second = RecoveredDatabase(NativeDatabase(dbFile));
     addTearDown(second.close);
     final after = await (second.select(
       second.imagingSessions,

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -106,6 +107,44 @@ void main() {
         expect(step.waitedFor, containsAll(step.fatalFor), reason: step.name);
       }
     });
+  });
+
+  group('interrupted-work recovery', () {
+    for (final kind in HostKind.values) {
+      test('opening the database leaves a dead run alone; the ${kind.name} '
+          'step closes it', () async {
+        final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+        final container = ProviderContainer(
+          overrides: [databaseProvider.overrideWithValue(db)],
+        );
+        addTearDown(container.dispose);
+        addTearDown(db.close);
+        final runId = await db.sequenceRunsDao.startRun(
+          sequenceId: null,
+          sequenceName: 'left running',
+        );
+        Future<String> status() async => (await (db.select(
+          db.sequenceRuns,
+        )..where((r) => r.id.equals(runId))).getSingle()).status;
+        expect(await status(), 'running');
+
+        final host = HostStartup(
+          kind: kind,
+          container: container,
+          logger: container.read(loggingServiceProvider),
+          logSource: 'test',
+          appVersion: const AppVersionInfo(version: '0.0.0', buildNumber: 1),
+          args: const [],
+          daemonConfig: kind == HostKind.daemon ? HeadlessAuthConfig() : null,
+        );
+        await runHostStartup(host, HostStartupPhase.core, [
+          hostStartupSteps.singleWhere(
+            (s) => s.name == 'interrupted-work recovery',
+          ),
+        ]);
+        expect(await status(), 'interrupted');
+      });
+    }
   });
 
   group('running', () {
