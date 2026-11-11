@@ -355,8 +355,8 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
     final dropped = _selectedTarget;
     if (dropped == null) return;
     _selectedTarget = null;
-    if (_raController.text == _formatRa(dropped.ra) &&
-        _decController.text == _formatDec(dropped.dec)) {
+    if (_raController.text == CoordinateFormat.raReadout(dropped.ra) &&
+        _decController.text == CoordinateFormat.decReadout(dropped.dec)) {
       _raController.clear();
       _decController.clear();
     }
@@ -368,8 +368,8 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
     setState(() {
       _selectedTarget = target;
       _targetNameController.text = target.name;
-      _raController.text = _formatRa(target.ra);
-      _decController.text = _formatDec(target.dec);
+      _raController.text = CoordinateFormat.raReadout(target.ra);
+      _decController.text = CoordinateFormat.decReadout(target.dec);
       _searchResults = [];
       _isSearching = false;
       // The list is collapsing because the user picked something, not
@@ -378,18 +378,6 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
       _searchError = null;
       _onlineLookupMessage = null;
     });
-  }
-
-  String _formatRa(double raHours) =>
-      CoordinateFormat.ra(raHours, style: SexagesimalStyle.plainLetters);
-
-  String _formatDec(double decDeg) {
-    final sign = decDeg >= 0 ? '+' : '-';
-    final abs = decDeg.abs();
-    final d = abs.floor();
-    final m = ((abs - d) * 60).floor();
-    final s = ((abs - d - m / 60) * 3600).toStringAsFixed(0);
-    return "$sign${d}d $m' $s\"";
   }
 
   double? _parseRa(String text) {

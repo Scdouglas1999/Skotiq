@@ -140,8 +140,8 @@ class _TransientCardState extends State<TransientCard> {
               const SizedBox(width: SkotiqTokens.spaceXs),
               Flexible(
                 child: Text(
-                  '${CoordinateFormat.ra(widget.alert.raHours, seconds: SecondsPrecision.integerFloored)}  '
-                  '${CoordinateFormat.dec(widget.alert.decDegrees, seconds: SecondsPrecision.integerFloored)}',
+                  '${CoordinateFormat.raReadout(widget.alert.raHours)}  '
+                  '${CoordinateFormat.decReadout(widget.alert.decDegrees)}',
                   style: SkotiqTypography.monoSm
                       .copyWith(color: colors.textSecondary),
                   overflow: TextOverflow.ellipsis,

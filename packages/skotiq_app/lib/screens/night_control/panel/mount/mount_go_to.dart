@@ -116,17 +116,8 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
     } else {
       _name.text = name;
     }
-    _ra.text = CoordinateFormat.ra(
-      raHours,
-      style: SexagesimalStyle.compactLetters,
-      seconds: SecondsPrecision.integerRounded,
-      wrapHours: true,
-    );
-    _dec.text = CoordinateFormat.dec(
-      decDegrees,
-      style: SexagesimalStyle.compactLetters,
-      seconds: SecondsPrecision.integerRounded,
-    );
+    _ra.text = CoordinateFormat.raDense(raHours);
+    _dec.text = CoordinateFormat.decDense(decDegrees);
   }
 
   ({double ra, double dec})? get _coordinates {

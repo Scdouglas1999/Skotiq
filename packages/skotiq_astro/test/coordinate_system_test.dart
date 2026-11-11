@@ -171,43 +171,5 @@ void main() {
       });
     });
 
-    group('formatRA', () {
-      test('formats zero RA correctly', () {
-        const coord = CelestialCoordinate(ra: 0.0, dec: 0.0);
-        expect(coord.formatRA(), contains('0h'));
-      });
-
-      test('formats 12h 30m correctly', () {
-        const coord = CelestialCoordinate(ra: 12.5, dec: 0.0);
-        final formatted = coord.formatRA();
-        expect(formatted, contains('12h'));
-        expect(formatted, contains('30m'));
-      });
-
-      test('compact format omits seconds', () {
-        const coord = CelestialCoordinate(ra: 6.75, dec: 0.0);
-        final compact = coord.formatRA(compact: true);
-        expect(compact, '06h45m');
-      });
-    });
-
-    group('formatDec', () {
-      test('positive declination has + sign', () {
-        const coord = CelestialCoordinate(ra: 0.0, dec: 45.5);
-        expect(coord.formatDec(), startsWith('+'));
-      });
-
-      test('negative declination has - sign', () {
-        const coord = CelestialCoordinate(ra: 0.0, dec: -30.0);
-        expect(coord.formatDec(), startsWith('-'));
-      });
-
-      test('compact format shows degrees and arcminutes', () {
-        const coord = CelestialCoordinate(ra: 0.0, dec: 45.5);
-        final compact = coord.formatDec(compact: true);
-        expect(compact, contains("45"));
-        expect(compact, contains("30"));
-      });
-    });
   });
 }

@@ -4,16 +4,6 @@
 /// the same.
 library;
 
-import 'package:skotiq_core/skotiq_core.dart';
-
-String formatRA(double raHours) => CoordinateFormat.ra(
-      raHours,
-      seconds: SecondsPrecision.integerRounded,
-      wrapHours: true,
-    );
-
-String formatDec(double decDegrees) =>
-    CoordinateFormat.dec(decDegrees, seconds: SecondsPrecision.integerRounded);
 
 /// Friendly duration: "2h 12m", "45m", "30s", "—" for nulls.
 String formatDuration(Duration? d) {

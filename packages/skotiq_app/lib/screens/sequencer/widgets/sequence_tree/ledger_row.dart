@@ -879,18 +879,11 @@ List<Widget> _targetCoordinateChips(
   return <Widget>[
     _LedgerChip(
       colors: colors,
-      label: CoordinateFormat.raHm(
-        node.raHours,
-        style: SexagesimalStyle.compactLetters,
-        wrapHours: true,
-      ),
+      label: CoordinateFormat.raCompact(node.raHours),
     ),
     _LedgerChip(
       colors: colors,
-      label: CoordinateFormat.decDm(
-        node.decDegrees,
-        style: SexagesimalStyle.compactLetters,
-      ),
+      label: CoordinateFormat.decCompact(node.decDegrees),
     ),
   ];
 }

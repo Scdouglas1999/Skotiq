@@ -75,12 +75,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     }
   }
 
-  String _formatRA(double raHours) =>
-      CoordinateFormat.ra(raHours, seconds: SecondsPrecision.integerRounded);
-
-  String _formatDec(double decDegrees) => CoordinateFormat.dec(decDegrees,
-      seconds: SecondsPrecision.integerRounded);
-
   /// Whether this target header's subtree is being executed **right now**.
   ///
   /// `nodeStatus == running` is the node's own last-reported status. A PAUSED
@@ -344,14 +338,14 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
               children: [
                 _CoordinateChip(
                   label: 'RA',
-                  value: unset ? 'Not set' : _formatRA(node.raHours),
+                  value: unset ? 'Not set' : CoordinateFormat.raReadout(node.raHours),
                   colors: widget.colors,
                   isPlaceholder: unset,
                 ),
 
                 _CoordinateChip(
                   label: 'Dec',
-                  value: unset ? 'Not set' : _formatDec(node.decDegrees),
+                  value: unset ? 'Not set' : CoordinateFormat.decReadout(node.decDegrees),
                   colors: widget.colors,
                   isPlaceholder: unset,
                 ),

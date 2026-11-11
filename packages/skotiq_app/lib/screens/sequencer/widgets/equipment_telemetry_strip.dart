@@ -348,12 +348,12 @@ class _VerticalLayout extends StatelessWidget {
               _TelemetryRow(
                 colors: colors,
                 label: 'RA',
-                value: formatRA(mount.ra!),
+                value: CoordinateFormat.raReadout(mount.ra!),
               ),
               _TelemetryRow(
                 colors: colors,
                 label: 'Dec',
-                value: formatDec(mount.dec!),
+                value: CoordinateFormat.decReadout(mount.dec!),
               ),
             ],
             if (mount.altitude != null)

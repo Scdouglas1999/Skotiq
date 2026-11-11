@@ -295,8 +295,8 @@ class _TargetConfirmCard extends StatelessWidget {
     final peakAlt =
         target.visibility.peakAltitude ?? target.visibility.currentAltitude;
     final hoursAbove = target.visibility.hoursAboveMinAlt ?? 0.0;
-    final ra = CoordinateUtils.formatRA(target.raHours);
-    final dec = CoordinateUtils.formatDec(target.decDegrees);
+    final ra = CoordinateFormat.raReadout(target.raHours);
+    final dec = CoordinateFormat.decReadout(target.decDegrees);
 
     return SkotiqCard(
       variant: CardVariant.elevated,

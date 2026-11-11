@@ -546,8 +546,8 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
             }
             logger.info(
               'Slewing to ${target.targetName} '
-              '(RA ${CoordinateParser.formatRaHms(target.raHours)}, '
-              'Dec ${CoordinateParser.formatDecDms(target.decDegrees)}) '
+              '(RA ${CoordinateFormat.raReadout(target.raHours)}, '
+              'Dec ${CoordinateFormat.decReadout(target.decDegrees)}) '
               'from the sequencer toolbar.',
               source: 'Sequencer',
             );

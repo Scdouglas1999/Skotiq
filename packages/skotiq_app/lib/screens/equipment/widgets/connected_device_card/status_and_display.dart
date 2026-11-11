@@ -433,13 +433,13 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
           // the seconds live on Imaging's mount tab.
           _DeviceMetric(
             value: state.ra != null
-                ? CoordinateFormat.raHm(state.ra!, wrapHours: true)
+                ? CoordinateFormat.raCompact(state.ra!)
                 : null,
             label: 'RA',
           ),
           _DeviceMetric(
             value:
-                state.dec != null ? CoordinateFormat.decDm(state.dec!) : null,
+                state.dec != null ? CoordinateFormat.decCompact(state.dec!) : null,
             label: 'Dec',
           ),
           _DeviceMetric(

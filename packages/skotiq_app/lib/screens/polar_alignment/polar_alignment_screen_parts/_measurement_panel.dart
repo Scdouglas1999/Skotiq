@@ -162,7 +162,7 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
           ),
           const SizedBox(height: 4),
           Text(
-            'RA: ${_formatRA(state.solvedRa!)}',
+            'RA: ${CoordinateFormat.raReadoutFromDegrees(state.solvedRa!)}',
             style: TextStyle(
               fontSize: SkotiqTypography.fontSize11,
               color: colors.textPrimary,
@@ -170,7 +170,7 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
             ),
           ),
           Text(
-            'Dec: ${_formatDec(state.solvedDec!)}',
+            'Dec: ${CoordinateFormat.decReadout(state.solvedDec!)}',
             style: TextStyle(
               fontSize: SkotiqTypography.fontSize11,
               color: colors.textPrimary,
@@ -180,17 +180,6 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
         ],
       ),
     );
-  }
-
-  String _formatRA(double degrees) => CoordinateFormat.ra(degrees / 15.0);
-
-  String _formatDec(double degrees) {
-    final sign = degrees >= 0 ? '+' : '-';
-    final abs = degrees.abs();
-    final d = abs.floor();
-    final m = ((abs - d) * 60).floor();
-    final s = (((abs - d) * 60 - m) * 60).toStringAsFixed(0);
-    return '$sign${d.toString().padLeft(2, '0')}° ${m.toString().padLeft(2, '0')}\' $s"';
   }
 
   /// The step card of the adjustment phase: which way to turn each bolt, how

@@ -84,20 +84,11 @@ class NightTargetSection extends ConsumerWidget {
       <(String, String?)>[
         (
           l10n.text('nightCtlRa'),
-          CoordinateFormat.ra(
-            target.raHours,
-            style: SexagesimalStyle.compactLetters,
-            seconds: SecondsPrecision.integerRounded,
-            wrapHours: true,
-          ),
+          CoordinateFormat.raDense(target.raHours),
         ),
         (
           l10n.text('nightCtlDec'),
-          CoordinateFormat.dec(
-            target.decDegrees,
-            style: SexagesimalStyle.compactLetters,
-            seconds: SecondsPrecision.integerRounded,
-          ).replaceFirst('-', '−'),
+          CoordinateFormat.decDense(target.decDegrees).replaceFirst('-', '−'),
         ),
         (
           l10n.text('nightCtlRotation'),

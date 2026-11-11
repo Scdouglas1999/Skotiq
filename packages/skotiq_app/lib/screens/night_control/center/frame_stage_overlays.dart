@@ -200,16 +200,8 @@ class _TopPills extends ConsumerWidget {
           title: l10n.text(
             'nightCtrSolved',
             params: <String, String>{
-              'ra': CoordinateFormat.raFromDegrees(
-                solve.raDegrees,
-                style: SexagesimalStyle.compactLetters,
-                seconds: SecondsPrecision.integerFloored,
-              ),
-              'dec': CoordinateFormat.dec(
-                solve.decDegrees,
-                style: SexagesimalStyle.compactLetters,
-                seconds: SecondsPrecision.integerFloored,
-              ),
+              'ra': CoordinateFormat.raDenseFromDegrees(solve.raDegrees),
+              'dec': CoordinateFormat.decDense(solve.decDegrees),
             },
           ),
           status: off == null

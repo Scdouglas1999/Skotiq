@@ -214,8 +214,8 @@ class _SearchResultActions extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'RA ${CoordinateFormat.ra(raHours)}  '
-          'Dec ${CoordinateFormat.dec(decDegrees)}',
+          'RA ${CoordinateFormat.raReadout(raHours)}  '
+          'Dec ${CoordinateFormat.decReadout(decDegrees)}',
           style: SkotiqTypography.monoCaption.copyWith(
             color: SkotiqColors.of(context).textMuted,
           ),

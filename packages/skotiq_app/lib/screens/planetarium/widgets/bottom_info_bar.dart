@@ -5,7 +5,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import '../../../utils/coordinate_format_utils.dart';
 
 class BottomInfoBar extends ConsumerWidget {
   final SkotiqColors colors;
@@ -38,7 +37,7 @@ class BottomInfoBar extends ConsumerWidget {
           InfoItem(
             label: 'Center RA',
             compactLabel: 'RA',
-            value: CoordinateFormatUtils.formatRAShort(centerRA),
+            value: CoordinateFormat.raReadout(centerRA),
             colors: colors,
             compact: isCompact,
           ),
@@ -46,9 +45,7 @@ class BottomInfoBar extends ConsumerWidget {
           InfoItem(
             label: 'Center Dec',
             compactLabel: 'Dec',
-            value: isCompact
-                ? CoordinateFormatUtils.formatDecCompact(centerDec)
-                : CoordinateFormatUtils.formatDec(centerDec),
+            value: CoordinateFormat.decCompact(centerDec),
             colors: colors,
             compact: isCompact,
           ),
@@ -61,7 +58,7 @@ class BottomInfoBar extends ConsumerWidget {
             // remove.
             label: 'FOV (short axis)',
             compactLabel: 'FOV (short)',
-            value: CoordinateFormatUtils.formatFOV(viewState.fieldOfView),
+            value: AngleFormat.degrees(viewState.fieldOfView),
             colors: colors,
             compact: isCompact,
           ),
@@ -83,7 +80,7 @@ class BottomInfoBar extends ConsumerWidget {
             SizedBox(width: itemSpacing * 2),
             InfoItem(
               label: 'Selected Alt',
-              value: CoordinateFormatUtils.formatAltitude(selectedAltAz.$1),
+              value: AngleFormat.degrees(selectedAltAz.$1),
               colors: colors,
               compact: isCompact,
               // Green here means "usable now", so it has to survive daylight
@@ -105,7 +102,7 @@ class BottomInfoBar extends ConsumerWidget {
             SizedBox(width: itemSpacing),
             InfoItem(
               label: 'Az',
-              value: CoordinateFormatUtils.formatAzimuth(selectedAltAz.$2),
+              value: AngleFormat.degrees(selectedAltAz.$2),
               colors: colors,
               compact: isCompact,
             ),

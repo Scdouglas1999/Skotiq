@@ -17,22 +17,8 @@ String formatIntegration(double seconds) {
   return '${hours.round()}h';
 }
 
-/// Format an RA in degrees as `HHh MMm` (sexagesimal hours).
-String formatRaDeg(double raDeg) => CoordinateFormat.raHmFromDegrees(
-      raDeg,
-      style: SexagesimalStyle.leadPlainLetters,
-      minutes: MinutesPrecision.rounded,
-    );
-
-/// Format a Dec in degrees as `+DD° MM'` with an explicit sign.
-String formatDecDeg(double decDeg) => CoordinateFormat.decDm(
-      decDeg,
-      style: SexagesimalStyle.leadPlainLetters,
-      minutes: MinutesPrecision.rounded,
-    );
-
 String formatCenter(double raDeg, double decDeg) =>
-    '${formatRaDeg(raDeg)} · ${formatDecDeg(decDeg)}';
+    '${CoordinateFormat.raCompactFromDegrees(raDeg)} · ${CoordinateFormat.decCompact(decDeg)}';
 
 /// A relative "deeper than" growth phrase comparing the integration gained in
 /// the most recent window against the prior comparable window.

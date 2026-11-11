@@ -358,8 +358,8 @@ extension _PhotometricWizardFrameSelection
                 // solvedRa is HOURS, not degrees (the ASCOM convention this
                 // app carries internally), so a bare "RA: 5.5000" was both
                 // unitless and easy to read as degrees.
-                'RA ${img.solvedRa == null ? "?" : CoordinateParser.formatRaHms(img.solvedRa!)} '
-                'Dec ${img.solvedDec == null ? "?" : CoordinateParser.formatDecDms(img.solvedDec!)}',
+                'RA ${img.solvedRa == null ? "?" : CoordinateFormat.raReadout(img.solvedRa!)} '
+                'Dec ${img.solvedDec == null ? "?" : CoordinateFormat.decReadout(img.solvedDec!)}',
                 style: SkotiqTypography.captionSm.copyWith(
                   color: airmassForFrame(img.mountAltitude) == null
                       ? colors.warning

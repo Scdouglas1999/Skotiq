@@ -41,8 +41,8 @@ extension _DeviceServiceMountControls on DeviceService {
       type: OperationType.slewToTarget,
       description:
           'Slewing to RA '
-          '${CoordinateFormat.raHm(ra, style: SexagesimalStyle.plainLetters)}, '
-          'Dec ${CoordinateFormat.decDecimal(dec)}',
+          '${CoordinateFormat.raCompact(ra)}, '
+          'Dec ${CoordinateFormat.decCompact(dec)}',
       canCancel: true,
     );
 

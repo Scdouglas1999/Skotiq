@@ -1,338 +1,138 @@
-/// Shared sexagesimal formatters for Right Ascension (hours) and Declination
-/// (degrees).
+/// Right Ascension and Declination as sexagesimal text.
 ///
-/// One parameterized implementation for every screen, so the math lives in
-/// exactly one place instead of a private `_formatRa` / `_formatDec` helper per
-/// caller.
+/// A coordinate takes one of three shapes on screen, and a caller names the
+/// shape rather than assembling one from separators and precisions:
 ///
-/// IMPORTANT: the byte-for-byte output of a given [SexagesimalStyle] is part of
-/// this class's contract — each call site picks the style that reproduces its
-/// string exactly. Do not "tidy up" a style's output without auditing every
-/// consumer, or what users see changes silently.
+/// | shape   | RA              | Dec             | where                     |
+/// |---------|-----------------|-----------------|---------------------------|
+/// | readout | `05h 35m 17.3s` | `+22° 00' 52"`  | detail panels, dialogs    |
+/// | dense   | `05h35m17s`     | `+22°00'52"`    | narrow grids, overlays    |
+/// | compact | `05h35m`        | `+22°01'`       | rows, chips, summaries    |
 ///
-/// UNITS: every `ra*` entry point is explicit about what it is handed.
-/// [CoordinateFormat.ra] / [CoordinateFormat.raHm] take **decimal hours**;
-/// [CoordinateFormat.raFromDegrees] / [CoordinateFormat.raHmFromDegrees] take
-/// **decimal degrees** and normalize into [0, 360) first. A single `_formatRa`
-/// name covering both units is the hours-vs-degrees confusion that produces
-/// slews to the wrong place.
+/// UNITS: Right Ascension is taken in **decimal hours** unless the function
+/// name ends in `FromDegrees`. One name covering both units is the confusion
+/// that produces slews to the wrong place.
 library;
 
-/// How the seconds component of a sexagesimal value is rendered.
-enum SecondsPrecision {
-  /// Round to the nearest whole second (`.round()`), no decimals.
-  integerRounded,
+/// Astronomical coordinate formatting (presentation only; `CoordinateParser`
+/// reads every shape here back).
+abstract final class CoordinateFormat {
+  /// `05h 35m 17.3s`, folded into [0, 24).
+  static String raReadout(double raHours) =>
+      _ra(raHours, _Shape.spaced, secondDecimals: 1);
 
-  /// Truncate toward zero to a whole second (`.floor()` of a non-negative
-  /// value), no decimals.
-  integerFloored,
+  /// [raReadout] for a value in decimal degrees.
+  static String raReadoutFromDegrees(double raDegrees) =>
+      raReadout(_hours(raDegrees));
 
-  /// One fractional digit (`toStringAsFixed(1)`), never zero-padded.
-  oneDecimal,
-
-  /// Two fractional digits, zero-padded to a fixed `SS.ss` width.
-  twoDecimal,
-
-  /// One fractional digit, zero-padded to a fixed `SS.s` width.
-  oneDecimalPadded,
-}
-
-/// How the minutes component is quantized when only two fields are rendered
-/// (see [CoordinateFormat.raHm] / [CoordinateFormat.decDm]).
-enum MinutesPrecision {
-  /// Round to the nearest whole minute, carrying 60 into the next hour/degree.
-  rounded,
-
-  /// Truncate toward zero to a whole minute.
-  floored,
-}
-
-/// The glyphs that separate the three components, and which components are
-/// zero-padded to two digits.
-enum SexagesimalStyle {
-  /// `HHh MMm SSs` / `±DD° MM' SS"` — letter/symbol units, single spaces,
-  /// two-digit zero padding on every component.
-  paddedLetters,
-
-  /// `HH:MM:SS` / `±DD:MM:SS` — colon separated, two-digit zero padding.
-  paddedColons,
-
-  /// `HHhMMmSSs` / `±DD°MM'SS"` — no spaces, two-digit zero padding.
-  compactLetters,
-
-  /// `Hh Mm Ss` / `±D° M' S"` — single spaces, no zero padding at all.
-  plainLetters,
-
-  /// `Hh MMm SSs` / `±D° MM' SS"` — single spaces, leading field unpadded and
-  /// the trailing fields zero-padded.
-  leadPlainLetters,
-
-  /// `HhMMmSSs` / `±D°MM'SS"` — no spaces, leading field unpadded and the
-  /// trailing fields zero-padded.
-  compactLeadPlainLetters,
-}
-
-/// Astronomical coordinate formatting (presentation only — no parsing).
-///
-/// See [SexagesimalStyle] / [SecondsPrecision] for the exact output shapes.
-class CoordinateFormat {
-  const CoordinateFormat._();
-
-  /// Format Right Ascension given in **decimal hours** as three fields.
+  /// `+22° 00' 52"`.
   ///
-  /// [style] selects the separators/padding; [seconds] selects the seconds
-  /// precision. With [wrapHours] false (the default) an input >24h is
-  /// formatted as-is and a negative input is rendered as a signed magnitude;
-  /// with [wrapHours] true the value is folded into [0, 24) *after* rounding,
-  /// so 23:59:59.6 becomes 00:00:00 rather than a 24th hour.
-  static String ra(
-    double raHours, {
-    SexagesimalStyle style = SexagesimalStyle.paddedLetters,
-    SecondsPrecision seconds = SecondsPrecision.oneDecimal,
-    bool wrapHours = false,
-  }) {
-    final unitsPerSecond = _unitsPerSecond(seconds);
-    // Fold BEFORE quantizing: `floor()` of a magnitude then reflected around a
-    // day is not `floor()` of the folded value (-0.005h is 23h59m, not 0h0m).
-    // Dart's `%` already returns a non-negative result for a positive divisor.
-    final magnitude = wrapHours ? raHours % 24.0 : raHours.abs();
-    var total = _quantize(magnitude, 3600 * unitsPerSecond, seconds);
-    final sign = wrapHours || raHours >= 0 ? '' : '-';
-    if (wrapHours) {
-      // The rounding itself can push 23:59:59.6 up into a 24th hour.
-      total %= 24 * 3600 * unitsPerSecond;
-    }
-    final shape = _shape(style);
-    final (h, m, secStr) = _split(
+  /// Whole arcseconds beside tenths of a second of time: the two then carry
+  /// about the same precision on the sky (1" and 1.5").
+  static String decReadout(double decDegrees) =>
+      _dec(decDegrees, _Shape.spaced, secondDecimals: 0);
+
+  /// `05h35m17s`, folded into [0, 24).
+  static String raDense(double raHours) =>
+      _ra(raHours, _Shape.dense, secondDecimals: 0);
+
+  /// [raDense] for a value in decimal degrees.
+  static String raDenseFromDegrees(double raDegrees) =>
+      raDense(_hours(raDegrees));
+
+  /// `+22°00'52"`.
+  static String decDense(double decDegrees) =>
+      _dec(decDegrees, _Shape.dense, secondDecimals: 0);
+
+  /// `05h35m`, rounded to the minute and folded into [0, 24).
+  static String raCompact(double raHours) =>
+      _ra(raHours, _Shape.dense, secondDecimals: null);
+
+  /// [raCompact] for a value in decimal degrees.
+  static String raCompactFromDegrees(double raDegrees) =>
+      raCompact(_hours(raDegrees));
+
+  /// `+22°01'`, rounded to the arcminute.
+  static String decCompact(double decDegrees) =>
+      _dec(decDegrees, _Shape.dense, secondDecimals: null);
+
+
+  /// What a non-finite coordinate reads as: unknown, never a made-up zero.
+  static const String _unknown = '—';
+
+  static double _hours(double raDegrees) => (raDegrees % 360.0) / 15.0;
+
+  static String _ra(double raHours, _Shape shape, {int? secondDecimals}) {
+    if (!raHours.isFinite) return _unknown;
+    // Dart's `%` is non-negative for a positive divisor, so -0.005 h folds to
+    // 23h59m rather than rendering as a negative hour.
+    final perHour = _unitsPerWhole(secondDecimals);
+    // The rounding itself can push 23:59:59.96 up into a 24th hour.
+    final total = ((raHours % 24.0) * perHour).round() % (24 * perHour);
+    return _join('', total, shape, secondDecimals, const ('h', 'm', 's'));
+  }
+
+  static String _dec(double decDegrees, _Shape shape, {int? secondDecimals}) {
+    if (!decDegrees.isFinite) return _unknown;
+    final total = (decDegrees.abs() * _unitsPerWhole(secondDecimals)).round();
+    return _join(
+      decDegrees >= 0 ? '+' : '-',
       total,
-      unitsPerSecond,
-      seconds,
-      shape.padRest,
+      shape,
+      secondDecimals,
+      const ('°', "'", '"'),
     );
-    return _joinHms(sign, h, m, secStr, shape, _raGlyphs);
   }
 
-  /// Format Right Ascension given in **decimal degrees** as three fields.
+  /// How many of the smallest rendered unit make one hour or degree.
+  static int _unitsPerWhole(int? secondDecimals) => switch (secondDecimals) {
+    null => 60,
+    0 => 3600,
+    1 => 36000,
+    _ => 360000,
+  };
+
+  /// Split [total] (the WHOLE angle, already rounded to the smallest rendered
+  /// unit) into fields.
   ///
-  /// The value is normalized into [0, 360) before the conversion to hours.
-  static String raFromDegrees(
-    double raDegrees, {
-    SexagesimalStyle style = SexagesimalStyle.paddedLetters,
-    SecondsPrecision seconds = SecondsPrecision.oneDecimal,
-  }) => ra(
-    _normalizeDegrees(raDegrees) / 15.0,
-    style: style,
-    seconds: seconds,
-    wrapHours: true,
-  );
-
-  /// Format Right Ascension given in **decimal hours** as hours and minutes
-  /// only (`HHh MMm`), quantized at the minute per [minutes].
-  static String raHm(
-    double raHours, {
-    SexagesimalStyle style = SexagesimalStyle.paddedLetters,
-    MinutesPrecision minutes = MinutesPrecision.floored,
-    bool wrapHours = false,
-  }) {
-    final magnitude = wrapHours ? raHours % 24.0 : raHours.abs();
-    var total = _quantizeMinutes(magnitude, minutes);
-    final sign = wrapHours || raHours >= 0 ? '' : '-';
-    if (wrapHours) total %= 24 * 60;
-    final shape = _shape(style);
-    return _joinHm(sign, total ~/ 60, total % 60, shape, _raGlyphs);
-  }
-
-  /// Format Right Ascension given in **decimal degrees** as hours and minutes
-  /// only. The value is normalized into [0, 360) first.
-  static String raHmFromDegrees(
-    double raDegrees, {
-    SexagesimalStyle style = SexagesimalStyle.paddedLetters,
-    MinutesPrecision minutes = MinutesPrecision.floored,
-  }) => raHm(
-    _normalizeDegrees(raDegrees) / 15.0,
-    style: style,
-    minutes: minutes,
-    wrapHours: true,
-  );
-
-  /// Format Declination given in **decimal degrees** as three fields.
-  ///
-  /// Always prefixes an explicit `+`/`-` sign.
-  static String dec(
-    double decDegrees, {
-    SexagesimalStyle style = SexagesimalStyle.paddedLetters,
-    SecondsPrecision seconds = SecondsPrecision.oneDecimal,
-  }) {
-    final sign = decDegrees >= 0 ? '+' : '-';
-    final unitsPerSecond = _unitsPerSecond(seconds);
-    final total = _quantize(decDegrees.abs(), 3600 * unitsPerSecond, seconds);
-    final shape = _shape(style);
-    final (d, m, secStr) = _split(
-      total,
-      unitsPerSecond,
-      seconds,
-      shape.padRest,
-    );
-    return _joinHms(sign, d, m, secStr, shape, _decGlyphs);
-  }
-
-  /// Format Declination given in **decimal degrees** as degrees and arcminutes
-  /// only (`±DD° MM'`), quantized at the arcminute per [minutes].
-  static String decDm(
-    double decDegrees, {
-    SexagesimalStyle style = SexagesimalStyle.paddedLetters,
-    MinutesPrecision minutes = MinutesPrecision.floored,
-  }) {
-    final sign = decDegrees >= 0 ? '+' : '-';
-    final total = _quantizeMinutes(decDegrees.abs(), minutes);
-    final shape = _shape(style);
-    return _joinHm(sign, total ~/ 60, total % 60, shape, _decGlyphs);
-  }
-
-  /// Format Declination as signed decimal degrees (`+45.3°` / `-12.0°`).
-  ///
-  /// The `-` comes from [num.toStringAsFixed]; only the `+` is added here.
-  static String decDecimal(double decDegrees, {int fractionDigits = 1}) {
-    final sign = decDegrees >= 0 ? '+' : '';
-    return '$sign${decDegrees.toStringAsFixed(fractionDigits)}°';
-  }
-
-  // ---------------------------------------------------------------------------
-  // Internals
-  // ---------------------------------------------------------------------------
-
-  /// Quantize the WHOLE angle at the rendered precision so the carry between
-  /// fields is structural.
-  ///
-  /// Rounding the seconds field on its own renders values that do not exist:
-  /// 5.6h decomposes field-by-field to minutes=35, seconds=59.999…, which
-  /// `toStringAsFixed(1)` shows as "05h 35m 60.0s" — a time this package's own
-  /// `CoordinateParser` refuses to read back. Quantizing first means seconds
-  /// can never reach 60 and minutes can never reach 60, for every precision.
-  static int _quantize(
-    double magnitude,
-    int unitsPerWhole,
-    SecondsPrecision precision,
-  ) {
-    final exact = magnitude * unitsPerWhole;
-    // Only [SecondsPrecision.integerFloored] truncates; every other precision
-    // rounds to its nearest representable value.
-    return precision == SecondsPrecision.integerFloored
-        ? exact.floor()
-        : exact.round();
-  }
-
-  static int _quantizeMinutes(double magnitude, MinutesPrecision precision) {
-    final exact = magnitude * 60;
-    return precision == MinutesPrecision.floored
-        ? exact.floor()
-        : exact.round();
-  }
-
-  /// Split a quantized non-negative angle into whole/minutes/seconds-string.
-  static (int whole, int minutes, String seconds) _split(
+  /// Rounding the whole angle first is what keeps the carry structural:
+  /// rounding the seconds field alone renders 5.6 h as `05h 35m 60.0s`, a time
+  /// the parser refuses to read back.
+  static String _join(
+    String sign,
     int total,
-    int unitsPerSecond,
-    SecondsPrecision precision,
-    bool padSeconds,
-  ) {
-    final unitsPerMinute = 60 * unitsPerSecond;
-    final secondsUnits = total % unitsPerMinute;
-    final wholeMinutes = total ~/ unitsPerMinute;
-    return (
-      wholeMinutes ~/ 60,
-      wholeMinutes % 60,
-      _formatSeconds(secondsUnits, unitsPerSecond, precision, padSeconds),
-    );
-  }
-
-  /// The quantum [precision] renders at, as sub-second units per second.
-  static int _unitsPerSecond(SecondsPrecision precision) {
-    switch (precision) {
-      case SecondsPrecision.integerRounded:
-      case SecondsPrecision.integerFloored:
-        return 1;
-      case SecondsPrecision.oneDecimal:
-      case SecondsPrecision.oneDecimalPadded:
-        return 10;
-      case SecondsPrecision.twoDecimal:
-        return 100;
-    }
-  }
-
-  static String _formatSeconds(
-    int units,
-    int unitsPerSecond,
-    SecondsPrecision precision,
-    bool padSeconds,
-  ) {
-    switch (precision) {
-      case SecondsPrecision.integerRounded:
-      case SecondsPrecision.integerFloored:
-        return padSeconds ? _pad2(units) : units.toString();
-      case SecondsPrecision.oneDecimal:
-        return (units / unitsPerSecond).toStringAsFixed(1);
-      case SecondsPrecision.oneDecimalPadded:
-        return (units / unitsPerSecond).toStringAsFixed(1).padLeft(4, '0');
-      case SecondsPrecision.twoDecimal:
-        return (units / unitsPerSecond).toStringAsFixed(2).padLeft(5, '0');
-    }
-  }
-
-  static String _pad2(int value) => value.toString().padLeft(2, '0');
-
-  /// Fold degrees into [0, 360). Dart's `%` already returns a non-negative
-  /// result for a positive divisor.
-  static double _normalizeDegrees(double degrees) => degrees % 360.0;
-
-  static ({String separator, bool padLead, bool padRest, bool colons}) _shape(
-    SexagesimalStyle style,
-  ) {
-    switch (style) {
-      case SexagesimalStyle.paddedLetters:
-        return (separator: ' ', padLead: true, padRest: true, colons: false);
-      case SexagesimalStyle.paddedColons:
-        return (separator: '', padLead: true, padRest: true, colons: true);
-      case SexagesimalStyle.compactLetters:
-        return (separator: '', padLead: true, padRest: true, colons: false);
-      case SexagesimalStyle.plainLetters:
-        return (separator: ' ', padLead: false, padRest: false, colons: false);
-      case SexagesimalStyle.leadPlainLetters:
-        return (separator: ' ', padLead: false, padRest: true, colons: false);
-      case SexagesimalStyle.compactLeadPlainLetters:
-        return (separator: '', padLead: false, padRest: true, colons: false);
-    }
-  }
-
-  /// (whole-field, minute-field, second-field) unit glyphs.
-  static const _raGlyphs = ('h', 'm', 's');
-  static const _decGlyphs = ('°', "'", '"');
-
-  static String _joinHms(
-    String sign,
-    int whole,
-    int minutes,
-    String seconds,
-    ({String separator, bool padLead, bool padRest, bool colons}) shape,
+    _Shape shape,
+    int? secondDecimals,
     (String, String, String) glyphs,
   ) {
-    final w = shape.padLead ? _pad2(whole) : whole.toString();
-    final m = shape.padRest ? _pad2(minutes) : minutes.toString();
-    if (shape.colons) return '$sign$w:$m:$seconds';
-    final sep = shape.separator;
-    return '$sign$w${glyphs.$1}$sep$m${glyphs.$2}$sep$seconds${glyphs.$3}';
-  }
-
-  static String _joinHm(
-    String sign,
-    int whole,
-    int minutes,
-    ({String separator, bool padLead, bool padRest, bool colons}) shape,
-    (String, String, String) glyphs,
-  ) {
-    final w = shape.padLead ? _pad2(whole) : whole.toString();
-    final m = shape.padRest ? _pad2(minutes) : minutes.toString();
-    if (shape.colons) return '$sign$w:$m';
-    return '$sign$w${glyphs.$1}${shape.separator}$m${glyphs.$2}';
+    String two(int v) => v.toString().padLeft(2, '0');
+    final gap = shape == _Shape.spaced ? ' ' : '';
+    if (secondDecimals == null) {
+      final whole = two(total ~/ 60);
+      final minutes = two(total % 60);
+      return shape == _Shape.colons
+          ? '$sign$whole:$minutes'
+          : '$sign$whole${glyphs.$1}$gap$minutes${glyphs.$2}';
+    }
+    final perSecond = switch (secondDecimals) {
+      0 => 1,
+      1 => 10,
+      _ => 100,
+    };
+    final perMinute = 60 * perSecond;
+    final whole = two(total ~/ (60 * perMinute));
+    final minutes = two((total ~/ perMinute) % 60);
+    final secondUnits = total % perMinute;
+    final seconds = secondDecimals == 0
+        ? two(secondUnits)
+        : (secondUnits / perSecond)
+              .toStringAsFixed(secondDecimals)
+              .padLeft(3 + secondDecimals, '0');
+    return shape == _Shape.colons
+        ? '$sign$whole:$minutes:$seconds'
+        : '$sign$whole${glyphs.$1}$gap$minutes${glyphs.$2}$gap$seconds'
+              '${glyphs.$3}';
   }
 }
+
+enum _Shape { spaced, dense, colons }

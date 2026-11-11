@@ -486,8 +486,8 @@ class MosaicProjectHeader extends StatelessWidget {
       dec += panel.centerDec;
     }
     dec /= panels.length;
-    return '${CoordinateParser.formatRaHms(ra)} '
-        '${CoordinateParser.formatDecDms(dec)}';
+    return '${CoordinateFormat.raReadout(ra)} '
+        '${CoordinateFormat.decReadout(dec)}';
   }
 
   static IconData _statusIcon(MosaicProjectStatus status) {

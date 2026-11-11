@@ -139,21 +139,13 @@ class _LastSolveSection extends ConsumerWidget {
               label: l10n.text('nightScopeRa'),
               value: ra == null
                   ? null
-                  : CoordinateFormat.raFromDegrees(
-                      ra,
-                      style: SexagesimalStyle.compactLetters,
-                      seconds: SecondsPrecision.integerRounded,
-                    ),
+                  : CoordinateFormat.raDenseFromDegrees(ra),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeDec'),
               value: dec == null
                   ? null
-                  : CoordinateFormat.dec(
-                      dec,
-                      style: SexagesimalStyle.compactLetters,
-                      seconds: SecondsPrecision.integerRounded,
-                    ),
+                  : CoordinateFormat.decDense(dec),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeSolveRotation'),

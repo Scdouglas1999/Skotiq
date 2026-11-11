@@ -149,8 +149,8 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
           builder: (context, constraints) {
             final items = [
               _buildCoordInfo(
-                  '$prefix RA', _formatRa(ra), SkotiqIcons.compass, colors),
-              _buildCoordInfo('$prefix Dec', _formatDec(dec),
+                  '$prefix RA', CoordinateFormat.raReadout(ra), SkotiqIcons.compass, colors),
+              _buildCoordInfo('$prefix Dec', CoordinateFormat.decReadout(dec),
                   LucideIcons.moveVertical, colors),
             ];
             if (constraints.maxWidth < 360) {

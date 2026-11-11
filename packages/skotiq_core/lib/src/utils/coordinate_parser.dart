@@ -1,7 +1,5 @@
 import 'dart:developer' as developer;
 
-import 'package:skotiq_astro/format.dart';
-
 /// Utility class for parsing astronomical coordinates in various formats
 class CoordinateParser {
   /// Parse RA string to hours (decimal)
@@ -147,39 +145,5 @@ class CoordinateParser {
       );
       return null;
     }
-  }
-
-  /// Hundredths of a second per hour/degree — the quantum
-  /// [SecondsPrecision.twoDecimal] renders at, and therefore the resolution at
-  /// which an RA can round up into a whole extra day.
-  static const int _hundredthsPerUnit = 360000;
-
-  /// Format RA from decimal hours to HMS string (HH:MM:SS.ss).
-  ///
-  /// [raHours] is folded into [0, 24) first, so 24h and negative inputs render
-  /// as a real time of day rather than "24:00:00.00" or a negative hour.
-  static String formatRaHms(double raHours) {
-    if (raHours.isNaN || raHours.isInfinite) return '--:--:--.--';
-    var wrapped = raHours % 24.0;
-    if (wrapped < 0) wrapped += 24.0;
-    // The rounding itself can push 23:59:59.999 up to a full 24h.
-    if ((wrapped * _hundredthsPerUnit).round() >= 24 * _hundredthsPerUnit) {
-      wrapped = 0.0;
-    }
-    return CoordinateFormat.ra(
-      wrapped,
-      style: SexagesimalStyle.paddedColons,
-      seconds: SecondsPrecision.twoDecimal,
-    );
-  }
-
-  /// Format Dec from decimal degrees to DMS string (+DD:MM:SS.ss)
-  static String formatDecDms(double decDegrees) {
-    if (decDegrees.isNaN || decDegrees.isInfinite) return '+--:--:--.--';
-    return CoordinateFormat.dec(
-      decDegrees,
-      style: SexagesimalStyle.paddedColons,
-      seconds: SecondsPrecision.twoDecimal,
-    );
   }
 }

@@ -70,8 +70,8 @@ class CatalogOverlayDetailsPanel extends ConsumerWidget {
             const SizedBox(height: 12),
             _row(colors, 'Catalog', object.source),
             _row(colors, 'Type', _kindName(object.kind)),
-            _row(colors, 'RA', _formatRA(object.raHours)),
-            _row(colors, 'Dec', _formatDec(object.decDegrees)),
+            _row(colors, 'RA', CoordinateFormat.raReadout(object.raHours)),
+            _row(colors, 'Dec', CoordinateFormat.decReadout(object.decDegrees)),
             if (object.magnitude != null)
               _row(colors, 'Magnitude', object.magnitude!.toStringAsFixed(2)),
             if (object.sizeArcMin != null)
@@ -158,8 +158,4 @@ class CatalogOverlayDetailsPanel extends ConsumerWidget {
     }
   }
 
-  static String _formatRA(double raHours) =>
-      CoordinateFormat.ra(raHours, seconds: SecondsPrecision.oneDecimalPadded);
-
-  static String _formatDec(double decDeg) => CoordinateFormat.dec(decDeg);
 }

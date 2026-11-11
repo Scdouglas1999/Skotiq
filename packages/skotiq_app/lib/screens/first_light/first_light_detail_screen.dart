@@ -118,8 +118,8 @@ class _PositionCard extends StatelessWidget {
           const SizedBox(width: SkotiqTokens.spaceSm),
           Expanded(
             child: Text(
-              '${CoordinateFormat.ra(detection.raDeg / 15.0)}   '
-              '${CoordinateFormat.dec(detection.decDeg)}',
+              '${CoordinateFormat.raReadout(detection.raDeg / 15.0)}   '
+              '${CoordinateFormat.decReadout(detection.decDeg)}',
               style: SkotiqTypography.monoSm.copyWith(
                 color: colors.textSecondary,
               ),

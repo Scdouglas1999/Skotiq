@@ -7,7 +7,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
-import '../../../utils/coordinate_format_utils.dart';
 import '../planetarium_screen.dart';
 
 part 'search_header_parts/_filter_controls.dart';
@@ -214,7 +213,7 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
                                       color: widget.colors.textPrimary),
                                 ),
                                 subtitle: Text(
-                                  'RA ${CoordinateFormatUtils.formatRACompact(coord.ra)}, Dec ${CoordinateFormatUtils.formatDec(coord.dec)}',
+                                  'RA ${CoordinateFormat.raCompact(coord.ra)}, Dec ${CoordinateFormat.decCompact(coord.dec)}',
                                   style: TextStyle(
                                       color: widget.colors.textMuted,
                                       fontSize: SkotiqTypography.fontSize11),

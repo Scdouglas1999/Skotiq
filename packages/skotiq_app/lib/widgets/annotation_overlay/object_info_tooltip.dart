@@ -166,11 +166,11 @@ class ObjectInfoTooltip extends ConsumerWidget {
                 label: 'Size', value: '${object.size!.toStringAsFixed(1)}\''),
           _InfoRow(
             label: 'RA',
-            value: _formatRA(object.ra),
+            value: CoordinateFormat.raReadoutFromDegrees(object.ra),
           ),
           _InfoRow(
             label: 'Dec',
-            value: _formatDec(object.dec),
+            value: CoordinateFormat.decReadout(object.dec),
           ),
           const SizedBox(height: 8),
           Row(
@@ -228,13 +228,6 @@ class ObjectInfoTooltip extends ConsumerWidget {
     }
   }
 
-  String _formatRA(double ra) => CoordinateFormat.raFromDegrees(
-        ra,
-        seconds: SecondsPrecision.oneDecimalPadded,
-      );
-
-  String _formatDec(double dec) =>
-      CoordinateFormat.dec(dec, seconds: SecondsPrecision.oneDecimalPadded);
 }
 
 class _ObjectTypeIcon extends StatelessWidget {

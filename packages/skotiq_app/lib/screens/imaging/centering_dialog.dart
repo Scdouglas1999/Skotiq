@@ -604,11 +604,4 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
     }
   }
 
-  String _formatRa(double raHours) =>
-      CoordinateFormat.ra(raHours, seconds: SecondsPrecision.oneDecimalPadded);
-
-  String _formatDec(double decDegrees) => CoordinateFormat.dec(
-        decDegrees,
-        seconds: SecondsPrecision.oneDecimalPadded,
-      );
 }

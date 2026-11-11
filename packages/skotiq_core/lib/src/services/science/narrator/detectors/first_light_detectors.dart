@@ -65,7 +65,7 @@ class TransientDiscoveryDetector extends NarratorDetector {
           severity: NarratorSeverity.celebrate,
           headline:
               'Possible new source at '
-              '${_formatRa(c.ra)} ${_formatDec(c.dec)}, seen in two frames',
+              '${CoordinateFormat.raCompactFromDegrees(c.ra)} ${CoordinateFormat.decCompact(c.dec)}, seen in two frames',
           body:
               'A point source at this position is in at least two of '
               "tonight's frames but not in your template for this filter, and "
@@ -176,7 +176,7 @@ class MoverDetector extends NarratorDetector {
           severity: NarratorSeverity.success,
           headline:
               'Moving streak in the difference at '
-              '${_formatRa(c.ra)} ${_formatDec(c.dec)}',
+              '${CoordinateFormat.raCompactFromDegrees(c.ra)} ${CoordinateFormat.decCompact(c.dec)}',
           body:
               'An elongated residual appeared against your template — likely an '
               'asteroid, comet, or satellite. Review it on the transients tab '
@@ -218,12 +218,3 @@ class MoverDetector extends NarratorDetector {
 String _capitalize(String s) =>
     s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 
-/// Format RA (degrees) as `HHhMMm` for a compact headline.
-String _formatRa(double raDeg) => CoordinateFormat.raHmFromDegrees(
-  raDeg,
-  style: SexagesimalStyle.compactLetters,
-);
-
-/// Format Dec (degrees) as `+DD°MM'` for a compact headline.
-String _formatDec(double decDeg) =>
-    CoordinateFormat.decDm(decDeg, style: SexagesimalStyle.compactLetters);

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/skotiq_core.dart'
     show
         CoordinateParser,
@@ -239,8 +240,8 @@ class _FrameDetailDialogState extends ConsumerState<FrameDetailDialog> {
           image.solvedDec != null)
         (
           'Solved position',
-          'RA ${CoordinateParser.formatRaHms(image.solvedRa!)}  '
-              'Dec ${CoordinateParser.formatDecDms(image.solvedDec!)}'
+          'RA ${CoordinateFormat.raReadout(image.solvedRa!)}  '
+              'Dec ${CoordinateFormat.decReadout(image.solvedDec!)}'
         ),
       if (image.solvedPixelScale != null)
         (

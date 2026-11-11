@@ -249,7 +249,7 @@ List<SummaryFragment> nodeSummary(
     // target headers via a dedicated card and does not consume this.
     TargetHeaderNode(displayName: final displayName) => <SummaryFragment>[
         StaticFragment(displayName, emphasized: true),
-        StaticFragment('${_fmtRa(node.raHours)} ${_fmtDec(node.decDegrees)}'),
+        StaticFragment('${CoordinateFormat.raCompact(node.raHours)} ${CoordinateFormat.decCompact(node.decDegrees)}'),
       ],
 
     // Slew — coordinate entry is panel-grade, so the whole line is static.
@@ -262,7 +262,7 @@ List<SummaryFragment> nodeSummary(
         StaticFragment(
           useTarget
               ? '→ target'
-              : '→ ${_fmtRa(ra ?? 0)} / ${_fmtDec(dec ?? 0)}',
+              : '→ ${CoordinateFormat.raCompact(ra ?? 0)} / ${CoordinateFormat.decCompact(dec ?? 0)}',
           icon: LucideIcons.arrowRight,
         ),
       ],
@@ -696,32 +696,6 @@ String _fmtDurationHm(double seconds) {
     return mins > 0 ? '${hours}h ${mins}m' : '${hours}h';
   }
   return '${mins}m';
-}
-
-/// Format right ascension (hours) as `HHhMMm`.
-String _fmtRa(double raHours) {
-  var h = raHours % 24.0;
-  if (h < 0) h += 24.0;
-  var hh = h.floor();
-  var mm = ((h - hh) * 60).round();
-  if (mm == 60) {
-    mm = 0;
-    hh = (hh + 1) % 24;
-  }
-  return '${_pad2(hh)}h${_pad2(mm)}m';
-}
-
-/// Format declination (degrees) as `±DD°MM'`.
-String _fmtDec(double decDegrees) {
-  final sign = decDegrees < 0 ? '-' : '+';
-  final abs = decDegrees.abs();
-  var dd = abs.floor();
-  var mm = ((abs - dd) * 60).round();
-  if (mm == 60) {
-    mm = 0;
-    dd += 1;
-  }
-  return "$sign${_pad2(dd)}°${_pad2(mm)}'";
 }
 
 /// Format a wall-clock [DateTime] as `HH:MM` in its own zone. Returns

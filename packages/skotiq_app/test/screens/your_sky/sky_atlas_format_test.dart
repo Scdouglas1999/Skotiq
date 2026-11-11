@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/your_sky/sky_atlas_format.dart';
+import 'package:skotiq_astro/format.dart';
 
 void main() {
   group('formatIntegration', () {
@@ -20,22 +21,22 @@ void main() {
 
   group('formatRaDeg', () {
     test('converts degrees to sexagesimal hours', () {
-      expect(formatRaDeg(0), '0h 00m');
-      expect(formatRaDeg(15), '1h 00m');
-      expect(formatRaDeg(180), '12h 00m');
+      expect(CoordinateFormat.raCompactFromDegrees(0), '0h 00m');
+      expect(CoordinateFormat.raCompactFromDegrees(15), '1h 00m');
+      expect(CoordinateFormat.raCompactFromDegrees(180), '12h 00m');
     });
 
     test('wraps negative / over-360 RA', () {
-      expect(formatRaDeg(-15), '23h 00m');
-      expect(formatRaDeg(375), '1h 00m');
+      expect(CoordinateFormat.raCompactFromDegrees(-15), '23h 00m');
+      expect(CoordinateFormat.raCompactFromDegrees(375), '1h 00m');
     });
   });
 
   group('formatDecDeg', () {
     test('signs and sexagesimal', () {
-      expect(formatDecDeg(0), '+0° 00\'');
-      expect(formatDecDeg(45.5), '+45° 30\'');
-      expect(formatDecDeg(-30.25), '-30° 15\'');
+      expect(CoordinateFormat.decCompact(0), '+0° 00\'');
+      expect(CoordinateFormat.decCompact(45.5), '+45° 30\'');
+      expect(CoordinateFormat.decCompact(-30.25), '-30° 15\'');
     });
   });
 

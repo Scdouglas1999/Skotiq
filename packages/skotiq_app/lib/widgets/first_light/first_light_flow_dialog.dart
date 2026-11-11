@@ -724,29 +724,13 @@ class _SolveDetails extends StatelessWidget {
 
   final PlateSolveResult result;
 
-  /// Format an RA value in hours (the solver returns degrees) as HHh MMm.
-  static String _formatRa(double degrees) => CoordinateFormat.raHmFromDegrees(
-        degrees,
-        style: SexagesimalStyle.leadPlainLetters,
-        minutes: MinutesPrecision.rounded,
-      );
-
-  static String _formatDec(double degrees) {
-    final sign = degrees < 0 ? '-' : '+';
-    final abs = degrees.abs();
-    final d = abs.floor();
-    final m = ((abs - d) * 60).round();
-    if (m == 60) return '$sign${d + 1}° 00′';
-    return '$sign$d° ${m.toString().padLeft(2, '0')}′';
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
 
     final parts = <String>[
-      'RA ${_formatRa(result.ra)}',
-      'Dec ${_formatDec(result.dec)}',
+      'RA ${CoordinateFormat.raCompactFromDegrees(result.ra)}',
+      'Dec ${CoordinateFormat.decCompact(result.dec)}',
       '${result.pixelScale.toStringAsFixed(2)}″/px',
     ];
 
