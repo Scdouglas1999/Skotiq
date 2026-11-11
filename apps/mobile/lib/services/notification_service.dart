@@ -277,7 +277,6 @@ class MobileNotificationService implements MobileNotificationSink {
   static const int _plateSolveFailedId = 112;
   static const int _centeringFailedId = 113;
   static const int _polarAlignmentFailedId = 114;
-  // session ownership notifications.
   static const int _ownershipTakenOverId = 115;
   static const int _ownershipAutoReleasedId = 116;
 
@@ -341,7 +340,6 @@ class MobileNotificationService implements MobileNotificationSink {
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
-    // Create notification channels for Android
     if (Platform.isAndroid) {
       await _createNotificationChannels();
       // Android 13+ (API 33) requires a runtime POST_NOTIFICATIONS grant
@@ -352,7 +350,6 @@ class MobileNotificationService implements MobileNotificationSink {
       await _requestAndroidNotificationPermission();
     }
 
-    // Request permissions for iOS
     if (Platform.isIOS) {
       final ios = _notifications
           .resolvePlatformSpecificImplementation<
@@ -900,8 +897,6 @@ class MobileNotificationService implements MobileNotificationSink {
       payload: 'polar_alignment_failed',
     );
   }
-
-  // Session ownership notifications
 
   @override
   Future<void> notifyOwnershipTakenOver({

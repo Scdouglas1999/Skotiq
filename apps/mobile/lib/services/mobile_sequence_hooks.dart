@@ -94,17 +94,14 @@ class MobileSequenceHooks {
       }
     }
 
-    // Set up battery warning callback
     _powerService.onCriticalBattery = _handleCriticalBattery;
     _powerService.onBatteryWarning = _handleBatteryWarning;
 
-    // Listen to sequence execution state changes
     _ref.listen<SequenceExecutionState>(
       sequenceExecutionStateProvider,
       (previous, next) => _handleExecutionStateChange(previous, next),
     );
 
-    // Listen to sequence progress for updates
     _ref.listen<SequenceProgress>(
       sequenceProgressProvider,
       (previous, next) => _handleProgressUpdate(previous, next),
@@ -123,7 +120,6 @@ class MobileSequenceHooks {
       _setupPushNotificationListener();
     });
 
-    // Listen for push notifications from the desktop via NetworkBackend
     _setupPushNotificationListener();
 
     // Mark fully wired so anything awaiting [waitUntilInitialized] can
@@ -334,7 +330,6 @@ class MobileSequenceHooks {
 
       case SequenceExecutionState.running:
         if (previous == SequenceExecutionState.idle) {
-          // Sequence just started
           await _startImagingSession(sequence);
         } else if (previous == SequenceExecutionState.paused) {
           // Sequence resumed - ensure services are still active
@@ -469,7 +464,6 @@ class MobileSequenceHooks {
     SequenceProgress? previous,
     SequenceProgress next,
   ) async {
-    // Update foreground service notification with current progress
     if (_foregroundService.isRunning) {
       _foregroundService.updateProgress(
         completedExposures: next.completedExposures,
@@ -479,7 +473,6 @@ class MobileSequenceHooks {
       );
     }
 
-    // Check for meridian flip events
     if (next.message?.toLowerCase().contains('meridian flip') == true) {
       final prefs = await SharedPreferences.getInstance();
       if (!MobilePreferences(prefs).notifyMeridianFlip) return;
@@ -529,7 +522,6 @@ class MobileSequenceHooks {
       level: 800,
     );
 
-    // Stop power management
     await _powerService.stopImagingSession();
 
     // Stop foreground service and show completion notification
@@ -659,7 +651,6 @@ final mobileSequenceHooksProvider = Provider<MobileSequenceHooks>((ref) {
     ),
   );
 
-  // Clean up on disposal
   ref.onDispose(() {
     hooks.dispose();
   });

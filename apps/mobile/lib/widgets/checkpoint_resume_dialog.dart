@@ -3,7 +3,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// Dialog to prompt user to resume from a checkpoint
 class CheckpointResumeDialog extends StatelessWidget {
   final CheckpointInfo checkpointInfo;
   final VoidCallback onResume;
@@ -22,7 +21,6 @@ class CheckpointResumeDialog extends StatelessWidget {
 
     final timeAgo = _formatTimeAgo(checkpointInfo.ageSeconds);
 
-    // Format integration time
     final integrationMins = checkpointInfo.completedIntegrationSecs / 60.0;
     final integrationText = integrationMins < 60
         ? '${integrationMins.toStringAsFixed(1)} min'
@@ -173,7 +171,6 @@ class CheckpointResumeDialog extends StatelessWidget {
     }
   }
 
-  /// Show the checkpoint resume dialog
   static Future<bool?> show(
     BuildContext context,
     CheckpointInfo checkpointInfo,

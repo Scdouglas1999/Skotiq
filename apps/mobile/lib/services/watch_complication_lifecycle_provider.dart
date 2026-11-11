@@ -275,8 +275,6 @@ class WatchComplicationLifecycleController {
     _pendingSnapshot = null;
   }
 
-  // Test hooks ---------------------------------------------------------------
-
   /// Last snapshot pushed to the host (or null if none yet).
   WatchComplicationSnapshot? get lastPublishedSnapshotForTest =>
       _lastPublishedSnapshot;
