@@ -11,7 +11,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   bool _remoteFetchSucceeded = false;
 
   // Push-event subscription, live only when the
-  // active backend is a NetworkBackend. The host emits one
+  // app is a linked client. The host emits one
   // `settings.changed` event per field that differs in a POST
   // /api/settings call; the notifier applies the change in-place so
   // every connected client stays consistent without re-fetching the
@@ -72,7 +72,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       );
     }
     await _saveSettings(rows);
-    if (ref.read(backendProvider) is! NetworkBackend) {
+    if (ref.read(backendProvider).remoteHost == null) {
       _patchState(
         (current) => AppSettingsCodec.fromRows({
           ...AppSettingsCodec.toRows(current),
@@ -174,7 +174,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   /// its database agree.
   Future<void> applyHostStoreRows(Map<String, String> rows) async {
     final backend = ref.read(backendProvider);
-    if (backend is NetworkBackend) {
+    if (backend.remoteHost != null) {
       throw StateError('applyHostStoreRows is host-only.');
     }
     final unknown = rows.keys.where((k) => !hostStoreKeys.contains(k));
@@ -189,10 +189,12 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   Future<void> _writeRemoteSettings(
     AppSettingsState before,
     AppSettingsState settings, {
-    required NetworkBackend backend,
+    required SkotiqBackend backend,
     required int generation,
   }) async {
-    if (generation != _backendGeneration ||
+    final host = backend.remoteHost;
+    if (host == null ||
+        generation != _backendGeneration ||
         !identical(ref.read(backendProvider), backend)) {
       throw StateError(
         'The settings host changed before this write could start. Try again.',
@@ -224,7 +226,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     final commandId = _generateLocalCommandId();
     _registerOwnCommandId(commandId);
     try {
-      await backend.updateSettingsPatchWithCommandId(
+      await host.rigSettings.updateSettingsPatchWithCommandId(
         patch,
         commandId: commandId,
       );
@@ -243,7 +245,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
 
   Future<void> _writeHostStoreRows(
     Map<String, String> rows,
-    NetworkBackend backend,
+    SkotiqBackend backend,
     int generation,
   ) async {
     final store = ref.read(hostSettingsStoreProvider);
@@ -387,7 +389,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       });
     }
 
-    if (backend is NetworkBackend) {
+    if (backend.remoteHost != null) {
       // Subscribe BEFORE the GET so an event that lands between the
       // POST acknowledgment and the GET's response can be re-applied
       // when the future resolves.
@@ -486,9 +488,9 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;
     // Device-local display prefs always persist to the local store, even
-    // under a NetworkBackend — they are this device's rendering choice.
+    // on a linked client — they are this device's rendering choice.
     final isDeviceLocalDisplay = AppSettingsCodec.clientOwnKeys.contains(key);
-    final dao = (backend is NetworkBackend && !isDeviceLocalDisplay)
+    final dao = (backend.remoteHost != null && !isDeviceLocalDisplay)
         ? null
         : ref.read(settingsDaoProvider);
     final write = _serializeSettingsWrite(key, generation, () async {
@@ -497,11 +499,11 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         throw StateError('The settings host changed before saving $key.');
       }
       _requireLoadedSettings('saving $key');
-      if (backend is NetworkBackend && hostStoreKeys.contains(key)) {
+      if (backend.remoteHost != null && hostStoreKeys.contains(key)) {
         await _writeHostStoreRows({key: value}, backend, generation);
         return;
       }
-      if (backend is NetworkBackend && !isDeviceLocalDisplay) {
+      if (backend.remoteHost != null && !isDeviceLocalDisplay) {
         final current = _requireLoadedSettings('saving $key');
         final updated = _applySettingsMap(current, {key: value});
         await _writeRemoteSettings(
@@ -532,7 +534,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       // remote-write concern and would wrongly reject host-only keys
       // (`start_minimized`, `database_path`, `horizon_profile_json`, ...).
     });
-    if (backend is NetworkBackend && !isDeviceLocalDisplay) {
+    if (backend.remoteHost != null && !isDeviceLocalDisplay) {
       _trackPendingRemoteWrite([key], write);
     }
     return write;
@@ -571,7 +573,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   Future<void> _saveSettings(Map<String, String> settings) {
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;
-    final dao = backend is NetworkBackend
+    final dao = backend.remoteHost != null
         ? null
         : ref.read(settingsDaoProvider);
     final write = _serializeSettingsWrite(
@@ -583,7 +585,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
           throw StateError('The settings host changed before saving.');
         }
         _requireLoadedSettings('saving ${settings.keys.join(', ')}');
-        if (backend is NetworkBackend) {
+        if (backend.remoteHost != null) {
           final storeRows = {
             for (final entry in settings.entries)
               if (hostStoreKeys.contains(entry.key)) entry.key: entry.value,
@@ -626,7 +628,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         // `setImageOutputPath`).
       },
     );
-    if (backend is NetworkBackend) {
+    if (backend.remoteHost != null) {
       _trackPendingRemoteWrite(settings.keys, write);
     }
     return write;
@@ -744,13 +746,13 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   /// instead of being silently dropped by the 7-field Rust-bridge round-trip
   /// (the original B16 bug).
   ///
-  /// MUST run on a host container (non-[NetworkBackend]) — the desktop or the
+  /// MUST run on a host container (not a linked client) — the desktop or the
   /// headless server itself; on that path [_saveSettings] writes straight to
   /// the [SettingsDao]. (On a network client, settings flow through the section
   /// setters / `_writeRemoteSettings` instead.)
   Future<void> applyRemoteSettings(models.AppSettings remote) async {
     final backend = ref.read(backendProvider);
-    if (backend is NetworkBackend) {
+    if (backend.remoteHost != null) {
       throw StateError(
         'applyRemoteSettings is host-only; refusing to relay a full snapshot '
         'through a remote client.',
@@ -848,7 +850,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
 
   /// Save several settings in one write and show them.
   Future<void> _setAll(List<SettingValue<Object?>> values) async {
-    final remote = ref.read(backendProvider) is NetworkBackend;
+    final remote = ref.read(backendProvider).remoteHost != null;
     final rows = <String, String>{
       for (final entry in values)
         for (final row in entry.rows.entries)

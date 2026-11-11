@@ -12,6 +12,7 @@ import '../backend/skotiq_backend.dart';
 import '../database/database.dart';
 import '../models/polar_alignment_config.dart';
 import '../utils/resilient_poll_stream.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'capability_provider.dart';
 import 'database_provider.dart';
@@ -840,7 +841,7 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
       equipmentProfileId: profileId,
     );
 
-    if (ref.read(backendProvider) is NetworkBackend) {
+    if (ref.read(backendProvider).remoteHost != null) {
       // The equipment host runs the same state notifier for REST-started
       // alignments and owns the authoritative history write. A remote
       // controller must not create a second row from its slightly later WS

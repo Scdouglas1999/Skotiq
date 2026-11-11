@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/roles/host_data/host_transients.dart';
 import '../backend/remote_host.dart';
 import '../database/daos/settings_dao.dart';
 import '../models/alerts/transient_alert.dart';

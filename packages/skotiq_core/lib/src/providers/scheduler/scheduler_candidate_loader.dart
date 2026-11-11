@@ -93,9 +93,10 @@ class SchedulerCandidateLoader {
     // INNER JOIN would return no rows ("nothing eligible"). Source everything
     // from the host instead. goalService is already host-aware (above), so the
     // per-goal counts in the shared assembly loop are correct too.
-    if (backend is NetworkBackend) {
+    final host = backend.remoteHost;
+    if (host != null) {
       return _loadRemote(
-        backend: backend,
+        host: host,
         goalService: goalService,
         projectId: projectId,
         availableFilters: availableFilters,
@@ -160,7 +161,7 @@ class SchedulerCandidateLoader {
   /// the autopilot preview gates with the SAME constraints/horizons/scope the
   /// operator configured on the master — not an un-gated, always-eligible set.
   Future<List<SchedulerCandidate>> _loadRemote({
-    required NetworkBackend backend,
+    required RemoteHost host,
     required IntegrationGoalService goalService,
     int? projectId,
     required List<String> availableFilters,
@@ -168,7 +169,8 @@ class SchedulerCandidateLoader {
     required void Function() requireAuthority,
   }) async {
     // Host catalog rows, indexed by id.
-    final rawTargets = await backend.getAllTargets();
+    final rawTargets = await host.imagingRecords.getAllTargets();
+    final remote = host.planning;
     requireAuthority();
     final byId = <int, _LoaderTarget>{};
     for (final json in rawTargets) {
@@ -189,7 +191,7 @@ class SchedulerCandidateLoader {
     if (projectId != null) {
       // Project scope: the membership rows carry the per-project priority
       // override; fall back to the target's own priority when unset.
-      final memberships = await backend.getProjectTargets(projectId);
+      final memberships = await remote.getProjectTargets(projectId);
       requireAuthority();
       final scoped = <_LoaderTarget>[];
       for (final m in memberships) {
@@ -211,7 +213,7 @@ class SchedulerCandidateLoader {
     }
 
     // Host constraints (enabled only, matching the local query) + horizons.
-    final allConstraints = await backend.getTargetConstraints();
+    final allConstraints = await remote.getTargetConstraints();
     requireAuthority();
     final constraintsByTarget = <int, List<TargetConstraint>>{};
     for (final tc in allConstraints) {
@@ -219,7 +221,7 @@ class SchedulerCandidateLoader {
       constraintsByTarget.putIfAbsent(tc.targetId, () => []).add(tc);
     }
     final horizonProfiles = <int, HorizonProfile>{};
-    final remoteHorizons = await backend.getHorizonProfiles();
+    final remoteHorizons = await remote.getHorizonProfiles();
     requireAuthority();
     for (final hp in remoteHorizons) {
       if (hp.id != null) horizonProfiles[hp.id!] = hp;

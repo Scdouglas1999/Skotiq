@@ -109,7 +109,7 @@ class Phd2Controller {
   LoggingService get _logger => ref.read(loggingServiceProvider);
 
   /// True on a companion, whose guider is the imaging host's.
-  bool get _hostOwnsGuider => backend is NetworkBackend;
+  bool get _hostOwnsGuider => backend.remoteHost != null;
 
   /// Whether a UI-issued guiding command is currently in flight. Surfaced so
   /// controls can stay busy/disabled until the command is accepted or fails.
@@ -570,7 +570,7 @@ class Phd2Controller {
     _userDisconnectRequested = false;
     _linkLossHandled = false;
 
-    if (backend is FfiBackend) {
+    if (backend.ownsDeviceBridge) {
       // Desktop owns launch + socket connect via DeviceService (polls port,
       // launches the configured binary). The requested endpoint is honoured
       // rather than silently discarded — for a local host DeviceService still

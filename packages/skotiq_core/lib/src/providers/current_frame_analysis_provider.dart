@@ -14,8 +14,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
-import '../backend/ffi_backend.dart' show FfiBackend;
-import '../backend/network_backend.dart' show NetworkBackend;
 import '../backend/skotiq_backend.dart';
 import '../models/imaging/imaging_models.dart';
 import '../services/imaging_service.dart';
@@ -24,6 +22,7 @@ import '../services/plate_solve_service.dart';
 import '../services/wcs/gnomonic_projection.dart';
 import '../services/wcs/plate_solve_data_from_result.dart';
 import '../services/wcs/wcs_sip_codec.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'equipment/mount_state_provider.dart';
@@ -206,7 +205,7 @@ FrameSolveCd? frameSolveCdOf(bridge.PlateSolveResult r) =>
 final savedFrameSolutionProvider =
     Provider<Future<SavedFrameSolution?> Function(String filePath)>((ref) {
       final backend = ref.watch(backendProvider);
-      if (backend is! FfiBackend) return (_) async => null;
+      if (!backend.ownsDeviceBridge) return (_) async => null;
       final dao = ref.watch(imagesDaoProvider);
       return (filePath) async {
         final row = await dao.getImageByFilePath(filePath);
@@ -333,7 +332,7 @@ class FrameAutoSolver extends Notifier<Map<DateTime, FrameSolveVm>> {
     // On a companion every frame is the imaging host's, and a solve requested
     // here runs on the host's solver. The host solves the frames it shows;
     // this machine never adds a second, often blind, solve per frame.
-    if (ref.read(backendProvider) is NetworkBackend) return;
+    if (ref.read(backendProvider).remoteHost != null) return;
     _put(FrameSolveVm(frameCapturedAt: key, status: FrameSolveStatus.waiting));
     if (_inFlight != null) {
       final replaced = _queued;

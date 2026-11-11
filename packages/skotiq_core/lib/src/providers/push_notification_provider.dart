@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../backend/network_backend.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import '../services/push_notification_service.dart';
@@ -160,7 +160,7 @@ final pushNotificationServiceProvider = Provider<PushNotificationService>((
   ref,
 ) {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
+  if (backend.remoteHost != null) {
     // A controller neither serves paired phones nor owns the host's push
     // configuration. Keep its broadcaster inert and do not initialize an
     // unrelated controller-side config authority merely because the shared

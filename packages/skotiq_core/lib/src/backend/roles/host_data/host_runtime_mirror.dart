@@ -1,15 +1,22 @@
 import 'package:skotiq_core/skotiq_core.dart';
 
 /// The runtime state a linked imaging host mirrors to its clients, and what a client reports back.
+///
+/// The remote half of a feature whose local half is a service or DAO in this
+/// process; reached through `backend.remoteHost`, which is null locally.
 abstract interface class HostRuntimeMirror {
-  /// The host's latest value of every runtime channel. Empty when the host
-  /// predates the endpoint.
   Future<List<HostRuntimeUpdate>> getHostRuntimeState();
 
-  /// Send a value this client computed for [channel] to the host.
   Future<void> reportRuntimeState({
     required String channel,
     required Map<String, dynamic>? value,
     required String origin,
+  });
+
+  void invalidateDeviceCache();
+
+  Future<CapturedImageResult?> cameraGetLastImage(
+    String deviceId, {
+    int? maxWidth,
   });
 }

@@ -10,12 +10,13 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
+import '../backend/skotiq_backend.dart';
 import '../database/database.dart' show CapturedImage, NarratorEventRow;
 import '../services/science/narrator/narrator_context.dart'
     show NarratorFilterIntegration;
 import '../services/science/narrator/narrator_event.dart';
 import '../services/science/narrator/narrator_service.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'remote_snapshot_stream.dart';
@@ -75,7 +76,7 @@ const Duration remoteNarratorRefetchMinInterval = Duration(seconds: 10);
 /// after host events other than per-tick telemetry ([remoteSnapshotStream]).
 Stream<List<NarratorEvent>> _remoteNarratorStream(
   Ref ref,
-  NetworkBackend backend,
+  SkotiqBackend backend,
   Future<List<Map<String, dynamic>>> Function() fetch,
 ) {
   return remoteSnapshotStream<NarratorEvent>(
@@ -97,11 +98,12 @@ final narratorFeedProvider = StreamProvider.family<List<NarratorEvent>, int>((
   sessionId,
 ) {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
+  final remote = backend.remoteHost?.history;
+  if (remote != null) {
     return _remoteNarratorStream(
       ref,
       backend,
-      () => backend.getNarratorFeed(sessionId),
+      () => remote.getNarratorFeed(sessionId),
     );
   }
   return ref
@@ -114,11 +116,12 @@ final narratorFeedProvider = StreamProvider.family<List<NarratorEvent>, int>((
 /// tile before a session is selected and standalone surfaces.
 final recentNarratorFeedProvider = StreamProvider<List<NarratorEvent>>((ref) {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
+  final remote = backend.remoteHost?.history;
+  if (remote != null) {
     return _remoteNarratorStream(
       ref,
       backend,
-      () => backend.getRecentNarratorFeed(),
+      () => remote.getRecentNarratorFeed(),
     );
   }
   return ref
@@ -134,7 +137,8 @@ final recentNarratorFeedProvider = StreamProvider<List<NarratorEvent>>((ref) {
 final sessionImagesStreamProvider =
     StreamProvider.family<List<CapturedImage>, int>((ref, sessionId) {
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
+      final remote = backend.remoteHost?.history;
+      if (remote != null) {
         return Stream.value(const <CapturedImage>[]);
       }
       return ref.watch(imagesDaoProvider).watchImagesForSession(sessionId);
@@ -152,7 +156,8 @@ final sessionFilterIntegrationProvider =
       sessionId,
     ) {
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
+      final remote = backend.remoteHost?.history;
+      if (remote != null) {
         return Stream.value(const <NarratorFilterIntegration>[]);
       }
       // The active session's target name (when set) so the integration

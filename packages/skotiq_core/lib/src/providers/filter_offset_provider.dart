@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../backend/network_backend.dart';
 import '../services/focus_model_service.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'profiles_provider.dart';
 
@@ -94,14 +94,15 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
       final profileId = activeProfile.id.toString();
       _currentProfileId = profileId;
 
-      // On a slave (NetworkBackend) the autofocus-derived focus model lives in
+      // On a linked client the autofocus-derived focus model lives in
       // local JSON files on the master's disk, never on this client. Fetch the
       // rig's per-filter offsets over REST instead of reading the empty local
       // store (which would render the "no filter offsets yet" empty-state even
       // when the master has a full model).
       final backend = _ref.read(backendProvider);
-      if (backend is NetworkBackend) {
-        await _loadOffsetsFromRemote(backend, generation);
+      final remote = backend.remoteHost?.focusModels;
+      if (remote != null) {
+        await _loadOffsetsFromRemote(remote, generation);
         return;
       }
 
@@ -153,11 +154,11 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
   /// focus-model JSON store lives) instead of the empty local store. Absolute
   /// mode still derives from the per-filter AF configs in AppSettings.
   Future<void> _loadOffsetsFromRemote(
-    NetworkBackend backend,
+    HostFocusModels remote,
     int generation,
   ) async {
     final offsetMap = <String, int>{};
-    final response = await backend.getFilterFocusOffsets();
+    final response = await remote.getFilterFocusOffsets();
     final referenceFilter = response['referenceFilter'] as String?;
     final offsets = response['offsets'];
     if (offsets is Map) {
@@ -185,6 +186,7 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
     final profileId = _currentProfileId;
     if (profileId == null) return;
     final backend = _ref.read(backendProvider);
+    final remote = backend.remoteHost?.focusModels;
     final authority = _authorityGeneration;
     final mutation = ++_mutationGeneration;
     final previous = state;
@@ -200,8 +202,8 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
         clearError: true,
       );
 
-      if (backend is NetworkBackend) {
-        await backend.setFilterFocusOffsets(
+      if (remote != null) {
+        await remote.setFilterFocusOffsets(
           referenceFilter: referenceFilter,
           offsets: {filterName: offsetSteps},
         );
@@ -232,12 +234,13 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
     final profileId = _currentProfileId;
     if (profileId == null) return;
     final backend = _ref.read(backendProvider);
+    final remote = backend.remoteHost?.focusModels;
     final authority = _authorityGeneration;
     final mutation = ++_mutationGeneration;
 
     try {
-      if (backend is NetworkBackend) {
-        await backend.setFilterFocusOffsets(
+      if (remote != null) {
+        await remote.setFilterFocusOffsets(
           referenceFilter: filterName,
           offsets: const {},
         );
@@ -264,13 +267,14 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
     final profileId = _currentProfileId;
     if (profileId == null) return;
     final backend = _ref.read(backendProvider);
+    final remote = backend.remoteHost?.focusModels;
     final authority = _authorityGeneration;
     final mutation = ++_mutationGeneration;
     final previous = state;
 
     try {
-      if (backend is NetworkBackend) {
-        await backend.clearFocusModelData();
+      if (remote != null) {
+        await remote.clearFocusModelData();
       } else {
         final focusService = _ref.read(focusModelServiceProvider);
         await focusService.clearProfileData(profileId);

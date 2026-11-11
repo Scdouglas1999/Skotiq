@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
 import '../services/focus_model_service.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 
 /// Persisted focus history for [profileId] from whichever process currently
@@ -11,10 +11,11 @@ import 'backend_provider.dart';
 final focusProfileDataProvider = FutureProvider.autoDispose
     .family<ProfileFocusData?, String>((ref, profileId) async {
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
+      final remote = backend.remoteHost?.focusModels;
+      if (remote != null) {
         final responses = await Future.wait<Map<String, dynamic>>([
-          backend.getFocusModelData(),
-          backend.getFocusModel(),
+          remote.getFocusModelData(),
+          remote.getFocusModel(),
         ]);
         if (!identical(ref.read(backendProvider), backend)) return null;
         return parseRemoteFocusProfileData(responses[0], responses[1]);

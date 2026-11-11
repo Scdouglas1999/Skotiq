@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show TwilightTimes;
 
-import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../database/daos/guide_rms_history_dao.dart';
 import '../models/planning/target_suggestion.dart';
@@ -14,6 +13,7 @@ import '../services/smart_night/exposure_calculator.dart';
 import '../services/smart_night/hardware_specs_service.dart';
 import '../services/session_optimizer_service.dart';
 import '../services/smart_night_service.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import '../services/sensor_specs/camera_sensor_specs.dart';
 import 'camera_sensor_specs_provider.dart';
@@ -54,12 +54,11 @@ final smartNightExposureContextProvider = FutureProvider<SmartNightExposureConte
   final profile = ref.watch(activeEquipmentProfileProvider);
   final effectiveFilters = ref.watch(effectiveFiltersProvider);
   final backend = ref.watch(backendProvider);
+  final remote = backend.remoteHost?.history;
   final guideStats = await _weightedGuideRmsForMount(
     profile?.mountId,
     backend: backend,
-    localDao: backend is NetworkBackend
-        ? null
-        : ref.watch(guideRmsHistoryDaoProvider),
+    localDao: remote != null ? null : ref.watch(guideRmsHistoryDaoProvider),
   );
 
   final focalLength = opticalConfig?.focalLength ?? profile?.focalLength;
@@ -335,8 +334,9 @@ Future<_GuideRmsStats> _weightedGuideRmsForMount(
   }
 
   final List<({double totalRmsArcsec, DateTime recordedAt})> samples;
-  if (backend is NetworkBackend) {
-    final page = await backend.fetchGuideRmsHistory(
+  final remote = backend.remoteHost?.history;
+  if (remote != null) {
+    final page = await remote.fetchGuideRmsHistory(
       mountId: trimmedMountId,
       limit: 20,
     );

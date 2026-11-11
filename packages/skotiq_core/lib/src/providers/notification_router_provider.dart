@@ -35,7 +35,6 @@ import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
 import '../database/daos/settings_dao.dart';
 import '../models/notification/notification_categories.dart';
 import '../models/notification/transport_configs.dart';
@@ -50,6 +49,7 @@ import '../services/notification/transports/pushover_transport.dart';
 import '../services/notification/transports/system_push_transport.dart';
 import '../services/notification/transports/telegram_transport.dart';
 import '../services/notification/transports/webhook_transport.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'push_notification_provider.dart';
@@ -194,7 +194,7 @@ const _legacySenderRows = [
 /// transport configs down with it.
 final legacyNotificationCredentialsProvider = FutureProvider<void>((ref) async {
   await ref.read(notificationSecretsMigrationProvider.future);
-  if (ref.read(diagnosticsBackendProvider) is NetworkBackend) return;
+  if (ref.read(diagnosticsBackendProvider).remoteHost != null) return;
   final dao = ref.read(settingsDaoProvider);
   final secrets = ref.read(secretsStoreProvider);
   try {
@@ -880,13 +880,13 @@ final notificationRouterProvider = Provider<NotificationRouter>((ref) {
   final backend = ref.watch(diagnosticsBackendProvider);
   final uiNotifier = ref.read(uiNotificationProvider.notifier);
 
-  // Routing credentials and delivery are host-owned. A NetworkBackend mirrors
+  // Routing credentials and delivery are host-owned. A linked client mirrors
   // the host event stream into a controller device; running that stream
   // through configs from the controller's local database would make external
   // delivery depend on the phone being connected and can duplicate the host's
   // own sends. Remote controllers retain only local in-app banners until the
   // host exposes routing configuration APIs.
-  if (backend is NetworkBackend) {
+  if (backend.remoteHost != null) {
     final router = NotificationRouter(
       transports: [InAppTransport(uiNotifier)],
       matrix: inAppOnlyFallbackMatrix(),

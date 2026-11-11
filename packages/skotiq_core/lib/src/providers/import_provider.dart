@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import '../services/import/astrobin_importer.dart';
 import '../services/import/sequence_importer.dart';
@@ -10,11 +10,12 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 /// Provides the singleton [SequenceImporter] used by the UI.
 final sequenceImporterProvider = Provider<SequenceImporter>((ref) {
   final backend = ref.watch(backendProvider);
+  final remote = backend.remoteHost?.planning;
   // Astrobin subjects resolve by exact designation or name only, against the
   // installed catalog (the host's, on a remote client), then SIMBAD.
-  final CatalogLookup primary = backend is NetworkBackend
+  final CatalogLookup primary = remote != null
       ? CatalogSearchLookup((designation) async {
-          final response = await backend.planetariumCatalogSearch(designation);
+          final response = await remote.planetariumCatalogSearch(designation);
           final rawResults = response['results'];
           if (rawResults is! List) {
             throw const FormatException(

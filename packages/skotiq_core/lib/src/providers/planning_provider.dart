@@ -5,7 +5,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
+import '../backend/skotiq_backend.dart';
 import '../models/planning/night_forecast.dart';
 import '../models/planning/project.dart';
 import '../models/planning/project_progress.dart';
@@ -16,6 +16,7 @@ import '../services/scheduler/integration_goal_service.dart';
 import '../services/weather/providers/openmeteo_cloud_provider.dart';
 import '../services/weather/radar_provider.dart';
 import '../utils/resilient_poll_stream.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'scheduler_provider.dart';
@@ -34,12 +35,9 @@ import 'settings_provider.dart';
 /// project id; an absent row or an empty string means "no active project".
 const String _activeProjectIdSettingKey = 'planning.active_project_id';
 
-String _activeProjectSettingKeyFor(Object backend) {
-  if (backend is! NetworkBackend) return _activeProjectIdSettingKey;
-  final identity =
-      '${backend.scheme.toLowerCase()}://'
-      '${backend.serverHost.trim().toLowerCase()}:${backend.serverPort}|'
-      '${backend.pinnedFingerprint?.trim().toLowerCase() ?? ''}';
+String _activeProjectSettingKeyFor(SkotiqBackend backend) {
+  final identity = backend.remoteHost?.link.identity;
+  if (identity == null) return _activeProjectIdSettingKey;
   final encoded = base64Url.encode(utf8.encode(identity)).replaceAll('=', '');
   return '$_activeProjectIdSettingKey.remote.$encoded';
 }
@@ -123,7 +121,7 @@ class ActiveProjectNotifier extends StateNotifier<int?> {
     }
   }
 
-  void _switchBackend(Object backend) {
+  void _switchBackend(SkotiqBackend backend) {
     final nextKey = _activeProjectSettingKeyFor(backend);
     if (nextKey == _settingKey) return;
 
@@ -207,7 +205,7 @@ final projectListProvider = StreamProvider<List<Project>>((ref) {
   // mutation stream to bridge — service.watchChanges() never fires — so poll
   // the host on a fixed tick with a change-guard (mirrors database_provider's
   // _pollRemote). Host-side project CRUD surfaces within the interval.
-  if (backend is NetworkBackend) {
+  if (backend.remoteHost != null) {
     return resilientDistinctPoll(
       fetch: service.listProjects,
       unchanged: listEquals,

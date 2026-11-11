@@ -161,7 +161,7 @@ final allDbImagesProvider = StreamProvider<List<db.CapturedImage>>((ref) {
 /// A linked client's copy of the imaging host's `captured_images` rows; null
 /// on a process with its own database.
 final remoteImageRowsProvider = Provider<RemoteImageRows?>((ref) {
-  final host = ref.watch(backendProvider).remoteHost?.imageRecords;
+  final host = ref.watch(backendProvider).remoteHost?.imagingRecords;
   if (host == null) return null;
   final rows = RemoteImageRows(
     poll: () => pollHostImageRows(host),

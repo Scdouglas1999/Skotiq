@@ -8,8 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
-import '../backend/roles/host_data/host_files.dart';
-import '../backend/roles/host_data/host_calibration_frames.dart';
 import '../utils/host_paths.dart';
 import '../backend/network_backend.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;

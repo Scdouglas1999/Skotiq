@@ -21,7 +21,7 @@ extension _WeatherSafetyRemote on WeatherSafetyNotifier {
     // don't. But the last verdict fetched is no longer known to hold, and
     // leaving it on show would keep a stale "Safe" on the card all night.
     // Replace it once with the same unavailable state a failed poll writes.
-    if (host.link.credentialsRejected) {
+    if (host.link.isAuthTokenRejected) {
       if (state.failModeWarning != _authRejectedSafetyWarning) {
         state = WeatherSafetyState.initial().copyWith(
           failModeWarning: _authRejectedSafetyWarning,

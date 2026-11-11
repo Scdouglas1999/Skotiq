@@ -1,10 +1,8 @@
-import 'package:skotiq_core/skotiq_core.dart';
-
 /// The secondary rig of a linked imaging host.
+///
+/// The remote half of a feature whose local half is a service or DAO in this
+/// process; reached through `backend.remoteHost`, which is null locally.
 abstract interface class HostSecondaryRig {
-  /// Host-authoritative secondary-rig status. These operations deliberately
-  /// live on [NetworkBackend] rather than the generic sequencer role because
-  /// the local implementation is still an FRB-owned background capture loop.
   Future<Map<String, dynamic>> secondaryRigGetStatus();
 
   Future<void> secondaryRigStart(Map<String, dynamic> config);

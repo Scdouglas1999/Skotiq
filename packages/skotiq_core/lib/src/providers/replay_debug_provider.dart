@@ -144,7 +144,7 @@ final decisionsForRunProvider = StreamProvider.autoDispose
         if (controller.isClosed || inFlight) return;
         inFlight = true;
         try {
-          final decisions = await remote.listDecisions(runId);
+          final decisions = await remote.replayListDecisions(runId);
           if (!controller.isClosed) controller.add(decisions);
         } catch (error, stack) {
           // Surface network / parse failures; do NOT replace a prior state
@@ -175,7 +175,7 @@ final decisionCountForRunProvider = FutureProvider.family<int, int>((
   runId,
 ) async {
   final remote = ref.watch(backendProvider).remoteHost?.replayDebug;
-  if (remote != null) return remote.countDecisions(runId);
+  if (remote != null) return remote.replayCountDecisions(runId);
   final service = ref.watch(replayDebugServiceProvider);
   return service.countByRun(runId);
 });
@@ -193,7 +193,7 @@ final _replayHostSettingsProvider = FutureProvider<ReplayDebugSettings>((
       'Replay host settings are only available while connected to a host.',
     );
   }
-  return remote.getSettings();
+  return remote.replayGetSettings();
 });
 
 /// Replay Debug — runtime decision-logging toggle.
@@ -259,7 +259,7 @@ class ReplayDebugSettingsController {
     final backend = host.value;
     final remote = backend.remoteHost?.replayDebug;
     if (remote != null) {
-      await remote.setEnabled(value);
+      await remote.replaySetEnabled(value);
       if (host.isStale) {
         throw StateError(
           'Replay settings host changed while applying the update.',
@@ -354,7 +354,7 @@ class ReplayDebugSettingsController {
     final backend = host.value;
     final remote = backend.remoteHost?.replayDebug;
     if (remote != null) {
-      await remote.setRetentionDays(clamped);
+      await remote.replaySetRetentionDays(clamped);
       if (host.isStale) {
         throw StateError(
           'Replay settings host changed while applying the update.',
@@ -405,7 +405,7 @@ class ReplayDebugSettingsController {
     final remote = backend.remoteHost?.replayDebug;
     try {
       if (remote != null) {
-        final count = await remote.countAllDecisions();
+        final count = await remote.replayCountAllDecisions();
         if (host.isStale) return null;
         return count;
       }
@@ -434,7 +434,7 @@ class ReplayDebugSettingsController {
     final backend = host.value;
     final remote = backend.remoteHost?.replayDebug;
     if (remote != null) {
-      final removed = await remote.clearHistory();
+      final removed = await remote.replayClearHistory();
       if (host.isStale) {
         throw StateError('Replay history host changed while clearing history.');
       }

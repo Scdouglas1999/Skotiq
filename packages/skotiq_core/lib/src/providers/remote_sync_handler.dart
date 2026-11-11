@@ -3,13 +3,9 @@ import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../backend/remote_host.dart';
+import '../backend/skotiq_backend.dart';
 import '../backend/bridge_event_mapper.dart' show tryBridgeEventFromCoreEvent;
-import '../backend/network_backend.dart';
-import '../models/backend/device_info.dart';
-import '../models/backend/device_status.dart';
-import '../models/backend/device_types.dart';
-import '../models/backend/event_types.dart';
-import '../models/backend/sequencer_status.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/sequence/active_plan_owner.dart';
 import '../models/sequence/sequence_models.dart';
@@ -83,12 +79,12 @@ part 'remote_sync/reader_access.dart';
 part 'remote_sync/session_hydration.dart';
 
 /// Applies a backend or host-sync event to Riverpod state so UI refreshes
-/// without navigation. Used by remote companions ([NetworkBackend]), the
+/// without navigation. Used by remote companions, the
 /// desktop host when remote access is enabled, and API mutation publishers.
 Future<void> applyRemoteSyncEvent(
   Object reader,
   SkotiqEvent event, {
-  NetworkBackend? networkBackend,
+  SkotiqBackend? networkBackend,
 }) async {
   if (networkBackend != null &&
       !_isCurrentRemoteBackend(reader, networkBackend)) {
@@ -123,7 +119,7 @@ Future<void> applyRemoteSyncEvent(
       }
       // Remote parity: the host-local capture path publishes
       // `currentImageProvider` via [CapturePreviewPublisher]; that path never
-      // runs on a remote companion (NetworkBackend, no local executor), so the
+      // runs on a remote companion (no local executor), so the
       // dashboard's "current frame" hero tile would stay blank during a
       // host-run sequence. When the host reports a fresh frame, pull it over
       // the existing remoted JPEG path and publish it locally so the tile +
@@ -166,7 +162,7 @@ Future<void> applyRemoteSyncEvent(
 Future<void> _applySystemSyncEvent(
   Object reader,
   SkotiqEvent event, {
-  NetworkBackend? networkBackend,
+  SkotiqBackend? networkBackend,
 }) async {
   if (event.eventType == hostStateChangedEventType) {
     _applyHostMutation(reader, event.data);
@@ -215,7 +211,7 @@ Future<void> _applySystemSyncEvent(
 /// which the last-frame endpoint does not carry.
 void requestHostCurrentFrame(
   Object reader,
-  NetworkBackend backend, {
+  SkotiqBackend backend, {
   HostFrameHint? hint,
 }) {
   final fetchState = _remoteFrameFetchStates[reader] ??=

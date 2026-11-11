@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../backend/network_backend.dart';
 import '../database/database.dart';
 import '../models/backend/host_mutation_event.dart';
 import '../models/equipment/equipment_models.dart'
@@ -13,8 +12,8 @@ import '../models/sequence/sequence_models.dart'
     show SequenceExecutionState, SequenceExecutionStateCapabilities;
 import '../services/logging_service.dart';
 import '../services/notification_service.dart';
-import 'package:skotiq_astro/skotiq_astro.dart'
-    show AstronomyCalculations;
+import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'equipment_provider.dart'
@@ -45,13 +44,11 @@ final globalMeridianFlipSettingsProvider =
       GlobalMeridianFlipSettingsNotifier,
       MeridianFlipSettings
     >((ref) {
-      final backend = ref.watch(backendProvider);
+      final host = ref.watch(backendProvider).remoteHost;
       return GlobalMeridianFlipSettingsNotifier(
         ref,
-        database: backend is NetworkBackend
-            ? null
-            : ref.watch(databaseProvider),
-        remote: backend is NetworkBackend ? backend : null,
+        database: host != null ? null : ref.watch(databaseProvider),
+        host: host,
       );
     });
 
@@ -63,7 +60,7 @@ class GlobalMeridianFlipSettingsNotifier
     extends StateNotifier<MeridianFlipSettings> {
   final Ref _ref;
   final SkotiqDatabase? _database;
-  final NetworkBackend? _remote;
+  final HostRigSettings? _remote;
   StreamSubscription? _remoteEventSubscription;
   late Future<void> _loadFuture;
   Future<void> _writeTail = Future<void>.value();
@@ -74,14 +71,14 @@ class GlobalMeridianFlipSettingsNotifier
   GlobalMeridianFlipSettingsNotifier(
     this._ref, {
     required SkotiqDatabase? database,
-    required NetworkBackend? remote,
+    required RemoteHost? host,
   }) : _database = database,
-       _remote = remote,
+       _remote = host?.rigSettings,
        super(const MeridianFlipSettings()) {
     _ref.read(globalMeridianFlipSettingsLoadStateProvider.notifier).state =
         const AsyncLoading();
-    if (remote != null) {
-      _remoteEventSubscription = remote.eventStream.listen(
+    if (host != null) {
+      _remoteEventSubscription = host.events.listen(
         (event) {
           if (event.eventType != hostStateChangedEventType ||
               event.data['entityType'] != HostMutationEntity.settings ||
@@ -576,7 +573,7 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
     // timer that can race the GUI/headless host and command the same flip.
     if (!settings.standaloneMonitoringEnabled ||
         !settings.triggerMethod.supportsStandaloneMonitoring ||
-        _ref.read(backendProvider) is NetworkBackend) {
+        _ref.read(backendProvider).remoteHost != null) {
       return;
     }
     _pollTimer = Timer.periodic(_pollInterval, (_) => evaluateOnce());
@@ -584,7 +581,7 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
 
   /// Public for tests — runs a single poll cycle and returns the decision.
   MeridianMonitorDecision evaluateOnce() {
-    if (_ref.read(backendProvider) is NetworkBackend) {
+    if (_ref.read(backendProvider).remoteHost != null) {
       return MeridianMonitorDecision.inactive;
     }
     final settings = _ref.read(globalMeridianFlipSettingsProvider);

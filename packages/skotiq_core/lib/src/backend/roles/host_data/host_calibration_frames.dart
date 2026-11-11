@@ -1,8 +1,10 @@
 import 'package:skotiq_core/skotiq_core.dart';
 
 /// The dark library, flat records and defect-map settings of a linked imaging host.
+///
+/// The remote half of a feature whose local half is a service or DAO in this
+/// process; reached through `backend.remoteHost`, which is null locally.
 abstract interface class HostCalibrationFrames {
-  /// GET /api/calibration/darks — filtered listing.
   Future<List<RemoteDarkLibraryEntry>> listDarks({
     double? exposureSeconds,
     int? gain,
@@ -27,7 +29,6 @@ abstract interface class HostCalibrationFrames {
     required String frameType,
   });
 
-  /// DELETE `/api/calibration/darks/{id}?deleteFile=<bool>`.
   Future<void> deleteDark(int id, {bool deleteFile = false});
 
   Future<int> deleteDarkLibraryGroup({
@@ -44,7 +45,6 @@ abstract interface class HostCalibrationFrames {
 
   Future<int> clearDarkLibrary({bool deleteFiles = false});
 
-  /// GET /api/calibration/flats — filtered listing.
   Future<List<RemoteFlatHistoryEntry>> listFlats({
     String? filter,
     int? equipmentProfileId,
@@ -53,7 +53,6 @@ abstract interface class HostCalibrationFrames {
     int? limit,
   });
 
-  /// POST /api/calibration/flats — record a flat-history entry.
   Future<RemoteFlatHistoryEntry> recordFlat({
     required String filter,
     required double exposureDuration,

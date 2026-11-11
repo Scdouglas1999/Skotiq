@@ -496,9 +496,42 @@ class NetworkBackend extends _NetworkBackendTransport
         _NetworkBackendMountGuardOperations
     implements
         SkotiqBackend,
+        HostLink,
+        HostNightControl,
+        HostControlSession,
+        HostSkyAtlas,
+        HostTransients,
+        HostScience,
+        HostUpdates,
+        HostJobs,
+        HostNotifications,
+        HostLogs,
+        HostCloudSync,
+        HostCatalogs,
+        HostBackups,
+        HostProfiles,
+        HostFocusModels,
+        HostFiles,
+        HostDeviceControl,
+        HostCalibrationTools,
+        HostImagingRecords,
+        HostLiveStack,
+        HostPlanningData,
+        HostPostSession,
+        HostSequenceLibrary,
         EnvironmentalStatusBackend,
         DomeStatusBackend,
-        MountGuardBackend {
+        MountGuardBackend,
+        HostWeather,
+        HostReplayDebug,
+        HostCalibrationFrames,
+        HostRunState,
+        HostNotes,
+        HostHistory,
+        HostRigSettings,
+        HostPointing,
+        HostSecondaryRig,
+        HostRuntimeMirror {
   static const _requestIdHeader = _NetworkBackendTransport._requestIdHeader;
 
   NetworkBackend({

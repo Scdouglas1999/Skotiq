@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/network_backend.dart';
 import '../../models/sequence/sequence_models.dart';
+import '../../backend/remote_host.dart';
 import '../backend_provider.dart';
 import '../runtime_mirror/channels/run_record_channel.dart'
     show runRecordChannelKey;
@@ -68,7 +68,7 @@ class LastEndedRunNotifier extends Notifier<LastEndedRun?> {
   }
 
   bool get _followsHost =>
-      ref.read(backendProvider) is NetworkBackend &&
+      ref.read(backendProvider).remoteHost != null &&
       ref
           .read(clientRuntimeMirrorStateProvider)
           .hasApplied(runRecordChannelKey);

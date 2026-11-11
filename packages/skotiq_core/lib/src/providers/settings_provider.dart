@@ -5,9 +5,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show immutable, visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../backend/network_backend.dart';
-import '../models/backend/event_types.dart'
-    show EventCategory, SkotiqEvent, settingsChangedEventType;
+import '../backend/remote_host.dart';
+import '../backend/skotiq_backend.dart';
 import 'database_provider.dart';
 import 'backend_provider.dart';
 import 'frame_watch_settings_provider.dart';

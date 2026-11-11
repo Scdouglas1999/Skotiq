@@ -1,55 +1,86 @@
-import 'disconnected_backend.dart';
-import 'ffi_backend.dart';
 import 'network_backend.dart';
 import 'network_backend/host_data/remote_host_calibration_library.dart';
 import 'network_backend/host_data/remote_observation_log.dart';
-import 'network_backend/host_data/host_poll.dart';
-import 'network_backend/host_data/remote_host_runtime_mirror.dart';
-import 'network_backend/host_data/remote_host_secondary_rig.dart';
-import 'network_backend/host_data/remote_host_pointing.dart';
-import 'network_backend/host_data/remote_host_rig_settings.dart';
-import 'network_backend/host_data/remote_host_planning.dart';
-import 'network_backend/host_data/remote_host_live_stack.dart';
-import 'network_backend/host_data/remote_host_focus_data.dart';
-import 'network_backend/host_data/remote_host_history.dart';
-import 'network_backend/host_data/remote_host_notes.dart';
-import 'network_backend/host_data/remote_host_run_state.dart';
-import 'network_backend/host_data/remote_host_sequence_records.dart';
-import 'network_backend/host_data/remote_host_target_records.dart';
-import 'network_backend/host_data/remote_host_files.dart';
-import 'network_backend/host_data/remote_host_calibration_frames.dart';
-import 'network_backend/host_data/remote_host_image_records.dart';
-import 'network_backend/host_data/remote_host_transients.dart';
-import 'network_backend/host_data/remote_host_weather.dart';
-import 'network_backend/host_data/remote_host_sky_atlas.dart';
-import 'network_backend/host_data/remote_host_records.dart';
 import 'network_backend/host_data/remote_observing_lists_store.dart';
-import 'network_backend/host_data/remote_replay_debug_log.dart';
-import 'network_backend/host_data/remote_science_products.dart';
+import 'disconnected_backend.dart';
+import 'ffi_backend.dart';
 import 'roles/host_data/calibration_library.dart';
+import 'roles/host_data/host_calibration_tools.dart';
+import 'roles/host_data/host_imaging_records.dart';
+import 'roles/host_data/host_device_control.dart';
+import 'roles/host_data/host_files.dart';
+import 'roles/host_data/host_focus_models.dart';
+import 'roles/host_data/host_profiles.dart';
+import 'roles/host_data/host_backups.dart';
+import 'roles/host_data/host_catalogs.dart';
+import 'roles/host_data/host_cloud_sync.dart';
+import 'roles/host_data/host_logs.dart';
+import 'roles/host_data/host_notifications.dart';
+import 'roles/host_data/host_jobs.dart';
+import 'roles/host_data/host_updates.dart';
+import 'roles/host_data/host_science.dart';
+import 'roles/host_data/host_transients.dart';
+import 'roles/host_data/host_sky_atlas.dart';
+import 'roles/host_data/host_control_session.dart';
+import 'roles/host_data/host_night_control.dart';
+import 'roles/host_data/host_link.dart';
+import 'roles/host_data/host_live_stack.dart';
+import 'roles/host_data/host_planning_data.dart';
+import 'roles/host_data/host_post_session.dart';
+import 'roles/host_data/host_sequence_library.dart';
+import 'roles/host_data/observation_log.dart';
+import 'roles/host_data/observing_lists_store.dart';
+import 'skotiq_backend.dart';
+// h2-night role imports
 import 'roles/host_data/host_runtime_mirror.dart';
 import 'roles/host_data/host_secondary_rig.dart';
 import 'roles/host_data/host_pointing.dart';
 import 'roles/host_data/host_rig_settings.dart';
-import 'roles/host_data/host_planning.dart';
-import 'roles/host_data/host_live_stack.dart';
-import 'roles/host_data/host_focus_data.dart';
 import 'roles/host_data/host_history.dart';
 import 'roles/host_data/host_notes.dart';
 import 'roles/host_data/host_run_state.dart';
-import 'roles/host_data/host_sequence_records.dart';
-import 'roles/host_data/host_target_records.dart';
-import 'roles/host_data/host_files.dart';
 import 'roles/host_data/host_calibration_frames.dart';
-import 'roles/host_data/host_image_records.dart';
-import 'roles/host_data/host_transients.dart';
+import 'roles/host_data/host_replay_debug.dart';
 import 'roles/host_data/host_weather.dart';
-import 'roles/host_data/host_sky_atlas.dart';
-import 'roles/host_data/observation_log.dart';
-import 'roles/host_data/observing_lists_store.dart';
-import 'roles/host_data/replay_debug_log.dart';
+import 'network_backend/host_data/host_poll.dart';
+import 'network_backend/host_data/remote_host_records.dart';
+import 'network_backend/host_data/remote_science_products.dart';
 import 'roles/host_data/science_products.dart';
-import 'skotiq_backend.dart';
+
+export 'roles/host_data/host_calibration_tools.dart';
+export 'roles/host_data/host_imaging_records.dart';
+export 'roles/host_data/host_device_control.dart';
+export 'roles/host_data/host_files.dart';
+export 'roles/host_data/host_focus_models.dart';
+export 'roles/host_data/host_profiles.dart';
+export 'roles/host_data/host_backups.dart';
+export 'roles/host_data/host_catalogs.dart';
+export 'roles/host_data/host_cloud_sync.dart';
+export 'roles/host_data/host_logs.dart';
+export 'roles/host_data/host_notifications.dart';
+export 'roles/host_data/host_jobs.dart';
+export 'roles/host_data/host_updates.dart';
+export 'roles/host_data/host_science.dart';
+export 'roles/host_data/host_transients.dart';
+export 'roles/host_data/host_sky_atlas.dart';
+export 'roles/host_data/host_control_session.dart';
+export 'roles/host_data/host_night_control.dart';
+export 'roles/host_data/host_link.dart';
+export 'roles/host_data/host_live_stack.dart';
+export 'roles/host_data/host_planning_data.dart';
+export 'roles/host_data/host_post_session.dart';
+export 'roles/host_data/host_sequence_library.dart';
+// h2-night role exports
+export 'roles/host_data/host_runtime_mirror.dart';
+export 'roles/host_data/host_secondary_rig.dart';
+export 'roles/host_data/host_pointing.dart';
+export 'roles/host_data/host_rig_settings.dart';
+export 'roles/host_data/host_history.dart';
+export 'roles/host_data/host_notes.dart';
+export 'roles/host_data/host_run_state.dart';
+export 'roles/host_data/host_calibration_frames.dart';
+export 'roles/host_data/host_replay_debug.dart';
+export 'roles/host_data/host_weather.dart';
 
 /// The data roles of a backend whose imaging host is another machine.
 ///
@@ -76,61 +107,8 @@ final class RemoteHost {
 
   static final _hosts = Expando<RemoteHost>('RemoteHost');
 
-  /// Everything the host announces: device and run events and the
-  /// notifications that its stored data changed.
-  Stream<SkotiqEvent> get events => _backend.eventStream;
-
-  /// The connection to the host: its name and whether it is answering.
-  late final HostLink link = HostLink._(_backend);
-
   late final CalibrationLibrary calibrationLibrary =
       RemoteHostCalibrationLibrary(_backend);
-
-  late final HostSkyAtlas skyAtlas = RemoteHostSkyAtlas(_backend);
-
-  late final HostWeather weather = RemoteHostWeather(_backend);
-
-  late final HostTransients transients = RemoteHostTransients(_backend);
-
-  late final HostImageRecords imageRecords = RemoteHostImageRecords(_backend);
-
-  /// The host's saved targets, sequences, sessions and runs.
-  late final RemoteHostRecords records = RemoteHostRecords(_backend);
-
-  late final HostCalibrationFrames calibrationFrames =
-      RemoteHostCalibrationFrames(_backend);
-
-  late final HostFiles files = RemoteHostFiles(_backend);
-
-  late final HostTargetRecords targetRecords = RemoteHostTargetRecords(
-    _backend,
-  );
-
-  late final HostSequenceRecords sequenceRecords = RemoteHostSequenceRecords(
-    _backend,
-  );
-
-  late final HostRunState runState = RemoteHostRunState(_backend);
-
-  late final HostNotes notes = RemoteHostNotes(_backend);
-
-  late final HostHistory history = RemoteHostHistory(_backend);
-
-  late final HostFocusData focusData = RemoteHostFocusData(_backend);
-
-  late final HostLiveStack liveStack = RemoteHostLiveStack(_backend);
-
-  late final HostPlanning planning = RemoteHostPlanning(_backend);
-
-  late final HostRigSettings rigSettings = RemoteHostRigSettings(_backend);
-
-  late final HostPointing pointing = RemoteHostPointing(_backend);
-
-  late final HostSecondaryRig secondaryRig = RemoteHostSecondaryRig(_backend);
-
-  late final HostRuntimeMirror runtimeMirror = RemoteHostRuntimeMirror(
-    _backend,
-  );
 
   late final ObservationLog observationLog = RemoteObservationLog(_backend);
 
@@ -138,58 +116,153 @@ final class RemoteHost {
     _backend,
   );
 
+  // Roles below have no shared local interface yet: the feature's service or
+  // screen holds the local half and asks for the host's half here. The host
+  // client itself answers them until the shared route definitions land.
+
+  /// The connection to the host: where it is and whether it answers.
+  HostLink get link => _backend;
+
+  HostCalibrationTools get calibrationTools => _backend;
+
+  HostImagingRecords get imagingRecords => _backend;
+
+  HostDeviceControl get devices => _backend;
+
+  HostFiles get files => _backend;
+
+  HostFocusModels get focusModels => _backend;
+
+  HostProfiles get profiles => _backend;
+
+  HostBackups get backups => _backend;
+
+  HostCatalogs get catalogs => _backend;
+
+  HostCloudSync get cloudSync => _backend;
+
+  HostLogs get logs => _backend;
+
+  HostNotifications get notifications => _backend;
+
+  HostJobs get jobs => _backend;
+
+  HostUpdates get updates => _backend;
+
+  HostScience get science => _backend;
+
+  HostTransients get transients => _backend;
+
+  HostSkyAtlas get skyAtlas => _backend;
+
+  HostControlSession get control => _backend;
+
+  HostNightControl get night => _backend;
+
+  HostLiveStack get liveStack => _backend;
+
+  HostPlanningData get planning => _backend;
+
+  HostPostSession get postSession => _backend;
+
+  HostSequenceLibrary get sequences => _backend;
+
+  // h2-night roles
+
+  HostRuntimeMirror get runtimeMirror => _backend;
+
+  HostSecondaryRig get secondaryRig => _backend;
+
+  HostPointing get pointing => _backend;
+
+  HostRigSettings get rigSettings => _backend;
+
+  HostHistory get history => _backend;
+
+  HostNotes get notes => _backend;
+
+  HostRunState get runState => _backend;
+
+  HostCalibrationFrames get calibrationFrames => _backend;
+
+  HostReplayDebug get replayDebug => _backend;
+
+  HostWeather get weather => _backend;
+
+  /// Everything the host announces: device and run events and the
+  /// notifications that its stored data changed.
+  Stream<SkotiqEvent> get events => _backend.eventStream;
+
+  /// The host's saved targets, sequences, sessions and runs, as the row types
+  /// the local database yields (`TargetLibrary`, `SequenceLibrary`,
+  /// `SessionHistory`, `RunHistory`).
+  late final RemoteHostRecords records = RemoteHostRecords(_backend);
+
   /// A new instance per call: the caller keeps it for as long as it wants
   /// that [pollInterval].
   ScienceProducts scienceProducts({
     Duration pollInterval = HostPoll.defaultInterval,
   }) => RemoteScienceProducts(_backend, pollInterval: pollInterval);
 
-  late final ReplayDebugLog replayDebug = RemoteReplayDebugLog(_backend);
-
   late final SettingRows scienceSettingRows = RemoteScienceSettingRows(
     _backend,
   );
 }
 
-/// The connection between this client and the imaging host it is linked to.
-final class HostLink {
-  HostLink._(this._backend);
-
-  final NetworkBackend _backend;
-
-  /// The host's address as the user entered or discovered it.
-  String get hostName => _backend.serverHost;
-
-  BackendConnectionState get state => _backend.connectionState;
-
-  Stream<BackendConnectionState> get states => _backend.connectionStateStream;
-
-  /// True once the host refused this client's credentials. Nothing sent
-  /// after that can succeed until the client is paired again.
-  bool get credentialsRejected => _backend.isAuthTokenRejected;
-
-  /// How long the host has left a heartbeat unanswered, or null when every
-  /// heartbeat sent has been answered.
-  Duration? get unansweredPingAge => _backend.unansweredPingAge;
-}
-
 extension HostDataDispatch on SkotiqBackend {
-  /// True when this process is the imaging host: the devices, the capture
-  /// files and the database are on this machine.
-  bool get isImagingHost => this is FfiBackend;
-
-  /// True when there is no imaging host: not this process, and none linked.
-  bool get hasNoHost => this is DisconnectedBackend;
-
   /// The remote side of the host-data roles, or null when host data lives in
   /// this process's own database (a local backend, or no host at all).
   ///
   /// One [RemoteHost] per backend instance, so the roles it hands out are
   /// stable for as long as that backend is current and can be compared by
   /// identity.
-  RemoteHost? get remoteHost {
-    final self = this;
-    if (self is! NetworkBackend) return null;
-    return RemoteHost._hosts[self] ??= RemoteHost._(self);
-  }
+  RemoteHost? get remoteHost => _remoteHostOf(this);
+
+  /// True when this process has no imaging host at all: it was launched as a
+  /// client and is not linked, or its link was given up. Every host call
+  /// fails; screens show what to connect instead of loading.
+  bool get hasNoHost => this is DisconnectedBackend;
+
+  /// True when the rig is this machine: its devices, files and database are
+  /// in this process, so paths are local paths and device work happens here.
+  bool get runsRigHere =>
+      this is! NetworkBackend && this is! DisconnectedBackend;
+
+  /// True when the device drivers are loaded in this process, so device calls
+  /// that have no backend method yet may go straight to the bridge.
+  bool get ownsDeviceBridge => this is FfiBackend;
+}
+
+/// The same questions for a backend held as its sequencer role, which is how
+/// the shell and the run screens receive it.
+extension SequencerRoleHostDispatch on SequencerBackend {
+  RemoteHost? get remoteHost => _remoteHostOf(this);
+
+  bool get hasNoHost => this is DisconnectedBackend;
+}
+
+RemoteHost? _remoteHostOf(Object backend) {
+  if (backend is! NetworkBackend) return null;
+  return RemoteHost._hosts[backend] ??= RemoteHost._(backend);
+}
+
+// h2-night additions
+
+/// The same questions for a backend held as its diagnostics role, which is
+/// how the notification router and the host sync binding receive it.
+extension DiagnosticsRoleHostDispatch on DiagnosticsBackend {
+  RemoteHost? get remoteHost => _remoteHostOf(this);
+
+  bool get hasNoHost => this is DisconnectedBackend;
+
+  bool get ownsDeviceBridge => this is FfiBackend;
+}
+
+extension HostLinkIdentity on HostLink {
+  /// Names this host among the hosts this client has linked to: address,
+  /// port, scheme and pinned certificate. Used to key per-host preferences.
+  String get identity =>
+      '${scheme.toLowerCase()}://'
+      '${serverHost.trim().toLowerCase()}:$serverPort|'
+      '${pinnedFingerprint?.trim().toLowerCase() ?? ''}';
 }

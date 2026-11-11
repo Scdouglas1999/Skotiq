@@ -3,8 +3,9 @@ import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart' show mapEquals, visibleForTesting;
 
-import '../../backend/network_backend.dart';
+import '../../backend/roles/host_data/host_rig_settings.dart';
 import '../../database/daos/settings_dao.dart' show SettingsDao;
+import '../../models/backend/event_types.dart' show SkotiqEvent;
 import '../../models/backend/host_mutation_event.dart';
 
 /// How much of the imaging host's key/value settings this client can reach.
@@ -31,11 +32,14 @@ enum HostSettingsStoreSupport {
 /// second costs one small request per interval and no rebuilds.
 class HostSettingsStore {
   HostSettingsStore(
-    this._backend, {
+    this._backend,
+    this._events, {
     this.minRefreshInterval = const Duration(seconds: 2),
   });
 
-  final NetworkBackend _backend;
+  final HostRigSettings _backend;
+  /// Read when the store starts following the host, not before.
+  final Stream<SkotiqEvent> Function() _events;
   final Duration minRefreshInterval;
 
   /// Prefixes a legacy host serves through their own endpoints.
@@ -191,7 +195,7 @@ class HostSettingsStore {
   /// Refresh whenever the host announces a change to rows this store mirrors.
   void _followHostAnnouncements() {
     if (_hostEvents != null || _disposed) return;
-    _hostEvents = _backend.eventStream.listen((event) {
+    _hostEvents = _events().listen((event) {
       if (event.eventType != hostStateChangedEventType) return;
       if (event.data['entityType'] != HostMutationEntity.settings) return;
       if (!mirroredNamespaces.contains(event.data['namespace'])) return;

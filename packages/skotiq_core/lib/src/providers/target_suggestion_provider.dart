@@ -1,12 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
-import '../backend/network_backend.dart';
 import '../database/database.dart' as db;
 import '../models/errors/server_error.dart';
 import '../models/planning/target_suggestion.dart';
 import '../services/logging_service.dart';
 import '../services/target_suggestion_service.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'profiles_provider.dart';
@@ -74,9 +74,10 @@ final tonightSuggestionsProvider =
       ref.watch(refreshSuggestionsProvider);
 
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
+      final remote = backend.remoteHost?.planning;
+      if (remote != null) {
         try {
-          final suggestions = await backend.fetchRankedTonightSuggestions(
+          final suggestions = await remote.fetchRankedTonightSuggestions(
             config,
           );
           ref.keepAlive();
@@ -323,4 +324,3 @@ Future<List<db.Target>> _readCatalogTargets(
 }
 
 // Convenience providers
-

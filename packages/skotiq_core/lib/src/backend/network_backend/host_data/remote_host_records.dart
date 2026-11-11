@@ -4,7 +4,7 @@ import '../../../database/database.dart' as db;
 import '../../../services/imaging_records_repository.dart'
     show imagingSessionFromWireJson, wireTimestamp;
 import '../../network_backend.dart';
-import '../../roles/host_data/host_image_records.dart';
+import '../../roles/host_data/host_imaging_records.dart';
 import '../../roles/host_data/host_records.dart';
 import 'host_poll.dart';
 
@@ -72,7 +72,7 @@ final class RemoteHostRecords
 }
 
 /// Polls the host's captured-image rows, newest capture first.
-Stream<List<db.CapturedImage>> pollHostImageRows(HostImageRecords host) =>
+Stream<List<db.CapturedImage>> pollHostImageRows(HostImagingRecords host) =>
     HostPoll('captured images').watch(
       () async {
         final images = await host.getAllImageRows();
@@ -88,7 +88,7 @@ Stream<List<db.CapturedImage>> pollHostImageRows(HostImageRecords host) =>
 /// shared prevents reports and live history surfaces from quietly diverging
 /// once an installation has accumulated more than one response page.
 Future<List<RemoteSequenceRun>> fetchAllRemoteSequenceRuns(
-  NetworkBackend backend, {
+  HostImagingRecords backend, {
   int? sequenceId,
 }) async {
   const pageSize = 1000;

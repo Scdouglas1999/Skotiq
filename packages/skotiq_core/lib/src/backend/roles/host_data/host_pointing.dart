@@ -1,13 +1,13 @@
-
 /// Pointing requests a client sends to a linked imaging host.
+///
+/// The remote half of a feature whose local half is a service or DAO in this
+/// process; reached through `backend.remoteHost`, which is null locally.
 abstract interface class HostPointing {
-  /// Push a framing target to the imaging host (Plan Tonight handoff).
   Future<void> framingSetTarget({
     required double ra,
     required double dec,
     required String name,
   });
 
-  /// Slew to target coordinates
   Future<void> slewToTarget(double ra, double dec);
 }

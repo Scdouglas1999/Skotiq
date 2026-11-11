@@ -2,9 +2,9 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/ffi_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/backend/host_mutation_event.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'host_mutation_event_provider.dart';
 import 'remote_sync_handler.dart';
@@ -33,7 +33,7 @@ final hostLocalSyncProvider = Provider<void>((ref) {
     teardown();
 
     final backend = ref.read(diagnosticsBackendProvider);
-    if (backend is! FfiBackend) {
+    if (!backend.ownsDeviceBridge) {
       return;
     }
 

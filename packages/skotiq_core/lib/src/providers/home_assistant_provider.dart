@@ -16,11 +16,11 @@ import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
 import '../models/backend/host_mutation_event.dart';
 import '../models/notification/transport_configs.dart';
 import '../services/home_assistant/home_assistant_discovery_config.dart';
 import '../services/home_assistant/home_assistant_discovery_service.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'notification_router_provider.dart';
@@ -106,7 +106,8 @@ class HomeAssistantHostSettings {
 final remoteHomeAssistantHostSettingsProvider =
     FutureProvider.autoDispose<HomeAssistantHostSettings?>((ref) async {
       final backend = ref.watch(backendProvider);
-      if (backend is! NetworkBackend) return null;
+      final remote = backend.remoteHost?.rigSettings;
+      if (remote == null) return null;
       final subscription = backend.eventStream.listen((event) {
         if (event.eventType == hostStateChangedEventType &&
             event.data['entityType'] == HostMutationEntity.settings &&
@@ -115,7 +116,7 @@ final remoteHomeAssistantHostSettingsProvider =
         }
       });
       ref.onDispose(subscription.cancel);
-      return backend.getHomeAssistantHostSettings();
+      return remote.getHomeAssistantHostSettings();
     });
 
 /// The discovery service singleton. Config changes (this feature's own

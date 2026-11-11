@@ -115,7 +115,7 @@ const kRemotePreviewMaxWidth = 2560;
 /// latest frame, but we never stack redundant network round-trips either.
 class _RemoteFrameFetchState {
   bool inFlight = false;
-  NetworkBackend? pendingBackend;
+  SkotiqBackend? pendingBackend;
   HostFrameHint? hint;
 }
 
@@ -160,13 +160,13 @@ final Expando<_RemoteFrameFetchState> _remoteFrameFetchStates =
 /// its histogram/stats) updates during a host-run sequence.
 ///
 /// Reuses the exact remoted path the Camera tab uses
-/// ([NetworkBackend.cameraGetLastImage] → JPEG wire), builds the same
+/// (the host's last camera image as a JPEG), builds the same
 /// [CapturedImageData] shape via [capturedImageDataFromResult], and hands it to
 /// the shared [CapturePreviewPublisher] so the remote source tag and background
 /// raw-pixel load behave identically to a local capture.
 Future<void> _publishRemoteCurrentFrame(
   Object reader,
-  NetworkBackend backend,
+  SkotiqBackend backend,
 ) async {
   if (!_isCurrentRemoteBackend(reader, backend)) return;
   final fetchState = _remoteFrameFetchStates[reader] ??=
@@ -189,7 +189,9 @@ Future<void> _publishRemoteCurrentFrame(
       return;
     }
 
-    final result = await backend.cameraGetLastImage(
+    final mirror = backend.remoteHost?.runtimeMirror;
+    if (mirror == null) return;
+    final result = await mirror.cameraGetLastImage(
       deviceId,
       maxWidth: kRemotePreviewMaxWidth,
     );

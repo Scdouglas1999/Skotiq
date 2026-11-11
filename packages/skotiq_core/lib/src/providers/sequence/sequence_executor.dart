@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/network_backend.dart';
+import '../../backend/remote_host.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/sequence/active_plan_owner.dart';
 import '../../models/sequence/sequence_models.dart';
@@ -342,8 +342,9 @@ class SequenceExecutor {
     _acquireLaunchLatch();
     try {
       final backend = _backend;
-      if (backend is NetworkBackend) {
-        await _startOnHost(backend);
+      final host = backend.remoteHost;
+      if (host != null) {
+        await _startOnHost(backend, host);
         return;
       }
       final sequence = _ref.read(currentSequenceProvider);
@@ -447,51 +448,54 @@ class SequenceExecutor {
   /// sees into the host's editor and asks the host to start it, which runs the
   /// host's own pre-flight and records. A plan restored from the host's
   /// checkpoint is already in the host's executor and is started as it is.
-  Future<void> _startOnHost(NetworkBackend host) async {
+  Future<void> _startOnHost(SkotiqBackend backend, RemoteHost host) async {
     if (!_hostRestoreAwaitingStart) {
       final sequence = _ref.read(currentSequenceProvider);
       if (sequence == null) throw _noSequenceLoaded();
-      await host.putOpenEditorSequence(
+      await host.runState.putOpenEditorSequence(
         _ref.read(sequenceFileServiceProvider).sequenceToMap(sequence),
         databaseId: sequence.databaseId,
         isDirty: _ref.read(currentSequenceProvider.notifier).isDirty,
       );
     }
-    await host.sequencerStart();
+    await backend.sequencerStart();
     if (_hostRestoreAwaitingStart) {
       _hostRestoreAwaitingStart = false;
       _ref.read(restoredCheckpointProvider.notifier).state = null;
     }
     _logger.info(
-      'Started the run on the imaging host ${host.serverHost}',
+      'Started the run on the imaging host ${host.link.serverHost}',
       source: 'SequenceExecutor',
     );
-    await _reflectHostRunState(host);
+    await _reflectHostRunState(backend);
   }
 
   /// Stop the run on the imaging host through the host's own executor, which
   /// finalizes its run and session records.
   Future<void> _stopOnHost(
-    NetworkBackend host, {
+    SkotiqBackend backend,
+    RemoteHost host, {
     required bool preserveCheckpoint,
   }) async {
     final before = _ref.read(sequenceExecutionStateProvider);
     if (!before.canStop) return;
     _setExecutionState(SequenceExecutionState.stopping);
     try {
-      await host.sequencerStopOnHost(preserveCheckpoint: preserveCheckpoint);
+      await host.runState.sequencerStopOnHost(
+        preserveCheckpoint: preserveCheckpoint,
+      );
     } catch (_) {
       _setExecutionState(before);
       rethrow;
     }
-    await _reflectHostRunState(host);
+    await _reflectHostRunState(backend);
   }
 
   /// Show the host's run state at once rather than after the next mirrored
   /// event. A failed read leaves the state to the event mirror.
-  Future<void> _reflectHostRunState(NetworkBackend host) async {
+  Future<void> _reflectHostRunState(SkotiqBackend backend) async {
     try {
-      final status = await host.sequencerGetStatus();
+      final status = await backend.sequencerGetStatus();
       final state = switch (status.state.toLowerCase()) {
         'running' => SequenceExecutionState.running,
         'paused' || 'recovering' => SequenceExecutionState.paused,
@@ -1611,8 +1615,9 @@ class SequenceExecutor {
   Future<void> stop({bool preserveCheckpoint = false, String? origin}) {
     _ensureBackendAuthority();
     final backend = _backend;
-    if (backend is NetworkBackend) {
-      return _stopOnHost(backend, preserveCheckpoint: preserveCheckpoint);
+    final host = backend.remoteHost;
+    if (host != null) {
+      return _stopOnHost(backend, host, preserveCheckpoint: preserveCheckpoint);
     }
     // Join an in-flight finalization — a natural terminal, another stop(), or a
     // rollback: the caller observes the SAME outcome, and native stop + cleanup
@@ -1900,7 +1905,7 @@ class SequenceExecutor {
     _acquireLaunchLatch();
     try {
       final backend = _backend;
-      if (backend is NetworkBackend) {
+      if (backend.remoteHost != null) {
         // The host restores its own checkpoint into its executor and editor;
         // the next start continues it there.
         await backend.resumeFromCheckpoint();

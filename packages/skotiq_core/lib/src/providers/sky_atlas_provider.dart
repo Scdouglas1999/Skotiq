@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/remote_host.dart';
-import '../backend/roles/host_data/host_sky_atlas.dart';
 import '../backend/skotiq_backend.dart';
 import '../database/daos/sky_atlas_dao.dart';
 import '../database/database.dart';
@@ -106,7 +105,7 @@ final skyAtlasRegionWriterProvider = Provider<SkyAtlasRegionWriter>((ref) {
   if (remote != null) {
     return SkyAtlasRegionWriter.remote(remote);
   }
-  if (backend.isImagingHost) {
+  if (backend.ownsDeviceBridge) {
     return SkyAtlasRegionWriter.local(ref.watch(skyAtlasServiceProvider));
   }
   return const SkyAtlasRegionWriter.unavailable();

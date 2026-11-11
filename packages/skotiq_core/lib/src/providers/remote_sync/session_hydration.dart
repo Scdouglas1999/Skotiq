@@ -17,10 +17,12 @@ part of '../remote_sync_handler.dart';
 /// BackendReconnected, after which frames may have been missed, fetch it.
 Future<void> hydrateRemoteSessionState(
   Object reader,
-  NetworkBackend backend, {
+  SkotiqBackend backend, {
   bool refreshCurrentFrame = true,
 }) async {
   if (!_isCurrentRemoteBackend(reader, backend)) return;
+  final host = backend.remoteHost;
+  if (host == null) return;
   final status = await backend.sequencerGetStatus();
   if (!_isCurrentRemoteBackend(reader, backend)) return;
   _applySequencerStatus(reader, status);
@@ -45,7 +47,7 @@ Future<void> hydrateRemoteSessionState(
 
   // Start at dark is held by the host; mirror what it has scheduled.
   try {
-    final scheduled = await backend.hostScheduledStart();
+    final scheduled = await host.runState.hostScheduledStart();
     if (!_isCurrentRemoteBackend(reader, backend)) return;
     _read(reader, hostScheduledStartProvider.notifier).state = scheduled;
   } catch (_) {
@@ -54,7 +56,7 @@ Future<void> hydrateRemoteSessionState(
 
   // The end-of-night calibration runs on the host; mirror where it stands.
   try {
-    final status = await backend.hostEndOfNightStatus();
+    final status = await host.runState.hostEndOfNightStatus();
     if (!_isCurrentRemoteBackend(reader, backend)) return;
     _read(reader, hostEndOfNightStatusProvider.notifier).state = status;
   } catch (_) {
@@ -65,7 +67,7 @@ Future<void> hydrateRemoteSessionState(
   if (_read(reader, cameraStateProvider).connectionState ==
       DeviceConnectionState.connected) {
     try {
-      final warming = await backend.cameraHostIsWarming();
+      final warming = await host.devices.cameraHostIsWarming();
       if (!_isCurrentRemoteBackend(reader, backend)) return;
       _read(reader, cameraStateProvider.notifier).setWarming(warming);
     } catch (_) {
@@ -126,7 +128,7 @@ Future<void> hydrateRemoteSessionState(
 
   // Settings parity at first connect must not wait for the 10s poll: force a
   // re-pull of appSettingsProvider (its build() re-fetches backend.getSettings
-  // in NetworkBackend mode). No-op cost on the host (settings are local there;
+  // on a linked client). No-op cost on the host (settings are local there;
   // hydration only runs on the slave / on BackendReconnected).
   _invalidate(reader, appSettingsProvider);
 
@@ -144,12 +146,12 @@ Future<void> hydrateRemoteSessionState(
   // HostMutationEntity.framing path instead.
 
   _invalidateEquipmentSyncProviders(reader);
-  backend.invalidateDeviceCache();
+  host.runtimeMirror.invalidateDeviceCache();
   _invalidate(reader, savedSequencesProvider);
   _invalidate(reader, savedSequenceSummariesProvider);
 
   // Mirror the host's autopilot pick on connect (and each 30s re-hydrate): in
-  // NetworkBackend mode schedulerPreviewDecisionProvider re-fetches GET
+  // linked mode schedulerPreviewDecisionProvider re-fetches GET
   // /api/scheduler/preview, so the slave's autopilot banner shows the host's
   // real "what the rig would slew to next" instead of recomputing "nothing
   // eligible" against the slave's empty local catalog.
@@ -158,20 +160,20 @@ Future<void> hydrateRemoteSessionState(
   // Refresh the host-mirrored planner/scheduler DATA streams on connect (and
   // each 30s re-hydrate) so the slave's Projects tab, integration-goal editor,
   // and target-constraint editor show the host's rows immediately rather than
-  // waiting out their first poll tick. In NetworkBackend mode these providers
+  // waiting out their first poll tick. On a linked client these providers
   // re-fetch GET /api/projects, /api/integration-goals, /api/target-constraints.
   _invalidate(reader, projectListProvider);
   _invalidate(reader, integrationGoalsStreamProvider);
   _invalidate(reader, targetConstraintsStreamProvider);
 
-  // Run-history parity on connect: in NetworkBackend mode sequenceRunsProvider
+  // Run-history parity on connect: on a linked client sequenceRunsProvider
   // polls GET /api/sequence-runs. Invalidating restarts that poll so the
   // dashboard "Last night" recap, cockpit Morning Report, and the sequencer
   // History tab show the master's real run history immediately instead of
   // waiting out the first poll tick (or, before this branch, rendering empty).
   _invalidate(reader, sequenceRunsProvider);
 
-  // Observing-lists parity on connect: in NetworkBackend mode these providers
+  // Observing-lists parity on connect: on a linked client these providers
   // re-poll GET /api/observing-lists (and the listed-catalog-ids markers), so
   // the slave's planetarium Lists tab, the "add to list" pickers, and the
   // star-chart list markers show the master's curated lists immediately rather
@@ -236,7 +238,7 @@ void _dropDevicesTheHostNoLongerReports(
 /// slow device never blanks a card.
 Future<void> _hydrateDeviceTelemetry(
   Object reader,
-  NetworkBackend backend,
+  SkotiqBackend backend,
   List<DeviceInfo> devices,
 ) async {
   String? idFor(DeviceType type) =>
@@ -421,10 +423,12 @@ Future<void> _hydrateDeviceTelemetry(
 
 /// Fill an empty event log with the host's recent events. Only into an empty
 /// history, so nothing is added twice.
-Future<void> seedEventLogFromHost(Object reader, NetworkBackend backend) async {
+Future<void> seedEventLogFromHost(Object reader, SkotiqBackend backend) async {
   if (_read(reader, eventHistoryProvider).isNotEmpty) return;
+  final runState = backend.remoteHost?.runState;
+  if (runState == null) return;
   try {
-    final events = await backend.getHostRecentEvents();
+    final events = await runState.getHostRecentEvents();
     if (!_isCurrentRemoteBackend(reader, backend)) return;
     final typed = [
       for (final event in events.reversed) ?tryBridgeEventFromCoreEvent(event),

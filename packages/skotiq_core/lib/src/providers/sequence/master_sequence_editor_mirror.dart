@@ -8,6 +8,7 @@ import '../../models/backend/host_mutation_event.dart';
 import '../../models/sequence/sequence_models.dart';
 import '../../services/logging_service.dart';
 import '../../services/sequence_file_service.dart';
+import '../../backend/remote_host.dart';
 import '../backend_provider.dart';
 import '../host_mutation_event_provider.dart' show hostMutationEventHubProvider;
 import '../settings_provider.dart' show appSettingsProvider, AppSettingsState;
@@ -52,7 +53,7 @@ final masterSequenceEditorMirrorProvider = Provider<void>((ref) {
 
   bool isServingMaster() {
     final backend = ref.read(backendProvider);
-    if (backend is! FfiBackend) return false;
+    if (!backend.ownsDeviceBridge) return false;
     return remoteAccessServing(ref);
   }
 
@@ -125,7 +126,7 @@ final masterSequenceEditorMirrorProvider = Provider<void>((ref) {
   // Backend may flip (e.g. server toggled on/off); clear any pending push when
   // the instance is no longer a serving master so we don't emit stale frames.
   ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
-    if (next is! FfiBackend) {
+    if (!next.ownsDeviceBridge) {
       debounce?.cancel();
       debounce = null;
     }

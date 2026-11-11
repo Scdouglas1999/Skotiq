@@ -5,7 +5,7 @@ import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/network_backend.dart';
+import '../../backend/remote_host.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/backend/host_runtime_update.dart';
 import '../../services/logging_service.dart';
@@ -60,7 +60,7 @@ final clientRuntimeMirrorStateProvider = Provider<ClientRuntimeMirrorState>(
 void applyHostRuntimeUpdate(
   Object reader,
   HostRuntimeUpdate update, {
-  required NetworkBackend networkBackend,
+  required SkotiqBackend networkBackend,
 }) {
   final channel = runtimeChannelFor(
     readProvider(reader, runtimeMirrorChannelsProvider),
@@ -95,9 +95,11 @@ void applyHostRuntimeUpdate(
 /// unchanged channel a no-op.
 Future<void> hydrateHostRuntimeState(
   Object reader,
-  NetworkBackend backend,
+  SkotiqBackend backend,
 ) async {
-  final updates = await backend.getHostRuntimeState();
+  final mirror = backend.remoteHost?.runtimeMirror;
+  if (mirror == null) return;
+  final updates = await mirror.getHostRuntimeState();
   if (!identical(readProvider(reader, backendProvider), backend)) return;
   for (final update in updates) {
     applyHostRuntimeUpdate(reader, update, networkBackend: backend);
@@ -126,7 +128,7 @@ final clientRuntimeReporterProvider = Provider<void>((ref) {
 
   final lastSent = <String, String>{};
 
-  void send(NetworkBackend backend, RuntimeMirrorChannel<Object?> channel) {
+  void send(SkotiqBackend backend, RuntimeMirrorChannel<Object?> channel) {
     if (!identical(ref.read(backendProvider), backend)) return;
     final Map<String, dynamic>? value;
     try {
@@ -143,8 +145,10 @@ final clientRuntimeReporterProvider = Provider<void>((ref) {
     final encoded = jsonEncode(value);
     if (lastSent[channel.key] == encoded) return;
     lastSent[channel.key] = encoded;
+    final mirror = backend.remoteHost?.runtimeMirror;
+    if (mirror == null) return;
     unawaited(
-      backend
+      mirror
           .reportRuntimeState(
             channel: channel.key,
             value: value,
@@ -164,7 +168,7 @@ final clientRuntimeReporterProvider = Provider<void>((ref) {
   void bind(SkotiqBackend backend) {
     teardown();
     lastSent.clear();
-    if (backend is! NetworkBackend) return;
+    if (backend.remoteHost == null) return;
     final mirrorState = ref.read(clientRuntimeMirrorStateProvider)..reset();
     for (final channel in ref.read(runtimeMirrorChannelsProvider)) {
       if (!channel.clientReports) continue;

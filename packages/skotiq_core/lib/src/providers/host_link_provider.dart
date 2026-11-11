@@ -2,17 +2,18 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../backend/remote_host.dart';
 import '../backend/network_backend.dart';
 import 'backend_provider.dart';
 
 /// The link to the imaging host this app controls, as it changes; null when
 /// this app is not a remote client.
 final hostLinkStateProvider = StreamProvider<BackendConnectionState?>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is! NetworkBackend) return Stream.value(null);
+  final link = ref.watch(backendProvider).remoteHost?.link;
+  if (link == null) return Stream.value(null);
   return () async* {
-    yield backend.connectionState;
-    yield* backend.connectionStateStream;
+    yield link.connectionState;
+    yield* link.connectionStateStream;
   }();
 });
 
@@ -23,14 +24,14 @@ final hostLinkStateProvider = StreamProvider<BackendConnectionState?>((ref) {
 /// While it is set, every host value this app shows is the last one it heard,
 /// not a live reading.
 final hostLinkLostProvider = Provider<String?>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is! NetworkBackend) return null;
+  final link = ref.watch(backendProvider).remoteHost?.link;
+  if (link == null) return null;
   final state =
-      ref.watch(hostLinkStateProvider).valueOrNull ?? backend.connectionState;
+      ref.watch(hostLinkStateProvider).valueOrNull ?? link.connectionState;
   return switch (state) {
     BackendConnectionState.reconnecting ||
     BackendConnectionState.disconnected ||
-    BackendConnectionState.error => backend.serverHost,
+    BackendConnectionState.error => link.serverHost,
     BackendConnectionState.connecting ||
     BackendConnectionState.connected => null,
   };
@@ -43,7 +44,7 @@ const Duration hostAnswerStaleAfter = Duration(seconds: 10);
 
 /// Whole seconds the host has gone without answering, or null while it is
 /// answering within [hostAnswerStaleAfter].
-int? unansweredSecondsFor(NetworkBackend backend) {
+int? unansweredSecondsFor(HostLink backend) {
   final age = backend.unansweredPingAge;
   if (age == null || age < hostAnswerStaleAfter) return null;
   return age.inSeconds;
@@ -58,10 +59,10 @@ int? unansweredSecondsFor(NetworkBackend backend) {
 /// closed. While it is set, every host value this app shows is the last one
 /// it heard, not a live reading.
 final hostUnansweredSecondsProvider = StreamProvider<int?>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is! NetworkBackend) return Stream.value(null);
-  int? read() => backend.connectionState == BackendConnectionState.connected
-      ? unansweredSecondsFor(backend)
+  final link = ref.watch(backendProvider).remoteHost?.link;
+  if (link == null) return Stream.value(null);
+  int? read() => link.connectionState == BackendConnectionState.connected
+      ? unansweredSecondsFor(link)
       : null;
   final controller = StreamController<int?>();
   var last = read();

@@ -1,19 +1,15 @@
 import 'package:skotiq_core/skotiq_core.dart';
 
 /// The notes journal of a linked imaging host.
+///
+/// The remote half of a feature whose local half is a service or DAO in this
+/// process; reached through `backend.remoteHost`, which is null locally.
 abstract interface class HostNotes {
-  /// GET /api/db/notes?targetId=&runId=
-  ///
-  /// The operator's per-target / per-run journal notes (the `notes_journal`
-  /// table). Distinct from [fetchNotesJournal], which despite its name serves
-  /// the `observation_logs` table. With no filter it returns every note;
-  /// [targetId] / [runId] scope it for the family providers.
   Future<RemotePage<RemoteJournalNote>> fetchJournalNotes({
     String? targetId,
     int? runId,
   });
 
-  /// POST /api/db/notes
   Future<RemoteJournalNote> createJournalNote({
     required String targetId,
     int? sequenceRunId,
@@ -24,7 +20,6 @@ abstract interface class HostNotes {
     String? sentiment,
   });
 
-  /// PUT `/api/db/notes/<id>`
   Future<RemoteJournalNote> updateJournalNote(
     String id, {
     String? body,
@@ -36,6 +31,5 @@ abstract interface class HostNotes {
     bool clearSentiment = false,
   });
 
-  /// DELETE `/api/db/notes/<id>`
   Future<void> deleteJournalNote(String id);
 }
