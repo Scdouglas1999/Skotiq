@@ -68,8 +68,6 @@ use ffi::*;
 pub use filter_wheel::*;
 pub use sdk::*;
 
-// Cooler state tracking
-
 /// Cooler state tracked at the driver level.
 ///
 /// The POA SDK does not provide a guaranteed-to-succeed read-back for the

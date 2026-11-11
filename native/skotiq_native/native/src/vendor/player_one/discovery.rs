@@ -2,7 +2,6 @@
 
 use super::*;
 
-/// Player One camera discovery info
 pub struct PlayerOneCameraInfo {
     pub camera_id: i32,
     pub name: String,
@@ -14,12 +13,10 @@ pub struct PlayerOneCameraInfo {
     pub sdk_version: Option<String>,
 }
 
-/// Check if Player One SDK is available
 pub fn is_sdk_available() -> bool {
     PoaSdk::is_available()
 }
 
-/// Discover Player One cameras
 pub async fn discover_devices() -> Result<Vec<PlayerOneCameraInfo>, DriverError> {
     // An unavailable SDK means no cameras; otherwise hold the lock for the scan.
     let sdk = match PoaSdk::lock().await {
@@ -46,7 +43,6 @@ pub async fn discover_devices() -> Result<Vec<PlayerOneCameraInfo>, DriverError>
                     .to_string()
             };
 
-            // Extract serial number
             // SAFETY: SDK populated `info` on success; `sn` is a 64-byte `[c_char; 64]` field with NUL-termination guarantee from POA SDK.
             let serial_number = unsafe {
                 let sn = CStr::from_ptr(info.sn.as_ptr())
@@ -59,7 +55,6 @@ pub async fn discover_devices() -> Result<Vec<PlayerOneCameraInfo>, DriverError>
                 }
             };
 
-            // Extract user custom ID (if set by user)
             // SAFETY: SDK populated `info` on success; `user_custom_id` is a 16-byte `[c_char; 16]` field with NUL-termination guarantee from POA SDK.
             let user_custom_id = unsafe {
                 let custom_id = CStr::from_ptr(info.user_custom_id.as_ptr())

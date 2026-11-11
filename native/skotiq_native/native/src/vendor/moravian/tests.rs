@@ -24,8 +24,6 @@ async fn moravian_gain_write_reports_not_supported_without_mutating_cache() {
     assert_eq!(camera.current_gain, 11);
 }
 
-// ROI / bin math
-
 #[test]
 pub(crate) fn full_frame_roi_has_zero_origin_and_full_binned_size() {
     // Full frame (no subframe): origin (0,0), y-flip collapses to fy=0.
@@ -109,8 +107,6 @@ pub(crate) fn roi_rejects_zero_binning() {
     assert!(compute_binned_roi(100, 100, 1, 0, None).is_err());
 }
 
-// Orientation
-
 #[test]
 pub(crate) fn mirror_vertical_reverses_row_order() {
     // width=2, height=3: rows [0,1] [2,3] [4,5] -> [4,5] [2,3] [0,1].
@@ -145,8 +141,6 @@ pub(crate) fn mirror_vertical_ignores_undersized_buffer() {
     assert_eq!(buf, vec![1, 2, 3]);
 }
 
-// Bayer phase
-
 #[test]
 pub(crate) fn native_bayer_phase_table() {
     assert_eq!(native_bayer(false, false), BayerPattern::Rggb);
@@ -174,8 +168,6 @@ pub(crate) fn flip_bayer_vertical_is_involutive() {
         assert_eq!(flip_bayer_vertical(flip_bayer_vertical(p)), p);
     }
 }
-
-// Gain / offset bounds
 
 /// The gX SDK publishes no gain bounds and the range differs between the CCD
 /// and CMOS model lines, so the driver reports the absence.
