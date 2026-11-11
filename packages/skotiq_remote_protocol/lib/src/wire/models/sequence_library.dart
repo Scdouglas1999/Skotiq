@@ -5,8 +5,8 @@ library;
 import '../json_fields.dart';
 
 /// One saved sequence in `GET /api/sequence-management/summaries`.
-class SequenceSummaryDto {
-  const SequenceSummaryDto({
+class RemoteSequenceSummary {
+  const RemoteSequenceSummary({
     required this.id,
     required this.name,
     required this.nodeCount,
@@ -22,7 +22,7 @@ class SequenceSummaryDto {
     this.lastRunAt,
   });
 
-  factory SequenceSummaryDto.fromJson(Map<String, dynamic> json) {
+  factory RemoteSequenceSummary.fromJson(Map<String, dynamic> json) {
     const context = 'sequence-summary row';
     final runCount = requiredInt(json, 'runCount', context, min: 0);
     final lastRunAt = optionalDate(json, 'lastRunAt', context);
@@ -38,7 +38,7 @@ class SequenceSummaryDto {
         'sequence-summary row modifiedAt precedes createdAt',
       );
     }
-    return SequenceSummaryDto(
+    return RemoteSequenceSummary(
       id: requiredInt(json, 'id', context, min: 1),
       name: requiredString(json, 'name', context),
       nodeCount: requiredInt(json, 'nodeCount', context, min: 0),
@@ -92,17 +92,17 @@ class SequenceSummaryDto {
 }
 
 /// A saved version of a sequence, without its snapshot.
-class SequenceVersionSummaryDto {
-  const SequenceVersionSummaryDto({
+class RemoteSequenceVersionSummary {
+  const RemoteSequenceVersionSummary({
     required this.id,
     required this.sequenceId,
     required this.createdAt,
     this.label,
   });
 
-  factory SequenceVersionSummaryDto.fromJson(Map<String, dynamic> json) {
+  factory RemoteSequenceVersionSummary.fromJson(Map<String, dynamic> json) {
     const context = 'sequence-version summary row';
-    return SequenceVersionSummaryDto(
+    return RemoteSequenceVersionSummary(
       id: requiredInt(json, 'id', context, min: 1),
       sequenceId: requiredInt(json, 'sequenceId', context, min: 1),
       label: optionalString(json, 'label', context, allowEmpty: true),
@@ -124,8 +124,8 @@ class SequenceVersionSummaryDto {
 }
 
 /// A saved version of a sequence with the serialized sequence it holds.
-class SequenceVersionDto extends SequenceVersionSummaryDto {
-  const SequenceVersionDto({
+class RemoteSequenceVersion extends RemoteSequenceVersionSummary {
+  const RemoteSequenceVersion({
     required super.id,
     required super.sequenceId,
     required this.snapshotJson,
@@ -133,9 +133,9 @@ class SequenceVersionDto extends SequenceVersionSummaryDto {
     super.label,
   });
 
-  factory SequenceVersionDto.fromJson(Map<String, dynamic> json) {
+  factory RemoteSequenceVersion.fromJson(Map<String, dynamic> json) {
     const context = 'sequence-version row';
-    return SequenceVersionDto(
+    return RemoteSequenceVersion(
       id: requiredInt(json, 'id', context, min: 1),
       sequenceId: requiredInt(json, 'sequenceId', context, min: 1),
       snapshotJson: requiredString(json, 'snapshotJson', context),

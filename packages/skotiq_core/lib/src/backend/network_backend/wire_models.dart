@@ -733,10 +733,3 @@ DateTime? _parseDateField(Object? raw) {
   if (raw is! String) return null;
   return DateTime.tryParse(raw);
 }
-
-// Wire types for the read-only DB endpoints. All endpoints use the
-// same `{items, total}` envelope, captured by [RemotePage<T>] so callers
-// see one consistent paginated shape regardless of underlying table.
-
-/// Generic envelope for paginated `GET` endpoints. `items` is the page
-/// content; `total` is the unpaginated row count matching the filter.

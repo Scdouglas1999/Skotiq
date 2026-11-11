@@ -31,6 +31,9 @@ import 'skotiq_exception.dart'
 import '../providers/host_scheduled_start_provider.dart'
     show parseHostScheduledStart;
 
+// The rows the host writes and this client reads.
+export 'package:skotiq_remote_protocol/wire_models.dart';
+
 part 'network_backend/remote_operations.dart';
 part 'network_backend/remote_calibration_catalog_operations.dart';
 part 'network_backend/remote_database_plugin_operations.dart';

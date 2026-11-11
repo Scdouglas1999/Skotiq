@@ -61,7 +61,7 @@ void main() {
   });
 
   group('sequence library rows', () {
-    final summary = SequenceSummaryDto(
+    final summary = RemoteSequenceSummary(
       id: 3,
       name: 'M31 LRGB',
       nodeCount: 12,
@@ -77,7 +77,7 @@ void main() {
     );
 
     test('what the host writes is what a client reads', () {
-      final read = SequenceSummaryDto.fromJson(summary.toJson());
+      final read = RemoteSequenceSummary.fromJson(summary.toJson());
       expect(read.toJson(), summary.toJson());
       expect(summary.toJson().keys, [
         'id',
@@ -95,25 +95,25 @@ void main() {
         'modifiedAt',
       ]);
 
-      final version = SequenceVersionDto(
+      final version = RemoteSequenceVersion(
         id: 9,
         sequenceId: 3,
         snapshotJson: '{}',
         createdAt: DateTime.utc(2026, 11, 1),
       );
       expect(
-        SequenceVersionDto.fromJson(version.toJson()).toJson(),
+        RemoteSequenceVersion.fromJson(version.toJson()).toJson(),
         version.toJson(),
       );
       expect(
-        SequenceVersionSummaryDto.fromJson(version.toJson()).label,
+        RemoteSequenceVersionSummary.fromJson(version.toJson()).label,
         isNull,
       );
     });
 
     test('a row that contradicts itself is refused', () {
       final json = summary.toJson()..['lastRunAt'] = null;
-      expect(() => SequenceSummaryDto.fromJson(json), throwsFormatException);
+      expect(() => RemoteSequenceSummary.fromJson(json), throwsFormatException);
     });
   });
 }
