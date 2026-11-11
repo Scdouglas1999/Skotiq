@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import '../backend/skotiq_backend.dart';
 import '../models/plate_solver.dart' as ps_model;
+import '../providers/async_scope.dart';
 import '../providers/backend_provider.dart';
 import '../providers/profiles_provider.dart' show opticalConfigProvider;
 import '../providers/settings_provider.dart';
@@ -118,17 +119,16 @@ class _SolverProcessResult {
 /// Plate solve service
 class PlateSolveService {
   final Ref _ref;
-  final SkotiqBackend _backend;
+  final AsyncScope<SkotiqBackend> _host;
   final StateController<PlateSolveState> _stateController;
   bool _solveInFlight = false;
   Completer<void>? _solveFinished;
-  bool _retired = false;
 
   /// The background solve running now, if any (see [solveInBackground]).
   Future<PlateSolveResult>? _backgroundSolve;
 
-  PlateSolveService(this._ref, {SkotiqBackend? backend})
-    : _backend = backend ?? _ref.read(backendProvider),
+  PlateSolveService(this._ref)
+    : _host = _ref.providerBackendScope(),
       _stateController = _ref.read(plateSolveStateProvider.notifier);
 
   /// Test seam: parse an ASTAP `.wcs` sidecar. Pins the unit contract
@@ -205,12 +205,9 @@ class PlateSolveService {
     }
   }
 
-  bool get _hasAuthority =>
-      !_retired && identical(_ref.read(backendProvider), _backend);
+  bool get _hasAuthority => _host.isCurrent;
 
   void retire() {
-    if (_retired) return;
-    _retired = true;
     _solveInFlight = false;
     _stateController.state = const PlateSolveState();
   }
@@ -221,7 +218,7 @@ class PlateSolveService {
   ) async {
     try {
       // Use backend's plateSolve - works for both local (FFI) and remote (Network)
-      return await _backend.plateSolve(
+      return await _host.value.plateSolve(
         imagePath: imagePath,
         // PlateSolverConfig is app-canonical HOURS; the native bridge and
         // sequencer DeviceOps contract take solver hints in DEGREES.
@@ -235,7 +232,7 @@ class PlateSolveService {
       // path and image path are not meaningful on the remote client, so a
       // transport/backend failure must be surfaced instead of trying to spawn
       // that binary on the phone's local filesystem.
-      if (_backend.remoteHost != null) {
+      if (_host.value.remoteHost != null) {
         return _failureResult('Remote host plate solve failed: $e');
       }
 
@@ -656,7 +653,7 @@ class PlateSolveService {
   Future<ps_model.PlateSolverDetection> detect() async {
     final logging = _ref.read(loggingServiceProvider);
     try {
-      return await _backend.detectPlateSolvers();
+      return await _host.value.detectPlateSolvers();
     } catch (e) {
       logging.error(
         'plate-solver detection failed: $e',
@@ -675,7 +672,7 @@ class PlateSolveService {
   Future<ps_model.PlateSolverInfo> verify(String executablePath) async {
     final logging = _ref.read(loggingServiceProvider);
     try {
-      return await _backend.verifyPlateSolver(executablePath);
+      return await _host.value.verifyPlateSolver(executablePath);
     } catch (e) {
       logging.warning(
         'plate-solver verify failed for $executablePath: $e',
@@ -691,7 +688,7 @@ class PlateSolveService {
   /// Routed through the backend so the phone reads the HOST's persisted
   /// config rather than its own.
   Future<ps_model.PlateSolverPreference> getConfig() async {
-    return _backend.getPlateSolverConfig();
+    return _host.value.getPlateSolverConfig();
   }
 
   /// Persist plate-solver UX configuration. Invalidates the solver-
@@ -701,7 +698,7 @@ class PlateSolveService {
   /// Routed through the backend so the phone writes config to the HOST (the
   /// machine that actually runs the solver), not to the phone.
   Future<void> setConfig(ps_model.PlateSolverPreference pref) async {
-    await _backend.setPlateSolverConfig(pref);
+    await _host.value.setPlateSolverConfig(pref);
   }
 
   /// Validate the selected solver before callers capture an image or move
@@ -881,7 +878,7 @@ class PlateSolveService {
     // solver choice. The native host performs Auto's ASTAP→astrometry fallback
     // under its process-wide gate, so issue exactly one backend solve rather
     // than accidentally running ASTAP twice when the first attempt fails.
-    final activeBackend = _backend;
+    final activeBackend = _host.value;
     if (activeBackend.ownsDeviceBridge || activeBackend.remoteHost != null) {
       final executable = switch (pref.choice) {
         ps_model.PlateSolverChoice.astrometry => detection.astrometryPath!,
@@ -971,8 +968,8 @@ class PlateSolveService {
 
 /// Plate solve service provider
 final plateSolveServiceProvider = Provider<PlateSolveService>((ref) {
-  final backend = ref.watch(backendProvider);
-  final service = PlateSolveService(ref, backend: backend);
+  ref.watch(backendProvider);
+  final service = PlateSolveService(ref);
   ref.onDispose(service.retire);
   return service;
 });
