@@ -1,8 +1,6 @@
 part of '../device_service.dart';
 
 extension _DeviceServiceGuidingSequencerControls on DeviceService {
-  // Guiding control
-
   /// Get the live connected guider device ID.
   ///
   /// A profile records configuration, not connection authority. Falling back
@@ -10,7 +8,6 @@ extension _DeviceServiceGuidingSequencerControls on DeviceService {
   /// a disconnect or host/profile transition.
   String? _getGuiderDeviceId() => _connectedDeviceIdFor(DeviceType.guider);
 
-  /// Start guiding
   Future<void> _startGuiding({
     double settlePixels = 1.0,
     double settleTime = 10.0,
@@ -46,7 +43,6 @@ extension _DeviceServiceGuidingSequencerControls on DeviceService {
     }
   }
 
-  /// Stop guiding
   Future<void> _stopGuiding() async {
     final deviceId = _getGuiderDeviceId();
     if (deviceId == null || deviceId.isEmpty) {
@@ -95,8 +91,6 @@ extension _DeviceServiceGuidingSequencerControls on DeviceService {
       );
     }
   }
-
-  // Sequencer control
 
   Future<void> _startSequence() async {
     await _backend.sequencerStart();

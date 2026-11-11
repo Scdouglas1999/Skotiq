@@ -252,7 +252,6 @@ class PassTimeline {
   /// earlier pass, by [PassStage.key].
   Map<String, double> history = const <String, double>{};
 
-  /// Fold [log] into a timeline.
   static PassTimeline fromLog(
     PassLog log, {
     Map<String, double> history = const <String, double>{},

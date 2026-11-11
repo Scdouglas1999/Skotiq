@@ -70,7 +70,6 @@ class DeviceMatchingService {
   List<UnifiedDevice> groupDevices(List<DeviceInfo> allDevices) {
     if (allDevices.isEmpty) return [];
 
-    // Group by device type first
     final byType = <DeviceType, List<DeviceInfo>>{};
     for (final device in allDevices) {
       byType.putIfAbsent(device.deviceType, () => []).add(device);
@@ -78,12 +77,10 @@ class DeviceMatchingService {
 
     final result = <UnifiedDevice>[];
 
-    // Process each device type separately
     for (final entry in byType.entries) {
       final type = entry.key;
       final devices = entry.value;
 
-      // Track which devices have been grouped
       final grouped = <int>{};
 
       for (int i = 0; i < devices.length; i++) {
@@ -92,10 +89,8 @@ class DeviceMatchingService {
         final primary = devices[i];
         final primaryNormalized = normalizeName(primary.name);
 
-        // Start a new group with this device
         final backends = <DriverType, DeviceInfo>{primary.driverType: primary};
 
-        // Find all matching devices
         for (int j = i + 1; j < devices.length; j++) {
           if (grouped.contains(j)) continue;
 
@@ -112,7 +107,6 @@ class DeviceMatchingService {
 
           final candidateNormalized = normalizeName(candidate.name);
 
-          // Check similarity
           final similarity = calculateSimilarity(
             primaryNormalized,
             candidateNormalized,
@@ -129,7 +123,6 @@ class DeviceMatchingService {
 
         grouped.add(i);
 
-        // Create unified device
         result.add(
           UnifiedDevice(
             canonicalName: primaryNormalized,
@@ -154,7 +147,6 @@ class DeviceMatchingService {
     return result;
   }
 
-  /// Normalize a device name for matching
   String normalizeName(String name) {
     var normalized = name.trim();
 
@@ -251,7 +243,6 @@ class DeviceMatchingService {
   /// Extract model number/identifier from a device name
   /// E.g., "ASI294MC Pro" -> "294mcpro", "EQ6-R Pro" -> "eq6rpro"
   String? extractModelNumber(String name) {
-    // Remove spaces and convert to lowercase
     final compact = name.replaceAll(RegExp(r'\s+'), '').toLowerCase();
 
     // Look for common model number patterns
@@ -288,7 +279,6 @@ class DeviceMatchingService {
         );
       }
 
-      // Swap rows
       final temp = previousRow;
       previousRow = currentRow;
       currentRow = temp;
@@ -303,7 +293,6 @@ class DeviceMatchingService {
     if (devices.isEmpty) return 'Unknown Device';
     if (devices.length == 1) return devices.first.name;
 
-    // Score each name
     String best = devices.first.name;
     int bestScore = _scoreDisplayName(best);
 

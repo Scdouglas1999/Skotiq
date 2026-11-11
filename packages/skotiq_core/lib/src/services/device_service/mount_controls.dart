@@ -1,9 +1,6 @@
 part of '../device_service.dart';
 
 extension _DeviceServiceMountControls on DeviceService {
-  // Mount control
-
-  /// Get the currently connected mount device ID.
   Future<String?> _getMountDeviceId() async {
     final mountState = _ref.read(mountStateProvider);
     if (mountState.connectionState == DeviceConnectionState.connected &&
@@ -108,7 +105,6 @@ extension _DeviceServiceMountControls on DeviceService {
 
     await _backend.mountSync(deviceId, ra, dec);
 
-    // Update local state
     final mountNotifier = _ref.read(mountStateProvider.notifier);
     mountNotifier.updatePosition(ra, dec, 0.0, 0.0);
   }
@@ -167,7 +163,6 @@ extension _DeviceServiceMountControls on DeviceService {
     }
   }
 
-  /// Enable or disable mount tracking
   Future<void> _setMountTracking(bool enabled) async {
     final deviceId = await _getMountDeviceId();
     if (deviceId == null || deviceId.isEmpty) {
@@ -179,7 +174,6 @@ extension _DeviceServiceMountControls on DeviceService {
     mountNotifier.setTracking(enabled);
   }
 
-  /// Set mount tracking rate
   Future<void> _setMountTrackingRate(int rate) async {
     final deviceId = await _getMountDeviceId();
     if (deviceId == null || deviceId.isEmpty) {
@@ -188,7 +182,6 @@ extension _DeviceServiceMountControls on DeviceService {
 
     await _backend.mountSetTrackingRate(deviceId, rate);
     final mountNotifier = _ref.read(mountStateProvider.notifier);
-    // Update the state with the new tracking rate
     mountNotifier.setTrackingRate(TrackingRate.values[rate]);
   }
 
@@ -212,7 +205,6 @@ extension _DeviceServiceMountControls on DeviceService {
     mountNotifier.setSlewing(false);
   }
 
-  /// Slew mount to horizontal (alt/az) coordinates
   Future<void> _slewMountToAltAz(double altitude, double azimuth) async {
     final deviceId = await _getMountDeviceId();
     if (deviceId == null || deviceId.isEmpty) {
@@ -326,7 +318,6 @@ extension _DeviceServiceMountControls on DeviceService {
     await _backend.mountSetPark(deviceId);
   }
 
-  /// Pulse guide the mount in a given direction for a duration
   Future<void> _pulseGuidMount({
     required String direction,
     required int durationMs,

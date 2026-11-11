@@ -7,7 +7,6 @@ part of '../calibration_library_service.dart';
 const double _unverifiedDimensionPenalty = 10.0;
 
 extension _CalibrationLibraryMatchers on CalibrationLibraryService {
-
   CalibrationMatch? _matchDark(
     Iterable<CalibrationMasterRecord> darks,
     LightFrameContext ctx,

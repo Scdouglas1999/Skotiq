@@ -245,7 +245,6 @@ extension _DeviceServiceEventHandling on DeviceService {
         _ref.read(mountStateProvider.notifier).setSlewing(false);
         _ref.read(mountStateProvider.notifier).setParked(true);
         _ref.read(mountStateProvider.notifier).setTracking(false);
-        // Smart notification
         _ref
             .read(smartNotificationServiceProvider)
             .showSuccessIfNotOnScreens(
@@ -257,7 +256,6 @@ extension _DeviceServiceEventHandling on DeviceService {
 
       case 'MountUnparked':
         _ref.read(mountStateProvider.notifier).setParked(false);
-        // Smart notification
         _ref
             .read(smartNotificationServiceProvider)
             .showSuccessIfNotOnScreens(

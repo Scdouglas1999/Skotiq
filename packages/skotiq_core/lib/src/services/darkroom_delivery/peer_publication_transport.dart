@@ -31,7 +31,6 @@ import 'delivery_failure.dart';
 
 /// Publishes a job's artifacts for a paired desktop to pull.
 class PeerPublicationTransport implements ArtifactTransport {
-  /// The destination row this transport serves.
   final ArtifactDestination destination;
 
   /// The job whose artifacts are published.

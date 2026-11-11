@@ -45,7 +45,6 @@ extension _DeviceServiceAutofocusControls on DeviceService {
         throw Exception('No focuser connected');
       }
 
-      // Use the connected camera's device ID
       final cameraDeviceId = await _getCameraDeviceId();
       if (cameraDeviceId == null || cameraDeviceId.isEmpty) {
         throw Exception('No camera connected');
@@ -369,7 +368,6 @@ extension _DeviceServiceAutofocusControls on DeviceService {
             .read(focuserBacklashOfferSessionProvider.notifier)
             .noteAutofocusOutcome(focuserId: focuserDeviceId);
 
-        // Smart notification for autofocus completion
         final hfrText = completedResult.bestHfr.toStringAsFixed(2);
         _ref
             .read(smartNotificationServiceProvider)

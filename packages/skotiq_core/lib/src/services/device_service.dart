@@ -72,7 +72,6 @@ part 'device_service/focuser_backlash_calibration.dart';
 part 'device_service/filter_wheel_controls.dart';
 part 'device_service/guiding_sequencer_controls.dart';
 
-/// Extension methods for DriverType display
 extension DriverTypeDisplayExtension on DriverType {
   String get displayName {
     switch (this) {
@@ -647,7 +646,6 @@ class DeviceService {
   Future<SequencerStatus> getSequencerStatus() => _getSequencerStatus();
 }
 
-/// Provider for the device service
 final deviceServiceProvider = Provider<DeviceService>((ref) {
   final backend = ref.watch(backendProvider);
   final service = DeviceService(ref, backend);
@@ -655,44 +653,36 @@ final deviceServiceProvider = Provider<DeviceService>((ref) {
   return service;
 });
 
-/// Provider for available cameras
 final availableCamerasProvider = FutureProvider<List<DeviceInfo>>((ref) {
   return ref.watch(deviceServiceProvider).discoverDevices(DeviceType.camera);
 });
 
-/// Provider for available mounts
 final availableMountsProvider = FutureProvider<List<DeviceInfo>>((ref) {
   return ref.watch(deviceServiceProvider).discoverDevices(DeviceType.mount);
 });
 
-/// Provider for available focusers
 final availableFocusersProvider = FutureProvider<List<DeviceInfo>>((ref) {
   return ref.watch(deviceServiceProvider).discoverDevices(DeviceType.focuser);
 });
 
-/// Provider for available filter wheels
 final availableFilterWheelsProvider = FutureProvider<List<DeviceInfo>>((ref) {
   return ref
       .watch(deviceServiceProvider)
       .discoverDevices(DeviceType.filterWheel);
 });
 
-/// Provider for available guiders
 final availableGuidersProvider = FutureProvider<List<DeviceInfo>>((ref) {
   return ref.watch(deviceServiceProvider).discoverDevices(DeviceType.guider);
 });
 
-/// Provider for available rotators
 final availableRotatorsProvider = FutureProvider<List<DeviceInfo>>((ref) {
   return ref.watch(deviceServiceProvider).discoverDevices(DeviceType.rotator);
 });
 
-/// Provider for available domes
 final availableDomesProvider = FutureProvider<List<DeviceInfo>>((ref) {
   return ref.watch(deviceServiceProvider).discoverDevices(DeviceType.dome);
 });
 
-/// Provider for available weather devices
 final availableWeatherProvider = FutureProvider<List<DeviceInfo>>((ref) {
   return ref.watch(deviceServiceProvider).discoverDevices(DeviceType.weather);
 });
@@ -704,7 +694,6 @@ final availableSafetyMonitorsProvider = FutureProvider<List<DeviceInfo>>((ref) {
       .discoverDevices(DeviceType.safetyMonitor);
 });
 
-/// Provider for available switch devices.
 final availableSwitchesProvider = FutureProvider<List<DeviceInfo>>((ref) {
   return ref.watch(deviceServiceProvider).discoverDevices(DeviceType.switch_);
 });

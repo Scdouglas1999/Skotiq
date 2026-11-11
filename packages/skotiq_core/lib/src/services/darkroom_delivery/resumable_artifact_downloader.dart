@@ -32,13 +32,11 @@ const String kArtifactDownloadSidecarSuffix = '.skotiq-download';
 
 /// One HTTP response, as the downloader needs it.
 class ArtifactHttpResponse {
-  /// Status line code.
   final int statusCode;
 
   /// Response headers, lowercase keys.
   final Map<String, String> headers;
 
-  /// Body bytes.
   final Stream<List<int>> body;
 
   /// `Content-Length`, or -1 when the server did not send one.

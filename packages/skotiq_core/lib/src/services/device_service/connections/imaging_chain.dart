@@ -115,7 +115,6 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
     return true;
   }
 
-  /// Set camera cooling
   Future<void> _setCameraCooling({
     required bool enabled,
     double? targetTemp,

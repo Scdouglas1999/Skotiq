@@ -63,7 +63,6 @@ class SystemFreeSpaceProbe implements FreeSpaceProbe {
 
 /// Copies artifacts into a watched folder, one atomic file at a time.
 class WatchedFolderTransport implements ArtifactTransport {
-  /// The destination row this transport serves.
   final ArtifactDestination destination;
 
   /// The job whose artifacts are being delivered; names the staged files.

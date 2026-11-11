@@ -49,8 +49,6 @@ class DeviceCommands {
         slot.deviceId == deviceId;
   }
 
-  // Filter wheel
-
   Future<void> filterWheelSetPosition(String deviceId, int position) {
     if (isSlotDevice(DeviceType.filterWheel, deviceId)) {
       return _service.setFilterWheelPosition(position);
@@ -77,8 +75,6 @@ class DeviceCommands {
     return _backend.filterWheelSetNames(deviceId, names);
   }
 
-  // Focuser
-
   Future<void> focuserMoveTo(String deviceId, int position) {
     if (isSlotDevice(DeviceType.focuser, deviceId)) {
       return _service.moveFocuserTo(position);
@@ -99,8 +95,6 @@ class DeviceCommands {
     }
     return _backend.focuserHalt(deviceId);
   }
-
-  // Rotator
 
   Future<void> rotatorMoveTo(String deviceId, double angle) {
     if (isSlotDevice(DeviceType.rotator, deviceId)) {
@@ -136,8 +130,6 @@ class DeviceCommands {
     }
     return _backend.rotatorSyncToPa(deviceId, positionAngle);
   }
-
-  // Camera
 
   /// Switch the cooler. A cooler command from anyone replaces a warm-up in
   /// progress, as the host's own cooler controls do; otherwise the ramp's
@@ -217,8 +209,6 @@ class DeviceCommands {
 
   Future<void> calibratorOff(String deviceId) =>
       _backend.calibratorOff(deviceId);
-
-  // Switch
 
   /// Set a channel of the switch in the host's slot through [DeviceService]
   /// (the read-only and analog checks, the channel state, the error log), as

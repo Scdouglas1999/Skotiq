@@ -1,7 +1,6 @@
 part of '../backup_service.dart';
 
 extension _BackupTableRegistry on BackupService {
-
   Future<Map<String, dynamic>> _exportSettings() async {
     final settingsDao = SettingsDao(database);
     final allSettings = await settingsDao.getAllSettings();
