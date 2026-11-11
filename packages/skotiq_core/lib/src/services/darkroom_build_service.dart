@@ -346,7 +346,7 @@ class DarkroomBuildService {
           if (f.gain != null) 'gain ${f.gain}',
           if (f.offset != null) 'offset ${f.offset}',
           if (f.binX != 1 || f.binY != 1) 'bin ${f.binX}x${f.binY}',
-          if (temperature != null) '${temperature.round()} C',
+          if (temperature != null) formatCelsius(temperature, decimals: 0),
           if (cameras > 1) camera(f),
         ].join(' · ');
         final matches = await library.match(
