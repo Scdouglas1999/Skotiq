@@ -4,9 +4,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-// Hide TwilightTimes from the core barrel (the scheduler's
-// sky_calculations.dart adds its own). This chart consumes planetarium's
-// TwilightTimes via AstronomyCalculations below.
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';

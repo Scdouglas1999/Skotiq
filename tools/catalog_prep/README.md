@@ -46,7 +46,7 @@ Synthetic test tileset (used by the unit tests; tiny, deterministic):
 
 ```bash
 python3 make_deep_star_tiles.py --synthetic \
-    --out ../../packages/skotiq_planetarium/test/fixtures/deep_star_tiles \
+    --out ../../packages/skotiq_astro/test/fixtures/deep_star_tiles \
     --synthetic-per-tile 12
 ```
 
