@@ -16,7 +16,7 @@ impl DeviceManager {
         offset: Option<i32>,
         bin_x: i32,
         bin_y: i32,
-        frame_type: skotiq_native::camera::FrameType,
+        frame_type: skotiq_device::FrameType,
     ) -> Result<(), DeviceOpError> {
         self.camera_start_exposure_configured(
             device_id, duration, gain, offset, bin_x, bin_y, None, frame_type,
@@ -36,7 +36,7 @@ impl DeviceManager {
         bin_x: i32,
         bin_y: i32,
         subframe: Option<SubFrame>,
-        frame_type: skotiq_native::camera::FrameType,
+        frame_type: skotiq_device::FrameType,
     ) -> Result<(), DeviceOpError> {
         tracing::info!(
             "DeviceManager: camera_start_exposure for {} duration={}",

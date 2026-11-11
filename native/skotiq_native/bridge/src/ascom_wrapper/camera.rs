@@ -54,12 +54,12 @@
 use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
 use crate::timeout_ops::Timeouts;
 use skotiq_ascom::AscomCamera;
-use skotiq_native::camera::{
+use skotiq_device::Vendor;
+use skotiq_device::{
     BayerPattern, CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData,
     ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
 };
-use skotiq_native::traits::{NativeCamera, NativeDevice, NativeError};
-use skotiq_native::NativeVendor;
+use skotiq_device::{CameraDriver, DeviceDriver, DriverError};
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::RwLock;
@@ -733,7 +733,7 @@ impl AscomCameraWrapper {
                                         data: u16_data,
                                         bits_per_pixel: 16,
                                         bayer_pattern: None, // ASCOM doesn't provide bayer pattern info easily
-                                        metadata: skotiq_native::camera::ImageMetadata {
+                                        metadata: skotiq_device::ImageMetadata {
                                             exposure_time: last_exposure_duration.unwrap_or(0.0),
                                             gain: 0,
                                             offset: 0,
@@ -1091,14 +1091,14 @@ impl AscomCameraWrapper {
         rx: oneshot::Receiver<Result<T, String>>,
         timeout: Duration,
         operation: &str,
-    ) -> Result<T, NativeError> {
+    ) -> Result<T, DriverError> {
         match tokio::time::timeout(timeout, rx).await {
-            Ok(Ok(result)) => result.map_err(|e| NativeError::SdkError(e)),
-            Ok(Err(_recv_err)) => Err(NativeError::Unknown(format!(
+            Ok(Ok(result)) => result.map_err(|e| DriverError::SdkError(e)),
+            Ok(Err(_recv_err)) => Err(DriverError::Unknown(format!(
                 "Worker thread dead during {}",
                 operation
             ))),
-            Err(_elapsed) => Err(NativeError::Timeout(format!(
+            Err(_elapsed) => Err(DriverError::Timeout(format!(
                 "Camera {} timed out after {:?}",
                 operation, timeout
             ))),
@@ -1107,12 +1107,12 @@ impl AscomCameraWrapper {
 
     /// Display the ASCOM driver SetupDialog to choose device/config
     /// This is used to let the user select which camera to use when multiple are connected
-    pub async fn setup_dialog(&self) -> Result<(), NativeError> {
+    pub async fn setup_dialog(&self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCommand::SetupDialog(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(
             rx,
             Duration::from_secs(300), // Setup dialog can take a long time (user interaction)
@@ -1126,12 +1126,12 @@ impl AscomCameraWrapper {
     /// This queries all capability-related properties from the camera and returns
     /// a comprehensive capabilities struct. The device should be connected before
     /// calling this method.
-    pub async fn get_capabilities(&self) -> Result<AscomCameraCapabilities, NativeError> {
+    pub async fn get_capabilities(&self) -> Result<AscomCameraCapabilities, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCommand::GetCapabilities(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         let caps =
             Self::recv_with_timeout(rx, Timeouts::property_read(), "get_capabilities").await?;
         self.update_capability_cache(&caps);
@@ -1142,67 +1142,67 @@ impl AscomCameraWrapper {
     ///
     /// This should be called periodically (e.g., every 30 seconds) to detect
     /// if the device has become unresponsive. Returns the current health status.
-    pub async fn heartbeat(&self) -> Result<CameraConnectionHealth, NativeError> {
+    pub async fn heartbeat(&self) -> Result<CameraConnectionHealth, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCommand::Heartbeat(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::heartbeat(), "heartbeat").await
     }
 
     /// Get the ASCOM interface version number
-    pub async fn interface_version(&self) -> Result<i32, NativeError> {
+    pub async fn interface_version(&self) -> Result<i32, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCommand::GetInterfaceVersion(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "interface_version").await
     }
 
     /// Get the driver version string
-    pub async fn driver_version(&self) -> Result<String, NativeError> {
+    pub async fn driver_version(&self) -> Result<String, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCommand::GetDriverVersion(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_version").await
     }
 
     /// Get the driver info/description
-    pub async fn driver_info(&self) -> Result<String, NativeError> {
+    pub async fn driver_info(&self) -> Result<String, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCommand::GetDriverInfo(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_info").await
     }
 
     /// Get the list of supported actions
-    pub async fn supported_actions(&self) -> Result<Vec<String>, NativeError> {
+    pub async fn supported_actions(&self) -> Result<Vec<String>, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCommand::GetSupportedActions(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "supported_actions").await
     }
 
-    pub async fn stop_exposure(&mut self) -> Result<(), NativeError> {
+    pub async fn stop_exposure(&mut self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCommand::Stop(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "stop_exposure").await
     }
 }
 
 #[async_trait::async_trait]
-impl NativeDevice for AscomCameraWrapper {
+impl DeviceDriver for AscomCameraWrapper {
     fn id(&self) -> &str {
         &self.id
     }
@@ -1211,20 +1211,20 @@ impl NativeDevice for AscomCameraWrapper {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Other("ASCOM".to_string())
+    fn vendor(&self) -> Vendor {
+        Vendor::Other("ASCOM".to_string())
     }
 
     fn is_connected(&self) -> bool {
         self.connected.load(Ordering::SeqCst)
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCommand::Connect(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::connection(), "connect").await?;
         self.connected.store(true, Ordering::SeqCst);
         // Sensor size and bit depth are load-bearing for every
@@ -1255,7 +1255,7 @@ impl NativeDevice for AscomCameraWrapper {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if let Err(err) = self.stop_exposure().await {
             tracing::warn!("Failed to stop exposure before disconnect: {}", err);
         }
@@ -1263,7 +1263,7 @@ impl NativeDevice for AscomCameraWrapper {
         self.sender
             .send(AscomCommand::Disconnect(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         let result = Self::recv_with_timeout(rx, Timeouts::connection(), "disconnect").await;
         if result.is_ok() {
             self.connected.store(false, Ordering::SeqCst);
@@ -1282,7 +1282,7 @@ impl NativeDevice for AscomCameraWrapper {
 }
 
 #[async_trait::async_trait]
-impl NativeCamera for AscomCameraWrapper {
+impl CameraDriver for AscomCameraWrapper {
     fn capabilities(&self) -> CameraCapabilities {
         self.cached_capabilities
             .read()
@@ -1290,48 +1290,48 @@ impl NativeCamera for AscomCameraWrapper {
             .unwrap_or_default()
     }
 
-    async fn get_status(&self) -> Result<CameraStatus, NativeError> {
+    async fn get_status(&self) -> Result<CameraStatus, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCommand::GetStatus(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_status").await
     }
 
-    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), NativeError> {
+    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCommand::StartExposure(params, tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::exposure_start(), "start_exposure").await
     }
 
-    async fn abort_exposure(&mut self) -> Result<(), NativeError> {
+    async fn abort_exposure(&mut self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCommand::AbortExposure(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "abort_exposure").await
     }
 
-    async fn is_exposure_complete(&self) -> Result<bool, NativeError> {
+    async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCommand::IsExposureComplete(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "is_exposure_complete").await
     }
 
-    async fn download_image(&mut self) -> Result<ImageData, NativeError> {
+    async fn download_image(&mut self) -> Result<ImageData, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCommand::DownloadImage(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         // Image download can take a long time for large sensors
         Self::recv_with_timeout(rx, Timeouts::image_download_large(), "download_image").await
     }
@@ -1340,78 +1340,78 @@ impl NativeCamera for AscomCameraWrapper {
         &mut self,
         enabled: bool,
         target_temp: Option<f64>,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCommand::SetCooler(enabled, target_temp, tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "set_cooler").await
     }
 
-    async fn get_temperature(&self) -> Result<f64, NativeError> {
+    async fn get_temperature(&self) -> Result<f64, DriverError> {
         // Temperature is included in status
         let status = self.get_status().await?;
-        status.sensor_temp.ok_or(NativeError::NotSupported)
+        status.sensor_temp.ok_or(DriverError::NotSupported)
     }
 
-    async fn get_cooler_power(&self) -> Result<f64, NativeError> {
+    async fn get_cooler_power(&self) -> Result<f64, DriverError> {
         // Cooler power is included in status
         let status = self.get_status().await?;
-        status.cooler_power.ok_or(NativeError::NotSupported)
+        status.cooler_power.ok_or(DriverError::NotSupported)
     }
 
-    async fn set_gain(&mut self, gain: i32) -> Result<(), NativeError> {
+    async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCommand::SetGain(gain, tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "set_gain").await
     }
 
-    async fn get_gain(&self) -> Result<i32, NativeError> {
+    async fn get_gain(&self) -> Result<i32, DriverError> {
         // Gain is included in status
         let status = self.get_status().await?;
         Ok(status.gain)
     }
 
-    async fn set_offset(&mut self, offset: i32) -> Result<(), NativeError> {
+    async fn set_offset(&mut self, offset: i32) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCommand::SetOffset(offset, tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "set_offset").await
     }
 
-    async fn get_offset(&self) -> Result<i32, NativeError> {
+    async fn get_offset(&self) -> Result<i32, DriverError> {
         // Offset is included in status
         let status = self.get_status().await?;
         Ok(status.offset)
     }
 
-    async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), NativeError> {
+    async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCommand::SetBinning(bin_x, bin_y, tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "set_binning").await
     }
 
-    async fn get_binning(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
         // Binning is included in status
         let status = self.get_status().await?;
         Ok((status.bin_x, status.bin_y))
     }
 
-    async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), NativeError> {
+    async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCommand::SetSubframe(subframe, tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "set_subframe").await
     }
 
@@ -1422,7 +1422,7 @@ impl NativeCamera for AscomCameraWrapper {
             .unwrap_or_default()
     }
 
-    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, NativeError> {
+    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
         if let Ok(cached) = self.cached_readout_modes.read() {
             if !cached.is_empty() {
                 return Ok(cached.clone());
@@ -1432,28 +1432,28 @@ impl NativeCamera for AscomCameraWrapper {
         self.cached_readout_modes
             .read()
             .map(|modes| modes.clone())
-            .map_err(|_| NativeError::Unknown("Failed to read readout mode cache".to_string()))
+            .map_err(|_| DriverError::Unknown("Failed to read readout mode cache".to_string()))
     }
 
-    async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), NativeError> {
+    async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCommand::SetReadoutMode(mode.index, tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "set_readout_mode").await
     }
 
-    async fn get_vendor_features(&self) -> Result<VendorFeatures, NativeError> {
+    async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
         Ok(VendorFeatures::default())
     }
 
-    async fn get_gain_range(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
         // Return a reasonable default gain range
         Ok((0, 100))
     }
 
-    async fn get_offset_range(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
         // Return a reasonable default offset range
         Ok((0, 255))
     }
@@ -1533,7 +1533,7 @@ mod tests {
         let result = wrapper.download_image().await;
         assert!(result.is_err(), "transient COM error must propagate");
         match result.unwrap_err() {
-            NativeError::SdkError(msg) => assert!(
+            DriverError::SdkError(msg) => assert!(
                 msg.contains("CameraXSize"),
                 "error must reference the failed property, got: {}",
                 msg
@@ -1558,7 +1558,7 @@ mod tests {
         let result = wrapper.get_capabilities().await;
         assert!(result.is_err(), "MaxADU failure must propagate");
         match result.unwrap_err() {
-            NativeError::SdkError(msg) => assert!(
+            DriverError::SdkError(msg) => assert!(
                 msg.contains("MaxADU"),
                 "error must reference the failed property, got: {}",
                 msg

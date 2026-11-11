@@ -65,7 +65,7 @@ impl FliCamera {
 }
 
 #[async_trait]
-impl NativeDevice for FliCamera {
+impl DeviceDriver for FliCamera {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -74,15 +74,15 @@ impl NativeDevice for FliCamera {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Fli
+    fn vendor(&self) -> Vendor {
+        Vendor::Fli
     }
 
     fn is_connected(&self) -> bool {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         if self.connected {
             return Ok(());
         }
@@ -96,7 +96,7 @@ impl NativeDevice for FliCamera {
                 "FLI camera device path contains null bytes: '{}'",
                 self.device_path
             );
-            NativeError::SdkError(format!(
+            DriverError::SdkError(format!(
                 "Invalid device path '{}' contains null bytes",
                 self.device_path
             ))
@@ -110,7 +110,7 @@ impl NativeDevice for FliCamera {
                 "FLI Open() failed for camera at '{}'. Error code: {}. Check USB connection and driver.",
                 self.device_path, result
             );
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Failed to open FLI camera at '{}'. SDK error: {}. Ensure camera is connected and not in use.",
                 self.device_path, result
             )));
@@ -158,7 +158,7 @@ impl NativeDevice for FliCamera {
         // Why: lr >= ul is guaranteed by FLI's visible-area contract (lower-right is
         // strictly bottom-right of upper-left). Subtract first, then convert via try_into
         // to fail closed if the SDK ever returns an inverted rectangle.
-        let visible_area: Result<(i32, i32, i32, i32, u32, u32), NativeError> = (|| {
+        let visible_area: Result<(i32, i32, i32, i32, u32, u32), DriverError> = (|| {
             let visible_ul_x = fli_c_long_to_i32(ul_x, "ul_x")?;
             let visible_ul_y = fli_c_long_to_i32(ul_y, "ul_y")?;
             let visible_lr_x = fli_c_long_to_i32(lr_x, "lr_x")?;
@@ -166,13 +166,13 @@ impl NativeDevice for FliCamera {
             let raw_width = lr_x - ul_x;
             let raw_height = lr_y - ul_y;
             let width = u32::try_from(raw_width).map_err(|_| {
-                NativeError::SdkError(format!(
+                DriverError::SdkError(format!(
                     "FLI visible-area width is negative or > u32::MAX: {}",
                     raw_width
                 ))
             })?;
             let height = u32::try_from(raw_height).map_err(|_| {
-                NativeError::SdkError(format!(
+                DriverError::SdkError(format!(
                     "FLI visible-area height is negative or > u32::MAX: {}",
                     raw_height
                 ))
@@ -298,7 +298,7 @@ impl NativeDevice for FliCamera {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.connected {
             return Ok(());
         }

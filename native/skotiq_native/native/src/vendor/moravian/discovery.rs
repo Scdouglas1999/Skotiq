@@ -28,7 +28,7 @@ pub struct MoravianCameraInfo {
 }
 
 /// Discover all connected Moravian cameras
-pub async fn discover_devices() -> Result<Vec<MoravianCameraInfo>, NativeError> {
+pub async fn discover_devices() -> Result<Vec<MoravianCameraInfo>, DriverError> {
     // Acquire global SDK mutex for thread safety
     let sdk = MoravianSdk::lock().await?;
 

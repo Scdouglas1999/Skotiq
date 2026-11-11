@@ -1,10 +1,10 @@
-//! `NativeDevice` / `NativeCamera` / `Drop` implementations for `TouptekCamera`.
+//! `DeviceDriver` / `CameraDriver` / `Drop` implementations for `TouptekCamera`.
 
 use super::*;
 use crate::camera_core::{unpack_samples, SampleLayout};
 
 #[async_trait]
-impl NativeDevice for TouptekCamera {
+impl DeviceDriver for TouptekCamera {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -13,15 +13,15 @@ impl NativeDevice for TouptekCamera {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Other("Touptek".to_string())
+    fn vendor(&self) -> Vendor {
+        Vendor::Other("Touptek".to_string())
     }
 
     fn is_connected(&self) -> bool {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         if self.connected {
             return Ok(());
         }
@@ -47,13 +47,13 @@ impl NativeDevice for TouptekCamera {
                         .into_iter()
                         .find(|device| device.camera_id == stable_id)
                         .ok_or_else(|| {
-                            NativeError::SdkError(format!(
+                            DriverError::SdkError(format!(
                                 "{} camera with SDK ID '{}' disappeared during connect",
                                 brand, stable_id
                             ))
                         }),
                     None => devices.into_iter().nth(device_index).ok_or_else(|| {
-                        NativeError::SdkError(format!(
+                        DriverError::SdkError(format!(
                             "{} camera index {} disappeared during connect",
                             brand, device_index
                         ))
@@ -68,7 +68,7 @@ impl NativeDevice for TouptekCamera {
                         "Touptek ({}) Open() returned NULL for SDK ID '{}'. Check USB connection and driver installation.",
                         brand, device_info.camera_id
                     );
-                    return Err(NativeError::SdkError(format!(
+                    return Err(DriverError::SdkError(format!(
                         "Failed to open {} camera with SDK ID '{}' - SDK returned NULL. Ensure camera is connected and {} driver is installed.",
                         brand, device_info.camera_id, brand
                     )));
@@ -238,7 +238,7 @@ impl NativeDevice for TouptekCamera {
         // an event callback. All option writes must precede StartPullModeWithCallback and run
         // on this (non-callback) thread (toupcam.h:411 forbids TRIGGER/BITDEPTH/BINNING/ROTATE
         // put_Option from the callback context). This mirrors indi_toupbase Connect ordering.
-        let start_result: Result<(usize, usize), NativeError> = {
+        let start_result: Result<(usize, usize), DriverError> = {
             let lock = TOUPTEK_SDK_LOCK.lock().await;
             let handle_val = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
@@ -258,7 +258,7 @@ impl NativeDevice for TouptekCamera {
                     // the live handle returned by Open(). Closing it prevents a failed
                     // negotiation from leaking a partially configured camera.
                     unsafe { (sdk.close)(handle_val) };
-                    NativeError::SdkError(format!(
+                    DriverError::SdkError(format!(
                         "Failed to {} on Touptek camera '{}'. SDK error: {}",
                         operation, name, rc
                     ))
@@ -303,7 +303,7 @@ impl NativeDevice for TouptekCamera {
                     // SAFETY: pull mode has not started; `handle_val`
                     // remains live. Do not start a stream whose pixel stride is ambiguous.
                     unsafe { (sdk.close)(handle_val) };
-                    return Err(NativeError::SdkError(format!(
+                    return Err(DriverError::SdkError(format!(
                         "Touptek camera '{}' did not negotiate 16-bit single-channel RAW output (RAW={}, BITDEPTH={})",
                         name, raw_mode, bit_depth_mode
                     )));
@@ -321,7 +321,7 @@ impl NativeDevice for TouptekCamera {
                     // handle to avoid leaking it.
                     // SAFETY: `handle_val` valid; Ogmacam_Close releases it.
                     unsafe { (sdk.close)(handle_val) };
-                    return Err(NativeError::SdkError(format!(
+                    return Err(DriverError::SdkError(format!(
                         "Failed to start pull mode on Touptek camera '{}'. SDK error: {}",
                         name, rc
                     )));
@@ -363,7 +363,7 @@ impl NativeDevice for TouptekCamera {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.connected {
             return Ok(());
         }
@@ -459,7 +459,7 @@ impl Drop for TouptekCamera {
 }
 
 #[async_trait]
-impl NativeCamera for TouptekCamera {
+impl CameraDriver for TouptekCamera {
     fn capabilities(&self) -> CameraCapabilities {
         self.capabilities.clone()
     }
@@ -468,9 +468,9 @@ impl NativeCamera for TouptekCamera {
         self.sensor_info.clone()
     }
 
-    async fn get_status(&self) -> Result<CameraStatus, NativeError> {
+    async fn get_status(&self) -> Result<CameraStatus, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let brand = self.brand.clone();
@@ -518,9 +518,9 @@ impl NativeCamera for TouptekCamera {
         })
     }
 
-    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), NativeError> {
+    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Set gain if provided
@@ -561,7 +561,7 @@ impl NativeCamera for TouptekCamera {
                     "Touptek put_ExpoTime() failed for camera '{}'. Requested: {}µs ({:.3}s), error code: {}",
                     name, exposure_us, params.duration_secs, result
                 );
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "Failed to set exposure time {:.3}s on Touptek camera '{}'. SDK error: {}",
                     params.duration_secs, name, result
                 )));
@@ -578,7 +578,7 @@ impl NativeCamera for TouptekCamera {
                     params.duration_secs,
                     result
                 );
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "Failed to start exposure on Touptek camera '{}'. SDK error: {}",
                     name, result
                 )));
@@ -593,9 +593,9 @@ impl NativeCamera for TouptekCamera {
         Ok(())
     }
 
-    async fn abort_exposure(&mut self) -> Result<(), NativeError> {
+    async fn abort_exposure(&mut self) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let brand = self.brand.clone();
@@ -618,7 +618,7 @@ impl NativeCamera for TouptekCamera {
                     name,
                     result
                 );
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "Failed to abort exposure on Touptek camera '{}'. SDK error: {}",
                     name, result
                 )));
@@ -638,9 +638,9 @@ impl NativeCamera for TouptekCamera {
         Ok(())
     }
 
-    async fn download_image(&mut self) -> Result<ImageData, NativeError> {
+    async fn download_image(&mut self) -> Result<ImageData, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Wait for the software-triggered frame to arrive. The SDK's pull-mode callback flips
@@ -652,7 +652,7 @@ impl NativeCamera for TouptekCamera {
         loop {
             let (ready, errored) = {
                 let es = self.event_state.as_ref().ok_or_else(|| {
-                    NativeError::SdkError(
+                    DriverError::SdkError(
                         "Touptek pull mode not started (event state missing)".to_string(),
                     )
                 })?;
@@ -664,7 +664,7 @@ impl NativeCamera for TouptekCamera {
             if errored {
                 self.state = CameraState::Idle;
                 self.exposure_started_at = None;
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "Touptek camera '{}' reported an error/disconnect during exposure",
                     self.name
                 )));
@@ -675,7 +675,7 @@ impl NativeCamera for TouptekCamera {
             if poll_start.elapsed().as_secs_f64() > timeout_secs {
                 self.state = CameraState::Idle;
                 self.exposure_started_at = None;
-                return Err(NativeError::Timeout(format!(
+                return Err(DriverError::Timeout(format!(
                     "Touptek camera '{}' did not deliver a frame within {:.1}s",
                     self.name, timeout_secs
                 )));
@@ -694,10 +694,10 @@ impl NativeCamera for TouptekCamera {
             .pull_bytes_per_pixel
             .checked_mul(self.pull_channels)
             .ok_or_else(|| {
-                NativeError::SdkError("Touptek negotiated pixel stride overflow".to_string())
+                DriverError::SdkError("Touptek negotiated pixel stride overflow".to_string())
             })?;
         if self.pull_bytes_per_pixel != 2 || self.pull_channels != 1 {
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Touptek camera '{}' is not configured for 16-bit single-channel RAW output ({} bytes/channel, {} channels)",
                 self.name, self.pull_bytes_per_pixel, self.pull_channels
             )));
@@ -735,10 +735,10 @@ impl NativeCamera for TouptekCamera {
             };
 
             let buf_pixels = buf_w.checked_mul(buf_h).ok_or_else(|| {
-                NativeError::SdkError(format!("Touptek buffer size overflow: {}x{}", buf_w, buf_h))
+                DriverError::SdkError(format!("Touptek buffer size overflow: {}x{}", buf_w, buf_h))
             })?;
             let buffer_size = buf_pixels.checked_mul(output_pixel_stride).ok_or_else(|| {
-                NativeError::SdkError(format!(
+                DriverError::SdkError(format!(
                     "Touptek buffer size overflow: {}x{} * {} bytes",
                     buf_w, buf_h, output_pixel_stride
                 ))
@@ -769,7 +769,7 @@ impl NativeCamera for TouptekCamera {
                     "Touptek PullImageV3() failed for camera '{}'. Buffer: {}x{} pixels, error code: {}",
                     name, buf_w, buf_h, result
                 );
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "Failed to download image from Touptek camera '{}'. SDK error: {}",
                     name, result
                 )));
@@ -780,7 +780,7 @@ impl NativeCamera for TouptekCamera {
             let pulled_w = info.width as usize;
             let pulled_h = info.height as usize;
             let pulled_pixels = pulled_w.checked_mul(pulled_h).ok_or_else(|| {
-                NativeError::SdkError(format!(
+                DriverError::SdkError(format!(
                     "Touptek frame size overflow: {}x{}",
                     pulled_w, pulled_h
                 ))
@@ -788,13 +788,13 @@ impl NativeCamera for TouptekCamera {
             let pulled_bytes = pulled_pixels
                 .checked_mul(output_pixel_stride)
                 .ok_or_else(|| {
-                    NativeError::SdkError(format!(
+                    DriverError::SdkError(format!(
                         "Touptek frame byte size overflow: {}x{} * {} bytes",
                         pulled_w, pulled_h, output_pixel_stride
                     ))
                 })?;
             if pulled_pixels == 0 || pulled_bytes > buffer.len() {
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "Touptek camera '{}' delivered a {}x{} frame that does not fit the {}x{} buffer",
                     name, pulled_w, pulled_h, buf_w, buf_h
                 )));
@@ -832,9 +832,9 @@ impl NativeCamera for TouptekCamera {
         })
     }
 
-    async fn is_exposure_complete(&self) -> Result<bool, NativeError> {
+    async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
         // The pull-mode event callback flips these when the SDK delivers a frame (image_ready)
         // or reports a fault (error). Reflecting them here lets the shared poll loop
@@ -852,13 +852,13 @@ impl NativeCamera for TouptekCamera {
         &mut self,
         enabled: bool,
         target_temp: Option<f64>,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if !self.capabilities.can_cool {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
 
         // Only while cooling, and only when the caller named a setpoint:
@@ -886,7 +886,7 @@ impl NativeCamera for TouptekCamera {
                     enabled,
                     result
                 );
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "Failed to {} cooler on Touptek camera '{}'. SDK error: {}",
                     if enabled { "enable" } else { "disable" },
                     name,
@@ -908,7 +908,7 @@ impl NativeCamera for TouptekCamera {
                         "Touptek put_Temperature() failed for camera '{}'. Target: {:.1}°C, error code: {}",
                         name, target, result
                     );
-                    return Err(NativeError::SdkError(format!(
+                    return Err(DriverError::SdkError(format!(
                         "Failed to set cooler temperature to {:.1}°C on Touptek camera '{}'. SDK error: {}",
                         target, name, result
                     )));
@@ -924,9 +924,9 @@ impl NativeCamera for TouptekCamera {
         Ok(())
     }
 
-    async fn get_temperature(&self) -> Result<f64, NativeError> {
+    async fn get_temperature(&self) -> Result<f64, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let brand = self.brand.clone();
@@ -944,24 +944,24 @@ impl NativeCamera for TouptekCamera {
         })
     }
 
-    async fn get_cooler_power(&self) -> Result<f64, NativeError> {
+    async fn get_cooler_power(&self) -> Result<f64, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     }
 
-    async fn set_gain(&mut self, gain: i32) -> Result<(), NativeError> {
+    async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Why: Touptek gain is a u16 (range 100..=10000 per the SDK header). A negative
         // i32 or one > u16::MAX is a caller bug, so we surface InvalidParameter rather
         // than silently truncate to a wrap-around gain that could destroy a frame.
         let gain_u16 = u16::try_from(gain).map_err(|_| {
-            NativeError::InvalidParameter(format!(
+            DriverError::InvalidParameter(format!(
                 "Touptek gain {} out of u16 range (100..=10000 nominal)",
                 gain
             ))
@@ -983,7 +983,7 @@ impl NativeCamera for TouptekCamera {
                     "Touptek put_ExpoAGain() failed for camera '{}'. Requested gain: {}, error code: {}",
                     name, gain, result
                 );
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "Failed to set gain to {} on Touptek camera '{}'. SDK error: {}. Value may be out of range.",
                     gain, name, result
                 )));
@@ -995,19 +995,19 @@ impl NativeCamera for TouptekCamera {
         Ok(())
     }
 
-    async fn set_offset(&mut self, offset: i32) -> Result<(), NativeError> {
+    async fn set_offset(&mut self, offset: i32) -> Result<(), DriverError> {
         // Touptek doesn't have a separate offset control
         self.current_offset = offset;
         Ok(())
     }
 
-    async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), NativeError> {
+    async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if !self.capabilities.can_set_binning && (bin_x > 1 || bin_y > 1) {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
 
         let brand = self.brand.clone();
@@ -1030,7 +1030,7 @@ impl NativeCamera for TouptekCamera {
                     "Touptek put_Option(BINNING) failed for camera '{}'. Requested: {}x{}, error code: {}",
                     name, bin_x, bin_y, result
                 );
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "Failed to set binning to {}x{} on Touptek camera '{}'. SDK error: {}. Max: {}x{}",
                     bin_x, bin_y, name, result, max_bx, max_by
                 )));
@@ -1043,9 +1043,9 @@ impl NativeCamera for TouptekCamera {
         Ok(())
     }
 
-    async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), NativeError> {
+    async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let brand = self.brand.clone();
@@ -1061,7 +1061,7 @@ impl NativeCamera for TouptekCamera {
 
         if let Some(sf) = &subframe {
             if !self.capabilities.can_subframe {
-                return Err(NativeError::NotSupported);
+                return Err(DriverError::NotSupported);
             }
 
             let sx = sf.start_x;
@@ -1076,7 +1076,7 @@ impl NativeCamera for TouptekCamera {
                         "Touptek put_Roi() failed for camera '{}'. Requested: ({}, {}) {}x{}, sensor: {}x{}, error code: {}",
                         name, sx, sy, sw, sh, sensor_w, sensor_h, result
                     );
-                    return Err(NativeError::SdkError(format!(
+                    return Err(DriverError::SdkError(format!(
                         "Failed to set ROI ({}, {}) {}x{} on Touptek camera '{}'. SDK error: {}",
                         sx, sy, sw, sh, name, result
                     )));
@@ -1093,7 +1093,7 @@ impl NativeCamera for TouptekCamera {
                         "Touptek put_Roi() failed to reset to full frame for camera '{}'. Error code: {}",
                         name, result
                     );
-                    return Err(NativeError::SdkError(format!(
+                    return Err(DriverError::SdkError(format!(
                         "Failed to reset ROI to full frame on Touptek camera '{}'. SDK error: {}",
                         name, result
                     )));
@@ -1106,9 +1106,9 @@ impl NativeCamera for TouptekCamera {
         Ok(())
     }
 
-    async fn get_gain(&self) -> Result<i32, NativeError> {
+    async fn get_gain(&self) -> Result<i32, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let lock = TOUPTEK_SDK_LOCK.lock().await;
@@ -1116,15 +1116,15 @@ impl NativeCamera for TouptekCamera {
         self.read_gain_locked(&lock, handle)
     }
 
-    async fn get_offset(&self) -> Result<i32, NativeError> {
+    async fn get_offset(&self) -> Result<i32, DriverError> {
         Ok(self.current_offset)
     }
 
-    async fn get_binning(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
         Ok((self.current_bin_x, self.current_bin_y))
     }
 
-    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, NativeError> {
+    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
         // Touptek cameras don't have distinct readout modes
         Ok(vec![ReadoutMode {
             name: "Normal".to_string(),
@@ -1137,17 +1137,17 @@ impl NativeCamera for TouptekCamera {
         }])
     }
 
-    async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), NativeError> {
+    async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), DriverError> {
         // Touptek cameras expose a single fixed readout mode.
         if mode.index == 0 || mode.name.eq_ignore_ascii_case("normal") {
             return Ok(());
         }
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_vendor_features(&self) -> Result<VendorFeatures, NativeError> {
+    async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let lock = TOUPTEK_SDK_LOCK.lock().await;
@@ -1185,28 +1185,28 @@ impl NativeCamera for TouptekCamera {
         })
     }
 
-    async fn get_gain_range(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Bounds captured from get_ExpoAGainRange at connect, in the SDK's percent-step
         // units where 100 == 1x.
         self.gain_range.ok_or_else(|| {
-            NativeError::SdkError(format!(
+            DriverError::SdkError(format!(
                 "Touptek camera '{}' did not report a gain range at connect",
                 self.name
             ))
         })
     }
 
-    async fn get_offset_range(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // The ToupTek-family SDK exposes no offset control, so there is no range to
         // report — black level is set through put_Option, not a gain-style bound.
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     }
 }

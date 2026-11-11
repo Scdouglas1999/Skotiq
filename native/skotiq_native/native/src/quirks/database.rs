@@ -11,7 +11,7 @@
 //! 3. Document the source of the quirk (firmware version, SDK bug, etc.)
 
 use super::types::*;
-use crate::NativeVendor;
+use skotiq_device::Vendor;
 
 // ZWO quirks
 
@@ -469,24 +469,21 @@ pub fn get_device_quirks(device_id: &str) -> Vec<Quirk> {
 ///
 /// # Returns
 /// A vector of vendor-wide quirks
-pub fn get_vendor_quirks(vendor: &NativeVendor) -> Vec<Quirk> {
+pub fn get_vendor_quirks(vendor: &Vendor) -> Vec<Quirk> {
     let vendor_quirk_list = match vendor {
-        NativeVendor::Zwo => zwo_quirks(),
-        NativeVendor::Qhy => qhy_quirks(),
-        NativeVendor::PlayerOne => player_one_quirks(),
-        NativeVendor::Svbony => svbony_quirks(),
-        NativeVendor::Atik => atik_quirks(),
-        NativeVendor::Touptek => touptek_quirks(),
-        NativeVendor::Moravian => moravian_quirks(),
-        NativeVendor::Fli => fli_quirks(),
-        NativeVendor::SkyWatcher => skywatcher_quirks(),
-        NativeVendor::IOptron => ioptron_quirks(),
-        NativeVendor::Meade => lx200_quirks(), // Meade uses LX200 protocol
+        Vendor::Zwo => zwo_quirks(),
+        Vendor::Qhy => qhy_quirks(),
+        Vendor::PlayerOne => player_one_quirks(),
+        Vendor::Svbony => svbony_quirks(),
+        Vendor::Atik => atik_quirks(),
+        Vendor::Touptek => touptek_quirks(),
+        Vendor::Moravian => moravian_quirks(),
+        Vendor::Fli => fli_quirks(),
+        Vendor::SkyWatcher => skywatcher_quirks(),
+        Vendor::IOptron => ioptron_quirks(),
+        Vendor::Meade => lx200_quirks(), // Meade uses LX200 protocol
         // Vendors without specific quirks
-        NativeVendor::Ascom
-        | NativeVendor::Fujifilm
-        | NativeVendor::GPhoto2
-        | NativeVendor::Other(_) => Vec::new(),
+        Vendor::Ascom | Vendor::Fujifilm | Vendor::GPhoto2 | Vendor::Other(_) => Vec::new(),
     };
 
     // Return only the vendor-wide quirks
@@ -545,7 +542,7 @@ mod tests {
 
     #[test]
     fn test_get_qhy_vendor_quirks() {
-        let quirks = get_vendor_quirks(&NativeVendor::Qhy);
+        let quirks = get_vendor_quirks(&Vendor::Qhy);
         assert!(!quirks.is_empty());
 
         // Should have discovery quirks

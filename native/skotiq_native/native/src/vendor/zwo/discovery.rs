@@ -49,7 +49,7 @@ pub(crate) fn asi_sdk_version_from_sdk(sdk: &AsiSdk) -> Option<String> {
 const DISCOVERY_TIMEOUT: Duration = Duration::from_secs(10);
 static DISCOVERY_IN_FLIGHT: InFlight<Vec<ZwoDiscoveryInfo>> = InFlight::new();
 
-type Outcome<T> = Option<Result<T, NativeError>>;
+type Outcome<T> = Option<Result<T, DriverError>>;
 
 /// The scan that is currently running, if any. A caller that arrives while it
 /// runs subscribes to its result instead of starting a second scan: the ASI SDK
@@ -79,13 +79,13 @@ impl<T> Publisher<T> {
     /// Send the outcome while the scan still holds the slot, so callers that
     /// arrive during a stalled SDK call share the timeout instead of queueing
     /// another scan behind it.
-    fn publish(&self, outcome: Result<T, NativeError>) {
+    fn publish(&self, outcome: Result<T, DriverError>) {
         self.tx.send_replace(Some(outcome));
     }
 
     /// Free the slot first, then publish: a caller arriving after this starts a
     /// fresh scan rather than reading a finished one.
-    fn finish(self, outcome: Result<T, NativeError>) {
+    fn finish(self, outcome: Result<T, DriverError>) {
         self.in_flight.clear();
         self.publish(outcome);
     }
@@ -97,8 +97,8 @@ impl<T> Drop for Publisher<T> {
     }
 }
 
-fn timed_out(deadline: Duration) -> NativeError {
-    NativeError::Timeout(format!(
+fn timed_out(deadline: Duration) -> DriverError {
+    DriverError::Timeout(format!(
         "ZWO camera discovery timed out after {} seconds",
         deadline.as_secs(),
     ))
@@ -107,10 +107,10 @@ fn timed_out(deadline: Duration) -> NativeError {
 /// Every subscriber gets its own copy of a shared failure. Discovery only
 /// produces timeouts and SDK errors, so the copy keeps the variant callers
 /// branch on and the message they show.
-fn shared_error(error: &NativeError) -> NativeError {
+fn shared_error(error: &DriverError) -> DriverError {
     match error {
-        NativeError::Timeout(message) => NativeError::Timeout(message.clone()),
-        other => NativeError::SdkError(other.to_string()),
+        DriverError::Timeout(message) => DriverError::Timeout(message.clone()),
+        other => DriverError::SdkError(other.to_string()),
     }
 }
 
@@ -124,8 +124,8 @@ async fn run_discovery<S: Send + Sync + 'static, T: Clone + Send + Sync + 'stati
     sdk: &'static SdkSlot<S>,
     in_flight: &'static InFlight<T>,
     deadline: Duration,
-    scan: impl FnOnce(SdkLockGuard<S>) -> Result<T, NativeError> + Send + 'static,
-) -> Result<T, NativeError> {
+    scan: impl FnOnce(SdkLockGuard<S>) -> Result<T, DriverError> + Send + 'static,
+) -> Result<T, DriverError> {
     let mut outcome = {
         let mut slot = in_flight.0.lock().unwrap_or_else(PoisonError::into_inner);
         match slot.as_ref() {
@@ -140,7 +140,7 @@ async fn run_discovery<S: Send + Sync + 'static, T: Clone + Send + Sync + 'stati
         }
     };
     let result = outcome.wait_for(Option::is_some).await.map_err(|_| {
-        NativeError::SdkError("ZWO camera discovery stopped before it finished".to_string())
+        DriverError::SdkError("ZWO camera discovery stopped before it finished".to_string())
     })?;
     match result.as_ref() {
         Some(Ok(value)) => Ok(value.clone()),
@@ -152,7 +152,7 @@ async fn run_discovery<S: Send + Sync + 'static, T: Clone + Send + Sync + 'stati
 async fn scan_and_publish<S: Send + Sync + 'static, T: Send + Sync + 'static>(
     sdk: &'static SdkSlot<S>,
     deadline: Duration,
-    scan: impl FnOnce(SdkLockGuard<S>) -> Result<T, NativeError> + Send + 'static,
+    scan: impl FnOnce(SdkLockGuard<S>) -> Result<T, DriverError> + Send + 'static,
     publisher: Publisher<T>,
 ) {
     let started = Instant::now();
@@ -168,7 +168,7 @@ async fn scan_and_publish<S: Send + Sync + 'static, T: Send + Sync + 'static>(
     let remaining = deadline.saturating_sub(started.elapsed());
     match tokio::time::timeout(remaining, &mut worker).await {
         Ok(joined) => publisher.finish(joined.unwrap_or_else(|error| {
-            Err(NativeError::SdkError(format!(
+            Err(DriverError::SdkError(format!(
                 "ZWO discovery worker failed: {error}"
             )))
         })),
@@ -182,7 +182,7 @@ async fn scan_and_publish<S: Send + Sync + 'static, T: Send + Sync + 'static>(
 }
 
 /// Discover ZWO cameras without blocking discovery of other equipment.
-pub async fn discover_devices() -> Result<Vec<ZwoDiscoveryInfo>, NativeError> {
+pub async fn discover_devices() -> Result<Vec<ZwoDiscoveryInfo>, DriverError> {
     run_discovery(
         AsiSdk::slot(),
         &DISCOVERY_IN_FLIGHT,
@@ -194,7 +194,7 @@ pub async fn discover_devices() -> Result<Vec<ZwoDiscoveryInfo>, NativeError> {
 
 fn discover_devices_locked(
     lock: SdkLockGuard<AsiSdk>,
-) -> Result<Vec<ZwoDiscoveryInfo>, NativeError> {
+) -> Result<Vec<ZwoDiscoveryInfo>, DriverError> {
     let sdk = match lock.load() {
         Ok(sdk) => sdk,
         Err(_) => {
@@ -333,7 +333,7 @@ mod tests {
             panic!("must not probe while another camera operation owns the SDK");
         })
         .await;
-        assert!(matches!(result, Err(NativeError::Timeout(_))));
+        assert!(matches!(result, Err(DriverError::Timeout(_))));
         assert!(slot_is_free(&IN_FLIGHT));
         drop(camera_operation);
         assert_eq!(
@@ -366,7 +366,7 @@ mod tests {
             &SDK,
             &IN_FLIGHT,
             Duration::from_secs(5),
-            |_| -> Result<usize, NativeError> {
+            |_| -> Result<usize, DriverError> {
                 panic!("an overlapping caller must join the running scan");
             },
         ));
@@ -412,9 +412,9 @@ mod tests {
         })
         .await
         .unwrap();
-        assert!(matches!(result, Err(NativeError::Timeout(_))));
+        assert!(matches!(result, Err(DriverError::Timeout(_))));
         assert!(lock_still_held);
-        assert!(matches!(duplicate, Err(NativeError::Timeout(_))));
+        assert!(matches!(duplicate, Err(DriverError::Timeout(_))));
         assert_eq!(
             run_discovery(&SDK, &IN_FLIGHT, Duration::from_secs(1), |_| Ok(9))
                 .await

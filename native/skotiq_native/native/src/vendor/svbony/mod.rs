@@ -7,17 +7,17 @@
 //! The SVBony SDK is NOT thread-safe. Its function table is only reachable
 //! through an `SdkGuard`, which holds the SDK lock for as long as it lives.
 
-use crate::camera::{
-    CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData, ReadoutMode,
-    SensorInfo, SubFrame, VendorFeatures,
-};
 use crate::camera_core::{
     bayer_from_asi_index, roi_dimension, unpack_samples, CameraCore, Frame, SampleLayout,
 };
-use crate::traits::{NativeCamera, NativeDevice, NativeError};
 use crate::utils::calculate_buffer_size_i32;
-use crate::NativeVendor;
 use async_trait::async_trait;
+use skotiq_device::camera::{
+    CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData, ReadoutMode,
+    SensorInfo, SubFrame, VendorFeatures,
+};
+use skotiq_device::Vendor;
+use skotiq_device::{CameraDriver, DeviceDriver, DriverError};
 use std::ffi::{c_char, c_int, c_long, CStr};
 
 mod camera;
@@ -126,7 +126,7 @@ mod tests {
 
         let err = camera.set_gain(48).await.unwrap_err();
 
-        assert!(matches!(err, NativeError::NotConnected));
+        assert!(matches!(err, DriverError::NotConnected));
         assert_eq!(camera.core.gain, 12);
     }
 
@@ -137,7 +137,7 @@ mod tests {
 
         let err = camera.set_offset(22).await.unwrap_err();
 
-        assert!(matches!(err, NativeError::NotConnected));
+        assert!(matches!(err, DriverError::NotConnected));
         assert_eq!(camera.core.offset, 8);
     }
 }

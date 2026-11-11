@@ -2,10 +2,10 @@
 
 use super::fakes::{self, Knobs, Lx200Flavor};
 use super::{check_transcript, isolate_park_state, FakeMount};
-use crate::traits::*;
 use crate::vendor::ioptron::{self, IOptronMount};
 use crate::vendor::lx200::{self, Lx200Mount, Lx200MountType};
 use crate::vendor::skywatcher::{self, SkyWatcherMount};
+use skotiq_device::*;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -24,8 +24,8 @@ macro_rules! step {
     }};
 }
 
-/// The whole `NativeMount` surface, in an order a night would use it.
-async fn full_session(fake: &FakeMount, knobs: &Knobs, mount: &mut dyn NativeMount) {
+/// The whole `MountDriver` surface, in an order a night would use it.
+async fn full_session(fake: &FakeMount, knobs: &Knobs, mount: &mut dyn MountDriver) {
     let _ = step!(fake, "connect", mount.connect().await);
     fake.mark(&fake.scrub(&format!(
         "  id={} name={} vendor={:?} connected={}",

@@ -23,28 +23,14 @@
     clippy::needless_range_loop
 )]
 
-/// Temporary names for the vocabulary that moved to `skotiq_device`.
-pub mod camera {
-    pub use skotiq_device::camera::*;
-}
 pub(crate) mod camera_core;
 pub mod catalog;
 pub mod discovery;
 pub mod quirks;
-pub mod traits {
-    pub use skotiq_device::{
-        CameraDriver as NativeCamera, DeviceDriver as NativeDevice, DriverError as NativeError,
-        FilterWheelDriver as NativeFilterWheel, FocuserDriver as NativeFocuser, GuideDirection,
-        MountClock, MountDriver as NativeMount, MountSiteInfo, PierSide, TrackingRate,
-    };
-}
-pub use skotiq_device::Vendor as NativeVendor;
 pub mod utils;
 pub mod vendor;
 
-pub use camera::*;
 pub use discovery::*;
 pub use quirks::*;
-pub use traits::*;
 pub use utils::*;
 pub use vendor::*;

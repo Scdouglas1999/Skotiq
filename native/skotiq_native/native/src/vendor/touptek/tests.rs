@@ -70,7 +70,7 @@ fn touptek_temperature_result_converts_tenths_celsius() {
 fn touptek_temperature_result_propagates_sdk_error() {
     let err = touptek_temperature_result("camera", -7, 0).unwrap_err();
     match err {
-        NativeError::SdkError(message) => {
+        DriverError::SdkError(message) => {
             assert!(message.contains("camera"));
             assert!(message.contains("-7"));
         }
@@ -86,7 +86,7 @@ async fn touptek_get_cooler_power_reports_not_supported_instead_of_estimate() {
     camera.target_temp = -10.0;
 
     let err = camera.get_cooler_power().await.unwrap_err();
-    assert!(matches!(err, NativeError::NotSupported));
+    assert!(matches!(err, DriverError::NotSupported));
 }
 
 #[test]
@@ -185,7 +185,7 @@ fn touptek_no_sdk_loaded_error_names_each_attempted_brand() {
     let err = touptek_no_sdk_loaded_error(&attempts, false);
 
     match err {
-        NativeError::SdkError(message) => {
+        DriverError::SdkError(message) => {
             assert!(message.contains("No Touptek-family SDK libraries"));
             assert!(message.contains("OGMA (ogmacam.dll): missing"));
             assert!(message.contains("Touptek (toupcam.dll): bad image"));
@@ -196,7 +196,7 @@ fn touptek_no_sdk_loaded_error_names_each_attempted_brand() {
     // When every brand library is simply absent the same text is reported as
     // "not installed", which discovery treats as the quiet, ordinary case.
     match touptek_no_sdk_loaded_error(&attempts, true) {
-        NativeError::SdkNotInstalled(message) => {
+        DriverError::SdkNotInstalled(message) => {
             assert!(message.contains("No Touptek-family SDK libraries"));
         }
         other => panic!("expected SDK not installed, got {other:?}"),
@@ -223,7 +223,7 @@ async fn gain_range_without_an_sdk_report_is_an_error_not_a_default() {
     camera.gain_range = None;
 
     match camera.get_gain_range().await {
-        Err(NativeError::SdkError(message)) => {
+        Err(DriverError::SdkError(message)) => {
             assert!(message.contains("did not report a gain range"));
         }
         other => panic!("expected an SDK error, got {other:?}"),
@@ -239,6 +239,6 @@ async fn offset_range_reports_not_supported() {
 
     assert!(matches!(
         camera.get_offset_range().await,
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     ));
 }

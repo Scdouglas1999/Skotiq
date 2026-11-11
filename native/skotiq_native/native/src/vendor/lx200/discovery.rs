@@ -11,11 +11,11 @@ pub struct Lx200MountInfo {
     pub baud_rate: u32,
 }
 
-pub async fn discover_mounts() -> Result<Vec<Lx200MountInfo>, NativeError> {
+pub async fn discover_mounts() -> Result<Vec<Lx200MountInfo>, DriverError> {
     serial_link::run_serial_scan("LX200", scan_serial_ports).await
 }
 
-pub(crate) fn scan_serial_ports() -> Result<Vec<Lx200MountInfo>, NativeError> {
+pub(crate) fn scan_serial_ports() -> Result<Vec<Lx200MountInfo>, DriverError> {
     serial_link::scan_ports(&SCAN_PLAN, identify_mount)
 }
 

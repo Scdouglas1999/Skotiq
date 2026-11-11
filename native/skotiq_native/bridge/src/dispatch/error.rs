@@ -255,9 +255,9 @@ impl From<&str> for DeviceOpError {
 /// of `.map_err(DeviceOpError::driver)`. Everything that is genuinely a
 /// hardware/SDK fault still becomes `Hardware`, so 500 remains the answer
 /// for real faults.
-impl From<skotiq_native::NativeError> for DeviceOpError {
-    fn from(e: skotiq_native::NativeError) -> Self {
-        use skotiq_native::NativeError as N;
+impl From<skotiq_device::DriverError> for DeviceOpError {
+    fn from(e: skotiq_device::DriverError) -> Self {
+        use skotiq_device::DriverError as N;
         let detail = e.to_string();
         match e {
             N::NotSupported => DeviceOpError::Unsupported { detail },

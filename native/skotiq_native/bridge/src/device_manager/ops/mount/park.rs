@@ -699,7 +699,7 @@ impl DeviceManager {
                 if let Some(mount) = native_mounts.get(device_id) {
                     return match mount.is_parked().await {
                         Ok(_) => Ok(true),
-                        Err(skotiq_native::traits::NativeError::NotSupported) => Ok(false),
+                        Err(skotiq_device::DriverError::NotSupported) => Ok(false),
                         Err(e) => Err(DeviceOpError::hardware(
                             Some(device_id.to_string()),
                             format!(

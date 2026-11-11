@@ -21,7 +21,7 @@
 //! ASCOM properties are optional; failures are loudly logged before exposure
 //! continues at the camera's current values.
 
-use skotiq_native::camera::SubFrame;
+use skotiq_device::SubFrame;
 
 /// The minimal camera setter/getter surface the ASCOM exposure-apply step
 /// needs. The real `AscomCamera` (Windows COM) implements this, as does the
@@ -148,7 +148,7 @@ pub fn apply_exposure_params<C: ExposureApplyTarget>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use skotiq_native::camera::SubFrame;
+    use skotiq_device::SubFrame;
 
     /// Records every setter/getter call (in order) and lets a test force any
     /// setter to fail, so we can assert (a) the correct calls happened, (b) in

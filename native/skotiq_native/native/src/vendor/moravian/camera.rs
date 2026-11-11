@@ -70,7 +70,7 @@ impl MoravianCamera {
 }
 
 #[async_trait]
-impl NativeDevice for MoravianCamera {
+impl DeviceDriver for MoravianCamera {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -79,15 +79,15 @@ impl NativeDevice for MoravianCamera {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Moravian
+    fn vendor(&self) -> Vendor {
+        Vendor::Moravian
     }
 
     fn is_connected(&self) -> bool {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         if self.connected {
             return Ok(());
         }
@@ -103,7 +103,7 @@ impl NativeDevice for MoravianCamera {
                 "Moravian gxccd_initialize_usb() returned NULL for camera ID {}. Check USB connection and driver installation.",
                 self.camera_id
             );
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Failed to initialize Moravian camera ID {} - SDK returned NULL handle. Ensure camera is connected and the gxccd driver is installed.",
                 self.camera_id
             )));
@@ -159,14 +159,14 @@ impl NativeDevice for MoravianCamera {
             let mut has_subframe: GxBool = 0;
 
             let query_integer =
-                |index: c_int, value: &mut c_int, name: &str| -> Result<(), NativeError> {
+                |index: c_int, value: &mut c_int, name: &str| -> Result<(), DriverError> {
                     // SAFETY: handle is initialized and value is a
                     // valid c_int out-pointer for gxccd_get_integer_parameter.
                     let result = unsafe { (sdk.get_integer_parameter)(handle, index, value) };
                     if result < 0 {
                         // SAFETY: handle remains valid on this error path.
                         let detail = unsafe { sdk_last_error(&sdk, handle) };
-                        return Err(NativeError::SdkError(format!(
+                        return Err(DriverError::SdkError(format!(
                             "Moravian failed to query {}: {}",
                             name, detail
                         )));
@@ -174,14 +174,14 @@ impl NativeDevice for MoravianCamera {
                     Ok(())
                 };
             let query_boolean =
-                |index: c_int, value: &mut GxBool, name: &str| -> Result<(), NativeError> {
+                |index: c_int, value: &mut GxBool, name: &str| -> Result<(), DriverError> {
                     // SAFETY: handle is initialized and value is a
                     // valid GxBool out-pointer for gxccd_get_boolean_parameter.
                     let result = unsafe { (sdk.get_boolean_parameter)(handle, index, value) };
                     if result < 0 {
                         // SAFETY: handle remains valid on this error path.
                         let detail = unsafe { sdk_last_error(&sdk, handle) };
-                        return Err(NativeError::SdkError(format!(
+                        return Err(DriverError::SdkError(format!(
                             "Moravian failed to query {}: {}",
                             name, detail
                         )));
@@ -219,7 +219,7 @@ impl NativeDevice for MoravianCamera {
                 || max_bin_y <= 0
                 || max_pixel_value <= 0
             {
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "Moravian reported invalid camera parameters: sensor={}x{}, pixel={}x{}nm, max_bin={}x{}, max_adu={}",
                     width_i,
                     height_i,
@@ -306,7 +306,7 @@ impl NativeDevice for MoravianCamera {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.connected {
             return Ok(());
         }

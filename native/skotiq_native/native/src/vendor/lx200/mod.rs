@@ -12,9 +12,9 @@ use super::serial_link::{
     self, OnOpenFailure, Probe, ProbedPort, ReplyRule, ScanPlan, SerialLink, REPLY_DEADLINE,
 };
 use super::sexagesimal::{from_parts, sign_char, split_sign, split_units, to_units};
-use crate::traits::*;
-use crate::NativeVendor;
 use async_trait::async_trait;
+use skotiq_device::Vendor;
+use skotiq_device::*;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -162,11 +162,11 @@ mod home_tests {
     async fn onstep_implements_home_rather_than_inheriting_the_default() {
         let mut mount = Lx200Mount::new_onstep("TEST_PORT".to_string());
         assert!(
-            matches!(mount.find_home().await, Err(NativeError::NotConnected)),
+            matches!(mount.find_home().await, Err(DriverError::NotConnected)),
             "OnStep find_home should reach the connection check, not the trait default"
         );
         assert!(
-            matches!(mount.at_home().await, Err(NativeError::NotConnected)),
+            matches!(mount.at_home().await, Err(DriverError::NotConnected)),
             "OnStep at_home should reach the connection check, not the trait default"
         );
     }
@@ -178,11 +178,11 @@ mod home_tests {
         let mut mount = Lx200Mount::new_meade("TEST_PORT".to_string());
         assert!(matches!(
             mount.find_home().await,
-            Err(NativeError::NotSupported)
+            Err(DriverError::NotSupported)
         ));
         assert!(matches!(
             mount.at_home().await,
-            Err(NativeError::NotSupported)
+            Err(DriverError::NotSupported)
         ));
     }
 
@@ -207,13 +207,13 @@ mod home_tests {
         assert!(onstep.can_set_park());
         assert!(matches!(
             onstep.set_park().await,
-            Err(NativeError::NotConnected)
+            Err(DriverError::NotConnected)
         ));
         let mut meade = Lx200Mount::new_meade("TEST_PORT".to_string());
         assert!(!meade.can_set_park());
         assert!(matches!(
             meade.set_park().await,
-            Err(NativeError::NotSupported)
+            Err(DriverError::NotSupported)
         ));
         assert_eq!(commands::ONSTEP_SET_PARK, ":hQ#");
     }

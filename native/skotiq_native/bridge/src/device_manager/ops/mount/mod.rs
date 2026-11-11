@@ -25,7 +25,7 @@ use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
 use crate::timeout_ops::{mount_slew_with_timeout, with_timeout_str, Timeouts};
 #[cfg(windows)]
-use skotiq_native::traits::NativeMount;
+use skotiq_device::MountDriver;
 use std::collections::HashMap;
 use tracing::warn;
 

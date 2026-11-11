@@ -32,8 +32,8 @@
 //! [`SdkGuard`] (`XyzSdk::lock().await?`), so a vendor function cannot be
 //! called without the lock, and a helper that runs under its caller's lock
 //! takes `sdk: &XyzSdk` from that guard. A missing library is reported as
-//! `NativeError::SdkNotInstalled`, a library that opens but lacks a required
-//! symbol as `NativeError::SdkError`. A symbol's type may be written inline or
+//! `DriverError::SdkNotInstalled`, a library that opens but lacks a required
+//! symbol as `DriverError::SdkError`. A symbol's type may be written inline or
 //! given as the vendor's existing `type Xyz = unsafe extern "C" fn(..)` alias.
 //!
 //! See `zwo/` for the canonical example covering three libraries with three
@@ -49,7 +49,7 @@
 //! the held lock. ioptron/lx200/skywatcher are serial protocols with no SDK
 //! to load.
 
-use crate::traits::NativeError;
+use skotiq_device::DriverError;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -115,10 +115,10 @@ impl SdkUnavailable {
         }
     }
 
-    pub fn to_native_error(&self) -> NativeError {
+    pub fn to_native_error(&self) -> DriverError {
         match self {
-            Self::NotInstalled(detail) => NativeError::SdkNotInstalled(detail.clone()),
-            Self::Broken(detail) => NativeError::SdkError(detail.clone()),
+            Self::NotInstalled(detail) => DriverError::SdkNotInstalled(detail.clone()),
+            Self::Broken(detail) => DriverError::SdkError(detail.clone()),
         }
     }
 }
@@ -234,12 +234,12 @@ pub struct SdkLockGuard<T: 'static> {
 impl<T: 'static> SdkLockGuard<T> {
     /// The table, loaded on first use, for as long as this lock is held. For
     /// callers that keep holding the lock whether or not the SDK is there.
-    pub fn table(&self) -> Result<&T, NativeError> {
+    pub fn table(&self) -> Result<&T, DriverError> {
         self.slot.table().map_err(SdkUnavailable::to_native_error)
     }
 
     /// Load the SDK (first use only) while keeping the lock.
-    pub fn load(self) -> Result<SdkGuard<T>, NativeError> {
+    pub fn load(self) -> Result<SdkGuard<T>, DriverError> {
         let table = self.slot.table().map_err(SdkUnavailable::to_native_error)?;
         Ok(SdkGuard::new(table, self.held))
     }
@@ -297,13 +297,13 @@ impl<T: 'static> SdkSlot<T> {
     }
 
     /// Check that the SDK is loaded without taking its lock.
-    pub fn installed(&'static self) -> Result<SdkLoaded<T>, NativeError> {
+    pub fn installed(&'static self) -> Result<SdkLoaded<T>, DriverError> {
         let table = self.table().map_err(SdkUnavailable::to_native_error)?;
         Ok(SdkLoaded::new(table, self.sdk_lock()))
     }
 
     /// Load the SDK, then take its lock.
-    pub async fn lock(&'static self) -> Result<SdkGuard<T>, NativeError> {
+    pub async fn lock(&'static self) -> Result<SdkGuard<T>, DriverError> {
         Ok(self.installed()?.lock().await)
     }
 
@@ -545,8 +545,8 @@ pub fn symbol_name(symbol_with_nul: &'static [u8], fallback: &'static str) -> &'
 /// }
 /// static ASI_SDK: SdkSlot<AsiSdk> = SdkSlot::new(AsiSdk::load_for_slot);
 /// impl AsiSdk {
-///     pub async fn lock() -> Result<SdkGuard<AsiSdk>, NativeError> { ... }
-///     pub fn installed() -> Result<SdkLoaded<AsiSdk>, NativeError> { ... }
+///     pub async fn lock() -> Result<SdkGuard<AsiSdk>, DriverError> { ... }
+///     pub fn installed() -> Result<SdkLoaded<AsiSdk>, DriverError> { ... }
 ///     pub fn slot() -> &'static SdkSlot<AsiSdk> { ... }
 ///     pub fn is_available() -> bool { ... }
 ///     pub fn required_symbol_names() -> &'static [&'static str] { ... }
@@ -554,9 +554,9 @@ pub fn symbol_name(symbol_with_nul: &'static [u8], fallback: &'static str) -> &'
 /// ```
 ///
 /// Symbol resolution errors are logged at `error` level (see
-/// [`resolve_symbol`]) and surface as `NativeError::SdkError`; a library that
+/// [`resolve_symbol`]) and surface as `DriverError::SdkError`; a library that
 /// cannot be found or opened is logged at `debug` and surfaces as
-/// `NativeError::SdkNotInstalled`.
+/// `DriverError::SdkNotInstalled`.
 #[macro_export]
 macro_rules! load_vendor_sdk {
     (@slot $sdk:ident) => {
@@ -720,7 +720,7 @@ macro_rules! load_vendor_sdk {
             /// dereferences to the function table.
             pub async fn lock() -> Result<
                 $crate::vendor::sdk_loader::SdkGuard<Self>,
-                $crate::traits::NativeError,
+                ::skotiq_device::DriverError,
             > {
                 $sdk_static.lock().await
             }
@@ -729,7 +729,7 @@ macro_rules! load_vendor_sdk {
             /// result later with `.lock().await`.
             pub fn installed() -> Result<
                 $crate::vendor::sdk_loader::SdkLoaded<Self>,
-                $crate::traits::NativeError,
+                ::skotiq_device::DriverError,
             > {
                 $sdk_static.installed()
             }
@@ -879,7 +879,7 @@ mod tests {
             Err(error) => error,
         };
         match &error {
-            NativeError::SdkNotInstalled(detail) => {
+            DriverError::SdkNotInstalled(detail) => {
                 assert!(detail.contains("Absent Test Vendor"), "detail: {detail}");
                 assert!(
                     detail.contains("candidate library paths"),
@@ -890,7 +890,7 @@ mod tests {
         }
         assert!(matches!(
             AbsentSdk::installed().err(),
-            Some(NativeError::SdkNotInstalled(_))
+            Some(DriverError::SdkNotInstalled(_))
         ));
         assert!(!AbsentSdk::is_available());
     }
@@ -906,7 +906,7 @@ mod tests {
         .into();
         assert!(matches!(
             broken.to_native_error(),
-            NativeError::SdkError(detail) if detail.contains("do_nothing")
+            DriverError::SdkError(detail) if detail.contains("do_nothing")
         ));
     }
 
@@ -983,7 +983,7 @@ mod tests {
         let held = AbsentSdk::slot().lock_before_load().await;
         assert!(matches!(
             held.load().err(),
-            Some(NativeError::SdkNotInstalled(_))
+            Some(DriverError::SdkNotInstalled(_))
         ));
     }
 

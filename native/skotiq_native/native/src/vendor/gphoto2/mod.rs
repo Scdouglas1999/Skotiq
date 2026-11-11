@@ -31,10 +31,10 @@
 
 #![allow(dead_code)] // FFI types must match library headers even if not all are used
 
-use crate::camera::*;
-use crate::traits::*;
-use crate::NativeVendor;
 use async_trait::async_trait;
+use skotiq_device::camera::*;
+use skotiq_device::Vendor;
+use skotiq_device::*;
 use std::ffi::{c_char, c_float, c_int, c_void, CStr, CString};
 use std::time::{Duration, Instant};
 

@@ -149,27 +149,27 @@ pub(crate) fn asi_get_serial_number_fn(sdk: &AsiSdk) -> Option<AsiGetSerialNumbe
     })
 }
 
-/// Check ASI error and convert to NativeError with detailed messages
-pub(crate) fn check_asi_error(code: c_int) -> Result<(), NativeError> {
+/// Check ASI error and convert to DriverError with detailed messages
+pub(crate) fn check_asi_error(code: c_int) -> Result<(), DriverError> {
     match code {
         0 => Ok(()),
-        1 => Err(NativeError::InvalidDevice("ASI_ERROR_INVALID_INDEX: No camera connected or camera index out of bounds".to_string())),
-        2 => Err(NativeError::InvalidDevice("ASI_ERROR_INVALID_ID: Invalid camera ID - camera may have been disconnected".to_string())),
-        3 => Err(NativeError::SdkError("ASI_ERROR_INVALID_CONTROL_TYPE: Invalid control type".to_string())),
-        4 => Err(NativeError::NotConnected),
-        5 => Err(NativeError::Disconnected),
-        6 => Err(NativeError::SdkError("ASI_ERROR_INVALID_PATH: Cannot find file path".to_string())),
-        7 => Err(NativeError::SdkError("ASI_ERROR_INVALID_FILEFORMAT: Invalid file format".to_string())),
-        8 => Err(NativeError::SdkError("ASI_ERROR_INVALID_SIZE: Invalid video format size".to_string())),
-        9 => Err(NativeError::SdkError("ASI_ERROR_INVALID_IMGTYPE: Unsupported image format".to_string())),
-        10 => Err(NativeError::SdkError("ASI_ERROR_OUTOF_BOUNDARY: Start position out of boundary".to_string())),
-        11 => Err(NativeError::Timeout("ASI_ERROR_TIMEOUT: Operation timed out".to_string())),
-        12 => Err(NativeError::SdkError("ASI_ERROR_INVALID_SEQUENCE: Invalid operation sequence - stop capture first".to_string())),
-        13 => Err(NativeError::SdkError("ASI_ERROR_BUFFER_TOO_SMALL: Buffer size is too small".to_string())),
-        14 => Err(NativeError::SdkError("ASI_ERROR_VIDEO_MODE_ACTIVE: Camera is in video mode - may be in use by another application".to_string())),
-        15 => Err(NativeError::SdkError("ASI_ERROR_EXPOSURE_IN_PROGRESS: Exposure in progress".to_string())),
-        16 => Err(NativeError::SdkError("ASI_ERROR_GENERAL_ERROR: General error - camera may be in use by another application (NINA, SharpCap, etc.)".to_string())),
-        17 => Err(NativeError::SdkError("ASI_ERROR_INVALID_MODE: Invalid mode".to_string())),
-        _ => Err(NativeError::SdkError(format!("Unknown ASI error code: {}", code))),
+        1 => Err(DriverError::InvalidDevice("ASI_ERROR_INVALID_INDEX: No camera connected or camera index out of bounds".to_string())),
+        2 => Err(DriverError::InvalidDevice("ASI_ERROR_INVALID_ID: Invalid camera ID - camera may have been disconnected".to_string())),
+        3 => Err(DriverError::SdkError("ASI_ERROR_INVALID_CONTROL_TYPE: Invalid control type".to_string())),
+        4 => Err(DriverError::NotConnected),
+        5 => Err(DriverError::Disconnected),
+        6 => Err(DriverError::SdkError("ASI_ERROR_INVALID_PATH: Cannot find file path".to_string())),
+        7 => Err(DriverError::SdkError("ASI_ERROR_INVALID_FILEFORMAT: Invalid file format".to_string())),
+        8 => Err(DriverError::SdkError("ASI_ERROR_INVALID_SIZE: Invalid video format size".to_string())),
+        9 => Err(DriverError::SdkError("ASI_ERROR_INVALID_IMGTYPE: Unsupported image format".to_string())),
+        10 => Err(DriverError::SdkError("ASI_ERROR_OUTOF_BOUNDARY: Start position out of boundary".to_string())),
+        11 => Err(DriverError::Timeout("ASI_ERROR_TIMEOUT: Operation timed out".to_string())),
+        12 => Err(DriverError::SdkError("ASI_ERROR_INVALID_SEQUENCE: Invalid operation sequence - stop capture first".to_string())),
+        13 => Err(DriverError::SdkError("ASI_ERROR_BUFFER_TOO_SMALL: Buffer size is too small".to_string())),
+        14 => Err(DriverError::SdkError("ASI_ERROR_VIDEO_MODE_ACTIVE: Camera is in video mode - may be in use by another application".to_string())),
+        15 => Err(DriverError::SdkError("ASI_ERROR_EXPOSURE_IN_PROGRESS: Exposure in progress".to_string())),
+        16 => Err(DriverError::SdkError("ASI_ERROR_GENERAL_ERROR: General error - camera may be in use by another application (NINA, SharpCap, etc.)".to_string())),
+        17 => Err(DriverError::SdkError("ASI_ERROR_INVALID_MODE: Invalid mode".to_string())),
+        _ => Err(DriverError::SdkError(format!("Unknown ASI error code: {}", code))),
     }
 }

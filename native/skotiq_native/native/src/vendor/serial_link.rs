@@ -5,7 +5,7 @@
 //! Each protocol passes its own framing, deadlines, baud rates and probes;
 //! nothing here knows a command.
 
-use crate::traits::NativeError;
+use skotiq_device::DriverError;
 use std::io::{Read, Write};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
@@ -60,14 +60,14 @@ pub(crate) async fn serial_mount_access() -> AsyncMutexGuard<'static, ()> {
 /// second per (port, baud) pair, so a four-port machine spends ~17 s inside one
 /// call. Run inline it would freeze whichever Tokio worker picked it up, along
 /// with every other task scheduled there.
-pub(crate) async fn run_serial_scan<T, F>(vendor: &'static str, scan: F) -> Result<T, NativeError>
+pub(crate) async fn run_serial_scan<T, F>(vendor: &'static str, scan: F) -> Result<T, DriverError>
 where
     T: Send + 'static,
-    F: FnOnce() -> Result<T, NativeError> + Send + 'static,
+    F: FnOnce() -> Result<T, DriverError> + Send + 'static,
 {
     let _serial_access = serial_mount_access().await;
     tokio::task::spawn_blocking(scan).await.unwrap_or_else(|e| {
-        Err(NativeError::SdkError(format!(
+        Err(DriverError::SdkError(format!(
             "{} mount discovery task failed: {}",
             vendor, e
         )))
@@ -145,36 +145,36 @@ impl SerialLink {
         }
     }
 
-    pub(crate) fn attach(&self, port: Port) -> Result<(), NativeError> {
+    pub(crate) fn attach(&self, port: Port) -> Result<(), DriverError> {
         *self.lock()? = Some(port);
         Ok(())
     }
 
     /// Closes the port, if one is open.
-    pub(crate) fn detach(&self) -> Result<(), NativeError> {
+    pub(crate) fn detach(&self) -> Result<(), DriverError> {
         *self.lock()? = None;
         Ok(())
     }
 
-    fn lock(&self) -> Result<std::sync::MutexGuard<'_, Option<Port>>, NativeError> {
+    fn lock(&self) -> Result<std::sync::MutexGuard<'_, Option<Port>>, DriverError> {
         self.port
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))
     }
 
     /// Runs `exchange` with the port held, for replies that take more than
     /// one read shape.
     pub(crate) fn exchange<T>(
         &self,
-        exchange: impl FnOnce(&mut Exchange<'_>) -> Result<T, NativeError>,
-    ) -> Result<T, NativeError> {
+        exchange: impl FnOnce(&mut Exchange<'_>) -> Result<T, DriverError>,
+    ) -> Result<T, DriverError> {
         let mut guard = self.lock()?;
-        let port = guard.as_mut().ok_or(NativeError::NotConnected)?;
+        let port = guard.as_mut().ok_or(DriverError::NotConnected)?;
         exchange(&mut Exchange { port })
     }
 
     /// Sends `command` and returns the reply up to its terminator.
-    pub(crate) fn command(&self, command: &[u8], rule: &ReplyRule) -> Result<String, NativeError> {
+    pub(crate) fn command(&self, command: &[u8], rule: &ReplyRule) -> Result<String, DriverError> {
         self.exchange(|io| {
             io.send(command)?;
             io.read_reply(rule)
@@ -182,7 +182,7 @@ impl SerialLink {
     }
 
     /// Sends `command` and returns the single byte the mount answers with.
-    pub(crate) fn command_byte(&self, command: &[u8], rule: &ReplyRule) -> Result<u8, NativeError> {
+    pub(crate) fn command_byte(&self, command: &[u8], rule: &ReplyRule) -> Result<u8, DriverError> {
         self.exchange(|io| {
             io.send(command)?;
             io.read_reply_byte(rule)
@@ -190,7 +190,7 @@ impl SerialLink {
     }
 
     /// Sends a command the mount does not answer.
-    pub(crate) fn command_no_reply(&self, command: &[u8]) -> Result<(), NativeError> {
+    pub(crate) fn command_no_reply(&self, command: &[u8]) -> Result<(), DriverError> {
         self.exchange(|io| io.send(command))
     }
 }
@@ -201,13 +201,13 @@ pub(crate) struct Exchange<'a> {
 }
 
 impl Exchange<'_> {
-    pub(crate) fn send(&mut self, command: &[u8]) -> Result<(), NativeError> {
-        self.port.write_all(command).map_err(NativeError::Io)?;
-        self.port.flush().map_err(NativeError::Io)
+    pub(crate) fn send(&mut self, command: &[u8]) -> Result<(), DriverError> {
+        self.port.write_all(command).map_err(DriverError::Io)?;
+        self.port.flush().map_err(DriverError::Io)
     }
 
     /// One byte, or `None` when the read brought nothing yet.
-    fn read_byte(&mut self) -> Result<Option<u8>, NativeError> {
+    fn read_byte(&mut self) -> Result<Option<u8>, DriverError> {
         let mut buf = [0u8; 1];
         match self.port.read(&mut buf) {
             Ok(1) => Ok(Some(buf[0])),
@@ -216,18 +216,18 @@ impl Exchange<'_> {
                 Ok(None)
             }
             Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => Ok(None),
-            Err(e) => Err(NativeError::Io(e)),
+            Err(e) => Err(DriverError::Io(e)),
         }
     }
 
     /// Reads up to the rule's terminator and returns what came before it.
-    pub(crate) fn read_reply(&mut self, rule: &ReplyRule) -> Result<String, NativeError> {
+    pub(crate) fn read_reply(&mut self, rule: &ReplyRule) -> Result<String, DriverError> {
         let mut reply = Vec::new();
         let started = Instant::now();
 
         loop {
             if started.elapsed() > rule.deadline {
-                return Err(NativeError::Timeout(rule.timeout_message.to_string()));
+                return Err(DriverError::Timeout(rule.timeout_message.to_string()));
             }
             let Some(byte) = self.read_byte()? else {
                 continue;
@@ -246,12 +246,12 @@ impl Exchange<'_> {
 
     /// Reads the first byte that is not leading framing. For replies that are
     /// one character with no terminator.
-    pub(crate) fn read_reply_byte(&mut self, rule: &ReplyRule) -> Result<u8, NativeError> {
+    pub(crate) fn read_reply_byte(&mut self, rule: &ReplyRule) -> Result<u8, DriverError> {
         let started = Instant::now();
 
         loop {
             if started.elapsed() > rule.deadline {
-                return Err(NativeError::Timeout(rule.timeout_message.to_string()));
+                return Err(DriverError::Timeout(rule.timeout_message.to_string()));
             }
             match self.read_byte()? {
                 Some(byte) if !rule.leading_framing.contains(&byte) => return Ok(byte),
@@ -269,7 +269,7 @@ impl Exchange<'_> {
         terminator: u8,
         terminators: usize,
         window: Duration,
-    ) -> Result<Vec<u8>, NativeError> {
+    ) -> Result<Vec<u8>, DriverError> {
         let mut trailing = Vec::new();
         let mut seen = 0;
         let mut buf = [0u8; 1];
@@ -281,7 +281,7 @@ impl Exchange<'_> {
                 Ok(1) => trailing.push(buf[0]),
                 Ok(_) => break,
                 Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => break,
-                Err(e) => return Err(NativeError::Io(e)),
+                Err(e) => return Err(DriverError::Io(e)),
             }
         }
 
@@ -346,9 +346,9 @@ impl ProbedPort<'_> {
 pub(crate) fn scan_ports<T>(
     plan: &ScanPlan,
     identify: impl FnMut(&mut ProbedPort<'_>) -> Option<T>,
-) -> Result<Vec<T>, NativeError> {
+) -> Result<Vec<T>, DriverError> {
     let ports = serialport::available_ports()
-        .map_err(|e| NativeError::SdkError(format!("Failed to enumerate ports: {}", e)))?;
+        .map_err(|e| DriverError::SdkError(format!("Failed to enumerate ports: {}", e)))?;
 
     tracing::info!(
         "{} discovery: found {} serial ports to scan",
@@ -504,7 +504,7 @@ mod tests {
     #[tokio::test]
     async fn serial_scan_propagates_the_scan_error() {
         let err = run_serial_scan("test", || {
-            Err::<(), _>(NativeError::SdkError("no ports".to_string()))
+            Err::<(), _>(DriverError::SdkError("no ports".to_string()))
         })
         .await
         .expect_err("expected the scan error to surface");
@@ -608,7 +608,7 @@ mod tests {
         let link = SerialLink::new();
         assert!(matches!(
             link.command_no_reply(b":Q#"),
-            Err(NativeError::NotConnected)
+            Err(DriverError::NotConnected)
         ));
     }
 }

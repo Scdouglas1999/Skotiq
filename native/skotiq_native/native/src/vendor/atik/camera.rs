@@ -1,4 +1,4 @@
-//! `AtikCamera` state, inherent helpers and `NativeDevice`.
+//! `AtikCamera` state, inherent helpers and `DeviceDriver`.
 
 use super::*;
 
@@ -43,7 +43,7 @@ impl AtikCamera {
 }
 
 #[async_trait]
-impl NativeDevice for AtikCamera {
+impl DeviceDriver for AtikCamera {
     fn id(&self) -> &str {
         &self.core.device_id
     }
@@ -52,15 +52,15 @@ impl NativeDevice for AtikCamera {
         &self.core.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Atik
+    fn vendor(&self) -> Vendor {
+        Vendor::Atik
     }
 
     fn is_connected(&self) -> bool {
         self.core.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         if self.core.connected {
             return Ok(());
         }
@@ -69,7 +69,7 @@ impl NativeDevice for AtikCamera {
         let sdk = AtikSdk::lock().await?;
 
         let serial_number = self.serial_number.as_deref().ok_or_else(|| {
-            NativeError::DeviceNotFound(format!(
+            DriverError::DeviceNotFound(format!(
                 "No discovery serial recorded for Atik camera index {}",
                 self.device_index
             ))
@@ -87,7 +87,7 @@ impl NativeDevice for AtikCamera {
                 serial_number,
                 device_index
             );
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Failed to connect to Atik camera serial {}. SDK returned NULL handle. Ensure camera is connected and not in use.",
                 serial_number
             )));
@@ -103,7 +103,7 @@ impl NativeDevice for AtikCamera {
             );
             // SAFETY: handle was successfully opened above.
             unsafe { (sdk.disconnect)(handle) };
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Atik camera connection verification failed for serial {}. Device may have disconnected.",
                 serial_number
             )));
@@ -223,7 +223,7 @@ impl NativeDevice for AtikCamera {
                 // SAFETY: `handle` was successfully opened above.
                 // ArtemisDisconnect pairs with ArtemisConnect to release it.
                 unsafe { (sdk.disconnect)(handle) };
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "Atik camera '{}': {reason}. Skotiq will not guess a colour filter array, \
                      because debayering against the wrong one corrupts every frame of the session. \
                      Update the AtikCameras driver or report this colour type.",
@@ -239,15 +239,15 @@ impl NativeDevice for AtikCamera {
         // Why: `props.pixels_x` / `props.pixels_y` are `c_int` (i32) populated by ArtemisProperties.
         // A negative value would be a malformed SDK response, not a real sensor; we surface
         // it as an SdkError rather than silently re-interpreting the bit pattern via `as u32`.
-        let sensor_dimensions: Result<(u32, u32), NativeError> = (|| {
+        let sensor_dimensions: Result<(u32, u32), DriverError> = (|| {
             let width = u32::try_from(props.pixels_x).map_err(|_| {
-                NativeError::SdkError(format!(
+                DriverError::SdkError(format!(
                     "Atik reported invalid sensor width: pixels_x={}",
                     props.pixels_x
                 ))
             })?;
             let height = u32::try_from(props.pixels_y).map_err(|_| {
-                NativeError::SdkError(format!(
+                DriverError::SdkError(format!(
                     "Atik reported invalid sensor height: pixels_y={}",
                     props.pixels_y
                 ))
@@ -345,7 +345,7 @@ impl NativeDevice for AtikCamera {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.core.connected {
             return Ok(());
         }
@@ -385,7 +385,7 @@ impl NativeDevice for AtikCamera {
                 "Atik ArtemisDisconnect() failed for camera '{}'. Device may be in an inconsistent state.",
                 self.core.name
             );
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Failed to disconnect from Atik camera '{}'. Device may need reconnection.",
                 self.core.name
             )));

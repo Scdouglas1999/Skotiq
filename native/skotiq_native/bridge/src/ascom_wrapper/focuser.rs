@@ -2,8 +2,8 @@ use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
 use crate::device_capabilities::AscomFocuserReadings;
 use crate::timeout_ops::Timeouts;
 use skotiq_ascom::AscomFocuser;
-use skotiq_native::traits::{NativeDevice, NativeError, NativeFocuser};
-use skotiq_native::NativeVendor;
+use skotiq_device::Vendor;
+use skotiq_device::{DeviceDriver, DriverError, FocuserDriver};
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering};
 use std::time::Duration;
@@ -234,44 +234,44 @@ impl AscomFocuserWrapper {
         rx: oneshot::Receiver<Result<T, String>>,
         timeout: Duration,
         operation: &str,
-    ) -> Result<T, NativeError> {
+    ) -> Result<T, DriverError> {
         match tokio::time::timeout(timeout, rx).await {
-            Ok(Ok(result)) => result.map_err(|e| NativeError::SdkError(e)),
-            Ok(Err(_recv_err)) => Err(NativeError::Unknown(format!(
+            Ok(Ok(result)) => result.map_err(|e| DriverError::SdkError(e)),
+            Ok(Err(_recv_err)) => Err(DriverError::Unknown(format!(
                 "Worker thread dead during {}",
                 operation
             ))),
-            Err(_elapsed) => Err(NativeError::Timeout(format!(
+            Err(_elapsed) => Err(DriverError::Timeout(format!(
                 "Focuser {} timed out after {:?}",
                 operation, timeout
             ))),
         }
     }
 
-    async fn fetch_max_position(&self) -> Result<i32, NativeError> {
+    async fn fetch_max_position(&self) -> Result<i32, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFocuserCommand::GetMaxPosition(tx))
             .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+            .map_err(|e| DriverError::SdkError(e.to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_max_position").await
     }
 
-    async fn fetch_step_size(&self) -> Result<f64, NativeError> {
+    async fn fetch_step_size(&self) -> Result<f64, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFocuserCommand::GetStepSize(tx))
             .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+            .map_err(|e| DriverError::SdkError(e.to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_step_size").await
     }
 
-    pub async fn heartbeat(&self) -> Result<(), NativeError> {
+    pub async fn heartbeat(&self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFocuserCommand::Heartbeat(tx))
             .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+            .map_err(|e| DriverError::SdkError(e.to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "heartbeat").await
     }
 
@@ -285,18 +285,18 @@ impl AscomFocuserWrapper {
     /// client: many ASCOM local servers share `Connected` state, so a probe that
     /// connects (or disconnects) its own object mutates the live session, and
     /// each throwaway also churns an IDispatch on the shared STA apartment.
-    pub async fn capability_readings(&self) -> Result<AscomFocuserReadings, NativeError> {
+    pub async fn capability_readings(&self) -> Result<AscomFocuserReadings, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFocuserCommand::GetCapabilityReadings(tx))
             .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+            .map_err(|e| DriverError::SdkError(e.to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "capability_readings").await
     }
 }
 
 #[async_trait::async_trait]
-impl NativeDevice for AscomFocuserWrapper {
+impl DeviceDriver for AscomFocuserWrapper {
     fn id(&self) -> &str {
         &self.id
     }
@@ -305,20 +305,20 @@ impl NativeDevice for AscomFocuserWrapper {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Ascom
+    fn vendor(&self) -> Vendor {
+        Vendor::Ascom
     }
 
     fn is_connected(&self) -> bool {
         self.connected.load(Ordering::SeqCst)
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFocuserCommand::Connect(tx))
             .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+            .map_err(|e| DriverError::SdkError(e.to_string()))?;
         let info = Self::recv_with_timeout(rx, Timeouts::connection(), "connect").await?;
 
         // Update cached values with real values from the connected device
@@ -357,12 +357,12 @@ impl NativeDevice for AscomFocuserWrapper {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFocuserCommand::Disconnect(tx))
             .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+            .map_err(|e| DriverError::SdkError(e.to_string()))?;
         let result = Self::recv_with_timeout(rx, Timeouts::connection(), "disconnect").await;
         if result.is_ok() {
             self.connected.store(false, Ordering::SeqCst);
@@ -372,59 +372,59 @@ impl NativeDevice for AscomFocuserWrapper {
 }
 
 #[async_trait::async_trait]
-impl NativeFocuser for AscomFocuserWrapper {
-    async fn move_to(&mut self, position: i32) -> Result<(), NativeError> {
+impl FocuserDriver for AscomFocuserWrapper {
+    async fn move_to(&mut self, position: i32) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFocuserCommand::MoveTo(position, tx))
             .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+            .map_err(|e| DriverError::SdkError(e.to_string()))?;
         // Focuser moves can take a long time
         Self::recv_with_timeout(rx, Timeouts::focuser_move(), "move_to").await
     }
 
-    async fn move_relative(&mut self, steps: i32) -> Result<(), NativeError> {
+    async fn move_relative(&mut self, steps: i32) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFocuserCommand::MoveRelative(steps, tx))
             .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+            .map_err(|e| DriverError::SdkError(e.to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::focuser_move(), "move_relative").await
     }
 
-    async fn get_position(&self) -> Result<i32, NativeError> {
+    async fn get_position(&self) -> Result<i32, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFocuserCommand::GetPosition(tx))
             .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+            .map_err(|e| DriverError::SdkError(e.to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_position").await
     }
 
-    async fn is_moving(&self) -> Result<bool, NativeError> {
+    async fn is_moving(&self) -> Result<bool, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFocuserCommand::IsMoving(tx))
             .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+            .map_err(|e| DriverError::SdkError(e.to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "is_moving").await
     }
 
-    async fn halt(&mut self) -> Result<(), NativeError> {
+    async fn halt(&mut self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFocuserCommand::Halt(tx))
             .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+            .map_err(|e| DriverError::SdkError(e.to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "halt").await
     }
 
-    async fn get_temperature(&self) -> Result<Option<f64>, NativeError> {
+    async fn get_temperature(&self) -> Result<Option<f64>, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFocuserCommand::GetTemperature(tx))
             .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+            .map_err(|e| DriverError::SdkError(e.to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_temperature").await
     }
 
@@ -440,52 +440,52 @@ impl NativeFocuser for AscomFocuserWrapper {
 // Version query methods
 impl AscomFocuserWrapper {
     /// Whether this focuser supports absolute positioning.
-    pub async fn is_absolute(&self) -> Result<bool, NativeError> {
+    pub async fn is_absolute(&self) -> Result<bool, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFocuserCommand::GetAbsolute(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "is_absolute").await
     }
 
     /// Get the ASCOM interface version number
-    pub async fn interface_version(&self) -> Result<i32, NativeError> {
+    pub async fn interface_version(&self) -> Result<i32, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFocuserCommand::GetInterfaceVersion(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "interface_version").await
     }
 
     /// Get the driver version string
-    pub async fn driver_version(&self) -> Result<String, NativeError> {
+    pub async fn driver_version(&self) -> Result<String, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFocuserCommand::GetDriverVersion(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_version").await
     }
 
     /// Get the driver info/description
-    pub async fn driver_info(&self) -> Result<String, NativeError> {
+    pub async fn driver_info(&self) -> Result<String, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFocuserCommand::GetDriverInfo(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_info").await
     }
 
     /// Get the list of supported actions
-    pub async fn supported_actions(&self) -> Result<Vec<String>, NativeError> {
+    pub async fn supported_actions(&self) -> Result<Vec<String>, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFocuserCommand::GetSupportedActions(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "supported_actions").await
     }
 }

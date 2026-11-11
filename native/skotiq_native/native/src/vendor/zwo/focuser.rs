@@ -123,30 +123,30 @@ load_vendor_sdk! {
     }
 }
 
-/// Check EAF error code and convert to NativeError
-pub(crate) fn check_eaf_error(code: c_int) -> Result<(), NativeError> {
+/// Check EAF error code and convert to DriverError
+pub(crate) fn check_eaf_error(code: c_int) -> Result<(), DriverError> {
     match code {
         0 => Ok(()),
-        1 => Err(NativeError::InvalidDevice(
+        1 => Err(DriverError::InvalidDevice(
             "EAF_ERROR_INVALID_INDEX".to_string(),
         )),
-        2 => Err(NativeError::InvalidDevice(
+        2 => Err(DriverError::InvalidDevice(
             "EAF_ERROR_INVALID_ID".to_string(),
         )),
-        3 => Err(NativeError::InvalidParameter(
+        3 => Err(DriverError::InvalidParameter(
             "EAF_ERROR_INVALID_VALUE".to_string(),
         )),
-        4 => Err(NativeError::Disconnected),
-        5 => Err(NativeError::SdkError(
+        4 => Err(DriverError::Disconnected),
+        5 => Err(DriverError::SdkError(
             "EAF_ERROR_MOVING: Focuser is moving".to_string(),
         )),
-        6 => Err(NativeError::SdkError(
+        6 => Err(DriverError::SdkError(
             "EAF_ERROR_ERROR_STATE: Focuser in error state".to_string(),
         )),
-        7 => Err(NativeError::SdkError("EAF_ERROR_GENERAL_ERROR".to_string())),
-        8 => Err(NativeError::NotSupported),
-        9 => Err(NativeError::NotConnected),
-        _ => Err(NativeError::SdkError(format!(
+        7 => Err(DriverError::SdkError("EAF_ERROR_GENERAL_ERROR".to_string())),
+        8 => Err(DriverError::NotSupported),
+        9 => Err(DriverError::NotConnected),
+        _ => Err(DriverError::SdkError(format!(
             "Unknown EAF error code: {}",
             code
         ))),
@@ -185,7 +185,7 @@ impl ZwoFocuser {
 }
 
 #[async_trait]
-impl NativeDevice for ZwoFocuser {
+impl DeviceDriver for ZwoFocuser {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -194,15 +194,15 @@ impl NativeDevice for ZwoFocuser {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Zwo
+    fn vendor(&self) -> Vendor {
+        Vendor::Zwo
     }
 
     fn is_connected(&self) -> bool {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         tracing::info!("Connecting to ZWO EAF focuser ID {}...", self.focuser_id);
 
         let sdk = EafSdk::installed().inspect_err(|_| {
@@ -311,7 +311,7 @@ impl NativeDevice for ZwoFocuser {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.connected {
             return Ok(());
         }
@@ -343,10 +343,10 @@ impl NativeDevice for ZwoFocuser {
 }
 
 #[async_trait]
-impl NativeFocuser for ZwoFocuser {
-    async fn move_to(&mut self, position: i32) -> Result<(), NativeError> {
+impl FocuserDriver for ZwoFocuser {
+    async fn move_to(&mut self, position: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let sdk = EafSdk::lock().await?;
@@ -360,14 +360,14 @@ impl NativeFocuser for ZwoFocuser {
         check_eaf_error(result)
     }
 
-    async fn move_relative(&mut self, steps: i32) -> Result<(), NativeError> {
+    async fn move_relative(&mut self, steps: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let current = self.get_position().await?;
         let target = current.checked_add(steps).ok_or_else(|| {
-            NativeError::InvalidParameter(format!(
+            DriverError::InvalidParameter(format!(
                 "ZWO EAF relative move from {} by {} overflows i32",
                 current, steps
             ))
@@ -375,9 +375,9 @@ impl NativeFocuser for ZwoFocuser {
         self.move_to(target).await
     }
 
-    async fn get_position(&self) -> Result<i32, NativeError> {
+    async fn get_position(&self) -> Result<i32, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let sdk = EafSdk::lock().await?;
@@ -388,9 +388,9 @@ impl NativeFocuser for ZwoFocuser {
         Ok(position)
     }
 
-    async fn is_moving(&self) -> Result<bool, NativeError> {
+    async fn is_moving(&self) -> Result<bool, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let sdk = EafSdk::lock().await?;
@@ -402,9 +402,9 @@ impl NativeFocuser for ZwoFocuser {
         Ok(is_moving)
     }
 
-    async fn halt(&mut self) -> Result<(), NativeError> {
+    async fn halt(&mut self) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let sdk = EafSdk::lock().await?;
@@ -414,9 +414,9 @@ impl NativeFocuser for ZwoFocuser {
         check_eaf_error(result)
     }
 
-    async fn get_temperature(&self) -> Result<Option<f64>, NativeError> {
+    async fn get_temperature(&self) -> Result<Option<f64>, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let sdk = EafSdk::lock().await?;
@@ -510,7 +510,7 @@ pub(crate) fn eaf_sdk_version_from_sdk(sdk: &EafSdk) -> Option<String> {
 }
 
 /// Discover ZWO EAF focusers
-pub async fn discover_focusers() -> Result<Vec<ZwoFocuserDiscoveryInfo>, NativeError> {
+pub async fn discover_focusers() -> Result<Vec<ZwoFocuserDiscoveryInfo>, DriverError> {
     let sdk = match EafSdk::installed() {
         Ok(sdk) => sdk,
         Err(_) => {

@@ -13,7 +13,7 @@ pub struct SvbonyDiscoveryInfo {
 }
 
 /// Discover connected SVBony cameras
-pub async fn discover_devices() -> Result<Vec<SvbonyDiscoveryInfo>, NativeError> {
+pub async fn discover_devices() -> Result<Vec<SvbonyDiscoveryInfo>, DriverError> {
     // If SDK is not available, return empty list (not error)
     let sdk = match SvbonySdk::lock().await {
         Ok(sdk) => sdk,

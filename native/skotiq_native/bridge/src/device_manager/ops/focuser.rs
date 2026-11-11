@@ -13,7 +13,7 @@ use crate::timeout_ops::{focuser_move_with_timeout, with_timeout_str, Timeouts};
 use tracing::warn;
 // Windows: trait must be in scope so ASCOM wrapper guards resolve its methods.
 #[cfg(windows)]
-use skotiq_native::traits::NativeFocuser;
+use skotiq_device::FocuserDriver;
 
 impl DeviceManager {
     // Focuser control

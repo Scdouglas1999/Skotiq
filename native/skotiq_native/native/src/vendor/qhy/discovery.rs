@@ -38,7 +38,7 @@ pub fn is_sdk_available() -> bool {
 
 /// Internal function to perform the actual SDK discovery.
 /// This is separated out to allow catch_unwind wrapping.
-pub(crate) fn discover_devices_internal(sdk: &QhySdk) -> Result<Vec<QhyCameraInfo>, NativeError> {
+pub(crate) fn discover_devices_internal(sdk: &QhySdk) -> Result<Vec<QhyCameraInfo>, DriverError> {
     let sdk_version = sdk_version_from_sdk(sdk);
 
     // Scan for cameras
@@ -91,10 +91,10 @@ pub(crate) fn discover_devices_internal(sdk: &QhySdk) -> Result<Vec<QhyCameraInf
 ///
 /// # Returns
 /// * `Ok(cameras)` - List of discovered cameras (may be empty)
-/// * `Err(NativeError::SdkNotLoaded)` - SDK not available or discovery disabled
-/// * `Err(NativeError::Timeout)` - Discovery timed out
-/// * `Err(NativeError::SdkError)` - SDK panicked during discovery
-pub async fn discover_devices() -> Result<Vec<QhyCameraInfo>, NativeError> {
+/// * `Err(DriverError::SdkNotLoaded)` - SDK not available or discovery disabled
+/// * `Err(DriverError::Timeout)` - Discovery timed out
+/// * `Err(DriverError::SdkError)` - SDK panicked during discovery
+pub async fn discover_devices() -> Result<Vec<QhyCameraInfo>, DriverError> {
     let config = get_discovery_config();
 
     // Check if discovery is enabled
@@ -140,7 +140,7 @@ pub async fn discover_devices() -> Result<Vec<QhyCameraInfo>, NativeError> {
                             "Unknown panic".to_string()
                         };
                         tracing::error!("QHY SDK panicked during discovery: {}", panic_msg);
-                        NativeError::SdkError(format!(
+                        DriverError::SdkError(format!(
                             "QHY SDK crashed during discovery: {}. Discovery has been disabled. \
                              Re-enable with api_set_qhy_discovery_enabled(true) if you want to try again.",
                             panic_msg
@@ -149,7 +149,7 @@ pub async fn discover_devices() -> Result<Vec<QhyCameraInfo>, NativeError> {
             })
             .await
             .map_err(|e| {
-                NativeError::SdkError(format!("QHY discovery task failed: {:?}", e))
+                DriverError::SdkError(format!("QHY discovery task failed: {:?}", e))
             })?
         } else {
             // No panic protection, just call directly. The caller's guard is
@@ -183,7 +183,7 @@ pub async fn discover_devices() -> Result<Vec<QhyCameraInfo>, NativeError> {
             );
             // Disable discovery to prevent repeated timeouts
             set_qhy_discovery_enabled(false);
-            Err(NativeError::Timeout(format!(
+            Err(DriverError::Timeout(format!(
                 "QHY discovery timed out after {}ms. Discovery has been disabled. \
                  Re-enable with api_set_qhy_discovery_enabled(true) if you want to try again.",
                 config.timeout_ms

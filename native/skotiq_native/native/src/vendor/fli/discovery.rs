@@ -20,24 +20,24 @@ pub enum FliDeviceType {
 }
 
 /// Discover connected FLI cameras
-pub async fn discover_cameras() -> Result<Vec<FliDiscoveryInfo>, NativeError> {
+pub async fn discover_cameras() -> Result<Vec<FliDiscoveryInfo>, DriverError> {
     discover_devices_by_type(FLIDEVICE_CAMERA, FliDeviceType::Camera).await
 }
 
 /// Discover connected FLI focusers
-pub async fn discover_focusers() -> Result<Vec<FliDiscoveryInfo>, NativeError> {
+pub async fn discover_focusers() -> Result<Vec<FliDiscoveryInfo>, DriverError> {
     discover_devices_by_type(FLIDEVICE_FOCUSER, FliDeviceType::Focuser).await
 }
 
 /// Discover connected FLI filter wheels
-pub async fn discover_filter_wheels() -> Result<Vec<FliDiscoveryInfo>, NativeError> {
+pub async fn discover_filter_wheels() -> Result<Vec<FliDiscoveryInfo>, DriverError> {
     discover_devices_by_type(FLIDEVICE_FILTERWHEEL, FliDeviceType::FilterWheel).await
 }
 
 async fn discover_devices_by_type(
     device_flag: c_long,
     device_type: FliDeviceType,
-) -> Result<Vec<FliDiscoveryInfo>, NativeError> {
+) -> Result<Vec<FliDiscoveryInfo>, DriverError> {
     let sdk = match FliSdk::installed() {
         Ok(sdk) => sdk,
         Err(_) => return Ok(Vec::new()),

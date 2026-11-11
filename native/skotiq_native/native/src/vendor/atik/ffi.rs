@@ -38,13 +38,13 @@ impl ArtemisError {
         }
     }
 
-    pub(crate) fn to_native_error(self, msg: &str) -> NativeError {
+    pub(crate) fn to_native_error(self, msg: &str) -> DriverError {
         tracing::error!(
             "Atik SDK error during '{}': {:?}. Check camera connection and SDK installation.",
             msg,
             self
         );
-        NativeError::SdkError(format!(
+        DriverError::SdkError(format!(
             "Atik {}: {:?}. Ensure camera is connected and AtikCameras driver is installed.",
             msg, self
         ))

@@ -28,9 +28,7 @@ pub(crate) mod read_health;
 
 use crate::device::*;
 use crate::state::SharedAppState;
-use skotiq_native::traits::{
-    NativeCamera, NativeDevice, NativeFilterWheel, NativeFocuser, NativeMount,
-};
+use skotiq_device::{CameraDriver, DeviceDriver, FilterWheelDriver, FocuserDriver, MountDriver};
 // Vendor SDK imports moved to crate::dispatch::native (the only consumer of
 // the camera/mount/filter wheel/focuser constructors).
 use std::collections::HashMap;
@@ -418,8 +416,8 @@ pub struct DeviceManager {
 
     /// Active native device instances
     // Visibility bumped to pub(crate) so dispatch/native.rs can insert connected
-    // generic NativeDevice handles without an extra accessor layer.
-    pub(crate) native_devices: RwLock<HashMap<String, Box<dyn NativeDevice>>>,
+    // generic DeviceDriver handles without an extra accessor layer.
+    pub(crate) native_devices: RwLock<HashMap<String, Box<dyn DeviceDriver>>>,
 
     /// Active ASCOM camera wrappers (for typed access, wrapped in RwLock for interior mutability)
     #[cfg(windows)]
@@ -529,17 +527,17 @@ pub struct DeviceManager {
         RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaCoverCalibrator>>>,
 
     /// Active Native SDK cameras (stored separately for typed access)
-    pub(crate) native_cameras: RwLock<HashMap<String, Box<dyn NativeCamera + Send + Sync>>>,
+    pub(crate) native_cameras: RwLock<HashMap<String, Box<dyn CameraDriver + Send + Sync>>>,
 
     /// Active Native SDK focusers (stored separately for typed access)
-    pub(crate) native_focusers: RwLock<HashMap<String, Box<dyn NativeFocuser + Send + Sync>>>,
+    pub(crate) native_focusers: RwLock<HashMap<String, Box<dyn FocuserDriver + Send + Sync>>>,
 
     /// Active Native SDK filter wheels (stored separately for typed access)
     pub(crate) native_filter_wheels:
-        RwLock<HashMap<String, Box<dyn NativeFilterWheel + Send + Sync>>>,
+        RwLock<HashMap<String, Box<dyn FilterWheelDriver + Send + Sync>>>,
 
     /// Active Native SDK mounts (stored separately for typed access)
-    pub(crate) native_mounts: RwLock<HashMap<String, Box<dyn NativeMount + Send + Sync>>>,
+    pub(crate) native_mounts: RwLock<HashMap<String, Box<dyn MountDriver + Send + Sync>>>,
 
     /// Active heartbeat monitoring tasks (device_id -> join handle)
     heartbeat_tasks: RwLock<HashMap<String, tokio::task::JoinHandle<()>>>,

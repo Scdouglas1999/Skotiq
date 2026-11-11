@@ -17,7 +17,7 @@
 //! `ascom_wrapper` and the Alpaca HTTP download path — so the mapping lives
 //! here, compiled and regression-tested on every platform.
 
-use skotiq_native::camera::BayerPattern;
+use skotiq_device::BayerPattern;
 use std::collections::HashSet;
 use std::sync::{Mutex, OnceLock};
 

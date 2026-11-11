@@ -11,9 +11,9 @@
 
 #![cfg(unix)]
 
-use skotiq_native::traits::{NativeCamera, NativeError, NativeFilterWheel, NativeFocuser};
+use skotiq_device::{CameraDriver, DriverError, FilterWheelDriver, FocuserDriver};
+use skotiq_device::{CameraStatus, ExposureParams, FrameType, ImageData, SubFrame};
 use skotiq_native::vendor::{atik, fli, moravian, player_one, qhy, svbony, touptek, zwo};
-use skotiq_native::{CameraStatus, ExposureParams, FrameType, ImageData, SubFrame};
 use std::fmt::Debug;
 use std::fmt::Write as _;
 use std::time::Duration;
@@ -25,7 +25,7 @@ impl Record {
         writeln!(self.0, "{} = {}", label, value.as_ref()).unwrap();
     }
 
-    fn result<T: Debug>(&mut self, label: &str, result: Result<T, NativeError>) {
+    fn result<T: Debug>(&mut self, label: &str, result: Result<T, DriverError>) {
         let text = match result {
             Ok(value) => format!("Ok({:?})", value),
             Err(error) => format!("Err({:?})", error),
@@ -45,7 +45,7 @@ impl Record {
 }
 
 /// `exposure_remaining` depends on the wall clock; keep only whether it is reported.
-fn status_text(status: Result<CameraStatus, NativeError>) -> String {
+fn status_text(status: Result<CameraStatus, DriverError>) -> String {
     match status {
         Ok(mut status) => {
             let remaining = status.exposure_remaining.take().is_some();
@@ -55,7 +55,7 @@ fn status_text(status: Result<CameraStatus, NativeError>) -> String {
     }
 }
 
-fn frame_text(frame: Result<ImageData, NativeError>) -> String {
+fn frame_text(frame: Result<ImageData, DriverError>) -> String {
     match frame {
         Ok(mut image) => {
             let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
@@ -99,7 +99,7 @@ fn exposure(
     }
 }
 
-async fn wait_for_frame<C: NativeCamera>(camera: &C) -> Result<bool, NativeError> {
+async fn wait_for_frame<C: CameraDriver>(camera: &C) -> Result<bool, DriverError> {
     let mut last = Ok(false);
     for _ in 0..100 {
         last = camera.is_exposure_complete().await;
@@ -111,7 +111,7 @@ async fn wait_for_frame<C: NativeCamera>(camera: &C) -> Result<bool, NativeError
     last
 }
 
-async fn camera_session<C: NativeCamera>(record: &mut Record, label: &str, camera: &mut C) {
+async fn camera_session<C: CameraDriver>(record: &mut Record, label: &str, camera: &mut C) {
     let l = |step: &str| format!("{}.{}", label, step);
     record.line(&l("name before connect"), camera.name());
     record.result(&l("connect"), camera.connect().await);
@@ -247,7 +247,7 @@ async fn camera_session<C: NativeCamera>(record: &mut Record, label: &str, camer
     );
 }
 
-async fn focuser_session<F: NativeFocuser>(record: &mut Record, label: &str, focuser: &mut F) {
+async fn focuser_session<F: FocuserDriver>(record: &mut Record, label: &str, focuser: &mut F) {
     let l = |step: &str| format!("{}.{}", label, step);
     record.result(&l("connect"), focuser.connect().await);
     record.line(&l("name"), focuser.name());
@@ -275,7 +275,7 @@ async fn focuser_session<F: NativeFocuser>(record: &mut Record, label: &str, foc
     );
 }
 
-async fn wheel_session<W: NativeFilterWheel>(record: &mut Record, label: &str, wheel: &mut W) {
+async fn wheel_session<W: FilterWheelDriver>(record: &mut Record, label: &str, wheel: &mut W) {
     let l = |step: &str| format!("{}.{}", label, step);
     record.result(&l("connect"), wheel.connect().await);
     record.line(&l("name"), wheel.name());

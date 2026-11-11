@@ -58,18 +58,18 @@ impl SvbError {
         }
     }
 
-    pub(crate) fn to_native_error(self, msg: &str) -> NativeError {
+    pub(crate) fn to_native_error(self, msg: &str) -> DriverError {
         match self {
             SvbError::Success => {
-                NativeError::SdkError(format!("SVBony {} called to_native_error on Success", msg))
+                DriverError::SdkError(format!("SVBony {} called to_native_error on Success", msg))
             }
             SvbError::InvalidIndex | SvbError::InvalidId => {
-                NativeError::InvalidDevice(format!("SVBony {}: {:?}", msg, self))
+                DriverError::InvalidDevice(format!("SVBony {}: {:?}", msg, self))
             }
-            SvbError::CameraClosed => NativeError::NotConnected,
-            SvbError::CameraRemoved => NativeError::Disconnected,
+            SvbError::CameraClosed => DriverError::NotConnected,
+            SvbError::CameraRemoved => DriverError::Disconnected,
             SvbError::Timeout => {
-                NativeError::Timeout(format!("SVBony {}: operation timed out", msg))
+                DriverError::Timeout(format!("SVBony {}: operation timed out", msg))
             }
             SvbError::InvalidControlType
             | SvbError::InvalidSize
@@ -80,20 +80,20 @@ impl SvbError {
             | SvbError::InvalidDirection
             | SvbError::InvalidPath
             | SvbError::InvalidFileFormat => {
-                NativeError::InvalidParameter(format!("SVBony {}: {:?}", msg, self))
+                DriverError::InvalidParameter(format!("SVBony {}: {:?}", msg, self))
             }
             SvbError::BufferTooSmall => {
-                NativeError::InvalidParameter(format!("SVBony {}: buffer too small", msg))
+                DriverError::InvalidParameter(format!("SVBony {}: buffer too small", msg))
             }
             SvbError::VideoModeActive | SvbError::ExposureInProgress => {
-                NativeError::SdkError(format!("SVBony {}: camera busy ({:?})", msg, self))
+                DriverError::SdkError(format!("SVBony {}: camera busy ({:?})", msg, self))
             }
-            SvbError::GeneralError => NativeError::SdkError(format!(
+            SvbError::GeneralError => DriverError::SdkError(format!(
                 "SVBony {}: general error - camera may be in use by another application",
                 msg
             )),
             SvbError::UnknownSensorType | SvbError::End => {
-                NativeError::SdkError(format!("SVBony {}: {:?}", msg, self))
+                DriverError::SdkError(format!("SVBony {}: {:?}", msg, self))
             }
         }
     }

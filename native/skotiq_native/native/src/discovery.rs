@@ -8,9 +8,9 @@
 //! avoid redundant SDK queries.
 
 use crate::catalog::{Discover, FAMILIES};
-use crate::traits::NativeError;
-use crate::NativeVendor;
 use skotiq_device::DeviceKind;
+use skotiq_device::DriverError;
+use skotiq_device::Vendor;
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
@@ -46,10 +46,10 @@ const SERIAL_SCAN_GAP: Duration = Duration::from_millis(200);
 
 /// An absent SDK is the normal case for gear the user does not own and is
 /// not worth a warning on every scan. An SDK that is present and fails is.
-fn is_sdk_not_installed_error(e: &NativeError) -> bool {
+fn is_sdk_not_installed_error(e: &DriverError) -> bool {
     matches!(
         e,
-        NativeError::SdkNotInstalled(_) | NativeError::SdkNotLoaded
+        DriverError::SdkNotInstalled(_) | DriverError::SdkNotLoaded
     )
 }
 
@@ -58,7 +58,7 @@ fn is_sdk_not_installed_error(e: &NativeError) -> bool {
 pub struct NativeDeviceInfo {
     pub id: String,
     pub name: String,
-    pub vendor: NativeVendor,
+    pub vendor: Vendor,
     pub device_type: DeviceKind,
     pub serial_number: Option<String>,
     pub sdk_version: Option<String>,
@@ -81,7 +81,7 @@ pub enum SerialProbe {
 /// This function is protected by a mutex to ensure thread-safety since most
 /// vendor SDKs are NOT thread-safe. Results are cached for CACHE_TTL seconds
 /// to avoid redundant SDK queries when multiple device types are discovered.
-pub async fn discover_all_devices() -> Result<Vec<NativeDeviceInfo>, NativeError> {
+pub async fn discover_all_devices() -> Result<Vec<NativeDeviceInfo>, DriverError> {
     discover_native_devices(SerialProbe::Probe).await
 }
 
@@ -90,7 +90,7 @@ pub async fn discover_all_devices() -> Result<Vec<NativeDeviceInfo>, NativeError
 /// discovery still looks for serial mounts.
 pub async fn discover_native_devices(
     serial: SerialProbe,
-) -> Result<Vec<NativeDeviceInfo>, NativeError> {
+) -> Result<Vec<NativeDeviceInfo>, DriverError> {
     // Publish libusb symbols globally BEFORE probing any vendor SDK. Some SDKs
     // (SVBony) expect the host to provide libusb and otherwise abort the whole
     // process with `undefined symbol: libusb_init` on first use. Idempotent.
@@ -194,7 +194,7 @@ pub async fn invalidate_discovery_cache() {
 /// Discover devices of a specific type
 pub async fn discover_devices(
     device_type: DeviceKind,
-) -> Result<Vec<NativeDeviceInfo>, NativeError> {
+) -> Result<Vec<NativeDeviceInfo>, DriverError> {
     let all_devices = discover_all_devices().await?;
     Ok(all_devices
         .into_iter()

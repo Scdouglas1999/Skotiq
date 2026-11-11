@@ -14,9 +14,9 @@ use crate::event::*;
 use std::time::Duration;
 use tokio::sync::watch;
 use tokio::time::interval;
-// `NativeDevice` also backs the ASCOM wrapper guards on Windows; the identity
-// probe below needs it (and `NativeCamera`) on every platform.
-use skotiq_native::traits::{NativeCamera, NativeDevice};
+// `DeviceDriver` also backs the ASCOM wrapper guards on Windows; the identity
+// probe below needs it (and `CameraDriver`) on every platform.
+use skotiq_device::{CameraDriver, DeviceDriver};
 
 /// Error message returned by `connect_device_internal` when an in-flight
 /// reconnect attempt is aborted by a manual disconnect. The string is part
@@ -569,7 +569,7 @@ impl DeviceManager {
     /// device the SDK cannot enumerate is not, and the list is lying.
     ///
     /// Matched on the message because these strings cross a vendor boundary as
-    /// plain `String` (`NativeError::InvalidDevice` carries no code). The
+    /// plain `String` (`DriverError::InvalidDevice` carries no code). The
     /// phrases are the ones the vendor modules emit — `zwo.rs` for the first,
     /// and the generic form the shared enumeration helpers use.
     fn is_stale_enumeration_error(message: &str) -> bool {
@@ -755,7 +755,7 @@ impl DeviceManager {
     /// Read identity straight off the connected driver.
     ///
     /// Cameras are the case that matters and the case that can answer: both the
-    /// vendor-SDK cameras and the ASCOM wrapper implement `NativeCamera`, so
+    /// vendor-SDK cameras and the ASCOM wrapper implement `CameraDriver`, so
     /// model, serial and sensor geometry come from one code path. Non-camera
     /// native devices contribute model and serial. Transports with no
     /// post-connect identity surface return an empty identity, which the caller
@@ -842,7 +842,7 @@ impl DeviceManager {
 
     /// A driver-reported model, or `None` when the driver only echoed the id.
     ///
-    /// Some vendor wrappers implement `NativeDevice::name()` by handing back the
+    /// Some vendor wrappers implement `DeviceDriver::name()` by handing back the
     /// device id — `ZwoCamera` did exactly that until the model was cached, and
     /// `PlayerOneCamera` still does. That answer is worthless as identity (it is
     /// a pure function of the id, so it can never contradict itself across a
@@ -859,7 +859,7 @@ impl DeviceManager {
     }
 
     /// Model + serial from any connected native device.
-    fn identity_from_device(device_id: &str, device: &dyn NativeDevice) -> DeviceIdentity {
+    fn identity_from_device(device_id: &str, device: &dyn DeviceDriver) -> DeviceIdentity {
         DeviceIdentity {
             model: Self::reported_model(device_id, device.name()),
             serial_number: device.serial_number().filter(|s| !s.trim().is_empty()),
@@ -871,7 +871,7 @@ impl DeviceManager {
     ///
     /// Geometry is what separates two bodies whose driver-reported names are
     /// identical, which is the normal case behind one ASCOM ProgID.
-    fn identity_from_camera(device_id: &str, camera: &dyn NativeCamera) -> DeviceIdentity {
+    fn identity_from_camera(device_id: &str, camera: &dyn CameraDriver) -> DeviceIdentity {
         let sensor = camera.get_sensor_info();
         DeviceIdentity {
             model: Self::reported_model(device_id, camera.name()),

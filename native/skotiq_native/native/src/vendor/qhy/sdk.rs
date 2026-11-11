@@ -134,7 +134,7 @@ pub(crate) fn get_discovery_config() -> QhyDiscoveryConfig {
     let mut timeout_ms = DEFAULT_DISCOVERY_TIMEOUT_MS;
 
     // Check quirks database for QHY-specific discovery settings
-    let vendor_quirks = crate::quirks::get_quirks_for_vendor(&crate::NativeVendor::Qhy);
+    let vendor_quirks = crate::quirks::get_quirks_for_vendor(&skotiq_device::Vendor::Qhy);
     for quirk in vendor_quirks {
         if let crate::quirks::Quirk::Discovery(crate::quirks::DiscoveryQuirk::DiscoveryTimeoutMs(
             timeout,
@@ -178,7 +178,7 @@ impl QhySdk {
     /// A library that is not installed reports `SdkNotInstalled`; a library
     /// that loads but whose `InitQHYCCDResource` fails reports `SdkError`, so
     /// a broken install keeps warning instead of looking absent.
-    pub(crate) fn ensure_initialized() -> Result<(), NativeError> {
+    pub(crate) fn ensure_initialized() -> Result<(), DriverError> {
         let sdk = Self::installed()?;
         let result = *SDK_INITIALIZED.get_or_init(|| {
             // Unlocked on purpose: every caller runs this before it takes the
@@ -198,7 +198,7 @@ impl QhySdk {
         if result == 0 {
             Ok(())
         } else {
-            Err(NativeError::SdkError(format!(
+            Err(DriverError::SdkError(format!(
                 "QHY SDK failed to initialize: InitQHYCCDResource returned error {}",
                 result
             )))
@@ -308,70 +308,70 @@ pub(crate) fn container_max_adu(
     }
 }
 
-/// Check QHY error and convert to NativeError with detailed error mapping
-pub(crate) fn check_qhy_error(code: c_uint, operation: &str) -> Result<(), NativeError> {
+/// Check QHY error and convert to DriverError with detailed error mapping
+pub(crate) fn check_qhy_error(code: c_uint, operation: &str) -> Result<(), DriverError> {
     match code {
         0 => Ok(()), // QHYCCD_SUCCESS
 
         // Initialization errors
-        0x0001 => Err(NativeError::SdkError(format!(
+        0x0001 => Err(DriverError::SdkError(format!(
             "{}: Failed to initialize QHYCCD resources - SDK may not be properly installed",
             operation
         ))),
-        0x0002 => Err(NativeError::SdkError(format!(
+        0x0002 => Err(DriverError::SdkError(format!(
             "{}: Failed to release QHYCCD resources",
             operation
         ))),
-        0x0003 => Err(NativeError::SdkError(format!(
+        0x0003 => Err(DriverError::SdkError(format!(
             "{}: Failed to initialize camera - check USB connection",
             operation
         ))),
-        0x0004 => Err(NativeError::Disconnected),
-        0x0005 => Err(NativeError::SdkError(format!(
+        0x0004 => Err(DriverError::Disconnected),
+        0x0005 => Err(DriverError::SdkError(format!(
             "{}: Failed to initialize camera class",
             operation
         ))),
-        0x0006 => Err(NativeError::SdkError(format!(
+        0x0006 => Err(DriverError::SdkError(format!(
             "{}: Filter wheel operation failed",
             operation
         ))),
-        0x0007 => Err(NativeError::SdkError(format!(
+        0x0007 => Err(DriverError::SdkError(format!(
             "{}: HDR mode setting failed",
             operation
         ))),
-        0x0008 => Err(NativeError::SdkError(format!(
+        0x0008 => Err(DriverError::SdkError(format!(
             "{}: Failed to get memory length for image buffer",
             operation
         ))),
 
         // Read errors
-        0x2001 => Err(NativeError::SdkError(format!(
+        0x2001 => Err(DriverError::SdkError(format!(
             "{}: Direct read failed",
             operation
         ))),
-        0x2002 => Err(NativeError::SdkError(format!(
+        0x2002 => Err(DriverError::SdkError(format!(
             "{}: Memory open read failed",
             operation
         ))),
-        0x2003 => Err(NativeError::SdkError(format!(
+        0x2003 => Err(DriverError::SdkError(format!(
             "{}: Read operation failed - check USB connection",
             operation
         ))),
 
         // Timeout (common error)
-        11 => Err(NativeError::Timeout(format!(
+        11 => Err(DriverError::Timeout(format!(
             "{}: Operation timed out - exposure may be in progress or camera unresponsive",
             operation
         ))),
 
         // Generic error (0xFFFFFFFF)
-        0xFFFFFFFF => Err(NativeError::SdkError(format!(
+        0xFFFFFFFF => Err(DriverError::SdkError(format!(
             "{}: General error - camera may be in use by another application or disconnected",
             operation
         ))),
 
         // Unknown error
-        _ => Err(NativeError::SdkError(format!(
+        _ => Err(DriverError::SdkError(format!(
             "{}: Unknown QHY error code 0x{:X}",
             operation, code
         ))),

@@ -147,8 +147,8 @@ crate::load_vendor_sdk! {
 
 // Error handling
 
-/// Map XSDK error codes to NativeError
-pub(crate) fn check_xapi_error(h_camera: XsdkHandle, sdk: &FujifilmSdk) -> Result<(), NativeError> {
+/// Map XSDK error codes to DriverError
+pub(crate) fn check_xapi_error(h_camera: XsdkHandle, sdk: &FujifilmSdk) -> Result<(), DriverError> {
     let mut api_code: c_long = 0;
     let mut err_code: c_long = 0;
     // SAFETY: the caller passes the table it just called through (this function is called only after a failed SDK call); `h_camera` is either a valid handle returned by XSDK_OpenEx or `std::ptr::null_mut()` (which XSDK_GetErrorNumber tolerates per XAPI.h for retrieving last init error); `&mut api_code` and `&mut err_code` are valid stack out-pointers to c_long.
@@ -158,54 +158,54 @@ pub(crate) fn check_xapi_error(h_camera: XsdkHandle, sdk: &FujifilmSdk) -> Resul
         XSDK_ERRCODE_NOERR => Ok(()),
 
         // Sequence/parameter errors
-        XSDK_ERRCODE_SEQUENCE => Err(NativeError::SdkError("API call sequence error".into())),
-        XSDK_ERRCODE_PARAM => Err(NativeError::InvalidParameter("Invalid parameter".into())),
-        XSDK_ERRCODE_INVALID_CAMERA => Err(NativeError::NotConnected),
+        XSDK_ERRCODE_SEQUENCE => Err(DriverError::SdkError("API call sequence error".into())),
+        XSDK_ERRCODE_PARAM => Err(DriverError::InvalidParameter("Invalid parameter".into())),
+        XSDK_ERRCODE_INVALID_CAMERA => Err(DriverError::NotConnected),
 
         // SDK/hardware errors
         XSDK_ERRCODE_LOADLIB => Ok(()), // Already initialized, recoverable
-        XSDK_ERRCODE_UNSUPPORTED => Err(NativeError::NotSupported),
-        XSDK_ERRCODE_BUSY => Err(NativeError::SdkError("Camera is busy".into())),
-        XSDK_ERRCODE_AF_TIMEOUT => Err(NativeError::Timeout("Autofocus timeout".into())),
-        XSDK_ERRCODE_SHOOT_ERROR => Err(NativeError::SdkError("Shooting error".into())),
-        XSDK_ERRCODE_FRAME_FULL => Err(NativeError::SdkError("Camera buffer full".into())),
-        XSDK_ERRCODE_STANDBY => Err(NativeError::SdkError("Camera in standby".into())),
+        XSDK_ERRCODE_UNSUPPORTED => Err(DriverError::NotSupported),
+        XSDK_ERRCODE_BUSY => Err(DriverError::SdkError("Camera is busy".into())),
+        XSDK_ERRCODE_AF_TIMEOUT => Err(DriverError::Timeout("Autofocus timeout".into())),
+        XSDK_ERRCODE_SHOOT_ERROR => Err(DriverError::SdkError("Shooting error".into())),
+        XSDK_ERRCODE_FRAME_FULL => Err(DriverError::SdkError("Camera buffer full".into())),
+        XSDK_ERRCODE_STANDBY => Err(DriverError::SdkError("Camera in standby".into())),
 
         // Driver/model errors
-        XSDK_ERRCODE_NODRIVER => Err(NativeError::SdkNotLoaded),
+        XSDK_ERRCODE_NODRIVER => Err(DriverError::SdkNotLoaded),
         XSDK_ERRCODE_NO_MODEL_MODULE => {
-            Err(NativeError::SdkError("Model-specific DLL not found".into()))
+            Err(DriverError::SdkError("Model-specific DLL not found".into()))
         }
-        XSDK_ERRCODE_API_NOTFOUND => Err(NativeError::NotSupported),
-        XSDK_ERRCODE_API_MISMATCH => Err(NativeError::SdkError("API version mismatch".into())),
-        XSDK_ERRCODE_INVALID_USBMODE => Err(NativeError::SdkError(
+        XSDK_ERRCODE_API_NOTFOUND => Err(DriverError::NotSupported),
+        XSDK_ERRCODE_API_MISMATCH => Err(DriverError::SdkError("API version mismatch".into())),
+        XSDK_ERRCODE_INVALID_USBMODE => Err(DriverError::SdkError(
             "Camera not in correct USB mode".into(),
         )),
-        XSDK_ERRCODE_FORCEMODE_BUSY => Err(NativeError::SdkError(
+        XSDK_ERRCODE_FORCEMODE_BUSY => Err(DriverError::SdkError(
             "Force mode operation in progress".into(),
         )),
         XSDK_ERRCODE_RUNNING_OTHER_FUNCTION => {
-            Err(NativeError::SdkError("Another operation running".into()))
+            Err(DriverError::SdkError("Another operation running".into()))
         }
 
         // Communication errors
         XSDK_ERRCODE_COMMUNICATION => {
-            Err(NativeError::SdkError("USB/WiFi communication error".into()))
+            Err(DriverError::SdkError("USB/WiFi communication error".into()))
         }
-        XSDK_ERRCODE_TIMEOUT => Err(NativeError::Timeout("Operation timeout".into())),
-        XSDK_ERRCODE_COMBINATION => Err(NativeError::InvalidParameter(
+        XSDK_ERRCODE_TIMEOUT => Err(DriverError::Timeout("Operation timeout".into())),
+        XSDK_ERRCODE_COMBINATION => Err(DriverError::InvalidParameter(
             "Invalid parameter combination".into(),
         )),
-        XSDK_ERRCODE_WRITEERROR => Err(NativeError::SdkError("Write error".into())),
-        XSDK_ERRCODE_CARDFULL => Err(NativeError::SdkError("Memory card full".into())),
+        XSDK_ERRCODE_WRITEERROR => Err(DriverError::SdkError("Write error".into())),
+        XSDK_ERRCODE_CARDFULL => Err(DriverError::SdkError("Memory card full".into())),
 
         // Hardware/internal errors
-        XSDK_ERRCODE_HARDWARE => Err(NativeError::SdkError("Camera hardware error".into())),
-        XSDK_ERRCODE_INTERNAL => Err(NativeError::SdkError("Internal SDK error".into())),
-        XSDK_ERRCODE_MEMFULL => Err(NativeError::SdkError("SDK memory allocation failed".into())),
-        XSDK_ERRCODE_UNKNOWN => Err(NativeError::SdkError("Unknown error".into())),
+        XSDK_ERRCODE_HARDWARE => Err(DriverError::SdkError("Camera hardware error".into())),
+        XSDK_ERRCODE_INTERNAL => Err(DriverError::SdkError("Internal SDK error".into())),
+        XSDK_ERRCODE_MEMFULL => Err(DriverError::SdkError("SDK memory allocation failed".into())),
+        XSDK_ERRCODE_UNKNOWN => Err(DriverError::SdkError("Unknown error".into())),
 
-        _ => Err(NativeError::SdkError(format!(
+        _ => Err(DriverError::SdkError(format!(
             "XAPI error: API=0x{:04X}, ERR=0x{:08X}",
             api_code, err_code
         ))),

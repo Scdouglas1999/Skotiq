@@ -46,7 +46,7 @@ impl AtikFilterWheel {
 }
 
 #[async_trait]
-impl NativeDevice for AtikFilterWheel {
+impl DeviceDriver for AtikFilterWheel {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -55,15 +55,15 @@ impl NativeDevice for AtikFilterWheel {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Atik
+    fn vendor(&self) -> Vendor {
+        Vendor::Atik
     }
 
     fn is_connected(&self) -> bool {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         if self.connected {
             return Ok(());
         }
@@ -82,7 +82,7 @@ impl NativeDevice for AtikFilterWheel {
         let efw_get_device_details = sdk.efw_get_device_details.unwrap();
 
         let serial_number = self.serial_number.as_deref().ok_or_else(|| {
-            NativeError::DeviceNotFound(format!(
+            DriverError::DeviceNotFound(format!(
                 "No discovery serial recorded for Atik EFW index {}",
                 self.device_index
             ))
@@ -93,7 +93,7 @@ impl NativeDevice for AtikFilterWheel {
         // against the current SDK enumeration; NULL is checked below.
         let handle = unsafe { efw_connect(device_index) };
         if handle.is_null() {
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Failed to connect to Atik EFW serial {}",
                 serial_number
             )));
@@ -103,7 +103,7 @@ impl NativeDevice for AtikFilterWheel {
         if !unsafe { efw_is_connected(handle) } {
             // SAFETY: handle was successfully opened above.
             unsafe { efw_disconnect(handle) };
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Atik EFW serial {} did not report connected after connect",
                 serial_number
             )));
@@ -131,7 +131,7 @@ impl NativeDevice for AtikFilterWheel {
         if filter_count <= 0 {
             // SAFETY: handle was successfully opened above.
             unsafe { efw_disconnect(handle) };
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Atik EFW serial {} reported invalid filter count {}",
                 serial_number, filter_count
             )));
@@ -147,7 +147,7 @@ impl NativeDevice for AtikFilterWheel {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.connected {
             return Ok(());
         }
@@ -174,13 +174,13 @@ impl NativeDevice for AtikFilterWheel {
 }
 
 #[async_trait]
-impl NativeFilterWheel for AtikFilterWheel {
-    async fn move_to_position(&mut self, position: i32) -> Result<(), NativeError> {
+impl FilterWheelDriver for AtikFilterWheel {
+    async fn move_to_position(&mut self, position: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
         if position < 0 || position >= self.filter_count {
-            return Err(NativeError::InvalidParameter(format!(
+            return Err(DriverError::InvalidParameter(format!(
                 "Atik EFW position {} outside valid range 0-{}",
                 position,
                 self.filter_count - 1
@@ -202,9 +202,9 @@ impl NativeFilterWheel for AtikFilterWheel {
         )
     }
 
-    async fn get_position(&self) -> Result<i32, NativeError> {
+    async fn get_position(&self) -> Result<i32, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let loaded = AtikSdk::installed()?;
@@ -226,9 +226,9 @@ impl NativeFilterWheel for AtikFilterWheel {
         Ok(position)
     }
 
-    async fn is_moving(&self) -> Result<bool, NativeError> {
+    async fn is_moving(&self) -> Result<bool, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let loaded = AtikSdk::installed()?;
@@ -254,13 +254,13 @@ impl NativeFilterWheel for AtikFilterWheel {
         self.filter_count
     }
 
-    async fn get_filter_names(&self) -> Result<Vec<String>, NativeError> {
+    async fn get_filter_names(&self) -> Result<Vec<String>, DriverError> {
         Ok((0..self.filter_count)
             .map(|i| format!("Filter {}", i + 1))
             .collect())
     }
 
-    async fn set_filter_name(&mut self, _position: i32, _name: String) -> Result<(), NativeError> {
+    async fn set_filter_name(&mut self, _position: i32, _name: String) -> Result<(), DriverError> {
         // Atik EFW firmware does not persist filter names; callers maintain labels.
         Ok(())
     }

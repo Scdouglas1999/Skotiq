@@ -176,8 +176,8 @@ impl QhyCamera {
     }
 
     /// Load camera chip info from SDK
-    pub(crate) fn load_camera_info(&mut self, sdk: &QhySdk) -> Result<(), NativeError> {
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
+    pub(crate) fn load_camera_info(&mut self, sdk: &QhySdk) -> Result<(), DriverError> {
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
 
         let mut chip_w: c_double = 0.0;
         let mut chip_h: c_double = 0.0;
@@ -250,10 +250,10 @@ impl QhyCamera {
     }
 
     /// Get a control value (mutex protected)
-    pub(crate) async fn get_control_async(&self, control: QhyControl) -> Result<f64, NativeError> {
+    pub(crate) async fn get_control_async(&self, control: QhyControl) -> Result<f64, DriverError> {
         // Acquire mutex before extracting handle to avoid Send issues
         let sdk = QhySdk::lock().await?;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
         // SAFETY: handle was validated via Option::ok_or; control
         // discriminant fits in c_int. GetQHYCCDParam returns c_double by value, no out-pointers.
         Ok(unsafe { (sdk.get_qhyccd_param)(handle, control as c_int) })
@@ -264,8 +264,8 @@ impl QhyCamera {
         &self,
         sdk: &QhySdk,
         control: QhyControl,
-    ) -> Result<f64, NativeError> {
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
+    ) -> Result<f64, DriverError> {
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
         // SAFETY: handle validated; control discriminant fits in c_int. Return by value.
         Ok(unsafe { (sdk.get_qhyccd_param)(handle, control as c_int) })
     }
@@ -275,10 +275,10 @@ impl QhyCamera {
         &mut self,
         control: QhyControl,
         value: f64,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         // Acquire mutex before extracting handle to avoid Send issues
         let sdk = QhySdk::lock().await?;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
         // SAFETY: handle validated; control discriminant fits in c_int;
         // value is pass-by-value c_double. SDK validates the value internally.
         let result = unsafe { (sdk.set_qhyccd_param)(handle, control as c_int, value) };
@@ -291,8 +291,8 @@ impl QhyCamera {
         sdk: &QhySdk,
         control: QhyControl,
         value: f64,
-    ) -> Result<(), NativeError> {
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
+    ) -> Result<(), DriverError> {
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
         // SAFETY: handle validated;
         // control discriminant fits in c_int; value is pass-by-value c_double.
         let result = unsafe { (sdk.set_qhyccd_param)(handle, control as c_int, value) };
@@ -303,10 +303,10 @@ impl QhyCamera {
     pub(crate) async fn get_control_range_async(
         &self,
         control: QhyControl,
-    ) -> Result<(f64, f64, f64), NativeError> {
+    ) -> Result<(f64, f64, f64), DriverError> {
         // Acquire mutex before extracting handle to avoid Send issues
         let sdk = QhySdk::lock().await?;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
 
         let mut min_val: c_double = 0.0;
         let mut max_val: c_double = 0.0;

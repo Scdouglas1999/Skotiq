@@ -399,7 +399,7 @@ impl DeviceManager {
     /// ASCOM: Sets the ReadoutMode property (integer index)
     /// Alpaca: Sets the readoutmode property (integer index)
     /// INDI: Sets the CCD_READ_MODE switch to the element at the given index
-    /// Native: Delegates to NativeCamera::set_readout_mode with a synthetic ReadoutMode
+    /// Native: Delegates to CameraDriver::set_readout_mode with a synthetic ReadoutMode
     async fn camera_set_readout_mode_dispatch(
         &self,
         device_id: &str,
@@ -423,7 +423,7 @@ impl DeviceManager {
                     let cameras = self.ascom_cameras.read().await;
                     if let Some(camera) = cameras.get(device_id) {
                         let mut camera = camera.write().await;
-                        let mode = skotiq_native::camera::ReadoutMode {
+                        let mode = skotiq_device::ReadoutMode {
                             name: format!("Mode {}", mode_index),
                             description: String::new(),
                             index: mode_index,
@@ -510,7 +510,7 @@ impl DeviceManager {
             Some(DriverType::Native) => {
                 let mut native_cameras = self.native_cameras.write().await;
                 if let Some(camera) = native_cameras.get_mut(device_id) {
-                    let mode = skotiq_native::camera::ReadoutMode {
+                    let mode = skotiq_device::ReadoutMode {
                         name: format!("Mode {}", mode_index),
                         description: String::new(),
                         index: mode_index,

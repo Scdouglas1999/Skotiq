@@ -177,7 +177,7 @@ crate::load_vendor_sdk! {
     }
 }
 
-pub(crate) fn check_artemis_error(result: c_int, operation: &str) -> Result<(), NativeError> {
+pub(crate) fn check_artemis_error(result: c_int, operation: &str) -> Result<(), DriverError> {
     let err = ArtemisError::from_i32(result);
     if err == ArtemisError::Ok {
         Ok(())
@@ -186,7 +186,7 @@ pub(crate) fn check_artemis_error(result: c_int, operation: &str) -> Result<(), 
     }
 }
 
-pub(crate) fn require_efw_api(sdk: &AtikSdk) -> Result<(), NativeError> {
+pub(crate) fn require_efw_api(sdk: &AtikSdk) -> Result<(), DriverError> {
     if sdk.efw_is_present.is_some()
         && sdk.efw_get_device_details.is_some()
         && sdk.efw_connect.is_some()
@@ -198,7 +198,7 @@ pub(crate) fn require_efw_api(sdk: &AtikSdk) -> Result<(), NativeError> {
     {
         Ok(())
     } else {
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     }
 }
 
@@ -235,7 +235,7 @@ pub(crate) fn discovered_efw_serials() -> &'static Mutex<HashMap<c_int, String>>
 pub(crate) fn camera_index_for_serial(
     sdk: &AtikSdk,
     serial_number: &str,
-) -> Result<c_int, NativeError> {
+) -> Result<c_int, DriverError> {
     let count = match sdk.refresh_devices_count {
         // SAFETY: so no other
         // task is inside the Artemis SDK. ArtemisRefreshDevicesCount takes no
@@ -279,7 +279,7 @@ pub(crate) fn camera_index_for_serial(
         }
     }
 
-    Err(NativeError::DeviceNotFound(format!(
+    Err(DriverError::DeviceNotFound(format!(
         "Atik camera serial {}",
         serial_number
     )))
@@ -288,7 +288,7 @@ pub(crate) fn camera_index_for_serial(
 pub(crate) fn efw_index_for_serial(
     sdk: &AtikSdk,
     serial_number: &str,
-) -> Result<c_int, NativeError> {
+) -> Result<c_int, DriverError> {
     let efw_is_present = sdk.efw_is_present.unwrap();
     let efw_get_device_details = sdk.efw_get_device_details.unwrap();
 
@@ -315,7 +315,7 @@ pub(crate) fn efw_index_for_serial(
         }
     }
 
-    Err(NativeError::DeviceNotFound(format!(
+    Err(DriverError::DeviceNotFound(format!(
         "Atik EFW serial {}",
         serial_number
     )))

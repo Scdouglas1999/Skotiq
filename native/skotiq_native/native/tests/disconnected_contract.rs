@@ -14,22 +14,22 @@
 //! Regenerate with `UPDATE_DISCONNECTED_CONTRACT=1 cargo test --test disconnected_contract`.
 //! Fujifilm is a Windows-only module with no fixture and is not covered here.
 
-use skotiq_native::traits::{NativeCamera, NativeError, NativeFilterWheel, NativeFocuser};
+use skotiq_device::{CameraDriver, DriverError, FilterWheelDriver, FocuserDriver};
+use skotiq_device::{ExposureParams, FrameType, ReadoutMode, SubFrame};
 use skotiq_native::vendor::{atik, fli, gphoto2, moravian, player_one, qhy, svbony, touptek, zwo};
-use skotiq_native::{ExposureParams, FrameType, ReadoutMode, SubFrame};
 use std::fmt::Debug;
 use std::fmt::Write as _;
 
-fn show<T: Debug>(result: Result<T, NativeError>) -> String {
+fn show<T: Debug>(result: Result<T, DriverError>) -> String {
     match result {
         Ok(value) => format!("Ok({:?})", value),
-        Err(NativeError::SdkNotInstalled(_)) => "Err(SdkNotInstalled)".to_string(),
+        Err(DriverError::SdkNotInstalled(_)) => "Err(SdkNotInstalled)".to_string(),
         Err(error) => format!("Err({:?})", error),
     }
 }
 
 /// `custom_data` is a hash map; print it in key order so the record is stable.
-struct SortedFeatures(skotiq_native::VendorFeatures);
+struct SortedFeatures(skotiq_device::VendorFeatures);
 
 impl Debug for SortedFeatures {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -71,7 +71,7 @@ macro_rules! row {
     };
 }
 
-async fn camera_rows<C: NativeCamera>(out: &mut String, make: impl Fn() -> C) {
+async fn camera_rows<C: CameraDriver>(out: &mut String, make: impl Fn() -> C) {
     row!(out, "vendor", format!("{:?}", make().vendor()));
     row!(out, "is_connected", make().is_connected());
     row!(
@@ -247,7 +247,7 @@ async fn camera_rows<C: NativeCamera>(out: &mut String, make: impl Fn() -> C) {
     );
 }
 
-async fn focuser_rows<F: NativeFocuser>(out: &mut String, make: impl Fn() -> F) {
+async fn focuser_rows<F: FocuserDriver>(out: &mut String, make: impl Fn() -> F) {
     row!(out, "vendor", format!("{:?}", make().vendor()));
     row!(out, "is_connected", make().is_connected());
     row!(
@@ -271,7 +271,7 @@ async fn focuser_rows<F: NativeFocuser>(out: &mut String, make: impl Fn() -> F) 
     row!(out, "get_step_size", make().get_step_size());
 }
 
-async fn wheel_rows<W: NativeFilterWheel>(out: &mut String, make: impl Fn() -> W) {
+async fn wheel_rows<W: FilterWheelDriver>(out: &mut String, make: impl Fn() -> W) {
     row!(out, "vendor", format!("{:?}", make().vendor()));
     row!(out, "is_connected", make().is_connected());
     row!(

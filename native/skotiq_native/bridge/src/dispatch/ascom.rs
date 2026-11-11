@@ -10,11 +10,11 @@ use crate::device::*;
 use crate::device_manager::DeviceManager;
 #[cfg(windows)]
 use crate::dispatch::device_common_metadata::{fetch_api_version, DeviceCommonMetadata};
-// NativeDevice / NativeMount required so the trait methods `connect`,
+// DeviceDriver / MountDriver required so the trait methods `connect`,
 // `disconnect`, `get_tracking` — which the ASCOM wrappers implement via the
 // trait — are resolvable here.
 #[cfg(windows)]
-use skotiq_native::traits::{NativeDevice, NativeMount};
+use skotiq_device::{DeviceDriver, MountDriver};
 #[cfg(windows)]
 use std::collections::HashMap;
 #[cfg(windows)]

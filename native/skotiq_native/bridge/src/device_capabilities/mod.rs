@@ -54,7 +54,7 @@ use crate::device::{CalibratorState, CoverState, TrackingRate};
 
 // Import native traits for connect/disconnect and live filter-wheel queries.
 #[cfg(windows)]
-use skotiq_native::traits::{NativeDevice, NativeFilterWheel};
+use skotiq_device::{DeviceDriver, FilterWheelDriver};
 
 pub(crate) mod alpaca;
 pub(crate) use alpaca::*;

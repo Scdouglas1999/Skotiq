@@ -1,14 +1,14 @@
-//! `NativeCamera` implementation for `AtikCamera`.
+//! `CameraDriver` implementation for `AtikCamera`.
 
 use super::*;
 
 #[async_trait]
-impl NativeCamera for AtikCamera {
+impl CameraDriver for AtikCamera {
     fn capabilities(&self) -> CameraCapabilities {
         self.core.capabilities.clone()
     }
 
-    async fn get_status(&self) -> Result<CameraStatus, NativeError> {
+    async fn get_status(&self) -> Result<CameraStatus, DriverError> {
         self.core.require_connected()?;
 
         // Acquire global SDK mutex for thread safety
@@ -87,7 +87,7 @@ impl NativeCamera for AtikCamera {
         })
     }
 
-    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), NativeError> {
+    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
         self.core.require_connected()?;
 
         // Set gain if provided
@@ -138,7 +138,7 @@ impl NativeCamera for AtikCamera {
         Ok(())
     }
 
-    async fn abort_exposure(&mut self) -> Result<(), NativeError> {
+    async fn abort_exposure(&mut self) -> Result<(), DriverError> {
         self.core.require_connected()?;
 
         // Acquire global SDK mutex for thread safety
@@ -156,7 +156,7 @@ impl NativeCamera for AtikCamera {
         Ok(())
     }
 
-    async fn is_exposure_complete(&self) -> Result<bool, NativeError> {
+    async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
         self.core.require_connected()?;
 
         // Acquire global SDK mutex for thread safety
@@ -169,7 +169,7 @@ impl NativeCamera for AtikCamera {
         Ok(ready != 0)
     }
 
-    async fn download_image(&mut self) -> Result<ImageData, NativeError> {
+    async fn download_image(&mut self) -> Result<ImageData, DriverError> {
         self.core.require_connected()?;
 
         // Acquire global SDK mutex for thread safety
@@ -211,7 +211,7 @@ impl NativeCamera for AtikCamera {
                 biny
             );
             self.core.state = CameraState::Error;
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Image buffer is NULL on Atik camera '{}'. Image download failed after successful exposure.",
                 self.core.name
             )));
@@ -222,17 +222,17 @@ impl NativeCamera for AtikCamera {
         // returned success but populated junk dimensions — fail fast instead of casting a
         // negative i32 to a giant usize (which would later trip pool allocation).
         let w_usize = usize::try_from(w).map_err(|_| {
-            NativeError::SdkError(format!("Atik returned non-positive image width: {}", w))
+            DriverError::SdkError(format!("Atik returned non-positive image width: {}", w))
         })?;
         let h_usize = usize::try_from(h).map_err(|_| {
-            NativeError::SdkError(format!("Atik returned non-positive image height: {}", h))
+            DriverError::SdkError(format!("Atik returned non-positive image height: {}", h))
         })?;
         let pixel_count = w_usize
             .checked_mul(h_usize)
-            .ok_or_else(|| NativeError::SdkError("Atik image dimensions overflow usize".into()))?;
+            .ok_or_else(|| DriverError::SdkError("Atik image dimensions overflow usize".into()))?;
         let byte_count = pixel_count
             .checked_mul(2)
-            .ok_or_else(|| NativeError::SdkError("Atik image dimensions overflow usize".into()))?;
+            .ok_or_else(|| DriverError::SdkError("Atik image dimensions overflow usize".into()))?;
         // Why: ArtemisImageBuffer() returns *mut c_void with pixel_count * 2 valid bytes,
         // but Artemis does not guarantee u16 alignment of that pointer. Reading through
         // *const u16 would be UB on archs that trap unaligned loads (and is technically UB
@@ -284,10 +284,10 @@ impl NativeCamera for AtikCamera {
         &mut self,
         enabled: bool,
         target_temp: Option<f64>,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         self.core.require_connected()?;
         if !self.core.capabilities.can_cool {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
 
         // ArtemisSetCooling *is* the enable on this SDK, so cooling needs a
@@ -304,7 +304,7 @@ impl NativeCamera for AtikCamera {
             let quirk_lookup_id = format!("native:atik:{}", self.core.name);
             if let Some((min_temp, max_temp)) = crate::quirks::get_cooler_range(&quirk_lookup_id) {
                 if target < min_temp || target > max_temp {
-                    return Err(NativeError::InvalidParameter(format!(
+                    return Err(DriverError::InvalidParameter(format!(
                         "Atik cooler target {target}C is outside the supported range {min_temp}C..={max_temp}C for {}",
                         self.core.name
                     )));
@@ -342,7 +342,7 @@ impl NativeCamera for AtikCamera {
         Ok(())
     }
 
-    async fn get_temperature(&self) -> Result<f64, NativeError> {
+    async fn get_temperature(&self) -> Result<f64, DriverError> {
         self.core.require_connected()?;
 
         // Acquire global SDK mutex for thread safety
@@ -361,10 +361,10 @@ impl NativeCamera for AtikCamera {
         Ok(temp as f64 / 100.0)
     }
 
-    async fn get_cooler_power(&self) -> Result<f64, NativeError> {
+    async fn get_cooler_power(&self) -> Result<f64, DriverError> {
         self.core.require_connected()?;
         if !self.core.capabilities.can_cool {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -400,7 +400,7 @@ impl NativeCamera for AtikCamera {
         }
     }
 
-    async fn set_gain(&mut self, gain: i32) -> Result<(), NativeError> {
+    async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
         self.core.require_connected()?;
 
         // Acquire global SDK mutex for thread safety
@@ -418,11 +418,11 @@ impl NativeCamera for AtikCamera {
         Ok(())
     }
 
-    async fn get_gain(&self) -> Result<i32, NativeError> {
+    async fn get_gain(&self) -> Result<i32, DriverError> {
         Ok(self.core.gain)
     }
 
-    async fn set_offset(&mut self, offset: i32) -> Result<(), NativeError> {
+    async fn set_offset(&mut self, offset: i32) -> Result<(), DriverError> {
         self.core.require_connected()?;
 
         // Acquire global SDK mutex for thread safety
@@ -441,15 +441,15 @@ impl NativeCamera for AtikCamera {
         Ok(())
     }
 
-    async fn get_offset(&self) -> Result<i32, NativeError> {
+    async fn get_offset(&self) -> Result<i32, DriverError> {
         Ok(self.core.offset)
     }
 
-    async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), NativeError> {
+    async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), DriverError> {
         self.core.require_connected()?;
 
         if bin_x > self.core.capabilities.max_bin_x || bin_y > self.core.capabilities.max_bin_y {
-            return Err(NativeError::InvalidParameter(format!(
+            return Err(DriverError::InvalidParameter(format!(
                 "Binning {}x{} exceeds max {}x{}",
                 bin_x, bin_y, self.core.capabilities.max_bin_x, self.core.capabilities.max_bin_y
             )));
@@ -471,11 +471,11 @@ impl NativeCamera for AtikCamera {
         Ok(())
     }
 
-    async fn get_binning(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
         Ok((self.core.bin_x, self.core.bin_y))
     }
 
-    async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), NativeError> {
+    async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), DriverError> {
         self.core.require_connected()?;
 
         // Acquire global SDK mutex for thread safety
@@ -490,25 +490,25 @@ impl NativeCamera for AtikCamera {
         let (x, y, w, h) = match &subframe {
             Some(sf) => (
                 c_int::try_from(sf.start_x).map_err(|_| {
-                    NativeError::InvalidParameter(format!(
+                    DriverError::InvalidParameter(format!(
                         "Atik subframe start_x exceeds i32: {}",
                         sf.start_x
                     ))
                 })?,
                 c_int::try_from(sf.start_y).map_err(|_| {
-                    NativeError::InvalidParameter(format!(
+                    DriverError::InvalidParameter(format!(
                         "Atik subframe start_y exceeds i32: {}",
                         sf.start_y
                     ))
                 })?,
                 c_int::try_from(sf.width).map_err(|_| {
-                    NativeError::InvalidParameter(format!(
+                    DriverError::InvalidParameter(format!(
                         "Atik subframe width exceeds i32: {}",
                         sf.width
                     ))
                 })?,
                 c_int::try_from(sf.height).map_err(|_| {
-                    NativeError::InvalidParameter(format!(
+                    DriverError::InvalidParameter(format!(
                         "Atik subframe height exceeds i32: {}",
                         sf.height
                     ))
@@ -519,13 +519,13 @@ impl NativeCamera for AtikCamera {
                 // try_into u32 first (current_bin_x is i32, so a corrupt negative bin would
                 // wrap), then convert the binned dim back to c_int.
                 let bin_x_u32 = u32::try_from(self.core.bin_x).map_err(|_| {
-                    NativeError::InvalidParameter(format!(
+                    DriverError::InvalidParameter(format!(
                         "Atik current_bin_x not representable as u32: {}",
                         self.core.bin_x
                     ))
                 })?;
                 let bin_y_u32 = u32::try_from(self.core.bin_y).map_err(|_| {
-                    NativeError::InvalidParameter(format!(
+                    DriverError::InvalidParameter(format!(
                         "Atik current_bin_y not representable as u32: {}",
                         self.core.bin_y
                     ))
@@ -533,13 +533,13 @@ impl NativeCamera for AtikCamera {
                 let binned_w = self.core.sensor_info.width / bin_x_u32.max(1);
                 let binned_h = self.core.sensor_info.height / bin_y_u32.max(1);
                 let w_ci = c_int::try_from(binned_w).map_err(|_| {
-                    NativeError::SdkError(format!(
+                    DriverError::SdkError(format!(
                         "Atik binned width does not fit in c_int: {}",
                         binned_w
                     ))
                 })?;
                 let h_ci = c_int::try_from(binned_h).map_err(|_| {
-                    NativeError::SdkError(format!(
+                    DriverError::SdkError(format!(
                         "Atik binned height does not fit in c_int: {}",
                         binned_h
                     ))
@@ -564,7 +564,7 @@ impl NativeCamera for AtikCamera {
         self.core.sensor_info.clone()
     }
 
-    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, NativeError> {
+    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
         Ok(vec![ReadoutMode {
             name: "Normal".to_string(),
             description: "Standard readout mode".to_string(),
@@ -576,26 +576,26 @@ impl NativeCamera for AtikCamera {
         }])
     }
 
-    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), NativeError> {
+    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), DriverError> {
         Ok(())
     }
 
-    async fn get_vendor_features(&self) -> Result<VendorFeatures, NativeError> {
+    async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
         Ok(VendorFeatures::default())
     }
 
-    async fn get_gain_range(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
         self.core.require_connected()?;
 
         // The Atik SDK publishes no gain bounds, and a fixed-gain CCD has none to
         // publish; report the absence rather than a range the hardware never stated.
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_offset_range(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
         self.core.require_connected()?;
 
         // Same as gain: the SDK reports no offset bounds.
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     }
 }

@@ -36,7 +36,7 @@ impl FliFilterWheel {
 }
 
 #[async_trait]
-impl NativeDevice for FliFilterWheel {
+impl DeviceDriver for FliFilterWheel {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -45,15 +45,15 @@ impl NativeDevice for FliFilterWheel {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Fli
+    fn vendor(&self) -> Vendor {
+        Vendor::Fli
     }
 
     fn is_connected(&self) -> bool {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         if self.connected {
             return Ok(());
         }
@@ -66,7 +66,7 @@ impl NativeDevice for FliFilterWheel {
                 "FLI filter wheel device path contains null bytes: '{}'",
                 self.device_path
             );
-            NativeError::SdkError(format!(
+            DriverError::SdkError(format!(
                 "Invalid device path '{}' contains null bytes",
                 self.device_path
             ))
@@ -81,7 +81,7 @@ impl NativeDevice for FliFilterWheel {
                 self.device_path,
                 result
             );
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Failed to open FLI filter wheel at '{}'. SDK error: {}",
                 self.device_path, result
             )));
@@ -116,7 +116,7 @@ impl NativeDevice for FliFilterWheel {
         };
         if filter_count <= 0 {
             close_fli_handle(&sdk, &mut self.handle);
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "FLI filter wheel at '{}' reported invalid filter count {}",
                 self.device_path, filter_count
             )));
@@ -133,7 +133,7 @@ impl NativeDevice for FliFilterWheel {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.connected {
             return Ok(());
         }
@@ -153,10 +153,10 @@ impl NativeDevice for FliFilterWheel {
 }
 
 #[async_trait]
-impl NativeFilterWheel for FliFilterWheel {
-    async fn get_position(&self) -> Result<i32, NativeError> {
+impl FilterWheelDriver for FliFilterWheel {
+    async fn get_position(&self) -> Result<i32, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -173,13 +173,13 @@ impl NativeFilterWheel for FliFilterWheel {
         fli_c_long_to_i32(position, "filter position")
     }
 
-    async fn move_to_position(&mut self, position: i32) -> Result<(), NativeError> {
+    async fn move_to_position(&mut self, position: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if position < 0 || position >= self.filter_count {
-            return Err(NativeError::InvalidParameter(format!(
+            return Err(DriverError::InvalidParameter(format!(
                 "Invalid filter position: {} (max {})",
                 position,
                 self.filter_count - 1
@@ -196,9 +196,9 @@ impl NativeFilterWheel for FliFilterWheel {
         Ok(())
     }
 
-    async fn is_moving(&self) -> Result<bool, NativeError> {
+    async fn is_moving(&self) -> Result<bool, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -218,7 +218,7 @@ impl NativeFilterWheel for FliFilterWheel {
         self.filter_count
     }
 
-    async fn get_filter_names(&self) -> Result<Vec<String>, NativeError> {
+    async fn get_filter_names(&self) -> Result<Vec<String>, DriverError> {
         // FLI SDK doesn't store filter names, return generic names
         let names: Vec<String> = (0..self.filter_count)
             .map(|i| format!("Filter {}", i + 1))
@@ -226,7 +226,7 @@ impl NativeFilterWheel for FliFilterWheel {
         Ok(names)
     }
 
-    async fn set_filter_name(&mut self, _position: i32, _name: String) -> Result<(), NativeError> {
+    async fn set_filter_name(&mut self, _position: i32, _name: String) -> Result<(), DriverError> {
         // FLI SDK doesn't support storing filter names
         Ok(())
     }

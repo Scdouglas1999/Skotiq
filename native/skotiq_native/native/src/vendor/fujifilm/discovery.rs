@@ -12,7 +12,7 @@ pub struct FujifilmDeviceInfo {
 }
 
 /// Discover all connected Fujifilm cameras
-pub async fn discover_devices() -> Result<Vec<FujifilmDeviceInfo>, NativeError> {
+pub async fn discover_devices() -> Result<Vec<FujifilmDeviceInfo>, DriverError> {
     let sdk = FujifilmSdk::lock().await?;
 
     // Initialize SDK (ignore "already initialized" error)
@@ -60,7 +60,7 @@ pub async fn discover_devices() -> Result<Vec<FujifilmDeviceInfo>, NativeError> 
     };
 
     if result != XSDK_COMPLETE {
-        return Err(NativeError::SdkError("XSDK_Append failed".into()));
+        return Err(DriverError::SdkError("XSDK_Append failed".into()));
     }
 
     // Step 3: Convert to FujifilmDeviceInfo

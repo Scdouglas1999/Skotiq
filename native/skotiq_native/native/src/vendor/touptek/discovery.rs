@@ -117,7 +117,7 @@ pub(crate) fn enumerate_brand_devices_from_sdk(
 ///
 /// Iterates over all known Touptek white-label SDKs, attempts to load each,
 /// and enumerates cameras from each successfully loaded SDK.
-pub async fn discover_devices() -> Result<Vec<TouptekDeviceInfo>, NativeError> {
+pub async fn discover_devices() -> Result<Vec<TouptekDeviceInfo>, DriverError> {
     // Acquire global SDK mutex for thread safety
     let lock = TOUPTEK_SDK_LOCK.lock().await;
 
@@ -133,7 +133,7 @@ pub async fn discover_devices() -> Result<Vec<TouptekDeviceInfo>, NativeError> {
                 brand_name,
                 dll_name
             );
-            none_installed &= matches!(err, NativeError::SdkNotInstalled(_));
+            none_installed &= matches!(err, DriverError::SdkNotInstalled(_));
             load_errors.push((
                 brand_name.to_string(),
                 dll_name.to_string(),
@@ -165,7 +165,7 @@ pub async fn discover_devices() -> Result<Vec<TouptekDeviceInfo>, NativeError> {
 /// Discover connected Touptek cameras for a specific brand only
 pub async fn discover_devices_for_brand(
     brand: &str,
-) -> Result<Vec<TouptekDeviceInfo>, NativeError> {
+) -> Result<Vec<TouptekDeviceInfo>, DriverError> {
     let lock = TOUPTEK_SDK_LOCK.lock().await;
 
     get_sdk_for_brand(brand)?;

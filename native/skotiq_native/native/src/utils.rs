@@ -8,7 +8,7 @@
 //! Note: each vendor SDK's lock lives with its function table
 //! (`vendor::sdk_loader::SdkSlot`), not here.
 
-use crate::traits::NativeError;
+use skotiq_device::DriverError;
 use std::ffi::c_char;
 
 // Safe string conversion
@@ -47,7 +47,7 @@ pub fn calculate_buffer_size(
     width: u32,
     height: u32,
     bytes_per_pixel: u32,
-) -> Result<usize, NativeError> {
+) -> Result<usize, DriverError> {
     width
         .checked_mul(height)
         .and_then(|pixels| pixels.checked_mul(bytes_per_pixel))
@@ -57,7 +57,7 @@ pub fn calculate_buffer_size(
         // so it fits trivially.
         .map(|size| size as usize)
         .ok_or_else(|| {
-            NativeError::InvalidParameter(format!(
+            DriverError::InvalidParameter(format!(
                 "Image buffer size overflow: {}x{} with {} bytes/pixel",
                 width, height, bytes_per_pixel
             ))
@@ -70,10 +70,10 @@ pub fn calculate_buffer_size_i32(
     width: i32,
     height: i32,
     bytes_per_pixel: i32,
-) -> Result<usize, NativeError> {
+) -> Result<usize, DriverError> {
     // Validate inputs are positive
     if width <= 0 || height <= 0 || bytes_per_pixel <= 0 {
-        return Err(NativeError::InvalidParameter(format!(
+        return Err(DriverError::InvalidParameter(format!(
             "Invalid image dimensions: width={}, height={}, bytes_per_pixel={}",
             width, height, bytes_per_pixel
         )));

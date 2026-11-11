@@ -1,11 +1,11 @@
-//! `NativeDevice` / `NativeCamera` / `Drop` implementations for `GPhoto2Camera`.
+//! `DeviceDriver` / `CameraDriver` / `Drop` implementations for `GPhoto2Camera`.
 
 use super::*;
 
-// NativeDevice implementation
+// DeviceDriver implementation
 
 #[async_trait]
-impl NativeDevice for GPhoto2Camera {
+impl DeviceDriver for GPhoto2Camera {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -14,15 +14,15 @@ impl NativeDevice for GPhoto2Camera {
         &self.model_name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::GPhoto2
+    fn vendor(&self) -> Vendor {
+        Vendor::GPhoto2
     }
 
     fn is_connected(&self) -> bool {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         tracing::info!(
             "Connecting to gPhoto2 camera: {} on {}",
             self.model_name,
@@ -38,7 +38,7 @@ impl NativeDevice for GPhoto2Camera {
         let detected = detect_cameras_with(&sdk);
         if self.port_path.is_empty() {
             if detected.len() > 1 {
-                return Err(NativeError::InvalidDevice(format!(
+                return Err(DriverError::InvalidDevice(format!(
                     "gPhoto2 device '{}' does not encode a stable USB port and cannot be safely selected while multiple cameras are connected",
                     self.model_name
                 )));
@@ -48,7 +48,7 @@ impl NativeDevice for GPhoto2Camera {
                 .iter()
                 .find(|camera| camera.port == self.port_path)
                 .ok_or_else(|| {
-                    NativeError::DeviceNotFound(format!(
+                    DriverError::DeviceNotFound(format!(
                         "gPhoto2 camera '{}' on '{}' is no longer present",
                         self.model_name, self.port_path
                     ))
@@ -56,7 +56,7 @@ impl NativeDevice for GPhoto2Camera {
 
             self.camera_index = desired.index;
             if detected.len() > 1 && desired.index != 0 {
-                return Err(NativeError::InvalidDevice(format!(
+                return Err(DriverError::InvalidDevice(format!(
                     "gPhoto2 cannot safely bind '{}' on '{}' while another camera is enumerated first",
                     self.model_name, self.port_path
                 )));
@@ -71,7 +71,7 @@ impl NativeDevice for GPhoto2Camera {
             // Create context
             let context = (sdk.context_new)();
             if context.is_null() {
-                return Err(NativeError::SdkError(
+                return Err(DriverError::SdkError(
                     "gPhoto2: Failed to create context".to_string(),
                 ));
             }
@@ -81,7 +81,7 @@ impl NativeDevice for GPhoto2Camera {
             let ret = (sdk.camera_new)(&mut camera);
             if ret < GP_OK || camera.is_null() {
                 (sdk.context_unref)(context);
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "gPhoto2: Failed to create camera object: code {}",
                     ret
                 )));
@@ -92,7 +92,7 @@ impl NativeDevice for GPhoto2Camera {
             if ret < GP_OK {
                 (sdk.camera_free)(camera);
                 (sdk.context_unref)(context);
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "gPhoto2: Failed to initialize camera '{}': code {} - camera may be in use by another application or not connected via USB",
                     self.model_name, ret
                 )));
@@ -119,7 +119,7 @@ impl NativeDevice for GPhoto2Camera {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if self.connected {
             let sdk = GPhoto2Sdk::lock().await?;
 
@@ -152,10 +152,10 @@ impl NativeDevice for GPhoto2Camera {
     }
 }
 
-// NativeCamera implementation
+// CameraDriver implementation
 
 #[async_trait]
-impl NativeCamera for GPhoto2Camera {
+impl CameraDriver for GPhoto2Camera {
     fn capabilities(&self) -> CameraCapabilities {
         CameraCapabilities {
             can_cool: false,        // DSLRs don't have coolers
@@ -171,9 +171,9 @@ impl NativeCamera for GPhoto2Camera {
         }
     }
 
-    async fn get_status(&self) -> Result<CameraStatus, NativeError> {
+    async fn get_status(&self) -> Result<CameraStatus, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let state = match self.exposure_state {
@@ -223,9 +223,9 @@ impl NativeCamera for GPhoto2Camera {
         })
     }
 
-    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), NativeError> {
+    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let sdk = GPhoto2Sdk::lock().await?;
@@ -239,7 +239,7 @@ impl NativeCamera for GPhoto2Camera {
                 self.current_iso_index = gain;
                 tracing::info!("gPhoto2: Set ISO to {} (gain index {})", iso_str, gain);
             } else {
-                return Err(NativeError::InvalidParameter(format!(
+                return Err(DriverError::InvalidParameter(format!(
                     "gPhoto2: Invalid gain/ISO index {}. Valid range: 0-{}",
                     gain,
                     self.iso_values.len().saturating_sub(1)
@@ -258,7 +258,7 @@ impl NativeCamera for GPhoto2Camera {
         if use_bulb {
             // Bulb mode for long exposures
             if !self.can_bulb {
-                return Err(NativeError::SdkError(
+                return Err(DriverError::SdkError(
                     "gPhoto2: Camera does not support Bulb mode for exposures > 30s".to_string(),
                 ));
             }
@@ -320,9 +320,9 @@ impl NativeCamera for GPhoto2Camera {
         Ok(())
     }
 
-    async fn abort_exposure(&mut self) -> Result<(), NativeError> {
+    async fn abort_exposure(&mut self) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let sdk = GPhoto2Sdk::lock().await?;
@@ -336,7 +336,7 @@ impl NativeCamera for GPhoto2Camera {
             ExposureState::Exposing { .. } => {
                 // Standard captures can't be interrupted mid-exposure on most DSLRs
                 tracing::warn!("gPhoto2: Cannot abort a standard (non-bulb) exposure in progress");
-                return Err(NativeError::SdkError(
+                return Err(DriverError::SdkError(
                     "gPhoto2: Standard exposures cannot be aborted. Use Bulb mode for interruptible long exposures.".to_string(),
                 ));
             }
@@ -348,15 +348,15 @@ impl NativeCamera for GPhoto2Camera {
         Ok(())
     }
 
-    async fn is_exposure_complete(&self) -> Result<bool, NativeError> {
+    async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         match self.exposure_state {
             ExposureState::Idle => Ok(true),
             ExposureState::Complete => Ok(true),
-            ExposureState::Failed => Err(NativeError::SdkError(
+            ExposureState::Failed => Err(DriverError::SdkError(
                 "gPhoto2: Previous exposure failed".to_string(),
             )),
             ExposureState::Exposing {
@@ -378,9 +378,9 @@ impl NativeCamera for GPhoto2Camera {
         }
     }
 
-    async fn download_image(&mut self) -> Result<ImageData, NativeError> {
+    async fn download_image(&mut self) -> Result<ImageData, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let sdk = GPhoto2Sdk::lock().await?;
@@ -401,7 +401,7 @@ impl NativeCamera for GPhoto2Camera {
 
                 loop {
                     if wait_start.elapsed() > max_wait {
-                        return Err(NativeError::Timeout(
+                        return Err(DriverError::Timeout(
                             "gPhoto2: Timed out waiting for camera to save image after bulb exposure".to_string(),
                         ));
                     }
@@ -448,7 +448,7 @@ impl NativeCamera for GPhoto2Camera {
         }
 
         if self.exposure_state != ExposureState::Complete {
-            return Err(NativeError::SdkError(
+            return Err(DriverError::SdkError(
                 "gPhoto2: No completed exposure to download".to_string(),
             ));
         }
@@ -468,25 +468,25 @@ impl NativeCamera for GPhoto2Camera {
         &mut self,
         _enabled: bool,
         _target_temp: Option<f64>,
-    ) -> Result<(), NativeError> {
-        Err(NativeError::NotSupported)
+    ) -> Result<(), DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_temperature(&self) -> Result<f64, NativeError> {
-        Err(NativeError::NotSupported)
+    async fn get_temperature(&self) -> Result<f64, DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_cooler_power(&self) -> Result<f64, NativeError> {
-        Err(NativeError::NotSupported)
+    async fn get_cooler_power(&self) -> Result<f64, DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn set_gain(&mut self, gain: i32) -> Result<(), NativeError> {
+    async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if gain < 0 || (gain as usize) >= self.iso_values.len() {
-            return Err(NativeError::InvalidParameter(format!(
+            return Err(DriverError::InvalidParameter(format!(
                 "gPhoto2: Invalid gain/ISO index {}. Valid range: 0-{}",
                 gain,
                 self.iso_values.len().saturating_sub(1)
@@ -503,37 +503,37 @@ impl NativeCamera for GPhoto2Camera {
         Ok(())
     }
 
-    async fn get_gain(&self) -> Result<i32, NativeError> {
+    async fn get_gain(&self) -> Result<i32, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
         Ok(self.current_gain)
     }
 
-    async fn set_offset(&mut self, _offset: i32) -> Result<(), NativeError> {
-        Err(NativeError::NotSupported)
+    async fn set_offset(&mut self, _offset: i32) -> Result<(), DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_offset(&self) -> Result<i32, NativeError> {
+    async fn get_offset(&self) -> Result<i32, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
         Ok(0) // DSLRs don't have offset control
     }
 
-    async fn set_binning(&mut self, _bin_x: i32, _bin_y: i32) -> Result<(), NativeError> {
-        Err(NativeError::NotSupported)
+    async fn set_binning(&mut self, _bin_x: i32, _bin_y: i32) -> Result<(), DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_binning(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
         Ok((1, 1))
     }
 
-    async fn set_subframe(&mut self, _subframe: Option<SubFrame>) -> Result<(), NativeError> {
-        Err(NativeError::NotSupported)
+    async fn set_subframe(&mut self, _subframe: Option<SubFrame>) -> Result<(), DriverError> {
+        Err(DriverError::NotSupported)
     }
 
     fn get_sensor_info(&self) -> SensorInfo {
@@ -549,7 +549,7 @@ impl NativeCamera for GPhoto2Camera {
         }
     }
 
-    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, NativeError> {
+    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
         Ok(vec![ReadoutMode {
             name: "Standard".to_string(),
             description: "Standard DSLR readout".to_string(),
@@ -561,12 +561,12 @@ impl NativeCamera for GPhoto2Camera {
         }])
     }
 
-    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), NativeError> {
+    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), DriverError> {
         // DSLRs only have one readout mode
         Ok(())
     }
 
-    async fn get_vendor_features(&self) -> Result<VendorFeatures, NativeError> {
+    async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
         let mut features = VendorFeatures::default();
         let mut custom = std::collections::HashMap::new();
 
@@ -607,23 +607,23 @@ impl NativeCamera for GPhoto2Camera {
         Ok(features)
     }
 
-    async fn get_gain_range(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
         if self.iso_values.is_empty() {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
         Ok((0, self.iso_values.len().saturating_sub(1) as i32))
     }
 
-    async fn get_offset_range(&self) -> Result<(i32, i32), NativeError> {
-        Err(NativeError::NotSupported)
+    async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn capture_preview(&self) -> Result<Vec<u8>, NativeError> {
+    async fn capture_preview(&self) -> Result<Vec<u8>, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
         if !self.can_preview {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
 
         let sdk = GPhoto2Sdk::lock().await?;
@@ -638,7 +638,7 @@ impl NativeCamera for GPhoto2Camera {
             let ret = (sdk.camera_capture_preview)(self.gp_camera, gp_file, self.gp_context);
             if ret < GP_OK {
                 (sdk.file_free)(gp_file);
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "gPhoto2: capture_preview failed with code {}",
                     ret
                 )));
@@ -649,7 +649,7 @@ impl NativeCamera for GPhoto2Camera {
             let ret = (sdk.file_get_data_and_size)(gp_file, &mut data_ptr, &mut data_size);
             if ret < GP_OK || data_ptr.is_null() || data_size == 0 {
                 (sdk.file_free)(gp_file);
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "gPhoto2: Failed to read preview data: code {}",
                     ret
                 )));

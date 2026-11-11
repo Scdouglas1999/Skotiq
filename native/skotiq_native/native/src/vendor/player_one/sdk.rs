@@ -154,113 +154,113 @@ pub(crate) fn raw16_container_max_adu(bit_depth: u32) -> u32 {
     (((1u32 << bit_depth) - 1) << (CONTAINER_BITS - bit_depth)) & CONTAINER_MAX
 }
 
-/// Check POA error and convert to NativeError with detailed error messages
-pub(crate) fn check_poa_error(code: c_int, operation: &str) -> Result<(), NativeError> {
+/// Check POA error and convert to DriverError with detailed error messages
+pub(crate) fn check_poa_error(code: c_int, operation: &str) -> Result<(), DriverError> {
     match code {
         0 => Ok(()), // POA_OK
-        1 => Err(NativeError::InvalidDevice(format!(
+        1 => Err(DriverError::InvalidDevice(format!(
             "{}: Invalid camera index - camera may not exist",
             operation
         ))),
-        2 => Err(NativeError::InvalidDevice(format!(
+        2 => Err(DriverError::InvalidDevice(format!(
             "{}: Invalid camera ID - camera may have been disconnected",
             operation
         ))),
-        3 => Err(NativeError::InvalidParameter(format!(
+        3 => Err(DriverError::InvalidParameter(format!(
             "{}: Invalid config - control type not available",
             operation
         ))),
-        4 => Err(NativeError::InvalidParameter(format!(
+        4 => Err(DriverError::InvalidParameter(format!(
             "{}: Invalid argument - value out of range",
             operation
         ))),
-        5 => Err(NativeError::NotConnected),
-        6 => Err(NativeError::Disconnected),
-        7 => Err(NativeError::InvalidParameter(format!(
+        5 => Err(DriverError::NotConnected),
+        6 => Err(DriverError::Disconnected),
+        7 => Err(DriverError::InvalidParameter(format!(
             "{}: Value out of limit",
             operation
         ))),
-        8 => Err(NativeError::SdkError(format!(
+        8 => Err(DriverError::SdkError(format!(
             "{}: Exposure failed - check camera connection",
             operation
         ))),
-        9 => Err(NativeError::Timeout(format!(
+        9 => Err(DriverError::Timeout(format!(
             "{}: Operation timed out",
             operation
         ))),
-        10 => Err(NativeError::InvalidParameter(format!(
+        10 => Err(DriverError::InvalidParameter(format!(
             "{}: Buffer size too small",
             operation
         ))),
         // Codes 11-17 per PlayerOneCamera.h (POAErrors enum).
-        11 => Err(NativeError::SdkError(format!(
+        11 => Err(DriverError::SdkError(format!(
             "{}: Camera is exposing - stop the exposure first",
             operation
         ))),
-        12 => Err(NativeError::SdkError(format!(
+        12 => Err(DriverError::SdkError(format!(
             "{}: Invalid pointer (internal SDK argument error)",
             operation
         ))),
-        13 => Err(NativeError::InvalidParameter(format!(
+        13 => Err(DriverError::InvalidParameter(format!(
             "{}: Config is not writable",
             operation
         ))),
-        14 => Err(NativeError::InvalidParameter(format!(
+        14 => Err(DriverError::InvalidParameter(format!(
             "{}: Config is not readable",
             operation
         ))),
-        15 => Err(NativeError::SdkError(format!(
+        15 => Err(DriverError::SdkError(format!(
             "{}: Access denied",
             operation
         ))),
         // POA_ERROR_OPERATION_FAILED: "operation failed, maybe the camera is
         // disconnected suddenly" — surface as a disconnect so recovery fires.
-        16 => Err(NativeError::Disconnected),
-        17 => Err(NativeError::SdkError(format!(
+        16 => Err(DriverError::Disconnected),
+        17 => Err(DriverError::SdkError(format!(
             "{}: Memory allocation failed",
             operation
         ))),
-        _ => Err(NativeError::SdkError(format!(
+        _ => Err(DriverError::SdkError(format!(
             "{}: Unknown POA error code {}",
             operation, code
         ))),
     }
 }
 
-pub(crate) fn check_poa_pw_error(code: c_int, operation: &str) -> Result<(), NativeError> {
+pub(crate) fn check_poa_pw_error(code: c_int, operation: &str) -> Result<(), DriverError> {
     match code {
         0 => Ok(()),
-        1 => Err(NativeError::InvalidDevice(format!(
+        1 => Err(DriverError::InvalidDevice(format!(
             "{}: invalid filter-wheel index",
             operation
         ))),
-        2 => Err(NativeError::InvalidDevice(format!(
+        2 => Err(DriverError::InvalidDevice(format!(
             "{}: invalid filter-wheel handle",
             operation
         ))),
-        3 => Err(NativeError::InvalidParameter(format!(
+        3 => Err(DriverError::InvalidParameter(format!(
             "{}: invalid filter-wheel argument",
             operation
         ))),
-        4 => Err(NativeError::NotConnected),
-        5 => Err(NativeError::Disconnected),
-        6 => Err(NativeError::SdkError(format!(
+        4 => Err(DriverError::NotConnected),
+        5 => Err(DriverError::Disconnected),
+        6 => Err(DriverError::SdkError(format!(
             "{}: filter wheel is moving",
             operation
         ))),
-        7 => Err(NativeError::InvalidParameter(format!(
+        7 => Err(DriverError::InvalidParameter(format!(
             "{}: null output pointer rejected by Player One PW SDK",
             operation
         ))),
-        8 => Err(NativeError::SdkError(format!(
+        8 => Err(DriverError::SdkError(format!(
             "{}: Player One PW operation failed",
             operation
         ))),
-        9 => Err(NativeError::SdkError(format!(
+        9 => Err(DriverError::SdkError(format!(
             "{}: Player One PW firmware error",
             operation
         ))),
-        other => Err(NativeError::SdkError(format!(
+        other => Err(DriverError::SdkError(format!(
             "{}: unknown Player One PW error code {}",
             operation, other
         ))),

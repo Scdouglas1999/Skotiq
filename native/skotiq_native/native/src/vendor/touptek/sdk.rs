@@ -87,7 +87,7 @@ impl TouptekSdk {
         for path in &candidates {
             // SAFETY: libloading::Library::new performs platform dynamic loading; `dll_name`
             // comes from the compile-time TOUPTEK_BRANDS constant array. Errors are
-            // accumulated and reported as NativeError::SdkError rather than UB.
+            // accumulated and reported as DriverError::SdkError rather than UB.
             match unsafe { Library::new(path) } {
                 Ok(library) => {
                     tracing::info!("Loaded {} SDK from {}", dll_name, path.display());
@@ -233,7 +233,7 @@ pub(crate) fn get_sdks() -> &'static Mutex<HashMap<String, Result<TouptekSdk, Sd
     SDKS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-pub(crate) fn get_sdk_for_brand(brand: &str) -> Result<(), NativeError> {
+pub(crate) fn get_sdk_for_brand(brand: &str) -> Result<(), DriverError> {
     let sdks = get_sdks();
     let mut map = sdks.lock().unwrap_or_else(|e| e.into_inner());
     if map.contains_key(brand) {
@@ -249,7 +249,7 @@ pub(crate) fn get_sdk_for_brand(brand: &str) -> Result<(), NativeError> {
     let brand_info = TOUPTEK_BRANDS
         .iter()
         .find(|(_, _, name)| name.eq_ignore_ascii_case(brand))
-        .ok_or_else(|| NativeError::SdkError(format!("Unknown Touptek brand: {}", brand)))?;
+        .ok_or_else(|| DriverError::SdkError(format!("Unknown Touptek brand: {}", brand)))?;
 
     match TouptekSdk::load(brand_info.0, brand_info.1) {
         Ok(sdk) => {
@@ -266,9 +266,9 @@ pub(crate) fn get_sdk_for_brand(brand: &str) -> Result<(), NativeError> {
 
 /// Run `f` with a brand's function table. The caller proves it holds
 /// [`TOUPTEK_SDK_LOCK`] by passing the held lock.
-pub(crate) fn with_sdk<F, R>(_held: &SdkLockHeld, brand: &str, f: F) -> Result<R, NativeError>
+pub(crate) fn with_sdk<F, R>(_held: &SdkLockHeld, brand: &str, f: F) -> Result<R, DriverError>
 where
-    F: FnOnce(&TouptekSdk) -> Result<R, NativeError>,
+    F: FnOnce(&TouptekSdk) -> Result<R, DriverError>,
 {
     get_sdk_for_brand(brand)?;
     let sdks = get_sdks();
@@ -284,9 +284,9 @@ where
 pub(crate) fn open_touptek_device(
     sdk: &TouptekSdk,
     device_id: &str,
-) -> Result<HOgmacam, NativeError> {
+) -> Result<HOgmacam, DriverError> {
     if device_id.is_empty() {
-        return Err(NativeError::SdkError(
+        return Err(DriverError::SdkError(
             "Touptek SDK returned an empty stable device ID".to_string(),
         ));
     }
@@ -302,7 +302,7 @@ pub(crate) fn open_touptek_device(
     #[cfg(not(windows))]
     {
         let c_id = CString::new(device_id).map_err(|_| {
-            NativeError::SdkError("Touptek device ID contains an interior NUL".to_string())
+            DriverError::SdkError("Touptek device ID contains an interior NUL".to_string())
         })?;
         // SAFETY: `c_id` is a live, NUL-terminated C string matching the non-Windows
         // Touptek-family Open(const char*) ABI. The SDK copies/consumes it during this call.
@@ -334,7 +334,7 @@ pub(crate) fn touptek_temperature_result(
     camera_name: &str,
     sdk_result: i32,
     temperature_tenths_c: i16,
-) -> Result<f64, NativeError> {
+) -> Result<f64, DriverError> {
     if sdk_result >= 0 {
         Ok(temperature_tenths_c as f64 / 10.0)
     } else {
@@ -343,7 +343,7 @@ pub(crate) fn touptek_temperature_result(
             camera_name,
             sdk_result
         );
-        Err(NativeError::SdkError(format!(
+        Err(DriverError::SdkError(format!(
             "Failed to read temperature from Touptek camera '{}'. SDK error: {}. Camera may not have a temperature sensor.",
             camera_name, sdk_result
         )))
@@ -416,7 +416,7 @@ pub(crate) fn max_adu_from_bit_depth(bit_depth: u32) -> u32 {
 pub(crate) fn touptek_no_sdk_loaded_error(
     load_errors: &[(String, String, String)],
     none_installed: bool,
-) -> NativeError {
+) -> DriverError {
     let details = load_errors
         .iter()
         .map(|(brand, library, error)| format!("{brand} ({library}): {error}"))
@@ -427,9 +427,9 @@ pub(crate) fn touptek_no_sdk_loaded_error(
         "No Touptek-family SDK libraries could be loaded. Install at least one supported SDK DLL/shared library or add it to the process library path. Tried: {details}"
     );
     if none_installed {
-        NativeError::SdkNotInstalled(message)
+        DriverError::SdkNotInstalled(message)
     } else {
-        NativeError::SdkError(message)
+        DriverError::SdkError(message)
     }
 }
 

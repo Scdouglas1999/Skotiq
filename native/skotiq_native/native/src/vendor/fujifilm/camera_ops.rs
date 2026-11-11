@@ -1,9 +1,9 @@
-//! `NativeDevice` / `NativeCamera` implementations for `FujifilmCamera`.
+//! `DeviceDriver` / `CameraDriver` implementations for `FujifilmCamera`.
 
 use super::*;
 
 #[async_trait]
-impl NativeDevice for FujifilmCamera {
+impl DeviceDriver for FujifilmCamera {
     fn id(&self) -> &str {
         &self.id
     }
@@ -12,15 +12,15 @@ impl NativeDevice for FujifilmCamera {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Fujifilm
+    fn vendor(&self) -> Vendor {
+        Vendor::Fujifilm
     }
 
     fn is_connected(&self) -> bool {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         let sdk = FujifilmSdk::lock().await?;
 
         // 1. Initialize SDK
@@ -32,7 +32,7 @@ impl NativeDevice for FujifilmCamera {
             // SAFETY: XSDK_GetErrorNumber accepts NULL for the handle when retrieving the last init-time error per XAPI.h; out-pointers reference valid c_long stack locals.
             unsafe { (sdk.get_error_number)(std::ptr::null_mut(), &mut api_code, &mut err_code) };
             if err_code != XSDK_ERRCODE_LOADLIB {
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "XSDK_Init failed: 0x{:08X}",
                     err_code
                 )));
@@ -41,7 +41,7 @@ impl NativeDevice for FujifilmCamera {
 
         // 2. Open connection (using blocking sleep to avoid raw pointer across await)
         let serial_cstr = CString::new(self.serial_number.clone())
-            .map_err(|_| NativeError::InvalidParameter("Invalid serial number".into()))?;
+            .map_err(|_| DriverError::InvalidParameter("Invalid serial number".into()))?;
 
         let camera_handle = {
             let mut handle: XsdkHandle = std::ptr::null_mut();
@@ -61,7 +61,7 @@ impl NativeDevice for FujifilmCamera {
                     break;
                 }
                 if attempt == 3 {
-                    return Err(NativeError::SdkError(
+                    return Err(DriverError::SdkError(
                         "XSDK_OpenEx failed after 3 attempts".into(),
                     ));
                 }
@@ -174,7 +174,7 @@ impl NativeDevice for FujifilmCamera {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.connected {
             return Ok(());
         }
@@ -211,7 +211,7 @@ impl NativeDevice for FujifilmCamera {
 }
 
 #[async_trait]
-impl NativeCamera for FujifilmCamera {
+impl CameraDriver for FujifilmCamera {
     fn capabilities(&self) -> CameraCapabilities {
         CameraCapabilities {
             can_cool: false,        // No cooling in mirrorless
@@ -227,7 +227,7 @@ impl NativeCamera for FujifilmCamera {
         }
     }
 
-    async fn get_status(&self) -> Result<CameraStatus, NativeError> {
+    async fn get_status(&self) -> Result<CameraStatus, DriverError> {
         let state = if self.is_exposing {
             CameraState::Exposing
         } else {
@@ -257,9 +257,9 @@ impl NativeCamera for FujifilmCamera {
         })
     }
 
-    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), NativeError> {
+    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let sdk = FujifilmSdk::lock().await?;
@@ -309,7 +309,7 @@ impl NativeCamera for FujifilmCamera {
         Ok(())
     }
 
-    async fn abort_exposure(&mut self) -> Result<(), NativeError> {
+    async fn abort_exposure(&mut self) -> Result<(), DriverError> {
         if self.is_bulb_mode {
             self.stop_bulb_exposure().await?;
         }
@@ -320,7 +320,7 @@ impl NativeCamera for FujifilmCamera {
         Ok(())
     }
 
-    async fn is_exposure_complete(&self) -> Result<bool, NativeError> {
+    async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
         if !self.is_exposing {
             return Ok(true);
         }
@@ -332,9 +332,9 @@ impl NativeCamera for FujifilmCamera {
         }
     }
 
-    async fn download_image(&mut self) -> Result<ImageData, NativeError> {
+    async fn download_image(&mut self) -> Result<ImageData, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let mut sdk = FujifilmSdk::lock().await?;
@@ -358,7 +358,7 @@ impl NativeCamera for FujifilmCamera {
                 break;
             }
             if attempt == 30 {
-                return Err(NativeError::Timeout(
+                return Err(DriverError::Timeout(
                     "Image not ready after 15 seconds".into(),
                 ));
             }
@@ -375,7 +375,7 @@ impl NativeCamera for FujifilmCamera {
         // image quality setter we can drive to force RAW, so we fail here with
         // an actionable message rather than shipping a corrupt/failed frame.
         if img_format != XSDK_IMAGEFORMAT_RAW {
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Fujifilm: camera returned a non-RAW frame (format code {}, expected RAW={}). \
                  Set the camera's Image Quality to RAW (not JPEG or RAW+JPEG) — astro capture \
                  requires the linear RAW sensor data.",
@@ -408,7 +408,7 @@ impl NativeCamera for FujifilmCamera {
 
         if result != XSDK_COMPLETE {
             check_xapi_error(self.camera_handle.0, &sdk)?;
-            return Err(NativeError::SdkError("Image download failed".into()));
+            return Err(DriverError::SdkError("Image download failed".into()));
         }
 
         // Clear camera buffer
@@ -479,21 +479,21 @@ impl NativeCamera for FujifilmCamera {
         &mut self,
         _enabled: bool,
         _target_temp: Option<f64>,
-    ) -> Result<(), NativeError> {
-        Err(NativeError::NotSupported)
+    ) -> Result<(), DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_temperature(&self) -> Result<f64, NativeError> {
-        Err(NativeError::NotSupported)
+    async fn get_temperature(&self) -> Result<f64, DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_cooler_power(&self) -> Result<f64, NativeError> {
-        Err(NativeError::NotSupported)
+    async fn get_cooler_power(&self) -> Result<f64, DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn set_gain(&mut self, gain: i32) -> Result<(), NativeError> {
+    async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let sdk = FujifilmSdk::lock().await?;
@@ -506,47 +506,47 @@ impl NativeCamera for FujifilmCamera {
         Ok(())
     }
 
-    async fn get_gain(&self) -> Result<i32, NativeError> {
+    async fn get_gain(&self) -> Result<i32, DriverError> {
         Ok(self.current_iso)
     }
 
-    async fn set_offset(&mut self, _offset: i32) -> Result<(), NativeError> {
-        Err(NativeError::NotSupported)
+    async fn set_offset(&mut self, _offset: i32) -> Result<(), DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_offset(&self) -> Result<i32, NativeError> {
+    async fn get_offset(&self) -> Result<i32, DriverError> {
         Ok(0)
     }
 
-    async fn set_binning(&mut self, _bin_x: i32, _bin_y: i32) -> Result<(), NativeError> {
-        Err(NativeError::NotSupported)
+    async fn set_binning(&mut self, _bin_x: i32, _bin_y: i32) -> Result<(), DriverError> {
+        Err(DriverError::NotSupported)
     }
 
     fn get_sensor_info(&self) -> SensorInfo {
         self.sensor_info.clone()
     }
 
-    async fn get_binning(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
         Ok((1, 1)) // Fujifilm cameras don't support binning
     }
 
-    async fn set_subframe(&mut self, _subframe: Option<SubFrame>) -> Result<(), NativeError> {
-        Err(NativeError::NotSupported) // Full frame only
+    async fn set_subframe(&mut self, _subframe: Option<SubFrame>) -> Result<(), DriverError> {
+        Err(DriverError::NotSupported) // Full frame only
     }
 
-    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, NativeError> {
+    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
         Ok(vec![])
     }
 
-    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), NativeError> {
-        Err(NativeError::NotSupported)
+    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_vendor_features(&self) -> Result<VendorFeatures, NativeError> {
+    async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
         Ok(VendorFeatures::default())
     }
 
-    async fn get_gain_range(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
         // Return ISO range based on supported ISOs
         if self.supported_isos.is_empty() {
             // Default Fujifilm ISO range if not queried
@@ -558,13 +558,13 @@ impl NativeCamera for FujifilmCamera {
         }
     }
 
-    async fn get_offset_range(&self) -> Result<(i32, i32), NativeError> {
-        Err(NativeError::NotSupported) // Fujifilm cameras don't support offset
+    async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
+        Err(DriverError::NotSupported) // Fujifilm cameras don't support offset
     }
 
-    async fn capture_preview(&self) -> Result<Vec<u8>, NativeError> {
+    async fn capture_preview(&self) -> Result<Vec<u8>, DriverError> {
         if !self.is_live_view_active() {
-            return Err(NativeError::SdkError(
+            return Err(DriverError::SdkError(
                 "Fujifilm live view is not active — start live view on the camera first"
                     .to_string(),
             ));

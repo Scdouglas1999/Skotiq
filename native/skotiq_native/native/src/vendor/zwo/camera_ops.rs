@@ -1,10 +1,10 @@
-//! `NativeDevice` / `NativeCamera` implementations for `ZwoCamera`.
+//! `DeviceDriver` / `CameraDriver` implementations for `ZwoCamera`.
 
 use super::*;
 use crate::camera_core::{unpack_samples, SampleLayout};
 
 #[async_trait]
-impl NativeDevice for ZwoCamera {
+impl DeviceDriver for ZwoCamera {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -26,8 +26,8 @@ impl NativeDevice for ZwoCamera {
         }
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Zwo
+    fn vendor(&self) -> Vendor {
+        Vendor::Zwo
     }
 
     fn serial_number(&self) -> Option<String> {
@@ -38,7 +38,7 @@ impl NativeDevice for ZwoCamera {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         tracing::info!("Connecting to ZWO camera ID {}...", self.camera_id);
 
         let sdk = AsiSdk::installed().inspect_err(|_| {
@@ -177,7 +177,7 @@ impl NativeDevice for ZwoCamera {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if self.connected {
             let sdk = AsiSdk::lock().await?;
             // SAFETY: camera_id is valid because self.connected is true (only set after successful connect()).
@@ -191,7 +191,7 @@ impl NativeDevice for ZwoCamera {
 }
 
 #[async_trait]
-impl NativeCamera for ZwoCamera {
+impl CameraDriver for ZwoCamera {
     fn capabilities(&self) -> CameraCapabilities {
         if let Some(info) = &self.camera_info {
             CameraCapabilities {
@@ -211,9 +211,9 @@ impl NativeCamera for ZwoCamera {
         }
     }
 
-    async fn get_status(&self) -> Result<CameraStatus, NativeError> {
+    async fn get_status(&self) -> Result<CameraStatus, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire mutex for SDK operations
@@ -294,9 +294,9 @@ impl NativeCamera for ZwoCamera {
         })
     }
 
-    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), NativeError> {
+    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if params.bin_x < 1
@@ -305,7 +305,7 @@ impl NativeCamera for ZwoCamera {
             || params.bin_y > 4
             || params.bin_x != params.bin_y
         {
-            return Err(NativeError::InvalidParameter(format!(
+            return Err(DriverError::InvalidParameter(format!(
                 "ZWO binning must be symmetric and between 1x1 and 4x4, got {}x{}",
                 params.bin_x, params.bin_y
             )));
@@ -358,9 +358,9 @@ impl NativeCamera for ZwoCamera {
         Ok(())
     }
 
-    async fn abort_exposure(&mut self) -> Result<(), NativeError> {
+    async fn abort_exposure(&mut self) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let sdk = AsiSdk::lock().await?;
@@ -373,9 +373,9 @@ impl NativeCamera for ZwoCamera {
         Ok(())
     }
 
-    async fn is_exposure_complete(&self) -> Result<bool, NativeError> {
+    async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let sdk = AsiSdk::lock().await?;
@@ -390,7 +390,7 @@ impl NativeCamera for ZwoCamera {
             self.exposure_active.store(false, Ordering::Release);
         } else if status == ASIExposureStatus::Failed as c_int {
             self.exposure_active.store(false, Ordering::Release);
-            return Err(NativeError::SdkError(
+            return Err(DriverError::SdkError(
                 "ZWO camera reported a failed exposure".to_string(),
             ));
         }
@@ -412,9 +412,9 @@ impl NativeCamera for ZwoCamera {
         Ok(is_complete)
     }
 
-    async fn download_image(&mut self) -> Result<ImageData, NativeError> {
+    async fn download_image(&mut self) -> Result<ImageData, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire mutex for SDK operations
@@ -524,10 +524,10 @@ impl NativeCamera for ZwoCamera {
         // non-negative for connected cameras with a valid ROI. Surface SDK corruption
         // (negative value) via try_into rather than wrap into a giant u32.
         let width_u32 = u32::try_from(width).map_err(|_| {
-            NativeError::SdkError(format!("ZWO returned negative ROI width: {}", width))
+            DriverError::SdkError(format!("ZWO returned negative ROI width: {}", width))
         })?;
         let height_u32 = u32::try_from(height).map_err(|_| {
-            NativeError::SdkError(format!("ZWO returned negative ROI height: {}", height))
+            DriverError::SdkError(format!("ZWO returned negative ROI height: {}", height))
         })?;
         Ok(ImageData {
             width: width_u32,
@@ -569,9 +569,9 @@ impl NativeCamera for ZwoCamera {
         &mut self,
         enabled: bool,
         target_temp: Option<f64>,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let supports_cooler = self
@@ -579,12 +579,12 @@ impl NativeCamera for ZwoCamera {
             .as_ref()
             .map(|i| i.is_cooler_cam != 0)
             .ok_or_else(|| {
-                NativeError::InvalidDevice(
+                DriverError::InvalidDevice(
                     "Camera capability metadata unavailable for cooler operation".to_string(),
                 )
             })?;
         if !supports_cooler {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
 
         // Only touch ASI_TARGET_TEMP when the caller actually named a
@@ -622,23 +622,23 @@ impl NativeCamera for ZwoCamera {
         Ok(())
     }
 
-    async fn get_temperature(&self) -> Result<f64, NativeError> {
+    async fn get_temperature(&self) -> Result<f64, DriverError> {
         let sdk = AsiSdk::lock().await?;
         self.read_temperature_celsius_sync(&sdk)
     }
 
-    async fn get_cooler_power(&self) -> Result<f64, NativeError> {
+    async fn get_cooler_power(&self) -> Result<f64, DriverError> {
         let supports_cooler = self
             .camera_info
             .as_ref()
             .map(|i| i.is_cooler_cam != 0)
             .ok_or_else(|| {
-                NativeError::InvalidDevice(
+                DriverError::InvalidDevice(
                     "Camera capability metadata unavailable for cooler power query".to_string(),
                 )
             })?;
         if !supports_cooler {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
         let value = self
             .get_control_async(ASIControlType::ASI_COOLER_POWER_PERC)
@@ -646,7 +646,7 @@ impl NativeCamera for ZwoCamera {
         Ok(value as f64)
     }
 
-    async fn set_gain(&mut self, gain: i32) -> Result<(), NativeError> {
+    async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
         let sdk_result = self
             .set_control_async(ASIControlType::ASI_GAIN, gain as c_long, false)
             .await;
@@ -659,13 +659,13 @@ impl NativeCamera for ZwoCamera {
         commit_zwo_cached_setting(&mut self.current_gain, effective, sdk_result)
     }
 
-    async fn get_gain(&self) -> Result<i32, NativeError> {
+    async fn get_gain(&self) -> Result<i32, DriverError> {
         // get_control_async returns c_long (i64 on Linux); gain fits in i32.
         let val = self.get_control_async(ASIControlType::ASI_GAIN).await?;
         Ok(val as i32)
     }
 
-    async fn set_offset(&mut self, offset: i32) -> Result<(), NativeError> {
+    async fn set_offset(&mut self, offset: i32) -> Result<(), DriverError> {
         let sdk_result = self
             .set_control_async(ASIControlType::ASI_OFFSET, offset as c_long, false)
             .await;
@@ -678,15 +678,15 @@ impl NativeCamera for ZwoCamera {
         commit_zwo_cached_setting(&mut self.current_offset, effective, sdk_result)
     }
 
-    async fn get_offset(&self) -> Result<i32, NativeError> {
+    async fn get_offset(&self) -> Result<i32, DriverError> {
         // get_control_async returns c_long (i64 on Linux); offset fits in i32.
         let val = self.get_control_async(ASIControlType::ASI_OFFSET).await?;
         Ok(val as i32)
     }
 
-    async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), NativeError> {
+    async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let sdk = AsiSdk::installed()?;
@@ -705,7 +705,7 @@ impl NativeCamera for ZwoCamera {
         // ASI294 →1411, odd), so without this every bin>=2 frame aborts. Round
         // DOWN to the nearest valid multiple exactly like the reference driver
         // (asi_base.cpp: `subW -= subW % 8; subH -= subH % 2`).
-        let info = self.camera_info.as_ref().ok_or(NativeError::NotConnected)?;
+        let info = self.camera_info.as_ref().ok_or(DriverError::NotConnected)?;
         let new_width = (info.max_width as i32 / bin) & !7; // multiple of 8
         let new_height = (info.max_height as i32 / bin) & !1; // multiple of 2
 
@@ -731,17 +731,17 @@ impl NativeCamera for ZwoCamera {
         Ok(())
     }
 
-    async fn get_binning(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
         Ok((self.current_bin, self.current_bin))
     }
 
-    async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), NativeError> {
+    async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let sdk = AsiSdk::installed()?;
-        let info = self.camera_info.as_ref().ok_or(NativeError::NotConnected)?;
+        let info = self.camera_info.as_ref().ok_or(DriverError::NotConnected)?;
 
         let (width, height, x, y) = if let Some(ref sf) = subframe {
             (
@@ -831,16 +831,16 @@ impl NativeCamera for ZwoCamera {
         }
     }
 
-    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, NativeError> {
+    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
         // ZWO doesn't have readout modes
         Ok(Vec::new())
     }
 
-    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), NativeError> {
-        Err(NativeError::NotSupported)
+    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_vendor_features(&self) -> Result<VendorFeatures, NativeError> {
+    async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
         let mut features = VendorFeatures::default();
 
         // Get USB bandwidth - use async version with mutex
@@ -862,16 +862,16 @@ impl NativeCamera for ZwoCamera {
         Ok(features)
     }
 
-    async fn get_gain_range(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
         self.get_control_range_async(ASIControlType::ASI_GAIN).await
     }
 
-    async fn get_offset_range(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
         self.get_control_range_async(ASIControlType::ASI_OFFSET)
             .await
@@ -881,9 +881,9 @@ impl NativeCamera for ZwoCamera {
     /// in MICROSECONDS. Converted to seconds to match the capability contract.
     /// A camera that does not publish the control answers `Ok(None)` rather
     /// than a fabricated range.
-    async fn get_exposure_range(&self) -> Result<Option<(f64, f64)>, NativeError> {
+    async fn get_exposure_range(&self) -> Result<Option<(f64, f64)>, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
         match self
             .get_control_caps_raw_async(ASIControlType::ASI_EXPOSURE)
@@ -906,7 +906,7 @@ impl NativeCamera for ZwoCamera {
                     max_us as f64 / 1_000_000.0,
                 )))
             }
-            Err(NativeError::NotSupported) => Ok(None),
+            Err(DriverError::NotSupported) => Ok(None),
             Err(e) => Err(e),
         }
     }
@@ -928,12 +928,12 @@ impl NativeCamera for ZwoCamera {
     /// `hcg_gain` instead of fabricating a value.
     async fn get_recommended_settings(
         &self,
-    ) -> Result<crate::camera::CameraRecommendedSettings, NativeError> {
+    ) -> Result<skotiq_device::camera::CameraRecommendedSettings, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let mut out = crate::camera::CameraRecommendedSettings::default();
+        let mut out = skotiq_device::camera::CameraRecommendedSettings::default();
         let mut notes: Vec<String> = Vec::new();
 
         // Unity gain: ZWO's documented "default gain" on the GAIN control.
@@ -954,7 +954,7 @@ impl NativeCamera for ZwoCamera {
                     notes.push(format!("ZWO SDK reports default gain = {}", default));
                 }
             }
-            Err(NativeError::NotSupported) => {
+            Err(DriverError::NotSupported) => {
                 // Camera doesn't have a gain control (some very old ZWO cameras).
                 // This is an honest "no recommendation available".
             }
@@ -972,7 +972,7 @@ impl NativeCamera for ZwoCamera {
                 out.default_offset = Some(default);
                 notes.push(format!("ZWO SDK reports default offset = {}", default));
             }
-            Err(NativeError::NotSupported) => {
+            Err(DriverError::NotSupported) => {
                 // Camera doesn't expose offset control.
             }
             Err(e) => {
@@ -1004,9 +1004,9 @@ impl NativeCamera for ZwoCamera {
     /// this method. Their SDKs do not uniformly expose the cooler-target control
     /// caps, so the trait default (`Ok(None)`) is the honest answer there rather
     /// than a fabricated range.
-    async fn get_cooler_temp_range(&self) -> Result<Option<(f64, f64)>, NativeError> {
+    async fn get_cooler_temp_range(&self) -> Result<Option<(f64, f64)>, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         match self
@@ -1017,7 +1017,7 @@ impl NativeCamera for ZwoCamera {
             // raw caps map straight to the achievable setpoint range.
             Ok((min, max, _default)) => Ok(Some((min as f64, max as f64))),
             // No regulated cooler / no target-temp control: honest unknown.
-            Err(NativeError::NotSupported) => Ok(None),
+            Err(DriverError::NotSupported) => Ok(None),
             // Transient SDK failure: don't block the capability probe.
             Err(e) => {
                 tracing::warn!("ZWO: failed to query ASI_TARGET_TEMP caps: {:?}", e);

@@ -148,7 +148,7 @@ impl FujifilmCamera {
     pub(crate) async fn start_bulb_exposure(
         &mut self,
         duration_secs: f64,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         // Unlocked on purpose: the bulb helpers sleep while the shutter is held, so
         // their callers release the SDK lock first (download_image, abort_exposure,
         // start_exposure) and only disconnect() still holds it. Taking the lock here
@@ -200,7 +200,7 @@ impl FujifilmCamera {
     }
 
     /// Stop a bulb exposure
-    pub(crate) async fn stop_bulb_exposure(&mut self) -> Result<(), NativeError> {
+    pub(crate) async fn stop_bulb_exposure(&mut self) -> Result<(), DriverError> {
         // Unlocked on purpose: the bulb helpers sleep while the shutter is held, so
         // their callers release the SDK lock first (download_image, abort_exposure,
         // start_exposure) and only disconnect() still holds it. Taking the lock here
@@ -240,9 +240,9 @@ impl FujifilmCamera {
     /// This method queries the SDK for focus position range. If the lens supports
     /// electronic focus control, `has_focus_control` will be set to true and
     /// `focus_min`/`focus_max` will contain the valid range.
-    pub async fn query_focus_capabilities(&mut self) -> Result<(), NativeError> {
+    pub async fn query_focus_capabilities(&mut self) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let sdk = FujifilmSdk::lock().await?;
@@ -289,13 +289,13 @@ impl FujifilmCamera {
     ///
     /// Returns the current focus motor position within the range [focus_min, focus_max].
     /// Returns an error if focus control is not available.
-    pub async fn get_focus_position(&self) -> Result<i32, NativeError> {
+    pub async fn get_focus_position(&self) -> Result<i32, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if !self.has_focus_control {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
 
         let sdk = FujifilmSdk::lock().await?;
@@ -314,7 +314,7 @@ impl FujifilmCamera {
         if result != XSDK_COMPLETE {
             check_xapi_error(self.camera_handle.0, &sdk)?;
             // If check_xapi_error didn't return an error, return a generic one
-            return Err(NativeError::SdkError("Failed to get focus position".into()));
+            return Err(DriverError::SdkError("Failed to get focus position".into()));
         }
 
         Ok(pos as i32)
@@ -325,18 +325,18 @@ impl FujifilmCamera {
     ///
     /// The motor settling delay uses a blocking `std::thread::sleep` so no raw
     /// pointer is held across an await point.
-    pub async fn set_focus_position(&mut self, position: i32) -> Result<(), NativeError> {
+    pub async fn set_focus_position(&mut self, position: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if !self.has_focus_control {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
 
         // Validate position is within range
         if position < self.focus_min || position > self.focus_max {
-            return Err(NativeError::InvalidParameter(format!(
+            return Err(DriverError::InvalidParameter(format!(
                 "Focus position {} out of range [{}, {}]",
                 position, self.focus_min, self.focus_max
             )));
@@ -389,9 +389,9 @@ impl FujifilmCamera {
     ///
     /// The waits between SDK calls use a blocking `std::thread::sleep` so no raw
     /// pointer is held across an await point.
-    pub async fn start_live_view(&mut self, quality: LiveViewQuality) -> Result<(), NativeError> {
+    pub async fn start_live_view(&mut self, quality: LiveViewQuality) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if self.live_view_active {
@@ -444,7 +444,7 @@ impl FujifilmCamera {
         // SAFETY: `handle` valid; XSDK_SetProp's 3-argument start-action form takes (handle, api_code, api_param) with no value — this is the variadic action invocation per XAPI.h for API_CODE_START_LIVE_VIEW.
         let result = unsafe { (sdk.set_prop)(handle, API_CODE_START_LIVE_VIEW, 0) };
         if result != XSDK_COMPLETE {
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Failed to start live view: SDK returned {}",
                 result
             )));
@@ -460,13 +460,13 @@ impl FujifilmCamera {
     ///
     /// Packed struct fields are copied to locals before use, because reading them
     /// in place would be a misaligned reference.
-    pub async fn read_live_view_frame(&self) -> Result<Vec<u8>, NativeError> {
+    pub async fn read_live_view_frame(&self) -> Result<Vec<u8>, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if !self.live_view_active {
-            return Err(NativeError::SdkError("Live view is not active".into()));
+            return Err(DriverError::SdkError("Live view is not active".into()));
         }
 
         let sdk = FujifilmSdk::lock().await?;
@@ -484,20 +484,20 @@ impl FujifilmCamera {
         let data_size = img_info.l_data_size;
 
         if result != XSDK_COMPLETE {
-            return Err(NativeError::SdkError(
+            return Err(DriverError::SdkError(
                 "Failed to read live view frame info".into(),
             ));
         }
 
         if img_format != XSDK_IMAGEFORMAT_LIVE {
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Expected live view format ({}), got format {}",
                 XSDK_IMAGEFORMAT_LIVE, img_format
             )));
         }
 
         if data_size <= 0 {
-            return Err(NativeError::SdkError("No live view frame available".into()));
+            return Err(DriverError::SdkError("No live view frame available".into()));
         }
 
         let buffer_size = data_size as usize;
@@ -507,7 +507,7 @@ impl FujifilmCamera {
             unsafe { (sdk.read_image)(handle, buffer.as_mut_ptr(), buffer_size as c_ulong) };
 
         if result != XSDK_COMPLETE {
-            return Err(NativeError::SdkError(
+            return Err(DriverError::SdkError(
                 "Failed to read live view frame data".into(),
             ));
         }
@@ -524,9 +524,9 @@ impl FujifilmCamera {
     /// # Returns
     ///
     /// `Ok(())` if live view stopped successfully, or an error if it failed.
-    pub async fn stop_live_view(&mut self) -> Result<(), NativeError> {
+    pub async fn stop_live_view(&mut self) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if !self.live_view_active {

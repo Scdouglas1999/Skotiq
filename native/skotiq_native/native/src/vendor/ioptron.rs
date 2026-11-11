@@ -9,9 +9,9 @@ use super::serial_link::{
     self, OnOpenFailure, Probe, ProbedPort, ReplyRule, ScanPlan, SerialLink, REPLY_DEADLINE,
 };
 use super::sexagesimal::{from_parts, sign_char, split_sign, split_units, to_units};
-use crate::traits::*;
-use crate::NativeVendor;
 use async_trait::async_trait;
+use skotiq_device::Vendor;
+use skotiq_device::*;
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -101,9 +101,9 @@ pub struct IOptronStatus {
     pub tracking_rate: u8, // 0=sidereal, 1=lunar, 2=solar, 3=king
 }
 
-fn parse_system_status(response: &str) -> Result<IOptronStatus, NativeError> {
+fn parse_system_status(response: &str) -> Result<IOptronStatus, DriverError> {
     if response.len() < 8 {
-        return Err(NativeError::SdkError(format!(
+        return Err(DriverError::SdkError(format!(
             "Invalid status response: {}",
             response
         )));
@@ -134,22 +134,22 @@ fn parse_system_status(response: &str) -> Result<IOptronStatus, NativeError> {
     })
 }
 
-fn parse_guide_rate(response: &str) -> Result<f64, NativeError> {
+fn parse_guide_rate(response: &str) -> Result<f64, DriverError> {
     let rate = response
         .trim()
         .parse::<f64>()
-        .map_err(|_| NativeError::SdkError(format!("Invalid guide rate response: {response}")))?;
+        .map_err(|_| DriverError::SdkError(format!("Invalid guide rate response: {response}")))?;
     if !rate.is_finite() {
-        return Err(NativeError::SdkError(format!(
+        return Err(DriverError::SdkError(format!(
             "Invalid non-finite guide rate response: {response}"
         )));
     }
     validate_guide_rate(rate)
 }
 
-fn validate_guide_rate(rate: f64) -> Result<f64, NativeError> {
+fn validate_guide_rate(rate: f64) -> Result<f64, DriverError> {
     if !(MIN_GUIDE_RATE..=MAX_GUIDE_RATE).contains(&rate) {
-        return Err(NativeError::SdkError(format!(
+        return Err(DriverError::SdkError(format!(
             "iOptron guide rate {:.2}x is outside the supported {:.2}x..{:.2}x sidereal range",
             rate, MIN_GUIDE_RATE, MAX_GUIDE_RATE
         )));
@@ -157,15 +157,15 @@ fn validate_guide_rate(rate: f64) -> Result<f64, NativeError> {
     Ok(rate)
 }
 
-fn validate_pulse_guide_duration(duration_ms: u32) -> Result<(), NativeError> {
+fn validate_pulse_guide_duration(duration_ms: u32) -> Result<(), DriverError> {
     if duration_ms == 0 {
-        return Err(NativeError::InvalidParameter(
+        return Err(DriverError::InvalidParameter(
             "iOptron pulse guide duration 0ms requests continuous motion; use abort_slew to stop existing motion instead"
                 .to_string(),
         ));
     }
     if duration_ms > MAX_PULSE_GUIDE_DURATION_MS {
-        return Err(NativeError::InvalidParameter(format!(
+        return Err(DriverError::InvalidParameter(format!(
             "iOptron pulse guide duration {}ms exceeds protocol maximum {}ms",
             duration_ms, MAX_PULSE_GUIDE_DURATION_MS
         )));
@@ -242,9 +242,9 @@ fn query_hash_command(port: &mut ProbedPort<'_>, command: &str) -> Option<String
 
 // Coordinate conversion
 
-fn parse_ra(response: &str) -> Result<f64, NativeError> {
+fn parse_ra(response: &str) -> Result<f64, DriverError> {
     if response.len() < 8 {
-        return Err(NativeError::SdkError(format!(
+        return Err(DriverError::SdkError(format!(
             "Invalid RA response: {}",
             response
         )));
@@ -252,20 +252,20 @@ fn parse_ra(response: &str) -> Result<f64, NativeError> {
 
     let hours: f64 = response[0..2]
         .parse()
-        .map_err(|_| NativeError::SdkError("Invalid RA hours".into()))?;
+        .map_err(|_| DriverError::SdkError("Invalid RA hours".into()))?;
     let minutes: f64 = response[2..4]
         .parse()
-        .map_err(|_| NativeError::SdkError("Invalid RA minutes".into()))?;
+        .map_err(|_| DriverError::SdkError("Invalid RA minutes".into()))?;
     let centisecs: f64 = response[4..8]
         .parse()
-        .map_err(|_| NativeError::SdkError("Invalid RA seconds".into()))?;
+        .map_err(|_| DriverError::SdkError("Invalid RA seconds".into()))?;
 
     Ok(from_parts(hours, minutes, centisecs / 100.0))
 }
 
-fn parse_dec(response: &str) -> Result<f64, NativeError> {
+fn parse_dec(response: &str) -> Result<f64, DriverError> {
     if response.len() < 9 {
-        return Err(NativeError::SdkError(format!(
+        return Err(DriverError::SdkError(format!(
             "Invalid Dec response: {}",
             response
         )));
@@ -275,13 +275,13 @@ fn parse_dec(response: &str) -> Result<f64, NativeError> {
 
     let degrees: f64 = digits[0..2]
         .parse()
-        .map_err(|_| NativeError::SdkError("Invalid Dec degrees".into()))?;
+        .map_err(|_| DriverError::SdkError("Invalid Dec degrees".into()))?;
     let arcmin: f64 = digits[2..4]
         .parse()
-        .map_err(|_| NativeError::SdkError("Invalid Dec arcmin".into()))?;
+        .map_err(|_| DriverError::SdkError("Invalid Dec arcmin".into()))?;
     let centiarcsec: f64 = digits[4..8]
         .parse()
-        .map_err(|_| NativeError::SdkError("Invalid Dec arcsec".into()))?;
+        .map_err(|_| DriverError::SdkError("Invalid Dec arcsec".into()))?;
 
     Ok(sign * from_parts(degrees, arcmin, centiarcsec / 100.0))
 }
@@ -343,43 +343,43 @@ impl IOptronMount {
         }
     }
 
-    fn send_command(&self, command: &str) -> Result<String, NativeError> {
+    fn send_command(&self, command: &str) -> Result<String, DriverError> {
         self.link.command(command.as_bytes(), &IOPTRON_REPLY)
     }
 
-    fn send_command_no_response(&self, command: &str) -> Result<(), NativeError> {
+    fn send_command_no_response(&self, command: &str) -> Result<(), DriverError> {
         self.link.command_no_reply(command.as_bytes())
     }
 
-    fn open(&self, baud_rate: u32) -> Result<(), NativeError> {
+    fn open(&self, baud_rate: u32) -> Result<(), DriverError> {
         let serial = serial_link::open_port(&self.port_name, baud_rate)
-            .map_err(|e| NativeError::SdkError(format!("Failed to open serial port: {}", e)))?;
+            .map_err(|e| DriverError::SdkError(format!("Failed to open serial port: {}", e)))?;
         self.link.attach(serial)
     }
 
-    fn update_status(&self) -> Result<(), NativeError> {
+    fn update_status(&self) -> Result<(), DriverError> {
         let response = self.send_command(commands::GET_SYSTEM_STATUS)?;
         let new_status = parse_system_status(&response)?;
         *self
             .status
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = new_status;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = new_status;
         Ok(())
     }
 
-    fn guide_rate(&self) -> Result<f64, NativeError> {
+    fn guide_rate(&self) -> Result<f64, DriverError> {
         let response = self.send_command(commands::GET_GUIDE_RATE)?;
         parse_guide_rate(&response)
     }
 
-    fn validate_pulse_guide_inputs(&self, duration_ms: u32) -> Result<f64, NativeError> {
+    fn validate_pulse_guide_inputs(&self, duration_ms: u32) -> Result<f64, DriverError> {
         validate_pulse_guide_duration(duration_ms)?;
         self.guide_rate()
     }
 }
 
 #[async_trait]
-impl NativeDevice for IOptronMount {
+impl DeviceDriver for IOptronMount {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -388,15 +388,15 @@ impl NativeDevice for IOptronMount {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::IOptron
+    fn vendor(&self) -> Vendor {
+        Vendor::IOptron
     }
 
     fn is_connected(&self) -> bool {
         *self.connected.lock().unwrap_or_else(|e| e.into_inner())
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         if self.is_connected() {
             return Ok(());
         }
@@ -410,7 +410,7 @@ impl NativeDevice for IOptronMount {
                 *self
                     .mount_model
                     .lock()
-                    .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = response.clone();
+                    .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = response.clone();
                 self.name = format!("iOptron {} ({})", response, self.port_name);
             }
             Err(_) => {
@@ -425,7 +425,7 @@ impl NativeDevice for IOptronMount {
                         *self
                             .mount_model
                             .lock()
-                            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? =
+                            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? =
                             response.clone();
                         self.name = format!("iOptron {} ({})", response, self.port_name);
                     }
@@ -442,13 +442,13 @@ impl NativeDevice for IOptronMount {
         *self
             .connected
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = true;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = true;
         tracing::info!("Connected to iOptron mount");
 
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.is_connected() {
             return Ok(());
         }
@@ -470,7 +470,7 @@ impl NativeDevice for IOptronMount {
         *self
             .connected
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = false;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = false;
 
         tracing::info!("Disconnected from iOptron mount");
 
@@ -479,14 +479,14 @@ impl NativeDevice for IOptronMount {
 }
 
 #[async_trait]
-impl NativeMount for IOptronMount {
+impl MountDriver for IOptronMount {
     async fn slew_to_coordinates(
         &mut self,
         ra_hours: f64,
         dec_degrees: f64,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         tracing::info!("Slewing to RA={:.4}h, Dec={:.4}°", ra_hours, dec_degrees);
@@ -494,32 +494,32 @@ impl NativeMount for IOptronMount {
         let ra_cmd = format!("{}{}#", commands::SET_RA, format_ra(ra_hours));
         let response = self.send_command(&ra_cmd)?;
         if response != "1" {
-            return Err(NativeError::SdkError("Failed to set RA target".into()));
+            return Err(DriverError::SdkError("Failed to set RA target".into()));
         }
 
         let dec_cmd = format!("{}{}#", commands::SET_DEC, format_dec(dec_degrees));
         let response = self.send_command(&dec_cmd)?;
         if response != "1" {
-            return Err(NativeError::SdkError("Failed to set Dec target".into()));
+            return Err(DriverError::SdkError("Failed to set Dec target".into()));
         }
 
         let response = self.send_command(commands::SLEW_RA_DEC)?;
         if response != "1" {
-            return Err(NativeError::SdkError(format!("Slew failed: {}", response)));
+            return Err(DriverError::SdkError(format!("Slew failed: {}", response)));
         }
 
         Ok(())
     }
 
-    async fn get_coordinates(&self) -> Result<(f64, f64), NativeError> {
+    async fn get_coordinates(&self) -> Result<(f64, f64), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let response = self.send_command(commands::GET_RA_DEC)?;
 
         if response.len() < 16 {
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Invalid coordinate response: {}",
                 response
             )));
@@ -535,9 +535,9 @@ impl NativeMount for IOptronMount {
         &mut self,
         ra_hours: f64,
         dec_degrees: f64,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         tracing::info!("Syncing to RA={:.4}h, Dec={:.4}°", ra_hours, dec_degrees);
@@ -553,9 +553,9 @@ impl NativeMount for IOptronMount {
         Ok(())
     }
 
-    async fn park(&mut self) -> Result<(), NativeError> {
+    async fn park(&mut self) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         tracing::info!("Parking mount");
@@ -564,9 +564,9 @@ impl NativeMount for IOptronMount {
         Ok(())
     }
 
-    async fn find_home(&mut self) -> Result<(), NativeError> {
+    async fn find_home(&mut self) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // iOptron's home is its zero position. The mount reports the motion
@@ -575,7 +575,7 @@ impl NativeMount for IOptronMount {
         tracing::info!("Sending mount to its zero (home) position");
         let response = self.send_command(commands::GOTO_ZERO_POSITION)?;
         if response != "1" {
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Mount refused the zero-position slew: {}",
                 response
             )));
@@ -584,9 +584,9 @@ impl NativeMount for IOptronMount {
         Ok(())
     }
 
-    async fn unpark(&mut self) -> Result<(), NativeError> {
+    async fn unpark(&mut self) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         tracing::info!("Unparking mount");
@@ -595,30 +595,30 @@ impl NativeMount for IOptronMount {
         Ok(())
     }
 
-    async fn is_slewing(&self) -> Result<bool, NativeError> {
+    async fn is_slewing(&self) -> Result<bool, DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         self.update_status()?;
         let status = self
             .status
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))?;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))?;
 
         Ok(status.slewing)
     }
 
-    async fn is_parked(&self) -> Result<bool, NativeError> {
+    async fn is_parked(&self) -> Result<bool, DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         self.update_status()?;
         let status = self
             .status
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))?;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))?;
 
         Ok(status.parked)
     }
@@ -627,9 +627,9 @@ impl NativeMount for IOptronMount {
         &mut self,
         direction: GuideDirection,
         duration_ms: u32,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let guide_rate = self.validate_pulse_guide_inputs(duration_ms)?;
@@ -651,9 +651,9 @@ impl NativeMount for IOptronMount {
         Ok(())
     }
 
-    async fn abort_slew(&mut self) -> Result<(), NativeError> {
+    async fn abort_slew(&mut self) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         tracing::info!("Aborting slew");
@@ -662,9 +662,9 @@ impl NativeMount for IOptronMount {
         Ok(())
     }
 
-    async fn set_tracking(&mut self, enabled: bool) -> Result<(), NativeError> {
+    async fn set_tracking(&mut self, enabled: bool) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let cmd = if enabled {
@@ -680,30 +680,30 @@ impl NativeMount for IOptronMount {
         Ok(())
     }
 
-    async fn get_tracking(&self) -> Result<bool, NativeError> {
+    async fn get_tracking(&self) -> Result<bool, DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         self.update_status()?;
         let status = self
             .status
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))?;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))?;
 
         Ok(status.tracking)
     }
 
-    async fn get_side_of_pier(&self) -> Result<PierSide, NativeError> {
+    async fn get_side_of_pier(&self) -> Result<PierSide, DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         self.update_status()?;
         let status = self
             .status
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))?;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))?;
 
         Ok(if status.pier_side_west {
             PierSide::West
@@ -712,45 +712,45 @@ impl NativeMount for IOptronMount {
         })
     }
 
-    async fn get_alt_az(&self) -> Result<(f64, f64), NativeError> {
+    async fn get_alt_az(&self) -> Result<(f64, f64), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let response = self.send_command(commands::GET_ALT_AZ)?;
 
         if response.len() < 17 {
-            return Err(NativeError::SdkError("Invalid alt/az response".into()));
+            return Err(DriverError::SdkError("Invalid alt/az response".into()));
         }
 
         let alt = parse_dec(&response[0..9])?;
         let az_deg: f64 = response[9..12]
             .parse()
-            .map_err(|_| NativeError::SdkError("Invalid azimuth".into()))?;
+            .map_err(|_| DriverError::SdkError("Invalid azimuth".into()))?;
         let az_min: f64 = response[12..14]
             .parse()
-            .map_err(|_| NativeError::SdkError("Invalid azimuth".into()))?;
+            .map_err(|_| DriverError::SdkError("Invalid azimuth".into()))?;
         let az_sec: f64 = response[14..18]
             .parse()
-            .map_err(|_| NativeError::SdkError("Invalid azimuth".into()))?;
+            .map_err(|_| DriverError::SdkError("Invalid azimuth".into()))?;
 
         let az = from_parts(az_deg, az_min, az_sec / 100.0);
 
         Ok((alt, az))
     }
 
-    async fn get_sidereal_time(&self) -> Result<f64, NativeError> {
+    async fn get_sidereal_time(&self) -> Result<f64, DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let response = self.send_command(commands::GET_SIDEREAL_TIME)?;
         parse_ra(&response)
     }
 
-    async fn set_tracking_rate(&mut self, rate: TrackingRate) -> Result<(), NativeError> {
+    async fn set_tracking_rate(&mut self, rate: TrackingRate) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let cmd = match rate {
@@ -759,7 +759,7 @@ impl NativeMount for IOptronMount {
             TrackingRate::Solar => commands::SET_TRACKING_SOLAR,
             TrackingRate::King => commands::SET_TRACKING_KING,
             TrackingRate::Custom => {
-                return Err(NativeError::NotSupported);
+                return Err(DriverError::NotSupported);
             }
         };
 
@@ -769,23 +769,23 @@ impl NativeMount for IOptronMount {
         Ok(())
     }
 
-    async fn get_tracking_rate(&self) -> Result<TrackingRate, NativeError> {
+    async fn get_tracking_rate(&self) -> Result<TrackingRate, DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         self.update_status()?;
         let status = self
             .status
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))?;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))?;
 
         match status.tracking_rate {
             0 => Ok(TrackingRate::Sidereal),
             1 => Ok(TrackingRate::Lunar),
             2 => Ok(TrackingRate::Solar),
             3 => Ok(TrackingRate::King),
-            value => Err(NativeError::SdkError(format!(
+            value => Err(DriverError::SdkError(format!(
                 "Unknown iOptron tracking rate value: {}",
                 value
             ))),
@@ -824,11 +824,11 @@ pub struct IOptronMountInfo {
     pub baud_rate: u32,
 }
 
-pub async fn discover_mounts() -> Result<Vec<IOptronMountInfo>, NativeError> {
+pub async fn discover_mounts() -> Result<Vec<IOptronMountInfo>, DriverError> {
     serial_link::run_serial_scan("iOptron", scan_serial_ports).await
 }
 
-fn scan_serial_ports() -> Result<Vec<IOptronMountInfo>, NativeError> {
+fn scan_serial_ports() -> Result<Vec<IOptronMountInfo>, DriverError> {
     serial_link::scan_ports(&SCAN_PLAN, identify_mount)
 }
 
@@ -887,7 +887,7 @@ mod tests {
         let mut mount = IOptronMount::new("TEST_PORT".to_string(), None);
         assert!(mount.can_find_home());
         assert!(
-            matches!(mount.find_home().await, Err(NativeError::NotConnected)),
+            matches!(mount.find_home().await, Err(DriverError::NotConnected)),
             "find_home should reach the connection check, not the trait default"
         );
         assert_eq!(commands::GOTO_ZERO_POSITION, ":MH#");

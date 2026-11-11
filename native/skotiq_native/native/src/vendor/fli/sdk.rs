@@ -185,7 +185,7 @@ pub(crate) fn fli_capability_answer(result: c_long) -> FliCapabilityAnswer {
     }
 }
 
-pub(crate) fn check_fli_error(result: c_long, context: &str) -> Result<(), NativeError> {
+pub(crate) fn check_fli_error(result: c_long, context: &str) -> Result<(), DriverError> {
     if result == 0 {
         Ok(())
     } else {
@@ -193,7 +193,7 @@ pub(crate) fn check_fli_error(result: c_long, context: &str) -> Result<(), Nativ
             "FLI SDK error during '{}': error code {}. Check device connection and driver installation.",
             context, result
         );
-        Err(NativeError::SdkError(format!(
+        Err(DriverError::SdkError(format!(
             "FLI {}: error code {}. Ensure device is connected and libfli driver is installed.",
             context, result
         )))

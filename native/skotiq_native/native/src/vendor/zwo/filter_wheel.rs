@@ -102,30 +102,30 @@ load_vendor_sdk! {
     }
 }
 
-/// Check EFW error code and convert to NativeError
-pub(crate) fn check_efw_error(code: c_int) -> Result<(), NativeError> {
+/// Check EFW error code and convert to DriverError
+pub(crate) fn check_efw_error(code: c_int) -> Result<(), DriverError> {
     match code {
         0 => Ok(()),
-        1 => Err(NativeError::InvalidDevice(
+        1 => Err(DriverError::InvalidDevice(
             "EFW_ERROR_INVALID_INDEX".to_string(),
         )),
-        2 => Err(NativeError::InvalidDevice(
+        2 => Err(DriverError::InvalidDevice(
             "EFW_ERROR_INVALID_ID".to_string(),
         )),
-        3 => Err(NativeError::InvalidParameter(
+        3 => Err(DriverError::InvalidParameter(
             "EFW_ERROR_INVALID_VALUE".to_string(),
         )),
-        4 => Err(NativeError::Disconnected),
-        5 => Err(NativeError::SdkError(
+        4 => Err(DriverError::Disconnected),
+        5 => Err(DriverError::SdkError(
             "EFW_ERROR_MOVING: Filter wheel is moving".to_string(),
         )),
-        6 => Err(NativeError::SdkError(
+        6 => Err(DriverError::SdkError(
             "EFW_ERROR_ERROR_STATE: Filter wheel in error state".to_string(),
         )),
-        7 => Err(NativeError::SdkError("EFW_ERROR_GENERAL_ERROR".to_string())),
-        8 => Err(NativeError::NotSupported),
-        9 => Err(NativeError::NotConnected),
-        _ => Err(NativeError::SdkError(format!(
+        7 => Err(DriverError::SdkError("EFW_ERROR_GENERAL_ERROR".to_string())),
+        8 => Err(DriverError::NotSupported),
+        9 => Err(DriverError::NotConnected),
+        _ => Err(DriverError::SdkError(format!(
             "Unknown EFW error code: {}",
             code
         ))),
@@ -160,7 +160,7 @@ impl ZwoFilterWheel {
         }
     }
 
-    pub(crate) async fn read_position_once(&self) -> Result<i32, NativeError> {
+    pub(crate) async fn read_position_once(&self) -> Result<i32, DriverError> {
         let sdk = EfwSdk::lock().await?;
         let mut position: c_int = -999;
         // SAFETY: `position` is a valid stack pointer and
@@ -175,7 +175,7 @@ impl ZwoFilterWheel {
     /// A non-moving result is re-read after the configured delay. If that
     /// confirmation says the wheel is still moving, the settle remains pending
     /// so the full delay is applied again after actual completion.
-    pub(crate) async fn read_position_settled(&self) -> Result<i32, NativeError> {
+    pub(crate) async fn read_position_settled(&self) -> Result<i32, DriverError> {
         let position = self.read_position_once().await?;
         if position == -1 || !self.settle_after_move_pending.load(Ordering::Acquire) {
             return Ok(position);
@@ -204,7 +204,7 @@ impl ZwoFilterWheel {
 }
 
 #[async_trait]
-impl NativeDevice for ZwoFilterWheel {
+impl DeviceDriver for ZwoFilterWheel {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -213,15 +213,15 @@ impl NativeDevice for ZwoFilterWheel {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Zwo
+    fn vendor(&self) -> Vendor {
+        Vendor::Zwo
     }
 
     fn is_connected(&self) -> bool {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         tracing::info!(
             "Connecting to ZWO EFW filter wheel ID {}...",
             self.filterwheel_id
@@ -255,7 +255,7 @@ impl NativeDevice for ZwoFilterWheel {
         }
         if !id_is_present {
             let reported = num_wheels.max(0);
-            return Err(NativeError::DeviceNotFound(format!(
+            return Err(DriverError::DeviceNotFound(format!(
                 "ZWO EFW ID {} is not present (SDK reported {} wheel{})",
                 self.filterwheel_id,
                 reported,
@@ -378,7 +378,7 @@ impl NativeDevice for ZwoFilterWheel {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.connected {
             return Ok(());
         }
@@ -412,17 +412,17 @@ impl NativeDevice for ZwoFilterWheel {
 }
 
 #[async_trait]
-impl NativeFilterWheel for ZwoFilterWheel {
-    async fn move_to_position(&mut self, position: i32) -> Result<(), NativeError> {
+impl FilterWheelDriver for ZwoFilterWheel {
+    async fn move_to_position(&mut self, position: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let sdk = EfwSdk::installed()?;
 
         // Validate position
         if position < 0 || position >= self.slot_count {
-            return Err(NativeError::InvalidParameter(format!(
+            return Err(DriverError::InvalidParameter(format!(
                 "Invalid position {}. Valid range: 0-{}",
                 position,
                 self.slot_count - 1
@@ -439,9 +439,9 @@ impl NativeFilterWheel for ZwoFilterWheel {
         Ok(())
     }
 
-    async fn get_position(&self) -> Result<i32, NativeError> {
+    async fn get_position(&self) -> Result<i32, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let position = self.read_position_settled().await?;
@@ -454,9 +454,9 @@ impl NativeFilterWheel for ZwoFilterWheel {
         Ok(position)
     }
 
-    async fn is_moving(&self) -> Result<bool, NativeError> {
+    async fn is_moving(&self) -> Result<bool, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let position = self.read_position_settled().await?;
@@ -474,20 +474,20 @@ impl NativeFilterWheel for ZwoFilterWheel {
         self.slot_count
     }
 
-    async fn get_filter_names(&self) -> Result<Vec<String>, NativeError> {
+    async fn get_filter_names(&self) -> Result<Vec<String>, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
         Ok(self.filter_names.clone())
     }
 
-    async fn set_filter_name(&mut self, position: i32, name: String) -> Result<(), NativeError> {
+    async fn set_filter_name(&mut self, position: i32, name: String) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if position < 0 || position >= self.slot_count {
-            return Err(NativeError::InvalidParameter(format!(
+            return Err(DriverError::InvalidParameter(format!(
                 "Invalid position {}. Valid range: 0-{}",
                 position,
                 self.slot_count - 1
@@ -541,7 +541,7 @@ pub(crate) fn efw_sdk_version_from_sdk(sdk: &EfwSdk) -> Option<String> {
 }
 
 /// Discover ZWO EFW filter wheels
-pub async fn discover_filter_wheels() -> Result<Vec<ZwoFilterWheelDiscoveryInfo>, NativeError> {
+pub async fn discover_filter_wheels() -> Result<Vec<ZwoFilterWheelDiscoveryInfo>, DriverError> {
     let sdk = match EfwSdk::installed() {
         Ok(sdk) => sdk,
         Err(_) => {

@@ -102,7 +102,7 @@ impl TouptekCamera {
         &self,
         lock: &SdkLockHeld,
         handle: HOgmacam,
-    ) -> Result<i32, NativeError> {
+    ) -> Result<i32, DriverError> {
         with_sdk(lock, &self.brand, |sdk| {
             let mut gain: u16 = 0;
             // SAFETY: `handle` is the live SDK handle
@@ -110,7 +110,7 @@ impl TouptekCamera {
             // out-pointer for the SDK's unsigned-short exposure-gain value.
             let result = unsafe { (sdk.get_expo_again)(handle, &mut gain) };
             if result < 0 {
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "Failed to read gain from Touptek camera '{}'. SDK error: {}",
                     self.name, result
                 )));

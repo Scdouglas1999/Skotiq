@@ -22,7 +22,7 @@ pub struct AtikFilterWheelDiscoveryInfo {
 }
 
 /// Discover connected Atik cameras
-pub async fn discover_devices() -> Result<Vec<AtikDiscoveryInfo>, NativeError> {
+pub async fn discover_devices() -> Result<Vec<AtikDiscoveryInfo>, DriverError> {
     let sdk = match AtikSdk::installed() {
         Ok(sdk) => sdk,
         Err(_) => return Ok(Vec::new()),
@@ -117,7 +117,7 @@ pub async fn discover_devices() -> Result<Vec<AtikDiscoveryInfo>, NativeError> {
 }
 
 /// Discover connected Atik EFW filter wheels.
-pub async fn discover_filter_wheels() -> Result<Vec<AtikFilterWheelDiscoveryInfo>, NativeError> {
+pub async fn discover_filter_wheels() -> Result<Vec<AtikFilterWheelDiscoveryInfo>, DriverError> {
     let loaded = match AtikSdk::installed() {
         Ok(sdk) => sdk,
         Err(_) => return Ok(Vec::new()),

@@ -101,7 +101,7 @@ pub struct ZwoCamera {
     /// Hardware serial read from the OPEN camera during `connect()`.
     ///
     /// `None` means "this unit has no readable serial" — see
-    /// [`NativeDevice::serial_number`]. It is populated at connect rather than
+    /// [`DeviceDriver::serial_number`]. It is populated at connect rather than
     /// at discovery on purpose: `ASIGetSerialNumber` requires the camera to be
     /// open, and opening every camera during a discovery scan would fight with
     /// any other application holding one.
@@ -109,7 +109,7 @@ pub struct ZwoCamera {
     /// Model as the SDK states it, e.g. `ZWO ASI1600MM-Cool`.
     ///
     /// Empty until `load_camera_info` has run, because the model only exists in
-    /// `ASICameraInfo` and that needs the SDK. [`NativeDevice::name`] falls back
+    /// `ASICameraInfo` and that needs the SDK. [`DeviceDriver::name`] falls back
     /// to the id string while it is empty; see the note there for why the id is
     /// never an acceptable answer once the camera is open.
     pub(crate) model_name: String,
@@ -158,7 +158,7 @@ impl ZwoCamera {
     }
 
     /// Load camera info from SDK
-    pub(crate) fn load_camera_info(&mut self, sdk: &AsiSdk) -> Result<(), NativeError> {
+    pub(crate) fn load_camera_info(&mut self, sdk: &AsiSdk) -> Result<(), DriverError> {
         // ASIGetCameraProperty takes the current enumeration index, while every
         // camera operation takes ASICameraInfo::CameraID. Resolve the stable ID
         // again here because USB enumeration can change between discovery and
@@ -180,7 +180,7 @@ impl ZwoCamera {
             }
         }
         let info = matched_info.ok_or_else(|| {
-            NativeError::InvalidDevice(format!(
+            DriverError::InvalidDevice(format!(
                 "ZWO camera ID {} is no longer present in the SDK enumeration",
                 self.camera_id
             ))
@@ -194,7 +194,7 @@ impl ZwoCamera {
         // Cache the model now that the SDK has answered. `name()` has to hand
         // back a `&str`, so the owned copy has to live in the struct — without
         // it the only borrowable string was `device_id`, and every caller of
-        // `NativeDevice::name()` was handed the enumeration index instead of
+        // `DeviceDriver::name()` was handed the enumeration index instead of
         // the model.
         self.model_name = self.camera_name();
         Ok(())
@@ -257,7 +257,7 @@ impl ZwoCamera {
         should_skip
     }
 
-    pub(crate) fn read_temperature_celsius_sync(&self, sdk: &AsiSdk) -> Result<f64, NativeError> {
+    pub(crate) fn read_temperature_celsius_sync(&self, sdk: &AsiSdk) -> Result<f64, DriverError> {
         if self.take_temperature_skip_first_pending() {
             tracing::debug!(
                 "Discarding first ZWO temperature read after connect for {}",
@@ -274,7 +274,7 @@ impl ZwoCamera {
     pub(crate) async fn get_control_async(
         &self,
         control: ASIControlType,
-    ) -> Result<c_long, NativeError> {
+    ) -> Result<c_long, DriverError> {
         let sdk = AsiSdk::lock().await?;
         let mut value: c_long = 0;
         let mut is_auto: ASIBool = ASI_FALSE;
@@ -291,7 +291,7 @@ impl ZwoCamera {
         &self,
         sdk: &AsiSdk,
         control: ASIControlType,
-    ) -> Result<c_long, NativeError> {
+    ) -> Result<c_long, DriverError> {
         let mut value: c_long = 0;
         let mut is_auto: ASIBool = ASI_FALSE;
         // SAFETY: `value`/`is_auto` are valid stack pointers; camera_id was validated at open time.
@@ -308,7 +308,7 @@ impl ZwoCamera {
         control: ASIControlType,
         value: c_long,
         auto: bool,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         let sdk = AsiSdk::lock().await?;
         // SAFETY: all arguments are pass-by-value primitives validated by ASI control range; camera_id is valid (camera was opened).
         let result = unsafe {
@@ -329,7 +329,7 @@ impl ZwoCamera {
         control: ASIControlType,
         value: c_long,
         auto: bool,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         // SAFETY: all args are pass-by-value primitives; camera_id is valid since this method is only called between connect()/disconnect().
         let result = unsafe {
             (sdk.set_control_value)(
@@ -428,7 +428,7 @@ impl ZwoCamera {
     pub(crate) async fn get_control_caps_raw_async(
         &self,
         target_control: ASIControlType,
-    ) -> Result<(i64, i64, i64), NativeError> {
+    ) -> Result<(i64, i64, i64), DriverError> {
         let sdk = AsiSdk::lock().await?;
 
         let mut num_controls: c_int = 0;
@@ -455,14 +455,14 @@ impl ZwoCamera {
             }
         }
 
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     }
 
     /// Get the min/max range for a control, taking the SDK lock for the call.
     pub(crate) async fn get_control_range_async(
         &self,
         target_control: ASIControlType,
-    ) -> Result<(i32, i32), NativeError> {
+    ) -> Result<(i32, i32), DriverError> {
         let (min, max, _default) = self.get_control_caps_async(target_control).await?;
         Ok((min, max))
     }
@@ -477,7 +477,7 @@ impl ZwoCamera {
     pub(crate) async fn get_control_caps_async(
         &self,
         target_control: ASIControlType,
-    ) -> Result<(i32, i32, i32), NativeError> {
+    ) -> Result<(i32, i32, i32), DriverError> {
         let sdk = AsiSdk::lock().await?;
 
         // Get number of controls
@@ -510,16 +510,16 @@ impl ZwoCamera {
             }
         }
 
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     }
 }
 
 pub(crate) fn validate_zwo_eaf_target(
     position: i32,
     max_position: i32,
-) -> Result<i32, NativeError> {
+) -> Result<i32, DriverError> {
     if position < 0 || position > max_position {
-        return Err(NativeError::InvalidParameter(format!(
+        return Err(DriverError::InvalidParameter(format!(
             "ZWO EAF target position {} outside valid range 0-{}",
             position, max_position
         )));
@@ -541,8 +541,8 @@ pub(crate) fn validate_zwo_eaf_target(
 pub(crate) fn commit_zwo_cached_setting(
     cache: &mut i32,
     effective_value: i32,
-    sdk_result: Result<(), NativeError>,
-) -> Result<(), NativeError> {
+    sdk_result: Result<(), DriverError>,
+) -> Result<(), DriverError> {
     sdk_result?;
     *cache = effective_value;
     Ok(())

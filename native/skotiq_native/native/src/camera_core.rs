@@ -10,11 +10,11 @@
 //! driver names its byte order, its 8-bit rule, its cooler default and the
 //! metadata values that do not come from the cached state.
 
-use crate::camera::{
+use skotiq_device::camera::{
     BayerPattern, CameraCapabilities, CameraState, ImageData, ImageMetadata, SensorInfo, SubFrame,
     VendorFeatures,
 };
-use crate::traits::NativeError;
+use skotiq_device::DriverError;
 
 /// The cooler command a driver last sent.
 ///
@@ -79,11 +79,11 @@ impl CameraCore {
 
     /// The connected check. Which methods call it, and where among their
     /// other early returns, is each driver's own contract.
-    pub(crate) fn require_connected(&self) -> Result<(), NativeError> {
+    pub(crate) fn require_connected(&self) -> Result<(), DriverError> {
         if self.connected {
             Ok(())
         } else {
-            Err(NativeError::NotConnected)
+            Err(DriverError::NotConnected)
         }
     }
 
@@ -197,9 +197,9 @@ pub(crate) fn unpack_samples(bytes: &[u8], layout: SampleLayout) -> Vec<u16> {
 
 /// A ROI dimension an SDK reported as a C `int`. A negative value is SDK
 /// corruption and is reported instead of wrapping into a huge `u32`.
-pub(crate) fn roi_dimension(vendor: &str, axis: &str, value: i32) -> Result<u32, NativeError> {
+pub(crate) fn roi_dimension(vendor: &str, axis: &str, value: i32) -> Result<u32, DriverError> {
     u32::try_from(value).map_err(|_| {
-        NativeError::SdkError(format!(
+        DriverError::SdkError(format!(
             "{} returned negative ROI {}: {}",
             vendor, axis, value
         ))
@@ -207,9 +207,9 @@ pub(crate) fn roi_dimension(vendor: &str, axis: &str, value: i32) -> Result<u32,
 }
 
 /// An image dimension computed as `usize`, narrowed to the `u32` of [`ImageData`].
-pub(crate) fn image_dimension(vendor: &str, axis: &str, value: usize) -> Result<u32, NativeError> {
+pub(crate) fn image_dimension(vendor: &str, axis: &str, value: usize) -> Result<u32, DriverError> {
     u32::try_from(value).map_err(|_| {
-        NativeError::SdkError(format!(
+        DriverError::SdkError(format!(
             "{} image {} does not fit in u32: {}",
             vendor, axis, value
         ))
@@ -304,7 +304,7 @@ mod tests {
             ("SVBony", "SVBony returned negative ROI width: -3"),
         ] {
             match roi_dimension(vendor, "width", -3) {
-                Err(NativeError::SdkError(message)) => assert_eq!(message, legacy),
+                Err(DriverError::SdkError(message)) => assert_eq!(message, legacy),
                 other => panic!("expected an SDK error, got {:?}", other),
             }
         }
@@ -320,7 +320,7 @@ mod tests {
         if usize::BITS > 32 {
             let too_wide = u32::MAX as usize + 1;
             match image_dimension("Atik", "width", too_wide) {
-                Err(NativeError::SdkError(message)) => assert_eq!(
+                Err(DriverError::SdkError(message)) => assert_eq!(
                     message,
                     format!("Atik image width does not fit in u32: {}", too_wide)
                 ),
@@ -349,7 +349,7 @@ mod tests {
         let mut core = CameraCore::new("native:test:0".into(), "Test".into(), -10.0);
         assert!(matches!(
             core.require_connected(),
-            Err(NativeError::NotConnected)
+            Err(DriverError::NotConnected)
         ));
         core.connected = true;
         assert!(core.require_connected().is_ok());

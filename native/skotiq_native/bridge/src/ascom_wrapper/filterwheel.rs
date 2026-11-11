@@ -1,8 +1,8 @@
 use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
 use crate::timeout_ops::Timeouts;
 use skotiq_ascom::AscomFilterWheel;
-use skotiq_native::traits::{NativeDevice, NativeError, NativeFilterWheel};
-use skotiq_native::NativeVendor;
+use skotiq_device::Vendor;
+use skotiq_device::{DeviceDriver, DriverError, FilterWheelDriver};
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::time::Duration;
@@ -200,14 +200,14 @@ impl AscomFilterWheelWrapper {
         rx: oneshot::Receiver<Result<T, String>>,
         timeout: Duration,
         operation: &str,
-    ) -> Result<T, NativeError> {
+    ) -> Result<T, DriverError> {
         match tokio::time::timeout(timeout, rx).await {
-            Ok(Ok(result)) => result.map_err(|e| NativeError::SdkError(e)),
-            Ok(Err(_recv_err)) => Err(NativeError::Unknown(format!(
+            Ok(Ok(result)) => result.map_err(|e| DriverError::SdkError(e)),
+            Ok(Err(_recv_err)) => Err(DriverError::Unknown(format!(
                 "Worker thread dead during {}",
                 operation
             ))),
-            Err(_elapsed) => Err(NativeError::Timeout(format!(
+            Err(_elapsed) => Err(DriverError::Timeout(format!(
                 "FilterWheel {} timed out after {:?}",
                 operation, timeout
             ))),
@@ -216,7 +216,7 @@ impl AscomFilterWheelWrapper {
 }
 
 #[async_trait::async_trait]
-impl NativeDevice for AscomFilterWheelWrapper {
+impl DeviceDriver for AscomFilterWheelWrapper {
     fn id(&self) -> &str {
         &self.id
     }
@@ -225,21 +225,21 @@ impl NativeDevice for AscomFilterWheelWrapper {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Ascom
+    fn vendor(&self) -> Vendor {
+        Vendor::Ascom
     }
 
     fn is_connected(&self) -> bool {
         self.connected.load(Ordering::SeqCst)
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFilterWheelCommand::Connect(tx))
             .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
-        let result: Result<i32, NativeError> =
+            .map_err(|e| DriverError::SdkError(e.to_string()))?;
+        let result: Result<i32, DriverError> =
             Self::recv_with_timeout(rx, Timeouts::connection(), "connect").await;
         match result {
             Ok(count) => {
@@ -251,12 +251,12 @@ impl NativeDevice for AscomFilterWheelWrapper {
         }
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFilterWheelCommand::Disconnect(tx))
             .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+            .map_err(|e| DriverError::SdkError(e.to_string()))?;
         let result = Self::recv_with_timeout(rx, Timeouts::connection(), "disconnect").await;
         if result.is_ok() {
             self.connected.store(false, Ordering::SeqCst);
@@ -266,27 +266,27 @@ impl NativeDevice for AscomFilterWheelWrapper {
 }
 
 #[async_trait::async_trait]
-impl NativeFilterWheel for AscomFilterWheelWrapper {
-    async fn move_to_position(&mut self, position: i32) -> Result<(), NativeError> {
+impl FilterWheelDriver for AscomFilterWheelWrapper {
+    async fn move_to_position(&mut self, position: i32) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFilterWheelCommand::SetPosition(position, tx))
             .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+            .map_err(|e| DriverError::SdkError(e.to_string()))?;
         // Filter wheel rotation can take time
         Self::recv_with_timeout(rx, Timeouts::filter_wheel(), "move_to_position").await
     }
 
-    async fn get_position(&self) -> Result<i32, NativeError> {
+    async fn get_position(&self) -> Result<i32, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFilterWheelCommand::GetPosition(tx))
             .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+            .map_err(|e| DriverError::SdkError(e.to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_position").await
     }
 
-    async fn is_moving(&self) -> Result<bool, NativeError> {
+    async fn is_moving(&self) -> Result<bool, DriverError> {
         // ASCOM Position returns -1 if moving
         let pos = self.get_position().await?;
         Ok(pos == -1)
@@ -296,68 +296,68 @@ impl NativeFilterWheel for AscomFilterWheelWrapper {
         self.filter_count.load(Ordering::SeqCst)
     }
 
-    async fn get_filter_names(&self) -> Result<Vec<String>, NativeError> {
+    async fn get_filter_names(&self) -> Result<Vec<String>, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFilterWheelCommand::GetNames(tx))
             .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+            .map_err(|e| DriverError::SdkError(e.to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_filter_names").await
     }
 
-    async fn set_filter_name(&mut self, _position: i32, _name: String) -> Result<(), NativeError> {
-        Err(NativeError::NotSupported)
+    async fn set_filter_name(&mut self, _position: i32, _name: String) -> Result<(), DriverError> {
+        Err(DriverError::NotSupported)
     }
 }
 
 // Version query methods
 impl AscomFilterWheelWrapper {
-    pub async fn heartbeat(&self) -> Result<(), NativeError> {
+    pub async fn heartbeat(&self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFilterWheelCommand::Heartbeat(tx))
             .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+            .map_err(|e| DriverError::SdkError(e.to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "heartbeat").await
     }
 
     /// Get the ASCOM interface version number
-    pub async fn interface_version(&self) -> Result<i32, NativeError> {
+    pub async fn interface_version(&self) -> Result<i32, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFilterWheelCommand::GetInterfaceVersion(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "interface_version").await
     }
 
     /// Get the driver version string
-    pub async fn driver_version(&self) -> Result<String, NativeError> {
+    pub async fn driver_version(&self) -> Result<String, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFilterWheelCommand::GetDriverVersion(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_version").await
     }
 
     /// Get the driver info/description
-    pub async fn driver_info(&self) -> Result<String, NativeError> {
+    pub async fn driver_info(&self) -> Result<String, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFilterWheelCommand::GetDriverInfo(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_info").await
     }
 
     /// Get the list of supported actions
-    pub async fn supported_actions(&self) -> Result<Vec<String>, NativeError> {
+    pub async fn supported_actions(&self) -> Result<Vec<String>, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFilterWheelCommand::GetSupportedActions(tx))
             .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "supported_actions").await
     }
 }
@@ -415,7 +415,7 @@ mod tests {
         let result = wrapper.connect().await;
         assert!(result.is_err(), "Names failure must propagate as Err");
         match result.unwrap_err() {
-            NativeError::SdkError(msg) => {
+            DriverError::SdkError(msg) => {
                 assert!(
                     msg.contains("Names"),
                     "error message should mention Names property, got: {}",

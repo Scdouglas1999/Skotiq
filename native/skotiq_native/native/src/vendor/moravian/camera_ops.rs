@@ -1,9 +1,9 @@
-//! `NativeCamera` implementation for `MoravianCamera`.
+//! `CameraDriver` implementation for `MoravianCamera`.
 
 use super::*;
 
 #[async_trait]
-impl NativeCamera for MoravianCamera {
+impl CameraDriver for MoravianCamera {
     fn capabilities(&self) -> CameraCapabilities {
         self.capabilities.clone()
     }
@@ -12,9 +12,9 @@ impl NativeCamera for MoravianCamera {
         self.sensor_info.clone()
     }
 
-    async fn get_status(&self) -> Result<CameraStatus, NativeError> {
+    async fn get_status(&self) -> Result<CameraStatus, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -76,13 +76,13 @@ impl NativeCamera for MoravianCamera {
         })
     }
 
-    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), NativeError> {
+    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if self.state == CameraState::Exposing {
-            return Err(NativeError::SdkError("Camera is already exposing".into()));
+            return Err(DriverError::SdkError("Camera is already exposing".into()));
         }
 
         let sdk = MoravianSdk::installed()?;
@@ -90,13 +90,13 @@ impl NativeCamera for MoravianCamera {
         // Compute the binned, y-flipped ROI the current SDK expects on
         // start_exposure (the legacy SDK applied the ROI at download time).
         let bin_x = u32::try_from(self.current_bin_x).map_err(|_| {
-            NativeError::InvalidParameter(format!(
+            DriverError::InvalidParameter(format!(
                 "Moravian current_bin_x not representable as u32: {}",
                 self.current_bin_x
             ))
         })?;
         let bin_y = u32::try_from(self.current_bin_y).map_err(|_| {
-            NativeError::InvalidParameter(format!(
+            DriverError::InvalidParameter(format!(
                 "Moravian current_bin_y not representable as u32: {}",
                 self.current_bin_y
             ))
@@ -112,7 +112,7 @@ impl NativeCamera for MoravianCamera {
             bin_y,
             subframe,
         )
-        .map_err(NativeError::InvalidParameter)?;
+        .map_err(DriverError::InvalidParameter)?;
 
         // Shutter policy lives on this ONE line: Light/Flat open the mechanical
         // shutter; Dark/Bias/DarkFlat keep it closed so calibration frames are not
@@ -145,7 +145,7 @@ impl NativeCamera for MoravianCamera {
                     "Moravian gxccd_start_exposure() failed for camera '{}': {} (duration {:.3}s, ROI {}x{}+{}+{})",
                     self.name, msg, params.duration_secs, roi.w, roi.h, roi.x, roi.y
                 );
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "Failed to start exposure on Moravian camera '{}': {}",
                     self.name, msg
                 )));
@@ -176,9 +176,9 @@ impl NativeCamera for MoravianCamera {
         Ok(())
     }
 
-    async fn abort_exposure(&mut self) -> Result<(), NativeError> {
+    async fn abort_exposure(&mut self) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -209,9 +209,9 @@ impl NativeCamera for MoravianCamera {
         Ok(())
     }
 
-    async fn download_image(&mut self) -> Result<ImageData, NativeError> {
+    async fn download_image(&mut self) -> Result<ImageData, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let sdk = MoravianSdk::installed()?;
@@ -220,7 +220,7 @@ impl NativeCamera for MoravianCamera {
         // no ROI of its own; the buffer must match exactly what start_exposure
         // requested.
         let (binned_width, binned_height) = self.last_frame_dims.ok_or_else(|| {
-            NativeError::SdkError(
+            DriverError::SdkError(
                 "Moravian download_image called without an active exposure".into(),
             )
         })?;
@@ -230,22 +230,22 @@ impl NativeCamera for MoravianCamera {
         let pixel_count_u64 = u64::from(binned_width)
             .checked_mul(u64::from(binned_height))
             .ok_or_else(|| {
-                NativeError::SdkError(format!(
+                DriverError::SdkError(format!(
                     "Moravian buffer dimensions overflow u64: {}x{}",
                     binned_width, binned_height
                 ))
             })?;
         let byte_count_u64 = pixel_count_u64
             .checked_mul(2)
-            .ok_or_else(|| NativeError::SdkError("Moravian byte count overflow u64".into()))?;
+            .ok_or_else(|| DriverError::SdkError("Moravian byte count overflow u64".into()))?;
         let buffer_size = usize::try_from(pixel_count_u64).map_err(|_| {
-            NativeError::SdkError(format!(
+            DriverError::SdkError(format!(
                 "Moravian buffer pixel count {} does not fit in usize",
                 pixel_count_u64
             ))
         })?;
         let byte_count = usize::try_from(byte_count_u64).map_err(|_| {
-            NativeError::SdkError(format!(
+            DriverError::SdkError(format!(
                 "Moravian byte count {} does not fit in usize",
                 byte_count_u64
             ))
@@ -268,7 +268,7 @@ impl NativeCamera for MoravianCamera {
                     // SAFETY: handle is the open camera handle.
                     let msg = unsafe { sdk_last_error(&sdk, handle) };
                     self.state = CameraState::Error;
-                    return Err(NativeError::SdkError(format!(
+                    return Err(DriverError::SdkError(format!(
                         "Moravian gxccd_image_ready() failed for camera '{}': {}",
                         self.name, msg
                     )));
@@ -280,7 +280,7 @@ impl NativeCamera for MoravianCamera {
             }
             if std::time::Instant::now() >= deadline {
                 self.state = CameraState::Error;
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "Timed out after {}s waiting for Moravian camera '{}' image readout",
                     READOUT_TIMEOUT_SECS, self.name
                 )));
@@ -312,7 +312,7 @@ impl NativeCamera for MoravianCamera {
                 byte_count
             );
             self.state = CameraState::Error;
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Failed to download image from Moravian camera '{}': {}",
                 self.name, msg
             )));
@@ -361,9 +361,9 @@ impl NativeCamera for MoravianCamera {
         })
     }
 
-    async fn is_exposure_complete(&self) -> Result<bool, NativeError> {
+    async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if self.state != CameraState::Exposing {
@@ -381,13 +381,13 @@ impl NativeCamera for MoravianCamera {
         &mut self,
         enabled: bool,
         target_temp: Option<f64>,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if !self.capabilities.can_cool {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -412,7 +412,7 @@ impl NativeCamera for MoravianCamera {
                     msg,
                     target
                 );
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "Failed to set cooler temperature to {:.1} C on Moravian camera '{}': {}",
                     target, self.name, msg
                 )));
@@ -432,9 +432,9 @@ impl NativeCamera for MoravianCamera {
         Ok(())
     }
 
-    async fn get_temperature(&self) -> Result<f64, NativeError> {
+    async fn get_temperature(&self) -> Result<f64, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -449,16 +449,16 @@ impl NativeCamera for MoravianCamera {
         } else {
             // SAFETY: handle is the open camera handle.
             let msg = unsafe { sdk_last_error(&sdk, handle) };
-            Err(NativeError::SdkError(format!(
+            Err(DriverError::SdkError(format!(
                 "Failed to get temperature: {}",
                 msg
             )))
         }
     }
 
-    async fn get_cooler_power(&self) -> Result<f64, NativeError> {
+    async fn get_cooler_power(&self) -> Result<f64, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -473,25 +473,25 @@ impl NativeCamera for MoravianCamera {
         } else {
             // SAFETY: handle is the open camera handle.
             let msg = unsafe { sdk_last_error(&sdk, handle) };
-            Err(NativeError::SdkError(format!(
+            Err(DriverError::SdkError(format!(
                 "Failed to get cooler power: {}",
                 msg
             )))
         }
     }
 
-    async fn set_gain(&mut self, gain: i32) -> Result<(), NativeError> {
+    async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if !self.capabilities.can_set_gain {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
 
         // gxccd_set_gain takes a uint16_t register value (gxccd.h:472-478).
         let gain_u16 = u16::try_from(gain).map_err(|_| {
-            NativeError::InvalidParameter(format!("Moravian gain {} out of range 0..=65535", gain))
+            DriverError::InvalidParameter(format!("Moravian gain {} out of range 0..=65535", gain))
         })?;
 
         // Acquire global SDK mutex for thread safety
@@ -510,7 +510,7 @@ impl NativeCamera for MoravianCamera {
                 msg,
                 gain
             );
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Failed to set gain to {} on Moravian camera '{}': {}",
                 gain, self.name, msg
             )));
@@ -520,17 +520,17 @@ impl NativeCamera for MoravianCamera {
         Ok(())
     }
 
-    async fn set_offset(&mut self, _offset: i32) -> Result<(), NativeError> {
-        Err(NativeError::NotSupported)
+    async fn set_offset(&mut self, _offset: i32) -> Result<(), DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), NativeError> {
+    async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if !self.capabilities.can_set_binning && (bin_x > 1 || bin_y > 1) {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -552,7 +552,7 @@ impl NativeCamera for MoravianCamera {
                 self.capabilities.max_bin_x,
                 self.capabilities.max_bin_y
             );
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Failed to set binning to {}x{} on Moravian camera '{}': {} (max {}x{})",
                 bin_x,
                 bin_y,
@@ -568,9 +568,9 @@ impl NativeCamera for MoravianCamera {
         Ok(())
     }
 
-    async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), NativeError> {
+    async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // The current SDK validates the ROI on gxccd_start_exposure, so there is
@@ -580,21 +580,21 @@ impl NativeCamera for MoravianCamera {
         match subframe {
             Some(sf) => {
                 if !self.capabilities.can_subframe {
-                    return Err(NativeError::NotSupported);
+                    return Err(DriverError::NotSupported);
                 }
                 if sf.width == 0 || sf.height == 0 {
-                    return Err(NativeError::InvalidParameter(
+                    return Err(DriverError::InvalidParameter(
                         "Moravian subframe width/height must be > 0".into(),
                     ));
                 }
                 let x_end = sf.start_x.checked_add(sf.width).ok_or_else(|| {
-                    NativeError::InvalidParameter("Moravian subframe x extent overflow".into())
+                    DriverError::InvalidParameter("Moravian subframe x extent overflow".into())
                 })?;
                 let y_end = sf.start_y.checked_add(sf.height).ok_or_else(|| {
-                    NativeError::InvalidParameter("Moravian subframe y extent overflow".into())
+                    DriverError::InvalidParameter("Moravian subframe y extent overflow".into())
                 })?;
                 if x_end > self.sensor_info.width || y_end > self.sensor_info.height {
-                    return Err(NativeError::InvalidParameter(format!(
+                    return Err(DriverError::InvalidParameter(format!(
                         "Moravian subframe ({}, {}) {}x{} exceeds sensor {}x{}",
                         sf.start_x,
                         sf.start_y,
@@ -614,21 +614,21 @@ impl NativeCamera for MoravianCamera {
         Ok(())
     }
 
-    async fn get_gain(&self) -> Result<i32, NativeError> {
+    async fn get_gain(&self) -> Result<i32, DriverError> {
         Ok(self.current_gain)
     }
 
-    async fn get_offset(&self) -> Result<i32, NativeError> {
-        Err(NativeError::NotSupported)
+    async fn get_offset(&self) -> Result<i32, DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_binning(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
         Ok((self.current_bin_x, self.current_bin_y))
     }
 
-    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, NativeError> {
+    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -692,9 +692,9 @@ impl NativeCamera for MoravianCamera {
         Ok(modes)
     }
 
-    async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), NativeError> {
+    async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -714,7 +714,7 @@ impl NativeCamera for MoravianCamera {
                 mode.index,
                 mode.name
             );
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Failed to set readout mode '{}' (index {}) on Moravian camera '{}': {}",
                 mode.name, mode.index, self.name, msg
             )));
@@ -723,28 +723,28 @@ impl NativeCamera for MoravianCamera {
         Ok(())
     }
 
-    async fn get_vendor_features(&self) -> Result<VendorFeatures, NativeError> {
+    async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
         // Moravian has hot side temp available but VendorFeatures doesn't have this field
         // Could use custom_data in future if needed
         Ok(VendorFeatures::default())
     }
 
-    async fn get_gain_range(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // The gX SDK publishes no gain bounds, and the range genuinely differs between
         // the CCD and CMOS model lines; report the absence rather than one invented
         // range for both.
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_offset_range(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     }
 }

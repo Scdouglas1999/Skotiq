@@ -130,15 +130,15 @@ struct FakeIdentityDevice {
 }
 
 #[async_trait::async_trait]
-impl skotiq_native::traits::NativeDevice for FakeIdentityDevice {
+impl skotiq_device::DeviceDriver for FakeIdentityDevice {
     fn id(&self) -> &str {
         &self.id
     }
     fn name(&self) -> &str {
         &self.model
     }
-    fn vendor(&self) -> skotiq_native::NativeVendor {
-        skotiq_native::NativeVendor::Zwo
+    fn vendor(&self) -> skotiq_device::Vendor {
+        skotiq_device::Vendor::Zwo
     }
     fn serial_number(&self) -> Option<String> {
         self.serial.clone()
@@ -146,10 +146,10 @@ impl skotiq_native::traits::NativeDevice for FakeIdentityDevice {
     fn is_connected(&self) -> bool {
         true
     }
-    async fn connect(&mut self) -> Result<(), skotiq_native::traits::NativeError> {
+    async fn connect(&mut self) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
-    async fn disconnect(&mut self) -> Result<(), skotiq_native::traits::NativeError> {
+    async fn disconnect(&mut self) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
 }

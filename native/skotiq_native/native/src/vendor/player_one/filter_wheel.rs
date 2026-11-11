@@ -13,7 +13,7 @@ pub struct PlayerOneFilterWheelInfo {
 }
 
 /// Discover Player One Phoenix filter wheels.
-pub async fn discover_filter_wheels() -> Result<Vec<PlayerOneFilterWheelInfo>, NativeError> {
+pub async fn discover_filter_wheels() -> Result<Vec<PlayerOneFilterWheelInfo>, DriverError> {
     let sdk = match PoaPwSdk::lock().await {
         Ok(sdk) => sdk,
         Err(_) => return Ok(Vec::new()),
@@ -89,7 +89,7 @@ impl PlayerOneFilterWheel {
 }
 
 #[async_trait]
-impl NativeDevice for PlayerOneFilterWheel {
+impl DeviceDriver for PlayerOneFilterWheel {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -98,15 +98,15 @@ impl NativeDevice for PlayerOneFilterWheel {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::PlayerOne
+    fn vendor(&self) -> Vendor {
+        Vendor::PlayerOne
     }
 
     fn is_connected(&self) -> bool {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         if self.connected {
             return Ok(());
         }
@@ -135,7 +135,7 @@ impl NativeDevice for PlayerOneFilterWheel {
         )?;
 
         if props.position_count <= 0 {
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Player One PW handle {} reported invalid position count {}",
                 self.handle, props.position_count
             )));
@@ -148,7 +148,7 @@ impl NativeDevice for PlayerOneFilterWheel {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.connected {
             return Ok(());
         }
@@ -162,13 +162,13 @@ impl NativeDevice for PlayerOneFilterWheel {
 }
 
 #[async_trait]
-impl NativeFilterWheel for PlayerOneFilterWheel {
-    async fn move_to_position(&mut self, position: i32) -> Result<(), NativeError> {
+impl FilterWheelDriver for PlayerOneFilterWheel {
+    async fn move_to_position(&mut self, position: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
         if position < 0 || position >= self.filter_count {
-            return Err(NativeError::InvalidParameter(format!(
+            return Err(DriverError::InvalidParameter(format!(
                 "Player One PW position {} outside valid range 0-{}",
                 position,
                 self.filter_count - 1
@@ -183,9 +183,9 @@ impl NativeFilterWheel for PlayerOneFilterWheel {
         )
     }
 
-    async fn get_position(&self) -> Result<i32, NativeError> {
+    async fn get_position(&self) -> Result<i32, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let sdk = PoaPwSdk::lock().await?;
@@ -199,9 +199,9 @@ impl NativeFilterWheel for PlayerOneFilterWheel {
         Ok(position)
     }
 
-    async fn is_moving(&self) -> Result<bool, NativeError> {
+    async fn is_moving(&self) -> Result<bool, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let sdk = PoaPwSdk::lock().await?;
@@ -219,9 +219,9 @@ impl NativeFilterWheel for PlayerOneFilterWheel {
         self.filter_count
     }
 
-    async fn get_filter_names(&self) -> Result<Vec<String>, NativeError> {
+    async fn get_filter_names(&self) -> Result<Vec<String>, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let sdk = PoaPwSdk::lock().await?;
@@ -246,25 +246,25 @@ impl NativeFilterWheel for PlayerOneFilterWheel {
         Ok(names)
     }
 
-    async fn set_filter_name(&mut self, position: i32, name: String) -> Result<(), NativeError> {
+    async fn set_filter_name(&mut self, position: i32, name: String) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
         if position < 0 || position >= self.filter_count {
-            return Err(NativeError::InvalidParameter(format!(
+            return Err(DriverError::InvalidParameter(format!(
                 "Player One PW position {} outside valid range 0-{}",
                 position,
                 self.filter_count - 1
             )));
         }
         if name.as_bytes().contains(&0) || name.len() >= 24 {
-            return Err(NativeError::InvalidParameter(
+            return Err(DriverError::InvalidParameter(
                 "Player One PW filter alias must be non-NUL and shorter than 24 bytes".to_string(),
             ));
         }
 
         let c_name = std::ffi::CString::new(name).map_err(|_| {
-            NativeError::InvalidParameter("Player One PW filter alias contains NUL".to_string())
+            DriverError::InvalidParameter("Player One PW filter alias contains NUL".to_string())
         })?;
         let sdk = PoaPwSdk::lock().await?;
         // SAFETY: handle is open; position bounds checked; CString is

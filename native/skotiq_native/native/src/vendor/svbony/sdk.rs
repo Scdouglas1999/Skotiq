@@ -113,9 +113,9 @@ crate::load_vendor_sdk! {
     }
 }
 
-pub(crate) fn svb_control_value_to_i32(value: i64, label: &str) -> Result<i32, NativeError> {
+pub(crate) fn svb_control_value_to_i32(value: i64, label: &str) -> Result<i32, DriverError> {
     i32::try_from(value).map_err(|_| {
-        NativeError::SdkError(format!(
+        DriverError::SdkError(format!(
             "SVBony SDK returned out-of-range {} value: {}",
             label, value
         ))

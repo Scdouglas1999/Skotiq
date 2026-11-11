@@ -1,4 +1,4 @@
-//! `Lx200Mount` state, inherent helpers and `NativeDevice`.
+//! `Lx200Mount` state, inherent helpers and `DeviceDriver`.
 
 use super::*;
 
@@ -106,11 +106,11 @@ impl Lx200Mount {
         parse_onstep_status_fields(status)
     }
 
-    pub(crate) fn send_command(&self, command: &str) -> Result<String, NativeError> {
+    pub(crate) fn send_command(&self, command: &str) -> Result<String, DriverError> {
         self.link.command(command.as_bytes(), &REPLY)
     }
 
-    pub(crate) fn send_command_bool(&self, command: &str) -> Result<bool, NativeError> {
+    pub(crate) fn send_command_bool(&self, command: &str) -> Result<bool, DriverError> {
         let answer = self.link.command_byte(command.as_bytes(), &BOOL_REPLY)?;
         Ok(answer == b'1')
     }
@@ -122,7 +122,7 @@ impl Lx200Mount {
     /// successful slew therefore blocked for the full 5 s deadline and surfaced
     /// as `Timeout` while the mount was already moving — which is what the
     /// polar-alignment run reported as "failed to rotate to point 2".
-    pub(crate) fn send_slew_command(&self) -> Result<SlewAck, NativeError> {
+    pub(crate) fn send_slew_command(&self) -> Result<SlewAck, DriverError> {
         self.link.exchange(|io| {
             io.send(commands::SLEW_TO_TARGET.as_bytes())?;
             let code = io.read_reply_byte(&SLEW_ACK_REPLY)?;
@@ -156,7 +156,7 @@ impl Lx200Mount {
             .exchange(|io| io.read_trailing(RESPONSE_TERM, 2, CALENDAR_CHATTER_WINDOW));
     }
 
-    pub(crate) fn send_command_no_response(&self, command: &str) -> Result<(), NativeError> {
+    pub(crate) fn send_command_no_response(&self, command: &str) -> Result<(), DriverError> {
         self.link.command_no_reply(command.as_bytes())
     }
 }
@@ -180,7 +180,7 @@ fn serial_open_error_message(port_name: &str, error_message: &str) -> String {
 }
 
 #[async_trait]
-impl NativeDevice for Lx200Mount {
+impl DeviceDriver for Lx200Mount {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -189,7 +189,7 @@ impl NativeDevice for Lx200Mount {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
+    fn vendor(&self) -> Vendor {
         self.mount_type.vendor()
     }
 
@@ -197,7 +197,7 @@ impl NativeDevice for Lx200Mount {
         *self.connected.lock().unwrap_or_else(|e| e.into_inner())
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         if self.is_connected() {
             return Ok(());
         }
@@ -205,7 +205,7 @@ impl NativeDevice for Lx200Mount {
         let _serial_access = serial_link::serial_mount_access().await;
 
         let serial = serial_link::open_port(&self.port_name, self.baud_rate).map_err(|e| {
-            NativeError::SdkError(serial_open_error_message(&self.port_name, &e.to_string()))
+            DriverError::SdkError(serial_open_error_message(&self.port_name, &e.to_string()))
         })?;
 
         self.link.attach(serial)?;
@@ -215,7 +215,7 @@ impl NativeDevice for Lx200Mount {
                 *self
                     .product_name
                     .lock()
-                    .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = name.clone();
+                    .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = name.clone();
                 self.name = format!("{} ({})", name, self.port_name);
             }
             Err(_) => {
@@ -236,18 +236,18 @@ impl NativeDevice for Lx200Mount {
         *self
             .connected
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = true;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = true;
         *self
             .is_tracking
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = true;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = true;
 
         tracing::info!("Connected to LX200 mount: {}", self.name);
 
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.is_connected() {
             return Ok(());
         }
@@ -269,7 +269,7 @@ impl NativeDevice for Lx200Mount {
         *self
             .connected
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = false;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = false;
 
         tracing::info!("Disconnected from LX200 mount");
 

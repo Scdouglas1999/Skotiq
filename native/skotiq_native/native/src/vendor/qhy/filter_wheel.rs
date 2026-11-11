@@ -8,7 +8,7 @@ pub(crate) const MAX_QHY_CFW_SLOTS: i32 = 16;
 pub(crate) const QHY_CFW_MOVE_TIMEOUT: Duration = Duration::from_secs(25);
 pub(crate) const QHY_CFW_POLL_INTERVAL: Duration = Duration::from_millis(500);
 
-pub(crate) fn parse_cfw_slot_count(count: f64) -> Result<i32, NativeError> {
+pub(crate) fn parse_cfw_slot_count(count: f64) -> Result<i32, DriverError> {
     if !count.is_finite()
         // Rejects both the SDK's u32::MAX error sentinel and a nonsensical
         // sub-one wheel; a real CFW always reports at least one slot.
@@ -16,7 +16,7 @@ pub(crate) fn parse_cfw_slot_count(count: f64) -> Result<i32, NativeError> {
         || count > f64::from(MAX_QHY_CFW_SLOTS)
         || count.fract() != 0.0
     {
-        return Err(NativeError::SdkError(format!(
+        return Err(DriverError::SdkError(format!(
             "GetQHYCCDParam(CONTROL_CFWSLOTSNUM) returned invalid slot count {}",
             count
         )));
@@ -25,9 +25,9 @@ pub(crate) fn parse_cfw_slot_count(count: f64) -> Result<i32, NativeError> {
     Ok(count as i32)
 }
 
-pub(crate) fn parse_cfw_position(position: f64) -> Result<i32, NativeError> {
+pub(crate) fn parse_cfw_position(position: f64) -> Result<i32, DriverError> {
     if !position.is_finite() || position >= QHYCCD_ERROR_VALUE || position.fract() != 0.0 {
-        return Err(NativeError::SdkError(format!(
+        return Err(DriverError::SdkError(format!(
             "GetQHYCCDParam(CONTROL_CFWPORT) returned invalid position {}",
             position
         )));
@@ -37,7 +37,7 @@ pub(crate) fn parse_cfw_position(position: f64) -> Result<i32, NativeError> {
         b'0'..=b'9' => Ok(i32::from(position as u8 - b'0')),
         b'A'..=b'F' => Ok(i32::from(position as u8 - b'A') + 10),
         b'a'..=b'f' => Ok(i32::from(position as u8 - b'a') + 10),
-        _ => Err(NativeError::SdkError(format!(
+        _ => Err(DriverError::SdkError(format!(
             "GetQHYCCDParam(CONTROL_CFWPORT) returned invalid position {}",
             position
         ))),
@@ -106,8 +106,8 @@ impl QhyFilterWheel {
     }
 
     /// Check if CFW is available (must be called after connecting to camera)
-    pub(crate) fn check_cfw_available(&self, sdk: &QhySdk) -> Result<bool, NativeError> {
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
+    pub(crate) fn check_cfw_available(&self, sdk: &QhySdk) -> Result<bool, DriverError> {
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
 
         // SAFETY: handle
         // was validated via Option::ok_or; IsQHYCCDCFWPlugged takes only the handle.
@@ -116,8 +116,8 @@ impl QhyFilterWheel {
     }
 
     /// Get number of filter slots
-    pub(crate) fn get_slot_count(&self, sdk: &QhySdk) -> Result<i32, NativeError> {
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
+    pub(crate) fn get_slot_count(&self, sdk: &QhySdk) -> Result<i32, DriverError> {
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
 
         // SAFETY: handle validated above;
         // CONTROL_CFWSLOTSNUM discriminant fits in c_int; GetQHYCCDParam returns c_double.
@@ -128,8 +128,8 @@ impl QhyFilterWheel {
     }
 
     /// Get current position (0-indexed)
-    pub(crate) fn get_current_position(&self, sdk: &QhySdk) -> Result<i32, NativeError> {
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
+    pub(crate) fn get_current_position(&self, sdk: &QhySdk) -> Result<i32, DriverError> {
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
 
         // QHY returns position as ASCII value (48 = '0', 49 = '1', etc.)
         // SAFETY: handle validated above;
@@ -144,8 +144,8 @@ impl QhyFilterWheel {
         &self,
         sdk: &QhySdk,
         position: i32,
-    ) -> Result<(), NativeError> {
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
+    ) -> Result<(), DriverError> {
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
 
         // QHY uses ASCII encoding ('0'..'9', then 'A'..'F').
         let ascii_position = encode_cfw_position(position);
@@ -162,7 +162,7 @@ impl QhyFilterWheel {
 }
 
 #[async_trait]
-impl NativeDevice for QhyFilterWheel {
+impl DeviceDriver for QhyFilterWheel {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -171,15 +171,15 @@ impl NativeDevice for QhyFilterWheel {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Qhy
+    fn vendor(&self) -> Vendor {
+        Vendor::Qhy
     }
 
     fn is_connected(&self) -> bool {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         if self.connected {
             return Ok(());
         }
@@ -190,13 +190,13 @@ impl NativeDevice for QhyFilterWheel {
 
         // Open the camera to access CFW
         let camera_id_cstr = CString::new(self.camera_id.clone())
-            .map_err(|_| NativeError::InvalidParameter("Invalid camera ID".into()))?;
+            .map_err(|_| DriverError::InvalidParameter("Invalid camera ID".into()))?;
 
         // SAFETY: camera_id_cstr is a valid NUL-terminated CString that
         // outlives the call. OpenQHYCCD returns a handle we null-check immediately below.
         let handle = unsafe { (sdk.open_qhyccd)(camera_id_cstr.as_ptr()) };
         if handle.is_null() {
-            return Err(NativeError::SdkError(
+            return Err(DriverError::SdkError(
                 "Failed to open QHY camera for CFW".into(),
             ));
         }
@@ -213,7 +213,7 @@ impl NativeDevice for QhyFilterWheel {
             if init_result != 0 {
                 (sdk.close_qhyccd)(handle);
                 self.handle = None;
-                return Err(NativeError::SdkError(
+                return Err(DriverError::SdkError(
                     "Failed to initialize QHY camera for CFW".into(),
                 ));
             }
@@ -225,7 +225,7 @@ impl NativeDevice for QhyFilterWheel {
             // CloseQHYCCD pairs with OpenQHYCCD on this CFW-not-available error path.
             unsafe { (sdk.close_qhyccd)(handle) };
             self.handle = None;
-            return Err(NativeError::DeviceNotFound(
+            return Err(DriverError::DeviceNotFound(
                 "No CFW detected on this QHY camera".into(),
             ));
         }
@@ -250,7 +250,7 @@ impl NativeDevice for QhyFilterWheel {
                 // SAFETY: handle was successfully opened and initialized above.
                 unsafe { (sdk.close_qhyccd)(handle) };
                 self.handle = None;
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "QHY CFW reported position {} outside its {} slots",
                     position, self.slot_count
                 )));
@@ -275,7 +275,7 @@ impl NativeDevice for QhyFilterWheel {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.connected {
             return Ok(());
         }
@@ -300,26 +300,26 @@ impl NativeDevice for QhyFilterWheel {
 }
 
 #[async_trait]
-impl NativeFilterWheel for QhyFilterWheel {
+impl FilterWheelDriver for QhyFilterWheel {
     fn get_filter_count(&self) -> i32 {
         self.slot_count
     }
 
-    async fn get_position(&self) -> Result<i32, NativeError> {
+    async fn get_position(&self) -> Result<i32, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
         let sdk = QhySdk::lock().await?;
         self.get_current_position(&sdk)
     }
 
-    async fn move_to_position(&mut self, position: i32) -> Result<(), NativeError> {
+    async fn move_to_position(&mut self, position: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if position < 0 || position >= self.slot_count {
-            return Err(NativeError::InvalidParameter(format!(
+            return Err(DriverError::InvalidParameter(format!(
                 "Position {} out of range (0-{})",
                 position,
                 self.slot_count - 1
@@ -345,7 +345,7 @@ impl NativeFilterWheel for QhyFilterWheel {
 
             let elapsed = started.elapsed();
             if elapsed >= QHY_CFW_MOVE_TIMEOUT {
-                return Err(NativeError::Timeout(format!(
+                return Err(DriverError::Timeout(format!(
                     "QHY CFW did not reach position {} within {:?} (current position: {})",
                     position, QHY_CFW_MOVE_TIMEOUT, current_position
                 )));
@@ -355,25 +355,25 @@ impl NativeFilterWheel for QhyFilterWheel {
         }
     }
 
-    async fn is_moving(&self) -> Result<bool, NativeError> {
+    async fn is_moving(&self) -> Result<bool, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let target_position = self.target_position.ok_or_else(|| {
-            NativeError::SdkError("QHY CFW target position is unknown".to_string())
+            DriverError::SdkError("QHY CFW target position is unknown".to_string())
         })?;
         let sdk = QhySdk::lock().await?;
         Ok(self.get_current_position(&sdk)? != target_position)
     }
 
-    async fn get_filter_names(&self) -> Result<Vec<String>, NativeError> {
+    async fn get_filter_names(&self) -> Result<Vec<String>, DriverError> {
         Ok(self.filter_names.clone())
     }
 
-    async fn set_filter_name(&mut self, position: i32, name: String) -> Result<(), NativeError> {
+    async fn set_filter_name(&mut self, position: i32, name: String) -> Result<(), DriverError> {
         if position < 0 || position >= self.slot_count {
-            return Err(NativeError::InvalidParameter(format!(
+            return Err(DriverError::InvalidParameter(format!(
                 "Position {} out of range (0-{})",
                 position,
                 self.slot_count - 1
@@ -390,7 +390,7 @@ impl NativeFilterWheel for QhyFilterWheel {
 /// Internal function to perform the actual CFW discovery.
 pub(crate) fn discover_filter_wheels_internal(
     sdk: &QhySdk,
-) -> Result<Vec<QhyFilterWheelInfo>, NativeError> {
+) -> Result<Vec<QhyFilterWheelInfo>, DriverError> {
     let sdk_version = sdk_version_from_sdk(sdk);
 
     // Scan for cameras
@@ -491,7 +491,7 @@ pub(crate) fn discover_filter_wheels_internal(
 /// - Panic protection via catch_unwind
 /// - Timeout from quirks database
 /// - Mutex serialization
-pub async fn discover_filter_wheels() -> Result<Vec<QhyFilterWheelInfo>, NativeError> {
+pub async fn discover_filter_wheels() -> Result<Vec<QhyFilterWheelInfo>, DriverError> {
     let config = get_discovery_config();
 
     // Check if discovery is enabled
@@ -536,7 +536,7 @@ pub async fn discover_filter_wheels() -> Result<Vec<QhyFilterWheelInfo>, NativeE
                             "Unknown panic".to_string()
                         };
                         tracing::error!("QHY SDK panicked during CFW discovery: {}", panic_msg);
-                        NativeError::SdkError(format!(
+                        DriverError::SdkError(format!(
                             "QHY SDK crashed during CFW discovery: {}",
                             panic_msg
                         ))
@@ -544,7 +544,7 @@ pub async fn discover_filter_wheels() -> Result<Vec<QhyFilterWheelInfo>, NativeE
                 )?
             })
             .await
-            .map_err(|e| NativeError::SdkError(format!("QHY CFW discovery task failed: {:?}", e)))?
+            .map_err(|e| DriverError::SdkError(format!("QHY CFW discovery task failed: {:?}", e)))?
         } else {
             // No panic protection, just call directly. The caller's guard is
             // still held here, see above.
@@ -557,7 +557,7 @@ pub async fn discover_filter_wheels() -> Result<Vec<QhyFilterWheelInfo>, NativeE
         Ok(result) => result,
         Err(_) => {
             tracing::error!("QHY CFW discovery timed out after {}ms", config.timeout_ms);
-            Err(NativeError::Timeout(format!(
+            Err(DriverError::Timeout(format!(
                 "QHY CFW discovery timed out after {}ms",
                 config.timeout_ms
             )))

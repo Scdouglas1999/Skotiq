@@ -183,8 +183,8 @@ pub struct CameraRecommendedSettings {
     pub notes: String,
 }
 
-impl From<skotiq_native::camera::CameraRecommendedSettings> for CameraRecommendedSettings {
-    fn from(src: skotiq_native::camera::CameraRecommendedSettings) -> Self {
+impl From<skotiq_device::CameraRecommendedSettings> for CameraRecommendedSettings {
+    fn from(src: skotiq_device::CameraRecommendedSettings) -> Self {
         Self {
             unity_gain: src.unity_gain,
             hcg_gain: src.hcg_gain,

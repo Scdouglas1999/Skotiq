@@ -36,7 +36,7 @@ impl FliFocuser {
 }
 
 #[async_trait]
-impl NativeDevice for FliFocuser {
+impl DeviceDriver for FliFocuser {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -45,15 +45,15 @@ impl NativeDevice for FliFocuser {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Fli
+    fn vendor(&self) -> Vendor {
+        Vendor::Fli
     }
 
     fn is_connected(&self) -> bool {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         if self.connected {
             return Ok(());
         }
@@ -66,7 +66,7 @@ impl NativeDevice for FliFocuser {
                 "FLI focuser device path contains null bytes: '{}'",
                 self.device_path
             );
-            NativeError::SdkError(format!(
+            DriverError::SdkError(format!(
                 "Invalid device path '{}' contains null bytes",
                 self.device_path
             ))
@@ -81,7 +81,7 @@ impl NativeDevice for FliFocuser {
                 self.device_path,
                 result
             );
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Failed to open FLI focuser at '{}'. SDK error: {}",
                 self.device_path, result
             )));
@@ -112,7 +112,7 @@ impl NativeDevice for FliFocuser {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.connected {
             return Ok(());
         }
@@ -132,10 +132,10 @@ impl NativeDevice for FliFocuser {
 }
 
 #[async_trait]
-impl NativeFocuser for FliFocuser {
-    async fn get_position(&self) -> Result<i32, NativeError> {
+impl FocuserDriver for FliFocuser {
+    async fn get_position(&self) -> Result<i32, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -152,9 +152,9 @@ impl NativeFocuser for FliFocuser {
         fli_c_long_to_i32(position, "focuser position")
     }
 
-    async fn move_to(&mut self, position: i32) -> Result<(), NativeError> {
+    async fn move_to(&mut self, position: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -177,9 +177,9 @@ impl NativeFocuser for FliFocuser {
         Ok(())
     }
 
-    async fn move_relative(&mut self, steps: i32) -> Result<(), NativeError> {
+    async fn move_relative(&mut self, steps: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -192,9 +192,9 @@ impl NativeFocuser for FliFocuser {
         Ok(())
     }
 
-    async fn is_moving(&self) -> Result<bool, NativeError> {
+    async fn is_moving(&self) -> Result<bool, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -209,9 +209,9 @@ impl NativeFocuser for FliFocuser {
         Ok(steps_remaining != 0)
     }
 
-    async fn halt(&mut self) -> Result<(), NativeError> {
+    async fn halt(&mut self) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // FLI doesn't have a direct halt - move 0 steps
@@ -233,9 +233,9 @@ impl NativeFocuser for FliFocuser {
         1.0 // FLI focusers use step units
     }
 
-    async fn get_temperature(&self) -> Result<Option<f64>, NativeError> {
+    async fn get_temperature(&self) -> Result<Option<f64>, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety

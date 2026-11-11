@@ -1,4 +1,4 @@
-//! `SvbonyCamera` state, inherent helpers and `NativeDevice`.
+//! `SvbonyCamera` state, inherent helpers and `DeviceDriver`.
 
 use super::*;
 
@@ -31,7 +31,7 @@ impl SvbonyCamera {
         &self,
         sdk: &SvbonySdk,
         control_type: SvbControlType,
-    ) -> Result<i64, NativeError> {
+    ) -> Result<i64, DriverError> {
         self.core.require_connected()?;
         let mut value: c_long = 0;
         let mut is_auto: c_int = 0;
@@ -56,7 +56,7 @@ impl SvbonyCamera {
     pub(crate) async fn get_control_value_async(
         &self,
         control_type: SvbControlType,
-    ) -> Result<i64, NativeError> {
+    ) -> Result<i64, DriverError> {
         self.core.require_connected()?;
         let sdk = SvbonySdk::lock().await?;
         let mut value: c_long = 0;
@@ -83,7 +83,7 @@ impl SvbonyCamera {
         sdk: &SvbonySdk,
         control_type: SvbControlType,
         value: i64,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         self.core.require_connected()?;
         // SAFETY: `self.camera_id` is the camera ID validated by SVBOpenCamera in `connect`; SVBSetControlValue takes all-POD arguments (c_int/c_long/c_int) with no out-pointers.
         let result = unsafe {
@@ -100,7 +100,7 @@ impl SvbonyCamera {
         &self,
         control_type: SvbControlType,
         value: i64,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         self.core.require_connected()?;
         let sdk = SvbonySdk::lock().await?;
         // SAFETY: `self.camera_id` is the camera ID validated by SVBOpenCamera in `connect`; SVBSetControlValue takes all-POD arguments (c_int/c_long/c_int) with no out-pointers.
@@ -117,7 +117,7 @@ impl SvbonyCamera {
     pub(crate) async fn get_control_range_async(
         &self,
         target_type: SvbControlType,
-    ) -> Result<(i64, i64), NativeError> {
+    ) -> Result<(i64, i64), DriverError> {
         let (min, max, _default) = self.get_control_caps_async(target_type).await?;
         Ok((min, max))
     }
@@ -131,7 +131,7 @@ impl SvbonyCamera {
     pub(crate) async fn get_control_caps_async(
         &self,
         target_type: SvbControlType,
-    ) -> Result<(i64, i64, i64), NativeError> {
+    ) -> Result<(i64, i64, i64), DriverError> {
         self.core.require_connected()?;
         let sdk = SvbonySdk::lock().await?;
 
@@ -163,12 +163,12 @@ impl SvbonyCamera {
             }
         }
 
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     }
 }
 
 #[async_trait]
-impl NativeDevice for SvbonyCamera {
+impl DeviceDriver for SvbonyCamera {
     fn id(&self) -> &str {
         &self.core.device_id
     }
@@ -177,15 +177,15 @@ impl NativeDevice for SvbonyCamera {
         &self.core.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Svbony
+    fn vendor(&self) -> Vendor {
+        Vendor::Svbony
     }
 
     fn is_connected(&self) -> bool {
         self.core.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         if self.core.connected {
             return Ok(());
         }
@@ -271,19 +271,19 @@ impl NativeDevice for SvbonyCamera {
         // Why: max_width/max_height are c_long (positive sensor dimensions, <= ~16k on
         // SVBony hardware). Use try_into to fail closed on negative or absurd values.
         let width_u32 = u32::try_from(prop.max_width).map_err(|_| {
-            NativeError::SdkError(format!(
+            DriverError::SdkError(format!(
                 "SVBony reported invalid sensor width: {}",
                 prop.max_width
             ))
         })?;
         let height_u32 = u32::try_from(prop.max_height).map_err(|_| {
-            NativeError::SdkError(format!(
+            DriverError::SdkError(format!(
                 "SVBony reported invalid sensor height: {}",
                 prop.max_height
             ))
         })?;
         let bit_depth_u32 = u32::try_from(prop.max_bit_depth).map_err(|_| {
-            NativeError::SdkError(format!(
+            DriverError::SdkError(format!(
                 "SVBony reported invalid bit_depth: {}",
                 prop.max_bit_depth
             ))
@@ -418,7 +418,7 @@ impl NativeDevice for SvbonyCamera {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.core.connected {
             return Ok(());
         }

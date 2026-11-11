@@ -2,9 +2,9 @@ use super::*;
 use crate::api::get_device_manager;
 use crate::device::{DeviceInfo, DeviceType, DriverType};
 use crate::device_manager::DeviceManager;
-use skotiq_native::{
-    CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData, ImageMetadata,
-    NativeCamera, NativeDevice, NativeError, NativeVendor, ReadoutMode, SensorInfo, SubFrame,
+use skotiq_device::{
+    CameraCapabilities, CameraDriver, CameraState, CameraStatus, DeviceDriver, DriverError,
+    ExposureParams, ImageData, ImageMetadata, ReadoutMode, SensorInfo, SubFrame, Vendor,
     VendorFeatures,
 };
 use std::sync::{
@@ -16,7 +16,7 @@ use std::sync::{
 struct InstantCompleteCamera {
     id: String,
     name: String,
-    vendor: NativeVendor,
+    vendor: Vendor,
     exposure_checked: Arc<AtomicUsize>,
     connected: bool,
 }
@@ -26,7 +26,7 @@ impl InstantCompleteCamera {
         Self {
             id: id.clone(),
             name: "Instant Complete Camera".to_string(),
-            vendor: NativeVendor::Other("Test".to_string()),
+            vendor: Vendor::Other("Test".to_string()),
             exposure_checked,
             connected: true,
         }
@@ -34,7 +34,7 @@ impl InstantCompleteCamera {
 }
 
 #[async_trait::async_trait]
-impl NativeDevice for InstantCompleteCamera {
+impl DeviceDriver for InstantCompleteCamera {
     fn id(&self) -> &str {
         &self.id
     }
@@ -43,7 +43,7 @@ impl NativeDevice for InstantCompleteCamera {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
+    fn vendor(&self) -> Vendor {
         self.vendor.clone()
     }
 
@@ -51,24 +51,24 @@ impl NativeDevice for InstantCompleteCamera {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         self.connected = true;
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         self.connected = false;
         Ok(())
     }
 }
 
 #[async_trait::async_trait]
-impl NativeCamera for InstantCompleteCamera {
+impl CameraDriver for InstantCompleteCamera {
     fn capabilities(&self) -> CameraCapabilities {
         CameraCapabilities::default()
     }
 
-    async fn get_status(&self) -> Result<CameraStatus, NativeError> {
+    async fn get_status(&self) -> Result<CameraStatus, DriverError> {
         Ok(CameraStatus {
             state: CameraState::Idle,
             sensor_temp: None,
@@ -83,20 +83,20 @@ impl NativeCamera for InstantCompleteCamera {
         })
     }
 
-    async fn start_exposure(&mut self, _params: ExposureParams) -> Result<(), NativeError> {
+    async fn start_exposure(&mut self, _params: ExposureParams) -> Result<(), DriverError> {
         Ok(())
     }
 
-    async fn abort_exposure(&mut self) -> Result<(), NativeError> {
+    async fn abort_exposure(&mut self) -> Result<(), DriverError> {
         Ok(())
     }
 
-    async fn is_exposure_complete(&self) -> Result<bool, NativeError> {
+    async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
         self.exposure_checked.fetch_add(1, Ordering::SeqCst);
         Ok(true)
     }
 
-    async fn download_image(&mut self) -> Result<ImageData, NativeError> {
+    async fn download_image(&mut self) -> Result<ImageData, DriverError> {
         Ok(ImageData {
             width: 2,
             height: 2,
@@ -122,43 +122,43 @@ impl NativeCamera for InstantCompleteCamera {
         &mut self,
         _enabled: bool,
         _target_temp: Option<f64>,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         Ok(())
     }
 
-    async fn get_temperature(&self) -> Result<f64, NativeError> {
+    async fn get_temperature(&self) -> Result<f64, DriverError> {
         Ok(0.0)
     }
 
-    async fn get_cooler_power(&self) -> Result<f64, NativeError> {
+    async fn get_cooler_power(&self) -> Result<f64, DriverError> {
         Ok(0.0)
     }
 
-    async fn set_gain(&mut self, _gain: i32) -> Result<(), NativeError> {
+    async fn set_gain(&mut self, _gain: i32) -> Result<(), DriverError> {
         Ok(())
     }
 
-    async fn get_gain(&self) -> Result<i32, NativeError> {
+    async fn get_gain(&self) -> Result<i32, DriverError> {
         Ok(0)
     }
 
-    async fn set_offset(&mut self, _offset: i32) -> Result<(), NativeError> {
+    async fn set_offset(&mut self, _offset: i32) -> Result<(), DriverError> {
         Ok(())
     }
 
-    async fn get_offset(&self) -> Result<i32, NativeError> {
+    async fn get_offset(&self) -> Result<i32, DriverError> {
         Ok(0)
     }
 
-    async fn set_binning(&mut self, _bin_x: i32, _bin_y: i32) -> Result<(), NativeError> {
+    async fn set_binning(&mut self, _bin_x: i32, _bin_y: i32) -> Result<(), DriverError> {
         Ok(())
     }
 
-    async fn get_binning(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
         Ok((1, 1))
     }
 
-    async fn set_subframe(&mut self, _subframe: Option<SubFrame>) -> Result<(), NativeError> {
+    async fn set_subframe(&mut self, _subframe: Option<SubFrame>) -> Result<(), DriverError> {
         Ok(())
     }
 
@@ -175,24 +175,24 @@ impl NativeCamera for InstantCompleteCamera {
         }
     }
 
-    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, NativeError> {
+    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
         Ok(Vec::new())
     }
 
-    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), NativeError> {
+    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), DriverError> {
         Ok(())
     }
 
-    async fn get_vendor_features(&self) -> Result<VendorFeatures, NativeError> {
+    async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
         Ok(VendorFeatures::default())
     }
 
-    async fn get_gain_range(&self) -> Result<(i32, i32), NativeError> {
-        Err(NativeError::NotSupported)
+    async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_offset_range(&self) -> Result<(i32, i32), NativeError> {
-        Err(NativeError::NotSupported)
+    async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
+        Err(DriverError::NotSupported)
     }
 }
 

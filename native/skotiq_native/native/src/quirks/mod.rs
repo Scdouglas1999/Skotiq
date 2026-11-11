@@ -37,7 +37,7 @@ mod types;
 pub use database::*;
 pub use types::*;
 
-use crate::NativeVendor;
+use skotiq_device::Vendor;
 
 /// Every quirk that applies to `device_id` (e.g. `native:zwo:ASI294MC Pro`):
 /// the database is consulted device ID first, then model pattern, then vendor.
@@ -46,7 +46,7 @@ pub fn get_quirks_for_device(device_id: &str) -> Vec<Quirk> {
 }
 
 /// Vendor-wide quirks, applying to every device from that vendor.
-pub fn get_quirks_for_vendor(vendor: &NativeVendor) -> Vec<Quirk> {
+pub fn get_quirks_for_vendor(vendor: &Vendor) -> Vec<Quirk> {
     database::get_vendor_quirks(vendor)
 }
 
@@ -148,7 +148,7 @@ mod tests {
 
     #[test]
     fn test_get_qhy_quirks() {
-        let quirks = get_quirks_for_vendor(&NativeVendor::Qhy);
+        let quirks = get_quirks_for_vendor(&Vendor::Qhy);
         assert!(!quirks.is_empty(), "QHY should have vendor quirks");
 
         // Check for discovery protection

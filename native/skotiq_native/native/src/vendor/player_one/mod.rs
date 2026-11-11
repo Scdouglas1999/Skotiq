@@ -12,7 +12,7 @@
 //! ## `unwrap_or` policy
 //!
 //! POA SDK property reads (`get_control_int`, `get_control_bool`, etc.)
-//! return `Result<T, NativeError>` and may fail with `POA_ERROR_OPERATION_FAILED`
+//! return `Result<T, DriverError>` and may fail with `POA_ERROR_OPERATION_FAILED`
 //! when the camera is mid-exposure or the control hasn't been initialised
 //! yet. The cooler/gain/offset paths here default to the same "fall back to
 //! cached value or zero" semantics as the other vendor crates:
@@ -44,11 +44,11 @@
 #![allow(clippy::unnecessary_cast)]
 #![allow(dead_code)] // FFI types must match SDK headers even if not all variants are used
 
-use crate::camera::*;
-use crate::traits::*;
 use crate::utils::{calculate_buffer_size_i32, safe_cstr_to_string, CleanupGuard};
-use crate::NativeVendor;
 use async_trait::async_trait;
+use skotiq_device::camera::*;
+use skotiq_device::Vendor;
+use skotiq_device::*;
 use skotiq_imaging::buffer_pool::global_u8_pool;
 use std::ffi::{c_char, c_int, c_long, CStr};
 use std::sync::Mutex;

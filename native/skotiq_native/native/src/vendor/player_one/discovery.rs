@@ -20,7 +20,7 @@ pub fn is_sdk_available() -> bool {
 }
 
 /// Discover Player One cameras
-pub async fn discover_devices() -> Result<Vec<PlayerOneCameraInfo>, NativeError> {
+pub async fn discover_devices() -> Result<Vec<PlayerOneCameraInfo>, DriverError> {
     // An unavailable SDK means no cameras; otherwise hold the lock for the scan.
     let sdk = match PoaSdk::lock().await {
         Ok(sdk) => sdk,

@@ -1,17 +1,17 @@
-//! `NativeCamera` implementation for `FliCamera`.
+//! `CameraDriver` implementation for `FliCamera`.
 
 use super::*;
 use crate::camera_core::{unpack_samples, SampleLayout};
 
 #[async_trait]
-impl NativeCamera for FliCamera {
+impl CameraDriver for FliCamera {
     fn capabilities(&self) -> CameraCapabilities {
         self.capabilities.clone()
     }
 
-    async fn get_status(&self) -> Result<CameraStatus, NativeError> {
+    async fn get_status(&self) -> Result<CameraStatus, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -66,9 +66,9 @@ impl NativeCamera for FliCamera {
         })
     }
 
-    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), NativeError> {
+    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Set binning (has its own mutex lock)
@@ -110,9 +110,9 @@ impl NativeCamera for FliCamera {
         Ok(())
     }
 
-    async fn abort_exposure(&mut self) -> Result<(), NativeError> {
+    async fn abort_exposure(&mut self) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -126,9 +126,9 @@ impl NativeCamera for FliCamera {
         Ok(())
     }
 
-    async fn is_exposure_complete(&self) -> Result<bool, NativeError> {
+    async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -144,9 +144,9 @@ impl NativeCamera for FliCamera {
         Ok((status & FLI_CAMERA_DATA_READY) != 0)
     }
 
-    async fn download_image(&mut self) -> Result<ImageData, NativeError> {
+    async fn download_image(&mut self) -> Result<ImageData, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -159,19 +159,19 @@ impl NativeCamera for FliCamera {
         // or wrap to a giant usize. Reject explicitly. SubFrame.width/height are u32
         // sensor coords and widening to usize is value-preserving on every Tier 1 target.
         let bin_x_usize = usize::try_from(self.current_bin_x).map_err(|_| {
-            NativeError::InvalidParameter(format!(
+            DriverError::InvalidParameter(format!(
                 "FLI current_bin_x not representable as usize: {}",
                 self.current_bin_x
             ))
         })?;
         let bin_y_usize = usize::try_from(self.current_bin_y).map_err(|_| {
-            NativeError::InvalidParameter(format!(
+            DriverError::InvalidParameter(format!(
                 "FLI current_bin_y not representable as usize: {}",
                 self.current_bin_y
             ))
         })?;
         if bin_x_usize == 0 || bin_y_usize == 0 {
-            return Err(NativeError::InvalidParameter(
+            return Err(DriverError::InvalidParameter(
                 "FLI binning must be >= 1".into(),
             ));
         }
@@ -189,10 +189,10 @@ impl NativeCamera for FliCamera {
             let dx = self.visible_lr_x - self.visible_ul_x;
             let dy = self.visible_lr_y - self.visible_ul_y;
             let dx_usize = usize::try_from(dx).map_err(|_| {
-                NativeError::SdkError(format!("FLI visible width is negative: {}", dx))
+                DriverError::SdkError(format!("FLI visible width is negative: {}", dx))
             })?;
             let dy_usize = usize::try_from(dy).map_err(|_| {
-                NativeError::SdkError(format!("FLI visible height is negative: {}", dy))
+                DriverError::SdkError(format!("FLI visible height is negative: {}", dy))
             })?;
             (dx_usize / bin_x_usize, dy_usize / bin_y_usize)
         };
@@ -205,10 +205,10 @@ impl NativeCamera for FliCamera {
         // the alignment hazard entirely (Vec<u8> is u8-aligned, no transmute needed).
         let row_bytes = width
             .checked_mul(2)
-            .ok_or_else(|| NativeError::SdkError("FLI image width overflows usize".into()))?;
+            .ok_or_else(|| DriverError::SdkError("FLI image width overflows usize".into()))?;
         let total_bytes = row_bytes
             .checked_mul(height)
-            .ok_or_else(|| NativeError::SdkError("FLI image height overflows usize".into()))?;
+            .ok_or_else(|| DriverError::SdkError("FLI image height overflows usize".into()))?;
         let mut byte_buffer: Vec<u8> = vec![0u8; total_bytes];
 
         // Read image row by row (FLI style)
@@ -224,7 +224,7 @@ impl NativeCamera for FliCamera {
                     self.name, row, height, row_bytes, result
                 );
                 self.state = CameraState::Error;
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "Failed to grab row {} of {} from FLI camera '{}'. SDK error: {}. Image download interrupted.",
                     row, height, self.name, result
                 )));
@@ -268,10 +268,10 @@ impl NativeCamera for FliCamera {
         // bins >= 1, so they are sensor-bounded. On 64-bit hosts usize is wider than u32;
         // surface overflow rather than truncate if dimensions ever exceed u32::MAX.
         let width_u32 = u32::try_from(width).map_err(|_| {
-            NativeError::SdkError(format!("FLI image width does not fit in u32: {}", width))
+            DriverError::SdkError(format!("FLI image width does not fit in u32: {}", width))
         })?;
         let height_u32 = u32::try_from(height).map_err(|_| {
-            NativeError::SdkError(format!("FLI image height does not fit in u32: {}", height))
+            DriverError::SdkError(format!("FLI image height does not fit in u32: {}", height))
         })?;
         Ok(ImageData {
             width: width_u32,
@@ -287,9 +287,9 @@ impl NativeCamera for FliCamera {
         &mut self,
         enabled: bool,
         target_temp: Option<f64>,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -317,9 +317,9 @@ impl NativeCamera for FliCamera {
         Ok(())
     }
 
-    async fn get_temperature(&self) -> Result<f64, NativeError> {
+    async fn get_temperature(&self) -> Result<f64, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -334,9 +334,9 @@ impl NativeCamera for FliCamera {
         Ok(temp)
     }
 
-    async fn get_cooler_power(&self) -> Result<f64, NativeError> {
+    async fn get_cooler_power(&self) -> Result<f64, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -351,25 +351,25 @@ impl NativeCamera for FliCamera {
         Ok(power)
     }
 
-    async fn set_gain(&mut self, _gain: i32) -> Result<(), NativeError> {
-        Err(NativeError::NotSupported)
+    async fn set_gain(&mut self, _gain: i32) -> Result<(), DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_gain(&self) -> Result<i32, NativeError> {
-        Err(NativeError::NotSupported)
+    async fn get_gain(&self) -> Result<i32, DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn set_offset(&mut self, _offset: i32) -> Result<(), NativeError> {
-        Err(NativeError::NotSupported)
+    async fn set_offset(&mut self, _offset: i32) -> Result<(), DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_offset(&self) -> Result<i32, NativeError> {
-        Err(NativeError::NotSupported)
+    async fn get_offset(&self) -> Result<i32, DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), NativeError> {
+    async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -388,13 +388,13 @@ impl NativeCamera for FliCamera {
         Ok(())
     }
 
-    async fn get_binning(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
         Ok((self.current_bin_x, self.current_bin_y))
     }
 
-    async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), NativeError> {
+    async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Acquire global SDK mutex for thread safety
@@ -406,40 +406,40 @@ impl NativeCamera for FliCamera {
         let (ul_x, ul_y, lr_x, lr_y) = match &subframe {
             Some(sf) => {
                 let sx = i32::try_from(sf.start_x).map_err(|_| {
-                    NativeError::InvalidParameter(format!(
+                    DriverError::InvalidParameter(format!(
                         "FLI subframe start_x exceeds i32: {}",
                         sf.start_x
                     ))
                 })?;
                 let sy = i32::try_from(sf.start_y).map_err(|_| {
-                    NativeError::InvalidParameter(format!(
+                    DriverError::InvalidParameter(format!(
                         "FLI subframe start_y exceeds i32: {}",
                         sf.start_y
                     ))
                 })?;
                 let sw = i32::try_from(sf.width).map_err(|_| {
-                    NativeError::InvalidParameter(format!(
+                    DriverError::InvalidParameter(format!(
                         "FLI subframe width exceeds i32: {}",
                         sf.width
                     ))
                 })?;
                 let sh = i32::try_from(sf.height).map_err(|_| {
-                    NativeError::InvalidParameter(format!(
+                    DriverError::InvalidParameter(format!(
                         "FLI subframe height exceeds i32: {}",
                         sf.height
                     ))
                 })?;
                 let ul_x = self.visible_ul_x.checked_add(sx).ok_or_else(|| {
-                    NativeError::InvalidParameter("FLI subframe ul_x overflows i32".into())
+                    DriverError::InvalidParameter("FLI subframe ul_x overflows i32".into())
                 })?;
                 let ul_y = self.visible_ul_y.checked_add(sy).ok_or_else(|| {
-                    NativeError::InvalidParameter("FLI subframe ul_y overflows i32".into())
+                    DriverError::InvalidParameter("FLI subframe ul_y overflows i32".into())
                 })?;
                 let lr_x = ul_x.checked_add(sw).ok_or_else(|| {
-                    NativeError::InvalidParameter("FLI subframe lr_x overflows i32".into())
+                    DriverError::InvalidParameter("FLI subframe lr_x overflows i32".into())
                 })?;
                 let lr_y = ul_y.checked_add(sh).ok_or_else(|| {
-                    NativeError::InvalidParameter("FLI subframe lr_y overflows i32".into())
+                    DriverError::InvalidParameter("FLI subframe lr_y overflows i32".into())
                 })?;
                 (ul_x, ul_y, lr_x, lr_y)
             }
@@ -471,7 +471,7 @@ impl NativeCamera for FliCamera {
         self.sensor_info.clone()
     }
 
-    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, NativeError> {
+    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
         Ok(vec![ReadoutMode {
             name: "Normal".to_string(),
             description: "Standard readout mode".to_string(),
@@ -483,29 +483,29 @@ impl NativeCamera for FliCamera {
         }])
     }
 
-    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), NativeError> {
+    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), DriverError> {
         Ok(())
     }
 
-    async fn get_vendor_features(&self) -> Result<VendorFeatures, NativeError> {
+    async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
         Ok(VendorFeatures::default())
     }
 
-    async fn get_gain_range(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // libfli exposes no gain control and no gain bounds to report.
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_offset_range(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // libfli exposes no offset control and no offset bounds to report.
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     }
 }

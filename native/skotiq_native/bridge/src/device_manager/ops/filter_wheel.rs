@@ -23,7 +23,7 @@ use crate::event::EquipmentEvent;
 use skotiq_indi::IndiFilterWheel;
 // Windows: trait must be in scope so ASCOM wrapper guards resolve its methods.
 #[cfg(windows)]
-use skotiq_native::traits::NativeFilterWheel;
+use skotiq_device::FilterWheelDriver;
 
 impl DeviceManager {
     // Filter wheel control

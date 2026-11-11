@@ -22,10 +22,10 @@
 
 #![allow(dead_code)] // FFI types must match SDK headers even if not all variants are used
 
-use crate::camera::*;
-use crate::traits::*;
-use crate::NativeVendor;
 use async_trait::async_trait;
+use skotiq_device::camera::*;
+use skotiq_device::Vendor;
+use skotiq_device::*;
 use skotiq_imaging::buffer_pool::global_u8_pool;
 use std::ffi::{c_char, c_double, c_int, c_uint, c_void, CStr, CString};
 use std::panic::{catch_unwind, AssertUnwindSafe};

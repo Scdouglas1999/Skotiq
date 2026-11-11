@@ -15,8 +15,8 @@
 use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
 use crate::timeout_ops::Timeouts;
 use skotiq_ascom::AscomMount;
-use skotiq_native::traits::{GuideDirection, NativeDevice, NativeError, NativeMount, TrackingRate};
-use skotiq_native::NativeVendor;
+use skotiq_device::Vendor;
+use skotiq_device::{DeviceDriver, DriverError, GuideDirection, MountDriver, TrackingRate};
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -41,13 +41,13 @@ pub struct AscomMountCapabilities {
 
 /// Worker reply for a `FindHome` the driver says it cannot perform
 /// (`CanFindHome` false). [`AscomMountWrapper::find_home`] turns it into
-/// [`NativeError::NotSupported`] so the refusal reaches the caller as
+/// [`DriverError::NotSupported`] so the refusal reaches the caller as
 /// "unsupported" rather than as a driver fault.
 const FIND_HOME_UNSUPPORTED: &str = "Mount does not support FindHome";
 
 /// Worker reply for a `SetPark` the driver says it cannot perform
 /// (`CanSetPark` false); [`AscomMountWrapper::set_park`] turns it into
-/// [`NativeError::NotSupported`].
+/// [`DriverError::NotSupported`].
 const SET_PARK_UNSUPPORTED: &str = "Mount does not support SetPark";
 
 /// Command sent to the ASCOM worker thread
@@ -68,7 +68,7 @@ enum AscomMountCommand {
     SetTracking(bool, oneshot::Sender<Result<(), String>>),
     GetTracking(oneshot::Sender<Result<bool, String>>),
     PulseGuide(GuideDirection, u32, oneshot::Sender<Result<(), String>>),
-    GetSideOfPier(oneshot::Sender<Result<skotiq_native::traits::PierSide, String>>),
+    GetSideOfPier(oneshot::Sender<Result<skotiq_device::PierSide, String>>),
     GetAltAz(oneshot::Sender<Result<(f64, f64), String>>),
     GetSiderealTime(oneshot::Sender<Result<f64, String>>),
     // Tracking rate commands
@@ -135,13 +135,13 @@ impl AscomMountWrapper {
     /// holding whatever device locks its caller holds: on the rig that froze
     /// every device request in the app behind one stuck mount. Give up after
     /// the write timeout instead, as every reply wait already does.
-    async fn enqueue(&self, command: AscomMountCommand) -> Result<(), NativeError> {
+    async fn enqueue(&self, command: AscomMountCommand) -> Result<(), DriverError> {
         match tokio::time::timeout(Timeouts::property_write(), self.sender.send(command)).await {
             Ok(Ok(())) => Ok(()),
-            Ok(Err(_)) => Err(NativeError::Unknown(
+            Ok(Err(_)) => Err(DriverError::Unknown(
                 "ASCOM mount worker thread is not running".to_string(),
             )),
-            Err(_) => Err(NativeError::Timeout(format!(
+            Err(_) => Err(DriverError::Timeout(format!(
                 "ASCOM mount {} is not taking commands: an earlier driver call has not returned",
                 self.id
             ))),
@@ -376,14 +376,13 @@ impl AscomMountWrapper {
                         if let Some(m) = &mut mount {
                             match m.side_of_pier() {
                                 Ok(0) => {
-                                    let _ = reply.send(Ok(skotiq_native::traits::PierSide::East));
+                                    let _ = reply.send(Ok(skotiq_device::PierSide::East));
                                 }
                                 Ok(1) => {
-                                    let _ = reply.send(Ok(skotiq_native::traits::PierSide::West));
+                                    let _ = reply.send(Ok(skotiq_device::PierSide::West));
                                 }
                                 Ok(_) => {
-                                    let _ =
-                                        reply.send(Ok(skotiq_native::traits::PierSide::Unknown));
+                                    let _ = reply.send(Ok(skotiq_device::PierSide::Unknown));
                                 }
                                 Err(e) => {
                                     let _ = reply.send(Err(e.to_string()));
@@ -595,14 +594,14 @@ impl AscomMountWrapper {
         rx: oneshot::Receiver<Result<T, String>>,
         timeout: Duration,
         operation: &str,
-    ) -> Result<T, NativeError> {
+    ) -> Result<T, DriverError> {
         match tokio::time::timeout(timeout, rx).await {
-            Ok(Ok(result)) => result.map_err(|e| NativeError::SdkError(e)),
-            Ok(Err(_recv_err)) => Err(NativeError::Unknown(format!(
+            Ok(Ok(result)) => result.map_err(|e| DriverError::SdkError(e)),
+            Ok(Err(_recv_err)) => Err(DriverError::Unknown(format!(
                 "Worker thread dead during {}",
                 operation
             ))),
-            Err(_elapsed) => Err(NativeError::Timeout(format!(
+            Err(_elapsed) => Err(DriverError::Timeout(format!(
                 "Mount {} timed out after {:?}",
                 operation, timeout
             ))),
@@ -614,7 +613,7 @@ impl AscomMountWrapper {
     /// This queries all capability-related properties from the mount and returns
     /// a comprehensive capabilities struct. The device should be connected before
     /// calling this method.
-    pub async fn get_capabilities(&self) -> Result<AscomMountCapabilities, NativeError> {
+    pub async fn get_capabilities(&self) -> Result<AscomMountCapabilities, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetCapabilities(tx)).await?;
         let mut caps =
@@ -630,20 +629,20 @@ impl AscomMountWrapper {
         Ok(caps)
     }
 
-    pub async fn can_park(&self) -> Result<bool, NativeError> {
+    pub async fn can_park(&self) -> Result<bool, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::CanPark(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "can_park").await
     }
 
-    pub async fn slew_to_alt_az(&self, alt: f64, az: f64) -> Result<(), NativeError> {
+    pub async fn slew_to_alt_az(&self, alt: f64, az: f64) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SlewToAltAz(alt, az, tx))
             .await?;
         Self::recv_with_timeout(rx, Timeouts::long_slew(), "slew_to_alt_az").await
     }
 
-    pub async fn get_site(&self) -> Result<(f64, f64, Option<f64>), NativeError> {
+    pub async fn get_site(&self) -> Result<(f64, f64, Option<f64>), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetSite(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_site").await
@@ -654,7 +653,7 @@ impl AscomMountWrapper {
         latitude_deg: f64,
         longitude_deg: f64,
         elevation_m: Option<f64>,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SetSite(
             latitude_deg,
@@ -667,13 +666,13 @@ impl AscomMountWrapper {
     }
 
     /// UTCDate as an OLE Automation date (days since 1899-12-30).
-    pub async fn get_utc_date(&self) -> Result<f64, NativeError> {
+    pub async fn get_utc_date(&self) -> Result<f64, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetUtcDate(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_utc_date").await
     }
 
-    pub async fn set_utc_date(&self, utc_date: f64) -> Result<(), NativeError> {
+    pub async fn set_utc_date(&self, utc_date: f64) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SetUtcDate(utc_date, tx))
             .await?;
@@ -685,13 +684,13 @@ impl AscomMountWrapper {
     /// ITelescopeV3 drivers implement `FindHome` synchronously and hand the
     /// call back when the mount arrives, so the wait is bounded by the
     /// find-home timeout rather than a property-read one. A driver whose
-    /// `CanFindHome` is false answers [`NativeError::NotSupported`].
-    pub async fn find_home(&self) -> Result<(), NativeError> {
+    /// `CanFindHome` is false answers [`DriverError::NotSupported`].
+    pub async fn find_home(&self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::FindHome(tx)).await?;
         match Self::recv_with_timeout(rx, Timeouts::find_home(), "find_home").await {
-            Err(NativeError::SdkError(message)) if message == FIND_HOME_UNSUPPORTED => {
-                Err(NativeError::NotSupported)
+            Err(DriverError::SdkError(message)) if message == FIND_HOME_UNSUPPORTED => {
+                Err(DriverError::NotSupported)
             }
             other => other,
         }
@@ -699,13 +698,13 @@ impl AscomMountWrapper {
 
     /// Store the current position as the park position through the COM
     /// worker. A driver whose `CanSetPark` is false answers
-    /// [`NativeError::NotSupported`].
-    pub async fn set_park(&self) -> Result<(), NativeError> {
+    /// [`DriverError::NotSupported`].
+    pub async fn set_park(&self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SetPark(tx)).await?;
         match Self::recv_with_timeout(rx, Timeouts::property_write(), "set_park").await {
-            Err(NativeError::SdkError(message)) if message == SET_PARK_UNSUPPORTED => {
-                Err(NativeError::NotSupported)
+            Err(DriverError::SdkError(message)) if message == SET_PARK_UNSUPPORTED => {
+                Err(DriverError::NotSupported)
             }
             other => other,
         }
@@ -713,13 +712,13 @@ impl AscomMountWrapper {
 
     /// `AtHome`: whether the mount is stopped at its home position. ASCOM sets
     /// it only after a `FindHome` and clears it on the next slew.
-    pub async fn at_home(&self) -> Result<bool, NativeError> {
+    pub async fn at_home(&self) -> Result<bool, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::AtHome(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "at_home").await
     }
 
-    pub async fn stop(&self) -> Result<(), NativeError> {
+    pub async fn stop(&self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::Stop(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::connection(), "stop").await
@@ -727,7 +726,7 @@ impl AscomMountWrapper {
 }
 
 #[async_trait::async_trait]
-impl NativeDevice for AscomMountWrapper {
+impl DeviceDriver for AscomMountWrapper {
     fn id(&self) -> &str {
         &self.id
     }
@@ -736,15 +735,15 @@ impl NativeDevice for AscomMountWrapper {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Ascom
+    fn vendor(&self) -> Vendor {
+        Vendor::Ascom
     }
 
     fn is_connected(&self) -> bool {
         self.connected.load(Ordering::SeqCst)
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::Connect(tx)).await?;
         let result = Self::recv_with_timeout(rx, Timeouts::connection(), "connect").await;
@@ -754,7 +753,7 @@ impl NativeDevice for AscomMountWrapper {
         result
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         // Best-effort: halt any in-progress slew before disconnecting. A PARKED
         // mount cannot be slewing, and some drivers (e.g. PegasusAstro NYX)
         // raise "Mount is parked" from AbortSlew — that is an expected benign
@@ -784,8 +783,8 @@ impl NativeDevice for AscomMountWrapper {
 }
 
 #[async_trait::async_trait]
-impl NativeMount for AscomMountWrapper {
-    async fn slew_to_coordinates(&mut self, ra: f64, dec: f64) -> Result<(), NativeError> {
+impl MountDriver for AscomMountWrapper {
+    async fn slew_to_coordinates(&mut self, ra: f64, dec: f64) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SlewToCoordinates(ra, dec, tx))
             .await?;
@@ -793,38 +792,38 @@ impl NativeMount for AscomMountWrapper {
         Self::recv_with_timeout(rx, Timeouts::long_slew(), "slew_to_coordinates").await
     }
 
-    async fn sync_to_coordinates(&mut self, ra: f64, dec: f64) -> Result<(), NativeError> {
+    async fn sync_to_coordinates(&mut self, ra: f64, dec: f64) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SyncToCoordinates(ra, dec, tx))
             .await?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "sync_to_coordinates").await
     }
 
-    async fn park(&mut self) -> Result<(), NativeError> {
+    async fn park(&mut self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::Park(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::park(), "park").await
     }
 
-    async fn unpark(&mut self) -> Result<(), NativeError> {
+    async fn unpark(&mut self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::Unpark(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::park(), "unpark").await
     }
 
-    async fn get_coordinates(&self) -> Result<(f64, f64), NativeError> {
+    async fn get_coordinates(&self) -> Result<(f64, f64), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetCoordinates(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_coordinates").await
     }
 
-    async fn is_slewing(&self) -> Result<bool, NativeError> {
+    async fn is_slewing(&self) -> Result<bool, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::IsSlewing(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "is_slewing").await
     }
 
-    async fn is_parked(&self) -> Result<bool, NativeError> {
+    async fn is_parked(&self) -> Result<bool, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::IsParked(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "is_parked").await
@@ -834,7 +833,7 @@ impl NativeMount for AscomMountWrapper {
         &mut self,
         direction: GuideDirection,
         duration_ms: u32,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::PulseGuide(direction, duration_ms, tx))
             .await?;
@@ -846,50 +845,50 @@ impl NativeMount for AscomMountWrapper {
         Self::recv_with_timeout(rx, timeout, "pulse_guide").await
     }
 
-    async fn abort_slew(&mut self) -> Result<(), NativeError> {
+    async fn abort_slew(&mut self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::AbortSlew(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "abort_slew").await
     }
 
-    async fn set_tracking(&mut self, enabled: bool) -> Result<(), NativeError> {
+    async fn set_tracking(&mut self, enabled: bool) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SetTracking(enabled, tx))
             .await?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "set_tracking").await
     }
 
-    async fn get_tracking(&self) -> Result<bool, NativeError> {
+    async fn get_tracking(&self) -> Result<bool, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetTracking(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_tracking").await
     }
 
-    async fn get_side_of_pier(&self) -> Result<skotiq_native::traits::PierSide, NativeError> {
+    async fn get_side_of_pier(&self) -> Result<skotiq_device::PierSide, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetSideOfPier(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_side_of_pier").await
     }
 
-    async fn get_alt_az(&self) -> Result<(f64, f64), NativeError> {
+    async fn get_alt_az(&self) -> Result<(f64, f64), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetAltAz(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_alt_az").await
     }
 
-    async fn get_sidereal_time(&self) -> Result<f64, NativeError> {
+    async fn get_sidereal_time(&self) -> Result<f64, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetSiderealTime(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_sidereal_time").await
     }
 
-    async fn set_tracking_rate(&mut self, rate: TrackingRate) -> Result<(), NativeError> {
+    async fn set_tracking_rate(&mut self, rate: TrackingRate) -> Result<(), DriverError> {
         let rate_int = match rate {
             TrackingRate::Sidereal => 0,
             TrackingRate::Lunar => 1,
             TrackingRate::Solar => 2,
             TrackingRate::King => 3,
-            TrackingRate::Custom => return Err(NativeError::NotSupported),
+            TrackingRate::Custom => return Err(DriverError::NotSupported),
         };
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SetTrackingRate(rate_int, tx))
@@ -897,7 +896,7 @@ impl NativeMount for AscomMountWrapper {
         Self::recv_with_timeout(rx, Timeouts::property_write(), "set_tracking_rate").await
     }
 
-    async fn get_tracking_rate(&self) -> Result<TrackingRate, NativeError> {
+    async fn get_tracking_rate(&self) -> Result<TrackingRate, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetTrackingRate(tx)).await?;
         let rate_int =
@@ -928,10 +927,10 @@ impl NativeMount for AscomMountWrapper {
     }
 }
 
-// Additional mount control methods (not in NativeMount trait)
+// Additional mount control methods (not in MountDriver trait)
 impl AscomMountWrapper {
     /// Set the tracking rate (0=Sidereal, 1=Lunar, 2=Solar, 3=King)
-    pub async fn set_tracking_rate_raw(&mut self, rate: i32) -> Result<(), NativeError> {
+    pub async fn set_tracking_rate_raw(&mut self, rate: i32) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SetTrackingRate(rate, tx))
             .await?;
@@ -939,7 +938,7 @@ impl AscomMountWrapper {
     }
 
     /// Get the current tracking rate (0=Sidereal, 1=Lunar, 2=Solar, 3=King)
-    pub async fn get_tracking_rate_raw(&self) -> Result<i32, NativeError> {
+    pub async fn get_tracking_rate_raw(&self) -> Result<i32, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetTrackingRate(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_tracking_rate").await
@@ -948,7 +947,7 @@ impl AscomMountWrapper {
     /// Move an axis at the specified rate (degrees/second)
     /// axis: 0=RA/Azimuth (primary), 1=Dec/Altitude (secondary)
     /// rate: degrees per second (positive = N/E, negative = S/W), 0 to stop
-    pub async fn move_axis(&mut self, axis: i32, rate: f64) -> Result<(), NativeError> {
+    pub async fn move_axis(&mut self, axis: i32, rate: f64) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::MoveAxis(axis, rate, tx))
             .await?;
@@ -956,7 +955,7 @@ impl AscomMountWrapper {
     }
 
     /// Get the ASCOM interface version number
-    pub async fn interface_version(&self) -> Result<i32, NativeError> {
+    pub async fn interface_version(&self) -> Result<i32, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetInterfaceVersion(tx))
             .await?;
@@ -964,7 +963,7 @@ impl AscomMountWrapper {
     }
 
     /// Get the driver version string
-    pub async fn driver_version(&self) -> Result<String, NativeError> {
+    pub async fn driver_version(&self) -> Result<String, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetDriverVersion(tx))
             .await?;
@@ -972,14 +971,14 @@ impl AscomMountWrapper {
     }
 
     /// Get the driver info/description
-    pub async fn driver_info(&self) -> Result<String, NativeError> {
+    pub async fn driver_info(&self) -> Result<String, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetDriverInfo(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_info").await
     }
 
     /// Get the list of supported actions
-    pub async fn supported_actions(&self) -> Result<Vec<String>, NativeError> {
+    pub async fn supported_actions(&self) -> Result<Vec<String>, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetSupportedActions(tx))
             .await?;
@@ -999,7 +998,7 @@ pub(crate) mod test_support {
         pub tracking: bool,
         pub slewing: bool,
         pub parked: bool,
-        pub side_of_pier: skotiq_native::traits::PierSide,
+        pub side_of_pier: skotiq_device::PierSide,
         pub sidereal_time: f64,
         pub can_park: bool,
     }
@@ -1012,7 +1011,7 @@ pub(crate) mod test_support {
                 tracking: false,
                 slewing: false,
                 parked: false,
-                side_of_pier: skotiq_native::traits::PierSide::Unknown,
+                side_of_pier: skotiq_device::PierSide::Unknown,
                 sidereal_time: 0.0,
                 can_park: false,
             }
@@ -1120,7 +1119,7 @@ mod tests {
         assert_eq!(results.len(), 10);
         assert!(results
             .iter()
-            .all(|r| matches!(r, Err(NativeError::Timeout(_)))));
+            .all(|r| matches!(r, Err(DriverError::Timeout(_)))));
         drop(release_tx);
     }
 
@@ -1212,7 +1211,7 @@ mod tests {
 
         assert!(matches!(
             wrapper.find_home().await,
-            Err(NativeError::NotSupported)
+            Err(DriverError::NotSupported)
         ));
     }
 
@@ -1227,7 +1226,7 @@ mod tests {
 
         assert!(matches!(
             wrapper.set_park().await,
-            Err(NativeError::NotSupported)
+            Err(DriverError::NotSupported)
         ));
     }
 

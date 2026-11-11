@@ -50,7 +50,7 @@ impl PlayerOneCamera {
     }
 
     /// Load camera info from SDK
-    pub(crate) fn load_camera_info(&mut self, sdk: &PoaSdk) -> Result<(), NativeError> {
+    pub(crate) fn load_camera_info(&mut self, sdk: &PoaSdk) -> Result<(), DriverError> {
         // SAFETY: POACameraProperties is `#[repr(C)]` and contains only POD fields (c_char arrays, c_int, f64) — all valid bit-patterns. Zero-initialization is the well-defined empty state before the SDK overwrites it.
         let mut info: POACameraProperties = unsafe { std::mem::zeroed() };
         // SAFETY: caller holds &mut self so `self.camera_id` is valid; `&mut info` is a valid stack out-pointer to a `#[repr(C)]` POACameraProperties; POAGetCameraPropertiesByID reads metadata only and writes only into the out-pointer.
@@ -79,7 +79,7 @@ impl PlayerOneCamera {
     pub(crate) async fn config_int_bounds(
         &self,
         control: POAConfig,
-    ) -> Result<(i32, i32), NativeError> {
+    ) -> Result<(i32, i32), DriverError> {
         let sdk = PoaSdk::installed()?;
         // Unlocked on purpose: this reads whether the optional symbol was
         // resolved when the library loaded and calls nothing. The call itself
@@ -90,7 +90,7 @@ impl PlayerOneCamera {
                  bounds for control {:?} are unavailable",
                 control
             );
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         };
 
         let _sdk = sdk.lock().await;
@@ -102,10 +102,10 @@ impl PlayerOneCamera {
         check_poa_error(result, "POAGetConfigAttributesByConfigID")?;
 
         if attributes.is_writable == POA_FALSE {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
         if attributes.value_type != POAValueType::Int as c_int {
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Player One control {:?} reports value type {}, not VAL_INT",
                 control, attributes.value_type
             )));
@@ -127,7 +127,7 @@ impl PlayerOneCamera {
             #[allow(clippy::unnecessary_cast)] // identity on Windows, widening on *nix
             let widened: i64 = value as i64;
             i32::try_from(widened).map_err(|_| {
-                NativeError::SdkError(format!(
+                DriverError::SdkError(format!(
                     "Player One control {:?} reported bound {} outside i32",
                     control, value
                 ))
@@ -140,7 +140,7 @@ impl PlayerOneCamera {
     pub(crate) async fn get_control_int_async(
         &self,
         control: POAConfig,
-    ) -> Result<c_long, NativeError> {
+    ) -> Result<c_long, DriverError> {
         let sdk = PoaSdk::lock().await?;
         let mut value = POAConfigValue::default();
         let mut is_auto: POABool = POA_FALSE;
@@ -157,7 +157,7 @@ impl PlayerOneCamera {
         &self,
         sdk: &PoaSdk,
         control: POAConfig,
-    ) -> Result<c_long, NativeError> {
+    ) -> Result<c_long, DriverError> {
         let mut value = POAConfigValue::default();
         let mut is_auto: POABool = POA_FALSE;
         // SAFETY: out-pointers are valid stack POD references.
@@ -172,7 +172,7 @@ impl PlayerOneCamera {
     pub(crate) async fn get_control_float_async(
         &self,
         control: POAConfig,
-    ) -> Result<f64, NativeError> {
+    ) -> Result<f64, DriverError> {
         let sdk = PoaSdk::lock().await?;
         let mut value = POAConfigValue::default();
         let mut is_auto: POABool = POA_FALSE;
@@ -189,7 +189,7 @@ impl PlayerOneCamera {
         &self,
         sdk: &PoaSdk,
         control: POAConfig,
-    ) -> Result<f64, NativeError> {
+    ) -> Result<f64, DriverError> {
         let mut value = POAConfigValue::default();
         let mut is_auto: POABool = POA_FALSE;
         // SAFETY: out-pointers are valid stack POD references.
@@ -205,7 +205,7 @@ impl PlayerOneCamera {
         &self,
         sdk: &PoaSdk,
         control: POAConfig,
-    ) -> Result<bool, NativeError> {
+    ) -> Result<bool, DriverError> {
         let mut value = POAConfigValue::default();
         let mut is_auto: POABool = POA_FALSE;
         // SAFETY: out-pointers are valid stack POD references.
@@ -222,7 +222,7 @@ impl PlayerOneCamera {
         control: POAConfig,
         value: c_long,
         auto: bool,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         let sdk = PoaSdk::lock().await?;
         let config_value = POAConfigValue { int_value: value };
         // SAFETY: config_value is a `#[repr(C)]` union initialized via the int_value variant and passed by-value to a VAL_INT control — POASetConfig reads the appropriate variant based on the control type per PlayerOneCamera.h.
@@ -244,7 +244,7 @@ impl PlayerOneCamera {
         control: POAConfig,
         value: c_long,
         auto: bool,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         let config_value = POAConfigValue { int_value: value };
         // SAFETY: config_value is `#[repr(C)]` union initialized via int_value for VAL_INT controls.
         let result = unsafe {
@@ -265,7 +265,7 @@ impl PlayerOneCamera {
         control: POAConfig,
         value: bool,
         auto: bool,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         let config_value = POAConfigValue {
             bool_value: if value { POA_TRUE } else { POA_FALSE },
         };
