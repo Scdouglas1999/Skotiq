@@ -293,7 +293,7 @@ extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
     // by the time we navigate.
     final router = GoRouter.maybeOf(context);
     Navigator.of(context).pop();
-    router?.go('/darkroom?tab=calibration');
+    router?.go(darkroomTabLocation(DarkroomTab.calibration));
   }
 
   /// ONE banner carries the verdict (05 §11). The counts ride on it as chips,

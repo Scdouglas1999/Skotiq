@@ -6,6 +6,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../imaging/widgets/osc_stacking_controls.dart';
+import '../../router/app_routes.dart';
 
 /// A run failure split into what the operator reads and what a developer needs.
 class StackShareFailure {
@@ -256,7 +257,7 @@ class _StackAndShareDialogState extends ConsumerState<StackAndShareDialog> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       Navigator.of(context).pop();
-      context.push('/stack-result?id=$id');
+      context.push(AppRoutes.stackResult(id));
     });
   }
 

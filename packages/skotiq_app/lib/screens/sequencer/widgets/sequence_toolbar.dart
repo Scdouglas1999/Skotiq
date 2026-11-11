@@ -29,6 +29,7 @@ import 'trigger_configuration_dialog.dart';
 import 'visual_timeline.dart';
 import '../sequence_counts.dart';
 import '../import_sequence_dialog.dart';
+import '../../../router/app_routes.dart';
 
 part 'sequence_toolbar/actions_and_estimate.dart';
 
@@ -638,7 +639,7 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
             _ToolbarAction(
               icon: LucideIcons.compass,
               label: 'Polar alignment',
-              onPressed: () => context.push('/polar-alignment'),
+              onPressed: () => context.push(AppRoute.polarAlignment.path),
             ),
             _ToolbarAction(
               icon: LucideIcons.crosshair,

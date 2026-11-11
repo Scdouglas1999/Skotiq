@@ -339,7 +339,7 @@ class _PlannerCandidateRow extends ConsumerWidget {
         backgroundColor: colors.success,
       ),
     );
-    context.go('/sequencer');
+    context.go(AppRoute.sequencer.path);
   }
 
   Future<void> _addToObservingList(

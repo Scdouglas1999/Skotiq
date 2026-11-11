@@ -8,6 +8,7 @@ import '../sequencer/widgets/mosaic_wizard_dialog.dart';
 import 'mosaic_format.dart';
 import 'mosaic_project_controller.dart';
 import 'mosaic_project_screen.dart';
+import '../../router/app_routes.dart';
 
 /// A simple list of every durable mosaic project, reachable from nav / analytics.
 ///
@@ -189,7 +190,7 @@ class _MosaicBackAction extends StatelessWidget {
       navigator.pop();
       return;
     }
-    context.go('/analytics');
+    context.go(AppRoute.analytics.path);
   }
 }
 
@@ -220,7 +221,8 @@ class _ProjectRow extends StatelessWidget {
     return SkotiqCard(
       enableHover: true,
       onTap: () async {
-        await context.push<void>('/mosaic/${project.id}');
+        // Rows come from the database, so they always carry an id.
+        await context.push<void>(AppRoutes.mosaicProject(project.id!));
         onReturn();
       },
       child: Row(

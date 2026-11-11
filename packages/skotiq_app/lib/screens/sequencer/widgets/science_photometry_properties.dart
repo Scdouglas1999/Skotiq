@@ -14,6 +14,8 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_app/router/app_routes.dart';
+import 'package:skotiq_app/screens/analytics/analytics_route.dart';
 
 class SciencePhotometryProperties extends ConsumerStatefulWidget {
   final SkotiqColors colors;
@@ -252,7 +254,8 @@ class _SciencePhotometryPropertiesState
                           icon: LucideIcons.lineChart,
                           variant: ButtonVariant.ghost,
                           size: ButtonSize.small,
-                          onPressed: () => context.go('/science'),
+                          onPressed: () => context.go(
+                              AppRoutes.analytics(tab: AnalyticsTab.science)),
                         ),
                       ),
                     ],

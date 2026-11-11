@@ -15,6 +15,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../scheduler/widgets/integration_goals_editor.dart';
 import '../../sequencer/widgets/smart_night_dialog.dart';
+import '../../../router/app_routes.dart';
 
 part 'projects_tab_content/project_header.dart';
 part 'projects_tab_content/progress_widgets.dart';

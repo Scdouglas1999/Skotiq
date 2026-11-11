@@ -14,6 +14,7 @@ import '../../../utils/authority_bound_dialog.dart';
 import '../../../widgets/camera_sensor_specs_dialog.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../equipment/dialogs/profile_editor_dialog.dart';
+import '../../../router/app_routes.dart';
 
 part 'smart_night_dialog/inline_widgets.dart';
 part 'smart_night_dialog/safety_watchdogs.dart';
