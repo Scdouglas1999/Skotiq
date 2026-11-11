@@ -103,7 +103,7 @@ void main() {
     ).thenAnswer((_) async => status);
 
     final service = container.read(deviceServiceProvider);
-    await service.connectFilterWheel(deviceId);
+    await service.connect(DeviceType.filterWheel, deviceId);
 
     final state = container.read(filterWheelStateProvider);
     expect(state.connectionState, DeviceConnectionState.connected);
@@ -158,7 +158,7 @@ void main() {
 
       final service = container.read(deviceServiceProvider);
       await expectLater(
-        service.connectFilterWheel(deviceId),
+        service.connect(DeviceType.filterWheel, deviceId),
         throwsA(
           isA<StateError>().having(
             (error) => error.message,

@@ -73,7 +73,7 @@ const List<String> kKnownDeviceIdSingletons = <String>[
 ];
 
 /// The single canonical id PHD2 always connects under, regardless of how a
-/// profile recorded it. See `DeviceService.connectGuider`.
+/// profile recorded it. See `DeviceService.connect`.
 const String kPhd2CanonicalId = 'phd2_guider';
 
 /// The name every machine shows for the PHD2 guider.

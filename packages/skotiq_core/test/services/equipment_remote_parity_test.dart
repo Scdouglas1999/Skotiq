@@ -69,7 +69,7 @@ void main() {
         addTearDown(container.dispose);
 
         final service = container.read(profileServiceProvider);
-        await service.updateProfileDevices(9, cameraId: 'new-cam');
+        await service.updateProfileDevices(9, {DeviceType.camera: 'new-cam'});
 
         final captured = verify(
           () => backend.saveProfile(captureAny()),
@@ -107,7 +107,7 @@ void main() {
 
         final assigning = container
             .read(profileServiceProvider)
-            .updateProfileDevices(9, cameraId: 'new-cam');
+            .updateProfileDevices(9, {DeviceType.camera: 'new-cam'});
         await untilCalled(() => hostA.getProfiles());
         backendNotifier.switchTo(hostB);
         profiles.complete([

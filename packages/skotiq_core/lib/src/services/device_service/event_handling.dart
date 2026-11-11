@@ -106,15 +106,8 @@ extension _DeviceServiceEventHandling on DeviceService {
   /// The model the active profile's [type] slot expects at [deviceId], or
   /// null (see [_expectedModelFor]).
   String? _expectedSlotName(DeviceType type, String deviceId) {
-    final label = switch (type) {
-      DeviceType.camera => 'camera',
-      DeviceType.mount => 'mount',
-      DeviceType.focuser => 'focuser',
-      DeviceType.filterWheel => 'filter wheel',
-      DeviceType.rotator => 'rotator',
-      _ => null,
-    };
-    return label == null ? null : _expectedModelFor(label, deviceId);
+    final slot = type.slot;
+    return slot.checksModel ? _expectedModelFor(slot.noun, deviceId) : null;
   }
 
   /// The friendly model name for [deviceId] from the last device-discovery

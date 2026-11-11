@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/equipment_provider.dart';
-import '../providers/equipment/device_type_registry.dart';
+import '../providers/equipment/device_slots.dart';
 import '../providers/equipment/device_property_events.dart';
 import '../providers/profiles_provider.dart';
 import '../providers/backend_provider.dart';
@@ -20,9 +20,11 @@ import '../providers/current_screen_provider.dart';
 import '../providers/app_version_provider.dart';
 import '../providers/autofocus_progress_provider.dart';
 import '../providers/unified_discovery_provider.dart';
+import '../providers/device_connection_progress_provider.dart';
 import 'smart_notification_service.dart';
 import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart' hide TrackingRate;
+import '../backend/device_connect_exception.dart';
 import '../backend/skotiq_exception.dart' show ConnectionException;
 import '../models/equipment/equipment_models.dart';
 import '../models/imaging/imaging_models.dart'
@@ -55,6 +57,7 @@ export '../models/backend/device_info.dart' show DeviceInfo;
 
 part 'device_service/event_handling.dart';
 part 'device_service/control_helpers.dart';
+part 'device_service/connections/device_connections.dart';
 part 'device_service/connections/imaging_chain.dart';
 part 'device_service/connections/guider_and_rotator.dart';
 part 'device_service/connections/environment.dart';
@@ -68,36 +71,6 @@ part 'device_service/autofocus_controls.dart';
 part 'device_service/focuser_backlash_calibration.dart';
 part 'device_service/filter_wheel_controls.dart';
 part 'device_service/guiding_sequencer_controls.dart';
-
-/// Extension methods for DeviceType display
-extension DeviceTypeDisplayExtension on DeviceType {
-  String get displayName {
-    switch (this) {
-      case DeviceType.camera:
-        return 'Camera';
-      case DeviceType.mount:
-        return 'Mount';
-      case DeviceType.focuser:
-        return 'Focuser';
-      case DeviceType.filterWheel:
-        return 'Filter Wheel';
-      case DeviceType.guider:
-        return 'Guider';
-      case DeviceType.rotator:
-        return 'Rotator';
-      case DeviceType.dome:
-        return 'Dome';
-      case DeviceType.weather:
-        return 'Weather';
-      case DeviceType.safetyMonitor:
-        return 'Safety Monitor';
-      case DeviceType.switch_:
-        return 'Switch';
-      case DeviceType.coverCalibrator:
-        return 'Cover Calibrator';
-    }
-  }
-}
 
 /// Extension methods for DriverType display
 extension DriverTypeDisplayExtension on DriverType {
@@ -443,9 +416,22 @@ class DeviceService {
     return await _backend.discoverAlpacaAtAddress(host, port);
   }
 
-  // Public device orchestration stays on DeviceService so existing callers,
-  // mocks, and provider contracts keep the same surface.
-  Future<void> connectCamera(String deviceId) => _connectCamera(deviceId);
+  /// Connect [deviceId] into [type]'s slot, first releasing whatever device
+  /// holds it. Throws when the device does not come up.
+  ///
+  /// [host] / [port] apply to a PHD2 guider only: they pin the endpoint for
+  /// this connect instead of the configured PHD2 host and port.
+  Future<void> connect(
+    DeviceType type,
+    String deviceId, {
+    String? host,
+    int? port,
+  }) => _connect(type, deviceId, host: host, port: port);
+
+  /// Disconnect the device in [type]'s slot. Throws
+  /// [DeviceNotConnectedException] when the slot is empty.
+  Future<void> disconnect(DeviceType type) => _disconnect(type);
+
   Future<CameraRecommendedSettings> queryRecommendedCameraSettings(
     String deviceId,
   ) => _queryRecommendedCameraSettings(deviceId);
@@ -460,27 +446,6 @@ class DeviceService {
   /// when a cooler command of your own follows immediately.
   void cancelWarmCamera({bool restorePriorSetting = true}) =>
       _cancelWarmCamera(restorePriorSetting: restorePriorSetting);
-  Future<void> disconnectCamera() => _disconnectCamera();
-  Future<void> connectMount(String deviceId) => _connectMount(deviceId);
-  Future<void> disconnectMount() => _disconnectMount();
-  Future<void> connectFocuser(String deviceId) => _connectFocuser(deviceId);
-  Future<void> disconnectFocuser() => _disconnectFocuser();
-  Future<void> connectFilterWheel(String deviceId) =>
-      _connectFilterWheel(deviceId);
-  Future<void> disconnectFilterWheel() => _disconnectFilterWheel();
-
-  /// Connect a guider.
-  ///
-  /// [host]/[port] override the settings-derived PHD2 endpoint for THIS
-  /// connect (the launch path still uses `settings.phd2Path`). When omitted
-  /// the configured `settings.phd2Host`/`settings.phd2Port` are used, so all
-  /// existing callers are unchanged. This lets the guiding controller's
-  /// `connect(host, port)` API be truthful on the local/FFI path instead of
-  /// silently discarding its arguments. Ignored for non-PHD2 guiders.
-  Future<void> connectGuider(String deviceId, {String? host, int? port}) =>
-      _connectGuider(deviceId, host: host, port: port);
-  Future<void> disconnectGuider() => _disconnectGuider();
-
   /// Connect the camera the built-in guider takes its frames with. It is a
   /// second camera: it never takes the imaging camera's place, so the
   /// imaging camera stays connected and selected.
@@ -496,7 +461,7 @@ class DeviceService {
     if (guideCameraId != null && guideCameraId.isNotEmpty) {
       await _connectGuideCamera(guideCameraId);
     }
-    await _connectGuider(guiderId);
+    await _connect(DeviceType.guider, guiderId);
   }
 
   /// Whether [deviceId]'s most recent disconnect was user-initiated (within
@@ -514,37 +479,34 @@ class DeviceService {
   void markUserInitiatedDisconnect(String deviceId) =>
       _markUserInitiatedDisconnect(deviceId);
 
-  Future<void> connectDome(String deviceId) => _connectDome(deviceId);
-  Future<void> disconnectDome() => _disconnectDome();
-
   /// Re-read dome telemetry now and publish it to `domeStateProvider`.
   ///
   /// Called right after a dome command so the card's shutter / park / azimuth
   /// readouts reflect the command instead of holding the pre-command reading
   /// for up to one 5 s poll interval. Best-effort by design.
   Future<void> refreshDomeStatus() => _refreshDomeStatus();
-  Future<void> connectWeather(String deviceId) => _connectWeather(deviceId);
-  Future<void> disconnectWeather() => _disconnectWeather();
-  Future<void> connectSafetyMonitor(String deviceId) =>
-      _connectSafetyMonitor(deviceId);
-  Future<void> disconnectSafetyMonitor() => _disconnectSafetyMonitor();
-  Future<void> connectSwitch(String deviceId) => _connectSwitch(deviceId);
-  Future<void> disconnectSwitch() => _disconnectSwitch();
   Future<void> refreshSwitchChannels() => _refreshSwitchChannels();
   Future<void> setSwitchChannel(int channelIndex, bool on) =>
       _setSwitchChannel(channelIndex, on);
   Future<void> setSwitchChannelValue(int channelIndex, double value) =>
       _setSwitchChannelValue(channelIndex, value);
-  Future<void> connectRotator(String deviceId) => _connectRotator(deviceId);
-  Future<void> disconnectRotator() => _disconnectRotator();
-  Future<void> connectCoverCalibrator(String deviceId) =>
-      _connectCoverCalibrator(deviceId);
-  Future<void> disconnectCoverCalibrator() => _disconnectCoverCalibrator();
 
   Stream<DeviceConnectProgress> connectAllFromProfile(
     EquipmentProfileModel profile,
   ) => _connectAllFromProfile(profile);
-  Future<void> disconnectAll() => _disconnectAll();
+
+  /// Connect every device [profile] assigns, each on its own, and report the
+  /// sweep through [deviceConnectionProgressProvider]. [source] names what
+  /// started it ("Connect All", "Startup auto-connect").
+  Future<ConnectSweepResult> connectProfile(
+    EquipmentProfileModel profile, {
+    String source = 'Connect All',
+  }) => _connectProfile(profile, source: source);
+
+  /// Try again the devices that failed in the last sweep.
+  Future<ConnectSweepResult> retryFailedConnects() => _retryFailedConnects();
+
+  Future<DisconnectAllResult> disconnectAll() => _disconnectAll();
 
   /// Why a slew command fails when the backend is swapped while it waits.
   static const String slewWatchReleasedMessage =

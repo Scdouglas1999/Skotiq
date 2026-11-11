@@ -19,6 +19,7 @@ import 'package:skotiq_core/src/models/backend/device_types.dart'
     as device_types;
 import 'package:skotiq_core/src/models/equipment/equipment_models.dart'
     show DeviceConnectionState;
+import 'package:skotiq_core/src/providers/device_connection_progress_provider.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
@@ -122,7 +123,7 @@ void main() {
       final service = container.read(deviceServiceProvider);
 
       await expectLater(
-        service.connectCamera('camera-1'),
+        service.connect(DeviceType.camera, 'camera-1'),
         throwsA(
           isA<InvalidDeviceIdException>()
               .having((e) => e.deviceType, 'deviceType', 'camera')
@@ -174,7 +175,7 @@ void main() {
       ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
-      await service.connectCamera(deviceId);
+      await service.connect(DeviceType.camera, deviceId);
 
       // Discovery was NOT a precondition.
       verifyNever(() => mockBackend.discoverDevices(any()));
@@ -198,7 +199,7 @@ void main() {
 
       final service = container.read(deviceServiceProvider);
       await expectLater(
-        service.connectMount(deviceId),
+        service.connect(DeviceType.mount, deviceId),
         throwsA(
           predicate<Object>((e) => e.toString().contains('COM port busy')),
         ),
@@ -233,28 +234,28 @@ void main() {
         );
       }
 
-      await expectInvalid(() => service.connectCamera('bad'), 'camera');
-      await expectInvalid(() => service.connectMount('bad'), 'mount');
-      await expectInvalid(() => service.connectFocuser('bad'), 'focuser');
+      await expectInvalid(() => service.connect(DeviceType.camera, 'bad'), 'camera');
+      await expectInvalid(() => service.connect(DeviceType.mount, 'bad'), 'mount');
+      await expectInvalid(() => service.connect(DeviceType.focuser, 'bad'), 'focuser');
       await expectInvalid(
-        () => service.connectFilterWheel('bad'),
+        () => service.connect(DeviceType.filterWheel, 'bad'),
         'filter wheel',
       );
       // Guider has a PHD2 short-circuit; a non-PHD2 unknown id still hits
       // the standard format check.
-      await expectInvalid(() => service.connectGuider('bad'), 'guider');
-      await expectInvalid(() => service.connectRotator('bad'), 'rotator');
-      await expectInvalid(() => service.connectDome('bad'), 'dome');
+      await expectInvalid(() => service.connect(DeviceType.guider, 'bad'), 'guider');
+      await expectInvalid(() => service.connect(DeviceType.rotator, 'bad'), 'rotator');
+      await expectInvalid(() => service.connect(DeviceType.dome, 'bad'), 'dome');
       await expectInvalid(
-        () => service.connectWeather('bad'),
+        () => service.connect(DeviceType.weather, 'bad'),
         'weather station',
       );
       await expectInvalid(
-        () => service.connectSafetyMonitor('bad'),
+        () => service.connect(DeviceType.safetyMonitor, 'bad'),
         'safety monitor',
       );
       await expectInvalid(
-        () => service.connectCoverCalibrator('bad'),
+        () => service.connect(DeviceType.coverCalibrator, 'bad'),
         'cover calibrator',
       );
 
@@ -547,6 +548,58 @@ void main() {
       expect(
         container.read(mountStateProvider).connectionState,
         DeviceConnectionState.disconnected,
+      );
+    });
+
+    test('connectProfile publishes the sweep and retryFailedConnects retries '
+        'only what failed', () async {
+      const cameraId = 'simulator:cam-1';
+      const mountId = 'simulator:mount-1';
+      var mountAttempts = 0;
+
+      when(
+        () => mockBackend.connectDevice(DeviceType.camera, cameraId),
+      ).thenAnswer((_) async {});
+      when(
+        () => mockBackend.connectDevice(DeviceType.mount, mountId),
+      ).thenAnswer((_) async {
+        if (mountAttempts++ == 0) throw Exception('Mount driver refused');
+      });
+      when(
+        () => mockBackend.getMountStatus(mountId),
+      ).thenThrow(Exception('no status in this test'));
+      when(
+        () => mockBackend.startDeviceHeartbeat(
+          deviceType: any(named: 'deviceType'),
+          deviceId: any(named: 'deviceId'),
+          intervalMs: any(named: 'intervalMs'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final service = container.read(deviceServiceProvider);
+      final profile = buildProfile(cameraId: cameraId, mountId: mountId);
+
+      final sweep = await service.connectProfile(profile, source: 'Test');
+      expect(sweep.connected, 1);
+      expect(sweep.failures.single.deviceType, 'mount');
+      final published = container.read(deviceConnectionProgressProvider);
+      expect(published.isSweeping, isFalse);
+      expect(published.source, 'Test');
+      expect(published.byDeviceType.keys, containsAll(['camera', 'mount']));
+
+      final retry = await service.retryFailedConnects();
+      expect(retry.connected, 2);
+      expect(retry.failures, isEmpty);
+      // The camera was up already and is left alone.
+      verify(
+        () => mockBackend.connectDevice(DeviceType.camera, cameraId),
+      ).called(1);
+      verify(
+        () => mockBackend.connectDevice(DeviceType.mount, mountId),
+      ).called(2);
+      expect(
+        container.read(mountStateProvider).connectionState,
+        DeviceConnectionState.connected,
       );
     });
 

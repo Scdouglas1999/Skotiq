@@ -39,7 +39,7 @@ extension _DeviceServiceSlots on DeviceService {
       'device-slot-handover',
     );
     try {
-      await _disconnectForType(type);
+      await _disconnect(type);
     } catch (e) {
       _safeLog(
         (l) => l.warning(
@@ -86,34 +86,5 @@ extension _DeviceServiceSlots on DeviceService {
     final slot = readDeviceSlot(_ref, type);
     return slot.connectionState == DeviceConnectionState.connected &&
         slot.deviceId == deviceId;
-  }
-
-  /// Route to the type-specific disconnect so the displaced device gets its
-  /// real teardown rather than a bare backend call.
-  Future<void> _disconnectForType(DeviceType type) {
-    switch (type) {
-      case DeviceType.camera:
-        return _disconnectCamera();
-      case DeviceType.mount:
-        return _disconnectMount();
-      case DeviceType.focuser:
-        return _disconnectFocuser();
-      case DeviceType.filterWheel:
-        return _disconnectFilterWheel();
-      case DeviceType.guider:
-        return _disconnectGuider();
-      case DeviceType.rotator:
-        return _disconnectRotator();
-      case DeviceType.dome:
-        return _disconnectDome();
-      case DeviceType.weather:
-        return _disconnectWeather();
-      case DeviceType.safetyMonitor:
-        return _disconnectSafetyMonitor();
-      case DeviceType.coverCalibrator:
-        return _disconnectCoverCalibrator();
-      case DeviceType.switch_:
-        return _disconnectSwitch();
-    }
   }
 }

@@ -127,7 +127,7 @@ void main() {
       Object? failure;
       container
           .read(deviceServiceProvider)
-          .connectGuider(kPhd2CanonicalId)
+          .connect(DeviceType.guider, kPhd2CanonicalId)
           .catchError((Object e) => failure = e);
       async.elapse(const Duration(seconds: 30));
 

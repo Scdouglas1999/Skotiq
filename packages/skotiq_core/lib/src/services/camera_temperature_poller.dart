@@ -26,8 +26,8 @@ const double _atTargetToleranceC = 1.0;
 ///
 /// Separate from `DeviceService` so the polling lifecycle is owned by a
 /// dedicated collaborator. The poller is started by
-/// [DeviceService.connectCamera] and stopped by
-/// [DeviceService.disconnectCamera] / `prepareForBackendSwap` /
+/// [DeviceService.connect] and stopped by
+/// [DeviceService.disconnect] / `prepareForBackendSwap` /
 /// `dispose`. A monotonic generation counter is used to ignore stale
 /// timer ticks left over from a previous camera id, which is essential
 /// when the user swaps cameras without explicitly disconnecting first.

@@ -93,16 +93,16 @@ enum DeviceConnectProgressStatus {
   /// connected.
   connected,
 
-  /// `connectDevice` threw. [DeviceConnectProgress.error] carries the
-  /// raw error and [DeviceConnectProgress.errorMessage] a stringified
-  /// form for UI display.
+  /// The connect threw. [DeviceConnectProgress.error] carries the raw error
+  /// and [DeviceConnectProgress.errorMessage] the reason in words
+  /// ([connectFailureReason]).
   failed,
 }
 
 /// Progress event emitted by [DeviceService.connectAllFromProfile].
 ///
-/// A `failed` event carries the backend's error verbatim so the UI can show
-/// it. The stream does not throw — per-device failures are reported as
+/// A `failed` event carries the backend's error as it was thrown, and the
+/// reason in words for display. The stream does not throw — per-device failures are reported as
 /// `failed` events, never as stream errors, so one bad device cannot abort the
 /// sweep.
 class DeviceConnectProgress {
@@ -134,3 +134,14 @@ class DeviceConnectProgress {
       'DeviceConnectProgress($deviceType=$deviceId, '
       'status=$status${errorMessage != null ? ", error=$errorMessage" : ""})';
 }
+
+/// What [DeviceService.disconnectAll] did: how many devices it disconnected
+/// and, for each one that would not let go, "device: reason".
+typedef DisconnectAllResult = ({int disconnected, List<String> failures});
+
+/// How a connect sweep ended: how many devices are up, and the event of each
+/// one that failed.
+typedef ConnectSweepResult = ({
+  int connected,
+  List<DeviceConnectProgress> failures,
+});

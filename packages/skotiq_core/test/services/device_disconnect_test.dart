@@ -702,7 +702,7 @@ void main() {
       final deviceService = container.read(deviceServiceProvider);
 
       // Connect camera
-      await deviceService.connectCamera(cameraId);
+      await deviceService.connect(DeviceType.camera, cameraId);
 
       // Verify heartbeat was started
       verify(

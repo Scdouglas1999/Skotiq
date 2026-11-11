@@ -105,7 +105,7 @@ void main() {
         ).thenAnswer((_) async {});
 
         final service = container.read(deviceServiceProvider);
-        await service.disconnectCamera();
+        await service.disconnect(DeviceType.camera);
 
         eventStreamController.add(
           SkotiqEvent(
@@ -246,7 +246,7 @@ void main() {
         ).thenAnswer((_) => connectCompleter.future);
 
         final service = container.read(deviceServiceProvider);
-        final connectFuture = service.connectCamera(deviceId);
+        final connectFuture = service.connect(DeviceType.camera, deviceId);
         await Future<void>.delayed(Duration.zero);
 
         final disconnectFuture = container
@@ -292,7 +292,7 @@ void main() {
         ).thenAnswer((_) async {});
 
         final service = container.read(deviceServiceProvider);
-        await service.connectCamera(deviceId);
+        await service.connect(DeviceType.camera, deviceId);
 
         verifyNever(() => mockBackend.discoverDevices(DeviceType.camera));
         expect(container.read(cameraStateProvider).deviceName, 'Known Camera');

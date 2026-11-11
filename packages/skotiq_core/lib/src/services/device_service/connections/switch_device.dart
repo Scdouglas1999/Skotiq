@@ -1,73 +1,15 @@
 part of '../../device_service.dart';
 
 extension _DeviceServiceSwitchConnections on DeviceService {
-  /// Connect to a switch device.
-  ///
-  /// Switch is a first-class device type with its own state
-  /// provider and equipment-profile column. The Rust bridge exposes
-  /// per-channel get/set under `api_switch_*`; per-channel UI is future
-  /// work (see [SwitchState] docs) but the connect/disconnect path is
-  /// real and must succeed before the user can flip any channels.
-  Future<void> _connectSwitch(String deviceId) {
-    return _trackInFlight(() async {
-      final notifier = _ref.read(switchStateProvider.notifier);
-
-      // Format check only; backend is the source of truth for
-      // reachability. See [connectCamera] for the full rationale.
-      if (!isValidDeviceIdFormat(deviceId)) {
-        throw InvalidDeviceIdException('switch', deviceId);
-      }
-
-      // Hand the type slot over cleanly rather than orphaning the
-      // incumbent's driver connection (see [_releaseDisplacedDevice]).
-      await _releaseDisplacedDevice(DeviceType.switch_, deviceId);
-
-      notifier.setConnecting(
-        deviceId,
-        await _resolveDeviceDisplayName(DeviceType.switch_, deviceId),
-      );
-
-      try {
-        await _backend.connectDevice(DeviceType.switch_, deviceId);
-        notifier.setConnected();
-      } catch (e) {
-        notifier.setDisconnected();
-        rethrow;
-      }
-
-      // Best-effort snapshot after the connection itself is authoritative.
-      // Refresh errors are surfaced by SwitchChannelService but must not turn
-      // a genuinely connected power box back into a disconnected device.
-      try {
-        await _refreshSwitchChannels();
-      } on Object {
-        // The card retains a manual retry control.
-      }
-    });
-  }
-
-  /// Disconnect switch device.
-  Future<void> _disconnectSwitch() {
-    return _trackInFlight(() async {
-      final notifier = _ref.read(switchStateProvider.notifier);
-      final state = _ref.read(switchStateProvider);
-
-      // Audit see [disconnectCamera] for the rationale.
-      final deviceId = state.deviceId;
-      if (deviceId == null || deviceId.isEmpty) {
-        throw const DeviceNotConnectedException('switch');
-      }
-
-      _markUserInitiatedDisconnect(deviceId);
-
-      try {
-        await _backend.disconnectDevice(DeviceType.switch_, deviceId);
-      } catch (_) {
-        _clearUserInitiatedDisconnect(deviceId);
-        rethrow;
-      }
-      notifier.setDisconnected();
-    });
+  /// A failed channel read is not a failed connect; the card shows the
+  /// switch with no channels and offers a refresh.
+  Future<void> _bringUpSwitch() async {
+    _ref.read(switchStateProvider.notifier).setConnected();
+    try {
+      await _refreshSwitchChannels();
+    } on Object {
+      // Reported by the channel service.
+    }
   }
 
   /// Refresh the cached channel snapshot for the currently-connected

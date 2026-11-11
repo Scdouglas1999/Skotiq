@@ -138,7 +138,7 @@ class GuidingHandlers implements RouteSource {
     // configured, matching the desktop Equipment → Guider connect path.
     // Raw backend.phd2Connect skips _ensurePhd2Running on the desktop.
     final deviceService = container.read(deviceServiceProvider);
-    await deviceService.connectGuider(kPhd2CanonicalId, host: host, port: port);
+    await deviceService.connect(DeviceType.guider, kPhd2CanonicalId, host: host, port: port);
 
     // Mobile companions verify GET /api/phd2/status immediately after POST
     // connect. Block until PHD2 RPC is live so we do not return success early.
@@ -165,7 +165,7 @@ class GuidingHandlers implements RouteSource {
     }
     final deviceService = container.read(deviceServiceProvider);
     try {
-      await deviceService.disconnectGuider();
+      await deviceService.disconnect(DeviceType.guider);
     } on DeviceNotConnectedException {
       await backend.phd2Disconnect();
     }

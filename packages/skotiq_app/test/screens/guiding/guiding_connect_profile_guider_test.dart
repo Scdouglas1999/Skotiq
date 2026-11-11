@@ -29,8 +29,13 @@ class _RecordingDeviceService extends DeviceService {
   final List<String> guiderConnects = <String>[];
 
   @override
-  Future<void> connectGuider(String deviceId, {String? host, int? port}) async {
-    guiderConnects.add(deviceId);
+  Future<void> connect(
+    DeviceType type,
+    String deviceId, {
+    String? host,
+    int? port,
+  }) async {
+    if (type == DeviceType.guider) guiderConnects.add(deviceId);
   }
 
   @override
