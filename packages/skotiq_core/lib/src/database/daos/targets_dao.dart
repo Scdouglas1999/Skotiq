@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import 'package:skotiq_astro/skotiq_astro.dart';
+import '../../backend/roles/host_data/host_records.dart';
 import '../database.dart';
 import '../tables/targets.dart';
 
@@ -8,7 +9,8 @@ part 'targets_dao.g.dart';
 
 @DriftAccessor(tables: [Targets])
 class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
-    with _$TargetsDaoMixin {
+    with _$TargetsDaoMixin
+    implements TargetLibrary {
   TargetsDao(super.db);
 
   /// Predicate identifying "untracked" library targets that are safe to remove
@@ -55,6 +57,7 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
   Future<List<Target>> getAllTargets() => select(targets).get();
 
   /// Watch all targets
+  @override
   Stream<List<Target>> watchAllTargets() => select(targets).watch();
 
   /// Get favorite targets
@@ -63,6 +66,7 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Watch favorite targets
+  @override
   Stream<List<Target>> watchFavoriteTargets() {
     return (select(targets)..where((t) => t.isFavorite.equals(true))).watch();
   }

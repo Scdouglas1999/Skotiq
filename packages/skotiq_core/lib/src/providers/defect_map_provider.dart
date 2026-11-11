@@ -3,12 +3,12 @@ import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
 import '../models/backend/host_mutation_event.dart';
 import '../models/defect_map.dart';
 import '../models/equipment/equipment_models.dart';
 import '../services/calibration/defect_map_service.dart';
 import '../services/logging_service.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'capability_provider.dart';
 import 'database_provider.dart';
@@ -58,7 +58,8 @@ class DefectMapQuery {
 final defectMapStatusProvider =
     FutureProvider.family<DefectMapStatus?, DefectMapQuery>((ref, query) async {
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
+      final remote = backend.remoteHost?.calibrationFrames;
+      if (remote != null) {
         final subscription = backend.eventStream.listen((event) {
           if (event.eventType == hostStateChangedEventType &&
               event.data['entityType'] == HostMutationEntity.settings &&
@@ -596,17 +597,17 @@ class DefectMapSettingsKeys {
 /// `app_settings` table on construction; persists each setter.
 class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
   final Ref _ref;
-  final NetworkBackend? _remote;
+  final HostCalibrationFrames? _remote;
   ProviderSubscription? _settingsSub;
   StreamSubscription? _remoteEventSub;
   Future<void>? _remoteLoad;
   final Completer<void> _loadedCompleter = Completer<void>();
 
-  DefectMapSettingsNotifier(this._ref, {NetworkBackend? remote})
-    : _remote = remote,
+  DefectMapSettingsNotifier(this._ref, {RemoteHost? host})
+    : _remote = host?.calibrationFrames,
       super(const DefectMapSettings(isLoading: true)) {
-    if (remote != null) {
-      _remoteEventSub = remote.eventStream.listen(
+    if (host != null) {
+      _remoteEventSub = host.events.listen(
         (event) {
           if (event.eventType != hostStateChangedEventType ||
               event.data['entityType'] != HostMutationEntity.settings ||
@@ -766,10 +767,7 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
 final defectMapSettingsProvider =
     StateNotifierProvider<DefectMapSettingsNotifier, DefectMapSettings>((ref) {
       final backend = ref.watch(backendProvider);
-      return DefectMapSettingsNotifier(
-        ref,
-        remote: backend is NetworkBackend ? backend : null,
-      );
+      return DefectMapSettingsNotifier(ref, host: backend.remoteHost);
     });
 
 /// Seed the live sequencer's defect-correction state from the authoritative

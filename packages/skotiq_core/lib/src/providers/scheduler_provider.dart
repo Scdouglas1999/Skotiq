@@ -3,8 +3,6 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
-import '../database/daos/settings_dao.dart';
 import '../database/database.dart' as ndb;
 import '../models/scheduler/integration_goal.dart';
 import '../models/scheduler/scheduler_decision.dart';
@@ -28,6 +26,8 @@ import '../services/scheduler/scheduler_queue_service.dart'
     show schedulerQueueServiceProvider;
 import '../services/scheduler/target_constraint_service.dart';
 import '../services/smart_night_models.dart' show smartNightPlanningFilters;
+import '../backend/remote_host.dart';
+import '../database/daos/settings_dao.dart';
 import 'backend_provider.dart';
 import 'clock_provider.dart';
 import 'database_provider.dart';
@@ -216,8 +216,9 @@ final schedulerPreviewDecisionProvider =
       // events (hydrateRemoteSessionState / _applySequencerEvent), so the banner
       // tracks the host live rather than computing a wrong local answer.
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
-        return backend.getSchedulerPreview();
+      final remote = backend.remoteHost?.planning;
+      if (remote != null) {
+        return remote.getSchedulerPreview();
       }
       final engine = await ref.watch(schedulerEngineReadyProvider.future);
       final clock = ref.watch(clockProvider);

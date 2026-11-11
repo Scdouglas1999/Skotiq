@@ -49,4 +49,8 @@ abstract interface class HostSequenceLibrary {
     int sequenceId,
     Map<String, dynamic> node,
   );
+
+  Future<List<Map<String, dynamic>>> getSequenceTemplates();
+
+  Future<List<Map<String, dynamic>>> getSequenceList();
 }

@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../backend/remote_host.dart';
 import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../services/logging_service.dart';
@@ -12,7 +13,7 @@ import 'remote_sync_handler.dart';
 const _logSource = 'RemoteSessionSync';
 
 /// Keeps companion UI state aligned with the imaging host when connected via
-/// [NetworkBackend]. Without hydration, mobile shows local SQLite profiles and
+/// linked host. Without hydration, mobile shows local SQLite profiles and
 /// disconnected device chips even though the desktop rig is live.
 final remoteSessionSyncProvider = Provider<void>((ref) {
   StreamSubscription<SkotiqEvent>? eventSub;
@@ -31,7 +32,7 @@ final remoteSessionSyncProvider = Provider<void>((ref) {
     hydrationPending = false;
   }
 
-  late final void Function(NetworkBackend backend, {bool periodic})
+  late final void Function(SkotiqBackend backend, {bool periodic})
   requestHydration;
   // A periodic request never downgrades a pending full one: a reconnect that
   // lands while a poll is in flight must still refresh the current frame.
@@ -44,7 +45,8 @@ final remoteSessionSyncProvider = Provider<void>((ref) {
     // Stay quiet until an explicit reconnect moves the state out of
     // `error`. `==` rather than `isAuthTokenRejected` so this also covers
     // the other terminal modes.
-    if (backend.connectionState == BackendConnectionState.error) return;
+    final linkState = backend.remoteHost?.link.connectionState;
+    if (linkState == BackendConnectionState.error) return;
     if (hydrationInFlight) {
       if (!hydrationPending) pendingIsPeriodic = periodic;
       if (!periodic) pendingIsPeriodic = false;
@@ -71,7 +73,7 @@ final remoteSessionSyncProvider = Provider<void>((ref) {
 
   ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
     teardown();
-    if (next is! NetworkBackend) {
+    if (next.remoteHost == null) {
       return;
     }
 
@@ -93,7 +95,7 @@ final remoteSessionSyncProvider = Provider<void>((ref) {
 
 Future<void> _hydrate(
   Ref ref,
-  NetworkBackend backend, {
+  SkotiqBackend backend, {
   required bool refreshCurrentFrame,
 }) async {
   final logger = ref.read(loggingServiceProvider);

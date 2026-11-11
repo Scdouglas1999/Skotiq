@@ -9,7 +9,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart'
         Phd2StarImage,
         Phd2CalibrationData,
         SkotiqEvent;
-import '../backend/ffi_backend.dart';
+import '../backend/remote_host.dart';
 import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/equipment/equipment_models.dart';

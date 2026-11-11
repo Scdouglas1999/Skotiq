@@ -2,14 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../backend/network_backend.dart';
 import '../database/database.dart' as db;
 import '../models/imaging/imaging_models.dart';
 import '../models/imaging/auto_stretch_settings.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
-import '../services/darkroom_build_service.dart'
-    show observingNight;
+import '../services/darkroom_build_service.dart' show observingNight;
 import 'host_settings/host_settings_providers.dart'
     show settingsRowChangesProvider;
 import 'profiles_provider.dart';
@@ -627,21 +626,16 @@ class SessionImagesNotifier extends StateNotifier<List<CapturedImage>> {
 /// the list as frames land: rows still accepted (a grader's reject or a
 /// frame-watch exclusion clears `is_accepted`).
 final sessionNightSeedProvider = FutureProvider<void>((ref) async {
-  if (ref.watch(backendProvider) is NetworkBackend) return;
+  if (ref.watch(backendProvider).remoteHost != null) return;
   final now = DateTime.now();
   final window = observingNightWindow(now);
   final rows = await ref
       .read(imagesDaoProvider)
       .getImagesCapturedBetween(window.start, window.end);
-  ref
-      .read(sessionImagesProvider.notifier)
-      .seedNight(
-        [
-          for (final row in rows)
-            if (row.isAccepted) capturedImageFromDbRow(row),
-        ],
-        now: now,
-      );
+  ref.read(sessionImagesProvider.notifier).seedNight([
+    for (final row in rows)
+      if (row.isAccepted) capturedImageFromDbRow(row),
+  ], now: now);
 });
 
 /// Recent frames for the active session, remote-aware.
@@ -668,7 +662,7 @@ final sessionNightSeedProvider = FutureProvider<void>((ref) async {
 /// two count the same frames whenever the client connected.
 final recentSessionFramesProvider = Provider<List<CapturedImage>>((ref) {
   final backend = ref.watch(backendProvider);
-  if (backend is! NetworkBackend) {
+  if (backend.remoteHost == null) {
     return ref.watch(sessionImagesProvider);
   }
 

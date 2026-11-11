@@ -2,8 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
-import '../models/backend/event_types.dart';
+import '../backend/skotiq_backend.dart';
 
 /// Quiet period after a relevant host event before a re-fetch, so a burst of
 /// related events costs one request.
@@ -40,7 +39,7 @@ const Set<String> hostTelemetryEventTypes = {
 /// event subscription end when [ref] is disposed.
 Stream<List<T>> remoteSnapshotStream<T>({
   required Ref ref,
-  required NetworkBackend backend,
+  required SkotiqBackend backend,
   required Future<List<Map<String, dynamic>>> Function() fetch,
   required T Function(Map<String, dynamic>) decode,
   required bool Function(SkotiqEvent event) shouldRefetch,

@@ -4,7 +4,7 @@ import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/network_backend.dart';
+import '../../backend/remote_host.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/sequence/sequence_models.dart';
 import '../../services/logging_service.dart';
@@ -73,7 +73,7 @@ final remoteEditorSyncStateProvider = Provider<RemoteEditorSyncState>(
 /// the editor mirror (`_applySequenceEditorMirror`); the last writer wins.
 ///
 /// Unsaved edits are also saved to the host's library after a quiet spell
-/// via [SequenceRepository.saveSequence] (NetworkBackend `save-full`).
+/// via [SequenceRepository.saveSequence] (the host's `save-full`).
 final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
   Timer? writeThroughTimer;
   Future<void>? writeInFlight;
@@ -121,7 +121,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
     }
 
     final backend = ref.read(backendProvider);
-    if (backend is! NetworkBackend) return;
+    if (backend.remoteHost == null) return;
 
     final operation = _persistRemoteSequence(
       ref,
@@ -173,7 +173,8 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
       return;
     }
     final backend = ref.read(backendProvider);
-    if (backend is! NetworkBackend || !ref.read(canEditSequenceProvider)) {
+    final runState = backend.remoteHost?.runState;
+    if (runState == null || !ref.read(canEditSequenceProvider)) {
       syncState.writePending = false;
       return;
     }
@@ -186,7 +187,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
     }
     final isDirty = ref.read(currentSequenceProvider.notifier).isDirty;
     final operation = Future<void>.sync(
-      () => backend.putOpenEditorSequence(
+      () => runState.putOpenEditorSequence(
         sequence == null ? null : files.sequenceToMap(sequence),
         databaseId: sequence?.databaseId,
         isDirty: isDirty,
@@ -221,7 +222,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
 
   late final RemoteSequencePreSwapFlush preSwapFlush;
   preSwapFlush = (outgoingBackend, {required requireSuccess}) async {
-    if (isDisposed || outgoingBackend is! NetworkBackend) return;
+    if (isDisposed || outgoingBackend.remoteHost == null) return;
     if (!identical(ref.read(backendProvider), outgoingBackend)) return;
     await flushPending(reason: 'backend_swap', drainLatest: true);
     if (requireSuccess &&
@@ -249,7 +250,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
       writeThroughTimer = null;
       syncState.reset();
     }
-    if (next is! NetworkBackend) {
+    if (next.remoteHost == null) {
       debounce?.cancel();
       debounce = null;
     }
@@ -257,7 +258,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
 
   ref.listen<Sequence?>(currentSequenceProvider, (previous, next) {
     final backend = ref.read(backendProvider);
-    if (backend is! NetworkBackend) return;
+    if (backend.remoteHost == null) return;
     if (!identical(next, syncState.appliedFromHost) &&
         ref.read(canEditSequenceProvider)) {
       syncState.writePending = true;
@@ -279,7 +280,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
 
 Future<bool> _persistRemoteSequence(
   Ref ref, {
-  required NetworkBackend backend,
+  required SkotiqBackend backend,
   required String reason,
   required bool Function() isActive,
 }) async {
@@ -291,10 +292,7 @@ Future<bool> _persistRemoteSequence(
   if (sequence == null) return true;
 
   final logger = ref.read(loggingServiceProvider);
-  final repository = SequenceRepository.remote(
-    backend,
-    ref.read(sequenceFileServiceProvider),
-  );
+  final repository = ref.read(sequenceRepositoryProvider);
 
   try {
     final savedId = await repository.saveSequence(sequence);

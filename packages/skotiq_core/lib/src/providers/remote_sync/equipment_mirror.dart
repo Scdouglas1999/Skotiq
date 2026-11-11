@@ -3,7 +3,7 @@ part of '../remote_sync_handler.dart';
 void _applyEquipmentEvent(
   Object reader,
   SkotiqEvent event, {
-  NetworkBackend? networkBackend,
+  SkotiqBackend? networkBackend,
 }) {
   final data = event.data;
   switch (event.eventType) {
@@ -144,7 +144,7 @@ void _applyEquipmentTelemetry(
 /// (the next hydration repoll retries).
 void _fetchConnectedFocuserCaps(
   Object reader,
-  NetworkBackend backend,
+  SkotiqBackend backend,
   Map<String, dynamic> data,
 ) {
   final deviceType = data['device_type'] as String?;

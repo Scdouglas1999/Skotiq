@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../backend/roles/host_data/host_records.dart';
 import '../database.dart';
 import '../session_orphan_sweep.dart';
 import '../tables/imaging_sessions.dart';
@@ -20,7 +21,8 @@ class ActiveImagingSessionException implements Exception {
 
 @DriftAccessor(tables: [ImagingSessions, EquipmentProfiles, Sequences, Targets])
 class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
-    with _$SessionsDaoMixin {
+    with _$SessionsDaoMixin
+    implements SessionHistory {
   SessionsDao(super.db);
 
   /// Get all sessions
@@ -31,6 +33,7 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Watch all sessions
+  @override
   Stream<List<ImagingSession>> watchAllSessions() {
     return (select(
       imagingSessions,

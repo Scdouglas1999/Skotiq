@@ -41,17 +41,18 @@ final transientFeedCheckProvider = StateProvider<TransientFeedCheck?>(
 /// Fetches alerts immediately on subscription, then polls every 15 minutes.
 /// Alerts are filtered based on current settings.
 ///
-/// In remote mode (NetworkBackend), fetches from the headless server API.
+/// On a linked client, fetches from the headless server API.
 /// In local mode, fetches directly from AAVSO/TNS APIs.
 final activeTransientAlertsProvider =
     StreamProvider.autoDispose<List<TransientAlert>>((ref) {
       final backend = ref.watch(backendProvider);
+      final remote = backend.remoteHost?.transients;
       final service = ref.watch(transientAlertServiceProvider);
       final settings = ref.watch(transientAlertSettingsProvider);
       final logger = ref.watch(loggingServiceProvider);
       final secretsStore = ref.watch(secretsStoreProvider);
       final scienceSettings = ref.watch(scienceSettingsProvider).valueOrNull;
-      final networkBackend = backend is NetworkBackend ? backend : null;
+      final networkBackend = remote;
 
       // Create a controller for the stream
       final controller = StreamController<List<TransientAlert>>();

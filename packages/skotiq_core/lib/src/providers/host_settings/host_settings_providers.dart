@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/network_backend.dart';
+import '../../backend/remote_host.dart';
 import '../../database/database.dart' show SkotiqDatabase;
 import '../../models/backend/host_mutation_event.dart';
 import '../backend_provider.dart';
@@ -56,9 +56,9 @@ class SettingsRowChanges {
 /// The imaging host's key/value settings, or null when this app owns the
 /// hardware itself.
 final hostSettingsStoreProvider = Provider<HostSettingsStore?>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is! NetworkBackend) return null;
-  final store = HostSettingsStore(backend);
+  final host = ref.watch(backendProvider).remoteHost;
+  if (host == null) return null;
+  final store = HostSettingsStore(host.rigSettings, () => host.events);
   final changes = store.changes.listen((keys) {
     ref.read(settingsStoreRevisionProvider.notifier).state++;
     ref.read(settingsRowChangesProvider).announce(keys);

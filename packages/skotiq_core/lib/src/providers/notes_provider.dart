@@ -8,6 +8,7 @@ import '../models/notes/journal_note.dart';
 import '../services/notes_service.dart';
 import '../services/sequence_diff_service.dart';
 import '../utils/resilient_poll_stream.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 
@@ -38,7 +39,7 @@ final notesServiceProvider = Provider<NotesService>((ref) {
 /// local database.
 class NotesRepository {
   final NotesService? _local;
-  final NetworkBackend? _remote;
+  final HostNotes? _remote;
   final void Function()? _afterRemoteMutation;
 
   NotesRepository.local(NotesService local)
@@ -47,7 +48,7 @@ class NotesRepository {
       _afterRemoteMutation = null;
 
   NotesRepository.remote(
-    NetworkBackend remote, {
+    HostNotes remote, {
     required void Function() afterMutation,
   }) : _local = null,
        _remote = remote,
@@ -137,9 +138,10 @@ class NotesRepository {
 
 final notesRepositoryProvider = Provider<NotesRepository>((ref) {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
+  final remote = backend.remoteHost?.notes;
+  if (remote != null) {
     return NotesRepository.remote(
-      backend,
+      remote,
       afterMutation: () {
         ref.invalidate(notesForTargetProvider);
         ref.invalidate(notesForRunProvider);
@@ -153,7 +155,7 @@ final notesRepositoryProvider = Provider<NotesRepository>((ref) {
 /// Live notes for a target. Family-keyed by the logical target id
 /// string (catalog id or display name).
 ///
-/// On a remote client (`NetworkBackend`) the journal lives only on the
+/// On a linked client the journal lives only on the
 /// master; the slave's local `notes_journal` table is never populated. We
 /// poll the host's `GET /api/db/notes?targetId=` and map each
 /// [RemoteJournalNote] onto [JournalNote]. The local `NotesService` path is
@@ -161,8 +163,9 @@ final notesRepositoryProvider = Provider<NotesRepository>((ref) {
 final notesForTargetProvider = StreamProvider.family<List<JournalNote>, String>(
   (ref, targetId) {
     final backend = ref.watch(backendProvider);
-    if (backend is NetworkBackend) {
-      return _pollRemoteNotes(backend, targetId: targetId);
+    final remote = backend.remoteHost?.notes;
+    if (remote != null) {
+      return _pollRemoteNotes(remote, targetId: targetId);
     }
     final service = ref.watch(notesServiceProvider);
     return service.watchTargetNotes(targetId);
@@ -175,8 +178,9 @@ final notesForRunProvider = StreamProvider.family<List<JournalNote>, int>((
   runId,
 ) {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return _pollRemoteNotes(backend, runId: runId);
+  final remote = backend.remoteHost?.notes;
+  if (remote != null) {
+    return _pollRemoteNotes(remote, runId: runId);
   }
   final service = ref.watch(notesServiceProvider);
   return service.watchRunNotes(runId);
@@ -185,8 +189,9 @@ final notesForRunProvider = StreamProvider.family<List<JournalNote>, int>((
 /// Live stream of every note (for global search / debug views).
 final allNotesProvider = StreamProvider<List<JournalNote>>((ref) {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return _pollRemoteNotes(backend);
+  final remote = backend.remoteHost?.notes;
+  if (remote != null) {
+    return _pollRemoteNotes(remote);
   }
   final service = ref.watch(notesServiceProvider);
   return service.watchAllNotes();
@@ -196,25 +201,22 @@ final allNotesProvider = StreamProvider<List<JournalNote>>((ref) {
 /// `_pollRemote` change-guard in `database_provider.dart`). [targetId] /
 /// [runId] scope the poll for the family variants.
 Stream<List<JournalNote>> _pollRemoteNotes(
-  NetworkBackend backend, {
+  HostNotes remote, {
   String? targetId,
   int? runId,
   Duration interval = const Duration(seconds: 10),
 }) => resilientDistinctPoll(
-  fetch: () => _fetchRemoteNotes(backend, targetId: targetId, runId: runId),
+  fetch: () => _fetchRemoteNotes(remote, targetId: targetId, runId: runId),
   unchanged: listEquals,
   interval: interval,
 );
 
 Future<List<JournalNote>> _fetchRemoteNotes(
-  NetworkBackend backend, {
+  HostNotes remote, {
   String? targetId,
   int? runId,
 }) async {
-  final page = await backend.fetchJournalNotes(
-    targetId: targetId,
-    runId: runId,
-  );
+  final page = await remote.fetchJournalNotes(targetId: targetId, runId: runId);
   final mapped = page.items.map(_noteFromRemote).toList()
     // Host serves created_at desc; keep newest-first.
     ..sort((a, b) => b.createdAt.compareTo(a.createdAt));

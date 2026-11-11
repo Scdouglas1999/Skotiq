@@ -20,7 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
 import '../backend/skotiq_backend.dart';
-import '../backend/network_backend.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'equipment/camera_state_provider.dart';
 import 'settings_provider.dart';
@@ -166,12 +166,8 @@ class SecondaryRigConfigNotifier extends StateNotifier<SecondaryRigConfig> {
       state = state.copyWith(ditherPolicy: p);
 }
 
-String _secondaryRigConfigScope(Object backend) {
-  if (backend is! NetworkBackend) return 'local';
-  return '${backend.scheme.toLowerCase()}://'
-      '${backend.serverHost.trim().toLowerCase()}:${backend.serverPort}|'
-      '${backend.pinnedFingerprint?.trim().toLowerCase() ?? ''}';
-}
+String _secondaryRigConfigScope(SkotiqBackend backend) =>
+    backend.remoteHost?.link.identity ?? 'local';
 
 final secondaryRigConfigProvider =
     StateNotifierProvider<SecondaryRigConfigNotifier, SecondaryRigConfig>((
@@ -268,8 +264,9 @@ class SecondaryRigController {
       );
     }
 
-    if (backend is NetworkBackend) {
-      await backend.secondaryRigStart({
+    final remote = backend.remoteHost?.secondaryRig;
+    if (remote != null) {
+      await remote.secondaryRigStart({
         'cameraId': config.cameraId,
         'exposureSecs': config.exposureSecs,
         if (config.gain != null) 'gain': config.gain,
@@ -327,12 +324,13 @@ class SecondaryRigController {
 
   Future<void> stop() {
     final backend = _backend;
+    final remote = backend.remoteHost?.secondaryRig;
     final revision = _backendRevision;
     return _serialized(() {
       _ensureAuthority(backend, revision);
       return _withBusy(revision, () async {
-        if (backend is NetworkBackend) {
-          await backend.secondaryRigStop();
+        if (remote != null) {
+          await remote.secondaryRigStop();
         } else {
           await bridge_api.apiSecondaryRigStop();
         }
@@ -344,11 +342,12 @@ class SecondaryRigController {
 
   Future<SecondaryRigStatus> getStatus() async {
     final backend = _backend;
+    final remote = backend.remoteHost?.secondaryRig;
     final revision = _backendRevision;
     late final SecondaryRigStatus status;
-    if (backend is NetworkBackend) {
+    if (remote != null) {
       status = SecondaryRigStatus.fromJson(
-        await backend.secondaryRigGetStatus(),
+        await remote.secondaryRigGetStatus(),
       );
     } else {
       status = SecondaryRigStatus.fromBridge(

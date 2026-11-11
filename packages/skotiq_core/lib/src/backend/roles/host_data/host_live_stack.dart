@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:skotiq_core/skotiq_core.dart';
 
 /// The live stack a linked imaging host builds from the frames it captures.
@@ -19,4 +21,12 @@ abstract interface class HostLiveStack {
   });
 
   Future<void> stackingStop();
+
+  Future<List<RemoteStackedResult>> stackingGetSavedResults({
+    int limit = 20,
+  });
+
+  Future<RemoteStackedResult> stackingGetSavedResult(int resultId);
+
+  Future<Uint8List> stackingGetSavedResultPreview(int resultId);
 }

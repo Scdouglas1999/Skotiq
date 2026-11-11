@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../backend/roles/host_data/host_records.dart';
 import '../database.dart';
 import '../tables/sequence_runs.dart';
 
@@ -7,7 +8,8 @@ part 'sequence_runs_dao.g.dart';
 
 @DriftAccessor(tables: [SequenceRuns])
 class SequenceRunsDao extends DatabaseAccessor<SkotiqDatabase>
-    with _$SequenceRunsDaoMixin {
+    with _$SequenceRunsDaoMixin
+    implements RunHistory {
   SequenceRunsDao(super.db);
 
   /// Start a new run record. Returns the row ID.
@@ -127,6 +129,7 @@ class SequenceRunsDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Watch all runs for reactive UI.
+  @override
   Stream<List<SequenceRun>> watchAllRuns() {
     return (select(
       sequenceRuns,
@@ -142,6 +145,7 @@ class SequenceRunsDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Watch runs for a specific sequence.
+  @override
   Stream<List<SequenceRun>> watchRunsForSequence(int sequenceId) {
     return (select(sequenceRuns)
           ..where((r) => r.sequenceId.equals(sequenceId))

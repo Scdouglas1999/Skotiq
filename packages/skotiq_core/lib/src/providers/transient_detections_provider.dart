@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
-import '../backend/network_backend.dart';
 import '../database/daos/living_sky_retention_dao.dart';
 import '../database/daos/transient_detections_dao.dart';
 import '../database/database.dart';
@@ -15,6 +14,8 @@ import '../services/sky_atlas/sky_atlas_service.dart' show defaultAtlasRoot;
 import '../services/transients/difference_image_seam.dart';
 import '../services/transients/first_light_service.dart';
 import '../services/transients/transient_submission_service.dart';
+import '../backend/remote_host.dart';
+import '../backend/skotiq_backend.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart' show imagesDaoProvider;
 import 'remote_snapshot_stream.dart';
@@ -142,11 +143,12 @@ TransientDetectionRow transientDetectionFromWireJson(
 final firstLightCandidatesProvider =
     StreamProvider<List<TransientDetectionRow>>((ref) {
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
+      final remote = backend.remoteHost?.transients;
+      if (remote != null) {
         return _remoteFirstLightStream(
           ref,
           backend,
-          () => backend.getFirstLightCandidates(),
+          () => remote.getFirstLightCandidates(),
         );
       }
       return _liveDetectionsFeed(ref.watch(transientDetectionsDaoProvider));
@@ -208,7 +210,7 @@ Stream<List<TransientDetectionRow>> _liveDetectionsFeed(
 /// most once every [remoteAtlasRefetchMinInterval].
 Stream<List<TransientDetectionRow>> _remoteFirstLightStream(
   Ref ref,
-  NetworkBackend backend,
+  SkotiqBackend backend,
   Future<List<Map<String, dynamic>>> Function() fetch,
 ) {
   return remoteSnapshotStream<TransientDetectionRow>(
@@ -242,9 +244,10 @@ typedef FirstLightCropQuery = ({
 final firstLightCropProvider = FutureProvider.autoDispose
     .family<Uint8List?, FirstLightCropQuery>((ref, query) async {
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
+      final remote = backend.remoteHost?.transients;
+      if (remote != null) {
         try {
-          final bytes = await backend.getFirstLightCrop(
+          final bytes = await remote.getFirstLightCrop(
             query.detectionId,
             query.stage,
           );
@@ -287,9 +290,10 @@ final firstLightHistoryProvider = FutureProvider.autoDispose
       query,
     ) async {
       final backend = ref.watch(backendProvider);
+      final remote = backend.remoteHost?.transients;
       final List<TransientDetectionRow> rows;
-      if (backend is NetworkBackend) {
-        final raw = await backend.getFirstLightHistory(
+      if (remote != null) {
+        final raw = await remote.getFirstLightHistory(
           raDeg: query.raDeg,
           decDeg: query.decDeg,
           radiusDeg: query.radiusDeg,
@@ -309,7 +313,12 @@ final firstLightHistoryProvider = FutureProvider.autoDispose
       final kept = rows
           .where(
             (r) =>
-                AstronomyCalculations.angularSeparation(ra1Deg: query.raDeg, dec1Deg: query.decDeg, ra2Deg: r.raDeg, dec2Deg: r.decDeg,) <=
+                AstronomyCalculations.angularSeparation(
+                  ra1Deg: query.raDeg,
+                  dec1Deg: query.decDeg,
+                  ra2Deg: r.raDeg,
+                  dec2Deg: r.decDeg,
+                ) <=
                 query.radiusDeg,
           )
           .toList(growable: false);
@@ -323,7 +332,8 @@ final firstLightHistoryProvider = FutureProvider.autoDispose
 /// a card action so both desktop and mobile share one triage path.
 final firstLightTriageProvider = Provider<FirstLightTriage>((ref) {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
+  final remote = backend.remoteHost?.transients;
+  if (remote != null) {
     // Remote (slave) triage: the host applies the reviewed/dismissed flag, but
     // the remote feed is a debounced REST snapshot that otherwise only re-fetches
     // on an unrelated backend event — so the card's badge would stay stale until
@@ -333,11 +343,11 @@ final firstLightTriageProvider = Provider<FirstLightTriage>((ref) {
     // before invalidating so a FAILED triage doesn't wipe the current state.
     return FirstLightTriage(
       review: (id) async {
-        await backend.reviewFirstLightCandidate(id);
+        await remote.reviewFirstLightCandidate(id);
         ref.invalidate(firstLightCandidatesProvider);
       },
       dismiss: (id) async {
-        await backend.dismissFirstLightCandidate(id);
+        await remote.dismissFirstLightCandidate(id);
         ref.invalidate(firstLightCandidatesProvider);
       },
     );

@@ -11,7 +11,6 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
-import '../backend/network_backend.dart';
 import '../database/daos/settings_dao.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/framing_plate_scale.dart';
@@ -22,6 +21,7 @@ import '../services/sensor_specs/camera_sensor_specs.dart';
 import '../services/target_library_service.dart';
 import '../utils/coordinate_format.dart';
 import '../utils/coordinate_parser.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'camera_sensor_specs_provider.dart';
 import 'database_provider.dart';
@@ -189,9 +189,10 @@ class FramingNotifier extends StateNotifier<FramingState> {
     _rememberLastFramedTarget(target);
 
     final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
+    final remote = backend.remoteHost?.pointing;
+    if (remote != null) {
       _queueTargetPush(
-        backend,
+        remote,
         raHours: raHours,
         decDegrees: decDegrees,
         name: targetName,
@@ -223,9 +224,10 @@ class FramingNotifier extends StateNotifier<FramingState> {
     _rememberLastFramedTarget(target);
 
     final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
+    final remote = backend.remoteHost?.pointing;
+    if (remote != null) {
       _queueTargetPush(
-        backend,
+        remote,
         raHours: target.raHours,
         decDegrees: target.decDegrees,
         name: target.name,
@@ -234,7 +236,7 @@ class FramingNotifier extends StateNotifier<FramingState> {
   }
 
   void _queueTargetPush(
-    NetworkBackend backend, {
+    HostPointing remote, {
     required double raHours,
     required double decDegrees,
     required String name,
@@ -243,11 +245,11 @@ class FramingNotifier extends StateNotifier<FramingState> {
     _targetPushTail = _targetPushTail.then((_) async {
       if (!mounted ||
           revision != _targetPushRevision ||
-          !identical(backend, _ref.read(backendProvider))) {
+          !identical(remote, _ref.read(backendProvider).remoteHost?.pointing)) {
         return;
       }
       await _pushTargetToHost(
-        backend,
+        remote,
         raHours: raHours,
         decDegrees: decDegrees,
         name: name,
@@ -256,13 +258,13 @@ class FramingNotifier extends StateNotifier<FramingState> {
   }
 
   Future<void> _pushTargetToHost(
-    NetworkBackend backend, {
+    HostPointing remote, {
     required double raHours,
     required double decDegrees,
     required String name,
   }) async {
     try {
-      await backend.framingSetTarget(ra: raHours, dec: decDegrees, name: name);
+      await remote.framingSetTarget(ra: raHours, dec: decDegrees, name: name);
     } catch (e, stackTrace) {
       developer.log(
         'Failed to push framing target to host: $e',
@@ -281,9 +283,10 @@ class FramingNotifier extends StateNotifier<FramingState> {
     _rememberLastFramedTarget(target);
 
     final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
+    final remote = backend.remoteHost?.pointing;
+    if (remote != null) {
       _queueTargetPush(
-        backend,
+        remote,
         raHours: target.raHours,
         decDegrees: target.decDegrees,
         name: target.name,
@@ -792,7 +795,7 @@ class FramingNotifier extends StateNotifier<FramingState> {
   /// Returns the new project id, or null when there is no framed target or the
   /// rig FOV cannot be resolved (in which case no rows are written).
   Future<int?> createDurableMosaicProject({String? name}) async {
-    if (_ref.read(backendProvider) is NetworkBackend) {
+    if (_ref.read(backendProvider).remoteHost != null) {
       throw StateError(
         'Durable mosaic projects must be created on the imaging host.',
       );
@@ -835,7 +838,7 @@ class FramingNotifier extends StateNotifier<FramingState> {
   ///
   /// Routed through [TargetLibraryService.ensureCatalogTarget], which dedups
   /// against existing rows (by catalog id / name / coordinates) and handles both
-  /// the local SQLite (FFI) and remote host (NetworkBackend) backends, so
+  /// this process's database and a linked host, so
   /// repeated "Save target" presses do not stack duplicate rows.
   Future<void> saveTarget() async {
     final target = state.target;
@@ -859,7 +862,7 @@ class FramingNotifier extends StateNotifier<FramingState> {
   /// deliberately NO fallback to scanning the `targets` table, so the framing
   /// restore never resurrects phantom library rows.
   Future<void> loadMostRecentTarget() async {
-    if (_ref.read(backendProvider) is NetworkBackend) return;
+    if (_ref.read(backendProvider).remoteHost != null) return;
     final dao = _ref.read(settingsDaoProvider);
     final raw = await dao.getSetting(_lastFramedTargetKey);
     if (raw == null || raw.isEmpty) return;

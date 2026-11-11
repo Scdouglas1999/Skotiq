@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 
-import 'package:flutter/foundation.dart' show listEquals, mapEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/database.dart'
@@ -16,17 +15,17 @@ import '../database/database.dart'
         AstrometryResidualVectorRow,
         MovingObjectCandidateRow,
         LineRatioProductRow;
-import '../database/daos/settings_dao.dart';
 import '../models/science/science_models.dart';
 import '../services/science/frame_grade_rules.dart';
 import '../services/science/photometric_catalog_service.dart';
 import '../services/science/science_camera_auto_config.dart';
 import '../services/sky_atlas/sky_atlas_service.dart'
     show defaultSkyAtlasLimitGb, parseSkyAtlasLimitGb, skyAtlasLimitSettingKey;
-import '../utils/resilient_poll_stream.dart';
+import 'async_scope.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
-import '../backend/network_backend.dart';
+import '../backend/remote_host.dart';
+import '../backend/roles/host_data/science_products.dart';
 import 'session_provider.dart';
 import 'settings_provider.dart';
 

@@ -17,4 +17,6 @@ abstract interface class HostFiles {
   });
 
   Future<Uint8List> downloadSessionExport(int sessionId, String format);
+
+  Future<DiskSpaceInfo?> getHostCaptureDiskSpace();
 }

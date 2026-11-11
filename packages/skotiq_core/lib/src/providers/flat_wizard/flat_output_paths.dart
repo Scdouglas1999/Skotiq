@@ -16,10 +16,10 @@ Future<void> prepareFlatOutputDirectory(
 /// allow-listed, writable roots and returns the normalized host path.
 @visibleForTesting
 Future<String> validateRemoteFlatOutputDirectory(
-  NetworkBackend backend,
+  HostFiles remote,
   String path,
 ) async {
-  final validation = await backend.validateRemoteDirectory(
+  final validation = await remote.validateRemoteDirectory(
     path,
     mustExist: true,
     mustBeWritable: true,

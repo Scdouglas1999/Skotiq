@@ -7,6 +7,7 @@ import '../../backend/ffi_backend.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/backend/host_runtime_update.dart';
 import '../../services/logging_service.dart';
+import '../../backend/remote_host.dart';
 import '../backend_provider.dart';
 import '../host_mutation_event_provider.dart';
 import 'runtime_mirror_channel.dart';
@@ -144,7 +145,7 @@ final hostRuntimeMirrorProvider = Provider<void>((ref) {
 
   void bind() {
     teardown();
-    if (ref.read(backendProvider) is! FfiBackend) return;
+    if (!ref.read(backendProvider).ownsDeviceBridge) return;
     final store = ref.read(hostRuntimeStateStoreProvider);
     for (final channel in ref.read(runtimeMirrorChannelsProvider)) {
       final throttle = throttles[channel.key] = _ChannelThrottle(

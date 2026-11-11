@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../backend/ffi_backend.dart';
 import '../../../models/equipment/equipment_models.dart';
 import '../../../services/device_service.dart';
+import '../../../backend/remote_host.dart';
 import '../../backend_provider.dart';
 import '../../equipment/device_capability_provider.dart';
 import '../../equipment/switch_state_provider.dart';
@@ -146,7 +146,7 @@ final switchChannelPollerProvider = Provider<void>((ref) {
   void bind() {
     stop();
     retryAfter = null;
-    if (ref.read(backendProvider) is! FfiBackend) return;
+    if (!ref.read(backendProvider).ownsDeviceBridge) return;
     final state = ref.read(switchStateProvider);
     if (state.deviceId == null ||
         state.connectionState != DeviceConnectionState.connected) {

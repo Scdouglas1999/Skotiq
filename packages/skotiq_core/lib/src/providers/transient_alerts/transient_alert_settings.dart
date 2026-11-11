@@ -11,7 +11,7 @@ class TransientAlertSettingsNotifier
     extends StateNotifier<TransientAlertSettings> {
   final SettingsDao _settingsDao;
   final LoggingService _logger;
-  final NetworkBackend? _remote;
+  final HostTransients? _remote;
   bool _initialized = false;
   Completer<void>? _loadCompleter;
   TransientAlertSettings _confirmedSettings =
@@ -25,7 +25,7 @@ class TransientAlertSettingsNotifier
   TransientAlertSettingsNotifier({
     required SettingsDao settingsDao,
     required LoggingService logger,
-    NetworkBackend? remote,
+    HostTransients? remote,
   }) : _settingsDao = settingsDao,
        _logger = logger,
        _remote = remote,
@@ -356,9 +356,10 @@ final transientAlertSettingsProvider =
       final settingsDao = ref.watch(settingsDaoProvider);
       final logger = ref.watch(loggingServiceProvider);
       final backend = ref.watch(backendProvider);
+      final remote = backend.remoteHost?.transients;
       return TransientAlertSettingsNotifier(
         settingsDao: settingsDao,
         logger: logger,
-        remote: backend is NetworkBackend ? backend : null,
+        remote: remote,
       );
     });

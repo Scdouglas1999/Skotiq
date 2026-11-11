@@ -9,8 +9,8 @@ import '../services/weather/weather_radar_service.dart';
 import '../services/weather/cloud_motion_analyzer.dart';
 import '../services/weather/weather_alert_service.dart';
 import '../database/database.dart' as db;
-import '../backend/network_backend.dart';
 import '../services/safety_config_service.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'settings_provider.dart';
@@ -57,9 +57,10 @@ final weatherAlertServiceProvider = Provider<WeatherAlertService>((ref) {
 /// row type. Returns default settings if database settings are not yet loaded.
 final weatherSettingsDataProvider = StreamProvider<WeatherSettings>((ref) {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
+  final remote = backend.remoteHost?.weather;
+  if (remote != null) {
     return Stream.fromFuture(
-      backend.getWeatherSettings().then(_weatherSettingsFromWire),
+      remote.getWeatherSettings().then(_weatherSettingsFromWire),
     );
   }
   final database = ref.watch(databaseProvider);
@@ -77,8 +78,9 @@ final weatherDecisionPolicyProvider = FutureProvider<WeatherDecisionPolicy>((
   ref,
 ) async {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    final wire = await backend.getWeatherSettings();
+  final remote = backend.remoteHost?.weather;
+  if (remote != null) {
+    final wire = await remote.getWeatherSettings();
     const defaults = WeatherDecisionPolicy.defaults;
     final safeSecs = wire['requiredSafeDurationSeconds'];
     return WeatherDecisionPolicy(
@@ -217,8 +219,9 @@ class WeatherSettingsActions {
     if (payload.isEmpty) return;
 
     final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
-      await backend.updateWeatherSettings(payload);
+    final remote = backend.remoteHost?.weather;
+    if (remote != null) {
+      await remote.updateWeatherSettings(payload);
       _ref.invalidate(weatherSettingsDataProvider);
       return;
     }
@@ -258,8 +261,9 @@ class WeatherSettingsActions {
     bool? starEvidenceOverridesForecast,
   }) async {
     final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
-      await backend.updateWeatherSettings({
+    final remote = backend.remoteHost?.weather;
+    if (remote != null) {
+      await remote.updateWeatherSettings({
         if (forecastHoldsRun != null) 'forecastHoldsRun': forecastHoldsRun,
         if (starEvidenceOverridesForecast != null)
           'starEvidenceOverridesForecast': starEvidenceOverridesForecast,

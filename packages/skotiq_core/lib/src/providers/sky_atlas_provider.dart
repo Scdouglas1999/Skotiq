@@ -3,12 +3,11 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
-import '../backend/ffi_backend.dart';
+import '../backend/remote_host.dart';
+import '../backend/skotiq_backend.dart';
 import '../database/daos/sky_atlas_dao.dart';
 import '../database/database.dart';
 import '../database/tables/sky_atlas_tables.dart' show skyAtlasHealpixOrder;
-import '../models/backend/event_types.dart';
 import '../models/backend/host_mutation_event.dart';
 import '../services/logging_service.dart';
 import '../services/notification_service.dart'
@@ -29,7 +28,7 @@ import 'science_provider.dart' show scienceSettingsProvider;
 /// [skyTileProvider]) expose the region list, growth/coverage, and a per-tile
 /// PNG cutout fetch the atlas browser renders.
 ///
-/// On a [NetworkBackend] companion the local atlas store is empty (the host owns
+/// On a companion the local atlas store is empty (the host owns
 /// the imaging pipeline that folds frames in), so the region + coverage readers
 /// branch to the host's `/api/atlas/*` routes — mirroring the First Light
 /// remote path — and fall back to the local DAO/seam in host mode.
@@ -98,14 +97,15 @@ final skyAtlasServiceProvider = Provider<SkyAtlasService>((ref) {
 /// Authority-aware writer for the atlas's named-region metadata.
 ///
 /// A desktop host writes its local atlas service; a companion writes through
-/// the active NetworkBackend. A disconnected client fails explicitly instead
+/// the host it is linked to. A disconnected client fails explicitly instead
 /// of populating its throwaway local database and pretending the host changed.
 final skyAtlasRegionWriterProvider = Provider<SkyAtlasRegionWriter>((ref) {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return SkyAtlasRegionWriter.remote(backend);
+  final remote = backend.remoteHost?.skyAtlas;
+  if (remote != null) {
+    return SkyAtlasRegionWriter.remote(remote);
   }
-  if (backend is FfiBackend) {
+  if (backend.ownsDeviceBridge) {
     return SkyAtlasRegionWriter.local(ref.watch(skyAtlasServiceProvider));
   }
   return const SkyAtlasRegionWriter.unavailable();
@@ -113,15 +113,15 @@ final skyAtlasRegionWriterProvider = Provider<SkyAtlasRegionWriter>((ref) {
 
 class SkyAtlasRegionWriter {
   final SkyAtlasService? _local;
-  final NetworkBackend? _remote;
+  final HostSkyAtlas? _remote;
 
   const SkyAtlasRegionWriter.local(SkyAtlasService service)
     : _local = service,
       _remote = null;
 
-  const SkyAtlasRegionWriter.remote(NetworkBackend backend)
+  const SkyAtlasRegionWriter.remote(HostSkyAtlas atlas)
     : _local = null,
-      _remote = backend;
+      _remote = atlas;
 
   const SkyAtlasRegionWriter.unavailable() : _local = null, _remote = null;
 
@@ -172,7 +172,7 @@ final skyAtlasEnabledProvider = Provider<bool?>((ref) {
 /// there is nothing on disk to tell the user about (then it is settled
 /// silently).
 final skyAtlasOffNoticeProvider = FutureProvider.autoDispose<int?>((ref) async {
-  if (ref.watch(backendProvider) is NetworkBackend) return null;
+  if (ref.watch(backendProvider).remoteHost != null) return null;
   final settings = ref.read(settingsDaoProvider);
   if (await settings.getSetting(skyAtlasOffNoticeKey) != 'pending') {
     return null;
@@ -192,7 +192,7 @@ Future<void> markSkyAtlasOffNoticeShown(WidgetRef ref) async {
 /// Bytes the Your Sky atlas takes on this machine's disk. Null on a companion,
 /// whose atlas lives on the imaging host.
 final skyAtlasStorageBytesProvider = FutureProvider.autoDispose<int?>((ref) {
-  if (ref.watch(backendProvider) is NetworkBackend) return null;
+  if (ref.watch(backendProvider).remoteHost != null) return null;
   return ref.watch(skyAtlasServiceProvider).storageBytes();
 });
 
@@ -203,11 +203,12 @@ final skyAtlasStorageBytesProvider = FutureProvider.autoDispose<int?>((ref) {
 final skyAtlasCoverageProvider =
     StreamProvider.autoDispose<List<AtlasTileCoverage>>((ref) {
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
+      final remote = backend.remoteHost?.skyAtlas;
+      if (remote != null) {
         return _remoteAtlasSnapshotStream<AtlasTileCoverage>(
           ref,
           backend,
-          backend.getAtlasCoverage,
+          remote.getAtlasCoverage,
           AtlasTileCoverage.fromJson,
         );
       }
@@ -228,8 +229,7 @@ final skyAtlasCoverageProvider =
 final skyAtlasTotalsProvider = FutureProvider.autoDispose<AtlasTotals?>((
   ref,
 ) async {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) return null;
+  if (ref.watch(backendProvider).remoteHost != null) return null;
   // Recount whenever coverage refreshes (a fold is what changes both).
   ref.watch(skyAtlasCoverageProvider);
   final totals = await ref.watch(skyAtlasDaoProvider).atlasTotals();
@@ -242,11 +242,12 @@ final skyAtlasTotalsProvider = FutureProvider.autoDispose<AtlasTotals?>((
 final skyAtlasRegionsProvider =
     StreamProvider.autoDispose<List<SkyAtlasRegionRow>>((ref) {
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
+      final remote = backend.remoteHost?.skyAtlas;
+      if (remote != null) {
         return _remoteAtlasSnapshotStream<SkyAtlasRegionRow>(
           ref,
           backend,
-          backend.getAtlasRegions,
+          remote.getAtlasRegions,
           skyAtlasRegionFromWireJson,
         );
       }
@@ -296,7 +297,7 @@ bool isAtlasChangingEvent(SkotiqEvent event) {
 /// [remoteAtlasRefetchMinInterval].
 Stream<List<T>> _remoteAtlasSnapshotStream<T>(
   Ref ref,
-  NetworkBackend backend,
+  SkotiqBackend backend,
   Future<List<Map<String, dynamic>>> Function() fetch,
   T Function(Map<String, dynamic>) fromJson,
 ) {
@@ -346,7 +347,7 @@ final skyTileProvider = FutureProvider.family<String, SkyTileQuery>((
 //
 // Hoisted here (out of `region_detail_screen.dart`) so the region-detail screen
 // renders on a slave instead of reading an empty local atlas DB. Each family
-// branches on the active backend: a [NetworkBackend] companion reads the host's
+// goes to whichever machine is the imaging host: a companion reads the host's
 // already-advertised `/api/atlas/region/<id>[/timeline]` routes; a host reads
 // the local DAO/seam.
 
@@ -357,8 +358,9 @@ final atlasRegionProvider = FutureProvider.family<SkyAtlasRegionRow?, int>((
   regionId,
 ) async {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    final json = await backend.getAtlasRegion(regionId);
+  final remote = backend.remoteHost?.skyAtlas;
+  if (remote != null) {
+    final json = await remote.getAtlasRegion(regionId);
     final region = json['region'];
     if (region is! Map<String, dynamic>) return null;
     return skyAtlasRegionFromWireJson(region);
@@ -374,8 +376,9 @@ final atlasRegionTilesProvider = FutureProvider.family<List<SkyTileRow>, int>((
   regionId,
 ) async {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    final json = await backend.getAtlasRegion(regionId);
+  final remote = backend.remoteHost?.skyAtlas;
+  if (remote != null) {
+    final json = await remote.getAtlasRegion(regionId);
     final raw = json['tiles'];
     if (raw is! List) return const [];
     return raw
@@ -391,12 +394,13 @@ final atlasRegionTilesProvider = FutureProvider.family<List<SkyTileRow>, int>((
 final atlasRegionTimelineProvider = StreamProvider.autoDispose
     .family<List<SkyAtlasFoldRow>, int>((ref, regionId) {
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
+      final remote = backend.remoteHost?.skyAtlas;
+      if (remote != null) {
         return _remoteAtlasSnapshotStream<SkyAtlasFoldRow>(
           ref,
           backend,
           () async {
-            final json = await backend.getAtlasRegionTimeline(regionId);
+            final json = await remote.getAtlasRegionTimeline(regionId);
             final raw = json['folds'];
             if (raw is! List) return const [];
             return raw.whereType<Map<String, dynamic>>().toList(
@@ -420,8 +424,9 @@ final atlasRegionGrowthProvider = FutureProvider.family<AtlasGrowthCurve, int>((
   regionId,
 ) async {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    final json = await backend.getAtlasRegionTimeline(regionId);
+  final remote = backend.remoteHost?.skyAtlas;
+  if (remote != null) {
+    final json = await remote.getAtlasRegionTimeline(regionId);
     final growth = json['growth'];
     if (growth is! Map<String, dynamic>) return AtlasGrowthCurve.empty;
     return AtlasGrowthCurve.fromJson(growth);
@@ -450,8 +455,9 @@ final atlasRegionGrowthProvider = FutureProvider.family<AtlasGrowthCurve, int>((
 final atlasRegionProvenanceProvider =
     FutureProvider.family<TileProvenanceView?, int>((ref, regionId) async {
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
-        final detail = await backend.getAtlasRegion(regionId);
+      final remote = backend.remoteHost?.skyAtlas;
+      if (remote != null) {
+        final detail = await remote.getAtlasRegion(regionId);
         final tilesRaw = detail['tiles'];
         if (tilesRaw is! List || tilesRaw.isEmpty) return null;
         final tiles = tilesRaw
@@ -462,7 +468,7 @@ final atlasRegionProvenanceProvider =
         final deepest = tiles.reduce(
           (a, b) => a.integrationSeconds >= b.integrationSeconds ? a : b,
         );
-        final timeline = await backend.getAtlasRegionTimeline(regionId);
+        final timeline = await remote.getAtlasRegionTimeline(regionId);
         final foldsRaw = timeline['folds'];
         final folds = foldsRaw is List
             ? foldsRaw
@@ -511,8 +517,9 @@ final atlasRegionProvenanceProvider =
 final atlasRegionCutoutProvider =
     FutureProvider.family<AtlasRegionCutoutImage, int>((ref, regionId) async {
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
-        final bytes = await backend.getAtlasRegionCutout(regionId);
+      final remote = backend.remoteHost?.skyAtlas;
+      if (remote != null) {
+        final bytes = await remote.getAtlasRegionCutout(regionId);
         return AtlasRegionCutoutImage.bytes(bytes);
       }
       final region = await ref

@@ -8,6 +8,7 @@ import '../../backend/skotiq_backend.dart';
 import '../../models/sequence/sequence_models.dart';
 import '../../models/backend/host_mutation_event.dart';
 import '../../services/sequence_repository.dart';
+import '../../backend/remote_host.dart';
 import '../backend_provider.dart';
 import '../host_mutation_event_provider.dart';
 import '../sequence_provider.dart';
@@ -122,7 +123,7 @@ final sequenceLibrarySyncProvider = Provider<void>((ref) {
   void attachBackendEvents(SkotiqBackend backend) {
     eventSub?.cancel();
     eventSub = null;
-    if (backend is NetworkBackend) {
+    if (backend.remoteHost != null) {
       eventSub = backend.eventStream.listen((event) {
         if (event.eventType == sequenceUpdatedEventType) {
           final id = event.data['sequenceId'];

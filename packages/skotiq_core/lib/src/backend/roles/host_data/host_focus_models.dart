@@ -1,5 +1,6 @@
 
 
+
 /// The predictive autofocus settings and per-filter focus models of a linked
 /// imaging host.
 ///
@@ -28,4 +29,13 @@ abstract interface class HostFocusModels {
   Future<Map<String, dynamic>> exportFocusModel();
 
   Future<void> importFocusModel(Map<String, dynamic> data);
+
+  Future<Map<String, dynamic>> getFilterFocusOffsets();
+
+  Future<void> setFilterFocusOffsets({
+    required String referenceFilter,
+    required Map<String, int> offsets,
+  });
+
+  Future<Map<String, dynamic>> getFocusModelData();
 }

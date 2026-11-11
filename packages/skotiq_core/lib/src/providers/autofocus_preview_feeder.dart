@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/ffi_backend.dart';
 import '../models/backend/event_types.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/imaging/imaging_models.dart';
@@ -12,6 +11,7 @@ import '../services/capture_preview_loader.dart';
 import '../services/imaging_service.dart' show currentImageProvider;
 import '../utils/utc_timestamp.dart';
 import 'autofocus_progress_provider.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'equipment/camera_state_provider.dart';
 import 'equipment/filter_wheel_state_provider.dart';
@@ -94,7 +94,9 @@ class AutofocusPreviewFeeder {
           final attempt = (detail?['attempt'] as num?)?.toInt() ?? 0;
           final max = (detail?['max_attempts'] as num?)?.toInt();
           // Attempt 0 is the step starting or finishing, not a frame.
-          _centering = attempt > 0 ? (attempt: attempt, maxAttempts: max) : null;
+          _centering = attempt > 0
+              ? (attempt: attempt, maxAttempts: max)
+              : null;
         } else {
           _centering = null;
         }
@@ -194,7 +196,7 @@ class AutofocusPreviewFeeder {
 /// client follows the host's frame through the current-frame channel instead,
 /// so this does nothing there.
 final autofocusPreviewFeederProvider = Provider<void>((ref) {
-  if (ref.watch(backendProvider) is! FfiBackend) return;
+  if (!ref.watch(backendProvider).ownsDeviceBridge) return;
 
   Future<void> fetchLatestFrame(UtilityFrameRequest request) async {
     final camera = ref.read(cameraStateProvider);

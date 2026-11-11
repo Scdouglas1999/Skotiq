@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/network_backend.dart';
+import '../../backend/skotiq_backend.dart';
 import '../provider_reader.dart';
 
 /// Where a channel's value is being applied.
@@ -12,7 +12,7 @@ class RuntimeApplyContext {
 
   /// The connection to the host when applying on a linked client; null when
   /// the host applies a client's report to its own providers.
-  final NetworkBackend? networkBackend;
+  final SkotiqBackend? networkBackend;
 
   T read<T>(ProviderListenable<T> provider) => readProvider(reader, provider);
 }

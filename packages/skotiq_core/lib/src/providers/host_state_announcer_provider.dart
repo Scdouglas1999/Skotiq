@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
 import '../models/backend/host_mutation_event.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'framing_provider.dart';
 import 'host_mutation_event_provider.dart';
@@ -22,7 +22,7 @@ final hostStateAnnouncerProvider = Provider<void>((ref) {
     next,
   ) {
     if (next == null || identical(previous, next)) return;
-    if (ref.read(backendProvider) is NetworkBackend) return;
+    if (ref.read(backendProvider).remoteHost != null) return;
     ref
         .read(hostMutationEventHubProvider)
         .publishRemoteOnly(

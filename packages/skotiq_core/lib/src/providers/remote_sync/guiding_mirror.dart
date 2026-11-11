@@ -3,7 +3,7 @@ part of '../remote_sync_handler.dart';
 Future<void> _applyGuidingEvent(
   Object reader,
   SkotiqEvent event, {
-  NetworkBackend? networkBackend,
+  SkotiqBackend? networkBackend,
 }) async {
   switch (event.eventType) {
     case 'Connected':
@@ -42,7 +42,7 @@ const Duration _phd2HydrationMinGap = Duration(seconds: 2);
 /// one status read. Guiding events arrive in bursts, so a read already running
 /// absorbs every event that arrives meanwhile into one follow-up read, made at
 /// least [_phd2HydrationMinGap] later.
-Future<void> _hydratePhd2GuiderState(Object reader, NetworkBackend backend) {
+Future<void> _hydratePhd2GuiderState(Object reader, SkotiqBackend backend) {
   final running = _phd2HydrationInFlight[backend];
   if (running != null) {
     _phd2HydrationRequested[backend] = true;
@@ -63,7 +63,7 @@ Future<void> _hydratePhd2GuiderState(Object reader, NetworkBackend backend) {
 
 Future<void> _readPhd2GuiderStateOnce(
   Object reader,
-  NetworkBackend backend,
+  SkotiqBackend backend,
 ) async {
   final notifier = readDeviceConnectionNotifier(reader, DeviceType.guider);
   final priorState = _read(reader, guiderStateProvider);

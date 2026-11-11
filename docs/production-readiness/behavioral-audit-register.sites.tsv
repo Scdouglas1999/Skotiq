@@ -3790,7 +3790,6 @@ packages/skotiq_core/lib/src/services/predictive_af_service/predictive_af_models
 packages/skotiq_core/lib/src/services/predictive_af_service/predictive_af_models.dart	FilterFocusModel.fromWireJson	literal_null_coalesce	1	V0477	(json['consecutive_bad_predictions'] as num?)?.toInt() ?? 0,
 packages/skotiq_core/lib/src/services/profile_service.dart	syncFiltersFromHardware	literal_null_coalesce	1	V0025	newOffsets[filterName] = existingOffsets[filterName] ?? 0;
 packages/skotiq_core/lib/src/services/profile_service.dart	syncFiltersToProfile	literal_null_coalesce	1	V0025	newOffsets[filterName] = existingOffsets[filterName] ?? 0;
-packages/skotiq_core/lib/src/services/profile_service/profile_backends.dart	_createProfileFromExport	literal_null_coalesce	1	V0479	final savedId = int.tryParse(backend.lastSavedProfileId ?? '');
 packages/skotiq_core/lib/src/services/profile_service/profile_export_data.dart	ProfileExportData.fromJson	literal_null_coalesce	1	V0121	_profileBool(json['coolOnConnect'], 'coolOnConnect') ?? false,
 packages/skotiq_core/lib/src/services/profile_service/profile_export_data.dart	ProfileExportData.fromJson	literal_null_coalesce	1	V0121	aperture: _profileDouble(json['aperture'], 'aperture') ?? 0.0,
 packages/skotiq_core/lib/src/services/profile_service/profile_export_data.dart	ProfileExportData.fromJson	literal_null_coalesce	1	V0121	apertureMm: data.telescopeAperture ?? 0,

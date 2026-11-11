@@ -10,9 +10,7 @@ import '../models/sequence/sequence_models.dart'
         ConditionsScoreWeights,
         SequenceExecutionState,
         SequenceExecutionStateCapabilities;
-import '../backend/disconnected_backend.dart';
 import '../backend/skotiq_backend.dart';
-import '../backend/network_backend.dart';
 import 'sequence/plan_run_end.dart';
 import '../services/adaptive_swap_service.dart';
 import '../services/safe_rig_service.dart';
@@ -29,6 +27,7 @@ import 'weather_providers.dart';
 import 'equipment_provider.dart';
 import 'settings_provider.dart';
 import 'ui_notification_provider.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'sequence_provider.dart';
 import '../services/end_of_night_calibration/eon_providers.dart'
@@ -161,11 +160,12 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
        _clock = clock ?? DateTime.now,
        super(WeatherSafetyState.initial()) {
     final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
+    final remote = backend.remoteHost?.weather;
+    if (remote != null) {
       _startRemoteStatusPolling();
       return;
     }
-    if (backend is DisconnectedBackend) {
+    if (backend.hasNoHost) {
       // UI-only mode has no rig to protect and no authority to issue hardware
       // commands. Keep the conservative unknown/unsafe verdict so imaging is
       // never presented as weather-safe, but make the state passive: evaluating
@@ -779,9 +779,10 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     );
 
     final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
+    final remote = backend.remoteHost?.weather;
+    if (remote != null) {
       unawaited(
-        backend
+        remote
             .acknowledgeSafetyCondition(
               reason: why,
               durationMinutes: duration.inMinutes.clamp(1, 1440),
@@ -858,13 +859,14 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       clearSnooze: true,
     );
     final backend = _ref.read(backendProvider);
-    if (backend is! NetworkBackend) {
+    final remote = backend.remoteHost?.weather;
+    if (remote == null) {
       _logOperatorWeatherAction('Weather verdict override ended');
       unawaited(_pushOperatorClear(0, 'Override ended'));
     }
-    if (backend is NetworkBackend) {
+    if (remote != null) {
       unawaited(
-        backend
+        remote
             .cancelSafetyAcknowledgement()
             .then((_) => _refreshRemoteStatus())
             .catchError((Object error) {
@@ -883,7 +885,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
 
   /// Force immediate re-evaluation of all safety sources
   void forceEvaluation() {
-    if (_ref.read(backendProvider) is NetworkBackend) {
+    if (_ref.read(backendProvider).remoteHost != null) {
       unawaited(_refreshRemoteStatus());
       return;
     }
@@ -898,7 +900,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
   /// route awaits this before answering, so an unbounded wait would hang the
   /// request rather than merely delaying it.
   Future<void> evaluateNow({Duration timeout = _evaluateNowTimeout}) async {
-    if (_ref.read(backendProvider) is NetworkBackend) {
+    if (_ref.read(backendProvider).remoteHost != null) {
       await _refreshRemoteStatus();
       return;
     }

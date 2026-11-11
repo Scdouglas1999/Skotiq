@@ -14,12 +14,14 @@ extension _WeatherSafetyRemote on WeatherSafetyNotifier {
   Future<void> _refreshRemoteStatus() async {
     if (_remoteFetchInFlight || !mounted) return;
     final backend = _ref.read(backendProvider);
-    if (backend is! NetworkBackend) return;
+    final host = backend.remoteHost;
+    if (host == null) return;
+    final remote = host.weather;
     // isAuthTokenRejected: terminal credentials — polling can only 403, so
     // don't. But the last verdict fetched is no longer known to hold, and
     // leaving it on show would keep a stale "Safe" on the card all night.
     // Replace it once with the same unavailable state a failed poll writes.
-    if (backend.isAuthTokenRejected) {
+    if (host.link.isAuthTokenRejected) {
       if (state.failModeWarning != _authRejectedSafetyWarning) {
         state = WeatherSafetyState.initial().copyWith(
           failModeWarning: _authRejectedSafetyWarning,
@@ -31,7 +33,7 @@ extension _WeatherSafetyRemote on WeatherSafetyNotifier {
     }
     _remoteFetchInFlight = true;
     try {
-      final response = await backend.getSafetyStatus();
+      final response = await remote.getSafetyStatus();
       if (!mounted) return;
       final rawStatus = response['safetyStatus'];
       final status = WeatherSafetyStatus.values.firstWhere(

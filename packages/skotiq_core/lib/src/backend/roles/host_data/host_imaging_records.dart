@@ -79,4 +79,6 @@ abstract interface class HostImagingRecords {
     int limit = 200,
     int offset = 0,
   });
+
+  Future<Map<String, dynamic>?> getTargetById(int id);
 }

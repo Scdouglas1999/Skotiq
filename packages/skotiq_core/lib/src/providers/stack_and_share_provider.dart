@@ -10,6 +10,7 @@ import '../models/imaging/stack_and_share_models.dart';
 import '../services/logging_service.dart';
 import '../services/stack_and_share_service.dart';
 import '../services/stack_share_export_service.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 
 /// UI-facing state for the **Stack-and-Share Loop** orchestrator (component C7).
@@ -167,7 +168,7 @@ class StackAndShareNotifier extends StateNotifier<StackAndShareState> {
     int sessionId, {
     StackAndShareConfig? config,
   }) async {
-    if (_ref.read(backendProvider) is NetworkBackend) {
+    if (_ref.read(backendProvider).remoteHost != null) {
       state = const StackAndShareState(
         progress: StackAndShareProgress(phase: StackAndSharePhase.error),
         errorMessage:
@@ -271,7 +272,8 @@ final stackAndShareProvider =
 final stackResultViewerProvider =
     FutureProvider.family<StackAndShareResult, int>((ref, id) async {
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
+      final host = backend.remoteHost?.liveStack;
+      if (host != null) {
         return (await ref.watch(remoteStackResultProvider(id).future)).result;
       }
       final dao = ref.watch(stackedResultsDaoProvider);
@@ -288,8 +290,9 @@ final recentStackedResultsProvider = FutureProvider<List<StackAndShareResult>>((
   ref,
 ) async {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    final remote = await backend.stackingGetSavedResults();
+  final host = backend.remoteHost?.liveStack;
+  if (host != null) {
+    final remote = await host.stackingGetSavedResults();
     return [for (final record in remote) record.result];
   }
   final dao = ref.watch(stackedResultsDaoProvider);
@@ -303,10 +306,11 @@ final recentStackedResultsProvider = FutureProvider<List<StackAndShareResult>>((
 final remoteStackResultProvider =
     FutureProvider.family<RemoteStackedResult, int>((ref, id) async {
       final backend = ref.watch(backendProvider);
-      if (backend is! NetworkBackend) {
+      final host = backend.remoteHost?.liveStack;
+      if (host == null) {
         throw StateError('Remote stack metadata requires a network backend.');
       }
-      return backend.stackingGetSavedResult(id);
+      return host.stackingGetSavedResult(id);
     });
 
 /// Loads and strictly decodes the durable display preview for a saved result.
@@ -318,14 +322,15 @@ final remoteStackResultProvider =
 final stackResultPreviewProvider = FutureProvider.autoDispose
     .family<Uint8List?, int>((ref, id) async {
       final backend = ref.watch(backendProvider);
+      final host = backend.remoteHost?.liveStack;
       final result = await ref.watch(stackResultViewerProvider(id).future);
 
       late final Uint8List encoded;
       late final String source;
-      if (backend is NetworkBackend) {
+      if (host != null) {
         final remote = await ref.watch(remoteStackResultProvider(id).future);
         if (!remote.previewAvailable) return null;
-        encoded = await backend.stackingGetSavedResultPreview(id);
+        encoded = await host.stackingGetSavedResultPreview(id);
         source = 'remote stacked-result preview $id';
       } else {
         final recordedPath = result.exportedImagePath;

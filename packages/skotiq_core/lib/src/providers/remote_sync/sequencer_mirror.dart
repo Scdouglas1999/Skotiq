@@ -3,7 +3,7 @@ part of '../remote_sync_handler.dart';
 void _applySequencerEvent(
   Object reader,
   SkotiqEvent event, {
-  NetworkBackend? networkBackend,
+  SkotiqBackend? networkBackend,
 }) {
   final progressNotifier = _read(reader, sequenceProgressProvider.notifier);
   final data = event.data;
@@ -216,7 +216,7 @@ void _applySequenceEditorMirror(
   editor.adoptOwner(owner);
   if (replacesOwnWrite && parsed != null) {
     final backend = _read(reader, backendProvider);
-    final host = backend is NetworkBackend ? backend.serverHost : 'the host';
+    final host = backend.remoteHost?.link.serverHost ?? 'the host';
     _read(reader, uiNotificationProvider.notifier).showInfo(
       'The plan was changed on $host after your last edit; showing its '
       'version.',
@@ -240,11 +240,13 @@ void _applySequenceEditorMirror(
 /// endpoint is unavailable on an older host.
 Future<void> _hydrateOpenEditorSequence(
   Object reader,
-  NetworkBackend backend,
+  SkotiqBackend backend,
 ) async {
+  final runState = backend.remoteHost?.runState;
+  if (runState == null) return;
   final Map<String, dynamic>? payload;
   try {
-    payload = await backend.getOpenEditorSequence();
+    payload = await runState.getOpenEditorSequence();
   } catch (_) {
     // Older headless host without the endpoint, or a transient fetch error:
     // the live mirror still seeds the canvas on the master's next edit.
@@ -290,7 +292,7 @@ void _invalidateSequenceLibrary(Object reader, {int? sequenceId}) {
 
 Future<void> _refreshSequencerStatus(
   Object reader,
-  NetworkBackend backend,
+  SkotiqBackend backend,
 ) async {
   try {
     final status = await backend.sequencerGetStatus();

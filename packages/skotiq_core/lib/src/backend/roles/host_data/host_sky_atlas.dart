@@ -1,3 +1,4 @@
+
 import 'dart:typed_data';
 
 
@@ -10,5 +11,22 @@ abstract interface class HostSkyAtlas {
     int regionId, {
     int outPixels = 2048,
     String? interp,
+  });
+
+  Future<List<Map<String, dynamic>>> getAtlasCoverage();
+
+  Future<List<Map<String, dynamic>>> getAtlasRegions();
+
+  Future<Map<String, dynamic>> getAtlasRegion(int regionId);
+
+  Future<Map<String, dynamic>> getAtlasRegionTimeline(int regionId);
+
+  Future<int> createAtlasRegion({
+    required String name,
+    required double centerRaDeg,
+    required double centerDecDeg,
+    required double radiusDeg,
+    required String kind,
+    int? targetId,
   });
 }

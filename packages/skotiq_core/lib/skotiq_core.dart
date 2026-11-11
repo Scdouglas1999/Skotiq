@@ -372,6 +372,8 @@ export 'src/backend/remote_host.dart';
 export 'src/backend/roles/host_data/calibration_library.dart';
 export 'src/backend/roles/host_data/observation_log.dart';
 export 'src/backend/roles/host_data/observing_lists_store.dart';
+export 'src/backend/roles/host_data/science_products.dart';
+export 'src/backend/roles/host_data/host_records.dart';
 export 'src/providers/async_scope.dart';
 // Single seam for the typed sequencer/run event surface — app/headless UI
 // consume the bridge event union + display helpers through here instead of

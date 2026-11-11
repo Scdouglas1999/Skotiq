@@ -4,11 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart'
     show apiEventStream, SkotiqEvent, EventCategory, EventSeverity;
 import '../backend/bridge_event_mapper.dart';
-import '../backend/ffi_backend.dart';
-import '../backend/network_backend.dart';
 import '../models/backend/event_types.dart' as core;
 import '../models/backend/host_runtime_update.dart' show isHostSyncEnvelope;
 import '../services/device_service_lifecycle.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'host_mutation_event_provider.dart';
 import 'sequence/run_stop_classification.dart';
@@ -24,7 +23,7 @@ final skotiqEventsProvider = StreamProvider<SkotiqEvent>((ref) {
   // Remote clients receive the same typed bridge events as local FFI
   // backends by reconstructing `EventPayload_*` variants from the
   // collapsed envelope on `NetworkBackend.eventStream` (WebSocket).
-  if (backend is NetworkBackend) {
+  if (backend.remoteHost != null) {
     // `HostStateChanged` is a host-mutation SYNC envelope (applied separately
     // by applyRemoteSyncEvent), NOT a Rust telemetry event. The typed bridge
     // mapper has no case for it, so its `default` arm turns every one into a
@@ -43,7 +42,7 @@ final skotiqEventsProvider = StreamProvider<SkotiqEvent>((ref) {
   // GUI EventBus sees remote companion writes while the embedded API server
   // is enabled.
   final nativeStream = apiEventStream();
-  if (backend is! FfiBackend) {
+  if (!backend.ownsDeviceBridge) {
     return nativeStream;
   }
 

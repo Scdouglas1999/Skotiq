@@ -4,8 +4,8 @@ import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/database.dart' show PhotometricTransformRow;
-import '../backend/network_backend.dart';
 import '../utils/resilient_poll_stream.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 
@@ -13,10 +13,11 @@ import 'database_provider.dart';
 final activeProfileTransformsProvider =
     StreamProvider<List<PhotometricTransformRow>>((ref) {
       final backend = ref.watch(backendProvider);
+      final remote = backend.remoteHost?.history;
       final profileId = ref.watch(activeEquipmentProfileIdProvider);
-      if (backend is NetworkBackend) {
+      if (remote != null) {
         return _pollRemoteTransforms(
-          backend,
+          remote,
           profileId: profileId,
           interval: ref.watch(remotePhotometricTransformPollIntervalProvider),
         );
@@ -37,11 +38,11 @@ final remotePhotometricTransformPollIntervalProvider = Provider<Duration>(
 );
 
 Stream<List<PhotometricTransformRow>> _pollRemoteTransforms(
-  NetworkBackend backend, {
+  HostHistory remote, {
   int? profileId,
   Duration interval = const Duration(seconds: 10),
 }) => resilientDistinctPoll(
-  fetch: () => backend.getPhotometricTransforms(profileId: profileId),
+  fetch: () => remote.getPhotometricTransforms(profileId: profileId),
   unchanged: listEquals,
   interval: interval,
   onRetainedError: (error, stackTrace) {

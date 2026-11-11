@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
 import '../models/backend/device_capabilities.dart';
 import '../services/disk_space_guard.dart';
 import '../services/disk_space_service.dart';
 import '../services/logging_service.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'capability_provider.dart';
 import 'equipment_provider.dart';
@@ -43,11 +43,12 @@ final captureDirDiskSpaceProvider = StreamProvider.autoDispose<DiskSpaceInfo?>((
   // the host over the API. A local `df` against the host's path resolves on
   // the CLIENT filesystem and can only fail.
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    yield await backend.getHostCaptureDiskSpace();
+  final remote = backend.remoteHost?.files;
+  if (remote != null) {
+    yield await remote.getHostCaptureDiskSpace();
     while (true) {
       await Future<void>.delayed(const Duration(seconds: 10));
-      yield await backend.getHostCaptureDiskSpace();
+      yield await remote.getHostCaptureDiskSpace();
     }
   }
 

@@ -11,6 +11,9 @@ abstract interface class HostLink {
 
   int get serverPort;
 
+  /// The certificate fingerprint this client pinned for the host, if any.
+  String? get pinnedFingerprint;
+
   BackendConnectionState get connectionState;
 
   Stream<BackendConnectionState> get connectionStateStream;

@@ -31,6 +31,21 @@ import 'roles/host_data/host_sequence_library.dart';
 import 'roles/host_data/observation_log.dart';
 import 'roles/host_data/observing_lists_store.dart';
 import 'skotiq_backend.dart';
+// h2-night role imports
+import 'roles/host_data/host_runtime_mirror.dart';
+import 'roles/host_data/host_secondary_rig.dart';
+import 'roles/host_data/host_pointing.dart';
+import 'roles/host_data/host_rig_settings.dart';
+import 'roles/host_data/host_history.dart';
+import 'roles/host_data/host_notes.dart';
+import 'roles/host_data/host_run_state.dart';
+import 'roles/host_data/host_calibration_frames.dart';
+import 'roles/host_data/host_replay_debug.dart';
+import 'roles/host_data/host_weather.dart';
+import 'network_backend/host_data/host_poll.dart';
+import 'network_backend/host_data/remote_host_records.dart';
+import 'network_backend/host_data/remote_science_products.dart';
+import 'roles/host_data/science_products.dart';
 
 export 'roles/host_data/host_calibration_tools.dart';
 export 'roles/host_data/host_imaging_records.dart';
@@ -55,6 +70,17 @@ export 'roles/host_data/host_live_stack.dart';
 export 'roles/host_data/host_planning_data.dart';
 export 'roles/host_data/host_post_session.dart';
 export 'roles/host_data/host_sequence_library.dart';
+// h2-night role exports
+export 'roles/host_data/host_runtime_mirror.dart';
+export 'roles/host_data/host_secondary_rig.dart';
+export 'roles/host_data/host_pointing.dart';
+export 'roles/host_data/host_rig_settings.dart';
+export 'roles/host_data/host_history.dart';
+export 'roles/host_data/host_notes.dart';
+export 'roles/host_data/host_run_state.dart';
+export 'roles/host_data/host_calibration_frames.dart';
+export 'roles/host_data/host_replay_debug.dart';
+export 'roles/host_data/host_weather.dart';
 
 /// The data roles of a backend whose imaging host is another machine.
 ///
@@ -140,6 +166,47 @@ final class RemoteHost {
   HostPostSession get postSession => _backend;
 
   HostSequenceLibrary get sequences => _backend;
+
+  // h2-night roles
+
+  HostRuntimeMirror get runtimeMirror => _backend;
+
+  HostSecondaryRig get secondaryRig => _backend;
+
+  HostPointing get pointing => _backend;
+
+  HostRigSettings get rigSettings => _backend;
+
+  HostHistory get history => _backend;
+
+  HostNotes get notes => _backend;
+
+  HostRunState get runState => _backend;
+
+  HostCalibrationFrames get calibrationFrames => _backend;
+
+  HostReplayDebug get replayDebug => _backend;
+
+  HostWeather get weather => _backend;
+
+  /// Everything the host announces: device and run events and the
+  /// notifications that its stored data changed.
+  Stream<SkotiqEvent> get events => _backend.eventStream;
+
+  /// The host's saved targets, sequences, sessions and runs, as the row types
+  /// the local database yields (`TargetLibrary`, `SequenceLibrary`,
+  /// `SessionHistory`, `RunHistory`).
+  late final RemoteHostRecords records = RemoteHostRecords(_backend);
+
+  /// A new instance per call: the caller keeps it for as long as it wants
+  /// that [pollInterval].
+  ScienceProducts scienceProducts({
+    Duration pollInterval = HostPoll.defaultInterval,
+  }) => RemoteScienceProducts(_backend, pollInterval: pollInterval);
+
+  late final SettingRows scienceSettingRows = RemoteScienceSettingRows(
+    _backend,
+  );
 }
 
 extension HostDataDispatch on SkotiqBackend {
@@ -177,4 +244,25 @@ extension SequencerRoleHostDispatch on SequencerBackend {
 RemoteHost? _remoteHostOf(Object backend) {
   if (backend is! NetworkBackend) return null;
   return RemoteHost._hosts[backend] ??= RemoteHost._(backend);
+}
+
+// h2-night additions
+
+/// The same questions for a backend held as its diagnostics role, which is
+/// how the notification router and the host sync binding receive it.
+extension DiagnosticsRoleHostDispatch on DiagnosticsBackend {
+  RemoteHost? get remoteHost => _remoteHostOf(this);
+
+  bool get hasNoHost => this is DisconnectedBackend;
+
+  bool get ownsDeviceBridge => this is FfiBackend;
+}
+
+extension HostLinkIdentity on HostLink {
+  /// Names this host among the hosts this client has linked to: address,
+  /// port, scheme and pinned certificate. Used to key per-host preferences.
+  String get identity =>
+      '${scheme.toLowerCase()}://'
+      '${serverHost.trim().toLowerCase()}:$serverPort|'
+      '${pinnedFingerprint?.trim().toLowerCase() ?? ''}';
 }

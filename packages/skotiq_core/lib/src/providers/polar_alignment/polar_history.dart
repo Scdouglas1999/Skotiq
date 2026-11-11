@@ -2,7 +2,7 @@ part of '../polar_alignment_provider.dart';
 
 /// Provider for polar alignment history from database.
 ///
-/// On a remote client (`NetworkBackend`) the slave never runs the local
+/// On a linked client the slave never runs the local
 /// alignment loop, so its `polar_alignment_history` table is always empty.
 /// We branch to the host's `GET /api/polar-alignment-history`
 /// (`fetchPolarAlignmentHistory()`) and map each
@@ -14,8 +14,9 @@ final polarAlignmentHistoryProvider =
       profileId,
     ) async {
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
-        final entries = await _fetchRemotePolarHistory(backend, profileId);
+      final remote = backend.remoteHost?.history;
+      if (remote != null) {
+        final entries = await _fetchRemotePolarHistory(remote, profileId);
         return entries.take(20).toList();
       }
       final db = ref.watch(databaseProvider);
@@ -32,8 +33,9 @@ final lastPolarAlignmentProvider =
       profileId,
     ) async {
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
-        final entries = await _fetchRemotePolarHistory(backend, profileId);
+      final remote = backend.remoteHost?.history;
+      if (remote != null) {
+        final entries = await _fetchRemotePolarHistory(remote, profileId);
         return entries.isEmpty ? null : entries.first;
       }
       final db = ref.watch(databaseProvider);
@@ -47,8 +49,9 @@ final polarAlignmentHistoryStreamProvider =
       profileId,
     ) {
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
-        return _pollRemotePolarHistory(backend, profileId);
+      final remote = backend.remoteHost?.history;
+      if (remote != null) {
+        return _pollRemotePolarHistory(remote, profileId);
       }
       final db = ref.watch(databaseProvider);
       return db.polarAlignmentHistoryDao.watchHistory(profileId);
@@ -57,11 +60,11 @@ final polarAlignmentHistoryStreamProvider =
 /// Polls the host's polar-alignment history, emitting only on change (mirrors
 /// the `_pollRemote` change-guard in `database_provider.dart`).
 Stream<List<PolarAlignmentHistoryEntry>> _pollRemotePolarHistory(
-  NetworkBackend backend,
+  HostHistory remote,
   int? profileId, {
   Duration interval = const Duration(seconds: 10),
 }) => resilientDistinctPoll(
-  fetch: () => _fetchRemotePolarHistory(backend, profileId),
+  fetch: () => _fetchRemotePolarHistory(remote, profileId),
   unchanged: listEquals,
   interval: interval,
   onRetainedError: (error, stackTrace) {
@@ -76,10 +79,10 @@ Stream<List<PolarAlignmentHistoryEntry>> _pollRemotePolarHistory(
 );
 
 Future<List<PolarAlignmentHistoryEntry>> _fetchRemotePolarHistory(
-  NetworkBackend backend,
+  HostHistory remote,
   int? profileId,
 ) async {
-  final page = await backend.fetchPolarAlignmentHistory(
+  final page = await remote.fetchPolarAlignmentHistory(
     equipmentProfileId: profileId,
   );
   final mapped = page.items.map(_polarEntryFromRemote).toList()

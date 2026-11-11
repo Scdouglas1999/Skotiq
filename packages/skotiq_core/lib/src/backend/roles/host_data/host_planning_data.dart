@@ -63,4 +63,23 @@ abstract interface class HostPlanningData {
   );
 
   Future<void> updateSmartNightSettings(Map<String, String> settings);
+
+  Future<Map<String, dynamic>> getSchedulerState();
+
+  Future<SchedulerDecision> getSchedulerPreview();
+
+  Future<List<TargetSuggestion>> fetchRankedTonightSuggestions(
+    TargetSuggestionConfig config,
+  );
+
+  Future<Map<String, dynamic>> getSuggestionsForTonight({
+    double? minAltitude,
+    double? minScore,
+    int? maxResults,
+    String? sortMode,
+    bool? prioritizeIncomplete,
+    List<String>? objectTypes,
+  });
+
+  Future<Map<String, dynamic>> planetariumCatalogSearch(String query);
 }
