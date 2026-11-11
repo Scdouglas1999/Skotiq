@@ -373,6 +373,16 @@ const List<Setting<Object?>> kAppSettingsTable = [
     false,
     seeded: true,
   ),
+
+  /// Whether device scans ask the QHY SDK for cameras and filter wheels. Off
+  /// on a computer where the QHY SDK crashes or hangs while enumerating.
+  /// Applied by the host at start-up and whenever it changes.
+  BoolSetting(
+    'qhyDiscoveryEnabled',
+    'qhy_discovery_enabled',
+    true,
+    sync: SettingSync.hostStore,
+  ),
   // Remote Access / Web Server Settings
   BoolSetting('webServerEnabled', 'web_server_enabled', false, seeded: true),
   IntSetting(

@@ -161,6 +161,7 @@ class FfiBackend extends _FfiBackendBase
         EnvironmentalStatusBackend,
         DomeStatusBackend,
         DeviceQuirksBackend,
+        VendorSdkBackend,
         MountGuardBackend {
   /// [thumbnailSidecars] is a seam for tests that need to observe or stub
   /// thumbnail generation without a live Rust bridge; production leaves it

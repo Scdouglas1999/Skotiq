@@ -121,6 +121,16 @@ abstract interface class DeviceQuirksBackend {
   Future<List<DeviceQuirk>> deviceQuirks(String deviceId);
 }
 
+/// Backends that run the vendor camera SDKs in this process.
+abstract interface class VendorSdkBackend {
+  /// Whether the QHY SDK library loaded on this computer.
+  bool get qhySdkAvailable;
+
+  /// Whether device scans ask the QHY SDK for cameras and filter wheels, for
+  /// the life of this process. Open connections are not touched.
+  void setQhyDiscoveryEnabled(bool enabled);
+}
+
 /// Role interface covering driver-bound device operations.
 ///
 /// What this role owns:

@@ -176,6 +176,15 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
     await bridge.apiRescanDevices();
   }
 
+  bool get qhySdkAvailable =>
+      bridge.NativeBridge.isNativeAvailable &&
+      bridge.apiGetQhyDiscoveryStatus().sdkAvailable;
+
+  void setQhyDiscoveryEnabled(bool enabled) {
+    if (!bridge.NativeBridge.isNativeAvailable) return;
+    bridge.apiSetQhyDiscoveryEnabled(enabled: enabled);
+  }
+
   /// The quirk table is keyed by the model name for most vendors
   /// (`native:<vendor>:<model>`, as each driver looks its own quirks up) and
   /// by the device id for the rest, so both keys are asked.

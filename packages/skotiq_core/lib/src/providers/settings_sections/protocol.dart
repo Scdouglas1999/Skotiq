@@ -5,6 +5,7 @@
 // Owns:
 //   * indiServerHost, indiServerPort, indiAutoConnect
 //   * alpacaServerHost, alpacaServerPort, alpacaAutoDiscover
+//   * qhyDiscoveryEnabled (the QHY SDK enumeration switch)
 //
 // Does NOT own:
 //   * Per-device connection state (that's runtime, not settings) → see
@@ -34,4 +35,7 @@ extension ProtocolSettingsSection on AppSettingsNotifier {
 
   Future<void> setAlpacaAutoDiscover(bool value) =>
       _set(AppSettingDefs.alpacaAutoDiscover, value);
+
+  Future<void> setQhyDiscoveryEnabled(bool value) =>
+      _set(AppSettingDefs.qhyDiscoveryEnabled, value);
 }
