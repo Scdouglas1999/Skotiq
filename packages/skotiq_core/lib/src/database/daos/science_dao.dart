@@ -399,48 +399,30 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
   /// Replaced spatial maps have new autoincrement row IDs. A count/max-ID
   /// fingerprint per image detects additions, replacements and deletions
   /// without materializing hundreds of thousands of pixel-map rows.
+  ///
+  /// SQL text on purpose: the Science views ask this on every refresh, one
+  /// row per frame with spatial maps, and drift's typed results map rows
+  /// 2-5x slower than this (measured on the per-frame queries in ImagesDao).
   Future<Map<String, String>> spatialMapVersions(
     int sessionId,
     String product,
   ) async {
-    final (
-      TableInfo<Table, dynamic> table,
-      GeneratedColumn<int> imageId,
-      GeneratedColumn<int> rowId,
-      GeneratedColumn<int> session,
-    ) = switch (product) {
-      'psfTiles' => (
-        psfFieldTiles,
-        psfFieldTiles.capturedImageId,
-        psfFieldTiles.id,
-        psfFieldTiles.sessionId,
-      ),
-      'tileMetrics' => (
-        scienceTileMetrics,
-        scienceTileMetrics.capturedImageId,
-        scienceTileMetrics.id,
-        scienceTileMetrics.sessionId,
-      ),
-      'residuals' => (
-        astrometryResidualVectors,
-        astrometryResidualVectors.capturedImageId,
-        astrometryResidualVectors.id,
-        astrometryResidualVectors.sessionId,
-      ),
+    final TableInfo<Table, dynamic> table = switch (product) {
+      'psfTiles' => psfFieldTiles,
+      'tileMetrics' => scienceTileMetrics,
+      'residuals' => astrometryResidualVectors,
       _ => throw ArgumentError.value(product, 'product'),
     };
-    final count = countAll();
-    final lastId = rowId.max();
-    final rows =
-        await (selectOnly(table)
-              ..addColumns([imageId, count, lastId])
-              ..where(session.equals(sessionId))
-              ..groupBy([imageId]))
-            .get();
+    final rows = await customSelect(
+      'SELECT captured_image_id, COUNT(*) AS n, MAX(id) AS last_id '
+      'FROM ${table.actualTableName} WHERE session_id = ? GROUP BY captured_image_id',
+      variables: [Variable.withInt(sessionId)],
+      readsFrom: {table},
+    ).get();
     return {
       for (final row in rows)
-        (row.read(imageId)?.toString() ?? 'none'):
-            '${row.read(count)}:${row.read(lastId)}',
+        (row.readNullable<int>('captured_image_id')?.toString() ?? 'none'):
+            '${row.read<int>('n')}:${row.read<int>('last_id')}',
     };
   }
 

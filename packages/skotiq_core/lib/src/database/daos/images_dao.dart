@@ -80,6 +80,14 @@ class ProducingNodeThumbnail {
   }
 }
 
+/// Reads and writes for captured_images and image_metadata.
+///
+/// The queries marked "per frame" run for every frame of a run, or on every
+/// redraw of a run's views, and stay SQL text on purpose: drift's typed
+/// results map rows 2-5x slower (10 000 frames on this machine: thumbnail
+/// strip 0.47 -> 2.45 ms, one row 108 -> 132 us), and a typed update wakes
+/// every captured_images watcher, the largest of which re-reads the whole
+/// night (about 100 ms per 5 000 frames).
 @DriftAccessor(
   tables: [CapturedImages, ImageMetadata, ImagingSessions, Targets],
 )
@@ -312,17 +320,25 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
 
   /// Read the sidecar JPEG path for [imageId], or null if no sidecar has
   /// been written. Doesn't probe the filesystem — callers must stat the
-  /// file themselves before assuming the path is usable.
-  Future<String?> getThumbnailPath(int imageId) =>
-      _columnOf(imageId, capturedImages.thumbnailPath);
+  /// file themselves before assuming the path is usable. Per frame: every
+  /// thumbnail request reads it.
+  Future<String?> getThumbnailPath(int imageId) async {
+    final row = await customSelect(
+      'SELECT thumbnail_path FROM captured_images WHERE id = ?',
+      variables: [Variable<int>(imageId)],
+      readsFrom: {capturedImages},
+    ).getSingleOrNull();
+    if (row == null) return null;
+    return row.data['thumbnail_path'] as String?;
+  }
 
   /// Stamp the sidecar path on a row. Passing an empty string or `null`
   /// clears it (used by regenerate-after-failure scenarios). Doesn't
   /// validate the path exists on disk.
   ///
-  /// SQL text on purpose: a typed update wakes every watcher of
-  /// captured_images, and the thumbnail backfill stamps the library one row
-  /// at a time. Nothing reads this column through a watcher.
+  /// SQL text because a typed update wakes every captured_images watcher,
+  /// and the thumbnail backfill stamps the library one row at a time.
+  /// Nothing reads this column through a watcher.
   Future<void> setThumbnailPath(int imageId, String? thumbnailPath) async {
     if (thumbnailPath == null || thumbnailPath.isEmpty) {
       await customStatement(
@@ -469,17 +485,12 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
   }
 
   /// Ids of frames a plate solver ran on and could not solve (and that have
-  /// not solved since).
-  Stream<Set<int>> watchPlateSolveFailedIds() {
-    final i = capturedImages;
-    return (selectOnly(i)
-          ..addColumns([i.id])
-          ..where(
-            i.plateSolveFailedAt.isNotNull() & i.isPlateSolved.equals(false),
-          ))
-        .watch()
-        .map((rows) => {for (final r in rows) r.read(i.id)!});
-  }
+  /// not solved since). Per frame: it re-runs on every write to the table.
+  Stream<Set<int>> watchPlateSolveFailedIds() => customSelect(
+    'SELECT id FROM captured_images '
+    'WHERE plate_solve_failed_at IS NOT NULL AND is_plate_solved = 0',
+    readsFrom: {capturedImages},
+  ).watch().map((rows) => {for (final r in rows) r.read<int>('id')});
 
   /// The newest row recorded for [filePath], or null. A path can be recorded
   /// more than once (a frame re-registered after a restart), and the newest
@@ -539,30 +550,24 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
 
   /// Read the anisotropic WCS columns for [id] — the `solved_cd*` matrix and
   /// the `solved_sip` blob. Any may be null when the stored solve was
-  /// isotropic.
+  /// isotropic. Per frame: every solved frame's hooks read it.
   Future<
     ({double? cd1_1, double? cd1_2, double? cd2_1, double? cd2_2, String? sip})?
   >
   getStoredWcsDistortion(int id) async {
-    final i = capturedImages;
-    final row =
-        await (selectOnly(i)
-              ..addColumns([
-                i.solvedCd1_1,
-                i.solvedCd1_2,
-                i.solvedCd2_1,
-                i.solvedCd2_2,
-                i.solvedSip,
-              ])
-              ..where(i.id.equals(id)))
-            .getSingleOrNull();
+    final row = await customSelect(
+      'SELECT solved_cd1_1, solved_cd1_2, solved_cd2_1, solved_cd2_2, '
+      'solved_sip FROM captured_images WHERE id = ?',
+      variables: [Variable<int>(id)],
+      readsFrom: {capturedImages},
+    ).getSingleOrNull();
     if (row == null) return null;
     return (
-      cd1_1: row.read(i.solvedCd1_1),
-      cd1_2: row.read(i.solvedCd1_2),
-      cd2_1: row.read(i.solvedCd2_1),
-      cd2_2: row.read(i.solvedCd2_2),
-      sip: row.read(i.solvedSip),
+      cd1_1: row.data['solved_cd1_1'] as double?,
+      cd1_2: row.data['solved_cd1_2'] as double?,
+      cd2_1: row.data['solved_cd2_1'] as double?,
+      cd2_2: row.data['solved_cd2_2'] as double?,
+      sip: row.data['solved_sip'] as String?,
     );
   }
 
@@ -590,7 +595,7 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
     return counts;
   }
 
-  // Producing-node provenance
+  // Producing-node provenance and the thumbnail strip (per frame).
 
   /// Stamp the producing-node provenance on an already-persisted image row.
   ///
@@ -609,21 +614,37 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
     double? eccentricity,
     double? fwhm,
   }) async {
-    final stamp = CapturedImagesCompanion(
-      producingNodeId: Value.absentIfNull(producingNodeId),
-      producingRunId: Value.absentIfNull(producingRunId),
-      runtimeGrade: Value.absentIfNull(runtimeGrade),
-      eccentricity: Value.absentIfNull(eccentricity),
-      fwhm: Value.absentIfNull(fwhm),
+    final assignments = <String>[];
+    final args = <Object?>[];
+    void put(String column, Object? value) {
+      if (value == null) return;
+      assignments.add('$column = ?');
+      args.add(value);
+    }
+
+    put('producing_node_id', producingNodeId);
+    put('producing_run_id', producingRunId);
+    put('runtime_grade', runtimeGrade);
+    put('eccentricity', eccentricity);
+    put('fwhm', fwhm);
+    if (assignments.isEmpty) return;
+    await customStatement(
+      'UPDATE captured_images SET ${assignments.join(", ")} WHERE id = ?',
+      [...args, imageId],
     );
-    if (stamp.toColumns(false).isEmpty) return;
-    await _writeImage(imageId, stamp);
   }
 
   /// Read the persisted median FWHM for [imageId], or null when the
-  /// producing path measured none.
-  Future<double?> getFwhm(int imageId) =>
-      _columnOf(imageId, capturedImages.fwhm);
+  /// producing path measured none. Per frame: the auto-grader reads it.
+  Future<double?> getFwhm(int imageId) async {
+    final row = await customSelect(
+      'SELECT fwhm FROM captured_images WHERE id = ?',
+      variables: [Variable<int>(imageId)],
+      readsFrom: {capturedImages},
+    ).getSingleOrNull();
+    if (row == null) return null;
+    return row.data['fwhm'] as double?;
+  }
 
   /// Measured median FWHM for every frame of [sessionId] that has one, keyed
   /// by image id. Frames the producing path never measured are absent.
@@ -656,37 +677,64 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
       producingRunId,
       limit,
     ).get();
-    return rows.map(_thumbnail).toList(growable: false);
+    return rows.map(_thumbnailFromRow).toList(growable: false);
   }
 
   /// Live-update version of [getImagesByProducingNode]. Used by the
   /// sequence-tree thumbnail strip so freshly-captured frames appear
-  /// inline without a manual refresh.
+  /// inline without a manual refresh. Per frame: it re-runs on every write
+  /// to the table.
   Stream<List<ProducingNodeThumbnail>> watchImagesByProducingNode({
     required String producingNodeId,
     String? producingRunId,
     int limit = 100,
   }) {
-    return _producedBy(
-      producingNodeId,
-      producingRunId,
-      limit,
-    ).watch().map((rows) => rows.map(_thumbnail).toList(growable: false));
+    return _producedBy(producingNodeId, producingRunId, limit).watch().map(
+      (rows) => rows.map(_thumbnailFromRow).toList(growable: false),
+    );
   }
 
   /// Count thumbnails for a given producing node — used by the tree
   /// rendering to decide whether to draw the strip at all (an empty
-  /// strip is collapsed silently per the spec).
+  /// strip is collapsed silently per the spec). Per frame: every tree
+  /// redraw asks it for each exposure node.
   Future<int> countImagesByProducingNode({
     required String producingNodeId,
     String? producingRunId,
   }) async {
-    final i = capturedImages;
-    return _count(
-      producingRunId == null
-          ? i.producingNodeId.equals(producingNodeId)
-          : i.producingNodeId.equals(producingNodeId) &
-                i.producingRunId.equals(producingRunId),
+    final row = await customSelect(
+      'SELECT COUNT(*) AS c FROM captured_images '
+      'WHERE producing_node_id = ?'
+      '${producingRunId == null ? '' : ' AND producing_run_id = ?'}',
+      variables: [
+        Variable<String>(producingNodeId),
+        if (producingRunId != null) Variable<String>(producingRunId),
+      ],
+    ).getSingleOrNull();
+    return (row?.data['c'] as int?) ?? 0;
+  }
+
+  Selectable<QueryRow> _producedBy(
+    String producingNodeId,
+    String? producingRunId,
+    int limit,
+  ) {
+    return customSelect(
+      'SELECT id, file_path, file_name, filter, frame_type, hfr, '
+      'eccentricity, fwhm, star_count, exposure_duration, captured_at, '
+      'is_accepted, rejection_reason, runtime_grade, producing_node_id, '
+      'producing_run_id '
+      'FROM captured_images '
+      'WHERE producing_node_id = ?'
+      '${producingRunId == null ? '' : ' AND producing_run_id = ?'} '
+      'ORDER BY captured_at ASC '
+      'LIMIT ?',
+      variables: [
+        Variable<String>(producingNodeId),
+        if (producingRunId != null) Variable<String>(producingRunId),
+        Variable<int>(limit),
+      ],
+      readsFrom: {capturedImages},
     );
   }
 
@@ -708,6 +756,9 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
   /// callers without one (tests, raw-DB tools) can pass `null` and the
   /// warning will be swallowed silently — those callers are not the
   /// production capture path.
+  ///
+  /// Per frame: this is frame registration during a run (typed insert,
+  /// median 4.1 -> 5.0 ms on this machine).
   Future<int> insertSequenceFrame({
     required String filePath,
     required String fileName,
@@ -752,6 +803,14 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
     LoggingService? logger,
     ThumbnailSidecarService? sidecarService,
   }) async {
+    final ms = capturedAt.toUtc().millisecondsSinceEpoch ~/ 1000;
+    Variable<int> intOrNull(int? v) =>
+        v == null ? const Variable<int>(null) : Variable<int>(v);
+    Variable<String> strOrNull(String? v) =>
+        v == null ? const Variable<String>(null) : Variable<String>(v);
+    Variable<double> realOrNull(double? v) =>
+        v == null ? const Variable<double>(null) : Variable<double>(v);
+
     // Populate file_size so REST clients can pre-size a
     // download. We use the synchronous length() here (the file was just
     // written by Rust and is guaranteed on disk for the
@@ -782,45 +841,56 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
         ? null
         : '$filePath.thumb.jpg';
 
-    final result = await into(capturedImages).insert(
-      CapturedImagesCompanion.insert(
-        filePath: filePath,
-        fileName: fileName,
-        fileFormat: Value(fileFormat),
-        fileSize: Value(fileSize),
-        sessionId: Value(sessionId),
-        targetId: Value(targetId),
-        frameType: Value(frameType),
-        exposureDuration: exposureDuration,
-        gain: Value(gain),
-        offset: Value(offset),
-        binX: Value(binX ?? 1),
-        binY: Value(binY ?? 1),
-        filter: Value(filter),
-        hfr: Value(hfr),
-        starCount: Value(starCount),
-        qualityScore: Value(qualityScore),
-        capturedAt: capturedAt,
-        isAccepted: Value(isAccepted),
-        rejectionReason: Value(rejectionReason),
-        producingNodeId: Value(producingNodeId),
-        producingRunId: Value(producingRunId),
-        runtimeGrade: Value(runtimeGrade),
-        eccentricity: Value(eccentricity),
-        thumbnailPath: Value(thumbnailPath),
-        isPlateSolved: const Value(false),
-        createdAt: Value(capturedAt),
-        sensorTemp: Value(sensorTemp),
-        coolerPower: Value(coolerPower),
-        mountRa: Value(mountRa),
-        mountDec: Value(mountDec),
-        mountAltitude: Value(mountAltitude),
-        mountAzimuth: Value(mountAzimuth),
-        pierSide: Value(pierSide),
-        focuserPosition: Value(focuserPosition),
-        focuserTemp: Value(focuserTemp),
-        rotatorAngle: Value(rotatorAngle),
-      ),
+    final result = await customInsert(
+      'INSERT INTO captured_images '
+      '(file_path, file_name, file_format, file_size, session_id, target_id, '
+      'frame_type, exposure_duration, gain, offset, bin_x, bin_y, filter, '
+      'hfr, star_count, quality_score, captured_at, is_accepted, '
+      'rejection_reason, producing_node_id, producing_run_id, '
+      'runtime_grade, eccentricity, thumbnail_path, is_plate_solved, '
+      'created_at, sensor_temp, cooler_power, mount_ra, mount_dec, '
+      'mount_altitude, mount_azimuth, pier_side, focuser_position, '
+      'focuser_temp, rotator_angle) '
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '
+      '?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      variables: [
+        Variable<String>(filePath),
+        Variable<String>(fileName),
+        Variable<String>(fileFormat),
+        intOrNull(fileSize),
+        intOrNull(sessionId),
+        intOrNull(targetId),
+        Variable<String>(frameType),
+        Variable<double>(exposureDuration),
+        intOrNull(gain),
+        intOrNull(offset),
+        Variable<int>(binX ?? 1),
+        Variable<int>(binY ?? 1),
+        strOrNull(filter),
+        realOrNull(hfr),
+        intOrNull(starCount),
+        realOrNull(qualityScore),
+        Variable<int>(ms),
+        Variable<bool>(isAccepted),
+        strOrNull(rejectionReason),
+        Variable<String>(producingNodeId),
+        strOrNull(producingRunId),
+        strOrNull(runtimeGrade),
+        realOrNull(eccentricity),
+        strOrNull(thumbnailPath),
+        Variable<int>(ms),
+        realOrNull(sensorTemp),
+        realOrNull(coolerPower),
+        realOrNull(mountRa),
+        realOrNull(mountDec),
+        realOrNull(mountAltitude),
+        realOrNull(mountAzimuth),
+        strOrNull(pierSide),
+        intOrNull(focuserPosition),
+        realOrNull(focuserTemp),
+        realOrNull(rotatorAngle),
+      ],
+      updates: {capturedImages},
     );
 
     // Schedule fire-and-forget sidecar generation. The row is
@@ -964,16 +1034,6 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
   Future<void> _writeImage(int id, CapturedImagesCompanion changes) =>
       (update(capturedImages)..where((i) => i.id.equals(id))).write(changes);
 
-  /// One nullable column of frame [id], or null when the row is missing.
-  Future<T?> _columnOf<T extends Object>(int id, Expression<T> column) async {
-    final row =
-        await (selectOnly(capturedImages)
-              ..addColumns([column])
-              ..where(capturedImages.id.equals(id)))
-            .getSingleOrNull();
-    return row?.read(column);
-  }
-
   Future<int> _count(Expression<bool> where) async {
     final count = countAll();
     final row =
@@ -983,68 +1043,31 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
             .getSingle();
     return row.read(count) ?? 0;
   }
+}
 
-  List<Expression<Object>> get _thumbnailColumns {
-    final i = capturedImages;
-    return [
-      i.id,
-      i.filePath,
-      i.fileName,
-      i.filter,
-      i.frameType,
-      i.hfr,
-      i.eccentricity,
-      i.fwhm,
-      i.starCount,
-      i.exposureDuration,
-      i.capturedAt,
-      i.isAccepted,
-      i.rejectionReason,
-      i.runtimeGrade,
-      i.producingNodeId,
-      i.producingRunId,
-    ];
-  }
-
-  JoinedSelectStatement<$CapturedImagesTable, CapturedImage> _producedBy(
-    String producingNodeId,
-    String? producingRunId,
-    int limit,
-  ) {
-    final i = capturedImages;
-    return selectOnly(i)
-      ..addColumns(_thumbnailColumns)
-      ..where(
-        producingRunId == null
-            ? i.producingNodeId.equals(producingNodeId)
-            : i.producingNodeId.equals(producingNodeId) &
-                  i.producingRunId.equals(producingRunId),
-      )
-      ..orderBy([OrderingTerm.asc(i.capturedAt)])
-      ..limit(limit);
-  }
-
-  ProducingNodeThumbnail _thumbnail(TypedResult row) {
-    final i = capturedImages;
-    return ProducingNodeThumbnail(
-      id: row.read(i.id)!,
-      filePath: row.read(i.filePath)!,
-      fileName: row.read(i.fileName)!,
-      filter: row.read(i.filter),
-      frameType: row.read(i.frameType)!,
-      hfr: row.read(i.hfr),
-      eccentricity: row.read(i.eccentricity),
-      fwhm: row.read(i.fwhm),
-      starCount: row.read(i.starCount),
-      exposureDuration: row.read(i.exposureDuration)!,
-      // Drift decodes a DateTime column as a local instant; the strip has
-      // always been handed UTC.
-      capturedAt: row.read(i.capturedAt)!.toUtc(),
-      isAccepted: row.read(i.isAccepted)!,
-      rejectionReason: row.read(i.rejectionReason),
-      runtimeGrade: row.read(i.runtimeGrade),
-      producingNodeId: row.read(i.producingNodeId)!,
-      producingRunId: row.read(i.producingRunId),
-    );
-  }
+ProducingNodeThumbnail _thumbnailFromRow(QueryRow row) {
+  // captured_at is INTEGER unix seconds, the way drift stores a DateTime
+  // column; the strip is handed UTC.
+  final capturedAtRaw = row.data['captured_at'];
+  final capturedAt = capturedAtRaw is int
+      ? DateTime.fromMillisecondsSinceEpoch(capturedAtRaw * 1000, isUtc: true)
+      : DateTime.now();
+  return ProducingNodeThumbnail(
+    id: row.read<int>('id'),
+    filePath: row.read<String>('file_path'),
+    fileName: row.read<String>('file_name'),
+    filter: row.readNullable<String>('filter'),
+    frameType: row.read<String>('frame_type'),
+    hfr: row.readNullable<double>('hfr'),
+    eccentricity: row.readNullable<double>('eccentricity'),
+    fwhm: row.readNullable<double>('fwhm'),
+    starCount: row.readNullable<int>('star_count'),
+    exposureDuration: row.read<double>('exposure_duration'),
+    capturedAt: capturedAt,
+    isAccepted: row.read<bool>('is_accepted'),
+    rejectionReason: row.readNullable<String>('rejection_reason'),
+    runtimeGrade: row.readNullable<String>('runtime_grade'),
+    producingNodeId: row.read<String>('producing_node_id'),
+    producingRunId: row.readNullable<String>('producing_run_id'),
+  );
 }

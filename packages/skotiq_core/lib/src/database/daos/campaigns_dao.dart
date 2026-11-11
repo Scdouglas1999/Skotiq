@@ -38,14 +38,15 @@ class CampaignsDao extends DatabaseAccessor<SkotiqDatabase>
     final at = toEpochSeconds(now ?? DateTime.now());
     final existing = await _findRow(targetId, filter);
     if (existing != null) {
+      final id = existing.read<int>('id');
       await _updateRow(
-        existing.id,
+        id,
         CampaignsCompanion(
           desiredCount: Value(desiredCount),
           updatedAt: Value(at),
         ),
       );
-      return existing.id;
+      return id;
     }
     return into(campaigns).insert(
       CampaignsCompanion.insert(
@@ -78,15 +79,16 @@ class CampaignsDao extends DatabaseAccessor<SkotiqDatabase>
     final at = toEpochSeconds(capturedAt ?? DateTime.now());
     final existing = await _findRow(targetId, filter);
     if (existing != null) {
+      final id = existing.read<int>('id');
       await _updateRow(
-        existing.id,
+        id,
         CampaignsCompanion.custom(
           acceptedCount: campaigns.acceptedCount + Variable(delta),
           lastDate: Variable(at),
           updatedAt: Variable(at),
         ),
       );
-      return existing.id;
+      return id;
     }
     return into(campaigns).insert(
       CampaignsCompanion.insert(
@@ -115,27 +117,27 @@ class CampaignsDao extends DatabaseAccessor<SkotiqDatabase>
   /// Filter matching is case-insensitive.
   Future<Campaign?> getForTargetFilter(int targetId, String filter) async {
     final row = await _findRow(targetId, filter);
-    return row == null ? null : _map(row);
+    return row == null ? null : _map(campaigns.map(row.data));
   }
 
   /// Remaining accepted frames for a `(target, filter)` campaign, clamped to
   /// zero. Returns null when no campaign row exists for the pair.
   Future<int?> remaining(int targetId, String filter) async {
-    final row = await _findRow(targetId, filter);
-    if (row == null) return null;
+    final found = await _findRow(targetId, filter);
+    if (found == null) return null;
+    final row = campaigns.map(found.data);
     final r = row.desiredCount - row.acceptedCount;
     return r < 0 ? 0 : r;
   }
 
-  Future<CampaignRow?> _findRow(int targetId, String filter) {
-    return (select(campaigns)
-          ..where(
-            (c) =>
-                c.targetId.equals(targetId) &
-                c.filter.lower().equalsExp(Variable(filter).lower()),
-          )
-          ..limit(1))
-        .getSingleOrNull();
+  /// SQL text on purpose: [recordAccepted] runs this for every accepted
+  /// frame, and drift's typed result made the lookup 72 -> 100 us.
+  Future<QueryRow?> _findRow(int targetId, String filter) {
+    return customSelect(
+      'SELECT * FROM campaigns '
+      'WHERE target_id = ? AND LOWER(filter) = LOWER(?) LIMIT 1',
+      variables: [Variable<int>(targetId), Variable<String>(filter)],
+    ).getSingleOrNull();
   }
 
   Future<void> _updateRow(int id, Insertable<CampaignRow> changes) =>
