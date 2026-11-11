@@ -184,8 +184,8 @@ class OnlineFallbackLookup implements CatalogLookup {
       );
     } on TargetNameLookupUnavailable catch (e) {
       throw CatalogLookupFailure(
-        'not in the installed catalog, and SIMBAD could not be reached '
-        '(${e.message})',
+        'not in the installed catalog, and the SIMBAD lookup failed. '
+        '${e.message}',
       );
     }
   }

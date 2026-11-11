@@ -840,8 +840,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
       final location = attempt.fix;
       if (location == null) {
         context.showWarningSnackBar(
-          'No position from Wi-Fi, this machine, or the internet lookup. '
-          '${attempt.failureDetail} Search for a place by name, or enter '
+          '${attempt.failureMessage} Search for a place by name, or enter '
           'coordinates.',
         );
         return;

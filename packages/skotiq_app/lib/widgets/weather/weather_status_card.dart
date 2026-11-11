@@ -14,13 +14,19 @@ class WeatherStatusCard extends StatelessWidget {
 
   final CloudMotion? motion;
 
+  /// When the last fetch that returned data finished.
   final DateTime? lastUpdate;
+
+  /// The latest attempt to fetch weather data failed. Anything still shown
+  /// is from [lastUpdate], not from now.
+  final bool fetchFailed;
 
   const WeatherStatusCard({
     super.key,
     this.alert,
     this.motion,
     this.lastUpdate,
+    this.fetchFailed = false,
   });
 
   static IconData _alertIcon(AlertLevel level) {
@@ -74,13 +80,28 @@ class WeatherStatusCard extends StatelessWidget {
     return '${difference.inDays} days ago';
   }
 
+  /// How old the data on the card is, or why there is none. A reading with no
+  /// fetch time to age it gets no line rather than a made-up one.
+  String? _freshnessLine() {
+    if (lastUpdate != null) {
+      final age = _formatLastUpdate(lastUpdate!);
+      return fetchFailed ? 'Last data $age' : 'Updated $age';
+    }
+    if (alert != null) return null;
+    return fetchFailed ? 'No weather data received' : 'Waiting for weather data';
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
 
-    final level = alert?.level ?? AlertLevel.clear;
-    final tone = _alertColor(level, colors);
-    final eta = alert?.eta;
+    final level = alert?.level;
+    // A level from before a failed fetch is history, so it loses its status
+    // color; with no level at all there is nothing to call clear.
+    final tone = level == null || fetchFailed
+        ? colors.textMuted
+        : _alertColor(level, colors);
+    final eta = fetchFailed ? null : alert?.eta;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -88,11 +109,19 @@ class WeatherStatusCard extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(_alertIcon(level), size: SkotiqTokens.iconSm, color: tone),
+            Icon(
+              level == null ? SkotiqIcons.help : _alertIcon(level),
+              size: SkotiqTokens.iconSm,
+              color: tone,
+            ),
             const SizedBox(width: SkotiqTokens.spaceSm),
             Expanded(
               child: Text(
-                _alertLabel(level),
+                level != null
+                    ? _alertLabel(level)
+                    : fetchFailed
+                        ? 'Unknown'
+                        : 'Checking',
                 style: SkotiqTypography.bodyStrong.copyWith(color: tone),
               ),
             ),
@@ -162,16 +191,9 @@ class WeatherStatusCard extends StatelessWidget {
           ),
         ],
         const SizedBox(height: SkotiqTokens.spaceSm),
-        // Null means no fetch has landed yet — say so instead of leaving the
-        // slot blank; an age is only printable once there is a real fetch time
-        // to age from.
-        // A reading on screen is data, so "Waiting" under it is not true;
-        // without a fetch time to age it, the line is left out.
-        if (lastUpdate != null || alert == null)
+        if (_freshnessLine() case final line?)
           Text(
-            lastUpdate == null
-                ? 'Waiting for weather data'
-                : 'Updated ${_formatLastUpdate(lastUpdate!)}',
+            line,
             style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
       ],

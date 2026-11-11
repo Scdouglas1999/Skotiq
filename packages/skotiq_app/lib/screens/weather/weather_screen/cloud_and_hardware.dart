@@ -16,6 +16,7 @@ class _WeatherConditions extends ConsumerWidget {
   final WeatherAlert? alert;
   final CloudMotion? motion;
   final DateTime? lastUpdate;
+  final bool fetchFailed;
   final double? cloudCoverPercent;
   final double? alertRadiusKm;
   final bool expanded;
@@ -27,6 +28,7 @@ class _WeatherConditions extends ConsumerWidget {
     required this.alert,
     required this.motion,
     required this.lastUpdate,
+    this.fetchFailed = false,
     required this.cloudCoverPercent,
     required this.alertRadiusKm,
     required this.expanded,
@@ -126,6 +128,7 @@ class _WeatherConditions extends ConsumerWidget {
               alert: alert,
               motion: motion,
               lastUpdate: lastUpdate,
+              fetchFailed: fetchFailed,
             ),
           ],
           if (sensorRows.isNotEmpty) ...[
@@ -141,6 +144,7 @@ class _WeatherConditions extends ConsumerWidget {
                 weatherPolicyArmedLabel(
                   armed: safetyState.autoParkArmed,
                   toggledOn: settings.autoParkEnabled,
+                  monitoring: safetyState.monitoringEnabled,
                 ),
               ),
               (
@@ -148,6 +152,7 @@ class _WeatherConditions extends ConsumerWidget {
                 weatherPolicyArmedLabel(
                   armed: safetyState.autoResumeArmed,
                   toggledOn: settings.autoResumeEnabled,
+                  monitoring: safetyState.monitoringEnabled,
                 ),
               ),
             ],

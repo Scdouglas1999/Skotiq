@@ -96,7 +96,7 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
     Color accent, {
     required bool narrow,
   }) {
-    return Row(
+    final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         _buildTimeDisplay(timeState, txtColor, showSeconds: !narrow),
@@ -108,6 +108,12 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
         narrow ? _buildCompactNowButton(accent) : _buildNowButton(accent),
       ],
     );
+    final daylight = _buildDaylightNote(txtColor);
+    if (daylight == null) return row;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [daylight, const SizedBox(height: SkotiqTokens.spaceXs), row],
+    );
   }
 
   Widget _buildFullLayout(
@@ -116,10 +122,15 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
     Color txtColor,
     Color accent,
   ) {
+    final daylight = _buildDaylightNote(txtColor);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (daylight != null) ...[
+          daylight,
+          const SizedBox(height: SkotiqTokens.spaceXs),
+        ],
         // Date/Time row
         Row(
           mainAxisSize: MainAxisSize.min,
@@ -224,6 +235,34 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
       label: label,
       excludeSemantics: true,
       child: child,
+    );
+  }
+
+  /// The chart keeps a dark sky at every hour so it stays readable, so with
+  /// the Sun up it says so instead of passing a daytime sky off as night.
+  Widget? _buildDaylightNote(Color txtColor) {
+    final sunAltitude = ref.watch(planetariumSunAltitudeProvider);
+    if (sunAltitude == null || sunAltitude < 0) return null;
+    final text = 'Sun ${sunAltitude.round()}° up · sky drawn as if dark';
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          LucideIcons.sun,
+          size: SkotiqTokens.iconXs,
+          color: context.skotiqColors.warning,
+        ),
+        const SizedBox(width: SkotiqTokens.spaceXs),
+        Flexible(
+          child: Text(
+            text,
+            overflow: TextOverflow.ellipsis,
+            style: SkotiqTypography.labelSm.copyWith(
+              color: txtColor.withValues(alpha: 0.75),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

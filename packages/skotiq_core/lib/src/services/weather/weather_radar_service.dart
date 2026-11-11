@@ -38,8 +38,12 @@ class WeatherRadarService {
   final StreamController<List<RadarFrame>> _framesController =
       StreamController<List<RadarFrame>>.broadcast();
 
-  /// Cached fetch result from the last successful fetch.
+  /// The most recent fetch result, failed or not.
   RadarFetchResult? _cachedResult;
+
+  /// The most recent fetch that returned frames. A failed fetch never replaces
+  /// it, so the UI can say how old the last real data is.
+  RadarFetchResult? _lastSuccessfulResult;
 
   DateTime? _lastFetchTime;
 
@@ -215,6 +219,7 @@ class WeatherRadarService {
         // Tag with the producing provider's display name for UI attribution.
         final result = fetched.withProviderName(candidate.name);
         _cachedResult = result;
+        _lastSuccessfulResult = result;
         _lastFetchTime = DateTime.now();
         _framesController.add(result.frames);
         developer.log(
@@ -250,11 +255,9 @@ class WeatherRadarService {
     return errorResult;
   }
 
-  /// The most recent fetch result, including provider attribution and fetch
-  /// time. Null until the first fetch completes. Includes failed results (so
-  /// callers can inspect [RadarFetchResult.errorMessage]); use
-  /// [RadarFetchResult.isSuccess] to distinguish.
-  RadarFetchResult? get lastResult => _cachedResult;
+  /// The most recent fetch that returned frames, with its provider and fetch
+  /// time. Null until one succeeds; later failures leave it in place.
+  RadarFetchResult? get lastSuccessfulResult => _lastSuccessfulResult;
 
   /// Gets cached radar frames if available.
   ///

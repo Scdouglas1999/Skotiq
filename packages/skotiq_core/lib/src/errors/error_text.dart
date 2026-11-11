@@ -161,6 +161,8 @@ String? _typedMessage(Object error) {
     final why = error.osError?.message ?? error.message;
     return 'Could not reach$where${why.isEmpty ? '' : ' ($why)'}';
   }
+  // Its toString appends the whole request URL, query string and all.
+  if (error is http.ClientException) return error.message;
   if (error is FileSystemException) {
     final why = error.osError?.message ?? error.message;
     final path = error.path;

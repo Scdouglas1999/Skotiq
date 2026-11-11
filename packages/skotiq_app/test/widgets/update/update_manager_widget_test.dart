@@ -46,6 +46,40 @@ void main() {
     await tester.pump();
   });
 
+  // ux walk-2 F1: the first thing a new user offline saw was a red toast
+  // "UpdateException: Network error: Connection failed".
+  testWidgets('a check that cannot reach its source raises no toast', (
+    tester,
+  ) async {
+    final tempDir = Directory.systemTemp.createTempSync(
+      'skotiq-update-manager-',
+    );
+    addTearDown(() {
+      if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+    });
+    final notifier = _TestUpdateNotifier(tempDir);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [updateProvider.overrideWith((ref) => notifier)],
+        child: const MaterialApp(
+          home: UpdateManagerWidget(child: Scaffold(body: Text('App'))),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 4));
+
+    notifier.emitStatus(UpdateStatus.checking);
+    await tester.pump();
+    notifier.emitError('Could not reach GitHub (Connection failed).');
+    await tester.pump();
+
+    expect(find.textContaining('Could not reach GitHub'), findsNothing);
+
+    await tester.pump(const Duration(seconds: 10));
+    await tester.pump();
+  });
+
   testWidgets(
       'a download that ends verified and staged raises no LAN push '
       'banner', (tester) async {

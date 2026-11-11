@@ -24,6 +24,10 @@ class _PlannerSearchResults extends ConsumerWidget {
     if (trimmed.length < localQueryFloor) return const SizedBox.shrink();
     final candidates =
         ref.watch(plannerFilteredSuggestionsProvider).valueOrNull ?? const [];
+    final installedMatches = ref
+            .watch(plannerInstalledCatalogSearchProvider(trimmed))
+            .valueOrNull ??
+        const [];
 
     return Padding(
       padding: const EdgeInsets.only(top: SkotiqTokens.space2xl),
@@ -34,7 +38,8 @@ class _PlannerSearchResults extends ConsumerWidget {
           if (trimmed.length >= remoteQueryFloor)
             _SimbadResultsSection(
               query: trimmed,
-              hasLocalMatches: candidates.isNotEmpty,
+              hasLocalMatches:
+                  candidates.isNotEmpty || installedMatches.isNotEmpty,
             ),
         ],
       ),
@@ -130,10 +135,16 @@ class _SimbadResultsSection extends ConsumerWidget {
 
     return async.when(
       loading: () => const _SearchProgressLine(label: 'Searching SIMBAD'),
-      error: (e, _) => _SearchProblemLine(
-        label: 'SIMBAD lookup failed',
-        detail: userFacingError(e),
-      ),
+      // With local matches on screen a failed online lookup is a footnote,
+      // not a warning over the results the operator already has.
+      error: (e, _) => hasLocalMatches
+          ? _SearchQuietLine(
+              text: 'SIMBAD lookup failed. ${userFacingError(e)}',
+            )
+          : _SearchProblemLine(
+              label: 'SIMBAD lookup failed',
+              detail: userFacingError(e),
+            ),
       data: (matches) {
         if (matches.isEmpty) {
           if (hasLocalMatches) return const SizedBox.shrink();

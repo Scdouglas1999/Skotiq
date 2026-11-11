@@ -28,10 +28,17 @@ import 'hips_tile_layer.dart';
 
 part 'framing_canvas_parts/_canvas_controls.dart';
 
+/// The survey notice sits above the scale bar (bottom left, about 40 px tall)
+/// and left of the zoom group (bottom right, about 44 px wide) at any canvas
+/// width, so it covers neither.
+const double _surveyNoticeBottom = 64;
+const double _surveyNoticeRightInset = 72;
+
 /// The main framing canvas: handles pan / rotate gestures, stacks the survey
 /// image (or starfield fallback), optional grid, equipment FOV overlays, the
 /// mosaic grid, and the on-canvas controls (top chips, zoom, scale, target
 /// info, error banner).
+
 class FramingCanvas extends ConsumerStatefulWidget {
   final SkotiqColors colors;
   final FramingState framingState;
@@ -754,21 +761,46 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
                 ),
               ),
 
-              if (widget.framingState.imageError != null)
-                Center(
-                  child: Container(
-                    padding: SkotiqTokens.paddingLg,
-                    margin: const EdgeInsets.all(SkotiqTokens.space3xl),
-                    decoration: BoxDecoration(
-                      color: widget.colors.error
-                          .withValues(alpha: SkotiqTokens.opacitySubtle),
-                      borderRadius: SkotiqTokens.borderRadiusMd,
-                      border: Border.all(color: widget.colors.error),
-                    ),
-                    child: Text(
-                      widget.framingState.imageError!,
-                      style: SkotiqTypography.body
-                          .copyWith(color: widget.colors.error),
+              // The sky behind still frames the target from the installed
+              // catalog, so a missing survey image is a note above the scale
+              // bar, not a box over the frame.
+              if (widget.framingState.imageError case final error?)
+                Positioned(
+                  left: SkotiqTokens.spaceLg,
+                  right: _surveyNoticeRightInset,
+                  bottom: _surveyNoticeBottom,
+                  child: Center(
+                    child: Glass(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            SkotiqIcons.warning,
+                            size: SkotiqTokens.iconSm,
+                            color: widget.colors.warning,
+                          ),
+                          const SizedBox(width: SkotiqTokens.spaceSm),
+                          Flexible(
+                            child: Text(
+                              error,
+                              style: SkotiqTypography.bodySm.copyWith(
+                                color: widget.colors.textSecondary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: SkotiqTokens.spaceSm),
+                          SkotiqButton(
+                            label: 'Retry',
+                            variant: ButtonVariant.ghost,
+                            size: ButtonSize.small,
+                            onPressed: widget.framingState.isLoadingImage
+                                ? null
+                                : () => ref
+                                    .read(framingProvider.notifier)
+                                    .loadSurveyImage(),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

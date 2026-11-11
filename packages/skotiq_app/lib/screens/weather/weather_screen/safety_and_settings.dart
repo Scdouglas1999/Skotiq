@@ -36,15 +36,17 @@ String weatherSafetyStatusText({
 /// How an auto-park / auto-resume policy is reported.
 ///
 /// A toggle that is on but cannot fire (its prerequisites are off) is neither
-/// "Enabled" nor "Disabled" — say so instead of showing a green promise the rig
-/// will not keep.
+/// "Enabled" nor "Disabled" — say which prerequisite holds it back instead of
+/// showing a promise the rig will not keep.
 @visibleForTesting
 String weatherPolicyArmedLabel({
   required bool armed,
   required bool toggledOn,
+  required bool monitoring,
 }) {
   if (armed) return 'Enabled';
-  return toggledOn ? 'On (safety off)' : 'Disabled';
+  if (!toggledOn) return 'Disabled';
+  return monitoring ? 'Will not fire' : 'Off while safety is off';
 }
 
 /// The page header chip: the whole safety verdict in one or two words.

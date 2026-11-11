@@ -509,19 +509,17 @@ class RadarSourceInfo {
 ///
 /// Watches [weatherRadarFramesProvider] so it stays in lockstep with the
 /// frames currently rendered, then reads the producing provider's name and
-/// fetch time from the radar service's cached result.
+/// fetch time from the radar service's last successful fetch.
 final radarSourceInfoProvider = Provider<RadarSourceInfo>((ref) {
   // Re-read whenever the frames change so attribution tracks the live data.
   final framesAsync = ref.watch(weatherRadarFramesProvider);
   final frames = framesAsync.valueOrNull ?? const [];
 
   final radarService = ref.watch(weatherRadarServiceProvider);
-  final result = radarService.lastResult;
+  final result = radarService.lastSuccessfulResult;
 
   return RadarSourceInfo(
-    providerName: result != null && result.isSuccess
-        ? result.providerName
-        : null,
+    providerName: result?.providerName,
     fetchedAt: result?.fetchedAt,
     frameCount: frames.length,
   );
@@ -582,10 +580,10 @@ final weatherStatusProvider = Provider<WeatherStatus>((ref) {
 
   final radarFrames = framesAsync.valueOrNull ?? [];
 
-  // Freshness comes from the actual radar fetch, not wall-clock now — an
-  // offline session must not read as "Updated just now".
+  // Freshness is the time of the last fetch that returned data: a failed
+  // attempt is not an update.
   final radarService = ref.watch(weatherRadarServiceProvider);
-  final lastFetchedAt = radarService.lastResult?.fetchedAt;
+  final lastFetchedAt = radarService.lastSuccessfulResult?.fetchedAt;
 
   return WeatherStatus(
     currentLevel: currentLevel,

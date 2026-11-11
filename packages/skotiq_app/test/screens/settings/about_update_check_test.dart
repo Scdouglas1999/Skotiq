@@ -187,6 +187,32 @@ void main() {
     expect(find.textContaining('503'), findsOneWidget);
   });
 
+  // ux walk-2 F1/F40: a launch after an offline check said "No update check
+  // has run yet" although the earlier launch had checked and failed.
+  testWidgets('a check from an earlier launch is reported with how it ended', (
+    tester,
+  ) async {
+    final notifier = await _pumpAbout(tester);
+    notifier.put(
+      notifier.state.copyWith(
+        status: UpdateStatus.idle,
+        sourceConfigured: true,
+        lastCheckTime: DateTime.now().subtract(const Duration(minutes: 18)),
+        errorMessage: 'Could not reach GitHub (Connection failed).',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('No update check has run yet'), findsNothing);
+    expect(
+      find.text(
+        'The last update check, 18 minutes ago, did not finish: Could not '
+        'reach GitHub (Connection failed). Check now to try again.',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets(
     'a release with no build for this platform is not read as currency',
     (tester) async {

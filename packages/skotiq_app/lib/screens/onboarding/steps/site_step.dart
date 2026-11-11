@@ -361,8 +361,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
       final location = attempt.fix;
       if (location == null) {
         context.showWarningSnackBar(
-          'No position from Wi-Fi, this machine, or the internet lookup. '
-          '${attempt.failureDetail} Enter your coordinates below, or skip and '
+          '${attempt.failureMessage} Enter your coordinates below, or skip and '
           'set the site later in Settings → Location.',
         );
         return;

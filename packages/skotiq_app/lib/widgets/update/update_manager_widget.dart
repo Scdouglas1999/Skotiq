@@ -403,6 +403,10 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
             }
             break;
           case UpdateStatus.error:
+            // A check that could not reach its source (offline at a dark
+            // site, a rate limit) is reported in Settings > About. Only a
+            // download or install the operator started is worth a toast.
+            if (previous?.status == UpdateStatus.checking) break;
             if (next.errorMessage != null) {
               developer.log(
                 'Error: ${next.errorMessage}',

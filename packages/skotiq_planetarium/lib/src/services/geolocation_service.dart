@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
-import 'dart:io' show Platform;
+import 'dart:io' show Platform, SocketException;
 
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show visibleForTesting;
@@ -62,36 +62,44 @@ class GeolocationService {
   /// Fetch location from IP using ipinfo.io (free, no API key required).
   /// Returns (latitude, longitude, locationName) or null if failed.
   static Future<(double latitude, double longitude, String? locationName)?>
-  fetchLocationFromIP() async => _tupleOf(await _fetchIp(ipPrimaryEndpoint));
+  fetchLocationFromIP() async =>
+      _tupleOf((await _fetchIp(ipPrimaryEndpoint)).fix);
 
   /// Fallback for when the primary service is unreachable or rate-limited.
   /// The fallback must remain HTTPS because its coordinates become the active
   /// observing site.
   static Future<(double latitude, double longitude, String? locationName)?>
   fetchLocationFromIPAlternative() async =>
-      _tupleOf(await _fetchIp(ipFallbackEndpoint));
+      _tupleOf((await _fetchIp(ipFallbackEndpoint)).fix);
 
   /// The internet lookup with its provenance attached: which host answered
   /// rides along so the caller can say "from your internet address
-  /// (ipwho.is)" instead of presenting an estimate as a fix.
-  static Future<PositioningResult?> _fetchIp(Uri uri) async {
+  /// (ipwho.is)" instead of presenting an estimate as a fix. [unreachable]
+  /// says the request never got an answer at all, which is how a machine
+  /// with no internet connection looks from here.
+  static Future<({PositioningResult? fix, bool unreachable})> _fetchIp(
+    Uri uri,
+  ) async {
     final client = clientFactory();
     try {
       final response = await client
           .get(uri)
           .timeout(const Duration(seconds: 5));
-      if (response.statusCode != 200) return null;
+      if (response.statusCode != 200) return (fix: null, unreachable: false);
       final parsed = _parseIpBody(response.body);
-      if (parsed == null) return null;
-      return PositioningResult(
-        latitude: parsed.$1,
-        longitude: parsed.$2,
-        locationName: parsed.$3,
-        source: PositioningSource.ipAddress,
-        provider: uri.host,
-        // Neither IP service reports a radius. Left null rather than filled
-        // with a plausible number: the explanation then says "city level",
-        // which is true, instead of a metre figure nobody measured.
+      if (parsed == null) return (fix: null, unreachable: false);
+      return (
+        fix: PositioningResult(
+          latitude: parsed.$1,
+          longitude: parsed.$2,
+          locationName: parsed.$3,
+          source: PositioningSource.ipAddress,
+          provider: uri.host,
+          // Neither IP service reports a radius. Left null rather than filled
+          // with a plausible number: the explanation then says "city level",
+          // which is true, instead of a metre figure nobody measured.
+        ),
+        unreachable: false,
       );
     } catch (e) {
       developer.log(
@@ -100,17 +108,26 @@ class GeolocationService {
         level: 900,
         error: e,
       );
+      return (
+        fix: null,
+        unreachable: e is SocketException || e is http.ClientException,
+      );
     } finally {
       client.close();
     }
-    return null;
   }
 
   /// Primary internet lookup, then the fallback when it refuses.
-  static Future<PositioningResult?> _internetFix() async {
-    final fix = await _fetchIp(ipPrimaryEndpoint);
-    if (fix != null) return fix;
-    return _fetchIp(ipFallbackEndpoint);
+  /// [unreachable] only when neither host could be reached.
+  static Future<({PositioningResult? fix, bool unreachable})>
+  _internetFix() async {
+    final primary = await _fetchIp(ipPrimaryEndpoint);
+    if (primary.fix != null) return primary;
+    final fallback = await _fetchIp(ipFallbackEndpoint);
+    return (
+      fix: fallback.fix,
+      unreachable: primary.unreachable && fallback.unreachable,
+    );
   }
 
   static (double, double, String?)? _tupleOf(PositioningResult? fix) =>
@@ -165,7 +182,7 @@ class GeolocationService {
 
   /// Try to fetch location, using primary service first, then fallback
   static Future<(double latitude, double longitude, String? locationName)?>
-  fetchLocation() async => _tupleOf(await _internetFix());
+  fetchLocation() async => _tupleOf((await _internetFix()).fix);
 
   /// Look up a town, observatory, or address by name.
   ///
@@ -347,9 +364,11 @@ class GeolocationService {
       }
     }
 
+    var noInternet = false;
     if (!done() && allowIp) {
-      final fix = await _internetFix();
+      final (:fix, :unreachable) = await _internetFix();
       consider(fix);
+      noInternet = unreachable;
       outcomes.add(
         TierOutcome(
           tier: PositioningTier.ipAddress,
@@ -357,6 +376,10 @@ class GeolocationService {
           detail: fix != null
               ? 'Your internet provider places you near '
                     '${fix.locationName ?? 'the coordinates shown'}.'
+              : unreachable
+              ? 'There is no internet connection: neither '
+                    '${ipPrimaryEndpoint.host} nor ${ipFallbackEndpoint.host} '
+                    'could be reached.'
               : 'Neither ${ipPrimaryEndpoint.host} nor '
                     '${ipFallbackEndpoint.host} answered.',
         ),
@@ -368,6 +391,7 @@ class GeolocationService {
       outcomes: outcomes,
       wifiRadioOff: wifiRadioOff,
       wifiRadioCanBeEnabled: wifiRadioCanBeEnabled,
+      noInternet: noInternet,
     );
   }
 

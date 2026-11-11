@@ -113,7 +113,11 @@ extension _FramingSurveyOperations on FramingNotifier {
       if (!_isCurrentSurveyRequest(token, target, source)) return;
       _currentState = _currentState.copyWith(
         isLoadingImage: false,
-        imageError: 'Error: ${e.toString()}',
+        // Every route has failed by now, so a connection failure means none
+        // of the survey servers answered, not just the host the last one hit.
+        imageError: e is SocketException
+            ? 'Survey image unavailable: could not reach the survey servers.'
+            : failureText('Survey image unavailable', e),
       );
     }
   }

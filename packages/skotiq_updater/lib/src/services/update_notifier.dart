@@ -93,6 +93,7 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
 
   Future<void> _initializeStartupState() async {
     _promptState = await _promptStore.read();
+    _lastCheckTime ??= _promptState.lastCheckAt?.toLocal();
     _skippedVersion = await _controller.readSkippedVersion();
     await _controller.bootstrap();
     final status = _controller.status;
@@ -152,9 +153,14 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
       UpdateLifecycleState.installing => UpdateStatus.applying,
       UpdateLifecycleState.failed => UpdateStatus.error,
     };
-    String? error = status.state == UpdateLifecycleState.failed
-        ? status.lastError ?? status.message
-        : null;
+    String? error = switch (status.state) {
+      UpdateLifecycleState.failed => status.lastError ?? status.message,
+      // Nothing has run yet this launch: the last check's failure, if any,
+      // read alongside [UpdateState.lastCheckTime].
+      UpdateLifecycleState.idle when !_checkedThisRun =>
+        _promptState.lastCheckError,
+      _ => null,
+    };
     if (_applying && viewStatus == UpdateStatus.staged) {
       viewStatus = UpdateStatus.applying;
     } else if (_applyError != null) {
@@ -277,9 +283,15 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
         _skippedVersion = null;
         unawaited(_controller.writeSkippedVersion(null));
       }
+      _promptState = _promptState.withCheckOutcome(null);
     } catch (_) {
-      // The controller's status carries the failure.
+      // The controller's status carries the failure; the record keeps it for
+      // a later launch that does not check again.
+      _promptState = _promptState.withCheckOutcome(
+        _controller.status.lastError ?? 'The check did not finish.',
+      );
     }
+    unawaited(_promptStore.write(_promptState));
     _checkedThisRun = true;
     _lastCheckTime = DateTime.now();
     _project();
