@@ -148,8 +148,8 @@ void main() {
       db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       // A configured location is a precondition; without it the handler returns
       // a *different* 400 that would mask the validation behaviour under test.
-      await db.settingsDao.setObserverLatitude(40.0);
-      await db.settingsDao.setObserverLongitude(-74.0);
+      await db.settingsDao.write(AppSettingDefs.latitude, 40.0);
+      await db.settingsDao.write(AppSettingDefs.longitude, -74.0);
       container = ProviderContainer(
         overrides: [databaseProvider.overrideWithValue(db)],
       );

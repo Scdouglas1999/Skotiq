@@ -297,7 +297,8 @@ void main() {
     expect(state().masters, hasLength(1));
   });
 
-  test('with no image folder chosen, the master goes where unattended '
+  test(
+      'with no image folder chosen, the master goes where unattended '
       "builds go, not to wherever the app was started from", () async {
     final c = controller();
     await waitUntilLoaded();
@@ -313,7 +314,7 @@ void main() {
   test('with an image folder chosen, the master goes under it', () async {
     await container
         .read(settingsDaoProvider)
-        .setImageOutputDirectory('/data/astro');
+        .write(AppSettingDefs.imageOutputPath, '/data/astro');
     final c = controller();
     await waitUntilLoaded();
     await c.integrate();

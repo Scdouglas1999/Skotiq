@@ -49,7 +49,8 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
       unawaited(loadComposites());
     } catch (e) {
       if (!mounted) return;
-      state = state.copyWith(loading: false, error: 'Failed to load: ${userFacingError(e)}');
+      state = state.copyWith(
+          loading: false, error: 'Failed to load: ${userFacingError(e)}');
     }
   }
 
@@ -437,7 +438,8 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
       return result.outputPath;
     } catch (e) {
       if (mounted) {
-        state = state.copyWith(error: 'Color calibration failed: ${userFacingError(e)}');
+        state = state.copyWith(
+            error: 'Color calibration failed: ${userFacingError(e)}');
       }
       return null;
     } finally {
@@ -504,7 +506,8 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
         await _publishMasters();
         return written;
       } catch (e) {
-        if (mounted) state = state.copyWith(error: '$label failed: ${userFacingError(e)}');
+        if (mounted)
+          state = state.copyWith(error: '$label failed: ${userFacingError(e)}');
         return null;
       } finally {
         if (mounted) state = busy(false);
@@ -621,8 +624,9 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
   }
 
   Future<String> _outputDir() async {
-    final configured =
-        await _ref.read(settingsDaoProvider).getImageOutputDirectory();
+    final configured = await _ref
+        .read(settingsDaoProvider)
+        .read(AppSettingDefs.imageOutputPath);
     if (configured.trim().isNotEmpty) {
       return p.join(configured.trim(), 'masters');
     }

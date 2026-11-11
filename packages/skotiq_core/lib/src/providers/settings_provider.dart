@@ -231,16 +231,8 @@ class LocationSettings {
 /// Auto connect equipment setting
 class AutoConnectSettingsNotifier extends AsyncNotifier<bool> {
   @override
-  Future<bool> build() async {
-    final dao = ref.read(settingsDaoProvider);
-    return await dao.getAutoConnectEquipment();
-  }
-
-  Future<void> setAutoConnect(bool enabled) async {
-    final dao = ref.read(settingsDaoProvider);
-    await dao.setAutoConnectEquipment(enabled);
-    state = AsyncData(enabled);
-  }
+  Future<bool> build() =>
+      ref.read(settingsDaoProvider).read(AppSettingDefs.autoConnectEquipment);
 }
 
 final autoConnectSettingsProvider =

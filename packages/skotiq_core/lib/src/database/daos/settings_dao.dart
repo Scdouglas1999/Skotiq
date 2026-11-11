@@ -321,63 +321,6 @@ class SettingsDao extends DatabaseAccessor<SkotiqDatabase>
     return (delete(appSettings)..where((s) => s.key.equals(key))).go();
   }
 
-  Future<String> getTheme() async {
-    return await getSetting('theme') ?? 'dark';
-  }
-
-  Future<void> setTheme(String theme) => setSetting('theme', theme);
-
-  Future<String> getDefaultImageDirectory() async {
-    return getImageOutputDirectory();
-  }
-
-  Future<void> setDefaultImageDirectory(String path) =>
-      setImageOutputDirectory(path);
-
-  /// Canonical capture output path with a read-through for pre-migration DBs.
-  Future<String> getImageOutputDirectory() async {
-    final current = await getSetting('image_output_path');
-    if (current != null && current.trim().isNotEmpty) return current;
-    return await getSetting('default_image_directory') ?? '';
-  }
-
-  /// Write both keys during the compatibility window so all app versions and
-  /// post-session services agree on where masters and captures belong.
-  Future<void> setImageOutputDirectory(String path) =>
-      setSettings({'image_output_path': path, 'default_image_directory': path});
-
-  Future<bool> getAutoConnectEquipment() async {
-    final value = await getSetting('auto_connect_equipment');
-    return value == 'true';
-  }
-
-  Future<void> setAutoConnectEquipment(bool enabled) =>
-      setSetting('auto_connect_equipment', enabled.toString());
-
-  Future<double> getObserverLatitude() async {
-    final value = await getSetting('observer_latitude');
-    return double.tryParse(value ?? '0') ?? 0.0;
-  }
-
-  Future<void> setObserverLatitude(double lat) =>
-      setSetting('observer_latitude', lat.toString());
-
-  Future<double> getObserverLongitude() async {
-    final value = await getSetting('observer_longitude');
-    return double.tryParse(value ?? '0') ?? 0.0;
-  }
-
-  Future<void> setObserverLongitude(double lon) =>
-      setSetting('observer_longitude', lon.toString());
-
-  Future<double> getObserverElevation() async {
-    final value = await getSetting('observer_elevation');
-    return double.tryParse(value ?? '0') ?? 0.0;
-  }
-
-  Future<void> setObserverElevation(double elevation) =>
-      setSetting('observer_elevation', elevation.toString());
-
   // Remembered camera sensor geometry ---------------------------------------
   //
   // Stored as one JSON object keyed by camera device id rather than as columns

@@ -528,16 +528,13 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
         ),
       );
     } else {
-      final dao = _ref.read(settingsDaoProvider);
-      if (hasCaptureDir) {
-        await dao.setImageOutputDirectory(captureDir);
-      }
-      if (hasDrivers) {
-        await dao.setSettings({
-          'indi_auto_connect': indi.toString(),
-          'alpaca_auto_discover': alpaca.toString(),
-        });
-      }
+      await _ref.read(settingsDaoProvider).writeAll([
+        if (hasCaptureDir) AppSettingDefs.imageOutputPath.to(captureDir),
+        if (hasDrivers) ...[
+          AppSettingDefs.indiAutoConnect.to(indi),
+          AppSettingDefs.alpacaAutoDiscover.to(alpaca),
+        ],
+      ]);
     }
     requireAuthority('saving the onboarding settings');
     _ref.invalidate(appSettingsProvider);

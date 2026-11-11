@@ -130,7 +130,9 @@ final dawnAutopilotServiceProvider = Provider<DawnAutopilotService>((ref) {
 
 /// The configured capture output directory, or a typed refusal.
 Future<String> _resolveOutputDirectory(SettingsDao settings) async {
-  final configured = (await settings.getImageOutputDirectory()).trim();
+  final configured = (await settings.read(
+    AppSettingDefs.imageOutputPath,
+  )).trim();
   if (configured.isEmpty) throw const DawnOutputDirectoryException();
   return configured;
 }

@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 import '../../database/daos/settings_dao.dart';
+import '../../settings/app_settings_state.g.dart' show AppSettingDefs;
 import '../../providers/backend_provider.dart';
 import '../../providers/database_provider.dart';
 import '../../utils/skotiq_data_directory.dart';
@@ -28,7 +29,7 @@ final darkroomPassRecorderProvider = Provider<DarkroomPassRecorder>((ref) {
       final db = ref.read(databaseProvider);
       final configured = (await SettingsDao(
         db,
-      ).getImageOutputDirectory()).trim();
+      ).read(AppSettingDefs.imageOutputPath)).trim();
       final base = configured.isNotEmpty
           ? configured
           : (await resolveSkotiqDataDirectory()).path;

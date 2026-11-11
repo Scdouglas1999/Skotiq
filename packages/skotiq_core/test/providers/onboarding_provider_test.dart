@@ -222,7 +222,7 @@ void main() {
 
     // Default image directory persisted.
     final settingsDao = container.read(settingsDaoProvider);
-    final captureDir = await settingsDao.getDefaultImageDirectory();
+    final captureDir = await settingsDao.read(AppSettingDefs.imageOutputPath);
     expect(captureDir, 'C:/captures');
 
     // Tutorial progress is NOT yet completed — that waits for finishNextSteps.

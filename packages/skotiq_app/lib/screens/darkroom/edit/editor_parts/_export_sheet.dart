@@ -47,7 +47,7 @@ Future<String?> _defaultDarkroomSavePicker({
 Future<String?> _darkroomOutputDirectory(SettingsDao settings) async {
   final String configured;
   try {
-    configured = (await settings.getImageOutputDirectory()).trim();
+    configured = (await settings.read(AppSettingDefs.imageOutputPath)).trim();
   } catch (error, stack) {
     // The chooser opening at the platform default is the documented behaviour
     // of naming no directory, so a settings read that fails must not stop an
@@ -1443,5 +1443,4 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
     }
     return lines.join('\n');
   }
-
 }
