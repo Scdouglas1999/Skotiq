@@ -5,7 +5,6 @@ import 'package:drift/drift.dart';
 @DataClassName('TutorialProgressEntry')
 @TableIndex(name: 'idx_tutorial_progress_category', columns: {#category})
 class TutorialProgress extends Table {
-  /// Auto-incrementing primary key
   IntColumn get id => integer().autoIncrement()();
 
   /// Tutorial category name (TutorialCategory.name, e.g., 'firstLight')
@@ -15,10 +14,8 @@ class TutorialProgress extends Table {
   /// Last step index the user was on (0-indexed)
   IntColumn get lastStepIndex => integer().withDefault(const Constant(0))();
 
-  /// Whether this tutorial has been fully completed
   BoolColumn get completed => boolean().withDefault(const Constant(false))();
 
-  /// When the user first started this tutorial
   DateTimeColumn get startedAt => dateTime()();
 
   /// When the tutorial was completed (null if not completed)

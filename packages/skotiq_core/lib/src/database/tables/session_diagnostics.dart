@@ -36,7 +36,6 @@ class SessionDiagnostics extends Table {
   /// or null when the post-session pipeline produced no reading.
   TextColumn get opticalTrainCurrentJson => text().nullable()();
 
-  /// When this diagnostics row was last written.
   DateTimeColumn get recordedAt => dateTime().withDefault(currentDateAndTime)();
 
   @override

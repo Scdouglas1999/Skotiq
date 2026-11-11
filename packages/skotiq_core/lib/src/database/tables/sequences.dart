@@ -2,8 +2,6 @@ import 'package:drift/drift.dart';
 
 import 'targets.dart';
 
-/// Sequences table
-/// Stores sequence definitions for the sequencer
 @DataClassName('Sequence')
 @TableIndex(name: 'idx_sequences_name', columns: {#name})
 @TableIndex(name: 'idx_sequences_template', columns: {#isTemplate})
@@ -20,7 +18,6 @@ class Sequences extends Table {
   IntColumn get estimatedDurationMins =>
       integer().withDefault(const Constant(0))();
 
-  // Timestamps
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 
@@ -40,8 +37,6 @@ class Sequences extends Table {
   BoolColumn get isFavorite => boolean().withDefault(const Constant(false))();
 }
 
-/// Sequence nodes table
-/// Stores individual nodes that make up a sequence
 @DataClassName('SequenceNode')
 @TableIndex(name: 'idx_nodes_sequence', columns: {#sequenceId})
 @TableIndex(name: 'idx_nodes_parent', columns: {#parentNodeId})
@@ -68,7 +63,6 @@ class SequenceNodes extends Table {
   // Specific type: slew, expose, autofocus, loop, etc.
   TextColumn get specificType => text()();
 
-  // Display name
   TextColumn get name => text()();
 
   // Node properties as JSON
@@ -77,11 +71,9 @@ class SequenceNodes extends Table {
   // Recovery configuration as JSON
   TextColumn get recoveryConfig => text().nullable()();
 
-  // Parent-child relationships
   TextColumn get parentNodeId => text().nullable()();
   IntColumn get orderIndex => integer().withDefault(const Constant(0))();
 
-  // Enabled state
   BoolColumn get isEnabled => boolean().withDefault(const Constant(true))();
 }
 
@@ -94,16 +86,13 @@ class SequenceCheckpoints extends Table {
   IntColumn get sequenceId =>
       integer().references(Sequences, #id, onDelete: KeyAction.cascade)();
 
-  // Current execution state
   TextColumn get currentNodeId => text()();
   TextColumn get stateJson => text()(); // Serialized runtime state
 
-  // Progress tracking
   IntColumn get completedFrames => integer()();
   IntColumn get totalFrames => integer()();
   IntColumn get currentTargetIndex => integer()();
 
-  // Timestamp
   DateTimeColumn get checkpointedAt =>
       dateTime().withDefault(currentDateAndTime)();
 

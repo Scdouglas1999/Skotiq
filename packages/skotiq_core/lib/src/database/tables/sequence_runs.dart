@@ -21,7 +21,6 @@ class SequenceRuns extends Table {
   /// Snapshot of the sequence name at the time of execution
   TextColumn get sequenceName => text()();
 
-  /// When the run started
   DateTimeColumn get startedAt => dateTime()();
 
   /// When the run ended (null if still running)
