@@ -278,7 +278,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
           } catch (e) {
             // Only a refusal changes the step; any other failure is reported
             // by the field when the folder is saved.
-            if (_isAccessDenied(e)) {
+            if (isAccessLevelRefusal(e)) {
               canChooseFolders = false;
             } else {
               developer.log(
@@ -399,7 +399,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      if (_isAccessDenied(e)) {
+      if (isAccessLevelRefusal(e)) {
         setState(() {
           _busy = false;
           _canChooseFolders = false;
@@ -410,9 +410,6 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
       showApiErrorWithPrefix(context, 'Could not save the capture folder', e);
     }
   }
-
-  static bool _isAccessDenied(Object e) =>
-      e is ServerError && e.httpStatus == 403;
 
   Future<void> _commitCatalogs() async {
     if (_busy) return;
@@ -436,7 +433,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
         setState(() => _catalogsInFlight.add(name));
       } catch (e) {
         if (!mounted) return;
-        if (_isAccessDenied(e)) {
+        if (isAccessLevelRefusal(e)) {
           setState(() => _canInstallCatalogs = false);
           break;
         }
