@@ -117,8 +117,7 @@ pub use storage::*;
 pub use timeout_ops::*;
 pub use unified_device_ops::*;
 
-use futures::FutureExt;
-use std::panic::{self, AssertUnwindSafe};
+use std::panic;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;

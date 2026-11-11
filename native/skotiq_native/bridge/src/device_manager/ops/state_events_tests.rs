@@ -311,10 +311,11 @@ async fn every_focuser_path_publishes_one_move() {
         .unwrap();
     assert_one_focuser_move(&drain(&mut rx), 20_250, "api_focuser_move_relative");
 
-    crate::api::devices::focuser::focuser_move_rel(FOCUSER.to_string(), -50)
+    get_device_manager()
+        .focuser_move_rel(FOCUSER, -50)
         .await
         .unwrap();
-    assert_one_focuser_move(&drain(&mut rx), 20_200, "focuser_move_rel");
+    assert_one_focuser_move(&drain(&mut rx), 20_200, "DeviceManager::focuser_move_rel");
 
     ops.focuser_move_to(FOCUSER, 20_300).await.unwrap();
     assert_one_focuser_move(&drain(&mut rx), 20_300, "UnifiedDeviceOps");

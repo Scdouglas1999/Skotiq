@@ -741,27 +741,6 @@ impl DeviceManager {
         Ok(())
     }
 
-    /// Stop all heartbeat tasks (call during shutdown)
-    pub async fn stop_all_heartbeats(&self) {
-        let tasks: Vec<(String, tokio::task::JoinHandle<()>)> = {
-            let mut tasks = self.heartbeat_tasks.write().await;
-            std::mem::take(&mut *tasks).into_iter().collect()
-        };
-
-        for (device_id, task) in tasks {
-            task.abort();
-            tracing::debug!("Aborted heartbeat for device: {}", device_id);
-        }
-
-        // Mark all heartbeats as inactive
-        {
-            let mut devices = self.devices.write().await;
-            for device in devices.values_mut() {
-                device.heartbeat_active = false;
-            }
-        }
-    }
-
     /// Get device health status
     ///
     /// Returns (last_successful_timestamp_ms, is_healthy)
@@ -806,29 +785,6 @@ impl DeviceManager {
         }
     }
 
-    /// Update last successful communication timestamp for a device
-    ///
-    /// This should be called by device operations when they successfully
-    /// communicate with the device.
-    pub async fn update_device_communication(&self, device_id: &str) {
-        let mut devices = self.devices.write().await;
-        if let Some(device) = devices.get_mut(device_id) {
-            device.last_successful_comm = Some(chrono::Utc::now().timestamp_millis());
-        }
-    }
-
-    /// Check if heartbeat is active for a device
-    pub async fn is_heartbeat_active(&self, device_id: &str) -> bool {
-        let devices = self.devices.read().await;
-        // Why: unregistered device → "no heartbeat
-        // active". The UI uses this to decide whether to show the
-        // heartbeat-pulse indicator; absence-of-device = no indicator
-        // is the correct visual state.
-        devices
-            .get(device_id)
-            .map(|d| d.heartbeat_active)
-            .unwrap_or(false)
-    }
 }
 
 #[cfg(test)]

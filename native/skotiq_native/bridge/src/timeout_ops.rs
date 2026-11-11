@@ -15,7 +15,6 @@
 //! | Long Slew | 300s | GoTo operations |
 //! | Exposure Start | 10s | Begin exposure command |
 //! | Exposure Wait | exposure_time + 60s | Wait for image |
-//! | Image Download | 30s | Transfer image data |
 //! | Focuser Move | 120s | Focuser position change |
 //! | Filter Wheel | 60s | Filter wheel rotation |
 //!
@@ -89,11 +88,6 @@ impl Timeouts {
     pub fn exposure_wait(exposure_secs: f64) -> Duration {
         // Add 60s buffer for download and processing
         Duration::from_secs_f64(exposure_secs + 60.0)
-    }
-
-    /// Timeout for downloading image data
-    pub const fn image_download() -> Duration {
-        Duration::from_secs(30)
     }
 
     /// Timeout for large image downloads (high resolution cameras)
@@ -187,22 +181,6 @@ where
     }
 }
 
-/// Execute a future with a timeout, with a custom timeout error message
-pub async fn with_timeout_custom<T, F, E>(
-    future: F,
-    timeout_duration: Duration,
-    timeout_error: E,
-) -> Result<T, SkotiqError>
-where
-    F: Future<Output = Result<T, SkotiqError>>,
-    E: FnOnce() -> SkotiqError,
-{
-    match timeout(timeout_duration, future).await {
-        Ok(result) => result,
-        Err(_elapsed) => Err(timeout_error()),
-    }
-}
-
 // Specialized timeout operations
 
 /// Mount slew under the long-slew timeout.
@@ -221,19 +199,6 @@ where
         "slew_to_coordinates",
     )
     .await
-}
-
-/// Camera exposure with timeout based on exposure duration
-pub async fn exposure_with_timeout<T, F>(
-    future: F,
-    camera_id: &str,
-    exposure_secs: f64,
-) -> Result<T, SkotiqError>
-where
-    F: Future<Output = Result<T, SkotiqError>>,
-{
-    let timeout_duration = Timeouts::exposure_wait(exposure_secs);
-    with_timeout(future, timeout_duration, camera_id, "exposure").await
 }
 
 /// Focuser move with timeout based on step distance
@@ -262,187 +227,6 @@ where
     };
 
     with_timeout(future, timeout_duration, focuser_id, "move").await
-}
-
-// Retry with timeout
-
-/// Configuration for retry operations
-#[derive(Debug, Clone)]
-pub struct RetryConfig {
-    /// Maximum number of attempts (including first attempt)
-    pub max_attempts: u32,
-    /// Initial delay between retries
-    pub initial_delay: Duration,
-    /// Maximum delay between retries
-    pub max_delay: Duration,
-    /// Backoff multiplier
-    pub backoff_multiplier: f64,
-    /// Timeout per attempt
-    pub timeout_per_attempt: Duration,
-}
-
-impl Default for RetryConfig {
-    fn default() -> Self {
-        Self {
-            max_attempts: 3,
-            initial_delay: Duration::from_secs(1),
-            max_delay: Duration::from_secs(30),
-            backoff_multiplier: 2.0,
-            timeout_per_attempt: Duration::from_secs(10),
-        }
-    }
-}
-
-impl RetryConfig {
-    /// Quick retry config for fast operations
-    pub fn quick() -> Self {
-        Self {
-            max_attempts: 3,
-            initial_delay: Duration::from_millis(100),
-            max_delay: Duration::from_secs(1),
-            backoff_multiplier: 2.0,
-            timeout_per_attempt: Duration::from_secs(5),
-        }
-    }
-
-    /// Patient retry config for slow operations
-    pub fn patient() -> Self {
-        Self {
-            max_attempts: 5,
-            initial_delay: Duration::from_secs(2),
-            max_delay: Duration::from_secs(60),
-            backoff_multiplier: 1.5,
-            timeout_per_attempt: Duration::from_secs(60),
-        }
-    }
-}
-
-/// Execute an operation with retry and per-attempt timeout
-pub async fn with_retry<T, F, Fut>(
-    operation: F,
-    config: RetryConfig,
-    device_id: &str,
-    operation_name: &str,
-) -> Result<T, SkotiqError>
-where
-    F: Fn() -> Fut,
-    Fut: Future<Output = Result<T, SkotiqError>>,
-{
-    let mut attempt = 0;
-    let mut delay = config.initial_delay;
-
-    loop {
-        attempt += 1;
-
-        let result = timeout(config.timeout_per_attempt, operation()).await;
-
-        match result {
-            Ok(Ok(value)) => return Ok(value),
-            Ok(Err(e)) => {
-                // Check if error is retryable
-                if !e.is_retryable() {
-                    return Err(e);
-                }
-
-                if attempt >= config.max_attempts {
-                    tracing::warn!(
-                        "Operation {} on {} failed after {} attempts: {:?}",
-                        operation_name,
-                        device_id,
-                        attempt,
-                        e
-                    );
-                    return Err(e);
-                }
-
-                tracing::debug!(
-                    "Attempt {} of {} for {} on {} failed: {:?}. Retrying in {:?}",
-                    attempt,
-                    config.max_attempts,
-                    operation_name,
-                    device_id,
-                    e,
-                    delay
-                );
-            }
-            Err(_elapsed) => {
-                if attempt >= config.max_attempts {
-                    return Err(SkotiqError::DeviceTimeout {
-                        device_id: device_id.to_string(),
-                        operation: operation_name.to_string(),
-                        timeout_secs: config.timeout_per_attempt.as_secs_f64(),
-                    });
-                }
-
-                tracing::debug!(
-                    "Attempt {} of {} for {} on {} timed out. Retrying in {:?}",
-                    attempt,
-                    config.max_attempts,
-                    operation_name,
-                    device_id,
-                    delay
-                );
-            }
-        }
-
-        // Wait before retry
-        tokio::time::sleep(delay).await;
-
-        // Increase delay for next attempt (with backoff)
-        delay = Duration::from_secs_f64(
-            (delay.as_secs_f64() * config.backoff_multiplier).min(config.max_delay.as_secs_f64()),
-        );
-    }
-}
-
-// Deadline-based operations
-
-/// A deadline that can be shared across multiple operations
-#[derive(Debug, Clone)]
-pub struct Deadline {
-    expires_at: std::time::Instant,
-}
-
-impl Deadline {
-    /// Create a new deadline from a duration
-    pub fn from_duration(duration: Duration) -> Self {
-        Self {
-            expires_at: std::time::Instant::now() + duration,
-        }
-    }
-
-    /// Create a new deadline from an absolute time
-    pub fn from_instant(instant: std::time::Instant) -> Self {
-        Self {
-            expires_at: instant,
-        }
-    }
-
-    /// Check if the deadline has expired
-    pub fn is_expired(&self) -> bool {
-        std::time::Instant::now() >= self.expires_at
-    }
-
-    /// Get the remaining time until deadline
-    pub fn remaining(&self) -> Duration {
-        self.expires_at
-            .saturating_duration_since(std::time::Instant::now())
-    }
-
-    /// Execute a future with this deadline
-    pub async fn execute<T, F>(&self, future: F) -> Result<T, SkotiqError>
-    where
-        F: Future<Output = Result<T, SkotiqError>>,
-    {
-        let remaining = self.remaining();
-        if remaining.is_zero() {
-            return Err(SkotiqError::Timeout("Deadline already expired".to_string()));
-        }
-
-        timeout(remaining, future)
-            .await
-            .map_err(|_| SkotiqError::Timeout("Deadline exceeded".to_string()))?
-    }
 }
 
 #[cfg(test)]
@@ -488,13 +272,6 @@ mod tests {
             }
             _ => panic!("Expected DeviceTimeout error"),
         }
-    }
-
-    #[test]
-    fn test_deadline() {
-        let deadline = Deadline::from_duration(Duration::from_secs(10));
-        assert!(!deadline.is_expired());
-        assert!(deadline.remaining() > Duration::from_secs(9));
     }
 
     /// The ASCOM connect read-back budget must finish INSIDE this crate's own
