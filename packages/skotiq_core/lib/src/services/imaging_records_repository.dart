@@ -25,7 +25,7 @@ import '../services/logging_service.dart';
 import '../services/sky_atlas/sky_atlas_models.dart';
 import '../services/sky_atlas/sky_atlas_service.dart' show SkyAtlasService;
 import '../services/transients/transient_candidate.dart';
-import '../utils/coordinate_format.dart';
+import 'package:skotiq_astro/format.dart';
 import '../utils/utc_timestamp.dart';
 import '../utils/resilient_poll_stream.dart';
 import '../services/wcs/gnomonic_projection.dart' show SolvedWcs;

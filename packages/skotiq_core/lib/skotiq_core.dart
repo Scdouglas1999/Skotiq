@@ -777,12 +777,10 @@ export 'src/services/safety_config_service.dart';
 
 // Utilities
 export 'src/utils/coordinate_parser.dart';
-export 'src/utils/coordinate_format.dart';
+export 'package:skotiq_astro/format.dart';
 export 'src/utils/resilient_poll_stream.dart';
 export 'src/utils/dither_settle_presets.dart';
 export 'src/utils/export_target.dart';
-export 'src/utils/duration_format.dart';
-export 'src/utils/temperature_format.dart';
 export 'src/utils/utc_timestamp.dart';
 export 'src/utils/local_time_of_day.dart';
 export 'src/utils/remote_path.dart';

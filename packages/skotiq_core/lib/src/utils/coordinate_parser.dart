@@ -1,6 +1,6 @@
 import 'dart:developer' as developer;
 
-import 'coordinate_format.dart';
+import 'package:skotiq_astro/format.dart';
 
 /// Utility class for parsing astronomical coordinates in various formats
 class CoordinateParser {

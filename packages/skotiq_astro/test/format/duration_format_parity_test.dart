@@ -9,8 +9,8 @@
 // duration. All four styles render seconds below a minute, so "0m" is
 // unreachable.
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:test/test.dart';
+import 'package:skotiq_astro/format.dart';
 
 // --- retired copies, verbatim -----------------------------------------------
 

@@ -10,7 +10,7 @@ import '../models/sequence/sequence_models.dart';
 import '../database/daos/sequence_runs_dao.dart';
 import '../database/daos/sequence_versions_dao.dart';
 import '../database/daos/session_diagnostics_dao.dart';
-import '../utils/duration_format.dart';
+import 'package:skotiq_astro/format.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 

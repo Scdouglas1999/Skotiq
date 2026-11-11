@@ -19,7 +19,7 @@
 /// a cooldown in `defaultNarratorCooldowns`.
 library;
 
-import '../../../../utils/coordinate_format.dart';
+import 'package:skotiq_astro/format.dart';
 import '../../../transients/transient_candidate.dart';
 import '../narrator_context.dart';
 import '../narrator_detector.dart';

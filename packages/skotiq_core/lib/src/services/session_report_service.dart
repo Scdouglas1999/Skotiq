@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import '../utils/duration_format.dart';
+import 'package:skotiq_astro/format.dart';
 import '../utils/fwhm_conversion.dart';
 import '../database/daos/science_dao.dart';
 import '../database/daos/sequence_runs_dao.dart';
