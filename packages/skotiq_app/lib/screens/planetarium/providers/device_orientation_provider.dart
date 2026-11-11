@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
-/// Whether the gyroscope sky aiming mode is active.
 final gyroscopeAimingEnabledProvider = StateProvider<bool>((ref) => false);
 
 /// Whether "Sync Mount" is active — when enabled, the device orientation
@@ -41,7 +40,6 @@ class DeviceOrientationState {
   /// Whether sensor data is being received.
   final bool isActive;
 
-  /// Compass accuracy quality indicator.
   final CompassAccuracy compassAccuracy;
 
   const DeviceOrientationState({
@@ -79,7 +77,6 @@ class DeviceOrientationNotifier extends StateNotifier<DeviceOrientationState> {
   StreamSubscription<AccelerometerEvent>? _accelerometerSub;
   StreamSubscription<MagnetometerEvent>? _magnetometerSub;
 
-  // Raw sensor values
   double _accelX = 0, _accelY = 0, _accelZ = 0;
   double _magX = 0, _magY = 0, _magZ = 0;
   bool _hasAccel = false;
@@ -106,7 +103,6 @@ class DeviceOrientationNotifier extends StateNotifier<DeviceOrientationState> {
   }
 
   void _startListening() {
-    // Guard: only run on mobile platforms
     if (!_isMobilePlatform()) {
       state = state.copyWith(isActive: false);
       return;
@@ -188,7 +184,6 @@ class DeviceOrientationNotifier extends StateNotifier<DeviceOrientationState> {
         math.sqrt(_accelX * _accelX + _accelY * _accelY + _accelZ * _accelZ);
     if (accelMag < 0.1) return; // Free-fall, no valid data
 
-    // Normalize accelerometer
     final ax = _accelX / accelMag;
     final ay = _accelY / accelMag;
     final az = _accelZ / accelMag;

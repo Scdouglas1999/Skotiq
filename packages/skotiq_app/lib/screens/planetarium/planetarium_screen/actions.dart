@@ -5,7 +5,6 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
     if (_initialSyncDone) return;
     _initialSyncDone = true;
 
-    // Initial mount sync
     final mountState = ref.read(mountStateProvider);
     final mountNotifier = ref.read(mountPositionProvider.notifier);
     if (mountState.connectionState == DeviceConnectionState.connected) {
@@ -76,25 +75,21 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
   /// object, not at the pixel the finger landed on.
   void _handleObjectTapped(CelestialObject? object,
       CelestialCoordinate coordinates, Offset screenPosition) {
-    // If in slew mode, handle slew instead of normal tap behavior
     if (_slewMode) {
       _handleSlewToCoordinates(coordinates, objectName: object?.name);
       return;
     }
 
-    // Update selected object provider
     if (object != null) {
       ref.read(selectedObjectProvider.notifier).selectObject(object);
     } else {
       ref.read(selectedObjectProvider.notifier).clearSelection();
     }
 
-    // Only show popup if an object was found
     if (object != null) {
       final renderBox =
           _skyViewKey.currentContext?.findRenderObject() as RenderBox?;
       if (renderBox != null) {
-        // Convert to global position for proper popup placement
         final globalPosition = renderBox.localToGlobal(screenPosition);
         _update(() {
           _showPopup = true;
@@ -143,7 +138,6 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
       final planets = ref.read(planetPositionsProvider);
       final milkyWayPoints = ref.read(milkyWayPointsProvider);
 
-      // Determine object info from popup or selection
       String? objectName;
       String? objectType;
       double? objectMagnitude;
@@ -255,7 +249,6 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
     final obj = _popupObject!;
     final coords = obj.coordinates;
 
-    // Set the framing target
     ref.read(framingProvider.notifier).setTargetCoordinates(
           coords.ra,
           coords.dec,
@@ -374,7 +367,6 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
 
     _dismissPopup();
 
-    // Show centering dialog
     if (mounted) {
       await showCenteringDialog(
         context: context,
@@ -401,7 +393,6 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
 
     _dismissPopup();
 
-    // Show centering dialog and wait for completion
     CenteringResult? centeringResult;
     if (mounted) {
       centeringResult = await showDialog<CenteringResult>(
@@ -415,7 +406,6 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
       );
     }
 
-    // If centering failed or was cancelled, don't rotate
     if (centeringResult == null || !centeringResult.success) {
       if (mounted && centeringResult != null) {
         context.showWarningSnackBar('Centering failed - rotation skipped');
@@ -456,7 +446,6 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
       return;
     }
 
-    // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

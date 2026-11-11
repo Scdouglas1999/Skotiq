@@ -187,7 +187,6 @@ class _ReviewGroup extends StatelessWidget {
   /// True when the values are measurements and take the mono ramp.
   final bool mono;
 
-  /// Width of the key column.
   static const double _keyWidth = 132;
 
   @override
