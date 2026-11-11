@@ -29,7 +29,7 @@
 //! See PixInsight reference documentation:
 //!   <https://pixinsight.com/doc/tools/ScreenTransferFunction/ScreenTransferFunction.html>
 
-use crate::robust_stats::{percentile_floor as percentile_sorted, MAD_TO_SIGMA as MAD_SIGMA_SCALE};
+use crate::robust_stats::{LevelCounts, MAD_TO_SIGMA as MAD_SIGMA_SCALE};
 use crate::ImageData;
 use rayon::prelude::*;
 
@@ -83,41 +83,18 @@ pub fn auto_stretch_stf(image: &ImageData) -> StretchParams {
     if image.is_empty() {
         return StretchParams::default();
     }
-
-    // Why: Existing single-channel callers pass U16 ImageData with raw
-    // little-endian bytes. Decode in parallel — for 60 MP images this is
-    // measurably faster than serial decode.
-    let pixels: Vec<f64> = image
-        .data
-        .par_chunks_exact(2)
-        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]) as f64 / 65535.0)
-        .collect();
-
-    if pixels.is_empty() {
-        return StretchParams::default();
-    }
-
-    stf_params_from_normalized(&pixels)
+    stf_params_from_levels(&LevelCounts::of_le_bytes(&image.data))
 }
 
 /// Apply stretch to an image, returning 8-bit output for display
 pub fn apply_stretch(image: &ImageData, params: &StretchParams) -> Vec<u8> {
-    let range = params.highlights - params.shadows;
-    if range <= 0.0 {
+    let Some(table) = StretchTable::new(params) else {
         return vec![0u8; image.width as usize * image.height as usize];
-    }
-
+    };
     image
         .data
         .par_chunks_exact(2)
-        .map(|chunk| {
-            let val = u16::from_le_bytes([chunk[0], chunk[1]]);
-            let normalized = val as f64 / 65535.0;
-
-            let stretched = ((normalized - params.shadows) / range).clamp(0.0, 1.0);
-            let curved = mtf(stretched, params.midtones);
-            (curved * 255.0) as u8
-        })
+        .map(|chunk| table.at(u16::from_le_bytes([chunk[0], chunk[1]])))
         .collect()
 }
 
@@ -130,21 +107,10 @@ pub fn apply_stretch_rgb(
     height: u32,
     params: &StretchParams,
 ) -> Vec<u8> {
-    let range = params.highlights - params.shadows;
-    if range <= 0.0 {
+    let Some(table) = StretchTable::new(params) else {
         return vec![0u8; (width * height * 3) as usize];
-    }
-
-    rgb_data
-        .par_iter()
-        .map(|&val| {
-            let normalized = val as f64 / 65535.0;
-
-            let stretched = ((normalized - params.shadows) / range).clamp(0.0, 1.0);
-            let curved = mtf(stretched, params.midtones);
-            (curved * 255.0) as u8
-        })
-        .collect()
+    };
+    rgb_data.par_iter().map(|&val| table.at(val)).collect()
 }
 
 /// Apply per-channel stretch to RGB image, returning 8-bit interleaved RGB.
@@ -184,43 +150,21 @@ pub fn apply_stretch_rgb_per_channel(
         return vec![0u8; pixel_count * 3];
     }
 
-    let r_range = r_params.highlights - r_params.shadows;
-    let g_range = g_params.highlights - g_params.shadows;
-    let b_range = b_params.highlights - b_params.shadows;
-
-    rgb_data
-        .par_chunks_exact(3)
-        .flat_map(|rgb| {
-            let r_val = rgb[0] as f64 / 65535.0;
-            let g_val = rgb[1] as f64 / 65535.0;
-            let b_val = rgb[2] as f64 / 65535.0;
-
-            let r_out = if r_range <= 0.0 {
-                0.0
-            } else {
-                let s = ((r_val - r_params.shadows) / r_range).clamp(0.0, 1.0);
-                mtf(s, r_params.midtones)
-            };
-            let g_out = if g_range <= 0.0 {
-                0.0
-            } else {
-                let s = ((g_val - g_params.shadows) / g_range).clamp(0.0, 1.0);
-                mtf(s, g_params.midtones)
-            };
-            let b_out = if b_range <= 0.0 {
-                0.0
-            } else {
-                let s = ((b_val - b_params.shadows) / b_range).clamp(0.0, 1.0);
-                mtf(s, b_params.midtones)
-            };
-
-            [
-                (r_out * 255.0) as u8,
-                (g_out * 255.0) as u8,
-                (b_out * 255.0) as u8,
-            ]
-        })
-        .collect()
+    // A channel whose stretch has no range renders black.
+    let tables = [r_params, g_params, b_params].map(StretchTable::new);
+    let mut out = vec![0u8; pixel_count * 3];
+    out.par_chunks_mut(3 << 12)
+        .zip(rgb_data.par_chunks(3 << 12))
+        .for_each(|(out, rgb)| {
+            for (out, rgb) in out.chunks_exact_mut(3).zip(rgb.chunks_exact(3)) {
+                for channel in 0..3 {
+                    if let Some(table) = &tables[channel] {
+                        out[channel] = table.at(rgb[channel]);
+                    }
+                }
+            }
+        });
+    out
 }
 
 /// Calculate auto stretch parameters for RGB image (per-channel, "Unlinked").
@@ -259,28 +203,13 @@ pub fn auto_stretch_rgb_with_mode(
         );
     }
 
-    // Why: Deinterleave into per-channel buffers so the median/MAD passes
-    // operate on contiguous memory. The cost (O(N)) is dominated by the
-    // sort that follows.
-    let mut r_channel = Vec::with_capacity(pixel_count);
-    let mut g_channel = Vec::with_capacity(pixel_count);
-    let mut b_channel = Vec::with_capacity(pixel_count);
-
-    for i in 0..pixel_count {
-        r_channel.push(rgb_data[i * 3]);
-        g_channel.push(rgb_data[i * 3 + 1]);
-        b_channel.push(rgb_data[i * 3 + 2]);
-    }
-
-    let r_norm = normalize_u16(&r_channel);
-    let g_norm = normalize_u16(&g_channel);
-    let b_norm = normalize_u16(&b_channel);
+    let [r, g, b] = [0, 1, 2].map(|channel| LevelCounts::of_channel(rgb_data, channel, 3));
 
     match mode {
         RgbStretchMode::Unlinked => (
-            stf_params_from_normalized(&r_norm),
-            stf_params_from_normalized(&g_norm),
-            stf_params_from_normalized(&b_norm),
+            stf_params_from_levels(&r),
+            stf_params_from_levels(&g),
+            stf_params_from_levels(&b),
         ),
         RgbStretchMode::Linked => {
             // Why: A "linked" STF preserves color ratios across channels —
@@ -292,11 +221,7 @@ pub fn auto_stretch_rgb_with_mode(
             // shared. PixInsight's Linked STF uses the channel with the
             // most representative background as a reference; selecting by
             // max-MAD is the standard approximation.
-            let r_stats = robust_stats(&r_norm);
-            let g_stats = robust_stats(&g_norm);
-            let b_stats = robust_stats(&b_norm);
-
-            let reference = match (r_stats, g_stats, b_stats) {
+            let reference = match (robust_stats(&r), robust_stats(&g), robust_stats(&b)) {
                 (Some(r), Some(g), Some(b)) => {
                     if r.mad >= g.mad && r.mad >= b.mad {
                         stf_from_stats(r)
@@ -324,29 +249,21 @@ struct RobustStats {
     mad: f64,
 }
 
-/// Compute median and MAD for a normalized [0,1] sample.
+/// Median and MAD of 16-bit samples normalized to [0,1], by PixInsight's
+/// integer-indexed order statistic (see `robust_stats::percentile_floor`).
 ///
-/// Returns `None` if the input is empty. A zero MAD (perfectly flat data)
+/// Returns `None` if there are no samples. A zero MAD (perfectly flat data)
 /// is returned as `Some` with `mad = 0.0` — callers must handle the
 /// degenerate case explicitly.
-fn robust_stats(pixels: &[f64]) -> Option<RobustStats> {
-    if pixels.is_empty() {
+fn robust_stats(levels: &LevelCounts) -> Option<RobustStats> {
+    if levels.total() == 0 {
         return None;
     }
-
-    // Why: parallel unstable sort — we only need order statistics, the
-    // sort's instability is irrelevant.
-    let mut sorted = pixels.to_vec();
-    sorted.par_sort_unstable_by(|a, b| a.total_cmp(b));
-    let median = percentile_sorted(&sorted, 0.5);
-
-    // Why: MAD = median(|x - median|). We compute deviations in parallel
-    // then sort again — two O(N log N) passes is acceptable for image
-    // sizes up to 100 MP and matches PixInsight's reference.
-    let mut deviations: Vec<f64> = pixels.par_iter().map(|&x| (x - median).abs()).collect();
-    deviations.par_sort_unstable_by(|a, b| a.total_cmp(b));
-    let mad = percentile_sorted(&deviations, 0.5);
-
+    let normalized = |level: u16| f64::from(level) / 65535.0;
+    let median = levels.mapped(normalized).percentile_floor(0.5);
+    let mad = levels
+        .mapped(|level| (normalized(level) - median).abs())
+        .percentile_floor(0.5);
     Some(RobustStats { median, mad })
 }
 
@@ -437,16 +354,41 @@ fn midtone_for_target(x: f64, target: f64) -> f64 {
     m.clamp(0.0, 1.0)
 }
 
-/// Convert a u16 sample to normalized [0,1] doubles.
-fn normalize_u16(values: &[u16]) -> Vec<f64> {
-    values.par_iter().map(|&v| v as f64 / 65535.0).collect()
-}
-
-/// Compute STF parameters from already-normalized [0,1] samples.
-fn stf_params_from_normalized(pixels: &[f64]) -> StretchParams {
-    match robust_stats(pixels) {
+/// STF parameters for the counted 16-bit samples.
+fn stf_params_from_levels(levels: &LevelCounts) -> StretchParams {
+    match robust_stats(levels) {
         Some(stats) => stf_from_stats(stats),
         None => StretchParams::default(),
+    }
+}
+
+/// The 8-bit display value of every 16-bit level under one stretch.
+///
+/// A stretch of 16-bit data is a function of 65,536 inputs, so it is evaluated
+/// once per level rather than once per pixel.
+struct StretchTable(Vec<u8>);
+
+impl StretchTable {
+    /// `None` when the stretch has no range between shadows and highlights.
+    fn new(params: &StretchParams) -> Option<Self> {
+        let range = params.highlights - params.shadows;
+        if range <= 0.0 {
+            return None;
+        }
+        Some(Self(
+            (0..=u16::MAX)
+                .map(|level| {
+                    let normalized = f64::from(level) / 65535.0;
+                    let stretched = ((normalized - params.shadows) / range).clamp(0.0, 1.0);
+                    (mtf(stretched, params.midtones) * 255.0) as u8
+                })
+                .collect(),
+        ))
+    }
+
+    #[inline]
+    fn at(&self, level: u16) -> u8 {
+        self.0[level as usize]
     }
 }
 

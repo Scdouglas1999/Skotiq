@@ -41,8 +41,9 @@
 //! robust noise, SNR², FWHM and roundness penalties, population normalization
 //! — is deterministic and unit-tested on synthetic frames here.
 
-use crate::robust_stats::{median_in_place_par, nearest_rank_index, MAD_TO_SIGMA};
-use crate::{calculate_stats_u16, detect_stars_with_stats, ImageData, StarDetectionConfig};
+use crate::robust_stats::{nearest_rank_index, LevelCounts, WeightedSorted, MAD_TO_SIGMA};
+use crate::stats::stats_from_levels;
+use crate::{detect_stars_with_stats, ImageData, StarDetectionConfig};
 use rayon::prelude::*;
 
 /// Robust per-frame quality descriptor.
@@ -170,10 +171,10 @@ pub fn analyze_frame_quality(image: &ImageData, cfg: &FrameQualityConfig) -> Opt
     let noise = robust_noise_u16(&pixels, image.width as usize, image.height as usize);
 
     // Background = robust frame median; signal = a high percentile of the
-    // pixel distribution. Both come from one sort.
-    let stats = calculate_stats_u16(image);
-    let background = stats.median;
-    let signal = percentile_u16(&pixels, cfg.signal_percentile);
+    // pixel distribution. Both come from one count of the levels.
+    let levels = LevelCounts::of_le_bytes(&image.data);
+    let background = stats_from_levels(&levels).median;
+    let signal = percentile_u16(&levels, cfg.signal_percentile);
     let snr = ((signal - background) / noise.max(f64::MIN_POSITIVE)).max(0.0);
 
     // Star-shape metrics. detect_stars_with_stats already computes the robust
@@ -203,26 +204,42 @@ pub fn robust_noise_u16(pixels: &[u16], width: usize, height: usize) -> f64 {
         return 0.0;
     }
 
-    // Per-row parallel 3×3 median residual: |pixel − median(3×3 window)|.
-    let residuals: Vec<f64> = (0..height)
+    // |pixel − median(3×3 window)| is a whole or half ADU below 65536, so the
+    // residuals are counted in half-ADU steps rather than collected and sorted.
+    const STEPS: usize = 2 * 65535 + 1;
+    let counts = (0..height)
         .into_par_iter()
-        .flat_map_iter(|y| {
-            let mut row_res = Vec::with_capacity(width);
-            for x in 0..width {
-                let center = pixels[y * width + x] as f64;
-                let med = median_3x3(pixels, width, height, x, y);
-                row_res.push((center - med).abs());
-            }
-            row_res
-        })
-        .collect();
-
-    if residuals.is_empty() {
+        .fold(
+            || vec![0u64; STEPS],
+            |mut counts, y| {
+                for x in 0..width {
+                    let center = pixels[y * width + x] as f64;
+                    let med = median_3x3(pixels, width, height, x, y);
+                    counts[((center - med).abs() * 2.0) as usize] += 1;
+                }
+                counts
+            },
+        )
+        .reduce(
+            || vec![0u64; STEPS],
+            |mut a, b| {
+                for (x, y) in a.iter_mut().zip(&b) {
+                    *x += y;
+                }
+                a
+            },
+        );
+    let residuals = WeightedSorted::from_runs(
+        counts
+            .into_iter()
+            .enumerate()
+            .map(|(step, count)| (step as f64 * 0.5, count))
+            .collect(),
+    );
+    if residuals.total() == 0 {
         return 0.0;
     }
-
-    let mad = median_f64(residuals);
-    mad * MAD_TO_SIGMA
+    residuals.median() * MAD_TO_SIGMA
 }
 
 /// Median of the (clamped) 3×3 neighbourhood centred on `(x, y)`.
@@ -251,22 +268,14 @@ fn median_3x3(pixels: &[u16], width: usize, height: usize, x: usize, y: usize) -
     }
 }
 
-/// Median of an owned `f64` vector (consumes it; parallel sort — these are
-/// megapixel-scale residual buffers).
-fn median_f64(mut v: Vec<f64>) -> f64 {
-    median_in_place_par(&mut v)
-}
-
-/// Nearest-rank percentile (0..1) of the `u16` pixel distribution. Shares its
-/// rank convention with [`crate::robust_stats::percentile_nearest_rank`]; the
-/// samples stay `u16` so a megapixel frame is not widened to `f64` first.
-fn percentile_u16(pixels: &[u16], p: f64) -> f64 {
-    if pixels.is_empty() {
+/// Nearest-rank percentile (0..1) of the `u16` pixel distribution, by
+/// [`crate::robust_stats::percentile_nearest_rank`]'s convention.
+fn percentile_u16(levels: &LevelCounts, p: f64) -> f64 {
+    let total = levels.total();
+    if total == 0 {
         return 0.0;
     }
-    let mut v: Vec<u16> = pixels.to_vec();
-    v.par_sort_unstable();
-    v[nearest_rank_index(v.len(), p)] as f64
+    f64::from(levels.level_at(nearest_rank_index(total as usize, p) as u64))
 }
 
 /// Compute the *unnormalized* integration weight of `q` relative to `ref_q`.
@@ -933,14 +942,12 @@ mod tests {
     }
 
     #[test]
-    fn percentile_and_median_helpers_are_correct() {
-        let v = [1u16, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-        assert_eq!(percentile_u16(&v, 0.0), 1.0);
-        assert_eq!(percentile_u16(&v, 1.0), 10.0);
+    fn the_signal_percentile_is_a_nearest_rank() {
+        let levels = LevelCounts::of_channel(&[1u16, 2, 3, 4, 5, 6, 7, 8, 9, 10], 0, 1);
+        assert_eq!(percentile_u16(&levels, 0.0), 1.0);
+        assert_eq!(percentile_u16(&levels, 1.0), 10.0);
         // Nearest-rank p=0.5 over 10 elements → idx round(4.5)=5 → value 6.
-        assert_eq!(percentile_u16(&v, 0.5), 6.0);
-        assert_eq!(median_f64(vec![3.0, 1.0, 2.0]), 2.0);
-        assert_eq!(median_f64(vec![4.0, 1.0, 3.0, 2.0]), 2.5);
-        assert_eq!(median_f64(vec![]), 0.0);
+        assert_eq!(percentile_u16(&levels, 0.5), 6.0);
+        assert_eq!(percentile_u16(&LevelCounts::of_channel(&[], 0, 1), 0.5), 0.0);
     }
 }
