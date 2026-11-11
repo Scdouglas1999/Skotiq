@@ -440,7 +440,6 @@ void main() {
         coimaging.getSession(b)!.sharedTargetId,
       );
 
-      // Session A's owner claims A's baton.
       expect(coimaging.claimBaton(sessionId: a, accountId: ownerA), isNotNull);
       expect(coimaging.batonState(a).holder, ownerA);
 

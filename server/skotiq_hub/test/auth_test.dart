@@ -366,7 +366,6 @@ void main() {
 
     test('a suspended account fails closed at resolve, reinstate restores', () {
       final signup = accounts.signup(publicKey: 'pk', displayName: 'A');
-      // A fresh token resolves before suspension.
       final live = signup.bearerToken;
       expect(tokens.resolve(live), isNotNull);
 
@@ -446,7 +445,6 @@ void main() {
       seedRejects(signup.account.id, 25);
       expect(moderation.checkAbuse(signup.account.id), isTrue);
       expect(moderation.isSuspended(signup.account.id), isTrue);
-      // An operator lifts the suspension.
       expect(moderation.reinstate(targetAccountId: signup.account.id), isTrue);
       expect(moderation.isSuspended(signup.account.id), isFalse);
       // The 25 pre-lift rejects persist forever, but they predate the reinstate,
