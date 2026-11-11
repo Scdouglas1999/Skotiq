@@ -132,7 +132,9 @@ async fn a_center_node_reports_the_attempt_it_is_on() {
     let lines = Arc::new(std::sync::Mutex::new(Vec::new()));
     let sink = lines.clone();
     context.progress_callback = Some(Arc::new(move |update: crate::node::ProgressUpdate| {
-        sink.lock().unwrap().push(update.legacy_message().expect("a progress line"));
+        sink.lock()
+            .unwrap()
+            .push(update.legacy_message().expect("a progress line"));
     }));
     let config = crate::CenterConfig {
         max_attempts: 2,

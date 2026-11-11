@@ -96,7 +96,10 @@ mod tests {
             total_points: 9,
             hfr,
             star_count: 40,
-            focus_range: FocusRange { min: 600, max: 1400 },
+            focus_range: FocusRange {
+                min: 600,
+                max: 1400,
+            },
             vcurve_points: Vec::new(),
             star_crops: Vec::new(),
         }))
@@ -130,7 +133,10 @@ mod tests {
             "Point 3/9: pos 800"
         );
         assert_eq!(line(&measured(5, 3.871)), "step 5/9 HFR 3.87");
-        assert_eq!(line(&AutofocusProgress::Validating), "Validating focus data...");
+        assert_eq!(
+            line(&AutofocusProgress::Validating),
+            "Validating focus data..."
+        );
         assert_eq!(
             line(&AutofocusProgress::MovingToBestFocus { position: 1012 }),
             "Moving to best focus: 1012"

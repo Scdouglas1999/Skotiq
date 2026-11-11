@@ -7,8 +7,8 @@
 use crate::expressions::{interpolate, EvaluationFrame};
 use crate::instructions::{
     execute_autofocus, execute_exposure_with_renderer, notify_autofocus_failed_continuing,
-    resolve_burst_filter, AutofocusProgress, BurstFilter, FrameSavePathRenderer,
-    InstructionResult, Setback,
+    resolve_burst_filter, AutofocusProgress, BurstFilter, FrameSavePathRenderer, InstructionResult,
+    Setback,
 };
 use crate::node::context::ExecutionContext;
 use crate::node::instructions::autofocus::refocus_detail;

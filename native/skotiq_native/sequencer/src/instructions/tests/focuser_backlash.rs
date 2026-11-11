@@ -977,7 +977,10 @@ async fn an_autofocus_reports_each_step_of_its_sweep() {
     let total_points = config.sweep_point_count() as usize;
     assert_eq!(steps[0], (0.0, AutofocusProgress::Starting));
     assert_eq!(steps[1].0, 5.0);
-    assert!(matches!(steps[1].1, AutofocusProgress::MovingToStart { .. }));
+    assert!(matches!(
+        steps[1].1,
+        AutofocusProgress::MovingToStart { .. }
+    ));
     let sweep: Vec<_> = steps[2..2 + 2 * total_points].iter().collect();
     for (index, pair) in sweep.chunks(2).enumerate() {
         let point = index + 1;
@@ -987,10 +990,19 @@ async fn an_autofocus_reports_each_step_of_its_sweep() {
             "{:?}",
             pair[0]
         );
-        let measured = pair[1].1.sweep().expect("a measured point carries the sweep");
-        assert_eq!((measured.point, measured.total_points), (point, total_points));
+        let measured = pair[1]
+            .1
+            .sweep()
+            .expect("a measured point carries the sweep");
+        assert_eq!(
+            (measured.point, measured.total_points),
+            (point, total_points)
+        );
         assert_eq!(measured.vcurve_points.len(), point);
-        assert_eq!(measured.vcurve_points.last().map(|p| p.hfr), Some(measured.hfr));
+        assert_eq!(
+            measured.vcurve_points.last().map(|p| p.hfr),
+            Some(measured.hfr)
+        );
     }
     let tail: Vec<_> = steps[2 + 2 * total_points..]
         .iter()
@@ -999,7 +1011,10 @@ async fn an_autofocus_reports_each_step_of_its_sweep() {
     let percents: Vec<f64> = tail.iter().map(|(percent, _)| *percent).collect();
     assert_eq!(percents, vec![92.0, 95.0, 100.0], "{tail:?}");
     assert_eq!(tail[0].1, AutofocusProgress::Validating);
-    assert!(matches!(tail[1].1, AutofocusProgress::MovingToBestFocus { .. }));
+    assert!(matches!(
+        tail[1].1,
+        AutofocusProgress::MovingToBestFocus { .. }
+    ));
     assert!(
         matches!(tail[2].1, AutofocusProgress::Complete { hfr, .. }
             if Some(hfr) == result.hfr_values.first().copied()),
@@ -1011,7 +1026,10 @@ async fn an_autofocus_reports_each_step_of_its_sweep() {
     assert_eq!(json["type"], "autofocus_progress");
     assert_eq!(json["point"], 1);
     assert_eq!(json["total_points"], total_points);
-    assert_eq!(json["focus_range"]["min"], json["vcurve_points"][0]["position"]);
+    assert_eq!(
+        json["focus_range"]["min"],
+        json["vcurve_points"][0]["position"]
+    );
     assert!(json["vcurve_points"][0].get("rejected").is_none());
     assert!(json["star_crops"][0]["pixels_base64"].is_string());
 }
