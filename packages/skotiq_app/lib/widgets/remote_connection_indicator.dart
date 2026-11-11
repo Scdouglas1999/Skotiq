@@ -155,11 +155,24 @@ class _RemoteConnectionIndicatorState
               _unansweredSeconds != null) {
             status = RemoteConnectionStatus.notAnswering;
           }
-          return _build(context, status, backend: linkedHost);
+          return _build(
+            context,
+            status,
+            hostAddress: linkedHost.link.serverHost,
+          );
         },
       );
     }
-    return _build(context, RemoteConnectionStatus.notConnected, backend: null);
+    // A launch linked to a host that has not answered yet has no backend to
+    // ask, but it is linked: say the host is unreachable, not "not linked".
+    final target = ref.watch(remoteLaunchTargetProvider);
+    return _build(
+      context,
+      target == null
+          ? RemoteConnectionStatus.notConnected
+          : RemoteConnectionStatus.serverOffline,
+      hostAddress: target?.host,
+    );
   }
 
   RemoteConnectionStatus _statusForBackendState(BackendConnectionState state) {
@@ -180,14 +193,14 @@ class _RemoteConnectionIndicatorState
   Widget _build(
     BuildContext context,
     RemoteConnectionStatus status, {
-    required RemoteHost? backend,
+    required String? hostAddress,
   }) {
     // The tap lived on a bare gesture wrapper, which publishes an action
     // and no role, so assistive tech read a live control as an inert
     // disabled panel. The flags are only published when given.
-    final description = backend == null
+    final description = hostAddress == null
         ? 'Not linked to a remote imaging host'
-        : '${_textFor(status, _unansweredSeconds)} · ${backend.link.serverHost}';
+        : '${_textFor(status, _unansweredSeconds)} · $hostAddress';
     return Tooltip(
       message: description,
       child: Semantics(
@@ -200,7 +213,7 @@ class _RemoteConnectionIndicatorState
               ? _buildDot(context, status)
               : widget.compact
                   ? _buildCompact(context, status)
-                  : _buildFull(context, status, backend),
+                  : _buildFull(context, status, hostAddress),
         ),
       ),
     );
@@ -257,7 +270,7 @@ class _RemoteConnectionIndicatorState
   Widget _buildFull(
     BuildContext context,
     RemoteConnectionStatus status,
-    RemoteHost? backend,
+    String? hostAddress,
   ) {
     final color = _colorFor(context, status);
     final theme = Theme.of(context);
@@ -279,9 +292,9 @@ class _RemoteConnectionIndicatorState
               fontWeight: FontWeight.w600,
             ),
           ),
-          if (backend != null) ...[
+          if (hostAddress != null) ...[
             Text(
-              ' · ${backend.link.serverHost}',
+              ' · $hostAddress',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: color.withValues(alpha: 0.75),
               ),

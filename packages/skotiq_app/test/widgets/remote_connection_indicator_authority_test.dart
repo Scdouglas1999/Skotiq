@@ -240,6 +240,42 @@ void main() {
     // in local mode must not be shown a control that would do nothing.
     expect(find.text('Work locally'), findsNothing);
   });
+
+  testWidgets(
+      'a desktop launched linked to a host that has not answered says the '
+      'host is unreachable, not that it is not linked', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => _LocalRestoringNotifier(ref, _MockLocalBackend()),
+          ),
+          remoteLaunchTargetProvider.overrideWithValue(
+            const RemoteLaunchTarget(
+              host: '192.168.1.32',
+              port: 8099,
+              name: 'DESKTOP-MMAJGAK',
+              remembered: true,
+            ),
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: RemoteConnectionIndicator()),
+        ),
+      ),
+    );
+
+    expect(
+      find.bySemanticsLabel(
+        RegExp(r'^Imaging host link: Server unreachable · 192\.168\.1\.32'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Not linked'), findsNothing);
+    semantics.dispose();
+  });
 }
 
 /// A notifier sitting on a DisconnectedBackend whose only recovery is
