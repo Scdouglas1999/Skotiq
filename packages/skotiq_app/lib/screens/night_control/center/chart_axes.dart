@@ -21,81 +21,6 @@ TextStyle nightAxisStyle(BuildContext context) =>
       color: context.skotiqColors.textMuted,
     );
 
-/// Up to [maxTicks] round values inside [lo]..[hi]: the largest round step
-/// that leaves at least two of them, thinned to the outermost when there are
-/// more than [maxTicks], else just the two ends.
-@visibleForTesting
-List<double> nightAxisTicks(double lo, double hi, int maxTicks) {
-  if (!(hi > lo) || !lo.isFinite || !hi.isFinite) return <double>[lo];
-  List<double> inside(double step) => <double>[
-        for (var v = (lo / step - 1e-9).ceil() * step;
-            v <= hi + step * 1e-9;
-            v += step)
-          // Snap away float noise such as 0.30000000000000004 and -0.0.
-          _snap(v, step),
-      ];
-
-  final exponent = (math.log(hi - lo) / math.ln10).floor();
-  // Steps from coarse to fine; the finest that still fits [maxTicks] wins.
-  var best = const <double>[];
-  for (var e = exponent; e >= exponent - 3; e--) {
-    for (final mantissa in const <double>[5, 2.5, 2, 1]) {
-      final step = mantissa * math.pow(10, e).toDouble();
-      final ticks = inside(step);
-      if (ticks.length <= maxTicks) {
-        if (ticks.length > best.length) best = ticks;
-        continue;
-      }
-      if (best.length >= 2) return best;
-      // Too many and nothing coarser had two: evenly spaced, both ends
-      // kept, so ±1 rather than −1, 0, 1 when only two fit.
-      final last = ticks.length - 1;
-      return <double>[
-        for (var i = 0; i < maxTicks; i++)
-          ticks[(i * last / math.max(1, maxTicks - 1)).round()],
-      ];
-    }
-  }
-  return best.length >= 2 ? best : <double>[lo, hi];
-}
-
-double _snap(double v, double step) {
-  final snapped = (v / step).round() * step;
-  final decimals = nightAxisDecimals(step);
-  final fixed = double.parse(snapped.toStringAsFixed(decimals));
-  return fixed == 0 ? 0 : fixed;
-}
-
-/// Decimals that show a step of [step] exactly (at most 3).
-@visibleForTesting
-int nightAxisDecimals(double step) {
-  for (var d = 0; d < 3; d++) {
-    final scaled = step * math.pow(10, d);
-    if ((scaled - scaled.roundToDouble()).abs() < 1e-6) return d;
-  }
-  return 3;
-}
-
-/// Clock ticks between [from] and [to] on a round minute step, as many as
-/// [maxLabels] allows.
-@visibleForTesting
-List<DateTime> nightTimeTicks(DateTime from, DateTime to, int maxLabels) {
-  final span = to.difference(from).inMinutes;
-  if (span <= 0 || maxLabels <= 0) return const <DateTime>[];
-  for (final step in const <int>[1, 2, 5, 10, 15, 30, 60, 120, 180, 240]) {
-    if (span / step > maxLabels + 1) continue;
-    final startOfDay = DateTime(from.year, from.month, from.day);
-    final minutesIn = from.difference(startOfDay).inMinutes;
-    var t = startOfDay.add(Duration(minutes: (minutesIn ~/ step + 1) * step));
-    final ticks = <DateTime>[];
-    for (; !t.isAfter(to); t = t.add(Duration(minutes: step))) {
-      ticks.add(t);
-    }
-    if (ticks.length <= maxLabels) return ticks;
-  }
-  return const <DateTime>[];
-}
-
 /// A series chart with its value scales, clock scale and gridlines.
 class NightChartAxes extends StatelessWidget {
   const NightChartAxes({
@@ -175,11 +100,12 @@ class NightChartAxes extends StatelessWidget {
         final range = painter.valueRange(axis);
         if (range == null) return const <(double, String)>[];
         final fixed = axis == SeriesChartAxis.left ? leftTicks : null;
-        final ticks = fixed ?? nightAxisTicks(range.$1, range.$2, maxTicks);
+        final ticks = fixed ??
+            ChartScale.ticksWithin(range.$1, range.$2, maxTicks).values;
         // A round step shows exactly; the two-end fallback shows to 0.01.
         final decimals = ticks.length < 2
             ? 1
-            : math.min(nightAxisDecimals(ticks[1] - ticks[0]), 2);
+            : math.min(ChartScale.decimalsFor(ticks[1] - ticks[0]), 2);
         return <(double, String)>[
           for (final t in ticks) (t, format(t, decimals)),
         ];
@@ -217,7 +143,7 @@ class NightChartAxes extends StatelessWidget {
       final clockWidth = widest(const <(double, String)>[(0, '00:00')]) + 6;
       final timeTicks = range == null || plotWidth <= 0
           ? const <DateTime>[]
-          : nightTimeTicks(
+          : ChartScale.clockTicks(
               DateTime.fromMillisecondsSinceEpoch(range.$1),
               DateTime.fromMillisecondsSinceEpoch(range.$2),
               (plotWidth / clockWidth).floor(),
@@ -515,13 +441,13 @@ class NightChartStrips extends StatelessWidget {
           continue;
         }
         final maxTicks = bandHeight >= labelHeight * 5 ? 3 : 2;
-        var ticks = nightAxisTicks(range.$1, range.$2, maxTicks);
+        var ticks = ChartScale.ticksWithin(range.$1, range.$2, maxTicks).values;
         if (bandHeight < labelHeight * 1.5 && ticks.length > 1) {
           ticks = <double>[ticks.last];
         }
         final decimals = ticks.length < 2
             ? 1
-            : math.min(nightAxisDecimals(ticks[1] - ticks[0]), 2);
+            : math.min(ChartScale.decimalsFor(ticks[1] - ticks[0]), 2);
         final strip = strips[i];
         final kept = <(double, String)>[];
         double? lastY;
@@ -557,7 +483,7 @@ class NightChartStrips extends StatelessWidget {
       final clockWidth = textWidth('00:00', style).ceilToDouble() + 9;
       final timeTicks = range == null || plotWidth <= 0
           ? const <DateTime>[]
-          : nightTimeTicks(
+          : ChartScale.clockTicks(
               DateTime.fromMillisecondsSinceEpoch(range.$1),
               DateTime.fromMillisecondsSinceEpoch(range.$2),
               (plotWidth / clockWidth).floor(),

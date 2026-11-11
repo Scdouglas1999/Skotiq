@@ -125,7 +125,7 @@ class _HfrCurvePainter extends CustomPainter {
     final gridPaint = Paint()
       ..color = gridColor.withValues(alpha: 0.3)
       ..strokeWidth = 0.5;
-    final hfrStep = _niceStep(maxHfr - minHfr, 4);
+    final hfrStep = ChartScale.niceStep((maxHfr - minHfr) / 4);
     final hfrStart = (minHfr / hfrStep).ceil() * hfrStep;
     for (double v = hfrStart; v <= maxHfr; v += hfrStep) {
       final y = mapY(v);
@@ -144,7 +144,7 @@ class _HfrCurvePainter extends CustomPainter {
       )..layout();
       tp.paint(canvas, Offset(plotRect.left - tp.width - 4, y - tp.height / 2));
     }
-    final posStep = _niceStep(maxPos - minPos, 4);
+    final posStep = ChartScale.niceStep((maxPos - minPos) / 4);
     final posStart = (minPos / posStep).ceil() * posStep;
     for (double v = posStart; v <= maxPos; v += posStep) {
       final x = mapX(v);
@@ -307,24 +307,6 @@ class _HfrCurvePainter extends CustomPainter {
     final mid = n ~/ 2;
     if (n.isOdd) return sorted[mid];
     return (sorted[mid - 1] + sorted[mid]) / 2.0;
-  }
-
-  double _niceStep(double range, int targetLines) {
-    if (range <= 0) return 1;
-    final rough = range / targetLines;
-    final mag = math.pow(10, (math.log(rough) / math.ln10).floor()).toDouble();
-    final normalized = rough / mag;
-    double nice;
-    if (normalized <= 1.5) {
-      nice = 1;
-    } else if (normalized <= 3.5) {
-      nice = 2;
-    } else if (normalized <= 7.5) {
-      nice = 5;
-    } else {
-      nice = 10;
-    }
-    return nice * mag;
   }
 
   @override

@@ -233,7 +233,7 @@ class _SeriesChartCard extends StatelessWidget {
     // boundary labels coincide with ticks instead of printing a second value a
     // few pixels away (this chart showed "101.0" over "100.0" and "75.0" over
     // "74.7" on the transparency trend).
-    final axis = NiceAxis.forRange(minY, maxY);
+    final axis = ChartScale.niceRange(minY, maxY);
     final maxX = spots.last.x == 0 ? 1.0 : spots.last.x;
     // Exact division puts the last tick on the axis end, so the boundary label
     // is a tick rather than a second copy a few pixels away.
@@ -272,7 +272,7 @@ class _SeriesChartCard extends StatelessWidget {
                 ),
                 gridData: FlGridData(
                   drawVerticalLine: true,
-                  horizontalInterval: axis.interval,
+                  horizontalInterval: axis.ticks.step,
                   verticalInterval: xInterval,
                   getDrawingHorizontalLine: (_) =>
                       FlLine(color: colors.border.withValues(alpha: 0.35)),
@@ -293,7 +293,7 @@ class _SeriesChartCard extends StatelessWidget {
                       interval: xInterval,
                       getTitlesWidget: (value, meta) {
                         return Text(
-                          elapsedAxisLabel(value),
+                          ChartScale.elapsedLabel(value),
                           style: SkotiqTypography.caption
                               .copyWith(color: colors.textSecondary),
                         );
@@ -309,9 +309,9 @@ class _SeriesChartCard extends StatelessWidget {
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 44,
-                      interval: axis.interval,
+                      interval: axis.ticks.step,
                       getTitlesWidget: (value, meta) => Text(
-                        axis.label(value),
+                        axis.ticks.label(value),
                         style: SkotiqTypography.caption
                             .copyWith(color: colors.textSecondary),
                       ),

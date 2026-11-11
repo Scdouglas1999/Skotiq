@@ -7,7 +7,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'adaptive_chart_container.dart';
-import 'chart_axis.dart';
 
 /// Card: Zero-Point trend across the current session.
 ///
@@ -320,11 +319,11 @@ class _TrendCardShell extends StatelessWidget {
     // range/4, fl_chart's boundary label landed a sliver from the outermost
     // tick and the two drew on top of each other ("21.21" over "21.20" on the
     // zero-point card).
-    final axis =
-        NiceAxis.forRange(minY ?? dataMin, maxY ?? dataMax, padFraction: 0.1);
+    final axis = ChartScale.niceRange(minY ?? dataMin, maxY ?? dataMax,
+        padFraction: 0.1);
     final effectiveMinY = minY ?? axis.min;
     final effectiveMaxY = maxY ?? axis.max;
-    final yInterval = axis.interval;
+    final yInterval = axis.ticks.step;
     final lastX = spots.last.x == 0 ? 1.0 : spots.last.x;
     // Exact division puts the final tick on the axis end.
     final xInterval = lastX / 4;
@@ -361,7 +360,7 @@ class _TrendCardShell extends StatelessWidget {
               interval: xInterval,
               getTitlesWidget: (value, meta) {
                 return Text(
-                  elapsedAxisLabel(value),
+                  ChartScale.elapsedLabel(value),
                   style: SkotiqTypography.caption
                       .copyWith(color: colors.textSecondary),
                 );

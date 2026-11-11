@@ -32,7 +32,6 @@ import 'science_timeline_scrubber.dart';
 import 'science_campaign_strip.dart';
 import 'science_trend_cards.dart';
 import 'adaptive_chart_container.dart';
-import 'chart_axis.dart';
 import 'science_onboarding/science_ladder_card.dart';
 import 'science_onboarding/science_empty_onramp.dart';
 import 'science_onboarding/science_nav_row_card.dart';

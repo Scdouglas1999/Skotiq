@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/skotiq_core.dart' show DbCapturedImage;
 
 import 'adaptive_chart_container.dart';
-import 'chart_axis.dart';
 
 class ChartDataPoint {
   final DateTime timestamp;
@@ -67,11 +65,6 @@ class SessionChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    // Red night is a wavelength constraint, so the named series hue cannot be
-    // painted as-is: #6B95B8 on the HFR line lit this card blue while the rest
-    // of the screen was red.
-    final seriesColor = SkotiqChartColors.forTheme(lineColor, colors);
-
     if (dataPoints.isEmpty) {
       return _ChartShell(
         title: title,
@@ -105,23 +98,17 @@ class SessionChart extends StatelessWidget {
     final dataMin = sorted.first;
     final dataMax = sorted.last;
 
-    final NiceAxis axis = NiceAxis.forRange(minY ?? dataMin, maxY ?? dataMax);
+    final range = ChartScale.niceRange(minY ?? dataMin, maxY ?? dataMax);
     final isFlat = dataMax - dataMin <= 0;
-
     final firstTimestamp = points.first.timestamp;
-    final spots = points
-        .map((point) => FlSpot(
-              point.timestamp.difference(firstTimestamp).inMilliseconds /
-                  1000.0,
-              point.value,
-            ))
-        .toList(growable: false);
-    final maxX = spots.last.x <= 0 ? 1.0 : spots.last.x;
-    // Divide the span exactly rather than snapping to a round step: that puts
-    // the final tick ON the axis end, so fl_chart's boundary label coincides
-    // with a tick instead of drawing a second offset copy of it — and it does
-    // not pad the plot out to a tick the data never reaches.
-    final xInterval = maxX / 4;
+    final samples = <Offset>[
+      for (final point in points)
+        Offset(
+          point.timestamp.difference(firstTimestamp).inMilliseconds / 1000.0,
+          point.value,
+        ),
+    ];
+    final warn = warnAbove;
 
     return _ChartShell(
       title: title,
@@ -129,128 +116,65 @@ class SessionChart extends StatelessWidget {
       colors: colors,
       summary: _ChartSummary(
         colors: colors,
-        median: axis.label(median),
+        median: range.ticks.label(median),
         // "to", not a dash: a dash after a negative reads as -15–20.
-        spread: '${axis.label(dataMin)} to ${axis.label(dataMax)}',
-        p90: axis.label(p90),
+        spread:
+            '${range.ticks.label(dataMin)} to ${range.ticks.label(dataMax)}',
+        p90: range.ticks.label(p90),
         count: points.length,
       ),
       child: AdaptiveChartContainer(
         preferredHeight: 150,
-        child: LineChart(
-          LineChartData(
-            gridData: FlGridData(
-              show: true,
-              drawVerticalLine: true,
-              horizontalInterval: axis.interval,
-              verticalInterval: xInterval,
-              getDrawingHorizontalLine: (_) => FlLine(
-                color: colors.border.withValues(alpha: 0.3),
-                strokeWidth: 1,
+        child: Padding(
+          padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
+          child: SkotiqChart(
+            semanticLabel: '$title, $yAxisLabel: median '
+                '${range.ticks.label(median)}, '
+                '${range.ticks.label(dataMin)} to '
+                '${range.ticks.label(dataMax)} over ${points.length} frames',
+            series: <ChartSeries>[
+              ChartSeries(
+                points: samples,
+                label: measurementName ?? title,
+                color: lineColor,
+                strokeWidth: 1.6,
+                // A filled area under a constant series implies a magnitude
+                // that is not being measured: the sensor sitting at 20.0 C
+                // filled half the card.
+                filled: !isFlat,
               ),
-              getDrawingVerticalLine: (_) => FlLine(
-                color: colors.border.withValues(alpha: 0.3),
-                strokeWidth: 1,
-              ),
-            ),
-            titlesData: FlTitlesData(
-              show: true,
-              rightTitles:
-                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              topTitles:
-                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 28,
-                  interval: xInterval,
-                  getTitlesWidget: (value, meta) => Padding(
-                    padding: const EdgeInsets.only(top: 6.0),
-                    child: Text(
-                      elapsedAxisLabel(value),
-                      style: SkotiqTypography.monoCaption
-                          .copyWith(color: colors.textSecondary),
-                    ),
-                  ),
+              // One dot per frame while there are few enough to tell apart.
+              if (samples.length <= 40)
+                ChartSeries(
+                  points: samples,
+                  color: lineColor,
+                  kind: ChartSeriesKind.scatter,
+                  dotRadius: 2,
                 ),
-              ),
-              leftTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 44,
-                  interval: axis.interval,
-                  getTitlesWidget: (value, meta) => Text(
-                    axis.label(value),
-                    style: SkotiqTypography.monoCaption
-                        .copyWith(color: colors.textSecondary),
-                  ),
-                ),
-              ),
-            ),
-            borderData: FlBorderData(
-              show: true,
-              border: Border.all(color: colors.border),
-            ),
-            minX: 0,
-            maxX: maxX,
-            minY: axis.min,
-            maxY: axis.max,
-            extraLinesData: ExtraLinesData(
-              horizontalLines: [
-                // The median is the honest "typical" value for a skewed
-                // quantity like HFR, where a few clouded frames drag the mean.
-                HorizontalLine(
-                  y: median,
-                  color: colors.textMuted.withValues(alpha: 0.55),
-                  strokeWidth: 1,
-                  dashArray: const [4, 4],
-                ),
-                if (warnAbove != null &&
-                    warnAbove! <= axis.max &&
-                    warnAbove! >= axis.min)
-                  HorizontalLine(
-                    y: warnAbove!,
-                    color: colors.warning.withValues(alpha: 0.5),
-                    strokeWidth: 1,
-                    dashArray: const [2, 4],
-                  ),
-              ],
-            ),
-            lineBarsData: [
-              LineChartBarData(
-                spots: spots,
-                // Straight segments only: these are measurements, not a model.
-                isCurved: false,
-                color: seriesColor,
-                barWidth: 1.6,
-                isStrokeCapRound: true,
-                dotData: FlDotData(show: spots.length <= 40),
-                belowBarData: BarAreaData(
-                  // A filled area under a constant series implies a magnitude
-                  // that isn't being measured — the sensor sitting at 20.0 C
-                  // filled half the card.
-                  show: !isFlat,
-                  color: seriesColor.withValues(alpha: 0.08),
-                ),
-              ),
             ],
-            lineTouchData: LineTouchData(
-              touchTooltipData: LineTouchTooltipData(
-                getTooltipColor: (_) => colors.surfaceElevated,
-                getTooltipItems: (touchedSpots) => touchedSpots.map((spot) {
-                  final when = firstTimestamp
-                      .add(Duration(milliseconds: (spot.x * 1000).round()));
-                  return LineTooltipItem(
-                    '${axis.label(spot.y)} $yAxisLabel\n'
-                    '${DateFormat('HH:mm:ss').format(when)}'
-                    '  ·  +${elapsedAxisLabel(spot.x)}',
-                    SkotiqTypography.labelQuiet.copyWith(
-                      color: colors.textPrimary,
-                    ),
-                  );
-                }).toList(),
-              ),
+            x: ChartAxis(
+              kind: ChartAxisKind.elapsed,
+              min: 0,
+              readout: (seconds) {
+                final when = firstTimestamp.add(
+                  Duration(milliseconds: (seconds * 1000).round()),
+                );
+                return '${ClockFormat.hms(when)}  ·  '
+                    '+${ChartScale.elapsedLabel(seconds)}';
+              },
             ),
+            y: ChartAxis(
+              min: range.min,
+              max: range.max,
+              ticks: range.ticks.values,
+            ),
+            rules: <ChartRule>[
+              // The median is the honest "typical" value for a skewed
+              // quantity like HFR, where a few clouded frames drag the mean.
+              ChartRule.y(median, label: 'median'),
+              if (warn != null && warn <= range.max && warn >= range.min)
+                ChartRule.y(warn, tone: SeriesChartTone.warning),
+            ],
           ),
         ),
       ),

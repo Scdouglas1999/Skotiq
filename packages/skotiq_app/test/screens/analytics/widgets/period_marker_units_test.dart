@@ -40,31 +40,32 @@ void main() {
   });
 
   // The three tests above only exercise the formatters. Both peak markers are
-  // painted onto a canvas by private CustomPainters, so no widget test can read
-  // the string back: reverting either painter to its own inline
-  // '${(p * 24).toStringAsFixed(2)}h' would restore the exact reported defect
-  // with every assertion above still green. These guards pin the call sites.
-  group('the painters route their peak marker through the shared formatter',
-      () {
-    String painterSource(String name) {
+  // painted onto a canvas, so no widget test can read the string back:
+  // building either marker from its own inline '${(p * 24).toStringAsFixed(2)}h'
+  // would restore the exact reported defect with every assertion above still
+  // green. These guards pin the call sites.
+  group('the spectra route their peak marker through the shared formatter', () {
+    String chartsSource() {
       final file = File(
-          'lib/screens/analytics/widgets/period_analysis_panel/$name.dart');
+          'lib/screens/analytics/widgets/period_analysis_panel/period_charts.dart');
       expect(file.existsSync(), isTrue,
-          reason: 'painter moved; repoint this guard at its new path');
+          reason: 'the period charts moved; repoint this guard at their path');
       return file.readAsStringSync();
     }
 
     test('BLS spectrum marker calls blsPeakLabel', () {
-      final source = painterSource('bls_spectrum_painter');
+      final source = chartsSource();
       expect(source, contains('blsPeakLabel(bestPeriod)'));
-      // Nothing in the painter may build a peak annotation of its own.
+      // Nothing in the charts may build a peak annotation of its own.
       expect(source.contains("'P="), isFalse,
-          reason: 'the marker text must come from blsPeakLabel, not an inline '
+          reason:
+              'the marker text must come from the shared formatters, not an '
+              'inline '
               'unit conversion');
     });
 
     test('Lomb-Scargle marker calls periodogramPeakLabel', () {
-      final source = painterSource('periodogram_painter');
+      final source = chartsSource();
       expect(source, contains('periodogramPeakLabel(bestFrequency)'));
       expect(source.contains("'P="), isFalse,
           reason: 'the marker text must come from periodogramPeakLabel, not an '

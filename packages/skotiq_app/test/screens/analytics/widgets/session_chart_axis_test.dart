@@ -6,23 +6,18 @@
 //   * a descending series (what `watchStandaloneImages` returns) produced a
 //     negative x axis, which silently removed every x-axis label and drew the
 //     night backwards.
-import 'package:fl_chart/fl_chart.dart';
+// The chart paints its labels on a canvas, so these read the layout and the
+// painted label rectangles rather than Text widgets.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/widgets/session_chart.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// Only the labels the chart itself draws — the card's median/p90/n summary
-/// legitimately repeats values that also appear as ticks.
-List<String> _texts(WidgetTester tester) => tester
-    .widgetList<Text>(
-      find.descendant(of: find.byType(LineChart), matching: find.byType(Text)),
-    )
-    .map((t) => t.data)
-    .whereType<String>()
-    .toList();
+import '../../../support/chart_probe.dart';
 
 Future<void> _pump(WidgetTester tester, List<ChartDataPoint> points) async {
   await tester.pumpWidget(MaterialApp(
+    theme: SkotiqTheme.dark,
     home: Scaffold(
       body: SizedBox(
         width: 640,
@@ -39,37 +34,7 @@ Future<void> _pump(WidgetTester tester, List<ChartDataPoint> points) async {
   await tester.pumpAndSettle();
 }
 
-/// Fails if two different labels on the SAME axis overlap.
-///
-/// Value labels (y) and elapsed-time labels (x) are compared separately: the
-/// bottom-most y label and the leftmost x label share the axis corner by
-/// fl_chart's own layout, which is not the defect this file guards.
-void _expectNoOverlappingLabels(WidgetTester tester) {
-  final finder =
-      find.descendant(of: find.byType(LineChart), matching: find.byType(Text));
-  final yLabels = <(String, Rect)>[];
-  final xLabels = <(String, Rect)>[];
-  for (var i = 0; i < finder.evaluate().length; i++) {
-    final element = finder.at(i);
-    final text = tester.widget<Text>(element).data;
-    if (text == null) continue;
-    final entry = (text, tester.getRect(element));
-    (double.tryParse(text) != null ? yLabels : xLabels).add(entry);
-  }
-  expect(yLabels.length, greaterThan(2));
-
-  for (final axis in [yLabels, xLabels]) {
-    for (var i = 0; i < axis.length; i++) {
-      for (var j = i + 1; j < axis.length; j++) {
-        final (textA, rectA) = axis[i];
-        final (textB, rectB) = axis[j];
-        if (textA == textB) continue; // same label drawn twice is invisible
-        expect(rectA.overlaps(rectB), isFalse,
-            reason: '"$textA" ($rectA) overlaps "$textB" ($rectB)');
-      }
-    }
-  }
-}
+final _chart = find.byType(SkotiqChart);
 
 void main() {
   final start = DateTime(2026, 7, 28, 21, 40);
@@ -82,16 +47,14 @@ void main() {
     ),
   );
 
-  testWidgets('no two different axis labels overlap on either axis',
-      (tester) async {
+  testWidgets('no two axis labels overlap', (tester) async {
     await _pump(tester, ascending);
-    _expectNoOverlappingLabels(tester);
+    expectNoOverlappingChartLabels(tester, _chart);
   });
 
-  // A series with no variation takes the degenerate branch of NiceAxis, which
-  // used to build its window from the centre without snapping to ticks: three
-  // frames all guiding at 0.70" gave min = 0.70 - 2 x 0.25 = 0.20 against ticks
-  // at multiples of 0.25, and "0.20" printed on top of "0.25".
+  // A series with no variation gets a window built around its value. Three
+  // frames all guiding at 0.70" once gave a bottom of 0.20 against ticks at
+  // multiples of 0.25, and "0.20" printed on top of "0.25".
   for (final flatValue in <double>[0.70, 0.60, 15220.0]) {
     testWidgets('a flat $flatValue series draws no overlapping axis labels',
         (tester) async {
@@ -105,23 +68,36 @@ void main() {
           ),
         ),
       );
-      _expectNoOverlappingLabels(tester);
+      expectNoOverlappingChartLabels(tester, _chart);
+      final range =
+          chartLayoutOf(tester, _chart).valueRange(ChartValueAxis.left)!;
+      expect(range.ticks.values.first, range.min);
+      expect(range.ticks.values.last, range.max);
     });
   }
 
-  testWidgets('x axis survives descending input', (tester) async {
+  testWidgets(
+      'the time axis starts at zero and runs forward for descending '
+      'input', (tester) async {
     await _pump(tester, ascending.reversed.toList());
-    final labels = _texts(tester);
-    expect(labels.any((t) => t.endsWith('m') || t.endsWith('h')), isTrue,
-        reason: 'elapsed-time labels missing: $labels');
+    final layout = chartLayoutOf(tester, _chart);
+    expect(layout.xMin, 0);
+    expect(layout.xMax, 23 * 630);
+    final xs = layout.series.first.points.map((p) => p.dx).toList();
+    expect(xs, List<double>.of(xs)..sort());
+    expect(layout.xLabel(7200), '2h');
   });
 
-  testWidgets('ordering does not change the rendered axes', (tester) async {
+  testWidgets('ordering does not change what is drawn', (tester) async {
     await _pump(tester, ascending);
-    final forward = _texts(tester)..sort();
+    final forward = chartLayoutOf(tester, _chart);
     await _pump(tester, ascending.reversed.toList());
-    final reversed = _texts(tester)..sort();
-    expect(reversed, forward);
+    final reversed = chartLayoutOf(tester, _chart);
+    expect(reversed.series.first.points, forward.series.first.points);
+    expect(
+      reversed.valueRange(ChartValueAxis.left)!.ticks.values,
+      forward.valueRange(ChartValueAxis.left)!.ticks.values,
+    );
   });
 
   testWidgets('a constant series still gets a readable axis', (tester) async {
@@ -133,14 +109,13 @@ void main() {
       ),
     );
     await _pump(tester, flat);
-    final numeric = _texts(tester)
-        .where((t) => double.tryParse(t) != null)
-        .toList(growable: false);
-    expect(numeric.map(double.parse), contains(20.0));
+    final range =
+        chartLayoutOf(tester, _chart).valueRange(ChartValueAxis.left)!;
+    expect(range.ticks.values, contains(20.0));
     // A zero-range series must not invent a spread it never measured.
-    final parsed = numeric.map(double.parse).toList()..sort();
-    expect(parsed.first, lessThanOrEqualTo(20.0));
-    expect(parsed.last, greaterThanOrEqualTo(20.0));
+    expect(range.min, lessThanOrEqualTo(20.0));
+    expect(range.max, greaterThanOrEqualTo(20.0));
+    expect(range.span, lessThan(5));
   });
 
   testWidgets('empty series explains itself', (tester) async {
@@ -153,6 +128,6 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('No HFR (px) recorded'), findsNothing);
-    expect(find.byType(LineChart), findsNothing);
+    expect(find.byType(SkotiqChart), findsNothing);
   });
 }
