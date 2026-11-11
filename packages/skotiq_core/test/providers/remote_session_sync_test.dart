@@ -920,6 +920,61 @@ void main() {
     );
 
     test(
+      "a connect that failed keeps its card through the host's re-hydrate",
+      () async {
+        final backend = _MockNetworkBackend();
+        when(() => backend.sequencerGetStatus()).thenAnswer(
+          (_) async => const SequencerStatus(state: 'Idle', progress: 0),
+        );
+        when(
+          () => backend.getConnectedDevices(),
+        ).thenAnswer((_) async => const []);
+        when(
+          () => backend.getOpenEditorSequence(),
+        ).thenAnswer((_) async => null);
+        when(() => backend.phd2GetStatus()).thenAnswer(
+          (_) async => const Phd2Status(
+            state: 'Stopped',
+            connected: false,
+            rmsRa: 0,
+            rmsDec: 0,
+            rmsTotal: 0,
+            snr: 0,
+            starMass: 0,
+            avgDistance: 0,
+          ),
+        );
+        when(
+          () => backend.eventStream,
+        ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+        when(
+          () => backend.connectionState,
+        ).thenReturn(BackendConnectionState.connected);
+        _stubHydrationParityEndpoints(backend);
+
+        final container = ProviderContainer(
+          overrides: [
+            inMemoryDatabaseOverride(),
+            backendProvider.overrideWith(
+              (ref) => _FixedBackendNotifier(ref, backend),
+            ),
+            loggingServiceProvider.overrideWithValue(LoggingService()),
+          ],
+        );
+        addTearDown(container.dispose);
+        container.read(focuserStateProvider.notifier)
+          ..setConnecting('sim_focuser_1', 'Simulated Focuser')
+          ..connectFailed(Exception('driver refused'));
+
+        await hydrateRemoteSessionState(container, backend);
+
+        final focuser = container.read(focuserStateProvider);
+        expect(focuser.connectionState, DeviceConnectionState.error);
+        expect(focuser.lastError?.deviceId, 'sim_focuser_1');
+      },
+    );
+
+    test(
       'an edit not yet sent to the host survives a host with no plan open',
       () async {
         final backend = _MockNetworkBackend();

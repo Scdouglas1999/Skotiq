@@ -210,10 +210,9 @@ void _dropDevicesTheHostNoLongerReports(
   for (final type in _hostListedDeviceTypes) {
     final notifier = readDeviceConnectionNotifier(reader, type);
     final deviceId = notifier.deviceId;
-    if (deviceId == null &&
-        notifier.connectionState == DeviceConnectionState.disconnected) {
-      continue;
-    }
+    // A slot that holds no device has nothing the host could stop reporting;
+    // one showing a connect that failed keeps showing it.
+    if (deviceId == null) continue;
     final stillReported = devices.any(
       (d) => d.deviceType == type && d.id == deviceId,
     );
