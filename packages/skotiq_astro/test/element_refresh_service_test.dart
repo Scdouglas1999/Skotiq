@@ -101,9 +101,8 @@ void main() {
         isNotEmpty,
         reason: 'stale cache should survive a failed refresh',
       );
-      expect(result.hasRefreshFailures, isTrue);
-      expect(result.asteroidRefreshError, isNotNull);
-      expect(result.cometRefreshError, isNotNull);
+      expect(result.failure?.asteroids, isNotNull);
+      expect(result.failure?.comets, isNotNull);
     });
 
     test(
@@ -124,9 +123,9 @@ void main() {
 
         expect(result.asteroids, isEmpty);
         expect(result.comets, isNotEmpty);
-        expect(result.asteroidRefreshError, contains('503'));
-        expect(result.cometRefreshError, isNull);
-        expect(result.refreshFailureSummary, contains('Asteroids'));
+        expect('${result.failure?.asteroids}', contains('503'));
+        expect(result.failure?.comets, isNull);
+        expect(result.failure.toString(), startsWith('Asteroids: '));
       },
     );
 
@@ -150,7 +149,16 @@ void main() {
           cacheDirectory: tempDir.path,
           clientFactory: () => MockClient((_) async => http.Response('', 503)),
         );
-        expect(service.refresh(), throwsA(isA<Exception>()));
+        // The failure carries each source's cause, not a pre-rendered string,
+        // so the app can word it for the operator.
+        await expectLater(
+          service.refresh(),
+          throwsA(
+            isA<ElementRefreshFailure>()
+                .having((f) => f.asteroids, 'asteroids', isA<HttpException>())
+                .having((f) => f.comets, 'comets', isA<HttpException>()),
+          ),
+        );
       },
     );
 

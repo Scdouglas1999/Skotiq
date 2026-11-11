@@ -224,36 +224,47 @@ class ElementRefreshConfig {
   }
 }
 
+/// Why a refresh brought no fresh elements for one or both sources.
+///
+/// Each cause is the failure itself, not its text, so the app can put it in
+/// its own words.
+class ElementRefreshFailure implements Exception {
+  const ElementRefreshFailure({this.asteroids, this.comets});
+
+  final Object? asteroids;
+  final Object? comets;
+
+  /// `Asteroids: <why> • Comets: <why>` for the sources that failed, with
+  /// [describeCause] turning each cause into text.
+  String describe(String Function(Object cause) describeCause) => [
+    if (asteroids case final cause?) 'Asteroids: ${describeCause(cause)}',
+    if (comets case final cause?) 'Comets: ${describeCause(cause)}',
+  ].join(' • ');
+
+  @override
+  String toString() => describe((cause) => '$cause');
+}
+
 /// The current refreshed element sets plus their provenance.
 class RefreshedElements {
   final List<MinorBodyElements> asteroids;
   final List<MinorBodyElements> comets;
   final DateTime? asteroidsFetchedAt;
   final DateTime? cometsFetchedAt;
-  final String? asteroidRefreshError;
-  final String? cometRefreshError;
+
+  /// The sources the last refresh could not fetch, or null when none failed.
+  final ElementRefreshFailure? failure;
 
   const RefreshedElements({
     this.asteroids = const [],
     this.comets = const [],
     this.asteroidsFetchedAt,
     this.cometsFetchedAt,
-    this.asteroidRefreshError,
-    this.cometRefreshError,
+    this.failure,
   });
 
   bool get isEmpty => asteroids.isEmpty && comets.isEmpty;
   List<MinorBodyElements> get all => [...asteroids, ...comets];
-  bool get hasRefreshFailures =>
-      asteroidRefreshError != null || cometRefreshError != null;
-
-  String? get refreshFailureSummary {
-    final failures = <String>[
-      if (asteroidRefreshError != null) 'Asteroids: $asteroidRefreshError',
-      if (cometRefreshError != null) 'Comets: $cometRefreshError',
-    ];
-    return failures.isEmpty ? null : failures.join(' • ');
-  }
 
   /// Oldest fetch time across the populated sets (for the staleness check
   /// and the "last updated" indicator).
@@ -486,8 +497,8 @@ class ElementRefreshService {
 
   /// Download fresh element sets, update the disk cache, and return the
   /// merged result. On a download failure the stale cached set for that
-  /// source is kept (offline-safe); throws only if BOTH sources fail AND
-  /// nothing is cached.
+  /// source is kept (offline-safe); throws the [ElementRefreshFailure] only
+  /// if BOTH sources fail AND nothing is cached.
   Future<RefreshedElements> refresh({ElementRefreshConfig? config}) async {
     final cfg = config ?? await loadConfig();
     final cached = await loadCached();
@@ -567,14 +578,12 @@ class ElementRefreshService {
       comets: comets,
       asteroidsFetchedAt: asteroidsAt,
       cometsFetchedAt: cometsAt,
-      asteroidRefreshError: asteroidError?.toString(),
-      cometRefreshError: cometError?.toString(),
+      failure: asteroidError == null && cometError == null
+          ? null
+          : ElementRefreshFailure(asteroids: asteroidError, comets: cometError),
     );
-    if (result.isEmpty && result.hasRefreshFailures) {
-      throw Exception(
-        'Element refresh failed: ${result.refreshFailureSummary}',
-      );
-    }
+    final failure = result.failure;
+    if (result.isEmpty && failure != null) throw failure;
     return result;
   }
 
