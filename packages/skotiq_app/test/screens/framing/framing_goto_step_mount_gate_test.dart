@@ -57,6 +57,7 @@ void main() {
     WidgetTester tester, {
     required DeviceConnectionState mount,
     FramingState framing = const FramingState(target: _target),
+    bool? solverReady = true,
   }) async {
     await pumpAppScreen(
       tester,
@@ -71,6 +72,7 @@ void main() {
         mountStateProvider.overrideWith(
           (ref) => _SeededMountNotifier(ref, mount),
         ),
+        plateSolverReadyProvider.overrideWith((ref) => solverReady),
         framingFOVProvider.overrideWith(
           (ref) async => const FramingEquipmentResult(
             status: EquipmentStatus.noProfile,
@@ -137,5 +139,21 @@ void main() {
       find.text('Resolve a target above to enable slewing.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets(
+      'no plate solver: the button offers a plain slew and says what is missing',
+      (tester) async {
+    await pumpRail(
+      tester,
+      mount: DeviceConnectionState.connected,
+      solverReady: false,
+    );
+
+    expect(find.text('Slew & Center'), findsNothing);
+    expect(find.text('Slew'), findsOneWidget);
+    expect(find.text('Plate solver not configured'), findsOneWidget);
+    expect(find.textContaining('Centering it'), findsOneWidget);
+    expect(find.text('Set up plate solver'), findsOneWidget);
   });
 }

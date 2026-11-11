@@ -112,6 +112,10 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     final enabled = widget.isEnabled && isMountConnected && !_operationInFlight;
 
     final showRotateOption = hasRotator && widget.targetRotation != null;
+    // Centering solves frames; without a solver the button offers what it
+    // can do (a plain slew) and the centering entries say why they are off.
+    final solverMissing = ref.watch(plateSolverReadyProvider) == false;
+    final mainMode = solverMissing ? SlewMode.slew : widget.defaultMode;
 
     final slew = ref.watch(mountSlewProgressProvider);
     final visibleLabel = _operationInFlight
@@ -119,7 +123,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
             ? 'Working...'
             : 'Slewing · ${formatSlewDistance(slew.remainingDegrees)}'
         : widget.label ??
-            switch (widget.defaultMode) {
+            switch (mainMode) {
               SlewMode.slew => 'Slew',
               SlewMode.slewAndCenter => 'Slew & Center',
               SlewMode.slewCenterRotate => 'Slew, Center & Rotate',
@@ -137,7 +141,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
             icon: widget.icon ?? LucideIcons.move,
             variant: widget.variant,
             onPressed:
-                enabled ? () => _handleSlewMode(widget.defaultMode) : null,
+                enabled ? () => _handleSlewMode(mainMode) : null,
           ),
         ),
         const SizedBox(width: 4),
@@ -169,40 +173,20 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
                   ],
                 ),
               ),
-              PopupMenuItem<SlewMode>(
-                value: SlewMode.slewAndCenter,
-                child: Row(
-                  children: [
-                    Icon(
-                      LucideIcons.target,
-                      size: 16,
-                      color: colors.textPrimary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Slew & Center',
-                      style: TextStyle(color: colors.textPrimary),
-                    ),
-                  ],
-                ),
+              _centeringItem(
+                colors,
+                mode: SlewMode.slewAndCenter,
+                icon: LucideIcons.target,
+                label: 'Slew & Center',
+                solverMissing: solverMissing,
               ),
               if (showRotateOption)
-                PopupMenuItem<SlewMode>(
-                  value: SlewMode.slewCenterRotate,
-                  child: Row(
-                    children: [
-                      Icon(
-                        LucideIcons.rotateCw,
-                        size: 16,
-                        color: colors.textPrimary,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Slew, Center & Rotate',
-                        style: TextStyle(color: colors.textPrimary),
-                      ),
-                    ],
-                  ),
+                _centeringItem(
+                  colors,
+                  mode: SlewMode.slewCenterRotate,
+                  icon: LucideIcons.rotateCw,
+                  label: 'Slew, Center & Rotate',
+                  solverMissing: solverMissing,
                 ),
             ],
             // Keep the alternatives menu large enough for touch input.
@@ -220,6 +204,42 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
           ),
         ),
       ],
+    );
+  }
+
+  PopupMenuItem<SlewMode> _centeringItem(
+    SkotiqColors colors, {
+    required SlewMode mode,
+    required IconData icon,
+    required String label,
+    required bool solverMissing,
+  }) {
+    final ink = solverMissing ? colors.textMuted : colors.textPrimary;
+    return PopupMenuItem<SlewMode>(
+      value: mode,
+      enabled: !solverMissing,
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: ink),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label, style: TextStyle(color: ink)),
+                if (solverMissing)
+                  Text(
+                    'Needs a plate solver',
+                    style: SkotiqTypography.caption.copyWith(
+                      color: colors.textMuted,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

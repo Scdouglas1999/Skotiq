@@ -27,6 +27,16 @@ final plateSolverPreferenceProvider =
       return service.getConfig();
     });
 
+/// Whether the solver the operator selected can solve right now: false when
+/// it is missing, null while detection or the preference is still loading or
+/// could not be read (a solver still being looked for is not a missing one).
+final plateSolverReadyProvider = Provider.autoDispose<bool?>((ref) {
+  final detection = ref.watch(plateSolverDetectionProvider).valueOrNull;
+  final preference = ref.watch(plateSolverPreferenceProvider).valueOrNull;
+  if (detection == null || preference == null) return null;
+  return detection.supports(preference.choice);
+});
+
 /// State + controller for the Plate Solving settings page.
 ///
 /// The page interacts with this notifier rather than touching the service
