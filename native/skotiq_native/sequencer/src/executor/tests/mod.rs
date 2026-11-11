@@ -7,6 +7,7 @@ mod center_contention_tests;
 mod checkpoint_writer_tests;
 mod depth_goal_tests;
 mod recovery_tests;
+mod resume_tests;
 mod runtime_tests;
 
 /// A failed dither that does not reset the interval leaves the trigger

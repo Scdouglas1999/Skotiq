@@ -111,7 +111,11 @@ impl InstructionNode for ExposeInstruction {
 
         let nominal_secs = config.duration_secs;
         let total_count = config.count;
+        // A resumed run continues the burst it stopped in.
+        let frames_taken = context.resume.frames_taken(node_id).min(total_count);
+        let frames_to_take = total_count - frames_taken;
         let progress_cb = context.progress_callback.as_ref();
+        let resume = context.resume.clone();
 
         // sky-brightness adaptive exposure decision.
         // Resolve the effective config (per-node wins, else runtime
@@ -215,6 +219,7 @@ impl InstructionNode for ExposeInstruction {
         let control = crate::instructions::BurstControl {
             pause: context.pause_gate(),
             status: Some(&status_fn),
+            frames_taken,
         };
         let result = {
             let _camera_guard = match camera_lock.as_ref() {
@@ -228,6 +233,7 @@ impl InstructionNode for ExposeInstruction {
                 Some(path_renderer),
                 &control,
                 |current, total, recorded_secs| {
+                    resume.set_frames_taken(node_id, current);
                     if let Some(cb) = progress_cb {
                         let percent = if total > 0 {
                             100.0 * f64::from(current) / f64::from(total)
@@ -263,13 +269,16 @@ impl InstructionNode for ExposeInstruction {
             )
             .await
         };
+        if result.status != NodeStatus::Cancelled {
+            context.resume.burst_ended(node_id);
+        }
 
         // Canonical integration accounting: the entire burst's exposure time
         // is added here in one shot. Per-frame updates would race with the
         // synchronous progress callbacks and double-count under contention.
         if result.status == NodeStatus::Success {
-            let total_exposure_time = duration_secs * f64::from(total_count);
-            context.record_scheduler_completed_exposures(u64::from(total_count));
+            let total_exposure_time = duration_secs * f64::from(frames_to_take);
+            context.record_scheduler_completed_exposures(u64::from(frames_to_take));
             {
                 let mut counter = context.completed_integration_secs.write().await;
                 *counter += total_exposure_time;
@@ -300,8 +309,8 @@ impl InstructionNode for ExposeInstruction {
                 .load(std::sync::atomic::Ordering::Relaxed);
             let rejected_in_burst = frames_rejected_after
                 .saturating_sub(frames_rejected_before)
-                .min(total_count);
-            let passed_count = total_count.saturating_sub(rejected_in_burst);
+                .min(frames_to_take);
+            let passed_count = frames_to_take.saturating_sub(rejected_in_burst);
             let budget_credit_secs = duration_secs * f64::from(passed_count);
 
             // credit the active TargetHeader's
@@ -346,7 +355,7 @@ impl InstructionNode for ExposeInstruction {
                 // star-field frames; a dark or bias burst neither blurs focus
                 // nor builds walking noise, so it does not advance them.
                 if counts_toward_frame_cadence(&config.frame_type) {
-                    for _ in 0..total_count {
+                    for _ in 0..frames_to_take {
                         trigger_state.increment_exposure_count();
                     }
                 }
@@ -363,7 +372,7 @@ impl InstructionNode for ExposeInstruction {
             // exactly once — per-frame events deliberately leave it None.
             let final_message = format!(
                 "Completed {} exposures ({:.0}s)",
-                total_count, total_exposure_time
+                frames_to_take, total_exposure_time
             );
             let mut final_upd =
                 ProgressUpdate::lifecycle(node_id.to_string(), NodeStatus::Success, final_message);

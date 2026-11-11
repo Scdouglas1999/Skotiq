@@ -28,6 +28,7 @@ pub(crate) mod instructions;
 pub(crate) mod logic;
 pub(crate) mod progress;
 pub(crate) mod registry;
+pub(crate) mod resume;
 pub(crate) mod runtime;
 
 pub use context::{CloudMotionSnapshot, ExecutionContext};

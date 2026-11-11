@@ -24,6 +24,7 @@ async fn pause_stops_the_burst_before_the_next_frame_starts() {
     ec.is_paused = paused.clone();
     let ctx = ec.to_instruction_context("pause-node").await;
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -585,6 +586,7 @@ async fn tracking_hold_blocks_pending_guide_restart_before_exposure() {
     ec.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
     let ctx = ec.to_instruction_context("held-light").await;
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -626,6 +628,7 @@ async fn a_frame_exposing_when_tracking_stops_is_rejected_with_the_reason() {
     ec.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
     let ctx = ec.to_instruction_context("untracked").await;
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -678,6 +681,7 @@ async fn a_frame_that_loses_tracking_halfway_through_is_rejected_with_the_reason
         let mut ctx = ec.to_instruction_context("midframe").await;
         ctx.run.event_tx = Some(events);
         let control = BurstControl {
+            frames_taken: 0,
             pause: ec.pause_gate(),
             status: None,
         };
@@ -753,6 +757,7 @@ async fn a_pending_guide_restart_waits_for_the_mount_to_track() {
     ec.run.trigger_state = Some(state.clone());
     let ctx = ec.to_instruction_context("guide-wait").await;
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -803,6 +808,7 @@ async fn an_unguided_run_retries_guiding_before_a_light_frame() {
     ec.run.trigger_state = Some(state.clone());
     let ctx = ec.to_instruction_context("unguided-retry").await;
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -843,6 +849,7 @@ async fn a_pending_guide_restart_waits_when_the_mount_itself_reads_not_tracking(
     ec.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
     let ctx = ec.to_instruction_context("guide-wait-dev").await;
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };

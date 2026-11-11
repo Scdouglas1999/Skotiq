@@ -7,6 +7,7 @@
 //! outside the node tree can fail it ([`OutsideFailures`]). The node tree's
 //! `ExecutionContext` takes its shared handles from here.
 
+use crate::node::resume::ResumeRecord;
 use super::*;
 use crate::node::context::{AdaptiveSwapRuntimeState, PluginNodeReply};
 use crate::recovery::{RecoveryCause, RecoveryContext, RecoveryHistoryEntry, RecoverySignals};
@@ -306,7 +307,7 @@ pub(crate) struct Run {
     pub outside_failures: OutsideFailures,
     pub budget_registry: BudgetRegistry,
     pub smart_exposure_states: Arc<RwLock<HashMap<NodeId, crate::SmartExposureCheckpoint>>>,
-    pub loop_passes_finished: Arc<StdRwLock<HashMap<NodeId, u32>>>,
+    pub resume: ResumeRecord,
 }
 
 /// What a resumed run takes over from its checkpoint, and what the operator
@@ -343,7 +344,7 @@ impl Run {
         context.run.trigger_state = Some(self.triggers.read().await.state());
         context.budget_registry = self.budget_registry.clone();
         context.smart_exposure_states = self.smart_exposure_states.clone();
-        context.loop_passes_finished = self.loop_passes_finished.clone();
+        context.resume = self.resume.clone();
 
         context.run.conditions.sky_brightness_mag = self.sky.sky_brightness_mag.clone();
         context.run.conditions.cloud_motion = self.sky.cloud_motion.clone();
@@ -378,7 +379,8 @@ impl Run {
 
         context.progress_callback = Some(build_progress_callback(ProgressCallbackArgs {
             exposure_node_metadata: self.plan.exposure_nodes.clone(),
-            node_frame_progress: Arc::default(),
+            // A burst a resume continues has its frames counted already.
+            node_frame_progress: Arc::new(StdRwLock::new(self.resume.snapshot().frames_taken)),
             node_integration_credited: Arc::default(),
             node_names: Arc::new(StdRwLock::new(self.plan.node_display_names.clone())),
             run_state: self.control.state.clone(),
@@ -706,7 +708,7 @@ impl Run {
             progress.elapsed_secs = started.elapsed().as_secs_f64();
         });
 
-        self.close_checkpoint(result);
+        self.close_checkpoint(result).await;
 
         let elapsed_secs = started.elapsed().as_secs_f64();
         match result {
@@ -769,7 +771,7 @@ impl Run {
     /// A run that did not finish keeps its checkpoint, with how it ended and
     /// the progress it reached. A finished run's checkpoint stays on disk for
     /// the session report and stops being resumable.
-    fn close_checkpoint(&self, result: NodeStatus) {
+    async fn close_checkpoint(&self, result: NodeStatus) {
         let Some(writer) = &self.checkpoint else {
             return;
         };
@@ -799,7 +801,10 @@ impl Run {
                 progress.completed_integration_secs,
             )
         });
-        match writer.record_run_end(run_end, exposures, integration_secs) {
+        match writer
+            .record_run_end(run_end, exposures, integration_secs)
+            .await
+        {
             Ok(()) => tracing::info!(
                 "Checkpoint records the run as {} after {} exposures",
                 run_end.as_str(),
@@ -885,7 +890,7 @@ impl Run {
             outside_failures: OutsideFailures::default(),
             budget_registry: BudgetRegistry::new(),
             smart_exposure_states: Arc::default(),
-            loop_passes_finished: Arc::default(),
+            resume: ResumeRecord::default(),
         }
     }
 }

@@ -116,6 +116,7 @@ async fn overdue_meridian_flip_does_not_stall_the_exposure_burst() {
     ec.run.trigger_state = Some(trigger_state);
 
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -205,6 +206,7 @@ async fn gate_does_not_hold_when_the_mount_cannot_make_the_trigger_fire() {
     ec.run.trigger_state = Some(trigger_state);
 
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };

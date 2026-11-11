@@ -129,21 +129,24 @@ impl SequenceExecutor {
             return writer.save().await;
         }
 
-        let loop_passes_finished = {
-            let mut passes = std::collections::HashMap::new();
-            if let Some(ref root) = self.root_node {
-                root.snapshot_loop_iterations(&mut passes);
-            }
-            passes
-        };
         let budget_registry = crate::scheduling::integration_budget::BudgetRegistry::new();
         let mut smart_exposure_states = std::collections::HashMap::new();
+        let mut frames_taken = std::collections::HashMap::new();
         if let Some(prepared) = &self.current_checkpoint {
+            frames_taken = prepared.exposure_frames_taken.clone();
             budget_registry
                 .restore_snapshot(prepared.budget_states.clone())
                 .await;
             smart_exposure_states = prepared.smart_exposure_states.clone();
         }
+        let resume = match &self.root_node {
+            Some(root) => {
+                let mut passes = std::collections::HashMap::new();
+                root.snapshot_loop_iterations(&mut passes);
+                crate::node::resume::ResumeRecord::new(root.as_ref(), passes, frames_taken)
+            }
+            None => crate::node::resume::ResumeRecord::default(),
+        };
         CheckpointWriter::new(
             manager.clone(),
             CheckpointSources {
@@ -164,7 +167,7 @@ impl SequenceExecutor {
                 triggers_enabled: self.triggers_enabled,
                 budget_registry,
                 smart_exposure_states: Arc::new(tokio::sync::RwLock::new(smart_exposure_states)),
-                loop_passes_finished: Arc::new(parking_lot::RwLock::new(loop_passes_finished)),
+                resume,
             },
         )
         .save()

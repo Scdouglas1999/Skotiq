@@ -347,6 +347,9 @@ pub struct RuntimeNode {
     pub children: Vec<Box<dyn Node>>,
     pub status: NodeStatus,
     pub current_iteration: u32,
+    /// Set on a Loop by a checkpoint resume: its next pass is the one the run
+    /// stopped in, and continues it rather than starting the body over.
+    pub resumed: bool,
 }
 
 impl RuntimeNode {
@@ -356,6 +359,7 @@ impl RuntimeNode {
             children: Vec::new(),
             status: NodeStatus::Pending,
             current_iteration: 0,
+            resumed: false,
         }
     }
 
@@ -383,6 +387,7 @@ impl Node for RuntimeNode {
     }
 
     async fn execute(&mut self, context: &mut ExecutionContext) -> NodeStatus {
+        context.resume.node_started(self.id());
         if !self.definition.enabled {
             self.status = NodeStatus::Skipped;
             return NodeStatus::Skipped;
@@ -502,6 +507,7 @@ impl Node for RuntimeNode {
     fn reset(&mut self) {
         self.status = NodeStatus::Pending;
         self.current_iteration = 0;
+        self.resumed = false;
         for child in &mut self.children {
             child.reset();
         }
@@ -546,6 +552,7 @@ impl Node for RuntimeNode {
             if let Some(&iter) = map.get(self.id()) {
                 self.current_iteration = iter;
             }
+            self.resumed = true;
         }
         for child in &mut self.children {
             child.restore_loop_iterations(map);

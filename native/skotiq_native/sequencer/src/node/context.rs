@@ -228,9 +228,9 @@ pub struct ExecutionContext {
     /// allocation (matches the rest of this struct's shared-state pattern).
     pub smart_exposure_states:
         Arc<RwLock<std::collections::HashMap<NodeId, crate::SmartExposureCheckpoint>>>,
-    /// Passes each Loop node has finished, kept current by the loop itself so
-    /// a checkpoint saved while the tree runs can record them.
-    pub loop_passes_finished: Arc<parking_lot::RwLock<std::collections::HashMap<NodeId, u32>>>,
+    /// Where the run stands inside its loops and bursts, kept current by the
+    /// nodes so a checkpoint saved while the tree runs can record it.
+    pub resume: crate::node::resume::ResumeRecord,
     /// DepthLock verdict source, installed by the host at start. `None`
     /// when the host has no goal store; a bound plan then warns once and
     /// stays count-bounded.
@@ -490,9 +490,7 @@ impl ExecutionContext {
             // from `RunConfig::max_sun_altitude_degrees` at start.
             max_sun_altitude_degrees: crate::instructions::DEFAULT_MAX_SUN_ALTITUDE_DEGREES,
             smart_exposure_states: Arc::new(RwLock::new(std::collections::HashMap::new())),
-            loop_passes_finished: Arc::new(parking_lot::RwLock::new(
-                std::collections::HashMap::new(),
-            )),
+            resume: crate::node::resume::ResumeRecord::default(),
             // No checkpoint manager outside a session: wizard step state
             // is not persisted and every run starts at step 0. The
             // executor installs its own Arc at start().

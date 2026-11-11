@@ -112,6 +112,9 @@ pub async fn execute_exposure(
 pub struct BurstControl<'a> {
     pub pause: crate::node::context::PauseGate,
     pub status: Option<&'a (dyn Fn(&str) + Send + Sync)>,
+    /// Frames of this burst taken before a stop; the burst continues with
+    /// the next one.
+    pub frames_taken: u32,
 }
 
 impl BurstControl<'_> {
@@ -275,7 +278,7 @@ pub async fn execute_exposure_with_renderer(
     let is_light_frame = config.frame_type.eq_ignore_ascii_case("light")
         || config.frame_type.eq_ignore_ascii_case("snapshot");
 
-    for frame in 1..=config.count {
+    for frame in (control.frames_taken + 1)..=config.count {
         // A transient camera fault (a failed download, a timeout, "not
         // ready") retries THIS frame under the run's camera retry budget
         // rather than ending the run. The whole frame start is repeated --
