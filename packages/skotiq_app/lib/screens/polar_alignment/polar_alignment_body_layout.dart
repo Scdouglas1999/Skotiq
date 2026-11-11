@@ -441,7 +441,6 @@ class PolarAlignmentLiveLayout extends StatelessWidget {
   /// The camera frame's aspect, near enough: sensors are landscape.
   static const double frameAspect = 1.5;
 
-  /// Width of the readout column beside the frame.
   static const double sideWidth = 300;
 
   /// Tallest the readout strip under the frame may get, as a share of the

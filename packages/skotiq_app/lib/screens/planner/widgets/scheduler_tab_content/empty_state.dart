@@ -16,7 +16,6 @@ enum _EmptyQueueCause {
   /// candidate query can never return a row.
   activeProjectEmpty,
 
-  /// The target catalog itself is empty.
   catalogEmpty,
 
   /// Targets exist in scope but none of them carries an integration goal.

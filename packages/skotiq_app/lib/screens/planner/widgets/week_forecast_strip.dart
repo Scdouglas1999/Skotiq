@@ -128,7 +128,6 @@ class WeekForecastStrip extends ConsumerWidget {
   }
 }
 
-/// One night's forecast card.
 class _NightCard extends StatelessWidget {
   const _NightCard({
     required this.night,
@@ -391,7 +390,6 @@ class _NightCard extends StatelessWidget {
   }
 }
 
-/// Horizontal row of shimmering skeleton cards shown while the forecast loads.
 class _ForecastSkeletonStrip extends StatelessWidget {
   const _ForecastSkeletonStrip();
 

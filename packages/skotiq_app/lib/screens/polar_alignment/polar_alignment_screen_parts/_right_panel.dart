@@ -70,7 +70,6 @@ extension _RightPanel on _PolarAlignmentScreenState {
             ],
           );
 
-    // Task 4.5: Error trend sparkline chart (only in adjustment phase)
     final Widget? trendChart =
         (state.phase == PolarAlignPhase.adjusting && errorHistory.length > 2)
             ? Container(
@@ -111,7 +110,6 @@ extension _RightPanel on _PolarAlignmentScreenState {
               )
             : null;
 
-    // Error values
     Widget errorValues(double panelWidth) => Container(
           padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
           decoration: BoxDecoration(
