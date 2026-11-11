@@ -1312,6 +1312,10 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeGuideMetricsLabelArcsec': 'Guide error in arcseconds',
     'nightScopeGuideLoop': 'Loop',
     'nightScopeGuideFindStar': 'Find star',
+    'nightScopeGuideLoopHint': 'Take guide exposures without guiding',
+    'nightScopeGuideFindStarHint': 'Pick the best star in the latest guide frame',
+    'nightScopeGuideStopHint': 'Stop looping or guiding',
+    'nightScopeGuideDitherHint': 'Move the guide star a few pixels now and wait for it to settle',
     'nightScopeGuideGuide': 'Guide',
     'nightScopeGuideGuideHint':
         'Calibrates if the guider needs it, then guides with the settle settings below',
@@ -2925,6 +2929,10 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeGuideMetricsLabelArcsec': 'Error de guiado en segundos de arco',
     'nightScopeGuideLoop': 'Bucle',
     'nightScopeGuideFindStar': 'Buscar estrella',
+    'nightScopeGuideLoopHint': 'Toma exposiciones de guiado sin guiar',
+    'nightScopeGuideFindStarHint': 'Elige la mejor estrella de la última toma de guiado',
+    'nightScopeGuideStopHint': 'Detiene el bucle o el guiado',
+    'nightScopeGuideDitherHint': 'Mueve la estrella guía unos píxeles ahora y espera a que se estabilice',
     'nightScopeGuideGuide': 'Guiar',
     'nightScopeGuideGuideHint':
         'Calibra si el guiado lo necesita y guía con los ajustes de estabilización de abajo',

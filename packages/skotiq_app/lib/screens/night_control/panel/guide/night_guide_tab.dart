@@ -331,6 +331,7 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
             NightPanelButtonSpec(
               key: const ValueKey<String>('nightGuide.loop'),
               label: l10n.text('nightScopeGuideLoop'),
+              tooltip: l10n.text('nightScopeGuideLoopHint'),
               busy: _busy == 'loop',
               disabledReason: loopReason,
               onPressed: loopReason == null
@@ -343,6 +344,7 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
             NightPanelButtonSpec(
               key: const ValueKey<String>('nightGuide.findStar'),
               label: l10n.text('nightScopeGuideFindStar'),
+              tooltip: l10n.text('nightScopeGuideFindStarHint'),
               busy: _busy == 'find',
               disabledReason: findReason,
               onPressed:
@@ -361,6 +363,7 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
             NightPanelButtonSpec(
               key: const ValueKey<String>('nightGuide.stop'),
               label: l10n.text('nightScopeGuideStop'),
+              tooltip: l10n.text('nightScopeGuideStopHint'),
               busy: _busy == 'stop',
               disabledReason: stopReason,
               onPressed: stopReason == null
@@ -373,6 +376,7 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
             NightPanelButtonSpec(
               key: const ValueKey<String>('nightGuide.dither'),
               label: l10n.text('nightScopeGuideDitherNow'),
+              tooltip: l10n.text('nightScopeGuideDitherHint'),
               busy: ditherInFlight,
               disabledReason: ditherReason,
               onPressed: ditherReason == null

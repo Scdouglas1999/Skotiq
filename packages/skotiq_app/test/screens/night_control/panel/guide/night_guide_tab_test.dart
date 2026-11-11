@@ -333,7 +333,9 @@ void main() {
       const NightGuideTab(),
       overrides: [
         ..._connected(),
-        phd2StateProvider.overrideWith((ref) => Phd2State.guiding),
+        // Settling after a start is guiding too; unlike guiding it starts no
+        // guide-star image poll in a widget test.
+        phd2StateProvider.overrideWith((ref) => Phd2State.settling),
         phd2ControllerProvider.overrideWithValue(_guiderThatStarts()),
       ],
     );
