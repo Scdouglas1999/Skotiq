@@ -138,8 +138,8 @@ class LiveStackingNode extends SequenceNode {
     this.thumbnailHeight = 720,
   });
 
-  /// True when the user has explicitly set a non-empty auth token.
-  /// Used by the run-dashboard "Public" / "Private" badge.
+  /// True when no auth token is set, so anyone who can reach the broadcast
+  /// page can watch it.
   bool get isPublic => authToken == null || authToken!.isEmpty;
 
   /// True when a watermark template is configured.

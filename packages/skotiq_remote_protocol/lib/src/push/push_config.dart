@@ -111,8 +111,8 @@ class PushConfig {
     mock: false,
   );
 
-  /// True when no cloud channel is enabled (so the caller should fall back
-  /// to the mock / no-op delivery rather than wiring real senders).
+  /// True when FCM or APNs is enabled. When neither is, the caller falls
+  /// back to the mock or no-op delivery instead of wiring real senders.
   bool get hasCloudChannel => fcm.enabled || apns.enabled;
 
   factory PushConfig.fromJson(Map<String, Object?> json) {

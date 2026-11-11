@@ -347,13 +347,13 @@ class NoaaRadarProvider extends RadarProvider {
 
   /// Generates fallback timestamps when GetCapabilities parsing fails.
   ///
-  /// Creates timestamps for the last 2 hours at 5-minute intervals,
-  /// rounded to the nearest 5-minute mark.
+  /// Creates timestamps for the last 2 hours at 5-minute intervals, starting
+  /// from the latest 5-minute mark at or before now.
   List<DateTime> _generateFallbackTimestamps() {
     final now = DateTime.now().toUtc();
     final timestamps = <DateTime>[];
 
-    // Round to nearest 5 minutes
+    // Down to the 5-minute mark: a frame from the future does not exist yet.
     final roundedMinutes = (now.minute ~/ 5) * 5;
     var current = DateTime.utc(
       now.year,
