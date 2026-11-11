@@ -2014,6 +2014,7 @@ packages/skotiq_app/lib/screens/settings/widgets/adaptive_conditions_settings.da
 packages/skotiq_app/lib/screens/settings/widgets/adaptive_exposure_settings.dart	_filterRow	literal_null_coalesce	1	V0086	enabledMap[filter] = v ?? false;
 packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_row.dart	_FilterAfFields	comment_best_effort	1	U2-05	/// Placeholder for a value left to the camera default.
 packages/skotiq_app/lib/screens/settings/widgets/captured_images_settings.dart	_showFull	empty_catch	1	V0141	} catch (_) {
+packages/skotiq_app/lib/screens/settings/widgets/catalog_download_source_card.dart	build	literal_null_coalesce	1	U2-15	final saved = settings.valueOrNull?.catalogBaseUrl ?? '';
 packages/skotiq_app/lib/screens/settings/widgets/deep_star_catalog_card.dart	build	literal_null_coalesce	1	V0121	final hasCatalogData = status?.hasCatalogData ?? false;
 packages/skotiq_app/lib/screens/settings/widgets/deep_star_catalog_card.dart	build	literal_null_coalesce	1	V0121	final isInstalled = status?.isInstalled ?? false;
 packages/skotiq_app/lib/screens/settings/widgets/file_path_settings.dart	build	literal_null_coalesce	1	V0805	Platform.environment[skotiqDatabaseDirEnv]?.trim().isNotEmpty ?? false;
