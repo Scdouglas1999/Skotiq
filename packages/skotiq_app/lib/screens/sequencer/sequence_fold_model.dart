@@ -61,7 +61,6 @@ final class SingleEntry extends TreeEntry {
 
 /// A contiguous sibling run collapsed into one folded row.
 final class FoldedEntry extends TreeEntry {
-  /// The group the folded row stands in for.
   final FoldGroup group;
 
   const FoldedEntry(this.group);
@@ -85,7 +84,6 @@ class FoldGroup extends Equatable {
   /// ephemeral ids would forget the user's expansion on every rebuild.
   final String id;
 
-  /// Which run kind produced this group.
   final FoldKind kind;
 
   /// Member node ids in tree order. The first id is the group's
@@ -135,10 +133,8 @@ class FoldGroup extends Equatable {
   /// Shared camera offset override.
   final int? offset;
 
-  /// Shared binning mode.
   final BinningMode? binning;
 
-  /// Shared frame type.
   final FrameType? frameType;
 
   /// Shared dither cadence (every N frames).
@@ -163,7 +159,6 @@ class FoldGroup extends Equatable {
   })  : memberIds = List.unmodifiable(memberIds),
         memberLabels = List.unmodifiable(memberLabels);
 
-  /// Number of members the folded row stands in for.
   int get memberCount => memberIds.length;
 
   @override
@@ -201,7 +196,6 @@ class FoldDragPayload extends Equatable {
   /// Member ids in tree order. The block is re-inserted in this order.
   final List<String> memberIds;
 
-  /// The parent the run currently sits under.
   final String parentId;
 
   FoldDragPayload({
@@ -348,8 +342,6 @@ Set<String> foldedMemberIds(List<TreeEntry> entries) => <String>{
       for (final entry in entries)
         if (entry is FoldedEntry) ...entry.group.memberIds,
     };
-
-// Run detection
 
 /// Filter runs fold frames the night will actually shoot: a disabled node
 /// breaks the run, and a non-leaf is excluded because a folded row cannot

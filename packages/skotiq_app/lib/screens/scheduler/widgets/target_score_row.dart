@@ -80,7 +80,6 @@ class TargetScoreRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: SkotiqTokens.spaceSm),
-              // Target name and rejection reasons (if any).
               Expanded(
                 flex: 4,
                 child: Column(
@@ -108,7 +107,6 @@ class TargetScoreRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: SkotiqTokens.spaceMd),
-              // Score (right-aligned, monospace-ish for column scanning).
               SizedBox(
                 width: 78,
                 child: Text(
@@ -120,7 +118,6 @@ class TargetScoreRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: SkotiqTokens.spaceMd),
-              // Status pill.
               SizedBox(
                 width: 130,
                 child: Align(
@@ -132,7 +129,6 @@ class TargetScoreRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: SkotiqTokens.spaceMd),
-              // Per-filter remaining frames summary.
               Expanded(
                 flex: 4,
                 child: _GoalSummary(progress: progress, colors: colors),
