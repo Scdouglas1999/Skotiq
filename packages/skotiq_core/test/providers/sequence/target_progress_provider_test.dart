@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
+import 'package:skotiq_core/src/providers/sequence/node_exposure_tally.dart';
 import 'package:skotiq_core/src/providers/sequence_provider.dart';
 
 /// Tests for the per-target execution progress rollup.
@@ -103,6 +104,24 @@ void main() {
       final p = c.read(targetExecutionProgressProvider(t.targetId));
       expect(p.completedFrames, 4);
       expect(p.completedIntegrationSecs, 4 * 60);
+    });
+
+    // Stopped during its third frame, a 4-frame step read "Stopped · 0 of 4".
+    test('a stopped exposure keeps the frames it took', () {
+      final t = _buildTwoExposureTarget();
+      final c = _container(
+        sequence: t.sequence,
+        progress: SequenceProgress(
+          nodeStatuses: {t.firstExpoId: NodeStatus.cancelled},
+          // The budget report after each burst leaves the percent at 0.
+          nodeProgressPercent: {t.firstExpoId: 0.0},
+        ),
+      );
+      c
+          .read(nodeExposureTallyProvider.notifier)
+          .recordFrames(t.firstExpoId, captured: 3, planned: 8);
+      final p = c.read(targetExecutionProgressProvider(t.targetId));
+      expect(p.completedFrames, 3);
     });
 
     test('skipped/failure exposures contribute zero completed frames', () {
