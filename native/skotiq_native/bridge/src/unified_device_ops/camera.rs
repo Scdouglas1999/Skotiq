@@ -36,8 +36,8 @@ impl CameraOps for UnifiedDeviceOps {
         // below, so it can never leak and permanently silence those heartbeats.
         let _usb_contention = mgr.begin_usb_contention();
 
-        // Publish ExposureStarted event
-        self.app_state.publish_imaging_event(
+        let mut exposure = AnnouncedExposure::start(
+            &self.app_state,
             ImagingEvent::ExposureStarted {
                 duration_secs,
                 frame_type: match native_frame_type {
@@ -48,7 +48,6 @@ impl CameraOps for UnifiedDeviceOps {
                     skotiq_device::FrameType::Light => crate::device::FrameType::Light,
                 },
             },
-            EventSeverity::Info,
         );
 
         // Start the exposure. gain/offset are Option<i32>; None means "use the
@@ -73,10 +72,7 @@ impl CameraOps for UnifiedDeviceOps {
         .await
         .inspect_err(|_e| {
             // Publish failure event
-            self.app_state.publish_imaging_event(
-                ImagingEvent::ExposureComplete { success: false },
-                EventSeverity::Error,
-            );
+            exposure.end(false, EventSeverity::Error);
         })
         .map_err(|e| format!("Exposure failed: {}", e))?;
 
@@ -100,18 +96,12 @@ impl CameraOps for UnifiedDeviceOps {
             // still-running exposure and fails with "exposure already in
             // progress". Abort is best-effort; the original error is returned.
             let _ = mgr.camera_abort_exposure(camera_id).await;
-            self.app_state.publish_imaging_event(
-                ImagingEvent::ExposureComplete { success: false },
-                EventSeverity::Error,
-            );
+            exposure.end(false, EventSeverity::Error);
             return Err(e);
         }
 
         if exposure_abort_generation(camera_id).await != acquisition_generation {
-            self.app_state.publish_imaging_event(
-                ImagingEvent::ExposureComplete { success: false },
-                EventSeverity::Info,
-            );
+            exposure.end(false, EventSeverity::Info);
             return Err(DeviceError::Cancelled("Exposure cancelled".to_string()));
         }
 
@@ -135,17 +125,11 @@ impl CameraOps for UnifiedDeviceOps {
         .await
         {
             Ok(inner) => inner.map_err(|e| {
-                self.app_state.publish_imaging_event(
-                    ImagingEvent::ExposureComplete { success: false },
-                    EventSeverity::Error,
-                );
+                exposure.end(false, EventSeverity::Error);
                 format!("Failed to download image: {}", e)
             })?,
             Err(_) => {
-                self.app_state.publish_imaging_event(
-                    ImagingEvent::ExposureComplete { success: false },
-                    EventSeverity::Error,
-                );
+                exposure.end(false, EventSeverity::Error);
                 return Err(DeviceError::Timeout(format!(
                     "Image download on {} exceeded the {}s timeout — failing the frame so recovery can run",
                     camera_id,
@@ -155,10 +139,7 @@ impl CameraOps for UnifiedDeviceOps {
         };
 
         if exposure_abort_generation(camera_id).await != acquisition_generation {
-            self.app_state.publish_imaging_event(
-                ImagingEvent::ExposureComplete { success: false },
-                EventSeverity::Info,
-            );
+            exposure.end(false, EventSeverity::Info);
             return Err(DeviceError::Cancelled("Exposure cancelled".to_string()));
         }
 
@@ -229,10 +210,7 @@ impl CameraOps for UnifiedDeviceOps {
             if !validation.is_valid {
                 let error = DeviceError::InvalidFrame(validation.errors.join("; "));
                 tracing::error!("[CAMERA] {error}");
-                self.app_state.publish_imaging_event(
-                    ImagingEvent::ExposureComplete { success: false },
-                    EventSeverity::Error,
-                );
+                exposure.end(false, EventSeverity::Error);
                 return Err(error);
             }
         }
@@ -365,10 +343,7 @@ impl CameraOps for UnifiedDeviceOps {
         }
 
         // Publish success event
-        self.app_state.publish_imaging_event(
-            ImagingEvent::ExposureComplete { success: true },
-            EventSeverity::Info,
-        );
+        exposure.end(true, EventSeverity::Info);
 
         // Why: log-only formatting; "unknown" when the
         // camera SDK did not surface a sensor-type string matches the UI
@@ -482,5 +457,39 @@ impl CameraOps for UnifiedDeviceOps {
 
     async fn camera_get_model(&self, camera_id: &str) -> DeviceResult<Option<String>> {
         Ok(connected_camera_label(camera_id).await)
+    }
+}
+
+/// An exposure whose start was announced on the event stream. It announces
+/// the end exactly once: `end` on every path that finishes the frame, and on
+/// drop when the caller gave up on it mid-exposure (a stopped run drops the
+/// exposure future), so no screen is left showing a camera still exposing.
+struct AnnouncedExposure<'a> {
+    app_state: &'a SharedAppState,
+    ended: bool,
+}
+
+impl<'a> AnnouncedExposure<'a> {
+    fn start(app_state: &'a SharedAppState, started: ImagingEvent) -> Self {
+        app_state.publish_imaging_event(started, EventSeverity::Info);
+        Self {
+            app_state,
+            ended: false,
+        }
+    }
+
+    fn end(&mut self, success: bool, severity: EventSeverity) {
+        self.ended = true;
+        self.app_state
+            .publish_imaging_event(ImagingEvent::ExposureComplete { success }, severity);
+    }
+}
+
+impl Drop for AnnouncedExposure<'_> {
+    fn drop(&mut self) {
+        if !self.ended {
+            self.app_state
+                .publish_imaging_event(ImagingEvent::ExposureCancelled, EventSeverity::Info);
+        }
     }
 }

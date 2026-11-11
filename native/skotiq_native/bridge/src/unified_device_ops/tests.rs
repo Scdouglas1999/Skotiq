@@ -19,6 +19,7 @@ struct InstantCompleteCamera {
     vendor: Vendor,
     exposure_checked: Arc<AtomicUsize>,
     connected: bool,
+    completes: bool,
 }
 
 impl InstantCompleteCamera {
@@ -29,6 +30,14 @@ impl InstantCompleteCamera {
             vendor: Vendor::Other("Test".to_string()),
             exposure_checked,
             connected: true,
+            completes: true,
+        }
+    }
+
+    fn never_completing(id: String) -> Self {
+        Self {
+            completes: false,
+            ..Self::new(id, Arc::new(AtomicUsize::new(0)))
         }
     }
 }
@@ -93,7 +102,7 @@ impl CameraDriver for InstantCompleteCamera {
 
     async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
         self.exposure_checked.fetch_add(1, Ordering::SeqCst);
-        Ok(true)
+        Ok(self.completes)
     }
 
     async fn download_image(&mut self) -> Result<ImageData, DriverError> {
@@ -259,6 +268,51 @@ async fn exposure_polling_short_circuits_when_complete() {
         exposure_checked.load(Ordering::SeqCst) > 0,
         "Exposure status should be checked at least once"
     );
+}
+
+#[tokio::test]
+async fn an_exposure_given_up_mid_frame_announces_that_it_ended() {
+    let mgr = get_device_manager();
+    let device_id = "native:test_camera_given_up".to_string();
+    mgr.register_device(
+        DeviceInfo {
+            id: device_id.clone(),
+            name: "Test Camera".to_string(),
+            device_type: DeviceType::Camera,
+            driver_type: DriverType::Native,
+            description: "Test camera".to_string(),
+            driver_version: "test".to_string(),
+            serial_number: None,
+            unique_id: None,
+            display_name: "Test Camera".to_string(),
+        },
+        false,
+    )
+    .await;
+    mgr.native_cameras.write().await.insert(
+        device_id.clone(),
+        Box::new(InstantCompleteCamera::never_completing(device_id.clone())),
+    );
+    let mut events = crate::api::get_state().event_bus.subscribe();
+
+    // A stopped run drops its exposure future while the camera is exposing.
+    let ops = UnifiedDeviceOps::new(crate::api::get_state().clone());
+    let given_up = tokio::time::timeout(
+        std::time::Duration::from_millis(300),
+        ops.camera_start_exposure(skotiq_sequencer::ExposureRequest::new(&device_id, 30.0)),
+    )
+    .await;
+    cleanup_test_camera(mgr, &device_id).await;
+    assert!(given_up.is_err(), "the exposure should still be running");
+
+    let mut ended = false;
+    while let Ok(event) = events.try_recv() {
+        if let crate::event::EventPayload::Imaging(ImagingEvent::ExposureCancelled) = event.payload
+        {
+            ended = true;
+        }
+    }
+    assert!(ended, "the exposure was announced but its end never was");
 }
 
 #[tokio::test]
