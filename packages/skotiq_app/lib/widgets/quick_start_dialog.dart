@@ -24,9 +24,6 @@ class QuickStartDialog extends ConsumerWidget {
     required this.onSkip,
   });
 
-  /// Show the quick start dialog.
-  ///
-  /// Returns a Future that completes when the dialog is dismissed.
   static Future<void> show(
     BuildContext buildContext, {
     required QuickStartContext quickStartContext,
@@ -174,7 +171,6 @@ class QuickStartDialog extends ConsumerWidget {
             ],
           ),
         ),
-        // Close button
         IconButton(
           icon: Icon(LucideIcons.x, color: colors.textMuted, size: 20),
           onPressed: onSkip,
@@ -200,7 +196,6 @@ class QuickStartDialog extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Target name - prominently displayed
           Row(
             children: [
               Icon(
@@ -224,7 +219,6 @@ class QuickStartDialog extends ConsumerWidget {
           const Divider(height: 1),
           const SizedBox(height: SkotiqTokens.spaceMd),
 
-          // Session details grid
           _SessionDetailRow(
             icon: LucideIcons.settings2,
             label: 'Equipment profile',
@@ -276,7 +270,6 @@ class QuickStartDialog extends ConsumerWidget {
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
 
-          // Equipment settings chips
           Wrap(
             spacing: SkotiqTokens.spaceSm,
             runSpacing: SkotiqTokens.spaceSm,
@@ -454,7 +447,6 @@ class QuickStartDialog extends ConsumerWidget {
           ),
         ],
         const SizedBox(height: SkotiqTokens.spaceMd),
-        // Skip button
         Center(
           child: SkotiqButton(
             onPressed: onSkip,
@@ -468,7 +460,6 @@ class QuickStartDialog extends ConsumerWidget {
   }
 }
 
-/// A row showing a session detail with icon, label, and value.
 class _SessionDetailRow extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -517,7 +508,6 @@ class _SessionDetailRow extends StatelessWidget {
   }
 }
 
-/// A chip displaying an equipment setting with icon.
 class _EquipmentChip extends StatelessWidget {
   final IconData icon;
   final String label;
