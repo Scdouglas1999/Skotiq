@@ -212,7 +212,6 @@ class AppSettingsState {
   /// Minutes before the meridian.
   final int meridianFlipMinutes;
   final bool autoFocusOnFilterChange;
-  /// Apply focus offsets when changing filters.
   final bool useFilterFocusOffsets;
   final int autoFocusEveryMinutes;
   final bool ditherEnabled;
