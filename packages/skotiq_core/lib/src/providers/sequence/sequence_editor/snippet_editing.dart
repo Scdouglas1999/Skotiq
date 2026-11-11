@@ -116,9 +116,13 @@ extension CurrentSequenceSnippetEditing on CurrentSequenceNotifier {
     int? index,
     List<String>? profileFilterNames,
   }) {
-    if (_currentSequence == null) return;
     if (snippet.nodeData.isEmpty) return;
     _ensureEditable('insert snippet');
+    if (_currentSequence == null) {
+      createSequence();
+      parentId = null;
+      index = null;
+    }
     // Single undo entry for the whole multi-node insertion.
     withUndoBatch(() {
       _saveUndo();
