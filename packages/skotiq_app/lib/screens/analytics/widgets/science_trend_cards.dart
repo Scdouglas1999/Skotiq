@@ -69,13 +69,6 @@ class ZeroPointTrendCard extends StatelessWidget {
   }
 }
 
-/// Card: rolling plate-solve success rate across the current session.
-///
-/// Computed as a sliding window (default 8 frames) over the captured-image
-/// stream — at frame N the value is the fraction of the last 8 frames
-/// that returned a WCS. This is much more diagnostic than the raw cumulative
-/// rate because it shows *when* solving started failing, which is usually
-/// the moment clouds appeared or guiding drifted past tolerance.
 /// HFR trend from accepted light frames (classic session quality metric).
 class HfrTrendCard extends StatelessWidget {
   final SkotiqColors colors;

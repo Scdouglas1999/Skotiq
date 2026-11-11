@@ -116,7 +116,6 @@ class _ConstellationContributeSheetState
     // must not leave the disabled option silently selected — coerce to sums.
     final subsSelected =
         _privacy == ConstellationPrivacy.subs && acceptsRawSubs;
-    // SUBS needs BOTH the base consent and the stronger raw-subs consent.
     final canContribute = _consented &&
         (!subsSelected || _rawSubsConsented) &&
         hasCompatibleLicense &&
@@ -159,7 +158,6 @@ class _ConstellationContributeSheetState
           for (final option in ConstellationPrivacy.values) ...[
             Builder(
               builder: (_) {
-                // SUBS is selectable only on a hub that accepts raw subframes.
                 final isSubs = option == ConstellationPrivacy.subs;
                 final disabled = isSubs && !acceptsRawSubs;
                 return _PrivacyOption(
@@ -273,7 +271,6 @@ class _ConstellationContributeSheetState
                       _loadedChoice = true;
                     }),
           ),
-          // Second, stronger consent gate shown only for the SUBS choice.
           if (subsSelected) ...[
             const SizedBox(height: SkotiqTokens.spaceSm),
             _ConsentRow(
@@ -359,7 +356,6 @@ const List<ContributionLicense> _shareableLicenses = <ContributionLicense>[
   ContributionLicense.cc0,
 ];
 
-/// Human-readable label for a license choice in the dropdown.
 String _licenseLabel(ContributionLicense license) {
   switch (license) {
     case ContributionLicense.cc0:

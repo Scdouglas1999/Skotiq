@@ -7,7 +7,6 @@ import 'package:skotiq_core/skotiq_core.dart' show DbCapturedImage;
 import 'adaptive_chart_container.dart';
 import 'chart_axis.dart';
 
-/// Chart data point with timestamp and value
 class ChartDataPoint {
   final DateTime timestamp;
   final double value;
@@ -372,8 +371,6 @@ class _ChartSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Four measurements, so four Readouts (05 §3). They were a label above a
-    // `labelSm` value, which is a readout upside down.
     return ReadoutRow(
       gap: SkotiqTokens.spaceLg,
       children: [
@@ -398,7 +395,6 @@ List<DbCapturedImage> sessionChartFrames(List<DbCapturedImage> images) => images
         (image) => image.isAccepted && image.frameType.toLowerCase() == 'light')
     .toList(growable: false);
 
-/// HFR (Half-Flux Radius) trend chart
 class HfrChart extends StatelessWidget {
   final List<DbCapturedImage> images;
 
@@ -426,7 +422,6 @@ class HfrChart extends StatelessWidget {
   }
 }
 
-/// Temperature trend chart
 class TemperatureChart extends StatelessWidget {
   final List<DbCapturedImage> images;
 
@@ -451,7 +446,6 @@ class TemperatureChart extends StatelessWidget {
   }
 }
 
-/// Guiding RMS chart
 class GuidingRmsChart extends StatelessWidget {
   final List<DbCapturedImage> images;
 

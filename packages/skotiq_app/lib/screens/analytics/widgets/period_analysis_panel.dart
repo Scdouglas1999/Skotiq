@@ -54,7 +54,6 @@ String formatPeriodLabel(double periodDays) {
 String periodogramPeakLabel(double bestFrequency) =>
     'P=${formatPeriodLabel(1.0 / bestFrequency)}';
 
-/// The peak marker drawn on the BLS spectrum.
 @visibleForTesting
 String blsPeakLabel(double bestPeriodDays) =>
     'P=${formatPeriodLabel(bestPeriodDays)}';
@@ -129,7 +128,6 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Row(
             children: [
               Icon(LucideIcons.activity,
@@ -172,7 +170,6 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
 
-          // Controls row
           if (_campaignAvailable) ...[
             _buildScopeSelector(colors),
             const SizedBox(height: SkotiqTokens.spaceMd),
@@ -180,7 +177,6 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
           _buildControls(colors, analysisState),
           const SizedBox(height: SkotiqTokens.spaceLg),
 
-          // Results
           if (analysisState.isRunning)
             AdaptiveChartContainer.fixed(
               height: 200,
@@ -532,11 +528,9 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Best period summary
         _buildPeriodSummary(colors, ls, bls),
         const SizedBox(height: SkotiqTokens.spaceLg),
 
-        // Lomb-Scargle power spectrum
         Text(
           'Lomb-Scargle Periodogram',
           style: SkotiqTypography.bodySm
@@ -558,7 +552,6 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
         ),
         const SizedBox(height: SkotiqTokens.spaceLg),
 
-        // Phase-folded light curve at best LS period
         Text(
           'Phase-Folded Light Curve (P = ${_formatPeriod(ls.bestPeriod)})',
           style: SkotiqTypography.bodySm
@@ -575,10 +568,8 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
         ),
         const SizedBox(height: SkotiqTokens.spaceLg),
 
-        // BLS results
         _buildBlsSection(colors, bls),
 
-        // Custom phase fold (if set)
         if (analysisState.customPhaseFold != null &&
             analysisState.customPeriodDays != null) ...[
           const SizedBox(height: SkotiqTokens.spaceLg),
@@ -760,7 +751,6 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
           ),
         ],
         const SizedBox(height: SkotiqTokens.spaceSm),
-        // BLS SR spectrum
         AdaptiveChartContainer(
           preferredHeight: 180,
           child: _BlsSpectrumPainter(
@@ -771,7 +761,6 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
           ),
         ),
         const SizedBox(height: SkotiqTokens.spaceSm),
-        // BLS detail stats
         Wrap(
           spacing: SkotiqTokens.space2xl,
           runSpacing: SkotiqTokens.spaceSm,

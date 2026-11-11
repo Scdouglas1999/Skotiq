@@ -3,7 +3,6 @@ part of '../photometric_calibration_wizard.dart';
 extension _PhotometricWizardCoefficients on _PhotometricCalibrationWizardState {
   Widget _buildStep3ComputeCoefficients(SkotiqColors colors) {
     if (_computedCoefficients == null && !_isComputing && !_fitAttempted) {
-      // Automatically trigger computation
       WidgetsBinding.instance.addPostFrameCallback((_) => _computeFit());
     }
 
@@ -282,5 +281,4 @@ extension _PhotometricWizardCoefficients on _PhotometricCalibrationWizardState {
     }
   }
 
-  // Step 4: save
 }

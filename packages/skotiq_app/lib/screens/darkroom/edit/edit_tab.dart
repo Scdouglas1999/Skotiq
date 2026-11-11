@@ -44,7 +44,6 @@ DarkroomScope darkroomEditScopeFromUri(Uri uri) {
   return const DarkroomScope.empty();
 }
 
-/// The Edit tab.
 class DarkroomEditTab extends ConsumerWidget {
   /// What to open. Null reads `master` and `recipe` from the enclosing
   /// Darkroom screen's route, or from the current location outside one.
@@ -386,7 +385,6 @@ class _DarkroomImageRow extends StatelessWidget {
 class _DarkroomImageThumb extends StatelessWidget {
   final DarkroomLibraryImage image;
 
-  /// Side of the thumbnail.
   static const double size = 48;
 
   const _DarkroomImageThumb({required this.image});

@@ -1,6 +1,5 @@
 part of '../period_analysis_panel.dart';
 
-/// Paints a phase-folded light curve.
 class _PhaseFoldPainter extends StatelessWidget {
   final SkotiqColors colors;
   final List<PhaseFoldedPoint> points;
@@ -65,7 +64,6 @@ class _PhaseFoldCustomPainter extends CustomPainter {
     final plotRect =
         Rect.fromLTWH(leftMargin, topMargin, plotWidth, plotHeight);
 
-    // Border.
     final borderPaint = Paint()
       ..color = borderColor
       ..style = PaintingStyle.stroke
@@ -84,7 +82,6 @@ class _PhaseFoldCustomPainter extends CustomPainter {
     final displayMax = maxMag + magRange * 0.15;
     final displayRange = displayMax - displayMin;
 
-    // Grid.
     final gridPaint = Paint()
       ..color = gridColor
       ..strokeWidth = 0.5;
@@ -99,7 +96,6 @@ class _PhaseFoldCustomPainter extends CustomPainter {
           Offset(x, plotRect.top), Offset(x, plotRect.bottom), gridPaint);
     }
 
-    // Axis labels.
     final textStyle = SkotiqTypography.caption.copyWith(color: textColor);
 
     // Y-axis (inverted — brighter at top, so displayMax at top and displayMin at bottom).
@@ -114,7 +110,6 @@ class _PhaseFoldCustomPainter extends CustomPainter {
       tp.paint(canvas, Offset(plotRect.left - tp.width - 4, y - tp.height / 2));
     }
 
-    // X-axis (phase 0 to 1).
     for (var i = 0; i <= 5; i++) {
       final phase = i / 5.0;
       final x = plotRect.left + plotWidth * phase;
@@ -125,7 +120,6 @@ class _PhaseFoldCustomPainter extends CustomPainter {
       tp.paint(canvas, Offset(x - tp.width / 2, plotRect.bottom + 4));
     }
 
-    // Phase label.
     final phaseLabelPainter = TextPainter(
       text: TextSpan(text: 'Phase', style: textStyle),
       textDirection: TextDirection.ltr,
@@ -149,7 +143,6 @@ class _PhaseFoldCustomPainter extends CustomPainter {
     yLabelPainter.paint(canvas, Offset.zero);
     canvas.restore();
 
-    // Draw error bars and data points.
     final dotPaint = Paint()
       ..color = plotColor
       ..style = PaintingStyle.fill;
@@ -165,12 +158,10 @@ class _PhaseFoldCustomPainter extends CustomPainter {
       final yNorm = (point.magnitude - displayMin) / displayRange;
       final y = plotRect.top + yNorm * plotHeight;
 
-      // Error bar.
       final errPixels = (point.uncertainty / displayRange) * plotHeight;
       canvas.drawLine(
           Offset(x, y - errPixels), Offset(x, y + errPixels), errorPaint);
 
-      // Data point.
       canvas.drawCircle(Offset(x, y), 2.5, dotPaint);
     }
     canvas.restore();

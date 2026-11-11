@@ -1,6 +1,5 @@
 part of '../period_analysis_panel.dart';
 
-/// Paints the BLS SR spectrum (SR vs trial period).
 class _BlsSpectrumPainter extends StatelessWidget {
   final SkotiqColors colors;
   final List<double> trialPeriods;
@@ -110,7 +109,6 @@ class _BlsSpectrumCustomPainter extends CustomPainter {
       ..strokeWidth = 1;
     canvas.drawRect(plotRect, borderPaint);
 
-    // Use log scale for period axis.
     final logMinP = math.log(trialPeriods.first);
     final logMaxP = math.log(trialPeriods.last);
     final logRange = logMaxP - logMinP;
@@ -119,7 +117,6 @@ class _BlsSpectrumCustomPainter extends CustomPainter {
     final srRange = srAxis.max;
     final tickCount = srTickCount;
 
-    // Grid.
     final gridPaint = Paint()
       ..color = gridColor
       ..strokeWidth = 0.5;
@@ -129,10 +126,8 @@ class _BlsSpectrumCustomPainter extends CustomPainter {
           Offset(plotRect.left, y), Offset(plotRect.right, y), gridPaint);
     }
 
-    // Axis labels.
     final textStyle = SkotiqTypography.caption.copyWith(color: textColor);
 
-    // Y-axis.
     final labels = srAxisLabels;
     for (var i = 0; i < labels.length; i++) {
       final y = plotRect.bottom - (i / (labels.length - 1)) * plotHeight;
@@ -143,7 +138,6 @@ class _BlsSpectrumCustomPainter extends CustomPainter {
       tp.paint(canvas, Offset(plotRect.left - tp.width - 4, y - tp.height / 2));
     }
 
-    // X-axis: log-spaced period labels.
     for (var i = 0; i <= 4; i++) {
       final logVal = logMinP + logRange * i / 4.0;
       final period = math.exp(logVal);
@@ -184,7 +178,6 @@ class _BlsSpectrumCustomPainter extends CustomPainter {
     yLabelPainter.paint(canvas, Offset.zero);
     canvas.restore();
 
-    // Draw the SR spectrum.
     final linePaint = Paint()
       ..color = plotColor
       ..style = PaintingStyle.stroke
@@ -207,7 +200,6 @@ class _BlsSpectrumCustomPainter extends CustomPainter {
     }
     canvas.drawPath(path, linePaint);
 
-    // Mark best period.
     final bestLogP = math.log(bestPeriod);
     final bestX = plotRect.left + (bestLogP - logMinP) / logRange * plotWidth;
     final peakPaint = Paint()

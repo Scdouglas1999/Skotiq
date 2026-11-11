@@ -776,10 +776,6 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
     );
   }
 
-  // -------------------------------------------------------------------
-  // Parameter controls
-  // -------------------------------------------------------------------
-
   /// One control per registry-documented parameter.
   ///
   /// The registry owns the type, the range and the default; nothing here

@@ -22,7 +22,6 @@ class DarkroomScope {
   /// A pass, live or recorded.
   const DarkroomScope.pass(String runId) : this(passRunId: runId);
 
-  /// A recipe opened by row id.
   const DarkroomScope.recipe(int id) : this(recipeId: id);
 
   /// A master opened by row id; its newest recipe is loaded, and when it has
@@ -32,7 +31,6 @@ class DarkroomScope {
   /// The link named nothing this screen can open.
   const DarkroomScope.empty() : this();
 
-  /// True when neither id was supplied.
   bool get isEmpty => recipeId == null && masterId == null && passRunId == null;
 
   @override
@@ -324,7 +322,6 @@ class DarkroomParamSpec {
 
   final DarkroomParamKind kind;
 
-  /// Whether the payload must carry it.
   final bool required;
 
   /// Lowest accepted value, or null when the registry states no floor.
@@ -405,7 +402,6 @@ class DarkroomOpSpec {
     required this.params,
   });
 
-  /// The spec for [name], or null when this operation has no such parameter.
   DarkroomParamSpec? param(String name) {
     for (final spec in params) {
       if (spec.name == name) return spec;
@@ -521,7 +517,6 @@ class DarkroomStepIssue {
     required this.latestVersion,
   });
 
-  /// True when the step renders as written.
   bool get isClean => registered && valid;
 }
 

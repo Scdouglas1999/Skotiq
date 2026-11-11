@@ -58,14 +58,12 @@ class _HistoryTabState extends ConsumerState<_HistoryTab> {
     };
     final l10n = context.l10n;
 
-    // Get target list from sessions, fallback to default if loading/error
     final targetList = targetNamesAsync.when(
       data: (targets) => targets,
       loading: () => const [kAllTargetsFilter],
       error: (_, __) => const [kAllTargetsFilter],
     );
 
-    // Reset target filter if current selection no longer exists
     if (!targetList.contains(_targetFilter)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -132,7 +130,6 @@ class _HistoryTabState extends ConsumerState<_HistoryTab> {
             children: [
               filters,
               const SizedBox(height: SkotiqTokens.space2xl),
-              // Session list
               Expanded(
                 child: sessionsAsyncValue.when(
                   data: (sessions) {
@@ -144,9 +141,7 @@ class _HistoryTabState extends ConsumerState<_HistoryTab> {
                       );
                     }
 
-                    // Filter sessions based on search query and target filter
                     final filteredSessions = sessions.where((session) {
-                      // Search filter
                       final nameMatch = _searchQuery.isEmpty ||
                           (session.name
                                   ?.toLowerCase()
@@ -159,7 +154,6 @@ class _HistoryTabState extends ConsumerState<_HistoryTab> {
                         _targetFilter,
                         targetNameById,
                       );
-                      // Time filter
                       final timeMatch = _matchesTimeFilter(session.startTime);
                       return nameMatch && targetMatch && timeMatch;
                     }).toList();
@@ -277,8 +271,6 @@ class _QuickCaptureHistoryCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: SkotiqTokens.spaceMd),
-            // The two numbers were buried in a sentence. They are
-            // measurements, so they are Readouts.
             ReadoutRow(
               children: [
                 Readout(

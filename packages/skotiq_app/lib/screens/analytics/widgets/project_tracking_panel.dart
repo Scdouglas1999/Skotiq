@@ -14,16 +14,12 @@ import 'campaign_rollup_dialog.dart';
 part 'project_tracking_panel_parts/_headers.dart';
 part 'project_tracking_panel_parts/_project_card.dart';
 
-// Sort mode
-
 enum ProjectSortMode {
   completion,
   totalTime,
   lastImaged,
   name,
 }
-
-// Per-filter breakdown provider
 
 /// Computes per-target, per-filter integration time from captured images.
 ///
@@ -60,8 +56,6 @@ final perFilterIntegrationProvider =
   return AsyncValue.data(result);
 });
 
-// Untracked-targets cleanup count
-
 /// Number of "untracked" library targets eligible for the opt-in cleanup.
 /// Re-evaluates whenever the targets or sessions data changes so the button
 /// count stays live. On a remote host the same session-aware predicate runs
@@ -72,7 +66,6 @@ final perFilterIntegrationProvider =
 /// referenced by any imaging session.
 final untrackedTargetsCountProvider = FutureProvider<int?>((ref) async {
   final backend = ref.watch(backendProvider);
-  // Recompute when the underlying data changes.
   ref.watch(allDbTargetsProvider);
   ref.watch(allSessionsProvider);
   if (backend is NetworkBackend) {
@@ -80,8 +73,6 @@ final untrackedTargetsCountProvider = FutureProvider<int?>((ref) async {
   }
   return ref.read(targetsDaoProvider).countUntrackedTargets();
 });
-
-// Project tracking panel
 
 /// Full-featured project tracking panel for the analytics screen.
 ///
@@ -158,13 +149,10 @@ class _ProjectTrackingPanelState extends ConsumerState<ProjectTrackingPanel> {
 
         return Column(
           children: [
-            // Header actions: opt-in cleanup of phantom/untracked targets.
             const _CleanupHeaderRow(),
-            // Summary stats header
             _SummaryStatsHeader(projects: projects, colors: colors),
             const SizedBox(height: 12),
 
-            // Sort bar
             _SortBar(
               currentSort: _sortMode,
               onSortChanged: (mode) => setState(() => _sortMode = mode),
@@ -172,7 +160,6 @@ class _ProjectTrackingPanelState extends ConsumerState<ProjectTrackingPanel> {
             ),
             const SizedBox(height: 12),
 
-            // Project list
             Expanded(
               child: ListView.separated(
                 padding: const EdgeInsets.only(bottom: 24),

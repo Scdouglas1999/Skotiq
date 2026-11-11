@@ -255,7 +255,6 @@ class _NoisePainter extends CustomPainter {
       yUnit: 'ADU',
       xTicks: xTicks,
     );
-    // The expected curve, dashed, over the whole lane.
     final dash = Paint()
       ..color = colors.textMuted
       ..strokeWidth = 1
@@ -267,7 +266,6 @@ class _NoisePainter extends CustomPainter {
       if (prev != null && i.isEven) canvas.drawLine(prev, p, dash);
       prev = p;
     }
-    // Measured points joined.
     final stroke = Paint()
       ..color = line
       ..strokeWidth = 1.5

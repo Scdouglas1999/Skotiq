@@ -48,14 +48,12 @@ List<ProviderOrFamily> get collaborativeMosaicStateProviders => [
       localMosaicProjectForHubProvider,
     ];
 
-/// Drop [collaborativeMosaicStateProviders] from a provider body / notifier.
 void invalidateCollaborativeMosaicState(Ref ref) {
   for (final provider in collaborativeMosaicStateProviders) {
     ref.invalidate(provider);
   }
 }
 
-/// Drop [collaborativeMosaicStateProviders] from a widget callback.
 void invalidateCollaborativeMosaicStateFor(WidgetRef ref) {
   for (final provider in collaborativeMosaicStateProviders) {
     ref.invalidate(provider);
@@ -119,7 +117,6 @@ class SharedLibrarySummary {
   bool get isEmpty => total == 0;
 }
 
-/// Summarises shared-calibration participation from the durable local library.
 final sharedLibrarySummaryProvider =
     FutureProvider<SharedLibrarySummary>((ref) async {
   final records = await ref

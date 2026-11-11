@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// Corner radius of a Darkroom panel.
 const double darkroomPanelRadius = SkotiqTokens.radiusLg + 2;
 
 /// A Darkroom panel: surface fill, hairline border, a 16px heading with an

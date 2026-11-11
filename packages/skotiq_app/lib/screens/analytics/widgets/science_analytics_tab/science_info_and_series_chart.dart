@@ -1,7 +1,5 @@
 part of '../science_analytics_tab.dart';
 
-// Science info explanations
-
 const _kCalibrationInfo = '''
 Photometric calibration is the process of converting raw pixel values in your images into standardized astronomical magnitudes. This lets you make scientifically meaningful brightness measurements rather than working with arbitrary intensity numbers.
 
@@ -141,7 +139,6 @@ The RMS residual indicates how well the transform fits the data. Values below 0.
 Once saved, these coefficients are automatically applied to new photometry measurements, converting differential magnitudes into absolute standard magnitudes suitable for AAVSO submission and cross-observatory comparison.
 ''';
 
-/// Map of card titles to their info content for easy lookup.
 const _kScienceInfoContent = <String, String>{
   'Calibration': _kCalibrationInfo,
   'Lim Mag (5-sigma)': _kLimMagInfo,

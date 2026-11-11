@@ -164,7 +164,6 @@ class _Body extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Summary cards.
                 Wrap(
                   spacing: 12,
                   runSpacing: 8,
@@ -226,7 +225,6 @@ class _Body extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Overall progress.
                 if (totalPct != null) ...[
                   _OverallProgress(
                     pct: totalPct,

@@ -40,7 +40,6 @@ class DarkroomLibraryImage {
   /// True for an image with three channels.
   bool get isColor => master.channels >= 3;
 
-  /// The newest recipe over this image, or null when it has none.
   DarkroomRecipe? get newest => recipes.isEmpty ? null : recipes.first;
 }
 

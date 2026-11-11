@@ -26,7 +26,6 @@ const Key kDarkroomPreviewSurfaceKey = Key('darkroom-preview-surface');
 /// disagree about where the operator is looking. This surface writes it once,
 /// to fit the first frame it decodes, and never again.
 class _DarkroomImageSurface extends StatefulWidget {
-  /// The render to paint.
   final DarkroomPreviewImage preview;
 
   /// The view transform, owned by the caller.
@@ -35,7 +34,6 @@ class _DarkroomImageSurface extends StatefulWidget {
   /// Narrowest zoom, before the fit scale is taken into account.
   final double minScale;
 
-  /// Widest zoom.
   final double maxScale;
 
   const _DarkroomImageSurface({

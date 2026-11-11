@@ -148,7 +148,6 @@ class NightStorySummary {
   /// `warning` + `critical` severity events, across all categories.
   final int warnings;
 
-  /// Total events in the session.
   final int total;
 
   const NightStorySummary({
@@ -199,13 +198,11 @@ NightStorySummary summarizeNightStory(List<NarratorEvent> events) {
   );
 }
 
-/// Two-digit-padded "HH:00" label for a local hour-start.
 String _hourLabel(DateTime hour) {
   final hh = hour.hour.toString().padLeft(2, '0');
   return '$hh:00';
 }
 
-/// Two-digit-padded "HH:MM" label for a local timestamp.
 String _timeLabel(DateTime local) {
   final hh = local.hour.toString().padLeft(2, '0');
   final mm = local.minute.toString().padLeft(2, '0');
@@ -666,7 +663,6 @@ class _Rail extends StatelessWidget {
               ],
             ),
           ),
-          // The node.
           Container(
             width: nodeSize,
             height: nodeSize,

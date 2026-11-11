@@ -11,7 +11,6 @@ import '../../settings/delivery_settings.dart';
 import '../../settings/settings_screen.dart' show SettingsSectionRequest;
 import 'activity_panel.dart';
 
-/// Open the Settings section [sectionKey] names.
 void _openSettings(BuildContext context, String sectionKey) {
   SettingsSectionRequest.raise(sectionKey);
   context.go('/settings?section=$sectionKey');

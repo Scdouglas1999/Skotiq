@@ -110,7 +110,6 @@ enum _DarkroomExportStageKind {
   /// rendered on demand rather than stored.
   afterStep,
 
-  /// The whole stack.
   finalStack;
 
   /// The wire token the export entry point reads.
@@ -126,7 +125,6 @@ enum _DarkroomExportStageKind {
   }
 }
 
-/// A file format an export can write.
 enum _DarkroomExportFormat {
   fits,
   png,
@@ -339,7 +337,6 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
   /// to cancel.
   String? _renderId;
 
-  /// True once a stop has been asked for and before the export answers.
   bool _cancelRequested = false;
 
   /// What the last export wrote, in the words the reply gave.
@@ -567,10 +564,6 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
       child: ExcludeSemantics(child: button),
     );
   }
-
-  // -----------------------------------------------------------------------
-  // Pickers
-  // -----------------------------------------------------------------------
 
   /// One segment of the Stage / Format pickers, with [reason] readable by both
   /// a pointer and a screen reader.
@@ -861,10 +854,6 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
     );
   }
 
-  // -----------------------------------------------------------------------
-  // The stage / domain rules
-  // -----------------------------------------------------------------------
-
   void _setStage(_DarkroomExportStageKind kind) {
     setState(() {
       _stageKind = kind;
@@ -1141,10 +1130,6 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
         return _replayRefusal();
     }
   }
-
-  // -----------------------------------------------------------------------
-  // Running the export
-  // -----------------------------------------------------------------------
 
   /// The file-name fragment for an `afterStep` export.
   ///

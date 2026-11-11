@@ -65,7 +65,6 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
     }
     final scienceSettings = scienceSettingsAsync.requireValue;
 
-    // Reviewed (confirmed) detections first, then newest.
     final sorted = [...widget.detections]..sort((a, b) {
         if (a.reviewed != b.reviewed) return a.reviewed ? -1 : 1;
         return b.detectedAt.compareTo(a.detectedAt);
@@ -529,7 +528,6 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
     try {
       String? path;
       if (backend is NetworkBackend) {
-        // Slave: ask the host to generate the report and save the bytes.
         if (_format == TransientReportFormat.aavso) {
           final bytes = await backend.exportFirstLightAavso(
             d.id,
@@ -547,7 +545,6 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
           );
         }
       } else {
-        // Local host: generate directly.
         final submission = ref.read(transientSubmissionServiceProvider);
         if (_format == TransientReportFormat.aavso) {
           path = await submission.exportAavso(
@@ -607,7 +604,6 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
           }
         }
       } else {
-        // Local host: read the secret key, then submit directly.
         final apiKey =
             await ref.read(secretsStoreProvider).read(SecretField.tnsApiKey);
         final creds = TnsCredentials(

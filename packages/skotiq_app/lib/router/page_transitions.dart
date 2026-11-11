@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// Collection of beautiful, professional page transition builders
 class PageTransitions {
   PageTransitions._();
 
-  /// Smooth slide and fade transition - professional and efficient
   static Widget slideFadeTransition(
     BuildContext context,
     Animation<double> animation,

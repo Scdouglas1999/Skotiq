@@ -1,8 +1,6 @@
 // Enhanced project card, metric chips, filter breakdown and loading skeleton.
 part of '../project_tracking_panel.dart';
 
-// Enhanced project card
-
 class _EnhancedProjectCard extends ConsumerWidget {
   final ProjectProgress progress;
   final Map<String, double> filterBreakdown;
@@ -117,10 +115,8 @@ class _EnhancedProjectCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row: name, catalog ID, edit goal button
           Row(
             children: [
-              // Status indicator
               Container(
                 width: 10,
                 height: 10,
@@ -186,7 +182,6 @@ class _EnhancedProjectCard extends ConsumerWidget {
 
           const SizedBox(height: 12),
 
-          // Progress bar
           if (progress.isTracked) ...[
             Row(
               children: [
@@ -217,7 +212,6 @@ class _EnhancedProjectCard extends ConsumerWidget {
             const SizedBox(height: 12),
           ],
 
-          // Stats row
           Wrap(
             spacing: 20,
             runSpacing: 8,
@@ -262,7 +256,6 @@ class _EnhancedProjectCard extends ConsumerWidget {
             ],
           ),
 
-          // Per-filter breakdown
           if (filterBreakdown.isNotEmpty) ...[
             const SizedBox(height: 12),
             _FilterBreakdownRow(
@@ -271,7 +264,6 @@ class _EnhancedProjectCard extends ConsumerWidget {
             ),
           ],
 
-          // Last imaged date
           if (progress.lastSessionAt != null) ...[
             const SizedBox(height: 10),
             Text(
@@ -284,8 +276,6 @@ class _EnhancedProjectCard extends ConsumerWidget {
     );
   }
 }
-
-// Metric chip
 
 class _MetricChip extends StatelessWidget {
   final IconData icon;
@@ -327,8 +317,6 @@ class _MetricChip extends StatelessWidget {
   }
 }
 
-// Filter breakdown row
-
 class _FilterBreakdownRow extends StatelessWidget {
   final Map<String, double> filterData;
   final SkotiqColors colors;
@@ -343,7 +331,6 @@ class _FilterBreakdownRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Sort filters by total time descending
     final sortedEntries = filterData.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 

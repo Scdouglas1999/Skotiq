@@ -1,9 +1,6 @@
 
 part of '../analytics_screen.dart';
 
-/// Metrics with no persisted backing source render this instead of a fake
-/// number — the imaging pipeline does not currently track them.
-
 /// A run's stats blob, or null when it is missing or malformed.
 ///
 /// A single unparseable row must not take the whole tab down; it contributes
@@ -262,11 +259,6 @@ const double _equipmentSkeletonHeight = 260;
 const double _equipmentReadoutGap = SkotiqTokens.spaceMd;
 
 /// One device's numbers: a panel head naming the device, then its readouts.
-///
-/// Was a card with a 15/600 title and a key/value table whose right column was
-/// a `labelSm`. Every one of those values is a measurement, so every one of
-/// them is a [Readout] now — the label sits under the number instead of
-/// competing with it across a gap.
 class _EquipmentStatPanel extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -295,7 +287,3 @@ class _EquipmentStatPanel extends StatelessWidget {
     );
   }
 }
-
-/// Skeleton placeholder used while session history loads. Rendering a list of
-/// card-sized shimmer rows (rather than a centred spinner) preserves the
-/// final layout so the page doesn't pop when the real data arrives.

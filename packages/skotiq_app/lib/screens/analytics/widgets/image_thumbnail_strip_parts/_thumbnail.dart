@@ -392,7 +392,6 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
     );
   }
 
-  /// Opens the frame inspector, unless the caller supplied its own handler.
   Future<void> _handleTap() async {
     final override = widget.onImageTap;
     if (override != null) {

@@ -74,7 +74,6 @@ class _MpcExportPanelState extends ConsumerState<MpcExportPanel> {
     final obsCode = scienceSettings.mpcObservatoryCode;
     final hasObsCode = obsCode.length == 3;
 
-    // Build observation groups for display
     final groups = buildObservationGroups(widget.candidates);
 
     return SkotiqPanel(
@@ -140,7 +139,6 @@ class _MpcExportPanelState extends ConsumerState<MpcExportPanel> {
             const SizedBox(height: 8),
           ],
 
-          // Select All / Deselect All controls
           Row(
             children: [
               _SmallActionButton(
@@ -186,7 +184,6 @@ class _MpcExportPanelState extends ConsumerState<MpcExportPanel> {
           ),
           const SizedBox(height: 8),
 
-          // Observation groups list
           ...groups.map((group) => _ObservationGroupTile(
                 colors: widget.colors,
                 group: group,
@@ -232,7 +229,6 @@ class _MpcExportPanelState extends ConsumerState<MpcExportPanel> {
           ],
           const SizedBox(height: 8),
 
-          // Export actions
           Row(
             children: [
               Expanded(

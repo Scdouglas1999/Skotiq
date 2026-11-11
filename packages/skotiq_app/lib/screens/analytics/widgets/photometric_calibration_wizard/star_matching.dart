@@ -364,8 +364,6 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
     if (!_isCurrentOperation(generation, authority)) return const [];
     final catalogStars = cone.stars;
 
-    // Build a spatial index of catalog stars projected to pixel coords
-    // for matching to detected stars.
     final imageSize = await _resolveImagePixelSize(
       filePath: image.filePath,
       stars: stars,
@@ -445,7 +443,6 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
           math.log(normalizedFlux.clamp(1e-30, double.infinity)) /
           math.ln10;
 
-      // Find the closest unclaimed catalog star within 10 pixels.
       double bestDist = 10.0;
       int? bestIdx;
       for (int i = 0; i < projectedCatalog.length; i++) {
@@ -619,5 +616,4 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
     );
   }
 
-  // Step 3: compute fit
 }

@@ -128,7 +128,6 @@ class _GanttPainter extends CustomPainter {
         labelWidth, topPad, size.width - 2, topPad + _rowsHeight(rowCount));
     double x(Duration d) => plot.left + d.inMilliseconds / spanMs * plot.width;
 
-    // Clock scale and gridlines.
     final grid = Paint()
       ..color = colors.border
       ..strokeWidth = 1;
@@ -145,7 +144,6 @@ class _GanttPainter extends CustomPainter {
     }
     _text(canvas, 'm:ss', Offset(0, plot.bottom + 5), axis);
 
-    // Row labels.
     final rows = <String?>[
       for (final l in snapshot.lanes) l.lane,
       if (after.isNotEmpty) null,
@@ -172,7 +170,6 @@ class _GanttPainter extends CustomPainter {
       );
     }
 
-    // Blocks.
     final ink = SkotiqTypography.monoXs
         .copyWith(fontSize: SkotiqTypography.fontSize9_5, height: 1);
     var stageIndex = <String?, int>{};
@@ -229,7 +226,6 @@ class _GanttPainter extends CustomPainter {
           canvas.drawRect(r, outline);
         }
       }
-      // One cut per finished sub.
       final cut = Paint()
         ..color = colors.background.withValues(alpha: 0.55)
         ..strokeWidth = 1;

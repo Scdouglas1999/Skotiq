@@ -1,7 +1,5 @@
 part of '../science_analytics_tab.dart';
 
-// Photometric transforms card
-
 class _PhotometricTransformsCard extends ConsumerWidget {
   final SkotiqColors colors;
 

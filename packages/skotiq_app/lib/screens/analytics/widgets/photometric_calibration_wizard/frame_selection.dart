@@ -309,7 +309,6 @@ extension _PhotometricWizardFrameSelection
     );
   }
 
-  /// Whether [img] carries a different filter from the one being calibrated.
   bool _filterMismatches(DbCapturedImage img) {
     final frameFilter = img.filter?.trim();
     return _filterName.trim().isNotEmpty &&
@@ -422,7 +421,6 @@ extension _PhotometricWizardFrameSelection
         '${airmass.toStringAsFixed(2)}';
   }
 
-  // Step 2: auto-match detected stars to catalog
 }
 
 /// The airmass the extinction fit will use for a frame, or null when the frame
