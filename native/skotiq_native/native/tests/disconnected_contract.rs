@@ -28,6 +28,18 @@ fn show<T: Debug>(result: Result<T, NativeError>) -> String {
     }
 }
 
+/// `custom_data` is a hash map; print it in key order so the record is stable.
+struct SortedFeatures(skotiq_native::VendorFeatures);
+
+impl Debug for SortedFeatures {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let custom: std::collections::BTreeMap<_, _> = self.0.custom_data.iter().collect();
+        let mut rest = self.0.clone();
+        rest.custom_data.clear();
+        write!(f, "{:?} custom_data={:?}", rest, custom)
+    }
+}
+
 fn exposure(bin: i32, duration_secs: f64) -> ExposureParams {
     ExposureParams {
         duration_secs,
@@ -205,7 +217,7 @@ async fn camera_rows<C: NativeCamera>(out: &mut String, make: impl Fn() -> C) {
     row!(
         out,
         "get_vendor_features",
-        show(make().get_vendor_features().await)
+        show(make().get_vendor_features().await.map(SortedFeatures))
     );
     row!(out, "get_gain_range", show(make().get_gain_range().await));
     row!(

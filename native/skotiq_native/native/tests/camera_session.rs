@@ -11,9 +11,7 @@
 
 #![cfg(unix)]
 
-use skotiq_native::traits::{
-    NativeCamera, NativeDevice, NativeError, NativeFilterWheel, NativeFocuser,
-};
+use skotiq_native::traits::{NativeCamera, NativeError, NativeFilterWheel, NativeFocuser};
 use skotiq_native::vendor::{atik, fli, moravian, player_one, qhy, svbony, touptek, zwo};
 use skotiq_native::{CameraStatus, ExposureParams, FrameType, ImageData, SubFrame};
 use std::fmt::Debug;
