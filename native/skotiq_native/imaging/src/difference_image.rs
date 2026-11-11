@@ -20,7 +20,7 @@
 //! 1. **Reproject** the new frame onto the tile's canonical TAN grid
 //!    ([`crate::sky_atlas::tile_wcs`]) using the frame's full CD + SIP astrometry
 //!    ([`crate::wcs_sip::SipWcs`]) and the shared resampler
-//!    ([`crate::registration::sample_interleaved`]) — exactly the reprojection the
+//!    ([`Interpolator::taps`]) — exactly the reprojection the
 //!    fold path uses, so the residual is registered to sub-pixel accuracy.
 //! 2. **Compare only deep pixels**: a tile pixel is compared only where the
 //!    template has at least `min_template_coverage` frames under it.
@@ -45,7 +45,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::registration::{kernel_inside, sample_interleaved, Interpolator};
+use crate::resample::Interpolator;
 use crate::robust_stats::{
     mad_sigma, mad_sigma_upper, median_and_sigma, median_in_place, median_of,
     percentile_nearest_rank, MAD_TO_SIGMA,
@@ -340,13 +340,13 @@ pub fn difference_against_decoded(
                 let Some((fx, fy)) = frame_wcs.world_to_pixel(ra, dec) else {
                     continue;
                 };
-                if !kernel_inside(fx, fy, sw, sh, interp) {
+                let Some(taps) = interp.taps(fx, fy, sw, sh) else {
                     continue;
-                }
+                };
                 let p = ty * tw + tx;
                 let mut ok = true;
                 for c in 0..ch {
-                    let v = sample_interleaved(src, sw, sh, ch, c, fx, fy, interp);
+                    let v = taps.apply(|x, y| src[(y * sw + x) * ch + c]);
                     if v.is_finite() {
                         warped[p * ch + c] = v;
                     } else {

@@ -51,6 +51,7 @@
 //! synthetic frames at the bottom of this file.
 
 use crate::detection_plane::{finite_range, DetectionPlane, Quantize, ADU_SCALE_MIN_PEAK};
+use crate::resample::bilinear_clamped;
 use crate::{detect_stars_in_plane, ImageData, StarDetectionConfig};
 use rayon::prelude::*;
 
@@ -358,7 +359,7 @@ fn extract_normalized_crop(
         for i in 0..crop {
             let sx = cx + (i as f64 - half as f64);
             let sy = cy + (j as f64 - half as f64);
-            let v = bilinear_sample(plane, width, height, sx, sy);
+            let v = bilinear_clamped(plane, width, height, sx, sy);
             out[j * crop + i] = v;
             if v < min_v {
                 min_v = v;
@@ -380,28 +381,6 @@ fn extract_normalized_crop(
         *v = ((*v - min_v) / amplitude).max(0.0);
     }
     Some(out)
-}
-
-/// Bilinear sample of `plane` at fractional coordinates, clamped to the image.
-#[inline]
-fn bilinear_sample(plane: &[f64], width: usize, height: usize, x: f64, y: f64) -> f64 {
-    let xc = x.clamp(0.0, (width - 1) as f64);
-    let yc = y.clamp(0.0, (height - 1) as f64);
-    let x0 = xc.floor() as usize;
-    let y0 = yc.floor() as usize;
-    let x1 = (x0 + 1).min(width - 1);
-    let y1 = (y0 + 1).min(height - 1);
-    let fx = xc - x0 as f64;
-    let fy = yc - y0 as f64;
-
-    let v00 = plane[y0 * width + x0];
-    let v10 = plane[y0 * width + x1];
-    let v01 = plane[y1 * width + x0];
-    let v11 = plane[y1 * width + x1];
-
-    let top = v00 * (1.0 - fx) + v10 * fx;
-    let bot = v01 * (1.0 - fx) + v11 * fx;
-    top * (1.0 - fy) + bot * fy
 }
 
 /// Per-pixel median of a set of equal-length crops.

@@ -57,7 +57,7 @@ use serde::{Deserialize, Serialize};
 static STORE_TILE_NONCE: AtomicU64 = AtomicU64::new(0);
 
 use crate::master_accumulation::{AccumulationMode, PerPixelAccumulator};
-use crate::registration::{kernel_inside, sample_interleaved, Interpolator};
+use crate::resample::{kernel_inside, Interpolator};
 use crate::robust_stats::median_and_sigma_upper;
 use crate::wcs_sip::SipWcs;
 use crate::ImageData;
@@ -829,11 +829,11 @@ impl SkyTileAccumulator {
                 let Some((sx, sy)) = frame.wcs.world_to_pixel(ra, dec) else {
                     continue;
                 };
-                if !kernel_inside(sx, sy, sw, sh, interp) {
+                let Some(taps) = interp.taps(sx, sy, sw, sh) else {
                     continue;
-                }
+                };
                 for c in 0..ch {
-                    let raw = sample_interleaved(src, sw, sh, ch, c, sx, sy, interp);
+                    let raw = taps.apply(|x, y| src[(y * sw + x) * ch + c]);
                     if !raw.is_finite() {
                         continue;
                     }
@@ -1729,20 +1729,22 @@ impl SkyAtlas {
                     let Some((sx, sy)) = tile.wcs.world_to_pixel(ra, dec) else {
                         continue;
                     };
-                    if !kernel_inside(sx, sy, tw, th, interp) {
+                    let Some(taps) = interp.taps(sx, sy, tw, th) else {
                         continue;
-                    }
+                    };
                     let (ix, iy) = (sx.floor() as usize, sy.floor() as usize);
                     if !solid[iy * tw + ix] {
                         continue;
                     }
-                    let cov_here =
-                        sample_interleaved(&cov_buf, tw, th, ch, 0, sx, sy, Interpolator::Bilinear);
+                    // Inside the kernel's support, so inside the 2×2 cell too.
+                    let cov_here = Interpolator::Bilinear
+                        .taps(sx, sy, tw, th)
+                        .map_or(0.0, |cell| cell.apply(|x, y| cov_buf[(y * tw + x) * ch]));
                     if cov_here <= 0.0 {
                         continue;
                     }
                     for c in 0..ch {
-                        let v = sample_interleaved(&tile_buf, tw, th, ch, c, sx, sy, interp);
+                        let v = taps.apply(|x, y| tile_buf[(y * tw + x) * ch + c]);
                         if !v.is_finite() {
                             continue;
                         }

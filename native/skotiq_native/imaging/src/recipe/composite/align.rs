@@ -20,10 +20,10 @@
 use rayon::prelude::*;
 
 use crate::detection_plane::DetectionPlane;
-use crate::numeric::lanczos3;
 use crate::recipe::ops::star_detect::detection_plane;
 use crate::recipe::{OpContext, OpError, OpImage, CANCEL_POLL_PIXELS};
 use crate::registration::{solve_registration_from_stars, RegistrationConfig, TransformKind};
+use crate::resample::lanczos3;
 use crate::robust_stats::{median_upper_in_place, MAD_TO_SIGMA};
 use crate::{detect_stars_in_plane, StarDetectionConfig};
 

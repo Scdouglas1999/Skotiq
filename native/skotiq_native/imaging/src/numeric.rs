@@ -1,17 +1,4 @@
-//! Small numeric building blocks shared by the resamplers and fitters.
-
-/// Lanczos kernel with `a = 3` (windowed sinc): 1 at 0, 0 at and beyond ±3.
-pub(crate) fn lanczos3(x: f64) -> f64 {
-    const A: f64 = 3.0;
-    if x.abs() < f64::EPSILON {
-        1.0
-    } else if x.abs() < A {
-        let px = std::f64::consts::PI * x;
-        (A * px.sin() * (px / A).sin()) / (px * px)
-    } else {
-        0.0
-    }
-}
+//! Small numeric building blocks shared by the fitters.
 
 /// Solve the dense `n × n` system `a · x = b` by Gaussian elimination with
 /// partial pivoting. `a` is row-major. `None` when a pivot's magnitude is
@@ -82,16 +69,5 @@ mod tests {
         assert!(solve_dense(vec![1.0, 2.0, 2.0, 4.0], vec![1.0, 2.0], 1e-12).is_none());
         assert!(solve_dense(vec![1.0; 3], vec![1.0, 2.0], 1e-12).is_none());
         assert_eq!(solve_dense(Vec::new(), Vec::new(), 1e-12), Some(Vec::new()));
-    }
-
-    #[test]
-    fn lanczos3_is_one_at_the_centre_zero_at_whole_offsets_and_even() {
-        assert_eq!(lanczos3(0.0), 1.0);
-        for k in 1..=3 {
-            assert!(lanczos3(k as f64).abs() < 1e-15);
-        }
-        assert_eq!(lanczos3(3.5), 0.0);
-        assert_eq!(lanczos3(-1.3), lanczos3(1.3));
-        assert!(lanczos3(0.5) > 0.6 && lanczos3(1.5) < 0.0);
     }
 }
