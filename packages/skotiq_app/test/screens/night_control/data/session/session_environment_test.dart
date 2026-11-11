@@ -391,7 +391,7 @@ void main() {
       );
       expect(
         _item(items, ChecklistItemId.disk).detail!.params['free'],
-        '639 GB',
+        '639 GiB',
       );
     });
 

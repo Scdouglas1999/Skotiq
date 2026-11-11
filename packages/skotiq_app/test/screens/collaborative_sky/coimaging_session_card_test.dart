@@ -59,8 +59,8 @@ void main() {
 
     expect(find.text('NGC 7000'), findsOneWidget);
     expect(find.text('Live'), findsOneWidget);
-    // Combined integration (7200s -> 2.0h) and frame count are surfaced.
-    expect(find.text('2.0h'), findsOneWidget);
+    // Combined integration (7200s -> 2h) and frame count are surfaced.
+    expect(find.text('2h'), findsOneWidget);
     expect(find.text('240'), findsOneWidget);
     // Contributor attribution + active-imager line.
     expect(find.text('Ada & Carl'), findsOneWidget);

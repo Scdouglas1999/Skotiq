@@ -62,6 +62,11 @@ void main() {
       DurationFormat.seconds(59.6, rounding: DurationRounding.truncate),
       '59s',
     );
+    expect(DurationFormat.seconds(0.4), '1s');
+    expect(
+      DurationFormat.seconds(0.4, rounding: DurationRounding.truncate),
+      '1s',
+    );
     expect(DurationFormat.of(const Duration(milliseconds: 59600)), '59s');
   });
 

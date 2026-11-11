@@ -56,10 +56,10 @@ DawnJobReport _report(double seconds) => DawnJobReport(
 void main() {
   test('a sub-minute night states its seconds, never "0m"', () {
     expect(DurationFormat.seconds(24.0, style: DurationStyle.coarse, roundToMinute: true), '24s');
-    expect(DurationFormat.seconds(1.0, style: DurationStyle.coarse, roundToMinute: true), '1 s');
+    expect(DurationFormat.seconds(1.0, style: DurationStyle.coarse, roundToMinute: true), '1s');
     // A fraction of a second rounds UP so it can never land back on the 0 the
     // zero branch owns.
-    expect(DurationFormat.seconds(0.4, style: DurationStyle.coarse, roundToMinute: true), '1 s');
+    expect(DurationFormat.seconds(0.4, style: DurationStyle.coarse, roundToMinute: true), '1s');
   });
 
   test('a whole minute and above is unchanged', () {

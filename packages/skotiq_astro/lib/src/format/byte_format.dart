@@ -2,11 +2,13 @@
 library;
 
 abstract final class ByteFormat {
-  static const List<String> _units = <String>['B', 'KB', 'MB', 'GB', 'TB'];
+  static const List<String> _units = <String>['B', 'KiB', 'MiB', 'GiB', 'TiB'];
 
-  /// `512 B`, `1.5 KB`, `38.4 MB`, `256 GB`, `1.8 TB`.
+  /// `512 B`, `1.5 KiB`, `38.4 MiB`, `256 GiB`, `1.8 TiB`.
   ///
-  /// Units step by 1024 and carry the names file managers use (KB, MB, GB).
+  /// Units step by 1024, so the numbers match what Windows reports for the
+  /// rig's disks, and carry the binary names that say so: a 1024-step value
+  /// labeled "GB" is 7% off what the label claims.
   /// One decimal below 100 of a unit, none from 100 up, so the text keeps
   /// about three significant digits at every size. A negative size reads
   /// `0 B`.

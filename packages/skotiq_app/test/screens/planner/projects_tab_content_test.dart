@@ -192,7 +192,7 @@ void main() {
 
     expect(find.text('Orion Nebula'), findsOneWidget);
     // Per-target accrued / goal label.
-    expect(find.text('2.0h / 4.0h'), findsOneWidget);
+    expect(find.text('2h / 4h'), findsOneWidget);
     // Per-target percent label (50%). The project summary header also shows a
     // 50% telemetry figure, so expect at least one.
     expect(find.text('50%'), findsWidgets);

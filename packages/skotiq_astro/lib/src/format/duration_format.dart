@@ -39,9 +39,9 @@ abstract final class DurationFormat {
   /// the minutes instead of dropping them, and a 60th minute carries into the
   /// hours.
   ///
-  /// Sub-minute times always show their seconds, so no style can print `0m`
-  /// for a run that did capture something. Non-finite, zero and negative
-  /// inputs read `0s`.
+  /// Sub-minute times always show their seconds and a positive time is at
+  /// least `1s`, so no style can print `0m` or `0s` for a run that did
+  /// capture something. Non-finite, zero and negative inputs read `0s`.
   static String seconds(
     num value, {
     DurationStyle style = DurationStyle.exact,
@@ -50,9 +50,9 @@ abstract final class DurationFormat {
   }) {
     final v = value.toDouble();
     if (!v.isFinite || v <= 0) return '0s';
-    final total = rounding == DurationRounding.truncate ? v.floor() : v.round();
-    if (total <= 0) return '0s';
-    return _render(total, style, roundToMinute);
+    final whole = rounding == DurationRounding.truncate ? v.floor() : v.round();
+    // A positive length never reads as nothing: 0.4 s of integration is "1s".
+    return _render(whole < 1 ? 1 : whole, style, roundToMinute);
   }
 
   /// Format a [Duration]. Sub-second precision is truncated.

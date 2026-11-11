@@ -99,19 +99,19 @@ void main() {
       expect(ByteFormat.size(0), '0 B');
       expect(ByteFormat.size(-4), '0 B');
       expect(ByteFormat.size(512), '512 B');
-      expect(ByteFormat.size(1536), '1.5 KB');
-      expect(ByteFormat.size(150 * 1024), '150 KB');
-      expect(ByteFormat.size((38.4 * 1024 * 1024).round()), '38.4 MB');
-      expect(ByteFormat.size(256 * 1024 * 1024 * 1024), '256 GB');
+      expect(ByteFormat.size(1536), '1.5 KiB');
+      expect(ByteFormat.size(150 * 1024), '150 KiB');
+      expect(ByteFormat.size((38.4 * 1024 * 1024).round()), '38.4 MiB');
+      expect(ByteFormat.size(256 * 1024 * 1024 * 1024), '256 GiB');
       expect(
         ByteFormat.size((1.8 * 1024 * 1024 * 1024 * 1024).round()),
-        '1.8 TB',
+        '1.8 TiB',
       );
     });
 
     test('never prints 1024 of a unit', () {
-      expect(ByteFormat.size(1024 * 1024 - 1), '1.0 MB');
-      expect(ByteFormat.size(1024), '1.0 KB');
+      expect(ByteFormat.size(1024 * 1024 - 1), '1.0 MiB');
+      expect(ByteFormat.size(1024), '1.0 KiB');
     });
   });
 

@@ -11,21 +11,21 @@ void main() {
           yourSeconds: 3600 * 2.0,
           swarmSeconds: 3600 * 10.0,
         ),
-        '2.0h available to contribute (20% of swarm)',
+        '2h available to contribute (20% of swarm)',
       );
     });
 
     test('clamps the percentage to 100 when you exceed the reported total', () {
       expect(
         formatYourContribution(yourSeconds: 7200, swarmSeconds: 3600),
-        '2.0h available to contribute (100% of swarm)',
+        '2h available to contribute (100% of swarm)',
       );
     });
 
     test('drops the swarm comparison when the total is unknown', () {
       expect(
         formatYourContribution(yourSeconds: 3600, swarmSeconds: 0),
-        '1.0h available to contribute',
+        '1h available to contribute',
       );
       expect(
         formatYourContribution(yourSeconds: 0, swarmSeconds: 0),

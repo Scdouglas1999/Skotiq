@@ -633,7 +633,7 @@ void main() {
     );
 
     expect(line.kind, DeliveryStatusKind.delivered);
-    expect(line.sentence, contains('33.0 MB'));
+    expect(line.sentence, contains('33.0 MiB'));
     expect(
       line.sentence,
       isNot(contains('MB')),

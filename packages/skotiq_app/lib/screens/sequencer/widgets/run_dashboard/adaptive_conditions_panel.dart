@@ -130,7 +130,7 @@ class _SnapshotBody extends StatelessWidget {
             // like a stalled clock.
             value: cooldown == null
                 ? '${DurationFormat.seconds(state?.configuredHysteresisSecs ?? 0, style: DurationStyle.short)} window'
-                : '~${DurationFormat.seconds(cooldown ?? 0, style: DurationStyle.short)} remaining (30s cadence)',
+                : '~${DurationFormat.seconds(cooldown, style: DurationStyle.short)} remaining (30s cadence)',
             highlight: cooldown == null ? colors.textSecondary : colors.warning,
           ),
           const SizedBox(height: SkotiqTokens.spaceXs),
