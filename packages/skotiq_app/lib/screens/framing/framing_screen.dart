@@ -56,7 +56,6 @@ class _FramingViewState extends ConsumerState<FramingView> {
 
     final framingState = ref.read(framingProvider);
     if (!applied && framingState.target == null) {
-      // No target in provider, try to load from database
       await ref.read(framingProvider.notifier).loadMostRecentTarget();
     }
     // Always sync controllers with provider state (handles navigation back to tab)

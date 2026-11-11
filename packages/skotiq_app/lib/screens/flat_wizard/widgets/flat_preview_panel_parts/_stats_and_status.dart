@@ -10,7 +10,6 @@ class _StatsBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
 
-    // Get current filter info
     final currentFilter = state.filterSettings.isNotEmpty &&
             state.currentFilterIndex < state.filterSettings.length
         ? state.filterSettings[state.currentFilterIndex]
@@ -263,7 +262,6 @@ class _VisualizationsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Count visible visualizations
     final visibleCount = [
       state.showAduGraph,
       state.showFilterCards,

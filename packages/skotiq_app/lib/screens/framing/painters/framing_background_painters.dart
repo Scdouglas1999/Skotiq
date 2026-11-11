@@ -109,7 +109,6 @@ class FramingStarBackgroundPainter extends CustomPainter {
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
 
-    // Draw stars
     for (var i = 0; i < 300; i++) {
       final x = random.nextDouble() * size.width;
       final y = random.nextDouble() * size.height;
@@ -121,7 +120,6 @@ class FramingStarBackgroundPainter extends CustomPainter {
       canvas.drawCircle(Offset(x, y), radius, paint);
     }
 
-    // Draw faint nebula hint in center
     final center = Offset(size.width / 2, size.height / 2);
     final gradient = RadialGradient(
       colors: [
@@ -207,17 +205,14 @@ class FramingGridPainter extends CustomPainter {
       );
     }
 
-    // Draw vertical lines
     for (var x = center.dx % spacing; x < size.width; x += spacing) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
     }
 
-    // Draw horizontal lines
     for (var y = center.dy % spacing; y < size.height; y += spacing) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
 
-    // Draw center lines (brighter)
     paint.color = color.withValues(alpha: 0.5);
     paint.strokeWidth = 1;
     canvas.drawLine(
@@ -251,14 +246,11 @@ class FramingCrosshairPainter extends CustomPainter {
 
     final center = Offset(size.width / 2, size.height / 2);
 
-    // Horizontal line
     canvas.drawLine(Offset(0, center.dy), Offset(size.width, center.dy), paint);
 
-    // Vertical line
     canvas.drawLine(
         Offset(center.dx, 0), Offset(center.dx, size.height), paint);
 
-    // Center circle
     paint.style = PaintingStyle.stroke;
     canvas.drawCircle(center, 6, paint);
   }

@@ -174,7 +174,6 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header
                 Row(
                   children: [
                     Container(
@@ -218,7 +217,6 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
                 ),
                 const SizedBox(height: 24),
 
-                // Path input
                 Row(
                   children: [
                     Expanded(
@@ -239,7 +237,6 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
                 ),
                 const SizedBox(height: 20),
 
-                // Options
                 _OptionCheckbox(
                   value: _createDateSubfolder,
                   onChanged: (v) {
@@ -265,7 +262,6 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
                 ),
                 const SizedBox(height: 24),
 
-                // Actions
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
