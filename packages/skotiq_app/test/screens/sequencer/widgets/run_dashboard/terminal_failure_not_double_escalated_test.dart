@@ -69,6 +69,8 @@ void main() {
     await db.close();
   });
 
+  late List<RunCriticalAlert> alerts;
+
   Future<ProviderContainer> wiredContainer() async {
     final container = ProviderContainer(
       overrides: [
@@ -85,7 +87,10 @@ void main() {
     );
     addTearDown(container.dispose);
     await container.read(appSettingsProvider.future);
-    container.read(runDashboardCriticalEventsBridgeProvider);
+    alerts = [];
+    final subscription =
+        container.read(runCriticalAlertsProvider).listen(alerts.add);
+    addTearDown(subscription.cancel);
     return container;
   }
 
@@ -108,11 +113,10 @@ void main() {
     expect(banner, hasLength(1), reason: 'one failed node, one banner row');
     expect(banner.single.message, _reason);
 
-    final toasts = container.read(uiNotificationProvider);
     expect(
-      toasts.where((t) => t.message == _reason),
+      alerts.where((a) => a.detail == _reason),
       hasLength(1),
-      reason: 'one failed node, one toast',
+      reason: 'one failed node, one alert',
     );
   });
 
@@ -155,7 +159,7 @@ void main() {
     expect(banner, hasLength(1));
     expect(banner.single.eventId, BigInt.from(4));
     expect(
-      container.read(uiNotificationProvider).where((t) => t.message == _reason),
+      alerts.where((a) => a.detail == _reason),
       hasLength(2),
       reason: 'the second run failing the same way is news again',
     );

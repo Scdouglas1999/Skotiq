@@ -79,10 +79,14 @@ void main() {
     return container;
   }
 
-  test('an operator Stop raises no banner, no toast and no alarm', () async {
+  test('an operator Stop raises no banner, no alert and no alarm', () async {
     final container = makeContainer();
     await container.read(appSettingsProvider.future);
-    container.read(runDashboardCriticalEventsBridgeProvider);
+    final alerts = <RunCriticalAlert>[];
+    final subscription =
+        container.read(runCriticalAlertsProvider).listen(alerts.add);
+    addTearDown(subscription.cancel);
+    container.read(runCriticalAlertSoundProvider);
 
     container
         .read(eventHistoryProvider.notifier)
@@ -95,7 +99,7 @@ void main() {
       reason: 'the red Dashboard banner fired for a button the operator '
           'pressed on purpose',
     );
-    expect(container.read(uiNotificationProvider), isEmpty);
+    expect(alerts, isEmpty);
     expect(player.playCalls, isEmpty);
   });
 
@@ -119,7 +123,7 @@ void main() {
       () async {
     final container = makeContainer();
     await container.read(appSettingsProvider.future);
-    container.read(runDashboardCriticalEventsBridgeProvider);
+    container.read(runCriticalAlertSoundProvider);
 
     container.read(eventHistoryProvider.notifier).addEvent(
           _sequencerError(1, 'Temperature compensation cancelled'),

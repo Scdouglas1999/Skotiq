@@ -8,6 +8,7 @@ import 'channels/cooler_reading_channel.dart';
 import 'channels/current_frame_channel.dart';
 import 'channels/environment_channel.dart';
 import 'channels/frame_solve_channel.dart';
+import 'channels/live_broadcast_channel.dart';
 import 'channels/framing_geometry_channel.dart';
 import 'channels/manual_action_channel.dart';
 import 'channels/manual_loop_channel.dart';
@@ -45,6 +46,7 @@ final runtimeMirrorChannelsProvider =
         CoverCalibratorChannel(),
         SwitchChannelsChannel(),
         NoticeAcknowledgmentsChannel(),
+        LiveBroadcastChannel(),
       ],
     );
 

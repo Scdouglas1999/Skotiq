@@ -5,12 +5,11 @@
 import 'package:flutter/material.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// Inner padding of one section (the boards' `10px 12px`).
-const EdgeInsets kNightPanelSectionPadding =
-    EdgeInsets.symmetric(horizontal: SkotiqTokens.spaceMd, vertical: 10);
+import '../panel_widgets.dart'
+    show kNightPanelRowGap, kNightPanelSectionPadding;
 
-/// Gap between the rows inside a section.
-const double kNightPanelRowGap = 6;
+export '../panel_widgets.dart'
+    show kNightPanelRowGap, kNightPanelSectionPadding;
 
 /// Gap between the cells of a button grid.
 const double kNightPanelCellGap = 4;

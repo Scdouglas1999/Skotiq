@@ -1,8 +1,8 @@
 // End-to-end trace: typed `FrameRejected` / `FrameAccepted` payloads
-// flow from the backend event stream into the run-dashboard quality panel's
-// state notifier without any regex / string parsing. The panel surfaces
-// the running counts, HFR, eccentricity, star count, reject reason, and
-// consecutive-reject counter straight off the typed event.
+// flow from the backend event stream into Tonight's run-grading state without
+// any regex / string parsing: the running counts, the reject streak and the
+// last reject (HFR, eccentricity, star count, reason) come straight off the
+// typed event.
 //
 // Why a typed-payload test: routing the same data through
 // `InstructionProgress.detail` strings and a regex parser silently drops
@@ -12,14 +12,14 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/quality_panel.dart';
+import 'package:skotiq_app/screens/night_control/data/session/run_grading_provider.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
-import '../../../../harness/mock_backend.dart';
-import '../../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
+import '../../../harness/mock_backend.dart';
+import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 /// Lightweight `BackendNotifier` subclass that pins the backend state to
-/// our `MockBackend` instance so the panel's `_QualityNotifier` subscribes
+/// our `MockBackend` instance so the grading notifier subscribes
 /// to the same `eventStream` we drive via `MockBackend.emitEvent`.
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -98,9 +98,9 @@ SkotiqEvent _typedFrameAccepted({
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('runDashboardQualitySummaryProvider (typed payloads)', () {
+  group('runGradingProvider (typed payloads)', () {
     test(
-      'typed FrameRejected updates accepted/rejected/recent/HFR fields '
+      'typed FrameRejected updates the counts, the streak and the last reject '
       'without parsing detail strings',
       () async {
         final backend = mockBackend();
@@ -114,11 +114,11 @@ void main() {
         // Wire the notifier up so it subscribes to the backend stream.
         // Reading the provider is enough; the notifier constructor calls
         // `_wireBackendEvents()` synchronously.
-        final initial = container.read(runDashboardQualitySummaryProvider);
+        final initial = container.read(runGradingProvider);
         expect(initial.total, 0,
-            reason: 'panel starts empty before any event arrives');
+            reason: 'starts empty before any event arrives');
 
-        // Push a typed FrameRejected event. The panel must read
+        // Push a typed FrameRejected event. The notifier must read
         // HFR / eccentricity / reason DIRECTLY off `data`, not parse a
         // detail string. We omit the legacy `detail` key entirely to
         // prove the typed path is wired.
@@ -138,14 +138,13 @@ void main() {
         // async. Drain the microtask queue.
         await Future<void>.delayed(Duration.zero);
 
-        final after = container.read(runDashboardQualitySummaryProvider);
+        final after = container.read(runGradingProvider);
         expect(after.accepted, 2);
         expect(after.rejected, 1);
         expect(after.total, 3);
-        expect(after.rejectRate, closeTo(1 / 3, 1e-9));
-        expect(after.recent, hasLength(1));
+        expect(after.consecutiveRejects, 1);
 
-        final r = after.recent.single;
+        final r = after.lastReject!;
         expect(r.frame, 3);
         expect(r.total, 10);
         expect(r.decision, FrameGradeDecision.rejected);
@@ -161,7 +160,7 @@ void main() {
     );
 
     test(
-      'typed FrameAccepted feeds the HFR sparkline',
+      'an accepted frame ends the reject streak and keeps the last reject',
       () async {
         final backend = mockBackend();
         final container = ProviderContainer(overrides: [
@@ -171,42 +170,43 @@ void main() {
         ]);
         addTearDown(container.dispose);
 
-        container.read(runDashboardQualitySummaryProvider);
+        container.read(runGradingProvider);
 
-        // Three accepted frames — the typed payload includes HFR, so the
-        // sparkline should grow.
-        backend.emitEvent(_typedFrameAccepted(
+        backend.emitEvent(_typedFrameRejected(
           frame: 1,
           total: 10,
-          hfr: 2.40,
-          starCount: 142,
-          acceptedTotal: 1,
-          rejectedTotal: 0,
+          reason: 'star count 12 below threshold 30',
+          consecutiveRejects: 1,
+          acceptedTotal: 0,
+          rejectedTotal: 1,
         ));
-        backend.emitEvent(_typedFrameAccepted(
+        backend.emitEvent(_typedFrameRejected(
           frame: 2,
           total: 10,
-          hfr: 2.51,
-          starCount: 138,
-          acceptedTotal: 2,
-          rejectedTotal: 0,
+          reason: 'star count 9 below threshold 30',
+          consecutiveRejects: 2,
+          acceptedTotal: 0,
+          rejectedTotal: 2,
         ));
+        await Future<void>.delayed(Duration.zero);
+        var summary = container.read(runGradingProvider);
+        expect(summary.consecutiveRejects, 2);
+        expect(summary.lastReject?.frame, 2);
+
         backend.emitEvent(_typedFrameAccepted(
           frame: 3,
           total: 10,
           hfr: 2.45,
-          starCount: 141,
-          acceptedTotal: 3,
-          rejectedTotal: 0,
+          acceptedTotal: 1,
+          rejectedTotal: 2,
         ));
         await Future<void>.delayed(Duration.zero);
 
-        final after = container.read(runDashboardQualitySummaryProvider);
-        expect(after.accepted, 3);
-        expect(after.rejected, 0);
-        expect(after.hfrSparkline, [2.40, 2.51, 2.45],
-            reason:
-                'sparkline now populates from the typed HFR field; was empty pre-Pack-H');
+        summary = container.read(runGradingProvider);
+        expect(summary.accepted, 1);
+        expect(summary.rejected, 2);
+        expect(summary.consecutiveRejects, 0);
+        expect(summary.lastReject?.reason, 'star count 9 below threshold 30');
       },
     );
 
@@ -222,10 +222,10 @@ void main() {
         ]);
         addTearDown(container.dispose);
 
-        container.read(runDashboardQualitySummaryProvider);
+        container.read(runGradingProvider);
 
         // Push a legacy-shaped event. The typed pipeline deliberately drops it,
-        // so the panel can NEVER silently fall back to the lossy regex path.
+        // so the counts can NEVER silently fall back to the lossy regex path.
         backend.emitEvent(SkotiqEvent(
           timestamp: DateTime.now().millisecondsSinceEpoch,
           severity: EventSeverity.info,
@@ -241,11 +241,11 @@ void main() {
         ));
         await Future<void>.delayed(Duration.zero);
 
-        final after = container.read(runDashboardQualitySummaryProvider);
+        final after = container.read(runGradingProvider);
         expect(after.total, 0,
             reason:
-                'legacy detail strings no longer drive the panel — typed events only');
-        expect(after.recent, isEmpty);
+                'legacy detail strings no longer drive the counts — typed events only');
+        expect(after.lastReject, isNull);
       },
     );
 
@@ -260,7 +260,7 @@ void main() {
         ]);
         addTearDown(container.dispose);
 
-        container.read(runDashboardQualitySummaryProvider);
+        container.read(runGradingProvider);
 
         backend.emitEvent(_typedFrameRejected(
           frame: 1,
@@ -274,7 +274,7 @@ void main() {
         ));
         await Future<void>.delayed(Duration.zero);
         expect(
-          container.read(runDashboardQualitySummaryProvider).total,
+          container.read(runGradingProvider).total,
           1,
         );
 
@@ -288,10 +288,10 @@ void main() {
         ));
         await Future<void>.delayed(Duration.zero);
 
-        final reset = container.read(runDashboardQualitySummaryProvider);
+        final reset = container.read(runGradingProvider);
         expect(reset.total, 0);
-        expect(reset.recent, isEmpty);
-        expect(reset.hfrSparkline, isEmpty);
+        expect(reset.consecutiveRejects, 0);
+        expect(reset.lastReject, isNull);
       },
     );
 
@@ -306,7 +306,7 @@ void main() {
         ),
       ]);
       addTearDown(container.dispose);
-      container.read(runDashboardQualitySummaryProvider);
+      container.read(runGradingProvider);
 
       oldBackend.emitEvent(_typedFrameAccepted(
         frame: 1,
@@ -316,12 +316,12 @@ void main() {
         rejectedTotal: 0,
       ));
       await Future<void>.delayed(Duration.zero);
-      expect(container.read(runDashboardQualitySummaryProvider).total, 1);
+      expect(container.read(runGradingProvider).total, 1);
 
       (container.read(backendProvider.notifier) as _TestBackendNotifier)
           .swapTo(newBackend);
       await Future<void>.delayed(Duration.zero);
-      expect(container.read(runDashboardQualitySummaryProvider).total, 0);
+      expect(container.read(runGradingProvider).total, 0);
 
       oldBackend.emitEvent(_typedFrameRejected(
         frame: 2,
@@ -332,7 +332,7 @@ void main() {
         rejectedTotal: 1,
       ));
       await Future<void>.delayed(Duration.zero);
-      expect(container.read(runDashboardQualitySummaryProvider).total, 0);
+      expect(container.read(runGradingProvider).total, 0);
 
       newBackend.emitEvent(_typedFrameAccepted(
         frame: 1,
@@ -342,7 +342,7 @@ void main() {
         rejectedTotal: 0,
       ));
       await Future<void>.delayed(Duration.zero);
-      expect(container.read(runDashboardQualitySummaryProvider).total, 1);
+      expect(container.read(runGradingProvider).total, 1);
     });
   });
 

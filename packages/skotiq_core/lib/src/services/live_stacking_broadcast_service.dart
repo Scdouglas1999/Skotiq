@@ -288,7 +288,15 @@ class LiveStackingBroadcastService {
   final Ref _ref;
   final StreamController<BroadcastUpdate> _updates =
       StreamController<BroadcastUpdate>.broadcast();
-  BroadcastSessionState _state = const BroadcastSessionState();
+  final StreamController<BroadcastSessionState> _changes =
+      StreamController<BroadcastSessionState>.broadcast();
+  BroadcastSessionState _current = const BroadcastSessionState();
+
+  BroadcastSessionState get _state => _current;
+  set _state(BroadcastSessionState next) {
+    _current = next;
+    if (!_changes.isClosed) _changes.add(next);
+  }
 
   /// Master kill switch mirrored from
   /// `SequencerDefaults.livestackingDisableEverywhere`. When true, every
@@ -320,6 +328,9 @@ class LiveStackingBroadcastService {
   /// every HTTP request.
   BroadcastSessionState get state => _state;
 
+  /// Every change of [state]: armed, a frame stacked, a viewer, torn down.
+  Stream<BroadcastSessionState> get changes => _changes.stream;
+
   /// Flip the master kill switch. When [enabled] is true,
   /// any active session is force-deactivated and subsequent
   /// `activate()` calls are no-ops until the switch is cleared. The
@@ -338,10 +349,12 @@ class LiveStackingBroadcastService {
   }
 
   /// Activate the broadcast for a given [LiveStackingNode]. Called
-  /// when the sequence executor enters the node. Replacing an existing
+  /// when the run's first accepted frame starts the live stack. Replacing an existing
   /// session is allowed (last-one-wins) so two nodes in the same
-  /// sequence cannot lock each other out.
+  /// sequence cannot lock each other out. A node with its broadcast
+  /// switched off stacks without one.
   void activate(LiveStackingNode node) {
+    if (!node.broadcastEnabled) return;
     if (_killSwitch) {
       _logger.info(
         'Broadcast activation suppressed: master kill switch engaged',
@@ -465,6 +478,7 @@ class LiveStackingBroadcastService {
   /// Dispose all resources. Called when the provider is torn down.
   void dispose() {
     _updates.close();
+    _changes.close();
   }
 
   // Internal: share-card spec + watermark tokens
@@ -550,4 +564,3 @@ final liveStackingKillSwitchBridgeProvider = Provider<void>((ref) {
   // above. The Provider re-evaluation is cheap because setKillSwitch
   // is a no-op when the value hasn't changed.
 });
-

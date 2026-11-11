@@ -1,11 +1,10 @@
-// End-to-end smoke test for the critical-event escalation
-// path. Verifies that a critical bridge event:
+// End-to-end test of the critical-event escalation path as the always-on
+// services run it, with no screen open. Verifies that a critical bridge event:
 //   * Appears in `runDashboardCriticalEventsProvider` (banner data)
-//   * Routes through `uiNotificationProvider` (toast queue)
 //   * Triggers `criticalAlertPlayerProvider.play` (audible alert, gated by
 //     `audibleAlertsOnCritical` and `criticalAlertSound`)
-//   * Enqueues a `PushNotification` (mobile push, gated by
-//     `pushCriticalAlerts`)
+//   * Enqueues one `PushNotification` (mobile push, gated by
+//     `pushCriticalAlerts`), on a host only
 //
 // Also pins the cooldown behaviour so a storm of critical events doesn't
 // trigger the system bell more than once per 5 seconds, and confirms
@@ -19,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import 'package:skotiq_app/services/location_sync_service.dart';
+import 'package:skotiq_app/startup/always_on_services.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_event;
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
@@ -66,10 +66,28 @@ bridge_event.SkotiqEvent _criticalSystemErrorEvent({
   );
 }
 
+/// Starts the critical-alert services [role] runs, as the app does at launch.
+void _startCriticalAlerts(ProviderContainer container, AppRole role) {
+  final providers = <ProviderListenable<Object?>>[
+    runCriticalAlertsProvider,
+    runCriticalAlertSoundProvider,
+    runCriticalAlertPushProvider,
+  ];
+  final services = startAlwaysOnServices(
+    container,
+    role,
+    services: [
+      for (final service in alwaysOnServices)
+        if (providers.any((p) => identical(p, service.provider))) service,
+    ],
+  );
+  addTearDown(services.stop);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('runDashboardCriticalEventsBridgeProvider', () {
+  group('critical run alerts', () {
     late _FakeCriticalAlertPlayer player;
     late SkotiqDatabase db;
 
@@ -139,9 +157,7 @@ void main() {
       });
       addTearDown(pushSub.cancel);
 
-      // Wire the bridge so the listen() fires. fireImmediately=true means
-      // we'll get the current (empty) state first, then subsequent updates.
-      container.read(runDashboardCriticalEventsBridgeProvider);
+      _startCriticalAlerts(container, AppRole.hostGui);
 
       // Inject a critical event into the history. The bridge listens to
       // `eventHistoryProvider`; pushing through its notifier is the same
@@ -170,6 +186,58 @@ void main() {
       expect(push.category, EventCategory.system);
     });
 
+    Future<List<PushNotification>> pushesFor(
+      ProviderContainer container,
+      AppRole role,
+    ) async {
+      await container.read(appSettingsProvider.future);
+      final pushService = container.read(pushNotificationServiceProvider);
+      await container.read(pushNotificationConfigProvider.future);
+      await Future<void>.delayed(Duration.zero);
+      final received = <PushNotification>[];
+      final pushSub = pushService.notifications.listen(received.add);
+      addTearDown(pushSub.cancel);
+
+      _startCriticalAlerts(container, role);
+      container
+          .read(eventHistoryProvider.notifier)
+          .addEvent(_criticalSystemErrorEvent(id: 21));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      return received;
+    }
+
+    test('with no screen open, a host pages the phone once and sounds once',
+        () async {
+      final container = makeContainer(
+        audibleAlertsOnCritical: true,
+        pushCriticalAlerts: true,
+      );
+      final pushes = await pushesFor(container, AppRole.hostGui);
+      expect(pushes, hasLength(1));
+      expect(player.playCalls, ['systemBell']);
+    });
+
+    test('the daemon pages the phone and makes no sound', () async {
+      final container = makeContainer(
+        audibleAlertsOnCritical: true,
+        pushCriticalAlerts: true,
+      );
+      final pushes = await pushesFor(container, AppRole.hostDaemon);
+      expect(pushes, hasLength(1));
+      expect(player.playCalls, isEmpty);
+    });
+
+    test('a linked client sounds and leaves the page to its host', () async {
+      final container = makeContainer(
+        audibleAlertsOnCritical: true,
+        pushCriticalAlerts: true,
+      );
+      final pushes = await pushesFor(container, AppRole.linkedClient);
+      expect(pushes, isEmpty);
+      expect(player.playCalls, ['systemBell']);
+      expect(container.read(runDashboardCriticalEventsProvider), hasLength(1));
+    });
+
     test('audible alert respects 5-second cooldown across a burst', () async {
       final container = makeContainer(
         audibleAlertsOnCritical: true,
@@ -177,7 +245,7 @@ void main() {
       );
       await container.read(appSettingsProvider.future);
 
-      container.read(runDashboardCriticalEventsBridgeProvider);
+      _startCriticalAlerts(container, AppRole.hostGui);
 
       // Fire 5 critical events in rapid succession.
       for (var i = 1; i <= 5; i++) {
@@ -193,7 +261,7 @@ void main() {
       expect(container.read(runDashboardCriticalEventsProvider), hasLength(5));
     });
 
-    test('"none" sound suppresses audio but keeps banner + toast', () async {
+    test('"none" sound suppresses audio but keeps the banner', () async {
       final container = makeContainer(
         audibleAlertsOnCritical: true,
         pushCriticalAlerts: false,
@@ -201,7 +269,7 @@ void main() {
       );
       await container.read(appSettingsProvider.future);
 
-      container.read(runDashboardCriticalEventsBridgeProvider);
+      _startCriticalAlerts(container, AppRole.hostGui);
       container
           .read(eventHistoryProvider.notifier)
           .addEvent(_criticalSystemErrorEvent(id: 7));
@@ -231,7 +299,7 @@ void main() {
       final pushSub = pushService.notifications.listen(received.add);
       addTearDown(pushSub.cancel);
 
-      container.read(runDashboardCriticalEventsBridgeProvider);
+      _startCriticalAlerts(container, AppRole.hostGui);
       container
           .read(eventHistoryProvider.notifier)
           .addEvent(_criticalSystemErrorEvent(id: 11));
@@ -261,7 +329,7 @@ void main() {
       });
       addTearDown(pushSub.cancel);
 
-      container.read(runDashboardCriticalEventsBridgeProvider);
+      _startCriticalAlerts(container, AppRole.hostGui);
       container
           .read(eventHistoryProvider.notifier)
           .addEvent(_criticalSystemErrorEvent(id: 13));

@@ -1,9 +1,8 @@
 // Tonight (`/dashboard`): the night-control screen.
 //
-// Composes the four slots of [NightControlLayout] and keeps the side effects
-// the old dashboard kept alive while it was on screen: the PHD2 controller's
-// event subscription and the critical-events bridge, both providers whose
-// work runs only while something watches them. The end-of-night request to
+// Composes the four slots of [NightControlLayout] and keeps the PHD2
+// controller's event subscription alive while it is on screen, a provider
+// whose work runs only while something watches it. The end-of-night request to
 // cap the telescope, the run's two alerts (the recovery offer and a
 // critical fault) and its warnings sit above the layout; each hides itself
 // when there is nothing to say.
@@ -13,7 +12,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 
 import '../sequencer/widgets/run_dashboard/critical_event_banner.dart';
 import '../sequencer/widgets/run_dashboard/recovery_banner.dart';
-import '../sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import 'center/night_center.dart';
 import 'end_of_night_cap_banner.dart';
 import 'header/night_header_bar.dart';
@@ -43,9 +41,6 @@ class NightControlScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // The PHD2 controller listens to the guider's events only while watched.
     ref.watch(phd2ControllerProvider);
-    // Critical run events become toasts, sounds and phone pushes only while
-    // this bridge is watched.
-    ref.watch(runDashboardCriticalEventsBridgeProvider);
     // Snapshot and Loop on the Camera tab use the manual exposure settings,
     // which follow the active profile only while this sync is watched.
     ref.watch(syncExposureFromProfileProvider);

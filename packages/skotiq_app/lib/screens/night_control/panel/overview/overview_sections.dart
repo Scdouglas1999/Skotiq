@@ -168,6 +168,8 @@ class NightSessionSection extends StatelessWidget {
             items: nightMetricItems(session.metrics, l10n),
             semanticLabel: title,
           ),
+        if (session.rejectStreak case final streak?)
+          NightPanelNote(streak.resolve(l10n), tone: MetricTone.bad),
       ],
     );
   }
