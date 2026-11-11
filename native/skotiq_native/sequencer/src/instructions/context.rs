@@ -274,6 +274,19 @@ impl RunRig {
     }
 }
 
+/// The dome a run drives: the one assigned to it, else the one the device
+/// layer has connected. Nothing in the app assigns a dome to the run, so on a
+/// real rig it is always the connected one.
+pub(crate) async fn run_dome_id(
+    assigned: Option<&str>,
+    device_ops: &SharedDeviceOps,
+) -> Option<String> {
+    match assigned {
+        Some(id) => Some(id.to_string()),
+        None => device_ops.active_dome_id().await,
+    }
+}
+
 /// What a run writes into the header of every frame it saves: `SK-SESID`,
 /// `OBSERVER`, `SITEELEV`, `INSTRUME` ("<make> <model>"), `TELESCOP`,
 /// `FOCALLEN` and `APTDIA`. Empty outside a run.
@@ -552,19 +565,11 @@ impl InstructionContext {
     /// run and the seven dome/cover node types were unconditionally dead. The
     /// device layer knows what is connected; ask it before declaring failure.
     pub async fn dome_id(&self) -> Result<String, InstructionResult> {
-        if let Some(id) = self.run.rig.dome_id.as_deref() {
-            return Ok(id.to_string());
-        }
-        match self.run.device_ops.active_dome_id().await {
-            Some(id) => {
-                tracing::debug!("No dome in the sequence context; using connected dome '{id}'");
-                Ok(id)
-            }
-            None => Err(InstructionResult::failure_because(
-                "No dome connected",
-                Setback::Disconnected,
-            )),
-        }
+        run_dome_id(self.run.rig.dome_id.as_deref(), &self.run.device_ops)
+            .await
+            .ok_or_else(|| {
+                InstructionResult::failure_because("No dome connected", Setback::Disconnected)
+            })
     }
 
     /// Get cover calibrator ID or error. Falls back to

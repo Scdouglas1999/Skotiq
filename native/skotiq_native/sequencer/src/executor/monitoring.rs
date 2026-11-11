@@ -488,7 +488,11 @@ pub(crate) fn quality_trigger_notice(
     manager: &crate::triggers::TriggerManager,
     state: &TriggerState,
 ) -> String {
-    let detail = match manager.get_trigger(trigger_id).map(|t| &t.trigger_type) {
+    let trigger_type = manager.get_trigger(trigger_id).map(|t| &t.trigger_type);
+    if matches!(trigger_type, Some(TriggerType::DomeShutterNotOpen)) {
+        return dome_shutter_notice(trigger_name, trigger_id, state);
+    }
+    let detail = match trigger_type {
         Some(TriggerType::GuidingFailed {
             rms_threshold,
             duration_secs,
@@ -541,6 +545,28 @@ pub(crate) fn quality_trigger_notice(
          it clears and comes back. To have it stop the run instead, turn on Stop the run for \
          quality problems in Settings > Sequencer."
     )
+}
+
+/// The Warning a notify-only Dome Shutter Not Open firing puts in the run's
+/// feed. A closed shutter is not a quality problem, so the quality setting is
+/// not what changes it: the standard trigger points at a Recovery step, and a
+/// Recovery step set to Notify says only what happened.
+fn dome_shutter_notice(trigger_name: &str, trigger_id: &str, state: &TriggerState) -> String {
+    let reading = match state.telemetry.dome_shutter_status.as_deref() {
+        Some(status) => format!("the dome reports its shutter {}", status.to_lowercase()),
+        None => "the dome has not reported its shutter".to_string(),
+    };
+    let mut notice = format!(
+        "{trigger_name}: {reading} while the run expects it open. Imaging continues; frames \
+         taken behind a closed shutter will not show the sky."
+    );
+    if StandardTrigger::from_id(trigger_id).is_some() {
+        notice.push_str(
+            " To have the run pause or park instead, add a Recovery step for Dome Shutter Not \
+             Open with that action.",
+        );
+    }
+    notice
 }
 
 /// How long a notify-only trigger has to stay quiet before its next firing is

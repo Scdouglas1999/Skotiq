@@ -164,7 +164,7 @@ pub(crate) struct ScriptedDeviceOps {
     /// dome). The hardened safe-state sweep VERIFIES this reaches "Closed", so a
     /// fire-and-forget mock that never updated it would (correctly) be flagged
     /// unsafe. When `close_fails` is set the shutter stays "Open" — the jam case.
-    shutter_state: Arc<Mutex<String>>,
+    pub(crate) shutter_state: Arc<Mutex<String>>,
     /// Mount tracking as the driver reports it. `mount_set_tracking` writes it
     /// and a successful `mount_park` clears it, like a real mount.
     mount_tracking: Arc<AtomicBool>,
