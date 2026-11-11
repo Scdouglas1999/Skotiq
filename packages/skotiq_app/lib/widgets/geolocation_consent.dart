@@ -39,21 +39,19 @@ final googleGeolocationKeyProvider =
   GoogleGeolocationKeyNotifier.new,
 );
 
-const String _googleGeolocationKeySetting = 'location_google_geolocation_key';
-
 class GoogleGeolocationKeyNotifier extends AsyncNotifier<String> {
   @override
   Future<String> build() async {
-    final dao = ref.read(settingsDaoProvider);
-    return (await dao.getSetting(_googleGeolocationKeySetting))?.trim() ?? '';
+    return ref
+        .read(settingsDaoProvider)
+        .read(StoreSettings.googleGeolocationKey);
   }
 
   Future<void> setKey(String key) async {
-    final trimmed = key.trim();
-    await ref.read(settingsDaoProvider).setSetting(
-          _googleGeolocationKeySetting,
-          trimmed,
-        );
+    final trimmed = StoreSettings.googleGeolocationKey.clean(key);
+    await ref
+        .read(settingsDaoProvider)
+        .write(StoreSettings.googleGeolocationKey, trimmed);
     state = AsyncData(trimmed);
   }
 }

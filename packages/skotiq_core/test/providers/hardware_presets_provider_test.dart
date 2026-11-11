@@ -93,7 +93,7 @@ void main() {
       // The JSON blob was actually written under the versioned key.
       final settingsDao = container.read(settingsDaoProvider);
       final raw = await settingsDao.getSetting(
-        HardwarePresetsService.telescopeOverridesSettingKey,
+        'hardware_presets.telescopes.v1',
       );
       expect(raw, isNotNull);
       final decoded = HardwarePresetsService.telescopeOverridesFromJson(
@@ -322,7 +322,7 @@ void main() {
       // confirm the load future rejects rather than silently falling back.
       final settingsDao = container.read(settingsDaoProvider);
       await settingsDao.setSetting(
-        HardwarePresetsService.telescopeOverridesSettingKey,
+        'hardware_presets.telescopes.v1',
         jsonEncode({'not': 'a list'}),
       );
 

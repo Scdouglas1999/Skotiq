@@ -24,6 +24,7 @@ import '../utils/coordinate_parser.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'camera_sensor_specs_provider.dart';
+import '../settings/store_settings.dart';
 import 'database_provider.dart';
 import 'equipment_provider.dart';
 import 'framing_image_cache_provider.dart';
@@ -793,7 +794,10 @@ class FramingNotifier extends StateNotifier<FramingState> {
   /// targets the user never deliberately added.
   Future<void> persistLastFramedTarget(FramingTarget target) async {
     final dao = _ref.read(settingsDaoProvider);
-    await dao.setSetting(_lastFramedTargetKey, jsonEncode(target.toJson()));
+    await dao.write(
+      StoreSettings.lastFramedTarget,
+      jsonEncode(target.toJson()),
+    );
   }
 
   /// Saves the current target into the persistent targets library.
@@ -826,8 +830,8 @@ class FramingNotifier extends StateNotifier<FramingState> {
   Future<void> loadMostRecentTarget() async {
     if (_ref.read(backendProvider).remoteHost != null) return;
     final dao = _ref.read(settingsDaoProvider);
-    final raw = await dao.getSetting(_lastFramedTargetKey);
-    if (raw == null || raw.isEmpty) return;
+    final raw = await dao.read(StoreSettings.lastFramedTarget);
+    if (raw == null) return;
 
     final Object? decoded;
     try {
@@ -840,7 +844,7 @@ class FramingNotifier extends StateNotifier<FramingState> {
         error: e,
         stackTrace: stackTrace,
       );
-      await dao.deleteSetting(_lastFramedTargetKey);
+      await dao.clear(StoreSettings.lastFramedTarget);
       return;
     }
     if (decoded is! Map<String, dynamic>) return;
@@ -851,10 +855,6 @@ class FramingNotifier extends StateNotifier<FramingState> {
     setTarget(target);
   }
 }
-
-/// Settings key holding the JSON-encoded last framed target. Single key,
-/// overwritten on every selection — never a new `targets` row.
-const String _lastFramedTargetKey = 'framing.lastTarget';
 
 /// Factory for the HTTP client the survey-image fetch uses.
 ///

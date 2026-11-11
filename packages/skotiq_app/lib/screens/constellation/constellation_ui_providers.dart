@@ -1,4 +1,3 @@
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // The core barrel also exports a `ConstellationPrivacy` (the wire enum
 // `contributeTarget` consumes). This file declares the richer app-side enum of
@@ -15,32 +14,21 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 /// depth that backs the "your contribution" bar, and the persisted display
 /// name / privacy choice the contribute consent flow reads and writes.
 
-const String constellationDisplayNameSettingKey = 'constellation.display_name';
-
-/// Settings key the per-install stable public key persists under (random hex,
-/// minted on first account registration; the self-hosted hub only needs a
-/// stable opaque key, not a real keypair).
-const String constellationPublicKeySettingKey = 'constellation.public_key';
-
-/// Settings key the contribution privacy choice persists under. Wire value is
-/// the [ConstellationPrivacy.name] (`sums` | `subs`); default is `sums`.
-const String constellationPrivacySettingKey = 'constellation.privacy';
-
 /// Clear the identity-bearing hub credentials as one settings write.
 ///
 /// Keeping this operation shared prevents the Constellation and Collaborative
 /// Sky surfaces from drifting, while [SettingsDao.setSettings] avoids exposing
 /// a half-signed-out identity between four separate writes.
 Future<void> clearConstellationCredentials(SettingsDao settings) {
-  return settings.setSettings({
-    constellationHubUrlSettingKey: '',
-    constellationHubTokenSettingKey: '',
-    constellationAccountIdSettingKey: '',
+  return settings.writeAll([
+    StoreSettings.constellationHubUrl.to(''),
+    StoreSettings.constellationHubToken.to(''),
+    StoreSettings.constellationAccountId.to(''),
     // Mint a fresh per-install identity on the next connection instead of
     // colliding with the public key still registered on the hub account being
     // replaced.
-    constellationPublicKeySettingKey: '',
-  });
+    StoreSettings.constellationPublicKey.to(''),
+  ]);
 }
 
 /// What a contributor sends to the hub. `sums` (default) shares only the same
@@ -98,8 +86,9 @@ final constellationHubInfoProvider = FutureProvider<HubInfo?>((ref) async {
 /// The persisted display name for this imager, or an empty string before the
 /// user has signed in / chosen one.
 final constellationDisplayNameProvider = FutureProvider<String>((ref) async {
-  final settings = ref.watch(settingsDaoProvider);
-  return (await settings.getSetting(constellationDisplayNameSettingKey)) ?? '';
+  return ref
+      .watch(settingsDaoProvider)
+      .read(StoreSettings.constellationDisplayName);
 });
 
 /// The persisted hub account id for this imager (the id the hub records a
@@ -115,12 +104,10 @@ final constellationAccountIdProvider = FutureProvider<String?>((ref) async {
 /// The persisted contribution privacy choice (defaults to [ConstellationPrivacy.sums]).
 final constellationPrivacyProvider =
     FutureProvider<ConstellationPrivacy>((ref) async {
-  final settings = ref.watch(settingsDaoProvider);
-  final raw = await settings.getSetting(constellationPrivacySettingKey);
-  return ConstellationPrivacy.values.firstWhere(
-    (p) => p.name == raw,
-    orElse: () => ConstellationPrivacy.sums,
-  );
+  final stored = await ref
+      .watch(settingsDaoProvider)
+      .read(StoreSettings.constellationPrivacy);
+  return ConstellationPrivacy.values.byName(stored);
 });
 
 /// The user's locally-imaged integration depth (seconds) inside a shared

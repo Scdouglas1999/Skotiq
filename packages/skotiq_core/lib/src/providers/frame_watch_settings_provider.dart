@@ -11,18 +11,11 @@ import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/logging_service.dart';
+import '../settings/store_settings.dart';
 import 'database_provider.dart';
 
-/// Settings keys in `app_settings`.
-const String frameWatchRecenterEnabledKey = 'frame_watch_recenter_enabled';
-const String frameWatchDriftLimitArcsecKey = 'frame_watch_drift_limit_arcsec';
-const String frameWatchObstructionDetectionKey =
-    'frame_watch_obstruction_detection';
-const String learnedHorizonPointsKey = 'learned_horizon_points_json';
-
-/// How far the solved center may drift from the target before the run
-/// recenters, in arcseconds.
-const double frameWatchDriftLimitDefaultArcsec = 30;
+/// Bounds of how far the solved center may drift from the target before the
+/// run recenters, in arcseconds.
 const double frameWatchDriftLimitMinArcsec = 10;
 const double frameWatchDriftLimitMaxArcsec = 600;
 
@@ -173,11 +166,18 @@ String encodeLearnedObstructionPoints(List<LearnedObstructionPoint> points) =>
 /// The frame watch's settings and the learned obstructions of every site.
 class FrameWatchSettings {
   const FrameWatchSettings({
-    this.recenterEnabled = true,
-    this.driftLimitArcsec = frameWatchDriftLimitDefaultArcsec,
-    this.obstructionDetection = true,
+    required this.recenterEnabled,
+    required this.driftLimitArcsec,
+    required this.obstructionDetection,
     this.learnedPoints = const [],
   });
+
+  /// The settings as declared, before anything is stored.
+  static final FrameWatchSettings initial = FrameWatchSettings(
+    recenterEnabled: StoreSettings.frameWatchRecenter.fallback,
+    driftLimitArcsec: StoreSettings.frameWatchDriftLimit.fallback,
+    obstructionDetection: StoreSettings.frameWatchObstructionDetection.fallback,
+  );
 
   final bool recenterEnabled;
   final double driftLimitArcsec;
@@ -226,7 +226,7 @@ class FrameWatchSettings {
 
 double clampFrameWatchDriftLimitArcsec(double value) => value.isFinite
     ? value.clamp(frameWatchDriftLimitMinArcsec, frameWatchDriftLimitMaxArcsec)
-    : frameWatchDriftLimitDefaultArcsec;
+    : StoreSettings.frameWatchDriftLimit.fallback;
 
 final frameWatchSettingsProvider =
     AsyncNotifierProvider<FrameWatchSettingsNotifier, FrameWatchSettings>(
@@ -237,20 +237,17 @@ class FrameWatchSettingsNotifier extends AsyncNotifier<FrameWatchSettings> {
   @override
   Future<FrameWatchSettings> build() async {
     final dao = ref.watch(settingsDaoProvider);
-    final enabled = await dao.getSetting(frameWatchRecenterEnabledKey);
-    final storedDrift = await dao.getSetting(frameWatchDriftLimitArcsecKey);
-    final drift = storedDrift == null ? null : double.tryParse(storedDrift);
-    final detection = await dao.getSetting(frameWatchObstructionDetectionKey);
-    final points = decodeLearnedObstructionPoints(
-      await dao.getSetting(learnedHorizonPointsKey),
-    );
     return FrameWatchSettings(
-      recenterEnabled: enabled != 'false',
-      driftLimitArcsec: drift == null
-          ? frameWatchDriftLimitDefaultArcsec
-          : clampFrameWatchDriftLimitArcsec(drift),
-      obstructionDetection: detection == null ? true : detection != 'false',
-      learnedPoints: points,
+      recenterEnabled: await dao.read(StoreSettings.frameWatchRecenter),
+      driftLimitArcsec: clampFrameWatchDriftLimitArcsec(
+        await dao.read(StoreSettings.frameWatchDriftLimit),
+      ),
+      obstructionDetection: await dao.read(
+        StoreSettings.frameWatchObstructionDetection,
+      ),
+      learnedPoints: decodeLearnedObstructionPoints(
+        await dao.read(StoreSettings.learnedHorizonPoints),
+      ),
     );
   }
 
@@ -261,7 +258,7 @@ class FrameWatchSettingsNotifier extends AsyncNotifier<FrameWatchSettings> {
     final current = await _current();
     await ref
         .read(settingsDaoProvider)
-        .setSetting(frameWatchRecenterEnabledKey, enabled.toString());
+        .write(StoreSettings.frameWatchRecenter, enabled);
     state = AsyncData(
       (state.valueOrNull ?? current).copyWith(recenterEnabled: enabled),
     );
@@ -272,7 +269,7 @@ class FrameWatchSettingsNotifier extends AsyncNotifier<FrameWatchSettings> {
     final clamped = clampFrameWatchDriftLimitArcsec(arcsec);
     await ref
         .read(settingsDaoProvider)
-        .setSetting(frameWatchDriftLimitArcsecKey, clamped.toString());
+        .write(StoreSettings.frameWatchDriftLimit, clamped);
     state = AsyncData(
       (state.valueOrNull ?? current).copyWith(driftLimitArcsec: clamped),
     );
@@ -282,7 +279,7 @@ class FrameWatchSettingsNotifier extends AsyncNotifier<FrameWatchSettings> {
     final current = await _current();
     await ref
         .read(settingsDaoProvider)
-        .setSetting(frameWatchObstructionDetectionKey, enabled.toString());
+        .write(StoreSettings.frameWatchObstructionDetection, enabled);
     state = AsyncData(current.copyWith(obstructionDetection: enabled));
   }
 
@@ -330,8 +327,8 @@ class FrameWatchSettingsNotifier extends AsyncNotifier<FrameWatchSettings> {
     try {
       await ref
           .read(settingsDaoProvider)
-          .setSetting(
-            learnedHorizonPointsKey,
+          .write(
+            StoreSettings.learnedHorizonPoints,
             encodeLearnedObstructionPoints(points),
           );
     } catch (e) {

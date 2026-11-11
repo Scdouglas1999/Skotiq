@@ -38,7 +38,7 @@ Future<HarnessHandle> _pump(
   if (points.isNotEmpty) {
     await tester.runAsync(
       () => db.settingsDao.setSetting(
-        learnedHorizonPointsKey,
+        'learned_horizon_points_json',
         encodeLearnedObstructionPoints(points),
       ),
     );

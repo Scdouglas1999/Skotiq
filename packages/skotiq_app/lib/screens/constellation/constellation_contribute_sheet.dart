@@ -320,10 +320,7 @@ class _ConstellationContributeSheetState
     if (!mounted) return;
     final settings = ref.read(settingsDaoProvider);
     try {
-      await settings.setSetting(
-        constellationPrivacySettingKey,
-        effective.name,
-      );
+      await settings.write(StoreSettings.constellationPrivacy, effective.name);
       final outcome =
           await ref.read(constellationServiceProvider).contributeTarget(
                 widget.target.targetId,

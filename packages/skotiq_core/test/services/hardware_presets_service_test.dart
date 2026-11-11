@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/hardware_presets/hardware_preset_models.dart';
 import 'package:skotiq_core/src/services/hardware_presets/hardware_presets_service.dart';
+import 'package:skotiq_core/src/settings/store_settings.dart';
 
 void main() {
   group('HardwarePresetsService', () {
@@ -293,11 +294,11 @@ void main() {
 
       test('persistence keys are stable, versioned identifiers', () {
         expect(
-          HardwarePresetsService.telescopeOverridesSettingKey,
+          StoreSettings.telescopePresetOverrides.key,
           'hardware_presets.telescopes.v1',
         );
         expect(
-          HardwarePresetsService.cameraOverridesSettingKey,
+          StoreSettings.cameraPresetOverrides.key,
           'hardware_presets.cameras.v1',
         );
       });

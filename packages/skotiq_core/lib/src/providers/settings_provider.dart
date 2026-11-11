@@ -41,7 +41,8 @@ export '../settings/capture_format.dart';
 export '../settings/device_retries.dart';
 export '../settings/preflight_strictness.dart';
 export '../settings/setting.dart'
-    show ExecutorConfig, Setting, SettingSync, SettingValue;
+    show ExecutorConfig, Setting, SettingFamily, SettingSync, SettingValue;
+export '../settings/store_settings.dart' show StoreSettings;
 
 part 'settings_sections/general.dart';
 part 'settings_sections/appearance.dart';
@@ -230,16 +231,8 @@ class LocationSettings {
 /// Auto connect equipment setting
 class AutoConnectSettingsNotifier extends AsyncNotifier<bool> {
   @override
-  Future<bool> build() async {
-    final dao = ref.read(settingsDaoProvider);
-    return await dao.getAutoConnectEquipment();
-  }
-
-  Future<void> setAutoConnect(bool enabled) async {
-    final dao = ref.read(settingsDaoProvider);
-    await dao.setAutoConnectEquipment(enabled);
-    state = AsyncData(enabled);
-  }
+  Future<bool> build() =>
+      ref.read(settingsDaoProvider).read(AppSettingDefs.autoConnectEquipment);
 }
 
 final autoConnectSettingsProvider =

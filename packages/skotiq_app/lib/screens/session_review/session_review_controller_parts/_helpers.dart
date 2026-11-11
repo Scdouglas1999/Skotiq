@@ -49,7 +49,8 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
       unawaited(_loadNewestComposite());
     } catch (e) {
       if (!mounted) return;
-      state = state.copyWith(loading: false, error: 'Failed to load: ${userFacingError(e)}');
+      state = state.copyWith(
+          loading: false, error: 'Failed to load: ${userFacingError(e)}');
     }
   }
 
@@ -534,8 +535,9 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
   }
 
   Future<String> _outputDir() async {
-    final configured =
-        await _ref.read(settingsDaoProvider).getImageOutputDirectory();
+    final configured = await _ref
+        .read(settingsDaoProvider)
+        .read(AppSettingDefs.imageOutputPath);
     if (configured.trim().isNotEmpty) {
       return p.join(configured.trim(), 'masters');
     }

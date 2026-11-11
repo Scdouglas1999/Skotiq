@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_app/screens/constellation/constellation_ui_providers.dart';
 import 'package:skotiq_app/screens/constellation/widgets/hub_status_card.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -48,10 +47,10 @@ void main() {
     expect(
       writes.single,
       {
-        constellationHubUrlSettingKey: '',
-        constellationHubTokenSettingKey: '',
-        constellationAccountIdSettingKey: '',
-        constellationPublicKeySettingKey: '',
+        'constellation.hub_url': '',
+        'constellation.hub_token': '',
+        'constellation.account_id': '',
+        'constellation.public_key': '',
       },
     );
 

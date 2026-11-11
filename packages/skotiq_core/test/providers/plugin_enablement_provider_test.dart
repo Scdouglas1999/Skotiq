@@ -37,17 +37,14 @@ class _ControllableSettingsDao extends SettingsDao {
 }
 
 Future<String?> _readSetting(SkotiqDatabase db) {
-  return SettingsDao(db).getSetting(kPluginEnablementSettingKey);
+  return SettingsDao(db).getSetting('plugin_enablement');
 }
 
 Future<void> _seedSetting(SkotiqDatabase db, String value) async {
   await db
       .into(db.appSettings)
       .insert(
-        AppSettingsCompanion.insert(
-          key: kPluginEnablementSettingKey,
-          value: value,
-        ),
+        AppSettingsCompanion.insert(key: 'plugin_enablement', value: value),
         mode: InsertMode.insertOrReplace,
       );
 }

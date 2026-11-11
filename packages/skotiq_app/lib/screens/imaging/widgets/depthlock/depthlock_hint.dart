@@ -5,24 +5,11 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'depthlock_selection.dart';
 
-/// `app_settings` key recording that the operator has dismissed the DepthLock
-/// introduction, or created a goal and therefore does not need it.
-///
-/// An arbitrary settings key rather than a field on the typed settings model:
-/// this is a one-shot piece of UI state, not a preference anyone will look for
-/// in Settings, and it follows the same shape as `notes.prompt_after_run`.
-const String kDepthLockHintDismissedKey = 'imaging.depthlock_hint_dismissed';
-
 /// Whether the DepthLock introduction has already been shown and dismissed.
-///
-/// Defaults to false when the key has never been written — a fresh install
-/// should see the hint once.
 final depthLockHintDismissedProvider = StreamProvider<bool>((ref) {
-  final dao = ref.watch(settingsDaoProvider);
-  return dao.watchSetting(kDepthLockHintDismissedKey).map((raw) {
-    if (raw == null) return false;
-    return raw.toLowerCase() == 'true';
-  });
+  return ref
+      .watch(settingsDaoProvider)
+      .watch(StoreSettings.depthLockHintDismissed);
 });
 
 /// Records the dismissal: in this app's settings, so it survives a restart,
@@ -32,7 +19,7 @@ final depthLockHintDismisserProvider = Provider<Future<void> Function()>((ref) {
   final dao = ref.watch(settingsDaoProvider);
   return () {
     _shareDismissal(ref);
-    return dao.setSetting(kDepthLockHintDismissedKey, 'true');
+    return dao.write(StoreSettings.depthLockHintDismissed, true);
   };
 });
 
@@ -55,7 +42,7 @@ final depthLockHintDismissalSyncProvider = Provider<void>((ref) {
             .tipDismissed(depthLockHintTipId);
         if (stored == true && !shared) _shareDismissal(ref);
         if (shared && stored == false) {
-          dao.setSetting(kDepthLockHintDismissedKey, 'true');
+          dao.write(StoreSettings.depthLockHintDismissed, true);
         }
       });
   ref.listen<AsyncValue<bool>>(

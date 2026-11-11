@@ -238,7 +238,7 @@ void main() {
       () async {
     await container
         .read(settingsDaoProvider)
-        .setImageOutputDirectory('/data/astro');
+        .write(AppSettingDefs.imageOutputPath, '/data/astro');
     expect(await accumulatingSidecar(), startsWith('/data/astro/masters'));
   });
 

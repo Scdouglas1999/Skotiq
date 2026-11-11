@@ -5,15 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/hardware_presets/hardware_preset_models.dart';
 import '../services/hardware_presets/hardware_presets_service.dart';
+import '../settings/store_settings.dart';
 import 'database_provider.dart';
 
 /// Riverpod plumbing for the hardware-presets library.
 ///
 /// Wires the pure [HardwarePresetsService] to persistence. The user override
-/// lists live as JSON blobs in `app_settings` keyed by
-/// [HardwarePresetsService.telescopeOverridesSettingKey] /
-/// [HardwarePresetsService.cameraOverridesSettingKey], and mutations persist
-/// *before* updating in-memory state.
+/// lists live as JSON documents in [StoreSettings.telescopePresetOverrides] /
+/// [StoreSettings.cameraPresetOverrides], and mutations persist *before*
+/// updating in-memory state.
 ///
 /// The built-in catalogs are immutable: editing a built-in preset stores an
 /// `isBuiltIn: false` override copy under its (stable) id, which the service's
@@ -73,11 +73,11 @@ class HardwarePresetsNotifier extends StateNotifier<HardwarePresetsService> {
   Future<void> _load() async {
     try {
       final settingsDao = _ref.read(settingsDaoProvider);
-      final telescopeRaw = await settingsDao.getSetting(
-        HardwarePresetsService.telescopeOverridesSettingKey,
+      final telescopeRaw = await settingsDao.read(
+        StoreSettings.telescopePresetOverrides,
       );
-      final cameraRaw = await settingsDao.getSetting(
-        HardwarePresetsService.cameraOverridesSettingKey,
+      final cameraRaw = await settingsDao.read(
+        StoreSettings.cameraPresetOverrides,
       );
 
       // A malformed blob throws FormatException here — surfaced, not swallowed.
@@ -199,8 +199,8 @@ class HardwarePresetsNotifier extends StateNotifier<HardwarePresetsService> {
     List<TelescopePreset> overrides,
   ) async {
     final settingsDao = _ref.read(settingsDaoProvider);
-    await settingsDao.setSetting(
-      HardwarePresetsService.telescopeOverridesSettingKey,
+    await settingsDao.write(
+      StoreSettings.telescopePresetOverrides,
       HardwarePresetsService.encodeTelescopeOverrides(overrides),
     );
   }
@@ -209,8 +209,8 @@ class HardwarePresetsNotifier extends StateNotifier<HardwarePresetsService> {
     List<CameraDefaultsPreset> overrides,
   ) async {
     final settingsDao = _ref.read(settingsDaoProvider);
-    await settingsDao.setSetting(
-      HardwarePresetsService.cameraOverridesSettingKey,
+    await settingsDao.write(
+      StoreSettings.cameraPresetOverrides,
       HardwarePresetsService.encodeCameraOverrides(overrides),
     );
   }

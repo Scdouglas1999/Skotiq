@@ -11,6 +11,8 @@ import '../utils/resilient_poll_stream.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
+import 'settings_provider.dart'
+    show SmartNightSettingsSection, appSettingsProvider;
 
 /// Riverpod surface for per-target / per-run notes
 /// and the structural sequence diff.
@@ -243,26 +245,15 @@ final sequenceDiffServiceProvider = Provider<SequenceDiffService>(
   (ref) => const SequenceDiffService(),
 );
 
-/// Settings key for the "prompt for notes after run" preference.
-const String kPromptForNotesAfterRunKey = 'notes.prompt_after_run';
-
-/// Whether the auto-prompt note dialog should appear after a run
-/// completes. Defaults to `true` when the setting has never been
-/// written (the journal feature is opt-out, not opt-in: the report
-/// is more useful when the user is in the habit of dropping a quick
-/// note at the end of every run).
-final promptForNotesAfterRunProvider = StreamProvider<bool>((ref) {
-  final dao = ref.watch(settingsDaoProvider);
-  return dao.watchSetting(kPromptForNotesAfterRunKey).map((raw) {
-    if (raw == null) return true;
-    return raw.toLowerCase() == 'true';
-  });
+/// Whether the auto-prompt note dialog should appear after a run completes
+/// ([AppSettingsState.promptForNotesAfterRun]).
+final promptForNotesAfterRunProvider = FutureProvider<bool>((ref) async {
+  final settings = await ref.watch(appSettingsProvider.future);
+  return settings.promptForNotesAfterRun;
 });
 
 /// Mutator for the auto-prompt preference.
 final notesPromptToggleProvider = Provider<Future<void> Function(bool)>((ref) {
-  final dao = ref.watch(settingsDaoProvider);
-  return (bool enabled) async {
-    await dao.setSetting(kPromptForNotesAfterRunKey, enabled.toString());
-  };
+  return (bool enabled) =>
+      ref.read(appSettingsProvider.notifier).setPromptForNotesAfterRun(enabled);
 });

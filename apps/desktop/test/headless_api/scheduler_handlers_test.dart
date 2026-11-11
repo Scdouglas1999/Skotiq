@@ -175,8 +175,8 @@ void main() {
           scoped.dispose();
           await database.close();
         });
-        await database.settingsDao.setObserverLatitude(40);
-        await database.settingsDao.setObserverLongitude(-74);
+        await database.settingsDao.write(AppSettingDefs.latitude, 40.0);
+        await database.settingsDao.write(AppSettingDefs.longitude, -74.0);
 
         Future<int> addTarget(String name, int priority) {
           return database.targetsDao.createTarget(

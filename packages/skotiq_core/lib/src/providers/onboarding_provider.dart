@@ -101,8 +101,8 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
   Future<void> _loadDraft() async {
     try {
       final settingsDao = _ref.read(settingsDaoProvider);
-      final raw = await settingsDao.getSetting(
-        OnboardingDraft.draftSettingsKey,
+      final raw = await settingsDao.read(
+        StoreSettings.equipmentOnboardingDraft,
       );
       final draft = OnboardingDraft.fromJsonStringOrEmpty(raw);
       // If the user has not selected any drivers yet (truly fresh start),
@@ -130,8 +130,8 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
 
   Future<void> _persistDraft() async {
     final settingsDao = _ref.read(settingsDaoProvider);
-    await settingsDao.setSetting(
-      OnboardingDraft.draftSettingsKey,
+    await settingsDao.write(
+      StoreSettings.equipmentOnboardingDraft,
       state.toJsonString(),
     );
   }
@@ -528,16 +528,13 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
         ),
       );
     } else {
-      final dao = _ref.read(settingsDaoProvider);
-      if (hasCaptureDir) {
-        await dao.setImageOutputDirectory(captureDir);
-      }
-      if (hasDrivers) {
-        await dao.setSettings({
-          'indi_auto_connect': indi.toString(),
-          'alpaca_auto_discover': alpaca.toString(),
-        });
-      }
+      await _ref.read(settingsDaoProvider).writeAll([
+        if (hasCaptureDir) AppSettingDefs.imageOutputPath.to(captureDir),
+        if (hasDrivers) ...[
+          AppSettingDefs.indiAutoConnect.to(indi),
+          AppSettingDefs.alpacaAutoDiscover.to(alpaca),
+        ],
+      ]);
     }
     requireAuthority('saving the onboarding settings');
     _ref.invalidate(appSettingsProvider);
@@ -552,7 +549,7 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
     final tutorialDao = _ref.read(tutorialProgressDaoProvider);
     await tutorialDao.markCompleted(OnboardingDraft.persistenceCategory);
     final settingsDao = _ref.read(settingsDaoProvider);
-    await settingsDao.deleteSetting(OnboardingDraft.draftSettingsKey);
+    await settingsDao.clear(StoreSettings.equipmentOnboardingDraft);
 
     // Invalidate the bootstrap gate so the next launch reads `false`.
     _ref.invalidate(shouldRunEquipmentOnboardingProvider);
@@ -574,8 +571,8 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
     final defaults = available.where((d) => d != DriverType.simulator).toSet();
     final resetDraft = OnboardingDraft(selectedDrivers: defaults);
     final settingsDao = _ref.read(settingsDaoProvider);
-    await settingsDao.setSetting(
-      OnboardingDraft.draftSettingsKey,
+    await settingsDao.write(
+      StoreSettings.equipmentOnboardingDraft,
       resetDraft.toJsonString(),
     );
     if (mounted) state = resetDraft;

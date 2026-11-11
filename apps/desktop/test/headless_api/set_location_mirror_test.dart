@@ -58,7 +58,7 @@ void main() {
     });
 
     // DAO starts unset (zeros) — the scheduler reads this as "no location".
-    expect(await db.settingsDao.getObserverLatitude(), 0.0);
+    expect(await db.settingsDao.read(AppSettingDefs.latitude), 0.0);
 
     final handlers = ProfileHandlers(container);
     final response = await handlers.handleSetLocation(
@@ -73,15 +73,15 @@ void main() {
     expect(response.statusCode, 200);
 
     // The mirror must have populated the DAO that the scheduler reads.
-    expect(await db.settingsDao.getObserverLatitude(), 40.0);
-    expect(await db.settingsDao.getObserverLongitude(), -74.0);
-    expect(await db.settingsDao.getObserverElevation(), 50.0);
+    expect(await db.settingsDao.read(AppSettingDefs.latitude), 40.0);
+    expect(await db.settingsDao.read(AppSettingDefs.longitude), -74.0);
+    expect(await db.settingsDao.read(AppSettingDefs.elevation), 50.0);
   });
 
   test('clearing location zeroes the mirrored DAO values', () async {
     final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
-    await db.settingsDao.setObserverLatitude(12.0);
-    await db.settingsDao.setObserverLongitude(34.0);
+    await db.settingsDao.write(AppSettingDefs.latitude, 12.0);
+    await db.settingsDao.write(AppSettingDefs.longitude, 34.0);
     final container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),
@@ -105,8 +105,8 @@ void main() {
     );
     expect(response.statusCode, 200);
 
-    expect(await db.settingsDao.getObserverLatitude(), 0.0);
-    expect(await db.settingsDao.getObserverLongitude(), 0.0);
+    expect(await db.settingsDao.read(AppSettingDefs.latitude), 0.0);
+    expect(await db.settingsDao.read(AppSettingDefs.longitude), 0.0);
   });
 
   test(
@@ -152,7 +152,7 @@ void main() {
       });
       expect(bare.statusCode, 400);
       expect((await backend.getLocation())?.latitude, 44.5);
-      expect(await db.settingsDao.getObserverLatitude(), 44.5);
+      expect(await db.settingsDao.read(AppSettingDefs.latitude), 44.5);
 
       final partial = await post({
         'location': {'latitude': 40.0},

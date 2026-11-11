@@ -1,7 +1,7 @@
 // Plugin enablement persistence.
 //
 // Persists the user's per-plugin enable/disable choices as ONE `app_settings`
-// JSON key (no DB schema change — reuses [SettingsDao.getSetting]/[setSetting]).
+// JSON document, [StoreSettings.pluginEnablement].
 //
 // Default policy: a plugin id that is ABSENT from the persisted map reads as
 // ENABLED. The four bundled integrations therefore start on; a user must
@@ -49,16 +49,15 @@ import 'package:skotiq_plugins/src/plugin_registration.dart';
 import 'package:skotiq_plugins/src/plugin_host.dart';
 
 import '../database/daos/settings_dao.dart';
+import '../settings/store_settings.dart';
 import 'database_provider.dart';
 
 final _log = Logger('PluginEnablementProvider');
 
-/// `app_settings` key holding the per-plugin enablement map.
-///
-/// The stored value is a JSON object `{ "<pluginId>": bool }`. Only explicit
-/// user choices are recorded; an absent id is treated as enabled (see the file
-/// header), so a fresh install persists nothing and every bundled plugin runs.
-const String kPluginEnablementSettingKey = 'plugin_enablement';
+// [StoreSettings.pluginEnablement] holds a JSON object
+// `{ "<pluginId>": bool }`. Only explicit user choices are recorded; an absent
+// id is treated as enabled (see the file header), so a fresh install persists
+// nothing and every bundled plugin runs.
 
 /// Default enablement for a plugin id that has no persisted choice.
 ///
@@ -157,7 +156,7 @@ class PluginEnablementNotifier extends AsyncNotifier<Set<String>> {
   Future<Set<String>> build() async {
     final raw = await ref
         .watch(settingsDaoProvider)
-        .getSetting(kPluginEnablementSettingKey);
+        .read(StoreSettings.pluginEnablement);
     final choices = _decodeEnablementMap(raw);
     return _enabledSetFor(choices, _managedIds);
   }
@@ -194,7 +193,7 @@ class PluginEnablementNotifier extends AsyncNotifier<Set<String>> {
   ///   2. Persist the choice — reads the current persisted choice map (so
   ///      unrelated, possibly not-yet-managed ids survive), writes the single
   ///      changed entry, and saves the whole map back under
-  ///      [kPluginEnablementSettingKey].
+  ///      [StoreSettings.pluginEnablement].
   ///   3. Recompute the in-memory state from the new map so observers see the
   ///      change immediately.
   ///
@@ -221,11 +220,11 @@ class PluginEnablementNotifier extends AsyncNotifier<Set<String>> {
       try {
         // 2. Persist the user's choice. This read-modify-write runs inside the
         // mutation queue so parallel toggles cannot drop unrelated ids.
-        final raw = await _dao.getSetting(kPluginEnablementSettingKey);
+        final raw = await _dao.read(StoreSettings.pluginEnablement);
         final choices = Map<String, bool>.from(_decodeEnablementMap(raw));
         choices[pluginId] = enabled;
 
-        await _dao.setSetting(kPluginEnablementSettingKey, jsonEncode(choices));
+        await _dao.write(StoreSettings.pluginEnablement, jsonEncode(choices));
 
         // 3. Publish the new live set.
         state = AsyncData(_enabledSetFor(choices, _managedIds));
@@ -272,7 +271,7 @@ class SettingsPluginEnablementStore implements PluginEnablementStore {
 
   @override
   Future<bool> isEnabled(String pluginId) async {
-    final raw = await _dao.getSetting(kPluginEnablementSettingKey);
+    final raw = await _dao.read(StoreSettings.pluginEnablement);
     final choices = _decodeEnablementMap(raw);
     return choices[pluginId] ?? kPluginEnabledByDefault;
   }

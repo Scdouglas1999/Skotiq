@@ -71,8 +71,8 @@ class SuggestionHandlers implements RouteSource {
 
     final database = container.read(databaseProvider);
 
-    final latitude = await database.settingsDao.getObserverLatitude();
-    final longitude = await database.settingsDao.getObserverLongitude();
+    final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
+    final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
     if (latitude == 0.0 && longitude == 0.0) {
       return jsonBadRequest({
         "error": "No location configured. Set location in settings first.",
@@ -211,8 +211,8 @@ class SuggestionHandlers implements RouteSource {
       return jsonNotFound({"error": "Target not found: $targetId"});
     }
 
-    final latitude = await database.settingsDao.getObserverLatitude();
-    final longitude = await database.settingsDao.getObserverLongitude();
+    final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
+    final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
     if (latitude == 0.0 && longitude == 0.0) {
       return jsonBadRequest({"error": "No location configured"});
     }

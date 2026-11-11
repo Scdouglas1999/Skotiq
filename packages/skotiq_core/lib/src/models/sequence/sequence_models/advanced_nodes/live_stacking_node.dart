@@ -59,6 +59,34 @@ enum LiveStackingMethod {
   };
 }
 
+/// Size of the broadcast thumbnail a new Live Stacking node starts with. The
+/// node's properties editor still sets width and height directly.
+enum LiveStackingThumbnailSize {
+  small,
+  medium,
+  large;
+
+  /// Width in pixels.
+  int get width => switch (this) {
+    LiveStackingThumbnailSize.small => 640,
+    LiveStackingThumbnailSize.medium => 1280,
+    LiveStackingThumbnailSize.large => 1920,
+  };
+
+  /// Height in pixels (16:9 aspect ratio).
+  int get height => switch (this) {
+    LiveStackingThumbnailSize.small => 360,
+    LiveStackingThumbnailSize.medium => 720,
+    LiveStackingThumbnailSize.large => 1080,
+  };
+
+  String get label => switch (this) {
+    LiveStackingThumbnailSize.small => 'Small (640×360)',
+    LiveStackingThumbnailSize.medium => 'Medium (1280×720)',
+    LiveStackingThumbnailSize.large => 'Large (1920×1080)',
+  };
+}
+
 /// EAA / outreach broadcast node.
 ///
 /// When entered, the node arms the broadcast service (a Rust singleton
@@ -254,4 +282,3 @@ double? parseHumanDurationSecs(String input) {
   }
   return total;
 }
-

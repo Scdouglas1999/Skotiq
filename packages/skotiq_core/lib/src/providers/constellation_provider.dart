@@ -17,6 +17,7 @@ import '../services/logging_service.dart';
 import '../services/mosaic/collaborative_mosaic_service.dart';
 import '../services/mosaic/mosaic_upload_consent.dart';
 import '../services/mosaic_project_service.dart';
+import '../settings/store_settings.dart';
 import 'database_provider.dart';
 import 'scheduler_provider.dart' show schedulerEngineProvider;
 import 'settings_provider.dart' show appSettingsProvider;
@@ -29,20 +30,15 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 /// [followTheNightProvider] is read only by the Constellation screen's
 /// follow-the-night card; the planner and scheduler tabs do not consume it.
 
-/// Settings keys the hub credentials persist under (LAN-only, self-hosted).
-const String constellationHubUrlSettingKey = 'constellation.hub_url';
-const String constellationHubTokenSettingKey = 'constellation.hub_token';
-
-/// Settings key the hub-issued account id persists under. Recorded at
-/// registration so follow-the-night can tell whether the baton's `holder`
-/// account id is *this* user (drives the "Release" affordance on held cards).
-const String constellationAccountIdSettingKey = 'constellation.account_id';
-
 /// Resolve the persisted hub account id (the id the hub records the baton
 /// `holder` against), or null when the user has not registered yet.
+///
+/// It is recorded at registration so follow-the-night can tell whether the
+/// baton's `holder` is *this* user (drives the "Release" affordance on held
+/// cards).
 Future<String?> resolveConstellationAccountId(SettingsDao settings) async {
-  final id = await settings.getSetting(constellationAccountIdSettingKey);
-  return (id == null || id.isEmpty) ? null : id;
+  final id = await settings.read(StoreSettings.constellationAccountId);
+  return id.isEmpty ? null : id;
 }
 
 /// Resolve the configured hub credentials from settings, or null when the user
@@ -50,9 +46,9 @@ Future<String?> resolveConstellationAccountId(SettingsDao settings) async {
 Future<ConstellationCredentials?> resolveConstellationCredentials(
   SettingsDao settings,
 ) async {
-  final url = await settings.getSetting(constellationHubUrlSettingKey);
-  final token = await settings.getSetting(constellationHubTokenSettingKey);
-  if (url == null || url.isEmpty || token == null || token.isEmpty) {
+  final url = await settings.read(StoreSettings.constellationHubUrl);
+  final token = await settings.read(StoreSettings.constellationHubToken);
+  if (url.isEmpty || token.isEmpty) {
     return null;
   }
   final parsed = Uri.tryParse(url);

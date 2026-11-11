@@ -223,20 +223,15 @@ bool _cameraOverridesAreMalformed(Map<String, String> settings) {
   }
 }
 
-/// Dismissed insight ids (sticky "Don't suggest this again").
-///
-/// Persisted under `session_insights.dismissed` as a comma-joined list of
-/// insight ids. The DAO is the same `app_settings` table used elsewhere,
-/// so the lifecycle matches: cleared on a database wipe, otherwise
-/// survives app restarts.
+/// Dismissed insight ids (sticky "Don't suggest this again"), kept in
+/// [StoreSettings.dismissedSessionInsights].
 class _DismissedInsightsNotifier extends AsyncNotifier<Set<String>> {
-  static const _key = 'session_insights.dismissed';
   Future<void> _writeTail = Future<void>.value();
 
   @override
   Future<Set<String>> build() async {
     final dao = ref.watch(settingsDaoProvider);
-    final raw = await dao.getSetting(_key) ?? '';
+    final raw = await dao.read(StoreSettings.dismissedSessionInsights);
     if (raw.trim().isEmpty) return <String>{};
     return raw
         .split(',')
@@ -256,7 +251,10 @@ class _DismissedInsightsNotifier extends AsyncNotifier<Set<String>> {
       }
       final updated = Set<String>.unmodifiable(change(current));
       final dao = ref.read(settingsDaoProvider);
-      await dao.setSetting(_key, updated.join(','));
+      await dao.write(
+        StoreSettings.dismissedSessionInsights,
+        updated.join(','),
+      );
       if (!identical(ref.read(settingsDaoProvider), dao)) {
         throw StateError(
           'The settings database changed while saving dismissed insights.',

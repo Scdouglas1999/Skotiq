@@ -695,3 +695,15 @@ String dartStringLiteral(String value) {
       .replaceAll('\n', r'\n');
   return "'$escaped'";
 }
+
+/// Rows whose keys start with [prefix] and always live on the same machine:
+/// one row per host or per id, or a feature's group of rows.
+final class SettingFamily {
+  const SettingFamily(this.prefix, {required this.sync});
+
+  final String prefix;
+
+  final SettingSync sync;
+
+  bool holds(String key) => key.startsWith(prefix);
+}

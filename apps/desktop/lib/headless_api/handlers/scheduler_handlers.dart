@@ -233,8 +233,8 @@ class SchedulerHandlers implements RouteSource {
       time = DateTime.now();
     }
 
-    final latitude = await database.settingsDao.getObserverLatitude();
-    final longitude = await database.settingsDao.getObserverLongitude();
+    final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
+    final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
     if (latitude == 0.0 && longitude == 0.0) {
       return jsonBadRequest({
         'error':
@@ -299,8 +299,8 @@ class SchedulerHandlers implements RouteSource {
       return jsonBadRequest({'error': 'Invalid ra or dec values'});
     }
 
-    final latitude = await database.settingsDao.getObserverLatitude();
-    final longitude = await database.settingsDao.getObserverLongitude();
+    final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
+    final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
     if (latitude == 0.0 && longitude == 0.0) {
       return jsonBadRequest({
         'error':
@@ -357,8 +357,8 @@ class SchedulerHandlers implements RouteSource {
 
     final database = container.read(databaseProvider);
 
-    final latitude = await database.settingsDao.getObserverLatitude();
-    final longitude = await database.settingsDao.getObserverLongitude();
+    final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
+    final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
     if (latitude == 0.0 && longitude == 0.0) {
       return jsonBadRequest({
         'error':
@@ -409,8 +409,8 @@ class SchedulerHandlers implements RouteSource {
 
     final database = container.read(databaseProvider);
 
-    final latitude = await database.settingsDao.getObserverLatitude();
-    final longitude = await database.settingsDao.getObserverLongitude();
+    final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
+    final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
     if (latitude == 0.0 && longitude == 0.0) {
       return jsonBadRequest({
         'error':
@@ -494,8 +494,8 @@ class SchedulerHandlers implements RouteSource {
     final strategyStr = optionalString(payload, 'strategy') ?? 'transitTime';
     final minAltitude = optionalDouble(payload, 'minAltitude') ?? 30.0;
 
-    final latitude = await database.settingsDao.getObserverLatitude();
-    final longitude = await database.settingsDao.getObserverLongitude();
+    final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
+    final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
     if (latitude == 0.0 && longitude == 0.0) {
       return jsonBadRequest({
         'error':
@@ -688,8 +688,8 @@ class SchedulerHandlers implements RouteSource {
   Future<Response> handleGetTwilightTimes(Request request) async {
     final database = container.read(databaseProvider);
 
-    final latitude = await database.settingsDao.getObserverLatitude();
-    final longitude = await database.settingsDao.getObserverLongitude();
+    final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
+    final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
     if (latitude == 0.0 && longitude == 0.0) {
       return jsonBadRequest({
         'error':
@@ -745,8 +745,8 @@ class SchedulerHandlers implements RouteSource {
   Future<Response> handleGetMoonInfo(Request request) async {
     final database = container.read(databaseProvider);
 
-    final latitude = await database.settingsDao.getObserverLatitude();
-    final longitude = await database.settingsDao.getObserverLongitude();
+    final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
+    final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
     if (latitude == 0.0 && longitude == 0.0) {
       return jsonBadRequest({
         'error':

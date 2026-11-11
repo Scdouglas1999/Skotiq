@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/annotation_settings.dart';
 import '../services/logging_service.dart';
+import '../settings/store_settings.dart';
 import 'database_provider.dart';
 
 const builtInAnnotationPresets = <AnnotationPreset>[
@@ -58,15 +59,14 @@ final annotationHoverStateProvider = StateProvider<bool>((ref) => false);
 
 /// Notifier for annotation settings with database persistence
 class AnnotationSettingsNotifier extends AsyncNotifier<AnnotationSettings> {
-  static const _settingsKey = 'annotation_settings';
   Future<void> _writeTail = Future<void>.value();
 
   @override
   Future<AnnotationSettings> build() async {
     final dao = ref.read(settingsDaoProvider);
-    final jsonStr = await dao.getSetting(_settingsKey);
+    final jsonStr = await dao.read(StoreSettings.annotationSettings);
 
-    if (jsonStr != null && jsonStr.isNotEmpty) {
+    if (jsonStr != null) {
       try {
         final json = jsonDecode(jsonStr) as Map<String, dynamic>;
         return AnnotationSettings.fromJson(json);
@@ -89,7 +89,7 @@ class AnnotationSettingsNotifier extends AsyncNotifier<AnnotationSettings> {
   Future<void> _save(AnnotationSettings settings) async {
     final dao = ref.read(settingsDaoProvider);
     final jsonStr = jsonEncode(settings.toJson());
-    await dao.setSetting(_settingsKey, jsonStr);
+    await dao.write(StoreSettings.annotationSettings, jsonStr);
     if (!identical(ref.read(settingsDaoProvider), dao)) {
       throw StateError(
         'The settings database changed while saving annotation settings.',
@@ -216,15 +216,14 @@ class AnnotationSettingsNotifier extends AsyncNotifier<AnnotationSettings> {
 /// Notifier for annotation marker styles with database persistence
 class AnnotationMarkerStyleNotifier
     extends AsyncNotifier<AnnotationMarkerStyle> {
-  static const _settingsKey = 'annotation_marker_style';
   Future<void> _writeTail = Future<void>.value();
 
   @override
   Future<AnnotationMarkerStyle> build() async {
     final dao = ref.read(settingsDaoProvider);
-    final jsonStr = await dao.getSetting(_settingsKey);
+    final jsonStr = await dao.read(StoreSettings.annotationMarkerStyle);
 
-    if (jsonStr != null && jsonStr.isNotEmpty) {
+    if (jsonStr != null) {
       try {
         final json = jsonDecode(jsonStr) as Map<String, dynamic>;
         return AnnotationMarkerStyle.fromJson(json);
@@ -247,7 +246,7 @@ class AnnotationMarkerStyleNotifier
   Future<void> _save(AnnotationMarkerStyle style) async {
     final dao = ref.read(settingsDaoProvider);
     final jsonStr = jsonEncode(style.toJson());
-    await dao.setSetting(_settingsKey, jsonStr);
+    await dao.write(StoreSettings.annotationMarkerStyle, jsonStr);
     if (!identical(ref.read(settingsDaoProvider), dao)) {
       throw StateError(
         'The settings database changed while saving annotation marker style.',
@@ -326,15 +325,14 @@ final annotationPresetsProvider =
     );
 
 class AnnotationPresetsNotifier extends AsyncNotifier<List<AnnotationPreset>> {
-  static const _settingsKey = 'annotation_presets';
   Future<void> _writeTail = Future<void>.value();
 
   @override
   Future<List<AnnotationPreset>> build() async {
     final dao = ref.read(settingsDaoProvider);
-    final jsonStr = await dao.getSetting(_settingsKey);
+    final jsonStr = await dao.read(StoreSettings.annotationPresets);
 
-    if (jsonStr != null && jsonStr.isNotEmpty) {
+    if (jsonStr != null) {
       try {
         final jsonList = jsonDecode(jsonStr) as List<dynamic>;
         return jsonList
@@ -359,7 +357,7 @@ class AnnotationPresetsNotifier extends AsyncNotifier<List<AnnotationPreset>> {
   Future<void> _save(List<AnnotationPreset> presets) async {
     final dao = ref.read(settingsDaoProvider);
     final jsonStr = jsonEncode(presets.map((p) => p.toJson()).toList());
-    await dao.setSetting(_settingsKey, jsonStr);
+    await dao.write(StoreSettings.annotationPresets, jsonStr);
     if (!identical(ref.read(settingsDaoProvider), dao)) {
       throw StateError(
         'The settings database changed while saving annotation presets.',

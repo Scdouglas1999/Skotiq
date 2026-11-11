@@ -200,10 +200,7 @@ void main() {
     test('drift limit is clamped to 10-600 arcseconds and persists', () async {
       final c = await container();
       final notifier = c.read(frameWatchSettingsProvider.notifier);
-      expect(
-        c.read(frameWatchSettingsProvider).value!.driftLimitArcsec,
-        frameWatchDriftLimitDefaultArcsec,
-      );
+      expect(c.read(frameWatchSettingsProvider).value!.driftLimitArcsec, 30);
       await notifier.setDriftLimitArcsec(800);
       expect(c.read(frameWatchSettingsProvider).value!.driftLimitArcsec, 600);
       await notifier.setDriftLimitArcsec(45);

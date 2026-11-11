@@ -30,14 +30,15 @@ class _FrameWatchSettingsSectionState
     try {
       await write();
     } catch (e) {
-      if (mounted) context.showErrorSnackBar('Could not save: ${userFacingError(e)}');
+      if (mounted)
+        context.showErrorSnackBar('Could not save: ${userFacingError(e)}');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(frameWatchSettingsProvider).valueOrNull ??
-        const FrameWatchSettings();
+        FrameWatchSettings.initial;
     final notifier = ref.read(frameWatchSettingsProvider.notifier);
     return SettingsSection(
       title: widget.showObstructionDetection
