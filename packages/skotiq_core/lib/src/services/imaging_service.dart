@@ -13,6 +13,7 @@ import '../providers/clock_provider.dart';
 import '../providers/equipment_provider.dart';
 import '../providers/equipment/device_capability_provider.dart';
 import '../providers/imaging_provider.dart';
+import '../providers/async_scope.dart';
 import '../providers/backend_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/session_provider.dart';
@@ -65,13 +66,12 @@ String? hostScratchFilePath(List<RemoteDirectoryEntry> roots, String fileName) {
 
 class ImagingService {
   final Ref _ref;
-  final BackendNotifier _backendOwner;
+  final AsyncScope<SkotiqBackend> _host;
   final LoggingService _logger;
 
   // Capture state
   bool _isCapturing = false;
   bool _cancelRequested = false;
-  bool _retired = false;
   int _frameNumber = 0;
 
   /// Keeper paths this service has handed out on a linked host, in
@@ -115,7 +115,7 @@ class ImagingService {
   static const int _keeperProbeLimit = 100000;
 
   ImagingService(this._ref)
-    : _backendOwner = _ref.read(backendProvider.notifier),
+    : _host = _ref.providerBackendScope(),
       _logger = _ref.read(loggingServiceProvider);
 
   /// Start a single exposure and KEEP the frame: it is written to the
@@ -313,8 +313,6 @@ class ImagingService {
   /// instance may still have asynchronous driver work unwinding, but it must
   /// never publish into the replacement host's provider graph.
   void retire() {
-    if (_retired) return;
-    _retired = true;
     _cancelRequested = true;
 
     final completer = _activeExposureCompleter;
@@ -332,7 +330,7 @@ class ImagingService {
   }
 
   bool _hasBackendAuthority(SkotiqBackend backend) =>
-      !_retired && _backendOwner.isCurrentBackend(backend);
+      identical(backend, _host.value) && _host.isCurrent;
 
   /// Keys under which an imaging event may carry the originating camera id.
   /// Mirrors `FlatWizardService._deviceIdKeys` — the two services listen to the
