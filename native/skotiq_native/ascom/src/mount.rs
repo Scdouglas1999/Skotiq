@@ -1,251 +1,257 @@
 //! ASCOM Mount (Telescope) wrapper and batch status types.
 
-use super::connection::AscomDeviceConnection;
-use super::health::ConnectionHealth;
+use crate::com::ComDispatch;
+use crate::error::{AscomError, AscomResult};
+use crate::health::ConnectionHealth;
 
 /// ASCOM Mount (Telescope).
 ///
 /// Thread-affinity invariant: see `AscomCamera`. All COM calls must run on
 /// the STA thread that called `CoInitialize`; cross-thread access goes via
 /// `AscomMountWrapper` which channels every command onto a dedicated worker.
-pub struct AscomMount {
-    device: AscomDeviceConnection,
+pub struct Mount<D> {
+    pub(crate) device: D,
 }
 
-impl AscomMount {
-    pub fn new(prog_id: &str) -> Result<Self, String> {
+#[cfg(windows)]
+impl Mount<crate::windows::AscomDeviceConnection> {
+    pub fn new(prog_id: &str) -> AscomResult<Self> {
         Ok(Self {
-            device: AscomDeviceConnection::new(prog_id)?,
+            device: crate::windows::AscomDeviceConnection::new(prog_id)?,
         })
     }
+}
 
-    pub fn connect(&mut self) -> Result<(), String> {
+impl<D: ComDispatch> Mount<D> {
+    /// Wrap a connection that already exists.
+    pub fn over(device: D) -> Self {
+        Self { device }
+    }
+
+    pub fn connect(&mut self) -> AscomResult<()> {
         self.device.connect()
     }
 
-    pub fn disconnect(&mut self) -> Result<(), String> {
+    pub fn disconnect(&mut self) -> AscomResult<()> {
         self.device.disconnect()
     }
 
-    pub fn name(&self) -> Result<String, String> {
-        self.device.get_string_property("Name")
+    pub fn name(&self) -> AscomResult<String> {
+        self.device.get("Name")
     }
 
     /// Get the interface version number
-    pub fn interface_version(&self) -> Result<i32, String> {
-        self.device.get_int_property("InterfaceVersion")
+    pub fn interface_version(&self) -> AscomResult<i32> {
+        self.device.get("InterfaceVersion")
     }
 
     /// Get the driver version string
-    pub fn driver_version(&self) -> Result<String, String> {
-        self.device.get_string_property("DriverVersion")
+    pub fn driver_version(&self) -> AscomResult<String> {
+        self.device.get("DriverVersion")
     }
 
     /// Get the driver info/description
-    pub fn driver_info(&self) -> Result<String, String> {
-        self.device.get_string_property("DriverInfo")
+    pub fn driver_info(&self) -> AscomResult<String> {
+        self.device.get("DriverInfo")
     }
 
     /// Get the list of supported custom actions
-    pub fn supported_actions(&self) -> Result<Vec<String>, String> {
-        self.device.get_string_array_property("SupportedActions")
+    pub fn supported_actions(&self) -> AscomResult<Vec<String>> {
+        self.device.get("SupportedActions")
     }
 
-    pub fn right_ascension(&self) -> Result<f64, String> {
-        self.device.get_double_property("RightAscension")
+    pub fn right_ascension(&self) -> AscomResult<f64> {
+        self.device.get("RightAscension")
     }
 
-    pub fn target_right_ascension(&self) -> Result<f64, String> {
-        self.device.get_double_property("TargetRightAscension")
+    pub fn target_right_ascension(&self) -> AscomResult<f64> {
+        self.device.get("TargetRightAscension")
     }
 
-    pub fn set_target_right_ascension(&mut self, ra_hours: f64) -> Result<(), String> {
-        self.device
-            .set_double_property("TargetRightAscension", ra_hours)
+    pub fn set_target_right_ascension(&mut self, ra_hours: f64) -> AscomResult<()> {
+        self.device.put("TargetRightAscension", ra_hours)
     }
 
-    pub fn declination(&self) -> Result<f64, String> {
-        self.device.get_double_property("Declination")
+    pub fn declination(&self) -> AscomResult<f64> {
+        self.device.get("Declination")
     }
 
-    pub fn target_declination(&self) -> Result<f64, String> {
-        self.device.get_double_property("TargetDeclination")
+    pub fn target_declination(&self) -> AscomResult<f64> {
+        self.device.get("TargetDeclination")
     }
 
-    pub fn set_target_declination(&mut self, dec_degrees: f64) -> Result<(), String> {
-        self.device
-            .set_double_property("TargetDeclination", dec_degrees)
+    pub fn set_target_declination(&mut self, dec_degrees: f64) -> AscomResult<()> {
+        self.device.put("TargetDeclination", dec_degrees)
     }
 
-    pub fn altitude(&self) -> Result<f64, String> {
-        self.device.get_double_property("Altitude")
+    pub fn altitude(&self) -> AscomResult<f64> {
+        self.device.get("Altitude")
     }
 
-    pub fn azimuth(&self) -> Result<f64, String> {
-        self.device.get_double_property("Azimuth")
+    pub fn azimuth(&self) -> AscomResult<f64> {
+        self.device.get("Azimuth")
     }
 
-    pub fn side_of_pier(&self) -> Result<i32, String> {
-        self.device.get_int_property("SideOfPier")
+    pub fn side_of_pier(&self) -> AscomResult<i32> {
+        self.device.get("SideOfPier")
     }
 
-    pub fn sidereal_time(&self) -> Result<f64, String> {
-        self.device.get_double_property("SiderealTime")
+    pub fn sidereal_time(&self) -> AscomResult<f64> {
+        self.device.get("SiderealTime")
     }
 
-    pub fn site_latitude(&self) -> Result<f64, String> {
-        self.device.get_double_property("SiteLatitude")
+    pub fn site_latitude(&self) -> AscomResult<f64> {
+        self.device.get("SiteLatitude")
     }
 
-    pub fn set_site_latitude(&mut self, latitude_degrees: f64) -> Result<(), String> {
-        self.device
-            .set_double_property("SiteLatitude", latitude_degrees)
+    pub fn set_site_latitude(&mut self, latitude_degrees: f64) -> AscomResult<()> {
+        self.device.put("SiteLatitude", latitude_degrees)
     }
 
-    pub fn site_longitude(&self) -> Result<f64, String> {
-        self.device.get_double_property("SiteLongitude")
+    pub fn site_longitude(&self) -> AscomResult<f64> {
+        self.device.get("SiteLongitude")
     }
 
-    pub fn set_site_longitude(&mut self, longitude_degrees: f64) -> Result<(), String> {
-        self.device
-            .set_double_property("SiteLongitude", longitude_degrees)
+    pub fn set_site_longitude(&mut self, longitude_degrees: f64) -> AscomResult<()> {
+        self.device.put("SiteLongitude", longitude_degrees)
     }
 
-    pub fn site_elevation(&self) -> Result<f64, String> {
-        self.device.get_double_property("SiteElevation")
+    pub fn site_elevation(&self) -> AscomResult<f64> {
+        self.device.get("SiteElevation")
     }
 
-    pub fn set_site_elevation(&mut self, elevation_meters: f64) -> Result<(), String> {
-        self.device
-            .set_double_property("SiteElevation", elevation_meters)
+    pub fn set_site_elevation(&mut self, elevation_meters: f64) -> AscomResult<()> {
+        self.device.put("SiteElevation", elevation_meters)
     }
 
     /// UTCDate as an OLE Automation date (days since 1899-12-30).
-    pub fn utc_date(&self) -> Result<f64, String> {
-        self.device.get_date_property("UTCDate")
+    pub fn utc_date(&self) -> AscomResult<f64> {
+        self.device
+            .get::<crate::com::OleDate>("UTCDate")
+            .map(|date| date.0)
     }
 
     /// Set UTCDate from an OLE Automation date (days since 1899-12-30).
-    pub fn set_utc_date(&mut self, utc_date: f64) -> Result<(), String> {
-        self.device.set_date_property("UTCDate", utc_date)
+    pub fn set_utc_date(&mut self, utc_date: f64) -> AscomResult<()> {
+        self.device.put("UTCDate", crate::com::OleDate(utc_date))
     }
 
-    pub fn does_refraction(&self) -> Result<bool, String> {
-        self.device.get_bool_property("DoesRefraction")
+    pub fn does_refraction(&self) -> AscomResult<bool> {
+        self.device.get("DoesRefraction")
     }
 
-    pub fn set_does_refraction(&mut self, enabled: bool) -> Result<(), String> {
-        self.device.set_bool_property("DoesRefraction", enabled)
+    pub fn set_does_refraction(&mut self, enabled: bool) -> AscomResult<()> {
+        self.device.put("DoesRefraction", enabled)
     }
 
-    pub fn tracking(&self) -> Result<bool, String> {
-        self.device.get_bool_property("Tracking")
+    pub fn tracking(&self) -> AscomResult<bool> {
+        self.device.get("Tracking")
     }
 
-    pub fn set_tracking(&mut self, tracking: bool) -> Result<(), String> {
-        self.device.set_bool_property("Tracking", tracking)
+    pub fn set_tracking(&mut self, tracking: bool) -> AscomResult<()> {
+        self.device.put("Tracking", tracking)
     }
 
-    pub fn slewing(&self) -> Result<bool, String> {
-        self.device.get_bool_property("Slewing")
+    pub fn slewing(&self) -> AscomResult<bool> {
+        self.device.get("Slewing")
     }
 
-    pub fn at_park(&self) -> Result<bool, String> {
-        self.device.get_bool_property("AtPark")
+    pub fn at_park(&self) -> AscomResult<bool> {
+        self.device.get("AtPark")
     }
 
-    pub fn at_home(&self) -> Result<bool, String> {
-        self.device.get_bool_property("AtHome")
+    pub fn at_home(&self) -> AscomResult<bool> {
+        self.device.get("AtHome")
     }
 
-    pub fn can_park(&self) -> Result<bool, String> {
-        self.device.get_bool_property("CanPark")
+    pub fn can_park(&self) -> AscomResult<bool> {
+        self.device.get("CanPark")
     }
 
     /// Check if mount can find home position
-    pub fn can_find_home(&self) -> Result<bool, String> {
-        self.device.get_bool_property("CanFindHome")
+    pub fn can_find_home(&self) -> AscomResult<bool> {
+        self.device.get("CanFindHome")
     }
 
     /// Check if the current position can be stored as the park position
-    pub fn can_set_park(&self) -> Result<bool, String> {
-        self.device.get_bool_property("CanSetPark")
+    pub fn can_set_park(&self) -> AscomResult<bool> {
+        self.device.get("CanSetPark")
     }
 
     /// Get alignment mode (0=AltAz, 1=Polar, 2=GermanPolar)
-    pub fn alignment_mode(&self) -> Result<i32, String> {
-        self.device.get_int_property("AlignmentMode")
+    pub fn alignment_mode(&self) -> AscomResult<i32> {
+        self.device.get("AlignmentMode")
     }
 
-    pub fn can_unpark(&self) -> Result<bool, String> {
-        self.device.get_bool_property("CanUnpark")
+    pub fn can_unpark(&self) -> AscomResult<bool> {
+        self.device.get("CanUnpark")
     }
 
-    pub fn can_slew(&self) -> Result<bool, String> {
-        self.device.get_bool_property("CanSlew")
+    pub fn can_slew(&self) -> AscomResult<bool> {
+        self.device.get("CanSlew")
     }
 
-    pub fn can_slew_async(&self) -> Result<bool, String> {
-        self.device.get_bool_property("CanSlewAsync")
+    pub fn can_slew_async(&self) -> AscomResult<bool> {
+        self.device.get("CanSlewAsync")
     }
 
-    pub fn can_sync(&self) -> Result<bool, String> {
-        self.device.get_bool_property("CanSync")
+    pub fn can_sync(&self) -> AscomResult<bool> {
+        self.device.get("CanSync")
     }
 
-    pub fn can_set_tracking(&self) -> Result<bool, String> {
-        self.device.get_bool_property("CanSetTracking")
+    pub fn can_set_tracking(&self) -> AscomResult<bool> {
+        self.device.get("CanSetTracking")
     }
 
-    pub fn park(&mut self) -> Result<(), String> {
-        self.device.call_method("Park")
+    pub fn park(&mut self) -> AscomResult<()> {
+        self.device.call("Park", &[])
     }
 
-    pub fn unpark(&mut self) -> Result<(), String> {
-        self.device.call_method("Unpark")
+    pub fn unpark(&mut self) -> AscomResult<()> {
+        self.device.call("Unpark", &[])
     }
 
-    pub fn abort_slew(&mut self) -> Result<(), String> {
-        self.device.call_method("AbortSlew")
+    pub fn abort_slew(&mut self) -> AscomResult<()> {
+        self.device.call("AbortSlew", &[])
     }
 
-    pub fn find_home(&mut self) -> Result<(), String> {
-        self.device.call_method("FindHome")
+    pub fn find_home(&mut self) -> AscomResult<()> {
+        self.device.call("FindHome", &[])
     }
 
-    pub fn set_park(&mut self) -> Result<(), String> {
-        self.device.call_method("SetPark")
+    pub fn set_park(&mut self) -> AscomResult<()> {
+        self.device.call("SetPark", &[])
     }
 
-    pub fn slew_to_coordinates_async(&mut self, ra: f64, dec: f64) -> Result<(), String> {
+    pub fn slew_to_coordinates_async(&mut self, ra: f64, dec: f64) -> AscomResult<()> {
         self.device
-            .call_method_2_double("SlewToCoordinatesAsync", ra, dec)
+            .call("SlewToCoordinatesAsync", &[ra.into(), dec.into()])
     }
 
-    pub fn slew_to_coordinates(&mut self, ra: f64, dec: f64) -> Result<(), String> {
+    pub fn slew_to_coordinates(&mut self, ra: f64, dec: f64) -> AscomResult<()> {
         self.device
-            .call_method_2_double("SlewToCoordinates", ra, dec)
+            .call("SlewToCoordinates", &[ra.into(), dec.into()])
     }
 
-    pub fn sync_to_coordinates(&mut self, ra: f64, dec: f64) -> Result<(), String> {
+    pub fn sync_to_coordinates(&mut self, ra: f64, dec: f64) -> AscomResult<()> {
         self.device
-            .call_method_2_double("SyncToCoordinates", ra, dec)
+            .call("SyncToCoordinates", &[ra.into(), dec.into()])
     }
 
-    pub fn slew_to_alt_az_async(&mut self, alt: f64, az: f64) -> Result<(), String> {
+    pub fn slew_to_alt_az_async(&mut self, alt: f64, az: f64) -> AscomResult<()> {
         self.device
-            .call_method_2_double("SlewToAltAzAsync", az, alt)
+            .call("SlewToAltAzAsync", &[az.into(), alt.into()])
     }
 
-    pub fn can_pulse_guide(&self) -> Result<bool, String> {
-        self.device.get_bool_property("CanPulseGuide")
+    pub fn can_pulse_guide(&self) -> AscomResult<bool> {
+        self.device.get("CanPulseGuide")
     }
 
-    pub fn is_pulse_guiding(&self) -> Result<bool, String> {
-        self.device.get_bool_property("IsPulseGuiding")
+    pub fn is_pulse_guiding(&self) -> AscomResult<bool> {
+        self.device.get("IsPulseGuiding")
     }
 
-    pub fn pulse_guide(&mut self, direction: i32, duration_ms: u32) -> Result<(), String> {
+    pub fn pulse_guide(&mut self, direction: i32, duration_ms: u32) -> AscomResult<()> {
         // Why: ASCOM ITelescopeV3.PulseGuide takes a 32-bit
         // signed milliseconds value (COM IDL signed long). PHD2 and other
         // guide controllers never request >32s pulses but a buggy upstream
@@ -253,42 +259,40 @@ impl AscomMount {
         // wrapping into a negative duration that ASCOM drivers interpret as
         // "the opposite direction" silently.
         let duration_i32 = i32::try_from(duration_ms).map_err(|_| {
-            format!(
+            AscomError::InvalidArgument(format!(
                 "PulseGuide duration_ms {} exceeds i32::MAX; ASCOM PulseGuide \
                  caps at ~24.8 days. This indicates an upstream guider bug.",
                 duration_ms
-            )
+            ))
         })?;
         self.device
-            .call_method_2_int("PulseGuide", direction, duration_i32)
+            .call("PulseGuide", &[direction.into(), duration_i32.into()])
     }
 
-    pub fn guide_rate_right_ascension(&self) -> Result<f64, String> {
-        self.device.get_double_property("GuideRateRightAscension")
+    pub fn guide_rate_right_ascension(&self) -> AscomResult<f64> {
+        self.device.get("GuideRateRightAscension")
     }
 
-    pub fn guide_rate_declination(&self) -> Result<f64, String> {
-        self.device.get_double_property("GuideRateDeclination")
+    pub fn guide_rate_declination(&self) -> AscomResult<f64> {
+        self.device.get("GuideRateDeclination")
     }
 
-    pub fn set_guide_rate_right_ascension(&mut self, rate: f64) -> Result<(), String> {
-        self.device
-            .set_double_property("GuideRateRightAscension", rate)
+    pub fn set_guide_rate_right_ascension(&mut self, rate: f64) -> AscomResult<()> {
+        self.device.put("GuideRateRightAscension", rate)
     }
 
-    pub fn set_guide_rate_declination(&mut self, rate: f64) -> Result<(), String> {
-        self.device
-            .set_double_property("GuideRateDeclination", rate)
+    pub fn set_guide_rate_declination(&mut self, rate: f64) -> AscomResult<()> {
+        self.device.put("GuideRateDeclination", rate)
     }
 
     /// Get the current tracking rate (0=Sidereal, 1=Lunar, 2=Solar, 3=King)
-    pub fn tracking_rate(&self) -> Result<i32, String> {
-        self.device.get_int_property("TrackingRate")
+    pub fn tracking_rate(&self) -> AscomResult<i32> {
+        self.device.get("TrackingRate")
     }
 
     /// Set the tracking rate (0=Sidereal, 1=Lunar, 2=Solar, 3=King)
-    pub fn set_tracking_rate(&mut self, rate: i32) -> Result<(), String> {
-        self.device.set_int_property("TrackingRate", rate)
+    pub fn set_tracking_rate(&mut self, rate: i32) -> AscomResult<()> {
+        self.device.put("TrackingRate", rate)
     }
 
     /// Check if axis movement is supported (axis: 0=RA/Az, 1=Dec/Alt, 2=Tertiary)
@@ -300,26 +304,25 @@ impl AscomMount {
     /// - Axis 0: Primary axis (RA for equatorial, Azimuth for alt-az)
     /// - Axis 1: Secondary axis (Dec for equatorial, Altitude for alt-az)
     /// - Axis 2: Tertiary axis (if present, e.g., rotator on some mounts)
-    pub fn can_move_axis(&self, axis: i32) -> Result<bool, String> {
+    pub fn can_move_axis(&self, axis: i32) -> AscomResult<bool> {
         // Validate axis parameter
         if !(0..=2).contains(&axis) {
-            return Err(format!(
+            return Err(AscomError::InvalidArgument(format!(
                 "Invalid axis {}: must be 0 (Primary), 1 (Secondary), or 2 (Tertiary)",
                 axis
-            ));
+            )));
         }
 
         // Call the ASCOM CanMoveAxis method with the axis parameter
         // CanMoveAxis is a method that takes a TelescopeAxes enum and returns a Boolean
-        self.device
-            .call_method_1_int_return_bool("CanMoveAxis", axis)
+        self.device.call("CanMoveAxis", &[axis.into()])
     }
 
     /// Move an axis at the specified rate (degrees/second)
     /// axis: 0=RA/Azimuth (primary), 1=Dec/Altitude (secondary)
     /// rate: degrees per second (positive = N/E, negative = S/W), 0 to stop
-    pub fn move_axis(&mut self, axis: i32, rate: f64) -> Result<(), String> {
-        self.device.call_method_int_double("MoveAxis", axis, rate)
+    pub fn move_axis(&mut self, axis: i32, rate: f64) -> AscomResult<()> {
+        self.device.call("MoveAxis", &[axis.into(), rate.into()])
     }
 
     // Batch property queries
@@ -400,13 +403,13 @@ impl AscomMount {
     }
 
     /// Perform a heartbeat check to verify device is still responding
-    pub fn heartbeat(&self) -> Result<(), String> {
+    pub fn heartbeat(&self) -> AscomResult<()> {
         self.device.heartbeat()
     }
 
     /// Get connection health status
     pub fn get_health(&self) -> ConnectionHealth {
-        self.device.get_health()
+        self.device.health()
     }
 }
 

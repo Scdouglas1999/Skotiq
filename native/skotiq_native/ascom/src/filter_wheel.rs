@@ -1,25 +1,34 @@
 //! ASCOM Filter Wheel wrapper and batch status types.
 
-use super::connection::AscomDeviceConnection;
-use super::health::ConnectionHealth;
+use crate::com::ComDispatch;
+use crate::error::AscomResult;
+use crate::health::ConnectionHealth;
 
 /// ASCOM Filter Wheel
-pub struct AscomFilterWheel {
-    device: AscomDeviceConnection,
+pub struct FilterWheel<D> {
+    pub(crate) device: D,
 }
 
-impl AscomFilterWheel {
-    pub fn new(prog_id: &str) -> Result<Self, String> {
+#[cfg(windows)]
+impl FilterWheel<crate::windows::AscomDeviceConnection> {
+    pub fn new(prog_id: &str) -> AscomResult<Self> {
         Ok(Self {
-            device: AscomDeviceConnection::new(prog_id)?,
+            device: crate::windows::AscomDeviceConnection::new(prog_id)?,
         })
     }
+}
 
-    pub fn connect(&mut self) -> Result<(), String> {
+impl<D: ComDispatch> FilterWheel<D> {
+    /// Wrap a connection that already exists.
+    pub fn over(device: D) -> Self {
+        Self { device }
+    }
+
+    pub fn connect(&mut self) -> AscomResult<()> {
         self.device.connect()
     }
 
-    pub fn disconnect(&mut self) -> Result<(), String> {
+    pub fn disconnect(&mut self) -> AscomResult<()> {
         self.device.disconnect()
     }
 
@@ -28,52 +37,52 @@ impl AscomFilterWheel {
     /// Used by capability probes that must NOT kick an active UI connection:
     /// if the driver reports `Ok(true)`, the probe reuses the connection
     /// instead of opening/closing its own session.
-    pub fn is_connected(&self) -> Result<bool, String> {
-        self.device.is_connected()
+    pub fn is_connected(&self) -> AscomResult<bool> {
+        self.device.get("Connected")
     }
 
-    pub fn name(&self) -> Result<String, String> {
-        self.device.get_string_property("Name")
+    pub fn name(&self) -> AscomResult<String> {
+        self.device.get("Name")
     }
 
     /// Get the interface version number
-    pub fn interface_version(&self) -> Result<i32, String> {
-        self.device.get_int_property("InterfaceVersion")
+    pub fn interface_version(&self) -> AscomResult<i32> {
+        self.device.get("InterfaceVersion")
     }
 
     /// Get the driver version string
-    pub fn driver_version(&self) -> Result<String, String> {
-        self.device.get_string_property("DriverVersion")
+    pub fn driver_version(&self) -> AscomResult<String> {
+        self.device.get("DriverVersion")
     }
 
     /// Get the driver info/description
-    pub fn driver_info(&self) -> Result<String, String> {
-        self.device.get_string_property("DriverInfo")
+    pub fn driver_info(&self) -> AscomResult<String> {
+        self.device.get("DriverInfo")
     }
 
     /// Get the list of supported custom actions
-    pub fn supported_actions(&self) -> Result<Vec<String>, String> {
-        self.device.get_string_array_property("SupportedActions")
+    pub fn supported_actions(&self) -> AscomResult<Vec<String>> {
+        self.device.get("SupportedActions")
     }
 
-    pub fn position(&self) -> Result<i32, String> {
-        let pos = self.device.get_int_property("Position");
+    pub fn position(&self) -> AscomResult<i32> {
+        let pos = self.device.get("Position");
         tracing::info!("ASCOM FilterWheel.Position returned: {:?}", pos);
         pos
     }
 
-    pub fn set_position(&mut self, position: i32) -> Result<(), String> {
+    pub fn set_position(&mut self, position: i32) -> AscomResult<()> {
         tracing::info!("ASCOM FilterWheel.SetPosition({})", position);
-        self.device.set_int_property("Position", position)
+        self.device.put("Position", position)
     }
 
-    pub fn names(&self) -> Result<Vec<String>, String> {
-        self.device.get_string_array_property("Names")
+    pub fn names(&self) -> AscomResult<Vec<String>> {
+        self.device.get("Names")
     }
 
     /// Per-filter focus offsets in focuser steps (IFilterWheelV2 `FocusOffsets`).
-    pub fn focus_offsets(&self) -> Result<Vec<i32>, String> {
-        self.device.get_int_array_property("FocusOffsets")
+    pub fn focus_offsets(&self) -> AscomResult<Vec<i32>> {
+        self.device.get("FocusOffsets")
     }
 
     // Batch property queries
@@ -88,13 +97,13 @@ impl AscomFilterWheel {
     }
 
     /// Perform a heartbeat check to verify device is still responding
-    pub fn heartbeat(&self) -> Result<(), String> {
+    pub fn heartbeat(&self) -> AscomResult<()> {
         self.device.heartbeat()
     }
 
     /// Get connection health status
     pub fn get_health(&self) -> ConnectionHealth {
-        self.device.get_health()
+        self.device.health()
     }
 }
 

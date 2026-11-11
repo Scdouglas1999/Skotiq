@@ -93,58 +93,59 @@ impl AscomDomeWrapper {
                 };
                 match cmd {
                     AscomDomeCommand::Connect(reply) => {
-                        let _ = reply.send(dome.connect());
+                        let _ = reply.send(dome.connect().map_err(|e| e.to_string()));
                     }
                     AscomDomeCommand::Disconnect(reply) => {
-                        let _ = reply.send(dome.disconnect());
+                        let _ = reply.send(dome.disconnect().map_err(|e| e.to_string()));
                     }
                     AscomDomeCommand::OpenShutter(reply) => {
-                        let _ = reply.send(dome.open_shutter());
+                        let _ = reply.send(dome.open_shutter().map_err(|e| e.to_string()));
                     }
                     AscomDomeCommand::CloseShutter(reply) => {
-                        let _ = reply.send(dome.close_shutter());
+                        let _ = reply.send(dome.close_shutter().map_err(|e| e.to_string()));
                     }
                     AscomDomeCommand::Park(reply) => {
-                        let _ = reply.send(dome.park());
+                        let _ = reply.send(dome.park().map_err(|e| e.to_string()));
                     }
                     AscomDomeCommand::GetShutterStatus(reply) => {
-                        let _ = reply.send(dome.shutter_status());
+                        let _ = reply.send(dome.shutter_status().map_err(|e| e.to_string()));
                     }
                     AscomDomeCommand::GetSlewing(reply) => {
-                        let _ = reply.send(dome.slewing());
+                        let _ = reply.send(dome.slewing().map_err(|e| e.to_string()));
                     }
                     AscomDomeCommand::GetAtPark(reply) => {
-                        let _ = reply.send(dome.at_park());
+                        let _ = reply.send(dome.at_park().map_err(|e| e.to_string()));
                     }
                     AscomDomeCommand::GetAzimuth(reply) => {
-                        let _ = reply.send(dome.azimuth());
+                        let _ = reply.send(dome.azimuth().map_err(|e| e.to_string()));
                     }
                     AscomDomeCommand::SlewToAzimuth { azimuth, reply } => {
-                        let _ = reply.send(dome.slew_to_azimuth(azimuth));
+                        let _ =
+                            reply.send(dome.slew_to_azimuth(azimuth).map_err(|e| e.to_string()));
                     }
                     AscomDomeCommand::AbortSlew(reply) => {
-                        let _ = reply.send(dome.abort_slew());
+                        let _ = reply.send(dome.abort_slew().map_err(|e| e.to_string()));
                     }
                     AscomDomeCommand::FindHome(reply) => {
-                        let _ = reply.send(dome.find_home());
+                        let _ = reply.send(dome.find_home().map_err(|e| e.to_string()));
                     }
                     AscomDomeCommand::SetSlaved { slaved, reply } => {
-                        let _ = reply.send(dome.set_slaved(slaved));
+                        let _ = reply.send(dome.set_slaved(slaved).map_err(|e| e.to_string()));
                     }
                     AscomDomeCommand::GetInterfaceVersion(reply) => {
-                        let _ = reply.send(dome.interface_version());
+                        let _ = reply.send(dome.interface_version().map_err(|e| e.to_string()));
                     }
                     AscomDomeCommand::GetDriverVersion(reply) => {
-                        let _ = reply.send(dome.driver_version());
+                        let _ = reply.send(dome.driver_version().map_err(|e| e.to_string()));
                     }
                     AscomDomeCommand::GetDriverInfo(reply) => {
-                        let _ = reply.send(dome.driver_info());
+                        let _ = reply.send(dome.driver_info().map_err(|e| e.to_string()));
                     }
                     AscomDomeCommand::GetSupportedActions(reply) => {
-                        let _ = reply.send(dome.supported_actions());
+                        let _ = reply.send(dome.supported_actions().map_err(|e| e.to_string()));
                     }
                     AscomDomeCommand::Heartbeat(reply) => {
-                        let _ = reply.send(dome.heartbeat());
+                        let _ = reply.send(dome.heartbeat().map_err(|e| e.to_string()));
                     }
                 }
                 PumpOutcome::DidWork

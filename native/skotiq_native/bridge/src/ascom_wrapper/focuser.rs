@@ -150,7 +150,7 @@ impl AscomFocuserWrapper {
                         // Actually we can: get pos, add steps, move to.
                         let res = (|| -> Result<(), String> {
                             let current = focuser.position()?;
-                            focuser.move_to(current + steps)
+                            focuser.move_to(current + steps).map_err(|e| e.to_string())
                         })();
                         let _ = reply.send(res.map_err(|e| e.to_string()));
                     }
@@ -201,16 +201,16 @@ impl AscomFocuserWrapper {
                         }));
                     }
                     AscomFocuserCommand::GetInterfaceVersion(reply) => {
-                        let _ = reply.send(focuser.interface_version());
+                        let _ = reply.send(focuser.interface_version().map_err(|e| e.to_string()));
                     }
                     AscomFocuserCommand::GetDriverVersion(reply) => {
-                        let _ = reply.send(focuser.driver_version());
+                        let _ = reply.send(focuser.driver_version().map_err(|e| e.to_string()));
                     }
                     AscomFocuserCommand::GetDriverInfo(reply) => {
-                        let _ = reply.send(focuser.driver_info());
+                        let _ = reply.send(focuser.driver_info().map_err(|e| e.to_string()));
                     }
                     AscomFocuserCommand::GetSupportedActions(reply) => {
-                        let _ = reply.send(focuser.supported_actions());
+                        let _ = reply.send(focuser.supported_actions().map_err(|e| e.to_string()));
                     }
                 }
                 PumpOutcome::DidWork

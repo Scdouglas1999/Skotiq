@@ -443,28 +443,28 @@ impl AscomMountWrapper {
                     }
                     AscomMountCommand::GetInterfaceVersion(reply) => {
                         if let Some(ref m) = mount {
-                            let _ = reply.send(m.interface_version());
+                            let _ = reply.send(m.interface_version().map_err(|e| e.to_string()));
                         } else {
                             let _ = reply.send(Err("Mount not created".to_string()));
                         }
                     }
                     AscomMountCommand::GetDriverVersion(reply) => {
                         if let Some(ref m) = mount {
-                            let _ = reply.send(m.driver_version());
+                            let _ = reply.send(m.driver_version().map_err(|e| e.to_string()));
                         } else {
                             let _ = reply.send(Err("Mount not created".to_string()));
                         }
                     }
                     AscomMountCommand::GetDriverInfo(reply) => {
                         if let Some(ref m) = mount {
-                            let _ = reply.send(m.driver_info());
+                            let _ = reply.send(m.driver_info().map_err(|e| e.to_string()));
                         } else {
                             let _ = reply.send(Err("Mount not created".to_string()));
                         }
                     }
                     AscomMountCommand::GetSupportedActions(reply) => {
                         if let Some(ref m) = mount {
-                            let _ = reply.send(m.supported_actions());
+                            let _ = reply.send(m.supported_actions().map_err(|e| e.to_string()));
                         } else {
                             let _ = reply.send(Err("Mount not created".to_string()));
                         }
@@ -493,7 +493,7 @@ impl AscomMountWrapper {
                                     (lat, lon, m.site_elevation().ok())
                                 })
                             });
-                            let _ = reply.send(site);
+                            let _ = reply.send(site.map_err(|e| e.to_string()));
                         } else {
                             let _ = reply.send(Err("Mount not created".to_string()));
                         }
@@ -514,21 +514,21 @@ impl AscomMountWrapper {
                                     }
                                 })
                             });
-                            let _ = reply.send(result);
+                            let _ = reply.send(result.map_err(|e| e.to_string()));
                         } else {
                             let _ = reply.send(Err("Mount not created".to_string()));
                         }
                     }
                     AscomMountCommand::GetUtcDate(reply) => {
                         if let Some(m) = &mut mount {
-                            let _ = reply.send(m.utc_date());
+                            let _ = reply.send(m.utc_date().map_err(|e| e.to_string()));
                         } else {
                             let _ = reply.send(Err("Mount not created".to_string()));
                         }
                     }
                     AscomMountCommand::SetUtcDate(value, reply) => {
                         if let Some(m) = &mut mount {
-                            let _ = reply.send(m.set_utc_date(value));
+                            let _ = reply.send(m.set_utc_date(value).map_err(|e| e.to_string()));
                         } else {
                             let _ = reply.send(Err("Mount not created".to_string()));
                         }

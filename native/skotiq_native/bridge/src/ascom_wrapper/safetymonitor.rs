@@ -57,25 +57,34 @@ impl AscomSafetyMonitorWrapper {
                 };
                 match command {
                     AscomSafetyMonitorCommand::Connect(reply) => {
-                        let _ = reply.send(safety_monitor.connect());
+                        let _ = reply.send(safety_monitor.connect().map_err(|e| e.to_string()));
                     }
                     AscomSafetyMonitorCommand::Disconnect(reply) => {
-                        let _ = reply.send(safety_monitor.disconnect());
+                        let _ = reply.send(safety_monitor.disconnect().map_err(|e| e.to_string()));
                     }
                     AscomSafetyMonitorCommand::IsSafe(reply) => {
-                        let _ = reply.send(safety_monitor.is_safe());
+                        let _ = reply.send(safety_monitor.is_safe().map_err(|e| e.to_string()));
                     }
                     AscomSafetyMonitorCommand::GetInterfaceVersion(reply) => {
-                        let _ = reply.send(safety_monitor.interface_version());
+                        let _ = reply.send(
+                            safety_monitor
+                                .interface_version()
+                                .map_err(|e| e.to_string()),
+                        );
                     }
                     AscomSafetyMonitorCommand::GetDriverVersion(reply) => {
-                        let _ = reply.send(safety_monitor.driver_version());
+                        let _ =
+                            reply.send(safety_monitor.driver_version().map_err(|e| e.to_string()));
                     }
                     AscomSafetyMonitorCommand::GetDriverInfo(reply) => {
-                        let _ = reply.send(safety_monitor.driver_info());
+                        let _ = reply.send(safety_monitor.driver_info().map_err(|e| e.to_string()));
                     }
                     AscomSafetyMonitorCommand::GetSupportedActions(reply) => {
-                        let _ = reply.send(safety_monitor.supported_actions());
+                        let _ = reply.send(
+                            safety_monitor
+                                .supported_actions()
+                                .map_err(|e| e.to_string()),
+                        );
                     }
                 }
                 PumpOutcome::DidWork

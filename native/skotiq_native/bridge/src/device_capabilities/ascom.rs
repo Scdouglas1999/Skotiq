@@ -103,7 +103,9 @@ pub(crate) fn classify_ascom_capability_device_type(
 ) -> Result<AscomCapabilityDeviceType, String> {
     let _ = skotiq_ascom::init_com();
     if let Ok(device) = skotiq_ascom::AscomDeviceConnection::new(prog_id) {
-        if let Ok(device_type) = device.get_string_property("DeviceType") {
+        if let Ok(device_type) =
+            skotiq_ascom::com::ComDispatch::get::<String>(&device, "DeviceType")
+        {
             if let Some(device_type) = normalize_ascom_capability_device_type(&device_type) {
                 return Ok(device_type);
             }
@@ -299,7 +301,9 @@ pub(crate) async fn get_ascom_capabilities(
             let mut focuser = AscomFocuser::new(&prog_id)
                 .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
 
-            let should_disconnect = capability_probe_should_own_connection(focuser.is_connected());
+            let should_disconnect = capability_probe_should_own_connection(
+                focuser.is_connected().map_err(|e| e.to_string()),
+            );
             if should_disconnect {
                 focuser
                     .connect()
@@ -389,7 +393,8 @@ pub(crate) async fn get_ascom_capabilities(
         let mut fw = AscomFilterWheel::new(&prog_id)
             .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
 
-        let should_disconnect = capability_probe_should_own_connection(fw.is_connected());
+        let should_disconnect =
+            capability_probe_should_own_connection(fw.is_connected().map_err(|e| e.to_string()));
         if should_disconnect {
             fw.connect()
                 .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
@@ -455,7 +460,9 @@ pub(crate) async fn get_ascom_capabilities(
         let mut rotator = AscomRotator::new(&prog_id)
             .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
 
-        let should_disconnect = capability_probe_should_own_connection(rotator.is_connected());
+        let should_disconnect = capability_probe_should_own_connection(
+            rotator.is_connected().map_err(|e| e.to_string()),
+        );
         if should_disconnect {
             rotator
                 .connect()
@@ -498,7 +505,8 @@ pub(crate) async fn get_ascom_capabilities(
         let mut dome =
             AscomDome::new(&prog_id).map_err(|e| SkotiqError::connection_failed(device_id, e))?;
 
-        let should_disconnect = capability_probe_should_own_connection(dome.is_connected());
+        let should_disconnect =
+            capability_probe_should_own_connection(dome.is_connected().map_err(|e| e.to_string()));
         if should_disconnect {
             dome.connect()
                 .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
@@ -551,7 +559,9 @@ pub(crate) async fn get_ascom_capabilities(
         let mut safety = AscomSafetyMonitor::new(&prog_id)
             .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
 
-        let should_disconnect = capability_probe_should_own_connection(safety.is_connected());
+        let should_disconnect = capability_probe_should_own_connection(
+            safety.is_connected().map_err(|e| e.to_string()),
+        );
         if should_disconnect {
             safety
                 .connect()
@@ -581,7 +591,9 @@ pub(crate) async fn get_ascom_capabilities(
         let mut weather = AscomObservingConditions::new(&prog_id)
             .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
 
-        let should_disconnect = capability_probe_should_own_connection(weather.is_connected());
+        let should_disconnect = capability_probe_should_own_connection(
+            weather.is_connected().map_err(|e| e.to_string()),
+        );
         if should_disconnect {
             weather
                 .connect()
@@ -619,7 +631,9 @@ pub(crate) async fn get_ascom_capabilities(
         let mut switch =
             AscomSwitch::new(&prog_id).map_err(|e| SkotiqError::connection_failed(device_id, e))?;
 
-        let should_disconnect = capability_probe_should_own_connection(switch.is_connected());
+        let should_disconnect = capability_probe_should_own_connection(
+            switch.is_connected().map_err(|e| e.to_string()),
+        );
         if should_disconnect {
             switch
                 .connect()
@@ -678,7 +692,8 @@ pub(crate) async fn get_ascom_capabilities(
         let mut cc = AscomCoverCalibrator::new(&prog_id)
             .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
 
-        let should_disconnect = capability_probe_should_own_connection(cc.is_connected());
+        let should_disconnect =
+            capability_probe_should_own_connection(cc.is_connected().map_err(|e| e.to_string()));
         if should_disconnect {
             cc.connect()
                 .map_err(|e| SkotiqError::connection_failed(device_id, e))?;

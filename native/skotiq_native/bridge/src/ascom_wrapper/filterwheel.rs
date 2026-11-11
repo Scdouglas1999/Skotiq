@@ -166,16 +166,16 @@ impl AscomFilterWheelWrapper {
                         let _ = reply.send(result.map_err(|e| e.to_string()));
                     }
                     AscomFilterWheelCommand::GetInterfaceVersion(reply) => {
-                        let _ = reply.send(fw.interface_version());
+                        let _ = reply.send(fw.interface_version().map_err(|e| e.to_string()));
                     }
                     AscomFilterWheelCommand::GetDriverVersion(reply) => {
-                        let _ = reply.send(fw.driver_version());
+                        let _ = reply.send(fw.driver_version().map_err(|e| e.to_string()));
                     }
                     AscomFilterWheelCommand::GetDriverInfo(reply) => {
-                        let _ = reply.send(fw.driver_info());
+                        let _ = reply.send(fw.driver_info().map_err(|e| e.to_string()));
                     }
                     AscomFilterWheelCommand::GetSupportedActions(reply) => {
-                        let _ = reply.send(fw.supported_actions());
+                        let _ = reply.send(fw.supported_actions().map_err(|e| e.to_string()));
                     }
                     AscomFilterWheelCommand::Heartbeat(reply) => {
                         let _ = reply.send(fw.heartbeat().map_err(|e| e.to_string()));

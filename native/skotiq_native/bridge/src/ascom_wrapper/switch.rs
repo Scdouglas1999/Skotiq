@@ -94,52 +94,57 @@ impl AscomSwitchWrapper {
                 };
                 match cmd {
                     AscomSwitchCommand::Connect(reply) => {
-                        let _ = reply.send(switch.connect());
+                        let _ = reply.send(switch.connect().map_err(|e| e.to_string()));
                     }
                     AscomSwitchCommand::Disconnect(reply) => {
-                        let _ = reply.send(switch.disconnect());
+                        let _ = reply.send(switch.disconnect().map_err(|e| e.to_string()));
                     }
                     AscomSwitchCommand::GetMaxSwitch(reply) => {
-                        let _ = reply.send(switch.max_switch());
+                        let _ = reply.send(switch.max_switch().map_err(|e| e.to_string()));
                     }
                     AscomSwitchCommand::GetSwitch(id, reply) => {
-                        let _ = reply.send(switch.get_switch(id));
+                        let _ = reply.send(switch.get_switch(id).map_err(|e| e.to_string()));
                     }
                     AscomSwitchCommand::SetSwitch(id, state, reply) => {
-                        let _ = reply.send(switch.set_switch(id, state));
+                        let _ = reply.send(switch.set_switch(id, state).map_err(|e| e.to_string()));
                     }
                     AscomSwitchCommand::GetSwitchName(id, reply) => {
-                        let _ = reply.send(switch.get_switch_name(id));
+                        let _ = reply.send(switch.get_switch_name(id).map_err(|e| e.to_string()));
                     }
                     AscomSwitchCommand::GetSwitchDescription(id, reply) => {
-                        let _ = reply.send(switch.get_switch_description(id));
+                        let _ = reply
+                            .send(switch.get_switch_description(id).map_err(|e| e.to_string()));
                     }
                     AscomSwitchCommand::GetSwitchValue(id, reply) => {
-                        let _ = reply.send(switch.get_switch_value(id));
+                        let _ = reply.send(switch.get_switch_value(id).map_err(|e| e.to_string()));
                     }
                     AscomSwitchCommand::SetSwitchValue(id, value, reply) => {
-                        let _ = reply.send(switch.set_switch_value(id, value));
+                        let _ = reply.send(
+                            switch
+                                .set_switch_value(id, value)
+                                .map_err(|e| e.to_string()),
+                        );
                     }
                     AscomSwitchCommand::GetMinSwitchValue(id, reply) => {
-                        let _ = reply.send(switch.min_switch_value(id));
+                        let _ = reply.send(switch.min_switch_value(id).map_err(|e| e.to_string()));
                     }
                     AscomSwitchCommand::GetMaxSwitchValue(id, reply) => {
-                        let _ = reply.send(switch.max_switch_value(id));
+                        let _ = reply.send(switch.max_switch_value(id).map_err(|e| e.to_string()));
                     }
                     AscomSwitchCommand::CanWrite(id, reply) => {
-                        let _ = reply.send(switch.can_write(id));
+                        let _ = reply.send(switch.can_write(id).map_err(|e| e.to_string()));
                     }
                     AscomSwitchCommand::GetInterfaceVersion(reply) => {
-                        let _ = reply.send(switch.interface_version());
+                        let _ = reply.send(switch.interface_version().map_err(|e| e.to_string()));
                     }
                     AscomSwitchCommand::GetDriverVersion(reply) => {
-                        let _ = reply.send(switch.driver_version());
+                        let _ = reply.send(switch.driver_version().map_err(|e| e.to_string()));
                     }
                     AscomSwitchCommand::GetDriverInfo(reply) => {
-                        let _ = reply.send(switch.driver_info());
+                        let _ = reply.send(switch.driver_info().map_err(|e| e.to_string()));
                     }
                     AscomSwitchCommand::GetSupportedActions(reply) => {
-                        let _ = reply.send(switch.supported_actions());
+                        let _ = reply.send(switch.supported_actions().map_err(|e| e.to_string()));
                     }
                 }
                 PumpOutcome::DidWork

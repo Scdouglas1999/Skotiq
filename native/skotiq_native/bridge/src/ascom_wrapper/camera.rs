@@ -73,40 +73,40 @@ use crate::ascom_exposure_apply::ExposureApplyTarget;
 /// ICameraV3 property setter/getter on the underlying COM object.
 impl ExposureApplyTarget for AscomCamera {
     fn max_bin_x(&self) -> Result<i32, String> {
-        AscomCamera::max_bin_x(self)
+        AscomCamera::max_bin_x(self).map_err(|e| e.to_string())
     }
     fn max_bin_y(&self) -> Result<i32, String> {
-        AscomCamera::max_bin_y(self)
+        AscomCamera::max_bin_y(self).map_err(|e| e.to_string())
     }
     fn camera_x_size(&self) -> Result<i32, String> {
-        AscomCamera::camera_x_size(self)
+        AscomCamera::camera_x_size(self).map_err(|e| e.to_string())
     }
     fn camera_y_size(&self) -> Result<i32, String> {
-        AscomCamera::camera_y_size(self)
+        AscomCamera::camera_y_size(self).map_err(|e| e.to_string())
     }
     fn set_bin_x(&mut self, value: i32) -> Result<(), String> {
-        AscomCamera::set_bin_x(self, value)
+        AscomCamera::set_bin_x(self, value).map_err(|e| e.to_string())
     }
     fn set_bin_y(&mut self, value: i32) -> Result<(), String> {
-        AscomCamera::set_bin_y(self, value)
+        AscomCamera::set_bin_y(self, value).map_err(|e| e.to_string())
     }
     fn set_start_x(&mut self, value: i32) -> Result<(), String> {
-        AscomCamera::set_start_x(self, value)
+        AscomCamera::set_start_x(self, value).map_err(|e| e.to_string())
     }
     fn set_start_y(&mut self, value: i32) -> Result<(), String> {
-        AscomCamera::set_start_y(self, value)
+        AscomCamera::set_start_y(self, value).map_err(|e| e.to_string())
     }
     fn set_num_x(&mut self, value: i32) -> Result<(), String> {
-        AscomCamera::set_num_x(self, value)
+        AscomCamera::set_num_x(self, value).map_err(|e| e.to_string())
     }
     fn set_num_y(&mut self, value: i32) -> Result<(), String> {
-        AscomCamera::set_num_y(self, value)
+        AscomCamera::set_num_y(self, value).map_err(|e| e.to_string())
     }
     fn set_gain(&mut self, value: i32) -> Result<(), String> {
-        AscomCamera::set_gain(self, value)
+        AscomCamera::set_gain(self, value).map_err(|e| e.to_string())
     }
     fn set_offset(&mut self, value: i32) -> Result<(), String> {
-        AscomCamera::set_offset(self, value)
+        AscomCamera::set_offset(self, value).map_err(|e| e.to_string())
     }
 }
 
@@ -538,7 +538,7 @@ impl AscomCameraWrapper {
                             // Try-once-cache the CanGetCoolerPower probe.
                             let can_get_cooler_power =
                                 cooler_power_supported(&mut cooler_power_cache, || {
-                                    cam.cooler_power()
+                                    cam.cooler_power().map_err(|e| e.to_string())
                                 });
 
                             let caps = AscomCameraCapabilities {
@@ -897,10 +897,10 @@ impl AscomCameraWrapper {
                             }
                             let mut outcome: Result<(), String> = Ok(());
                             if let Some(t) = writable {
-                                outcome = cam.set_ccd_temperature(t);
+                                outcome = cam.set_ccd_temperature(t).map_err(|e| e.to_string());
                             }
                             if outcome.is_ok() {
-                                outcome = cam.set_cooler_on(enabled);
+                                outcome = cam.set_cooler_on(enabled).map_err(|e| e.to_string());
                             }
                             let result =
                                 outcome.map_err(|e| format!("Failed to set cooler: {}", e));
@@ -948,28 +948,30 @@ impl AscomCameraWrapper {
                     }
                     AscomCommand::GetInterfaceVersion(reply) => {
                         if let Some(ref camera) = camera {
-                            let _ = reply.send(camera.interface_version());
+                            let _ =
+                                reply.send(camera.interface_version().map_err(|e| e.to_string()));
                         } else {
                             let _ = reply.send(Err("Camera not created".to_string()));
                         }
                     }
                     AscomCommand::GetDriverVersion(reply) => {
                         if let Some(ref camera) = camera {
-                            let _ = reply.send(camera.driver_version());
+                            let _ = reply.send(camera.driver_version().map_err(|e| e.to_string()));
                         } else {
                             let _ = reply.send(Err("Camera not created".to_string()));
                         }
                     }
                     AscomCommand::GetDriverInfo(reply) => {
                         if let Some(ref camera) = camera {
-                            let _ = reply.send(camera.driver_info());
+                            let _ = reply.send(camera.driver_info().map_err(|e| e.to_string()));
                         } else {
                             let _ = reply.send(Err("Camera not created".to_string()));
                         }
                     }
                     AscomCommand::GetSupportedActions(reply) => {
                         if let Some(ref camera) = camera {
-                            let _ = reply.send(camera.supported_actions());
+                            let _ =
+                                reply.send(camera.supported_actions().map_err(|e| e.to_string()));
                         } else {
                             let _ = reply.send(Err("Camera not created".to_string()));
                         }

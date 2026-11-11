@@ -69,52 +69,52 @@ impl AscomObservingConditionsWrapper {
                 };
                 match command {
                     AscomWeatherCommand::Connect(reply) => {
-                        let _ = reply.send(weather.connect());
+                        let _ = reply.send(weather.connect().map_err(|e| e.to_string()));
                     }
                     AscomWeatherCommand::Disconnect(reply) => {
-                        let _ = reply.send(weather.disconnect());
+                        let _ = reply.send(weather.disconnect().map_err(|e| e.to_string()));
                     }
                     AscomWeatherCommand::Temperature(reply) => {
-                        let _ = reply.send(weather.temperature());
+                        let _ = reply.send(weather.temperature().map_err(|e| e.to_string()));
                     }
                     AscomWeatherCommand::Humidity(reply) => {
-                        let _ = reply.send(weather.humidity());
+                        let _ = reply.send(weather.humidity().map_err(|e| e.to_string()));
                     }
                     AscomWeatherCommand::Pressure(reply) => {
-                        let _ = reply.send(weather.pressure());
+                        let _ = reply.send(weather.pressure().map_err(|e| e.to_string()));
                     }
                     AscomWeatherCommand::CloudCover(reply) => {
-                        let _ = reply.send(weather.cloud_cover());
+                        let _ = reply.send(weather.cloud_cover().map_err(|e| e.to_string()));
                     }
                     AscomWeatherCommand::DewPoint(reply) => {
-                        let _ = reply.send(weather.dew_point());
+                        let _ = reply.send(weather.dew_point().map_err(|e| e.to_string()));
                     }
                     AscomWeatherCommand::WindSpeed(reply) => {
-                        let _ = reply.send(weather.wind_speed());
+                        let _ = reply.send(weather.wind_speed().map_err(|e| e.to_string()));
                     }
                     AscomWeatherCommand::WindDirection(reply) => {
-                        let _ = reply.send(weather.wind_direction());
+                        let _ = reply.send(weather.wind_direction().map_err(|e| e.to_string()));
                     }
                     AscomWeatherCommand::SkyQuality(reply) => {
-                        let _ = reply.send(weather.sky_quality());
+                        let _ = reply.send(weather.sky_quality().map_err(|e| e.to_string()));
                     }
                     AscomWeatherCommand::SkyTemperature(reply) => {
-                        let _ = reply.send(weather.sky_temperature());
+                        let _ = reply.send(weather.sky_temperature().map_err(|e| e.to_string()));
                     }
                     AscomWeatherCommand::RainRate(reply) => {
-                        let _ = reply.send(weather.rain_rate());
+                        let _ = reply.send(weather.rain_rate().map_err(|e| e.to_string()));
                     }
                     AscomWeatherCommand::GetInterfaceVersion(reply) => {
-                        let _ = reply.send(weather.interface_version());
+                        let _ = reply.send(weather.interface_version().map_err(|e| e.to_string()));
                     }
                     AscomWeatherCommand::GetDriverVersion(reply) => {
-                        let _ = reply.send(weather.driver_version());
+                        let _ = reply.send(weather.driver_version().map_err(|e| e.to_string()));
                     }
                     AscomWeatherCommand::GetDriverInfo(reply) => {
-                        let _ = reply.send(weather.driver_info());
+                        let _ = reply.send(weather.driver_info().map_err(|e| e.to_string()));
                     }
                     AscomWeatherCommand::GetSupportedActions(reply) => {
-                        let _ = reply.send(weather.supported_actions());
+                        let _ = reply.send(weather.supported_actions().map_err(|e| e.to_string()));
                     }
                 }
                 PumpOutcome::DidWork

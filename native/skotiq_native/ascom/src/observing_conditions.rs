@@ -1,25 +1,34 @@
 //! ASCOM Observing Conditions wrapper and batch status types.
 
-use super::connection::AscomDeviceConnection;
-use super::health::ConnectionHealth;
+use crate::com::ComDispatch;
+use crate::error::AscomResult;
+use crate::health::ConnectionHealth;
 
 /// ASCOM Observing Conditions
-pub struct AscomObservingConditions {
-    device: AscomDeviceConnection,
+pub struct ObservingConditions<D> {
+    pub(crate) device: D,
 }
 
-impl AscomObservingConditions {
-    pub fn new(prog_id: &str) -> Result<Self, String> {
+#[cfg(windows)]
+impl ObservingConditions<crate::windows::AscomDeviceConnection> {
+    pub fn new(prog_id: &str) -> AscomResult<Self> {
         Ok(Self {
-            device: AscomDeviceConnection::new(prog_id)?,
+            device: crate::windows::AscomDeviceConnection::new(prog_id)?,
         })
     }
+}
 
-    pub fn connect(&mut self) -> Result<(), String> {
+impl<D: ComDispatch> ObservingConditions<D> {
+    /// Wrap a connection that already exists.
+    pub fn over(device: D) -> Self {
+        Self { device }
+    }
+
+    pub fn connect(&mut self) -> AscomResult<()> {
         self.device.connect()
     }
 
-    pub fn disconnect(&mut self) -> Result<(), String> {
+    pub fn disconnect(&mut self) -> AscomResult<()> {
         self.device.disconnect()
     }
 
@@ -28,111 +37,111 @@ impl AscomObservingConditions {
     /// Used by capability probes that must NOT kick an active UI connection:
     /// if the driver reports `Ok(true)`, the probe reuses the connection
     /// instead of opening/closing its own session.
-    pub fn is_connected(&self) -> Result<bool, String> {
-        self.device.is_connected()
+    pub fn is_connected(&self) -> AscomResult<bool> {
+        self.device.get("Connected")
     }
 
-    pub fn name(&self) -> Result<String, String> {
-        self.device.get_string_property("Name")
+    pub fn name(&self) -> AscomResult<String> {
+        self.device.get("Name")
     }
 
     /// Get the interface version number
-    pub fn interface_version(&self) -> Result<i32, String> {
-        self.device.get_int_property("InterfaceVersion")
+    pub fn interface_version(&self) -> AscomResult<i32> {
+        self.device.get("InterfaceVersion")
     }
 
     /// Get the driver version string
-    pub fn driver_version(&self) -> Result<String, String> {
-        self.device.get_string_property("DriverVersion")
+    pub fn driver_version(&self) -> AscomResult<String> {
+        self.device.get("DriverVersion")
     }
 
     /// Get the driver info/description
-    pub fn driver_info(&self) -> Result<String, String> {
-        self.device.get_string_property("DriverInfo")
+    pub fn driver_info(&self) -> AscomResult<String> {
+        self.device.get("DriverInfo")
     }
 
     /// Get the list of supported custom actions
-    pub fn supported_actions(&self) -> Result<Vec<String>, String> {
-        self.device.get_string_array_property("SupportedActions")
+    pub fn supported_actions(&self) -> AscomResult<Vec<String>> {
+        self.device.get("SupportedActions")
     }
 
-    pub fn cloud_cover(&self) -> Result<f64, String> {
-        self.device.get_double_property("CloudCover")
+    pub fn cloud_cover(&self) -> AscomResult<f64> {
+        self.device.get("CloudCover")
     }
 
-    pub fn dew_point(&self) -> Result<f64, String> {
-        self.device.get_double_property("DewPoint")
+    pub fn dew_point(&self) -> AscomResult<f64> {
+        self.device.get("DewPoint")
     }
 
-    pub fn humidity(&self) -> Result<f64, String> {
-        self.device.get_double_property("Humidity")
+    pub fn humidity(&self) -> AscomResult<f64> {
+        self.device.get("Humidity")
     }
 
-    pub fn pressure(&self) -> Result<f64, String> {
-        self.device.get_double_property("Pressure")
+    pub fn pressure(&self) -> AscomResult<f64> {
+        self.device.get("Pressure")
     }
 
-    pub fn rain_rate(&self) -> Result<f64, String> {
-        self.device.get_double_property("RainRate")
+    pub fn rain_rate(&self) -> AscomResult<f64> {
+        self.device.get("RainRate")
     }
 
-    pub fn sky_brightness(&self) -> Result<f64, String> {
-        self.device.get_double_property("SkyBrightness")
+    pub fn sky_brightness(&self) -> AscomResult<f64> {
+        self.device.get("SkyBrightness")
     }
 
-    pub fn sky_quality(&self) -> Result<f64, String> {
-        self.device.get_double_property("SkyQuality")
+    pub fn sky_quality(&self) -> AscomResult<f64> {
+        self.device.get("SkyQuality")
     }
 
-    pub fn sky_temperature(&self) -> Result<f64, String> {
-        self.device.get_double_property("SkyTemperature")
+    pub fn sky_temperature(&self) -> AscomResult<f64> {
+        self.device.get("SkyTemperature")
     }
 
-    pub fn star_fwhm(&self) -> Result<f64, String> {
-        self.device.get_double_property("StarFWHM")
+    pub fn star_fwhm(&self) -> AscomResult<f64> {
+        self.device.get("StarFWHM")
     }
 
-    pub fn temperature(&self) -> Result<f64, String> {
-        self.device.get_double_property("Temperature")
+    pub fn temperature(&self) -> AscomResult<f64> {
+        self.device.get("Temperature")
     }
 
-    pub fn wind_direction(&self) -> Result<f64, String> {
-        self.device.get_double_property("WindDirection")
+    pub fn wind_direction(&self) -> AscomResult<f64> {
+        self.device.get("WindDirection")
     }
 
-    pub fn wind_gust(&self) -> Result<f64, String> {
-        self.device.get_double_property("WindGust")
+    pub fn wind_gust(&self) -> AscomResult<f64> {
+        self.device.get("WindGust")
     }
 
-    pub fn wind_speed(&self) -> Result<f64, String> {
-        self.device.get_double_property("WindSpeed")
+    pub fn wind_speed(&self) -> AscomResult<f64> {
+        self.device.get("WindSpeed")
     }
 
     /// Force the driver to refresh sensor readings (IObservingConditions `Refresh`).
-    pub fn refresh(&self) -> Result<(), String> {
-        self.device.call_method("Refresh")
+    pub fn refresh(&self) -> AscomResult<()> {
+        self.device.call("Refresh", &[])
     }
 
     /// Averaging period in hours (IObservingConditions `AveragePeriod`).
-    pub fn average_period(&self) -> Result<f64, String> {
-        self.device.get_double_property("AveragePeriod")
+    pub fn average_period(&self) -> AscomResult<f64> {
+        self.device.get("AveragePeriod")
     }
 
     /// Set averaging period in hours (IObservingConditions `AveragePeriod` write).
-    pub fn set_average_period(&mut self, period: f64) -> Result<(), String> {
-        self.device.set_double_property("AveragePeriod", period)
+    pub fn set_average_period(&mut self, period: f64) -> AscomResult<()> {
+        self.device.put("AveragePeriod", period)
     }
 
     /// Seconds since the named sensor was last updated (`TimeSinceLastUpdate`).
-    pub fn time_since_last_update(&self, property_name: &str) -> Result<f64, String> {
+    pub fn time_since_last_update(&self, property_name: &str) -> AscomResult<f64> {
         self.device
-            .get_double_property_indexed("TimeSinceLastUpdate", property_name)
+            .get_indexed("TimeSinceLastUpdate", &[property_name.into()])
     }
 
     /// Human-readable description for a sensor (`SensorDescription`).
-    pub fn sensor_description(&self, property_name: &str) -> Result<String, String> {
+    pub fn sensor_description(&self, property_name: &str) -> AscomResult<String> {
         self.device
-            .get_string_property_indexed("SensorDescription", property_name)
+            .get_indexed("SensorDescription", &[property_name.into()])
     }
 
     // Batch property queries
@@ -183,13 +192,13 @@ impl AscomObservingConditions {
     }
 
     /// Perform a heartbeat check to verify device is still responding
-    pub fn heartbeat(&self) -> Result<(), String> {
+    pub fn heartbeat(&self) -> AscomResult<()> {
         self.device.heartbeat()
     }
 
     /// Get connection health status
     pub fn get_health(&self) -> ConnectionHealth {
-        self.device.get_health()
+        self.device.health()
     }
 }
 

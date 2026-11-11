@@ -1,25 +1,34 @@
 //! ASCOM Rotator wrapper and batch status types.
 
-use super::connection::AscomDeviceConnection;
-use super::health::ConnectionHealth;
+use crate::com::ComDispatch;
+use crate::error::AscomResult;
+use crate::health::ConnectionHealth;
 
 /// ASCOM Rotator
-pub struct AscomRotator {
-    device: AscomDeviceConnection,
+pub struct Rotator<D> {
+    pub(crate) device: D,
 }
 
-impl AscomRotator {
-    pub fn new(prog_id: &str) -> Result<Self, String> {
+#[cfg(windows)]
+impl Rotator<crate::windows::AscomDeviceConnection> {
+    pub fn new(prog_id: &str) -> AscomResult<Self> {
         Ok(Self {
-            device: AscomDeviceConnection::new(prog_id)?,
+            device: crate::windows::AscomDeviceConnection::new(prog_id)?,
         })
     }
+}
 
-    pub fn connect(&mut self) -> Result<(), String> {
+impl<D: ComDispatch> Rotator<D> {
+    /// Wrap a connection that already exists.
+    pub fn over(device: D) -> Self {
+        Self { device }
+    }
+
+    pub fn connect(&mut self) -> AscomResult<()> {
         self.device.connect()
     }
 
-    pub fn disconnect(&mut self) -> Result<(), String> {
+    pub fn disconnect(&mut self) -> AscomResult<()> {
         self.device.disconnect()
     }
 
@@ -28,81 +37,81 @@ impl AscomRotator {
     /// Used by capability probes that must NOT kick an active UI connection:
     /// if the driver reports `Ok(true)`, the probe reuses the connection
     /// instead of opening/closing its own session.
-    pub fn is_connected(&self) -> Result<bool, String> {
-        self.device.is_connected()
+    pub fn is_connected(&self) -> AscomResult<bool> {
+        self.device.get("Connected")
     }
 
-    pub fn name(&self) -> Result<String, String> {
-        self.device.get_string_property("Name")
+    pub fn name(&self) -> AscomResult<String> {
+        self.device.get("Name")
     }
 
     /// Get the interface version number
-    pub fn interface_version(&self) -> Result<i32, String> {
-        self.device.get_int_property("InterfaceVersion")
+    pub fn interface_version(&self) -> AscomResult<i32> {
+        self.device.get("InterfaceVersion")
     }
 
     /// Get the driver version string
-    pub fn driver_version(&self) -> Result<String, String> {
-        self.device.get_string_property("DriverVersion")
+    pub fn driver_version(&self) -> AscomResult<String> {
+        self.device.get("DriverVersion")
     }
 
     /// Get the driver info/description
-    pub fn driver_info(&self) -> Result<String, String> {
-        self.device.get_string_property("DriverInfo")
+    pub fn driver_info(&self) -> AscomResult<String> {
+        self.device.get("DriverInfo")
     }
 
     /// Get the list of supported custom actions
-    pub fn supported_actions(&self) -> Result<Vec<String>, String> {
-        self.device.get_string_array_property("SupportedActions")
+    pub fn supported_actions(&self) -> AscomResult<Vec<String>> {
+        self.device.get("SupportedActions")
     }
 
-    pub fn position(&self) -> Result<f64, String> {
-        self.device.get_double_property("Position")
+    pub fn position(&self) -> AscomResult<f64> {
+        self.device.get("Position")
     }
 
-    pub fn mechanical_position(&self) -> Result<f64, String> {
-        self.device.get_double_property("MechanicalPosition")
+    pub fn mechanical_position(&self) -> AscomResult<f64> {
+        self.device.get("MechanicalPosition")
     }
 
-    pub fn is_moving(&self) -> Result<bool, String> {
-        self.device.get_bool_property("IsMoving")
+    pub fn is_moving(&self) -> AscomResult<bool> {
+        self.device.get("IsMoving")
     }
 
     /// Whether the rotator can reverse direction (IRotatorV3 `CanReverse`).
-    pub fn can_reverse(&self) -> Result<bool, String> {
-        self.device.get_bool_property("CanReverse")
+    pub fn can_reverse(&self) -> AscomResult<bool> {
+        self.device.get("CanReverse")
     }
 
     /// Current reverse setting (IRotatorV3 `Reverse`).
-    pub fn reverse(&self) -> Result<bool, String> {
-        self.device.get_bool_property("Reverse")
+    pub fn reverse(&self) -> AscomResult<bool> {
+        self.device.get("Reverse")
     }
 
     /// Set reverse direction (IRotatorV3 `Reverse` write).
-    pub fn set_reverse(&mut self, reverse: bool) -> Result<(), String> {
-        self.device.set_bool_property("Reverse", reverse)
+    pub fn set_reverse(&mut self, reverse: bool) -> AscomResult<()> {
+        self.device.put("Reverse", reverse)
     }
 
     /// Target position in degrees (IRotatorV3 `TargetPosition`).
-    pub fn target_position(&self) -> Result<f64, String> {
-        self.device.get_double_property("TargetPosition")
+    pub fn target_position(&self) -> AscomResult<f64> {
+        self.device.get("TargetPosition")
     }
 
     /// Minimum step size in degrees (IRotatorV3 `StepSize`).
-    pub fn step_size(&self) -> Result<f64, String> {
-        self.device.get_double_property("StepSize")
+    pub fn step_size(&self) -> AscomResult<f64> {
+        self.device.get("StepSize")
     }
 
-    pub fn move_to(&mut self, position: f64) -> Result<(), String> {
-        self.device.call_method_1_double("Move", position)
+    pub fn move_to(&mut self, position: f64) -> AscomResult<()> {
+        self.device.call("Move", &[position.into()])
     }
 
-    pub fn move_absolute(&mut self, position: f64) -> Result<(), String> {
-        self.device.call_method_1_double("MoveAbsolute", position)
+    pub fn move_absolute(&mut self, position: f64) -> AscomResult<()> {
+        self.device.call("MoveAbsolute", &[position.into()])
     }
 
-    pub fn halt(&mut self) -> Result<(), String> {
-        self.device.call_method("Halt")
+    pub fn halt(&mut self) -> AscomResult<()> {
+        self.device.call("Halt", &[])
     }
 
     /// Sync the reported position to the supplied angle without rotating the
@@ -110,8 +119,8 @@ impl AscomRotator {
     /// which adjusts the offset between the mechanical encoder and the
     /// reported sky angle — the same primitive plate-solve "sync to image PA"
     /// needs.
-    pub fn sync(&mut self, position: f64) -> Result<(), String> {
-        self.device.call_method_1_double("Sync", position)
+    pub fn sync(&mut self, position: f64) -> AscomResult<()> {
+        self.device.call("Sync", &[position.into()])
     }
 
     // Batch property queries
@@ -131,13 +140,13 @@ impl AscomRotator {
     }
 
     /// Perform a heartbeat check to verify device is still responding
-    pub fn heartbeat(&self) -> Result<(), String> {
+    pub fn heartbeat(&self) -> AscomResult<()> {
         self.device.heartbeat()
     }
 
     /// Get connection health status
     pub fn get_health(&self) -> ConnectionHealth {
-        self.device.get_health()
+        self.device.health()
     }
 }
 
