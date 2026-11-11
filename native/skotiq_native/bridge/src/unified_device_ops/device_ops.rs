@@ -1398,23 +1398,6 @@ impl DeviceOps for UnifiedDeviceOps {
 
     // Utility
 
-    fn calculate_altitude(&self, ra_hours: f64, dec_degrees: f64, lat: f64, lon: f64) -> f64 {
-        // Calculate Local Sidereal Time
-        let now = chrono::Utc::now();
-        let jd = julian_day(&now);
-        let lst = local_sidereal_time(jd, lon);
-
-        // Calculate hour angle
-        let ha = lst - ra_hours;
-        let ha_rad = (ha * 15.0_f64).to_radians();
-        let dec_rad = dec_degrees.to_radians();
-        let lat_rad = lat.to_radians();
-
-        // Calculate altitude
-        let sin_alt = lat_rad.sin() * dec_rad.sin() + lat_rad.cos() * dec_rad.cos() * ha_rad.cos();
-        sin_alt.asin().to_degrees()
-    }
-
     fn get_observer_location(&self) -> Option<(f64, f64)> {
         // Get observer location from app settings
         match self.app_state.get_observer_location() {

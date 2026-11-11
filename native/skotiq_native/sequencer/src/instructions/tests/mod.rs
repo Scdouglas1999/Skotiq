@@ -1058,9 +1058,6 @@ impl DeviceOps for ScriptedDomeRotatorOps {
             .push((l.to_string(), t.to_string(), m.to_string()));
         self.inner.send_notification(l, t, m, x).await
     }
-    fn calculate_altitude(&self, r: f64, d: f64, la: f64, lo: f64) -> f64 {
-        self.inner.calculate_altitude(r, d, la, lo)
-    }
     fn get_observer_location(&self) -> Option<(f64, f64)> {
         self.scripted_observer_location
     }

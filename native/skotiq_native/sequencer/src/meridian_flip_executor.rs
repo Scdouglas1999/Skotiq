@@ -389,11 +389,12 @@ impl MeridianFlipExecutor {
         // would slew to an object that's about to set, risking equipment damage
         // or wasted imaging time.
         if let Some((lat, lon)) = self.device_ops.get_observer_location() {
-            let altitude = self.device_ops.calculate_altitude(
+            let altitude = meridian::calculate_altitude(
                 ctx.target_ra_hours,
                 ctx.target_dec_degrees,
                 lat,
                 lon,
+                chrono::Utc::now(),
             );
             let min_altitude = self.config.min_post_flip_altitude_deg;
             tracing::info!(
@@ -2541,10 +2542,6 @@ mod tests {
         /// Observer location, wrapped in a Mutex so altitude-gate tests can install
         /// a location at runtime.
         location: Mutex<Option<(f64, f64)>>,
-        /// Optional override for `calculate_altitude` so the
-        /// min_post_flip_altitude_deg gate can be exercised by tests. Defaults
-        /// to None (which causes calculate_altitude to return 45° as before).
-        altitude_override_deg: Mutex<Option<f64>>,
         /// When `Some((d_ra_hours, d_dec_degrees))`, the mount behaves like a
         /// real one behind the device layer: a slew lands, and reads back,
         /// that far from the J2000 coordinates it was sent (the precession the
@@ -2984,23 +2981,6 @@ mod tests {
                 .unwrap()
                 .push((level.to_string(), title.to_string()));
             Ok(())
-        }
-
-        fn calculate_altitude(
-            &self,
-            _ra_hours: f64,
-            _dec_degrees: f64,
-            _lat: f64,
-            _lon: f64,
-        ) -> f64 {
-            // Honour the per-test altitude override so the
-            // min_post_flip_altitude_deg gate can be exercised. Defaults to
-            // 45° (above the gate) so existing tests are unaffected.
-            self.state
-                .altitude_override_deg
-                .lock()
-                .unwrap()
-                .unwrap_or(45.0)
         }
 
         fn get_observer_location(&self) -> Option<(f64, f64)> {
@@ -4040,12 +4020,16 @@ mod tests {
     /// the same target to proceed.
     #[tokio::test(start_paused = true)]
     async fn test_min_post_flip_altitude_is_user_configurable() {
-        // Target altitude 5° — below the default 10° gate.
+        // Target altitude 5°, below the default 10° gate. From the pole a
+        // target's altitude is its declination at any time of day.
         let make_state = || {
             let s = Arc::new(MockDeviceOpsState::default());
-            *s.location.lock().unwrap() = Some((40.0, -74.0));
-            *s.altitude_override_deg.lock().unwrap() = Some(5.0);
+            *s.location.lock().unwrap() = Some((90.0, 0.0));
             s
+        };
+        let make_ctx = |state: &Arc<MockDeviceOpsState>| FlipContext {
+            target_dec_degrees: 5.0,
+            ..make_ctx(state)
         };
 
         // Default config (min=10°): low-altitude target must abort.

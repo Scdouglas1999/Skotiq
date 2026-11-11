@@ -109,11 +109,6 @@ impl DeviceOps for RecordingOps {
 
     // Everything else delegates to the null double.
 
-    fn calculate_altitude(&self, ra_hours: f64, dec_degrees: f64, lat: f64, lon: f64) -> f64 {
-        self.inner
-            .calculate_altitude(ra_hours, dec_degrees, lat, lon)
-    }
-
     fn get_observer_location(&self) -> Option<(f64, f64)> {
         self.inner.get_observer_location()
     }

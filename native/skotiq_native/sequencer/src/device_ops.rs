@@ -642,9 +642,6 @@ pub trait DeviceOps: Send + Sync {
         Err("connect_device not supported by this driver".to_string())
     }
 
-    /// Calculate current altitude of a target (returns degrees)
-    fn calculate_altitude(&self, ra_hours: f64, dec_degrees: f64, lat: f64, lon: f64) -> f64;
-
     /// Get observer location
     fn get_observer_location(&self) -> Option<(f64, f64)>;
 
@@ -1134,27 +1131,6 @@ impl DeviceOps for NullDeviceOps {
             _ => tracing::info!("[NOTIFICATION][{}] {}: {}", level, title, message),
         }
         Ok(())
-    }
-
-    fn calculate_altitude(&self, ra_hours: f64, dec_degrees: f64, lat: f64, lon: f64) -> f64 {
-        let now = chrono::Utc::now();
-        let jd = crate::node::julian_day(&now);
-        let lst_hours = crate::node::local_sidereal_time(jd, lon);
-
-        let mut ha_hours = lst_hours - ra_hours;
-        while ha_hours > 12.0 {
-            ha_hours -= 24.0;
-        }
-        while ha_hours < -12.0 {
-            ha_hours += 24.0;
-        }
-
-        let ha_rad = (ha_hours * 15.0).to_radians();
-        let dec_rad = dec_degrees.to_radians();
-        let lat_rad = lat.to_radians();
-
-        let sin_alt = lat_rad.sin() * dec_rad.sin() + lat_rad.cos() * dec_rad.cos() * ha_rad.cos();
-        sin_alt.clamp(-1.0, 1.0).asin().to_degrees()
     }
 
     fn get_observer_location(&self) -> Option<(f64, f64)> {
@@ -1785,9 +1761,6 @@ mod tests {
         ) -> DeviceResult<()> {
             self.inner.send_notification(l, t, m, x).await
         }
-        fn calculate_altitude(&self, r: f64, d: f64, la: f64, lo: f64) -> f64 {
-            self.inner.calculate_altitude(r, d, la, lo)
-        }
         fn get_observer_location(&self) -> Option<(f64, f64)> {
             self.inner.get_observer_location()
         }
@@ -2049,9 +2022,6 @@ mod tests {
             x: Option<&[String]>,
         ) -> DeviceResult<()> {
             self.inner.send_notification(l, t, m, x).await
-        }
-        fn calculate_altitude(&self, r: f64, d: f64, la: f64, lo: f64) -> f64 {
-            self.inner.calculate_altitude(r, d, la, lo)
         }
         fn get_observer_location(&self) -> Option<(f64, f64)> {
             self.inner.get_observer_location()

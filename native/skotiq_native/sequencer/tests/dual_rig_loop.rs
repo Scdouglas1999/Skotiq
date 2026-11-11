@@ -228,9 +228,6 @@ impl skotiq_sequencer::DeviceOps for RecordingOps {
     ) -> DeviceResult<()> {
         self.inner.send_notification(l, t, m, e).await
     }
-    fn calculate_altitude(&self, ra: f64, dec: f64, lat: f64, lon: f64) -> f64 {
-        self.inner.calculate_altitude(ra, dec, lat, lon)
-    }
     fn get_observer_location(&self) -> Option<(f64, f64)> {
         self.inner.get_observer_location()
     }
