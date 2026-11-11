@@ -1,0 +1,19 @@
+== port silent ==
+@ port baud=9600 data=8 parity=none stop=1 flow=none
+> :MountInfo#
+@ port baud=115200 data=8 parity=none stop=1 flow=none
+> :MountInfo#
+(scan over)
+== port answers-at-115200 ==
+@ port baud=9600 data=8 parity=none stop=1 flow=none
+> :MountInfo#
+@ port baud=115200 data=8 parity=none stop=1 flow=none
+> :MountInfo#
+< CEM60#
+> :FW1#
+< 260525240101#
+> :FW2#
+< 230201230202#
+(scan over)
+== found ==
+port=<answers-at-115200> name=iOptron CEM60 (<answers-at-115200>) model=CEM60 firmware=Some("iOptron firmware mainboard 2026-05-25, hand controller 2024-01-01, RA motor 2023-02-01, Dec motor 2023-02-02") baud=115200

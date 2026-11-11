@@ -16,8 +16,6 @@ pub async fn discover_mounts() -> Result<Vec<Lx200MountInfo>, NativeError> {
 }
 
 pub(crate) fn scan_serial_ports() -> Result<Vec<Lx200MountInfo>, NativeError> {
-    let mut mounts = Vec::new();
-
     let ports = serialport::available_ports()
         .map_err(|e| NativeError::SdkError(format!("Failed to enumerate ports: {}", e)))?;
 
@@ -25,6 +23,15 @@ pub(crate) fn scan_serial_ports() -> Result<Vec<Lx200MountInfo>, NativeError> {
         "LX200 discovery: found {} serial ports to scan",
         ports.len()
     );
+
+    let mounts = scan_port_list(ports);
+
+    tracing::debug!("LX200 discovery complete: found {} mounts", mounts.len());
+    Ok(mounts)
+}
+
+pub(crate) fn scan_port_list(ports: Vec<serialport::SerialPortInfo>) -> Vec<Lx200MountInfo> {
+    let mut mounts = Vec::new();
 
     for port_info in ports {
         let port_name = port_info.port_name.clone();
@@ -279,6 +286,5 @@ pub(crate) fn scan_serial_ports() -> Result<Vec<Lx200MountInfo>, NativeError> {
         } // end for baud_rate
     } // end for port_info
 
-    tracing::debug!("LX200 discovery complete: found {} mounts", mounts.len());
-    Ok(mounts)
+    mounts
 }

@@ -859,8 +859,6 @@ pub async fn discover_mounts() -> Result<Vec<SkyWatcherMountInfo>, NativeError> 
 }
 
 fn scan_serial_ports() -> Result<Vec<SkyWatcherMountInfo>, NativeError> {
-    let mut mounts = Vec::new();
-
     let ports = serialport::available_ports()
         .map_err(|e| NativeError::SdkError(format!("Failed to enumerate ports: {}", e)))?;
 
@@ -868,6 +866,18 @@ fn scan_serial_ports() -> Result<Vec<SkyWatcherMountInfo>, NativeError> {
         "Sky-Watcher discovery: found {} serial ports to scan",
         ports.len()
     );
+
+    let mounts = scan_port_list(ports);
+
+    tracing::info!(
+        "Sky-Watcher discovery complete: found {} mounts",
+        mounts.len()
+    );
+    Ok(mounts)
+}
+
+pub(crate) fn scan_port_list(ports: Vec<serialport::SerialPortInfo>) -> Vec<SkyWatcherMountInfo> {
+    let mut mounts = Vec::new();
 
     for port_info in ports {
         let port_name = port_info.port_name.clone();
@@ -957,11 +967,7 @@ fn scan_serial_ports() -> Result<Vec<SkyWatcherMountInfo>, NativeError> {
         }
     }
 
-    tracing::info!(
-        "Sky-Watcher discovery complete: found {} mounts",
-        mounts.len()
-    );
-    Ok(mounts)
+    mounts
 }
 
 #[cfg(test)]
