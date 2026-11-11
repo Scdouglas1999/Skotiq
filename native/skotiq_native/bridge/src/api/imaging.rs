@@ -205,7 +205,7 @@ pub async fn api_run_autofocus(
 
     use serde::Deserialize;
     use skotiq_sequencer::instructions::{
-        execute_autofocus_admitted, try_admit_autofocus_run, InstructionContext,
+        execute_autofocus_admitted, try_admit_autofocus_run, AutofocusProgress, InstructionContext,
     };
     use skotiq_sequencer::{AutofocusConfig, AutofocusMethod, Binning, NodeStatus};
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -312,16 +312,16 @@ pub async fn api_run_autofocus(
         device_ops,
     );
 
-    let progress_fn = |_: f64, detail: String| {
-        if !detail.contains("\"type\":\"autofocus_progress\"") {
+    let progress_fn = |_: f64, progress: &AutofocusProgress| {
+        let Some(sweep) = progress.sweep() else {
             return;
-        }
+        };
         get_state().publish_equipment_event(
             EquipmentEvent::PropertyChanged {
                 device_type: "focuser".to_string(),
                 device_id: progress_focuser_id.clone(),
                 property: "AutofocusProgress".to_string(),
-                value: detail,
+                value: sweep.to_json(),
             },
             EventSeverity::Info,
         );

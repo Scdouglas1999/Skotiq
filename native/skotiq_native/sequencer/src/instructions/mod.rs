@@ -20,6 +20,7 @@ use tokio::sync::mpsc;
 use tokio::time::sleep;
 
 mod autofocus;
+mod autofocus_progress;
 mod center;
 mod context;
 mod cooling;
@@ -50,6 +51,7 @@ mod wait;
 mod wait_time;
 
 pub use autofocus::*;
+pub use autofocus_progress::*;
 pub use center::*;
 pub use context::*;
 pub use cooling::*;

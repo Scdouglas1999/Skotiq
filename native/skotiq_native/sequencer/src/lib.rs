@@ -2219,6 +2219,14 @@ fn default_af_focuser_settle_time_ms() -> u64 {
     500
 }
 
+impl AutofocusConfig {
+    /// Points in one sweep: `steps_out` either side of its center, and the
+    /// center.
+    pub fn sweep_point_count(&self) -> u32 {
+        self.steps_out.saturating_mul(2).saturating_add(1)
+    }
+}
+
 impl Default for AutofocusConfig {
     fn default() -> Self {
         Self {

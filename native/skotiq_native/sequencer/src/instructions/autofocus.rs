@@ -213,7 +213,7 @@ fn final_run_up_position(
 pub async fn execute_autofocus(
     config: &AutofocusConfig,
     ctx: &InstructionContext,
-    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+    progress_callback: AutofocusProgressSink<'_>,
 ) -> InstructionResult {
     let Some(guard) = try_admit_autofocus_run() else {
         return InstructionResult::failure(
@@ -238,7 +238,7 @@ pub async fn execute_autofocus(
 pub async fn execute_autofocus_for_node(
     config: &AutofocusConfig,
     ctx: &InstructionContext,
-    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+    progress_callback: AutofocusProgressSink<'_>,
     pause: &crate::node::context::PauseGate,
 ) -> InstructionResult {
     // An autofocus run is at most a few minutes (per-node timeout); cap the
@@ -292,7 +292,7 @@ pub(crate) async fn admit_autofocus_run_waiting(max_wait: Duration) -> Option<Au
 pub async fn execute_autofocus_admitted(
     config: &AutofocusConfig,
     ctx: &InstructionContext,
-    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+    progress_callback: AutofocusProgressSink<'_>,
     guard: AutofocusRunGuard,
 ) -> InstructionResult {
     execute_autofocus_admitted_with_pause(
@@ -312,30 +312,30 @@ pub async fn execute_autofocus_admitted(
 pub async fn execute_autofocus_admitted_with_pause(
     config: &AutofocusConfig,
     ctx: &InstructionContext,
-    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+    progress_callback: AutofocusProgressSink<'_>,
     guard: AutofocusRunGuard,
     pause: &crate::node::context::PauseGate,
 ) -> InstructionResult {
     // Every autofocus inside a run (the node, the interval and HFR triggers,
     // the post-flip and recovery refocus) comes through here, and each
-    // caller's own progress callback keeps only a line of text. The sweep's
-    // points and its outcome also go out on the run's event channel, so the
-    // focus panel follows a run's autofocus live.
+    // caller's own progress callback keeps only its node's progress line. The
+    // sweep's points and its outcome also go out on the run's event channel,
+    // so the focus panel follows a run's autofocus live.
     let focuser_before = read_autofocus_position(ctx).await;
     let Some(event_tx) = ctx.run.event_tx.clone() else {
         let result = run_autofocus_admitted(config, ctx, progress_callback, guard, pause).await;
         return focus_not_found_when_missed(result, focuser_before);
     };
     let focuser_id = ctx.run.rig.focuser_id.clone().unwrap_or_default();
-    let forwarding = |progress: f64, detail: String| {
-        if detail.contains("\"type\":\"autofocus_progress\"") {
+    let forwarding = |percent: f64, progress: &AutofocusProgress| {
+        if let Some(sweep) = progress.sweep() {
             let _ = event_tx.send(crate::executor::ExecutorEvent::AutofocusProgress {
                 focuser_id: focuser_id.clone(),
-                detail: detail.clone(),
+                detail: sweep.to_json(),
             });
         }
         if let Some(cb) = progress_callback {
-            cb(progress, detail);
+            cb(percent, progress);
         }
     };
     let result = run_autofocus_admitted(config, ctx, Some(&forwarding), guard, pause).await;
@@ -368,7 +368,7 @@ fn focus_not_found_when_missed(
 async fn run_autofocus_admitted(
     config: &AutofocusConfig,
     ctx: &InstructionContext,
-    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+    progress_callback: AutofocusProgressSink<'_>,
     _guard: AutofocusRunGuard,
     pause: &crate::node::context::PauseGate,
 ) -> InstructionResult {
@@ -580,7 +580,7 @@ const AF_RECENTER_AT_KEY: &str = "af_recenter_at";
 pub(crate) async fn execute_autofocus_attempts(
     config: &AutofocusConfig,
     ctx: &InstructionContext,
-    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+    progress_callback: AutofocusProgressSink<'_>,
     pause: &crate::node::context::PauseGate,
 ) -> InstructionResult {
     let attempts = config.number_of_attempts.max(1);
@@ -632,7 +632,7 @@ pub(crate) async fn execute_autofocus_attempts(
             if let Some(cb) = progress_callback {
                 cb(
                     0.0,
-                    format!("Focus lies beyond the sweep; sweeping around {edge}"),
+                    &AutofocusProgress::FocusBeyondSweep { sweep_center: edge },
                 );
             }
             continue;
@@ -641,10 +641,7 @@ pub(crate) async fn execute_autofocus_attempts(
             return result;
         }
         if let Some(cb) = progress_callback {
-            cb(
-                0.0,
-                format!("Autofocus attempt {attempt}/{attempts} failed; retrying full sweep"),
-            );
+            cb(0.0, &AutofocusProgress::AttemptFailed { attempt, attempts });
         }
         tracing::warn!(
             "Autofocus attempt {}/{} failed; starting the next configured attempt",
@@ -655,34 +652,30 @@ pub(crate) async fn execute_autofocus_attempts(
     }
 }
 
-/// Re-send the sweep's last progress payload with every measured point marked
-/// by whether the fit uses it, so the graph and the points table gray out the
-/// points left out and say why.
+/// Re-send the sweep's last point with every measured point marked by whether
+/// the fit uses it, so the graph and the points table gray out the points left
+/// out and say why.
 fn publish_screened_points(
-    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
-    last_progress: Option<&serde_json::Value>,
+    progress_callback: AutofocusProgressSink<'_>,
+    last_sweep: Option<&SweepSnapshot>,
     measured: &[crate::autofocus::FocusDataPoint],
     rejected: &[crate::autofocus::RejectedFocusPoint],
 ) {
-    let (Some(cb), Some(last)) = (progress_callback, last_progress) else {
+    let (Some(cb), Some(last)) = (progress_callback, last_sweep) else {
         return;
     };
-    let mut payload = last.clone();
-    payload["vcurve_points"] = measured
+    let mut sweep = last.clone();
+    sweep.vcurve_points = measured
         .iter()
-        .map(|point| {
-            let mut entry = serde_json::json!({
-                "position": point.position,
-                "hfr": point.hfr,
-                "star_count": point.star_count,
-            });
-            if let Some(why) = rejected.iter().find(|r| r.position == point.position) {
-                entry["rejected"] = serde_json::Value::String(why.reason.clone());
-            }
-            entry
+        .map(|point| SweepPoint {
+            rejected: rejected
+                .iter()
+                .find(|r| r.position == point.position)
+                .map(|why| why.reason.clone()),
+            ..SweepPoint::used(point)
         })
         .collect();
-    cb(92.0, payload.to_string());
+    cb(92.0, &AutofocusProgress::PointsScreened(Box::new(sweep)));
 }
 
 /// The sweep edge with the lowest HFR when focus lies beyond the sweep: the
@@ -1024,7 +1017,7 @@ pub(crate) fn validate_autofocus_config(config: &AutofocusConfig) -> Result<(), 
 pub(crate) async fn execute_autofocus_once(
     config: &AutofocusConfig,
     ctx: &InstructionContext,
-    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+    progress_callback: AutofocusProgressSink<'_>,
     pause: &crate::node::context::PauseGate,
 ) -> InstructionResult {
     execute_autofocus_sweep_around(config, ctx, progress_callback, pause, None).await
@@ -1035,7 +1028,7 @@ pub(crate) async fn execute_autofocus_once(
 pub(crate) async fn execute_autofocus_sweep_around(
     config: &AutofocusConfig,
     ctx: &InstructionContext,
-    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+    progress_callback: AutofocusProgressSink<'_>,
     pause: &crate::node::context::PauseGate,
     sweep_center: Option<i32>,
 ) -> InstructionResult {
@@ -1060,7 +1053,7 @@ pub(crate) async fn execute_autofocus_sweep_around(
     }
 
     if let Some(cb) = progress_callback {
-        cb(0.0, "Starting autofocus...".to_string());
+        cb(0.0, &AutofocusProgress::Starting);
     }
 
     // Sweep positions are calculated from the current position outward;
@@ -1106,12 +1099,17 @@ pub(crate) async fn execute_autofocus_sweep_around(
 
         let mut focus_data: Vec<crate::autofocus::FocusDataPoint> =
             Vec::with_capacity(total_points);
-        // The last point's progress payload, re-sent with the screen's verdict
-        // on every point once the sweep is measured.
-        let mut last_progress: Option<serde_json::Value> = None;
+        // The last point's progress, re-sent with the screen's verdict on every
+        // point once the sweep is measured.
+        let mut last_measured: Option<AutofocusProgress> = None;
 
         if let Some(cb) = progress_callback {
-            cb(5.0, format!("Moving to start position: {}", start_position));
+            cb(
+                5.0,
+                &AutofocusProgress::MovingToStart {
+                    position: start_position,
+                },
+            );
         }
 
         if backlash.is_needed(current_position, start_position) {
@@ -1243,7 +1241,11 @@ pub(crate) async fn execute_autofocus_sweep_around(
             if let Some(cb) = progress_callback {
                 cb(
                     point_progress,
-                    format!("Point {}/{}: pos {}", point + 1, total_points, position),
+                    &AutofocusProgress::MovingToPoint {
+                        point: point + 1,
+                        total_points,
+                        position,
+                    },
                 );
             }
 
@@ -1392,42 +1394,27 @@ pub(crate) async fn execute_autofocus_sweep_around(
                 star_count: measurement.star_count,
             });
 
-            let progress_json = serde_json::json!({
-                "type": "autofocus_progress",
-                "point": point + 1,
-                "total_points": total_points,
-                "hfr": point_hfr,
-                "star_count": measurement.star_count,
-                "focus_range": {
-                    "min": positions[0],
-                    "max": positions[total_points - 1]
+            let sweep = SweepSnapshot {
+                point: point + 1,
+                total_points,
+                hfr: point_hfr,
+                star_count: measurement.star_count,
+                focus_range: FocusRange {
+                    min: positions[0],
+                    max: positions[total_points - 1],
                 },
-                "vcurve_points": focus_data.iter().map(|point| {
-                    serde_json::json!({
-                        "position": point.position,
-                        "hfr": point.hfr,
-                        "star_count": point.star_count
-                    })
-                }).collect::<Vec<_>>(),
-                "star_crops": measurement.star_crops.iter().map(|crop| {
-                    serde_json::json!({
-                        "pixels_base64": crop.pixels_base64,
-                        "width": crop.width,
-                        "height": crop.height,
-                        "hfr": crop.hfr,
-                        "snr": crop.snr
-                    })
-                }).collect::<Vec<_>>()
-            });
-
+                vcurve_points: focus_data.iter().map(SweepPoint::used).collect(),
+                star_crops: measurement.star_crops,
+            };
+            let measured = AutofocusProgress::PointMeasured(Box::new(sweep));
             if let Some(cb) = progress_callback {
-                cb(point_progress, progress_json.to_string());
+                cb(point_progress, &measured);
             }
-            last_progress = Some(progress_json);
+            last_measured = Some(measured);
         }
 
         if let Some(cb) = progress_callback {
-            cb(92.0, "Validating focus data...".to_string());
+            cb(92.0, &AutofocusProgress::Validating);
         }
 
         // Far from focus a frame can find a few specks of donut stars and read
@@ -1439,7 +1426,7 @@ pub(crate) async fn execute_autofocus_sweep_around(
         if !screened_out.is_empty() {
             publish_screened_points(
                 progress_callback,
-                last_progress.as_ref(),
+                last_measured.as_ref().and_then(AutofocusProgress::sweep),
                 &measured,
                 &screened_out,
             );
@@ -1493,7 +1480,7 @@ pub(crate) async fn execute_autofocus_sweep_around(
                     all.extend(result.rejected_points.iter().cloned());
                     publish_screened_points(
                         progress_callback,
-                        last_progress.as_ref(),
+                        last_measured.as_ref().and_then(AutofocusProgress::sweep),
                         &measured,
                         &all,
                     );
@@ -1572,7 +1559,12 @@ pub(crate) async fn execute_autofocus_sweep_around(
         );
 
         if let Some(cb) = progress_callback {
-            cb(95.0, format!("Moving to best focus: {}", best_position));
+            cb(
+                95.0,
+                &AutofocusProgress::MovingToBestFocus {
+                    position: best_position,
+                },
+            );
         }
 
         // EVERY sweep point is measured while moving UP: `calculate_positions`
@@ -1737,19 +1729,17 @@ pub(crate) async fn execute_autofocus_sweep_around(
         }
 
         let reported_hfr = verified_hfr.unwrap_or(best_hfr);
-        let hfr_note = if verified_hfr.is_some() {
-            "measured"
-        } else {
-            "predicted; the verification frame could not be measured"
-        };
+        let hfr_note = hfr_note(verified_hfr.is_some());
 
         if let Some(cb) = progress_callback {
             cb(
                 100.0,
-                format!(
-                    "Complete: pos {}, HFR {:.2} ({}), R² {:.3}",
-                    best_position, reported_hfr, hfr_note, r_squared
-                ),
+                &AutofocusProgress::Complete {
+                    position: best_position,
+                    hfr: reported_hfr,
+                    hfr_measured: verified_hfr.is_some(),
+                    r_squared,
+                },
             );
         }
 
@@ -1944,19 +1934,8 @@ pub(crate) struct HfrMeasurementWithCrops {
     /// Of the stars actually considered for the median, how many had no
     /// usable (finite, positive) HFR and were left out of it.
     pub(crate) unmeasurable_star_count: u32,
-    /// Base64-encoded star crops (80x80 grayscale), up to 5 brightest stars
-    star_crops: Vec<StarCropInfo>,
-}
-
-/// Star crop info for UI display
-#[derive(Clone)]
-pub(crate) struct StarCropInfo {
-    /// Base64-encoded grayscale pixels
-    pixels_base64: String,
-    width: u32,
-    height: u32,
-    hfr: f64,
-    snr: f64,
+    /// Crops (80x80) of up to the 5 brightest stars.
+    star_crops: Vec<StarCrop>,
 }
 
 /// Calculate HFR from image data, honoring the configured central crop and
@@ -2024,9 +2003,9 @@ pub(crate) fn calculate_hfr_with_crops(
     // over the FRB bridge.
     let crops = extract_top_star_crops(&imaging_data, &eligible_stars, 5, 80);
 
-    let star_crops: Vec<StarCropInfo> = crops
+    let star_crops: Vec<StarCrop> = crops
         .into_iter()
-        .map(|crop| StarCropInfo {
+        .map(|crop| StarCrop {
             pixels_base64: BASE64.encode(&crop.pixels),
             width: crop.width,
             height: crop.height,

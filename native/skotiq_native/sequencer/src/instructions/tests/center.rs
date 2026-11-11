@@ -112,6 +112,58 @@ async fn a_center_that_does_not_converge_notifies_and_the_run_goes_on() {
     assert!(run.decisions.is_empty(), "{:?}", run.decisions);
 }
 
+/// What the run's status line and the app read from a Center node: the
+/// attempt whose frame is being taken or corrected, and attempt 0 while the
+/// step starts and once it has centered.
+#[tokio::test(start_paused = true)]
+async fn a_center_node_reports_the_attempt_it_is_on() {
+    use crate::node::registry::InstructionNode;
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_off_target_solves(1)
+            .with_mount_slewing_states(vec![true, false]),
+    );
+    let mut context = crate::node::context::ExecutionContext::new_for_test("center".to_string());
+    context.run.device_ops = ops;
+    context.run.rig.camera_id = Some("cam-1".to_string());
+    context.run.rig.mount_id = Some("mount-1".to_string());
+    context.target_ra = Some(0.712);
+    context.target_dec = Some(41.27);
+    let lines = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let sink = lines.clone();
+    context.progress_callback = Some(Arc::new(move |update: crate::node::ProgressUpdate| {
+        sink.lock().unwrap().push(update.legacy_message().expect("a progress line"));
+    }));
+    let config = crate::CenterConfig {
+        max_attempts: 2,
+        exposure_duration: 0.01,
+        ..Default::default()
+    };
+
+    let status = crate::node::instructions::center::CenterInstruction
+        .execute(
+            "center",
+            &crate::NodeType::CenterTarget(config),
+            &mut context,
+        )
+        .await;
+
+    assert_eq!(status, NodeStatus::Success);
+    assert_eq!(
+        *lines.lock().unwrap(),
+        vec![
+            "Center: attempt 0/2 (0%)",
+            "Center: attempt 1/2 (0%)",
+            "Center: attempt 1/2 (25%)",
+            "Center: attempt 1/2 (38%)",
+            "Center: attempt 2/2 (50%)",
+            "Center: attempt 2/2 (75%)",
+            "Center: attempt 0/2 (95%)",
+            "Center: attempt 0/2 (100%)",
+        ]
+    );
+}
+
 /// "Center where the mount points" takes the mount's read-back, which is of
 /// date, and centers on it in J2000: the solves it is compared with and the
 /// slew path both speak J2000.
