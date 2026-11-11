@@ -53,6 +53,7 @@ extension FlatWizardRun on FlatWizardNotifier {
       // frames were actually shot at.
       final runSettings = state.globalSettings;
       final backend = ref.read(backendProvider);
+      final host = backend.remoteHost;
       final cameraState = ref.read(cameraStateProvider);
       // Build the service inline from the current backend + settings rather
       // than `ref.read(flatWizardServiceProvider)`: that provider `ref.watch`es
@@ -92,9 +93,12 @@ extension FlatWizardRun on FlatWizardNotifier {
         setErrorMessage('No save path set');
         return;
       }
-      if (backend is NetworkBackend) {
+      if (host != null) {
         try {
-          savePath = await validateRemoteFlatOutputDirectory(backend, savePath);
+          savePath = await validateRemoteFlatOutputDirectory(
+            host.files,
+            savePath,
+          );
         } catch (error) {
           setErrorMessage(
             'Flat-frame save path is not usable on the imaging host: $error',
@@ -169,7 +173,7 @@ extension FlatWizardRun on FlatWizardNotifier {
       // Committed: from here we are truly capturing
       _prepareFiltersForRun(queue);
       ref.read(flatRunOutputProvider.notifier).state = FlatRunOutput(
-        remote: backend is NetworkBackend,
+        remote: host != null,
       );
       state = state.copyWith(
         isCapturing: true,
@@ -182,14 +186,12 @@ extension FlatWizardRun on FlatWizardNotifier {
 
       // Base save path with optional date subfolder.
       // On a linked client the folder is the host's, joined in its style.
-      final paths = backend is NetworkBackend
-          ? hostPathContext(savePath)
-          : p.context;
+      final paths = host != null ? hostPathContext(savePath) : p.context;
       var baseSavePath = savePath;
       if (runSettings.createDateSubfolder) {
         baseSavePath = paths.join(baseSavePath, _fmtDate(DateTime.now()));
       }
-      final createOutputLocally = backend is! NetworkBackend;
+      final createOutputLocally = host == null;
       await prepareFlatOutputDirectory(
         baseSavePath,
         createLocally: createOutputLocally,
@@ -641,7 +643,7 @@ extension FlatWizardRun on FlatWizardNotifier {
   /// frames are on this computer, record it so it waits in the calibration
   /// library like any other raw calibration frame until a master covers it.
   Future<void> _recordSavedFlat({
-    required Object backend,
+    required SkotiqBackend backend,
     required String filePath,
     required String filter,
     required double exposureSeconds,
@@ -667,7 +669,7 @@ extension FlatWizardRun on FlatWizardNotifier {
       filters: {...output.filters, filter: existing.withPath(filePath)},
       remote: output.remote,
     );
-    if (backend is NetworkBackend) return;
+    if (backend.remoteHost != null) return;
     try {
       await ref
           .read(calibrationBacklogServiceProvider)
@@ -921,12 +923,12 @@ extension FlatWizardRun on FlatWizardNotifier {
   }
 
   /// Record a completed filter's calibration to flat history. Preserves the
-  /// remote-vs-local routing exactly: on a [NetworkBackend] the record is
+  /// remote-vs-local routing exactly: on a linked client the record is
   /// posted to the master (so its library learns from the remote session);
   /// otherwise it is written to the local DAO. Never throws — a history-write
   /// failure must not fail the capture (the frames are already on disk).
   Future<void> _recordFlatHistory({
-    required dynamic backend,
+    required SkotiqBackend backend,
     required dynamic db,
     required int? profileId,
     required String filterName,
@@ -949,8 +951,9 @@ extension FlatWizardRun on FlatWizardNotifier {
       final twilightPhase = runMode == FlatWizardMode.skyFlats
           ? (runTwilightMode == TwilightMode.dawn ? 'dawn' : 'dusk')
           : null;
-      if (backend is NetworkBackend) {
-        await backend.recordFlat(
+      final remote = backend.remoteHost?.calibrationFrames;
+      if (remote != null) {
+        await remote.recordFlat(
           filter: filterName,
           exposureDuration: exposure,
           adu: adu.toInt(),

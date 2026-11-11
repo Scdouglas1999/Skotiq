@@ -186,6 +186,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     }
 
     final backend = ref.read(backendProvider);
+    final remote = backend.remoteHost?.calibrationFrames;
     final db = ref.read(databaseProvider);
     final profileId = ref.read(activeEquipmentProfileProvider)?.id;
     final key = _filterPreferencesKey();
@@ -228,9 +229,9 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
       // `getSuggestedExposure`'s last-N-average logic — instead of the
       // always-null local DAO read.
       final double? suggested;
-      if (backend is NetworkBackend) {
+      if (remote != null) {
         suggested = await _remoteSuggestedExposure(
-          backend,
+          remote,
           filterName: filterName,
           profileId: profileId,
         );
@@ -281,12 +282,12 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
   /// sourced from the master via `GET /api/calibration/flats`. Returns null
   /// when the host has no history for this filter.
   Future<double?> _remoteSuggestedExposure(
-    NetworkBackend backend, {
+    HostCalibrationFrames remote, {
     required String filterName,
     int? profileId,
   }) async {
     try {
-      final entries = await backend.listFlats(
+      final entries = await remote.listFlats(
         filter: filterName,
         equipmentProfileId: profileId,
         limit: 5,

@@ -4,10 +4,47 @@ import 'network_backend.dart';
 import 'network_backend/host_data/remote_host_calibration_library.dart';
 import 'network_backend/host_data/remote_observation_log.dart';
 import 'network_backend/host_data/host_poll.dart';
+import 'network_backend/host_data/remote_host_runtime_mirror.dart';
+import 'network_backend/host_data/remote_host_secondary_rig.dart';
+import 'network_backend/host_data/remote_host_pointing.dart';
+import 'network_backend/host_data/remote_host_rig_settings.dart';
+import 'network_backend/host_data/remote_host_planning.dart';
+import 'network_backend/host_data/remote_host_live_stack.dart';
+import 'network_backend/host_data/remote_host_focus_data.dart';
+import 'network_backend/host_data/remote_host_history.dart';
+import 'network_backend/host_data/remote_host_notes.dart';
+import 'network_backend/host_data/remote_host_run_state.dart';
+import 'network_backend/host_data/remote_host_sequence_records.dart';
+import 'network_backend/host_data/remote_host_target_records.dart';
+import 'network_backend/host_data/remote_host_files.dart';
+import 'network_backend/host_data/remote_host_calibration_frames.dart';
+import 'network_backend/host_data/remote_host_image_records.dart';
+import 'network_backend/host_data/remote_host_transients.dart';
+import 'network_backend/host_data/remote_host_weather.dart';
+import 'network_backend/host_data/remote_host_sky_atlas.dart';
+import 'network_backend/host_data/remote_host_records.dart';
 import 'network_backend/host_data/remote_observing_lists_store.dart';
 import 'network_backend/host_data/remote_replay_debug_log.dart';
 import 'network_backend/host_data/remote_science_products.dart';
 import 'roles/host_data/calibration_library.dart';
+import 'roles/host_data/host_runtime_mirror.dart';
+import 'roles/host_data/host_secondary_rig.dart';
+import 'roles/host_data/host_pointing.dart';
+import 'roles/host_data/host_rig_settings.dart';
+import 'roles/host_data/host_planning.dart';
+import 'roles/host_data/host_live_stack.dart';
+import 'roles/host_data/host_focus_data.dart';
+import 'roles/host_data/host_history.dart';
+import 'roles/host_data/host_notes.dart';
+import 'roles/host_data/host_run_state.dart';
+import 'roles/host_data/host_sequence_records.dart';
+import 'roles/host_data/host_target_records.dart';
+import 'roles/host_data/host_files.dart';
+import 'roles/host_data/host_calibration_frames.dart';
+import 'roles/host_data/host_image_records.dart';
+import 'roles/host_data/host_transients.dart';
+import 'roles/host_data/host_weather.dart';
+import 'roles/host_data/host_sky_atlas.dart';
 import 'roles/host_data/observation_log.dart';
 import 'roles/host_data/observing_lists_store.dart';
 import 'roles/host_data/replay_debug_log.dart';
@@ -39,11 +76,61 @@ final class RemoteHost {
 
   static final _hosts = Expando<RemoteHost>('RemoteHost');
 
+  /// Everything the host announces: device and run events and the
+  /// notifications that its stored data changed.
+  Stream<SkotiqEvent> get events => _backend.eventStream;
+
   /// The connection to the host: its name and whether it is answering.
   late final HostLink link = HostLink._(_backend);
 
   late final CalibrationLibrary calibrationLibrary =
       RemoteHostCalibrationLibrary(_backend);
+
+  late final HostSkyAtlas skyAtlas = RemoteHostSkyAtlas(_backend);
+
+  late final HostWeather weather = RemoteHostWeather(_backend);
+
+  late final HostTransients transients = RemoteHostTransients(_backend);
+
+  late final HostImageRecords imageRecords = RemoteHostImageRecords(_backend);
+
+  /// The host's saved targets, sequences, sessions and runs.
+  late final RemoteHostRecords records = RemoteHostRecords(_backend);
+
+  late final HostCalibrationFrames calibrationFrames =
+      RemoteHostCalibrationFrames(_backend);
+
+  late final HostFiles files = RemoteHostFiles(_backend);
+
+  late final HostTargetRecords targetRecords = RemoteHostTargetRecords(
+    _backend,
+  );
+
+  late final HostSequenceRecords sequenceRecords = RemoteHostSequenceRecords(
+    _backend,
+  );
+
+  late final HostRunState runState = RemoteHostRunState(_backend);
+
+  late final HostNotes notes = RemoteHostNotes(_backend);
+
+  late final HostHistory history = RemoteHostHistory(_backend);
+
+  late final HostFocusData focusData = RemoteHostFocusData(_backend);
+
+  late final HostLiveStack liveStack = RemoteHostLiveStack(_backend);
+
+  late final HostPlanning planning = RemoteHostPlanning(_backend);
+
+  late final HostRigSettings rigSettings = RemoteHostRigSettings(_backend);
+
+  late final HostPointing pointing = RemoteHostPointing(_backend);
+
+  late final HostSecondaryRig secondaryRig = RemoteHostSecondaryRig(_backend);
+
+  late final HostRuntimeMirror runtimeMirror = RemoteHostRuntimeMirror(
+    _backend,
+  );
 
   late final ObservationLog observationLog = RemoteObservationLog(_backend);
 

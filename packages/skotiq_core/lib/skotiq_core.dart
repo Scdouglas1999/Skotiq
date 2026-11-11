@@ -374,6 +374,25 @@ export 'src/backend/roles/host_data/observation_log.dart';
 export 'src/backend/roles/host_data/observing_lists_store.dart';
 export 'src/backend/roles/host_data/replay_debug_log.dart';
 export 'src/backend/roles/host_data/science_products.dart';
+export 'src/backend/roles/host_data/host_sky_atlas.dart';
+export 'src/backend/roles/host_data/host_weather.dart';
+export 'src/backend/roles/host_data/host_transients.dart';
+export 'src/backend/roles/host_data/host_image_records.dart';
+export 'src/backend/roles/host_data/host_records.dart';
+export 'src/backend/roles/host_data/host_calibration_frames.dart';
+export 'src/backend/roles/host_data/host_files.dart';
+export 'src/backend/roles/host_data/host_target_records.dart';
+export 'src/backend/roles/host_data/host_sequence_records.dart';
+export 'src/backend/roles/host_data/host_run_state.dart';
+export 'src/backend/roles/host_data/host_notes.dart';
+export 'src/backend/roles/host_data/host_history.dart';
+export 'src/backend/roles/host_data/host_focus_data.dart';
+export 'src/backend/roles/host_data/host_live_stack.dart';
+export 'src/backend/roles/host_data/host_planning.dart';
+export 'src/backend/roles/host_data/host_rig_settings.dart';
+export 'src/backend/roles/host_data/host_pointing.dart';
+export 'src/backend/roles/host_data/host_secondary_rig.dart';
+export 'src/backend/roles/host_data/host_runtime_mirror.dart';
 export 'src/providers/async_scope.dart';
 // Single seam for the typed sequencer/run event surface — app/headless UI
 // consume the bridge event union + display helpers through here instead of

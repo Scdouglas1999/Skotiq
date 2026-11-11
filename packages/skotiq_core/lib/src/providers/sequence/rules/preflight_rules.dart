@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../backend/network_backend.dart';
 import '../../../database/database.dart' show DarkLibraryEntry, Target;
 import '../../../models/backend/device_types.dart';
 import '../../../models/calibration/remote_calibration_models.dart';
@@ -9,6 +8,7 @@ import '../../../models/equipment/equipment_models.dart';
 import '../../../models/imaging/imaging_models.dart' show FrameType;
 import '../../../models/sequence/sequence_models.dart';
 import '../../../services/dark_library_coverage_service.dart';
+import '../../../backend/remote_host.dart';
 import '../../backend_provider.dart';
 import '../../capability_provider.dart';
 import '../../dark_library_provider.dart';
@@ -168,9 +168,10 @@ class DarkLibraryCoverageRule implements AsyncSequenceValidator {
     // remote rows into DarkLibraryEntry so the coverage evaluator agrees with
     // the master; keep the local DAO path on the host.
     final backend = ref.read(backendProvider);
+    final remote = backend.remoteHost?.calibrationFrames;
     final List<DarkLibraryEntry> entries;
-    if (backend is NetworkBackend) {
-      final remoteDarks = await backend.listDarks();
+    if (remote != null) {
+      final remoteDarks = await remote.listDarks();
       entries = remoteDarks.map(_darkEntryFromRemote).toList(growable: false);
     } else {
       final service = ref.read(darkLibraryServiceProvider);

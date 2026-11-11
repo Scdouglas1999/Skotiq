@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../backend/roles/host_data/host_records.dart';
 import '../database.dart';
 import '../tables/sequences.dart';
 import '../tables/targets.dart';
@@ -45,7 +46,8 @@ class SequenceSummaryRow {
 
 @DriftAccessor(tables: [Sequences, SequenceNodes, Targets])
 class SequencesDao extends DatabaseAccessor<SkotiqDatabase>
-    with _$SequencesDaoMixin {
+    with _$SequencesDaoMixin
+    implements SequenceLibrary {
   SequencesDao(super.db);
 
   /// Wire string written into `sequence_nodes.node_type` for target-category
@@ -71,6 +73,7 @@ class SequencesDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Watch all sequences
+  @override
   Stream<List<Sequence>> watchAllSequences() {
     return (select(sequences)
           ..where((s) => s.isTemplate.equals(false))

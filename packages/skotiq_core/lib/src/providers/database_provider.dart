@@ -4,6 +4,9 @@ import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/network_backend.dart';
+import '../backend/network_backend/host_data/remote_host_records.dart';
+import '../backend/remote_host.dart';
+import '../backend/roles/host_data/host_records.dart';
 import '../database/database.dart' as db;
 import '../models/equipment_profile.dart' as remote_profile;
 import '../models/equipment_profile_remote_mapping.dart';
@@ -21,6 +24,8 @@ import '../utils/resilient_poll_stream.dart';
 import 'backend_provider.dart';
 import 'host_settings/host_settings_providers.dart';
 
+export '../backend/network_backend/host_data/remote_host_records.dart'
+    show fetchAllRemoteSequenceRuns;
 export 'project_tracking_provider.dart';
 
 /// Global database instance provider
@@ -84,6 +89,27 @@ final narratorEventsDaoProvider = Provider<NarratorEventsDao>((ref) {
   return NarratorEventsDao(ref.watch(databaseProvider));
 });
 
+/// The saved targets of whichever machine is the imaging host.
+final targetLibraryProvider = Provider<TargetLibrary>(
+  (ref) =>
+      ref.watch(backendProvider).remoteHost?.records ??
+      ref.watch(targetsDaoProvider),
+);
+
+/// The saved sequences of whichever machine is the imaging host.
+final sequenceLibraryProvider = Provider<SequenceLibrary>(
+  (ref) =>
+      ref.watch(backendProvider).remoteHost?.records ??
+      ref.watch(sequencesDaoProvider),
+);
+
+/// The recorded sessions of whichever machine is the imaging host.
+final sessionHistoryProvider = Provider<SessionHistory>(
+  (ref) =>
+      ref.watch(backendProvider).remoteHost?.records ??
+      ref.watch(sessionsDaoProvider),
+);
+
 // Convenience providers for watching data
 // Note: These use the database entity types (prefixed with db.)
 
@@ -107,40 +133,22 @@ final activeProfileProvider = StreamProvider<db.EquipmentProfile?>((ref) {
 
 /// Watch all targets (database entities)
 final allDbTargetsProvider = StreamProvider<List<db.Target>>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return _pollRemoteTargets(backend);
-  }
-  return ref.watch(targetsDaoProvider).watchAllTargets();
+  return ref.watch(targetLibraryProvider).watchAllTargets();
 });
 
 /// Watch favorite targets (database entities)
 final favoriteDbTargetsProvider = StreamProvider<List<db.Target>>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return _pollRemoteTargets(
-      backend,
-    ).map((targets) => targets.where((target) => target.isFavorite).toList());
-  }
-  return ref.watch(targetsDaoProvider).watchFavoriteTargets();
+  return ref.watch(targetLibraryProvider).watchFavoriteTargets();
 });
 
 /// Watch all sequences (database entities)
 final allDbSequencesProvider = StreamProvider<List<db.Sequence>>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return _pollRemoteSequenceRows(backend, templates: false);
-  }
-  return ref.watch(sequencesDaoProvider).watchAllSequences();
+  return ref.watch(sequenceLibraryProvider).watchAllSequences();
 });
 
 /// Watch all imaging sessions
 final allSessionsProvider = StreamProvider<List<db.ImagingSession>>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return _pollRemoteSessions(backend);
-  }
-  return ref.watch(sessionsDaoProvider).watchAllSessions();
+  return ref.watch(sessionHistoryProvider).watchAllSessions();
 });
 
 /// Watch all captured images (database entities)
@@ -153,12 +161,12 @@ final allDbImagesProvider = StreamProvider<List<db.CapturedImage>>((ref) {
 /// A linked client's copy of the imaging host's `captured_images` rows; null
 /// on a process with its own database.
 final remoteImageRowsProvider = Provider<RemoteImageRows?>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is! NetworkBackend) return null;
+  final host = ref.watch(backendProvider).remoteHost?.imageRecords;
+  if (host == null) return null;
   final rows = RemoteImageRows(
-    poll: () => _pollRemoteImages(backend),
-    fetchRow: backend.getCapturedImageById,
-    fetchSessionRows: backend.getSessionImageRows,
+    poll: () => pollHostImageRows(host),
+    fetchRow: host.getCapturedImageById,
+    fetchSessionRows: host.getSessionImageRows,
   );
   ref.onDispose(rows.dispose);
   return rows;
@@ -343,8 +351,7 @@ class RemoteImageRows {
 /// Load a captured image row by id.
 final capturedImageByIdProvider = FutureProvider.family<db.CapturedImage?, int>(
   (ref, imageId) {
-    final backend = ref.watch(backendProvider);
-    if (backend is NetworkBackend) {
+    if (ref.watch(backendProvider).remoteHost != null) {
       return ref.watch(imagingRecordsRepositoryProvider).getImageById(imageId);
     }
     return ref.watch(imagesDaoProvider).getImageById(imageId);
@@ -384,7 +391,7 @@ class CapturedImageWcsData {
 
 final capturedImageWcsProvider =
     FutureProvider.family<CapturedImageWcsData?, int>((ref, imageId) async {
-      final backend = ref.watch(backendProvider);
+      final linked = ref.watch(backendProvider).remoteHost != null;
       db.CapturedImage? row;
       ({
         double? cd1_1,
@@ -394,7 +401,7 @@ final capturedImageWcsProvider =
         String? sip,
       })?
       distortion;
-      if (backend is NetworkBackend) {
+      if (linked) {
         row = await ref.watch(capturedImageByIdProvider(imageId).future);
       } else {
         final dao = ref.watch(imagesDaoProvider);
@@ -491,186 +498,3 @@ Stream<T> _pollRemote<T>(
     );
   },
 );
-
-Stream<List<db.Target>> _pollRemoteTargets(NetworkBackend backend) =>
-    _pollRemote(() => _fetchRemoteTargets(backend), listEquals);
-
-Stream<List<db.Sequence>> _pollRemoteSequenceRows(
-  NetworkBackend backend, {
-  required bool templates,
-}) => _pollRemote(
-  () => _fetchRemoteSequenceRows(backend, templates: templates),
-  listEquals,
-);
-
-Stream<List<db.ImagingSession>> _pollRemoteSessions(NetworkBackend backend) =>
-    _pollRemote(() => _fetchRemoteSessions(backend), listEquals);
-
-Stream<List<db.CapturedImage>> _pollRemoteImages(NetworkBackend backend) =>
-    _pollRemote(() => _fetchRemoteImages(backend), listEquals);
-
-/// Polls the host's `/api/sequence-runs` and maps each [RemoteSequenceRun]
-/// onto the local `SequenceRun` Drift row shape the run-history consumers read
-/// (dashboard recap, cockpit Morning Report, sequencer History tab). The
-/// slave's local `sequence_runs` table is never populated, so without this
-/// poll those surfaces always render their empty state even after the master
-/// imaged all night. [sequenceId] scopes the poll to a single sequence for the
-/// family provider.
-/// Public entry point used by `sequence_stats_provider.dart` so the
-/// run-history providers can branch onto the remote transport without
-/// re-implementing the poll/mapping (both file-private here).
-Stream<List<db.SequenceRun>> pollRemoteSequenceRuns(
-  NetworkBackend backend, {
-  int? sequenceId,
-}) => _pollRemoteRuns(backend, sequenceId: sequenceId);
-
-/// Fetches the complete host run history, following the paginated API until
-/// every row reported by the host has been received. Keeping this helper
-/// shared prevents reports and live history surfaces from quietly diverging
-/// once an installation has accumulated more than one response page.
-Future<List<RemoteSequenceRun>> fetchAllRemoteSequenceRuns(
-  NetworkBackend backend, {
-  int? sequenceId,
-}) async {
-  const pageSize = 1000;
-  final runs = <RemoteSequenceRun>[];
-  var offset = 0;
-
-  while (true) {
-    final page = await backend.fetchSequenceRuns(
-      sequenceId: sequenceId,
-      limit: pageSize,
-      offset: offset,
-    );
-    runs.addAll(page.items);
-    offset += page.items.length;
-    if (page.items.isEmpty || offset >= page.total) break;
-  }
-
-  return runs;
-}
-
-Stream<List<db.SequenceRun>> _pollRemoteRuns(
-  NetworkBackend backend, {
-  int? sequenceId,
-}) => _pollRemote(
-  () => _fetchRemoteRuns(backend, sequenceId: sequenceId),
-  listEquals,
-);
-
-Future<List<db.SequenceRun>> _fetchRemoteRuns(
-  NetworkBackend backend, {
-  int? sequenceId,
-}) async {
-  final runs = await fetchAllRemoteSequenceRuns(
-    backend,
-    sequenceId: sequenceId,
-  );
-  final mapped = runs.map(_runRowFromRemote).toList();
-  // Host endpoint already orders by startedAt desc; keep that invariant so the
-  // ".first" the consumers read is the newest run.
-  mapped.sort((a, b) => b.startedAt.compareTo(a.startedAt));
-  return mapped;
-}
-
-db.SequenceRun _runRowFromRemote(RemoteSequenceRun run) {
-  return db.SequenceRun(
-    id: run.id,
-    sequenceId: run.sequenceId,
-    sequenceName: run.sequenceName ?? 'Sequence',
-    startedAt: run.startedAt,
-    endedAt: run.endedAt,
-    status: run.status,
-    statsJson: run.statsJson ?? '{}',
-    // The wire row does not carry the executed-sequence snapshot (it is not
-    // exposed by /api/sequence-runs); the run-history surfaces that consume
-    // this stream do not read it, so leaving it null is lossless for them.
-    sequenceSnapshotJson: null,
-  );
-}
-
-Future<List<db.Target>> _fetchRemoteTargets(NetworkBackend backend) async {
-  final targets = await backend.getAllTargets();
-  return targets.map(_targetFromJson).toList()
-    ..sort((a, b) => a.name.compareTo(b.name));
-}
-
-Future<List<db.Sequence>> _fetchRemoteSequenceRows(
-  NetworkBackend backend, {
-  required bool templates,
-}) async {
-  final rows = templates
-      ? await backend.getSequenceTemplates()
-      : await backend.getSequenceList();
-  final mapped = rows.map(_sequenceRowFromRemoteJson).toList();
-  mapped.sort((a, b) => a.name.compareTo(b.name));
-  return mapped;
-}
-
-db.Sequence _sequenceRowFromRemoteJson(Map<String, dynamic> json) {
-  return db.Sequence(
-    id: json['id'] as int,
-    name: json['name'] as String? ?? 'Untitled sequence',
-    description: json['description'] as String?,
-    rootNodeId: json['rootNodeId'] as String?,
-    estimatedDurationMins: json['estimatedDurationMins'] as int? ?? 0,
-    createdAt: wireTimestamp(json['createdAt']),
-    updatedAt: wireTimestamp(json['updatedAt']),
-    isTemplate: json['isTemplate'] as bool? ?? false,
-    tagsJson: json['tagsJson'] as String? ?? '[]',
-    isFavorite: json['isFavorite'] as bool? ?? false,
-  );
-}
-
-Future<List<db.ImagingSession>> _fetchRemoteSessions(
-  NetworkBackend backend,
-) async {
-  final sessions = await backend.getAllSessions();
-  final mapped = sessions.map(imagingSessionFromWireJson).toList();
-  // Match SessionsDao.watchAllSessions: newest session first. Several
-  // consumers intentionally use `.first` as the most recent session.
-  mapped.sort((a, b) => b.startTime.compareTo(a.startTime));
-  return mapped;
-}
-
-Future<List<db.CapturedImage>> _fetchRemoteImages(
-  NetworkBackend backend,
-) async {
-  final images = await backend.getAllImageRows();
-  final mapped = images.map(_imageFromJson).toList();
-  // Match ImagesDao.watchAllImages: newest capture first.
-  mapped.sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
-  return mapped;
-}
-
-db.Target _targetFromJson(Map<String, dynamic> json) {
-  return db.Target(
-    id: json['id'] as int,
-    name: json['name'] as String? ?? 'Untitled target',
-    catalogId: json['catalogId'] as String?,
-    objectType: json['objectType'] as String?,
-    ra: (json['ra'] as num?)?.toDouble() ?? 0.0,
-    dec: (json['dec'] as num?)?.toDouble() ?? 0.0,
-    positionAngle: (json['positionAngle'] as num?)?.toDouble(),
-    magnitude: (json['magnitude'] as num?)?.toDouble(),
-    constellation: json['constellation'] as String?,
-    sizeArcmin: (json['sizeArcmin'] as num?)?.toDouble(),
-    minAltitude: (json['minAltitude'] as num?)?.toDouble() ?? 30.0,
-    priority: json['priority'] as int? ?? 5,
-    totalPlannedSubs: json['totalPlannedSubs'] as int? ?? 0,
-    capturedSubs: json['capturedSubs'] as int? ?? 0,
-    totalIntegrationSecs:
-        (json['totalIntegrationSecs'] as num?)?.toDouble() ?? 0.0,
-    goalIntegrationSecs:
-        (json['goalIntegrationSecs'] as num?)?.toDouble() ?? 0.0,
-    filterProgress: json['filterProgress'] as String?,
-    notes: json['notes'] as String?,
-    createdAt: wireTimestamp(json['createdAt']),
-    updatedAt: wireTimestamp(json['updatedAt']),
-    isFavorite: json['isFavorite'] as bool? ?? false,
-  );
-}
-
-db.CapturedImage _imageFromJson(Map<String, dynamic> json) {
-  return db.CapturedImage.fromJson(json);
-}

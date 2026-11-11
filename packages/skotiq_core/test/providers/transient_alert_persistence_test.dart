@@ -211,7 +211,7 @@ void main() {
       final notifier = TransientAlertSettingsNotifier(
         settingsDao: dao,
         logger: logger,
-        remote: backend,
+        remote: backend.remoteHost!.transients,
       );
       addTearDown(notifier.dispose);
 
@@ -252,7 +252,7 @@ void main() {
       final notifier = TransientAlertStatesNotifier(
         settingsDao: dao,
         logger: logger,
-        remote: backend,
+        remote: backend.remoteHost!.transients,
       );
       addTearDown(notifier.dispose);
 

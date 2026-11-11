@@ -44,7 +44,7 @@ void main() {
     );
 
     final path = await validateRemoteFlatOutputDirectory(
-      backend,
+      backend.remoteHost!.files,
       '/host/flats/.',
     );
 
@@ -70,7 +70,7 @@ void main() {
     );
 
     await expectLater(
-      validateRemoteFlatOutputDirectory(backend, '/missing'),
+      validateRemoteFlatOutputDirectory(backend.remoteHost!.files, '/missing'),
       throwsA(
         isA<StateError>().having(
           (error) => error.message,

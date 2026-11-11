@@ -4,7 +4,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
+import '../backend/roles/host_data/host_calibration_frames.dart';
 import '../database/daos/dark_library_dao.dart';
 import '../database/daos/settings_dao.dart';
 import '../database/database.dart';
@@ -14,6 +14,7 @@ import '../services/calibration_master_builder.dart';
 import '../services/calibration_service.dart';
 import '../services/dark_library_service.dart';
 import '../utils/resilient_poll_stream.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 
@@ -32,7 +33,7 @@ final darkLibraryServiceProvider = Provider<DarkLibraryService>((ref) {
 
 /// Reactive stream of all dark library entries (newest first).
 ///
-/// On a remote client (`NetworkBackend`) the slave's local `dark_library`
+/// On a linked client the slave's local `dark_library`
 /// table is never populated — the user's darks/biases live on the master —
 /// so the DAO stream would render empty. That branch polls the host's
 /// `GET /api/calibration/darks` (`listDarks()`) and maps each
@@ -42,8 +43,9 @@ final darkLibraryEntriesProvider = StreamProvider<List<DarkLibraryEntry>>((
   ref,
 ) {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return _pollRemoteDarkEntries(backend);
+  final remote = backend.remoteHost?.calibrationFrames;
+  if (remote != null) {
+    return _pollRemoteDarkEntries(remote);
   }
   return ref.watch(darkLibraryDaoProvider).watchAllEntries();
 });
@@ -54,7 +56,8 @@ final darkLibraryEntriesProvider = StreamProvider<List<DarkLibraryEntry>>((
 /// derive the stats from the (remote-aware) entries stream instead.
 final darkLibraryStatsProvider = FutureProvider<DarkLibraryStats>((ref) async {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
+  final remote = backend.remoteHost?.calibrationFrames;
+  if (remote != null) {
     final entries = await ref.watch(darkLibraryEntriesProvider.future);
     return _statsFromEntries(entries);
   }
@@ -67,10 +70,10 @@ final darkLibraryStatsProvider = FutureProvider<DarkLibraryStats>((ref) async {
 /// `_pollRemote` change-guard used by the canonical remote list providers in
 /// `database_provider.dart`.
 Stream<List<DarkLibraryEntry>> _pollRemoteDarkEntries(
-  NetworkBackend backend, {
+  HostCalibrationFrames remote, {
   Duration interval = const Duration(seconds: 10),
 }) => resilientDistinctPoll(
-  fetch: () => _fetchRemoteDarkEntries(backend),
+  fetch: () => _fetchRemoteDarkEntries(remote),
   unchanged: listEquals,
   interval: interval,
   onRetainedError: (error, stackTrace) {
@@ -85,11 +88,11 @@ Stream<List<DarkLibraryEntry>> _pollRemoteDarkEntries(
 );
 
 Future<List<DarkLibraryEntry>> _fetchRemoteDarkEntries(
-  NetworkBackend backend,
+  HostCalibrationFrames remote,
 ) async {
   // listDarks() with no filter returns both darks and biases (frameType
   // carried on each row). Order newest-first to match `watchAllEntries()`.
-  final rows = await backend.listDarks();
+  final rows = await remote.listDarks();
   final mapped = rows.map(_darkEntryFromRemote).toList()
     ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   return mapped;
@@ -232,9 +235,10 @@ class DarkLibrarySettingsSnapshot {
 final darkLibrarySettingsProvider =
     FutureProvider.autoDispose<DarkLibrarySettingsSnapshot>((ref) async {
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
+      final remote = backend.remoteHost?.calibrationFrames;
+      if (remote != null) {
         return DarkLibrarySettingsSnapshot.fromJson(
-          await backend.getDarkLibrarySettings(),
+          await remote.getDarkLibrarySettings(),
         );
       }
       final stored = await ref.watch(allSettingsProvider.future);
@@ -250,27 +254,26 @@ final darkLibrarySettingsProvider =
 
 final darkLibrarySettingsActionsProvider = Provider((ref) {
   final backend = ref.watch(backendProvider);
+  final remote = backend.remoteHost?.calibrationFrames;
   return DarkLibrarySettingsActions(
     ref,
-    remote: backend is NetworkBackend ? backend : null,
-    localCalibration: backend is NetworkBackend
+    remote: remote,
+    localCalibration: remote != null
         ? null
         : ref.read(calibrationSettingsProvider.notifier),
-    localSettings: backend is NetworkBackend
-        ? null
-        : ref.read(settingsDaoProvider),
+    localSettings: remote != null ? null : ref.read(settingsDaoProvider),
   );
 });
 
 class DarkLibrarySettingsActions {
   final Ref _ref;
-  final NetworkBackend? _remote;
+  final HostCalibrationFrames? _remote;
   final CalibrationSettingsNotifier? _localCalibration;
   final SettingsDao? _localSettings;
 
   DarkLibrarySettingsActions(
     this._ref, {
-    required NetworkBackend? remote,
+    required HostCalibrationFrames? remote,
     required CalibrationSettingsNotifier? localCalibration,
     required SettingsDao? localSettings,
   }) : _remote = remote,
@@ -306,12 +309,11 @@ class DarkLibrarySettingsActions {
 final darkLibraryNotifierProvider =
     StateNotifierProvider<DarkLibraryNotifier, DarkLibraryUiState>((ref) {
       final backend = ref.watch(backendProvider);
+      final remote = backend.remoteHost?.calibrationFrames;
       return DarkLibraryNotifier(
         ref,
-        remote: backend is NetworkBackend ? backend : null,
-        local: backend is NetworkBackend
-            ? null
-            : ref.read(darkLibraryServiceProvider),
+        remote: remote,
+        local: remote != null ? null : ref.read(darkLibraryServiceProvider),
       );
     });
 
@@ -370,12 +372,12 @@ class DarkLibraryUiState {
 
 class DarkLibraryNotifier extends StateNotifier<DarkLibraryUiState> {
   final Ref ref;
-  final NetworkBackend? _remote;
+  final HostCalibrationFrames? _remote;
   final DarkLibraryService? _local;
 
   DarkLibraryNotifier(
     this.ref, {
-    required NetworkBackend? remote,
+    required HostCalibrationFrames? remote,
     required DarkLibraryService? local,
   }) : _remote = remote,
        _local = local,

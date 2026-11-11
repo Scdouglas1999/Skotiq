@@ -3,7 +3,6 @@ import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
 import '../database/database.dart';
 import '../models/backend/sequencer_status.dart';
 import '../models/sequence/sequence_models.dart';
@@ -12,6 +11,8 @@ import '../database/daos/sequence_versions_dao.dart';
 import '../database/daos/session_diagnostics_dao.dart';
 import '../utils/duration_format.dart';
 import 'backend_provider.dart';
+import '../backend/remote_host.dart';
+import '../backend/roles/host_data/host_records.dart';
 import 'database_provider.dart';
 
 // Post-session statistics model
@@ -564,19 +565,17 @@ final completedImagingRunProvider = StateProvider<CompletedImagingRun?>(
   (ref) => null,
 );
 
-/// Watch all sequence runs from the database.
-///
-/// On a slave (NetworkBackend) the local `sequence_runs` table is never
-/// populated, so this polls the host's `/api/sequence-runs` instead — without
-/// the branch the dashboard recap, cockpit Morning Report, and History tab all
-/// render empty even after the master imaged all night.
+/// The recorded sequence runs of whichever machine is the imaging host.
+final runHistoryProvider = Provider<RunHistory>(
+  (ref) =>
+      ref.watch(backendProvider).remoteHost?.records ??
+      ref.watch(sequenceRunsDaoProvider),
+);
+
+/// Every sequence run on the imaging host, newest first. The dashboard recap,
+/// the Morning Report and the History tab read this.
 final sequenceRunsProvider = StreamProvider<List<SequenceRun>>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return pollRemoteSequenceRuns(backend);
-  }
-  final dao = ref.watch(sequenceRunsDaoProvider);
-  return dao.watchAllRuns();
+  return ref.watch(runHistoryProvider).watchAllRuns();
 });
 
 /// Best-effort legacy join for a run that has no captured frame provenance.
@@ -626,10 +625,5 @@ int? resolveSessionIdForSequenceRun(
 /// Watch runs for a specific sequence.
 final sequenceRunsForSequenceProvider =
     StreamProvider.family<List<SequenceRun>, int>((ref, sequenceId) {
-      final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
-        return pollRemoteSequenceRuns(backend, sequenceId: sequenceId);
-      }
-      final dao = ref.watch(sequenceRunsDaoProvider);
-      return dao.watchRunsForSequence(sequenceId);
+      return ref.watch(runHistoryProvider).watchRunsForSequence(sequenceId);
     });
