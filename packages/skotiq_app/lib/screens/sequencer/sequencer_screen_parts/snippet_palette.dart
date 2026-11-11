@@ -33,5 +33,3 @@ class _SnippetPaletteContent extends ConsumerWidget {
     );
   }
 }
-
-/// A panel that can collapse to a thin icon strip or expand to full content

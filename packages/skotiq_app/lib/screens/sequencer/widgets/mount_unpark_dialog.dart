@@ -8,22 +8,17 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../services/mount_command_service.dart';
 import '../../../utils/snackbar_helper.dart';
 
-/// Result from the mount unpark dialog
 enum MountUnparkResult {
-  /// User chose to unpark and continue
   unparkAndContinue,
 
-  /// User cancelled the sequence
   cancel,
 }
 
 /// Dialog shown when the mount is parked before starting a sequence.
 /// Provides a 15-second countdown with options to unpark immediately or cancel.
 class MountUnparkDialog extends ConsumerStatefulWidget {
-  /// Callback when the user chooses to unpark and continue
   final VoidCallback onUnparkAndContinue;
 
-  /// Callback when the user cancels
   final VoidCallback onCancel;
 
   /// Countdown duration in seconds
@@ -237,7 +232,6 @@ class _MountUnparkDialogState extends ConsumerState<MountUnparkDialog> {
   }
 }
 
-/// Shows the mount unpark dialog and returns the result
 Future<MountUnparkResult?> showMountUnparkDialog(BuildContext context) async {
   MountUnparkResult? result;
 

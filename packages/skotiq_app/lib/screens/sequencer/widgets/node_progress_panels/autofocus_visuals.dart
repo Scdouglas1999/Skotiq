@@ -42,7 +42,6 @@ class _StarZoomPanel extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Star image
           Container(
             width: 80,
             height: 80,
@@ -59,7 +58,6 @@ class _StarZoomPanel extends StatelessWidget {
                   ),
           ),
 
-          // Navigation row
           Container(
             width: 80,
             padding: const EdgeInsets.symmetric(vertical: 2),
@@ -71,24 +69,20 @@ class _StarZoomPanel extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // Previous arrow
                 _buildNavButton(
                   icon: SkotiqIcons.chevronLeft,
                   onTap: starCrops.length > 1 ? onPrevious : null,
                 ),
-                // Counter
                 Text(
                   '${currentIndex + 1}/${starCrops.length}',
                   style: TextStyle(
                       fontSize: SkotiqTypography.fontSize9,
                       color: colors.textMuted),
                 ),
-                // Next arrow
                 _buildNavButton(
                   icon: SkotiqIcons.chevronRight,
                   onTap: starCrops.length > 1 ? onNext : null,
                 ),
-                // Refresh button
                 if (isRefreshing)
                   SizedBox(
                     width: 12,
@@ -127,7 +121,6 @@ class _StarZoomPanel extends StatelessWidget {
   }
 
   Widget _buildStarImage(StarCrop crop) {
-    // Create a grayscale image from the pixel data
     try {
       final pixels = crop.pixels;
       if (pixels.isEmpty) {
@@ -135,7 +128,6 @@ class _StarZoomPanel extends StatelessWidget {
             child: Icon(SkotiqIcons.error, size: 24, color: colors.textMuted));
       }
 
-      // Build RGBA image from grayscale
       final rgbaPixels = <int>[];
       for (final pixel in pixels) {
         rgbaPixels.add(pixel); // R
@@ -229,7 +221,6 @@ class _VCurvePainter extends CustomPainter {
       return;
     }
 
-    // Margins for axis labels
     const leftMargin = 35.0;
     const bottomMargin = 16.0;
     const topMargin = 8.0;
@@ -238,7 +229,6 @@ class _VCurvePainter extends CustomPainter {
     final chartWidth = size.width - leftMargin - rightMargin;
     final chartHeight = size.height - topMargin - bottomMargin;
 
-    // Calculate value ranges
     final minHfr = points.map((p) => p.hfr).reduce((a, b) => a < b ? a : b);
     final maxHfr = points.map((p) => p.hfr).reduce((a, b) => a > b ? a : b);
     final hfrRange = (maxHfr - minHfr).clamp(0.5, double.infinity);
@@ -246,14 +236,11 @@ class _VCurvePainter extends CustomPainter {
 
     final posRange = (focusRange.max - focusRange.min).toDouble();
 
-    // Draw axis labels
     _drawAxisLabels(canvas, size, leftMargin, bottomMargin, topMargin,
         minHfr - hfrPadding, maxHfr + hfrPadding, focusRange);
 
-    // Draw gridlines
     _drawGridlines(canvas, leftMargin, topMargin, chartWidth, chartHeight);
 
-    // Draw curve and points
     final linePaint = Paint()
       ..color = colors.primary.withValues(alpha: 0.6)
       ..strokeWidth = 2
@@ -286,7 +273,6 @@ class _VCurvePainter extends CustomPainter {
 
     canvas.drawPath(path, linePaint);
 
-    // Mark the minimum HFR point
     final minPoint = points.reduce((a, b) => a.hfr < b.hfr ? a : b);
     final minX = leftMargin +
         ((minPoint.position - focusRange.min) / posRange) * chartWidth;
@@ -329,7 +315,6 @@ class _VCurvePainter extends CustomPainter {
     final textStyle = TextStyle(
         color: colors.textMuted, fontSize: SkotiqTypography.fontSize8);
 
-    // Y-axis label (HFR)
     final yLabel = TextPainter(
       text: TextSpan(text: 'HFR', style: textStyle),
       textDirection: TextDirection.ltr,
@@ -337,7 +322,6 @@ class _VCurvePainter extends CustomPainter {
     yLabel.layout();
     yLabel.paint(canvas, const Offset(2, 4));
 
-    // Min/max HFR values
     final minLabel = TextPainter(
       text: TextSpan(text: minHfr.toStringAsFixed(1), style: textStyle),
       textDirection: TextDirection.ltr,
@@ -353,7 +337,6 @@ class _VCurvePainter extends CustomPainter {
     maxLabel.layout();
     maxLabel.paint(canvas, Offset(2, topMargin));
 
-    // X-axis labels (focus range)
     final rangeLabel = TextPainter(
       text: TextSpan(text: '${range.min} → ${range.max}', style: textStyle),
       textDirection: TextDirection.ltr,
@@ -371,13 +354,11 @@ class _VCurvePainter extends CustomPainter {
       ..color = colors.border.withValues(alpha: 0.3)
       ..strokeWidth = 1;
 
-    // Horizontal gridlines
     for (int i = 0; i <= 4; i++) {
       final y = top + (height * i / 4);
       canvas.drawLine(Offset(left, y), Offset(left + width, y), gridPaint);
     }
 
-    // Vertical gridlines
     for (int i = 0; i <= 4; i++) {
       final x = left + (width * i / 4);
       canvas.drawLine(Offset(x, top), Offset(x, top + height), gridPaint);

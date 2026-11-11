@@ -1,4 +1,3 @@
-// Properties widgets for flow-control nodes: target group, loop, delay, wait-time, conditional, parallel, recovery.
 part of '../node_properties_panel.dart';
 
 class _LoopProperties extends ConsumerWidget {
@@ -114,7 +113,6 @@ class _LoopProperties extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                // Quick set buttons for common times
                 Row(
                   children: [
                     NodeQuickTimeButton(
@@ -127,7 +125,6 @@ class _LoopProperties extends ConsumerWidget {
                         if (site == null) return;
                         final now = DateTime.now();
 
-                        // Calculate for today first
                         var twilight =
                             AstronomyCalculations.calculateTwilightTimes(
                           date: now,
@@ -166,7 +163,6 @@ class _LoopProperties extends ConsumerWidget {
                         if (site == null) return;
                         final now = DateTime.now();
 
-                        // Calculate for today first
                         var twilight =
                             AstronomyCalculations.calculateTwilightTimes(
                           date: now,

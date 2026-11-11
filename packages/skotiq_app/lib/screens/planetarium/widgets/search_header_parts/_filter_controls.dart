@@ -1,7 +1,5 @@
-// Search filter controls and the search category header.
 part of '../search_header.dart';
 
-/// Filter controls panel for search
 class _SearchFilterControls extends StatelessWidget {
   final SkotiqColors colors;
   final SearchFilters filters;
@@ -18,7 +16,6 @@ class _SearchFilterControls extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Object type filter chips
         Text(
           'Object Type',
           style: TextStyle(
@@ -63,7 +60,6 @@ class _SearchFilterControls extends StatelessWidget {
 
         const SizedBox(height: 12),
 
-        // Magnitude range
         Row(
           children: [
             Text(
@@ -133,7 +129,6 @@ class _SearchFilterControls extends StatelessWidget {
 
         const SizedBox(height: 8),
 
-        // Observable now toggle
         GestureDetector(
           onTap: () => onFiltersChanged(
               filters.copyWith(observableNow: !filters.observableNow)),
@@ -174,7 +169,6 @@ class _SearchFilterControls extends StatelessWidget {
 
         const SizedBox(height: 8),
 
-        // Constellation filter
         Row(
           children: [
             Text(
@@ -253,7 +247,6 @@ class _SearchFilterControls extends StatelessWidget {
   }
 }
 
-/// Category header for grouped search results
 class SearchCategoryHeader extends StatelessWidget {
   final String title;
   final IconData icon;

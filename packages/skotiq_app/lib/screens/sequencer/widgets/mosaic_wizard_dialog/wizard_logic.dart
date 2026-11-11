@@ -1,5 +1,4 @@
 // ignore_for_file: invalid_use_of_protected_member
-// Checkpoint probing, panel geometry, time estimates, sequence/project creation and validation dialogs.
 part of '../mosaic_wizard_dialog.dart';
 
 extension _MosaicWizardLogic on _MosaicWizardDialogState {

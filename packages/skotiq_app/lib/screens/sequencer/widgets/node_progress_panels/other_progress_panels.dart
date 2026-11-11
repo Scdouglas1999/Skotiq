@@ -15,7 +15,6 @@ class _SlewProgressPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Parse detail for separation info in centering
     final sepMatch = RegExp(r'(\d+\.?\d*)"?').firstMatch(detail);
     final separation = double.tryParse(sepMatch?.group(1) ?? '');
 
@@ -62,7 +61,6 @@ class _SlewProgressPanel extends StatelessWidget {
   }
 }
 
-/// Progress panel for filter change operations
 class _FilterProgressPanel extends StatelessWidget {
   final SkotiqColors colors;
   final double progressPercent;
@@ -107,7 +105,6 @@ class _FilterProgressPanel extends StatelessWidget {
   }
 }
 
-/// Default progress panel for nodes without specific visualization
 class _DefaultProgressPanel extends StatelessWidget {
   final SkotiqColors colors;
   final double progressPercent;

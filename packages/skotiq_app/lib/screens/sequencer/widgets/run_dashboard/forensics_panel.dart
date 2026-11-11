@@ -136,7 +136,6 @@ class _ForensicsPanelBody extends StatelessWidget {
             ],
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
-          // Cause distribution row: tiny stacked bar with counts.
           _CauseDistributionBar(summary: summary, colors: colors),
           const SizedBox(height: SkotiqTokens.spaceMd),
           // Up to 8 most recent rejections — older rejects are

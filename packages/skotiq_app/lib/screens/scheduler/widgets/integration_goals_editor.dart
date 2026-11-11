@@ -370,7 +370,6 @@ class _GoalRowState extends State<_GoalRow> {
   @override
   void didUpdateWidget(_GoalRow oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Refresh fields when the underlying goal mutates externally.
     if (oldWidget.progress.goal != widget.progress.goal) {
       _countCtl.text = widget.progress.goal.frameCount.toString();
       _priorityCtl.text = widget.progress.goal.priority.toString();

@@ -17,7 +17,6 @@ part 'node_progress_panels/other_progress_panels.dart';
 part 'node_progress_panels/animated_progress_bar.dart';
 part 'node_progress_panels/last_known_node_progress.dart';
 
-/// Factory that returns the appropriate progress panel widget for a node type
 Widget getProgressPanelForNode({
   required SequenceNode node,
   required SkotiqColors colors,
@@ -28,7 +27,6 @@ Widget getProgressPanelForNode({
   String? runFilter,
   NodeExposureTally? exposureTally,
 }) {
-  // Parse progress detail to extract relevant info
   final detail = progressDetail ?? '';
 
   if (node is CoolCameraNode || node is WarmCameraNode) {
@@ -79,7 +77,6 @@ Widget getProgressPanelForNode({
     );
   }
 
-  // Default panel for other node types
   return _DefaultProgressPanel(
     colors: colors,
     progressPercent: progressPercent,

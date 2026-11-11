@@ -64,7 +64,6 @@ class _NodePaletteContentState extends ConsumerState<_NodePaletteContent> {
           ),
         ),
 
-        // Categories
         Expanded(
           child: ScrollConfiguration(
             behavior: ScrollConfiguration.of(context).copyWith(

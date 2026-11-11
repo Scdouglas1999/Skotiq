@@ -1,7 +1,3 @@
-// Part of ../node_properties_panel.dart -- migrated from the former
-// instruction_node_properties library. Richer
-// capture-side editors: Cool/Warm camera, Filter change, and Notification
-// (template title/message + transport multi-select + live preview).
 part of '../node_properties_panel.dart';
 
 class _CoolCameraProperties extends ConsumerWidget {
@@ -69,8 +65,6 @@ class _FilterChangeProperties extends ConsumerWidget {
     // [builderFilterSource].
     final filterNames = builderFilterSource(ref).names;
 
-    // Build list of filter options with their indices
-    // Each item is a record of (index, name)
     final filterOptions = <({int index, String name})>[
       for (int i = 0; i < filterNames.length; i++)
         (index: i, name: filterNames[i]),

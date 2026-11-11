@@ -24,7 +24,6 @@ part 'preflight_validation_dialog/section_builders.dart';
 // ValidationSeverity / ValidationResult types directly, so there is one source
 // of truth for sequence validation across the app.
 
-/// Pre-flight validation dialog
 class PreFlightValidationDialog extends ConsumerStatefulWidget {
   final VoidCallback? onStartSequence;
 
@@ -231,7 +230,6 @@ class _PreFlightValidationDialogState
   /// at sequence start so the IntegrationBudget tracker can either
   /// reuse or ignore the prior-session frames.
   Future<void> _handleStartSequence() async {
-    // Check if a mount is connected and parked
     final mountState = ref.read(mountStateProvider);
     final isMountConnected =
         mountState.connectionState == DeviceConnectionState.connected;
@@ -288,7 +286,6 @@ class _PreFlightValidationDialogState
       Navigator.of(context).pop();
     }
 
-    // Surface the carry-over handoff dialog when there is something to carry.
     if (carry.isNotEmpty) {
       if (!navigator.mounted) return;
       final sequenceId = ref.read(currentSequenceProvider)?.databaseId;
@@ -316,7 +313,6 @@ class _PreFlightValidationDialogState
       if (!navigator.mounted) return;
       final result = await showMountUnparkDialog(navigator.context);
 
-      // Only start the sequence if the user chose to unpark
       if (result == MountUnparkResult.unparkAndContinue) {
         _authorizeStartWithoutHistory(startWithoutHistory);
         widget.onStartSequence?.call();

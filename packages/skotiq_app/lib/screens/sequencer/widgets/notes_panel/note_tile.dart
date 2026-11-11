@@ -196,8 +196,6 @@ class _NoteTile extends StatelessWidget {
   }
 }
 
-// Markdown rendering helpers for _NoteTile
-
 /// Truncate the note body to ~`maxLines * 80` characters before passing
 /// it to [MarkdownBody], appending an ellipsis when we cut. We do this
 /// rather than relying on `MarkdownBody`'s built-in clamping (it has
@@ -286,8 +284,6 @@ MarkdownStyleSheet _noteBodyMarkdownStyle(
     tableBorder: TableBorder.all(color: colors.border, width: 0.5),
   );
 }
-
-// Note editor dialog (create + edit)
 
 /// Modal for creating or editing a [JournalNote]. Returns the saved
 /// note via `Navigator.pop`, or `null` when the user cancels.

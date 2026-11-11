@@ -1,4 +1,3 @@
-// Observing-list dialog, rows, score badges and candidate chips.
 part of '../planner_screen.dart';
 
 /// Host-bound add/create flow for a Planner candidate.
@@ -416,13 +415,10 @@ class _CandidateSkeleton extends StatelessWidget {
   static const double _readoutHeight = 30;
   static const double _buttonHeight = 28;
 
-  /// Width of one readout placeholder.
   static const double _readoutWidth = 90;
 
-  /// Width of the action placeholder.
   static const double _actionWidth = 96;
 
-  /// Width of the window-bar placeholder.
   static const double _windowWidth = 120;
 
   /// Below this the trailing placeholders are dropped rather than overflowed:

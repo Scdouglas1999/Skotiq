@@ -1,4 +1,3 @@
-// Delete-sequence dialog and the favourite toggle.
 part of '../sequence_library_tab.dart';
 
 class _DeleteSequenceDialog extends ConsumerStatefulWidget {

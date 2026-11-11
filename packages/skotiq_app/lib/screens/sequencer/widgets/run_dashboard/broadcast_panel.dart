@@ -112,7 +112,6 @@ class _ActiveCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header row with live indicator + mode badges.
             Row(
               children: [
                 _LiveDot(color: liveColor),
@@ -148,7 +147,6 @@ class _ActiveCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            // URL + copy button.
             Row(
               children: [
                 Expanded(
@@ -177,7 +175,6 @@ class _ActiveCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            // QR + stats side-by-side.
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

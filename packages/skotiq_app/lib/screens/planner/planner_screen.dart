@@ -136,7 +136,6 @@ const String kPlannerSiteFilterRefusal =
 bool plannerSiteUnset(LocationSettings? location) =>
     location == null || (location.latitude == 0.0 && location.longitude == 0.0);
 
-/// The planner has no observing site to plan for.
 class PlannerSiteUnsetError implements Exception {
   const PlannerSiteUnsetError();
 

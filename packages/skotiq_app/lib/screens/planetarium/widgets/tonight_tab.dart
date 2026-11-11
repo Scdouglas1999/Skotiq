@@ -116,7 +116,6 @@ class TonightTab extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Location indicator
           _LocationIndicator(
             colors: colors,
             site: site,
@@ -149,7 +148,6 @@ class TonightTab extends ConsumerWidget {
           ],
 
           if (twilight != null) ...[
-            // Twilight card - Evening
             InfoCard(
               title: 'Evening twilight',
               icon: SkotiqIcons.sunset,
@@ -188,7 +186,6 @@ class TonightTab extends ConsumerWidget {
 
             const SizedBox(height: 16),
 
-            // Darkness duration card
             if (twilight.astronomicalDusk != null &&
                 twilight.astronomicalDawn != null)
               DarknessCard(
@@ -198,7 +195,6 @@ class TonightTab extends ConsumerWidget {
 
             const SizedBox(height: 16),
 
-            // Morning Twilight card
             InfoCard(
               title: 'Morning twilight',
               icon: SkotiqIcons.sunrise,
@@ -238,7 +234,6 @@ class TonightTab extends ConsumerWidget {
             const SizedBox(height: 16),
           ],
 
-          // Moon card
           InfoCard(
             title: 'Moon',
             icon: SkotiqIcons.moon,
@@ -304,7 +299,6 @@ class TonightTab extends ConsumerWidget {
 
           const SizedBox(height: 16),
 
-          // Best targets tonight header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -469,7 +463,6 @@ class TonightTab extends ConsumerWidget {
 
           const SizedBox(height: 16),
 
-          // Satellite passes section
           _SatellitePassesSection(colors: colors),
         ],
       ),

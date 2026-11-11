@@ -31,8 +31,6 @@ part 'quick_start_wizard_dialog/_review_step.dart';
 
 part 'quick_start_wizard_dialog/_wizard_helpers.dart';
 
-// WIZARD STATE
-
 /// Fallback baselines used only when no matching setting / Smart-Night
 /// recommendation is available. Named so a "fresh install" fallback never
 /// silently masks a missing settings field.
@@ -58,7 +56,6 @@ const double _kWizardGuideSettlePixelsFallback = 1.5;
 const double _kWizardGuideSettleSecondsFallback = 10.0;
 const double _kWizardGuideSettleTimeoutFallback = 60.0;
 
-/// Per-filter exposure configuration in the wizard
 class _FilterExposureConfig {
   String filterName;
   int filterIndex;
@@ -77,7 +74,6 @@ class _FilterExposureConfig {
   double get totalSecs => exposureSecs;
 }
 
-/// Preset for common filter+exposure combinations
 enum _ExposurePreset {
   lrgbBroadband,
   narrowbandSho,
@@ -117,8 +113,6 @@ extension _ExposurePresetLabel on _ExposurePreset {
     }
   }
 }
-
-// WIZARD DIALOG
 
 /// Where a target suggestion in step 1 came from.
 enum _TargetSource { catalog, library, simbad }
@@ -201,7 +195,6 @@ class _QuickStartWizardDialogState
   int _currentStep = 0;
   static const int _totalSteps = 5;
 
-  // Step 1: Target
   final _targetNameController = TextEditingController();
   final _raController = TextEditingController();
   final _decController = TextEditingController();
@@ -222,7 +215,6 @@ class _QuickStartWizardDialogState
   Object? _searchError;
   String? _onlineLookupMessage;
 
-  // Step 2: Filters & Exposures
   List<_FilterExposureConfig> _filterConfigs = [];
   _ExposurePreset _selectedPreset = _ExposurePreset.custom;
   SmartNightExposureContext? _exposureContext;
@@ -244,7 +236,6 @@ class _QuickStartWizardDialogState
   /// [_initFilterConfigs] and synced from outside in [_syncFilterControllers].
   final Map<int, TextEditingController> _filterControllers = {};
 
-  // Step 3: Automation
   bool _enableAutofocus = true;
   int _autofocusEveryFrames = _kWizardAutofocusEveryFramesFallback;
   bool _enableDithering = true;
@@ -252,7 +243,6 @@ class _QuickStartWizardDialogState
   bool _enableMeridianFlip = true;
   bool _enableAutoGuide = true;
 
-  // Step 4: Safety
   bool _parkOnError = true;
   bool _weatherAbort = false;
   bool _dawnShutdown = true;
@@ -343,8 +333,6 @@ class _QuickStartWizardDialogState
     super.dispose();
   }
 
-  // Sequence generation
-
   Future<void> _createSequence() => _finishWizard(asTemplate: false);
 
   /// Save the wizard's sequence as a reusable template instead of loading it
@@ -355,7 +343,6 @@ class _QuickStartWizardDialogState
     if (_finishingAsTemplate != null) return;
     final authority = ref.read(backendProvider);
     final generation = _authorityGeneration;
-    // Validate target
     final targetName = _targetNameController.text.trim();
     if (targetName.isEmpty) {
       context.showErrorSnackBar('Please enter a target name');
@@ -377,13 +364,11 @@ class _QuickStartWizardDialogState
       return;
     }
 
-    // Build the sequence tree
     final nodes = <String, SequenceNode>{};
     final rootId = const Uuid().v4();
     final rootChildIds = <String>[];
     var orderIndex = 0;
 
-    // -- Cool camera
     if (_coolCamera) {
       final coolId = const Uuid().v4();
       nodes[coolId] = CoolCameraNode(
@@ -395,7 +380,6 @@ class _QuickStartWizardDialogState
       rootChildIds.add(coolId);
     }
 
-    // -- Slew to target
     final slewId = const Uuid().v4();
     nodes[slewId] = SlewNode(
       id: slewId,
@@ -405,7 +389,6 @@ class _QuickStartWizardDialogState
     );
     rootChildIds.add(slewId);
 
-    // -- Plate solve & center
     final centerId = const Uuid().v4();
     nodes[centerId] = CenterNode(
       id: centerId,
@@ -415,7 +398,6 @@ class _QuickStartWizardDialogState
     );
     rootChildIds.add(centerId);
 
-    // -- Initial autofocus
     if (_enableAutofocus) {
       final afId = const Uuid().v4();
       nodes[afId] = AutofocusNode(
@@ -427,7 +409,6 @@ class _QuickStartWizardDialogState
       rootChildIds.add(afId);
     }
 
-    // -- Start guiding
     if (_enableAutoGuide) {
       final guideId = const Uuid().v4();
       // Settle parameters honour the user's Sequencer Settings dither/
@@ -450,12 +431,10 @@ class _QuickStartWizardDialogState
       rootChildIds.add(guideId);
     }
 
-    // -- Main capture loop
     final loopId = const Uuid().v4();
     final loopChildIds = <String>[];
     var loopOrderIndex = 0;
 
-    // Build exposure nodes for each enabled filter inside the loop
     for (final filterConfig in enabledFilters) {
       final expId = const Uuid().v4();
       final hasFilterWheel = _hasConfiguredFilters;
@@ -498,7 +477,6 @@ class _QuickStartWizardDialogState
       loopChildIds.add(flipId);
     }
 
-    // -- Dither after each loop iteration
     if (_enableDithering && _enableAutoGuide) {
       final ditherId = const Uuid().v4();
       final sequencerDefaults = ref.read(sequencerDefaultsProvider);
@@ -515,7 +493,6 @@ class _QuickStartWizardDialogState
       loopChildIds.add(ditherId);
     }
 
-    // Create the loop node
     nodes[loopId] = LoopNode(
       id: loopId,
       name: 'Capture Loop',
@@ -527,7 +504,6 @@ class _QuickStartWizardDialogState
     );
     rootChildIds.add(loopId);
 
-    // -- Stop guiding
     if (_enableAutoGuide) {
       final stopGuideId = const Uuid().v4();
       nodes[stopGuideId] = StopGuidingNode(
@@ -539,7 +515,6 @@ class _QuickStartWizardDialogState
       rootChildIds.add(stopGuideId);
     }
 
-    // -- Warm camera
     if (_coolCamera) {
       final warmId = const Uuid().v4();
       nodes[warmId] = WarmCameraNode(
@@ -568,7 +543,6 @@ class _QuickStartWizardDialogState
       rootChildIds.add(parkId);
     }
 
-    // -- Create the target header as root
     final targetHeaderId = const Uuid().v4();
     nodes[targetHeaderId] = TargetHeaderNode(
       id: targetHeaderId,
@@ -580,7 +554,6 @@ class _QuickStartWizardDialogState
       orderIndex: 0,
     );
 
-    // -- Create the InstructionSet root inside the target
     nodes[rootId] = InstructionSetNode(
       id: rootId,
       name: 'Sequence',
@@ -592,7 +565,6 @@ class _QuickStartWizardDialogState
     // -- Create triggers as parallel watchdogs if needed
     // Triggers run alongside the capture loop
     if (_enableAutofocus && _autofocusEveryFrames > 0) {
-      // HFR degradation trigger for refocusing
       final hfrTriggerId = const Uuid().v4();
       nodes[hfrTriggerId] = RecoveryNode(
         id: hfrTriggerId,
@@ -609,7 +581,6 @@ class _QuickStartWizardDialogState
           .copyWith(childIds: [rootId, hfrTriggerId]);
     }
 
-    // -- Weather abort recovery
     if (_weatherAbort) {
       final weatherRecoveryId = const Uuid().v4();
       nodes[weatherRecoveryId] = RecoveryNode(
@@ -651,7 +622,6 @@ class _QuickStartWizardDialogState
       );
     }
 
-    // Build the Sequence object
     final sequence = Sequence.create(
       name: '$targetName Sequence',
       description: _buildDescription(enabledFilters),

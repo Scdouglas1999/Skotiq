@@ -149,15 +149,12 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
 
         const SizedBox(width: 8),
 
-        // Icon
         _buildSequenceIcon(),
 
         const SizedBox(width: 16),
 
-        // Info
         Expanded(child: info),
 
-        // Actions
         AnimatedOpacity(
           opacity: _isHovered ? 1.0 : 0.5,
           duration: const Duration(milliseconds: 150),

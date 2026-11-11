@@ -91,7 +91,6 @@ class SearchResultCard extends StatelessWidget {
     final parts = <String>[];
     final (_, catalogTag) = getDsoDisplayInfo(dso);
     parts.add(catalogTag);
-    // Show first common name if available and different from display name
     if (dso.commonNames != null && dso.commonNames!.isNotEmpty) {
       final firstName = dso.commonNames!.split(',').first.trim();
       final (displayName, _) = getDsoDisplayInfo(dso);

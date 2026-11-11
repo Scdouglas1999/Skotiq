@@ -1,6 +1,3 @@
-// Part of ../node_properties_panel.dart -- migrated from the former
-// instruction_node_properties library.
-// Sky-brightness adaptive-exposure config block + per-filter override row.
 part of '../node_properties_panel.dart';
 
 class _AdaptiveExposureSection extends ConsumerStatefulWidget {

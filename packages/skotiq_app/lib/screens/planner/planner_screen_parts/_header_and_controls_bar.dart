@@ -1,4 +1,3 @@
-// Top-of-screen chrome: the planner header (title + icon) and the controls bar that arranges search, filter chips, and sort.
 part of '../planner_screen.dart';
 
 /// The two facts the page header carries about tonight: the moon's
@@ -87,8 +86,6 @@ class _PlanNightChips extends ConsumerWidget {
   static String _hhmm(DateTime t) => '${t.hour.toString().padLeft(2, '0')}:'
       '${t.minute.toString().padLeft(2, '0')}';
 }
-
-// Controls bar (search, filters, sort)
 
 /// The search field's width on the desktop filter row (06 §Plan: "300 px
 /// search field").

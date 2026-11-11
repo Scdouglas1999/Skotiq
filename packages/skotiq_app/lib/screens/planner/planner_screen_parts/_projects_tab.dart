@@ -11,7 +11,6 @@
 // head-on once that UI lands.
 part of '../planner_screen.dart';
 
-/// Which progress scope the consolidated "Projects" tab shows.
 enum _ProjectsScope { thisProject, allTargets }
 
 class _ProjectsTab extends StatefulWidget {

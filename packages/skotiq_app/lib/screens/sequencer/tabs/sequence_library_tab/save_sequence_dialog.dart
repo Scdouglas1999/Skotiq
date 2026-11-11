@@ -283,7 +283,6 @@ class _SaveSequenceDialogState extends ConsumerState<_SaveSequenceDialog> {
 
               const SizedBox(height: 24),
 
-              // Name field
               Text(
                 'Sequence Name',
                 style: SkotiqTypography.h6
@@ -314,7 +313,6 @@ class _SaveSequenceDialogState extends ConsumerState<_SaveSequenceDialog> {
 
               const SizedBox(height: 20),
 
-              // Description field
               Text(
                 'Description (optional)',
                 style: SkotiqTypography.h6
@@ -346,7 +344,6 @@ class _SaveSequenceDialogState extends ConsumerState<_SaveSequenceDialog> {
 
               const SizedBox(height: 24),
 
-              // Info
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -372,7 +369,6 @@ class _SaveSequenceDialogState extends ConsumerState<_SaveSequenceDialog> {
 
               const SizedBox(height: 24),
 
-              // Actions
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [

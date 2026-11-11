@@ -159,11 +159,3 @@ class _TargetEditorOverlay extends ConsumerWidget {
     );
   }
 }
-
-/// Empty-state placeholder shown in the queue table when the scheduler has
-/// no candidate targets to score (either because the database is empty or
-/// because the engine has not produced a first decision yet).
-///
-/// Tells the user what the scheduler does, points at the next concrete
-/// action (open the planner / target catalog), and exposes an inline
-/// "Learn more" expander explaining the scoring inputs.

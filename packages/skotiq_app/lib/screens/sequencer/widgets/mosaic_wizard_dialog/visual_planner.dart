@@ -454,5 +454,3 @@ class _PanelLayer extends StatelessWidget {
     );
   }
 }
-
-// Painters

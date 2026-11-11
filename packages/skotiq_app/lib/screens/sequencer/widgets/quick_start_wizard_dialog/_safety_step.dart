@@ -2,8 +2,6 @@
 part of '../quick_start_wizard_dialog.dart';
 
 extension _SafetyStep on _QuickStartWizardDialogState {
-  // STEP 4: SAFETY
-
   Widget _buildSafetyStep(SkotiqColors colors) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -23,7 +23,6 @@
 
 import 'package:skotiq_core/skotiq_core.dart';
 
-/// What a subtree plans to capture.
 class PlannedCapture {
   /// Frames with a known, bounded count (loop multipliers applied).
   final int frames;
@@ -150,7 +149,6 @@ PlannedCapture plannedCaptureUnder(Sequence sequence, String rootId) {
   );
 }
 
-/// Total planned capture for the whole [sequence], walking from its root.
 PlannedCapture plannedCaptureForSequence(Sequence sequence) {
   final rootId = sequence.rootNodeId;
   if (rootId == null) return PlannedCapture.empty;

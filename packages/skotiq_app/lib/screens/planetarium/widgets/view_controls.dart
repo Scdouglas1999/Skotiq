@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
-/// Quality settings popup button
 class QualitySettingsButton extends ConsumerWidget {
   final SkotiqColors colors;
 
@@ -136,7 +135,6 @@ Widget _namedCommandBarPopup({required String name, required Widget child}) {
   );
 }
 
-/// Projection selector popup button
 class ProjectionSelectorButton extends ConsumerWidget {
   final SkotiqColors colors;
 

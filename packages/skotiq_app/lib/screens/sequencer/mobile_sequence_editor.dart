@@ -41,8 +41,6 @@ import 'widgets/node_palette.dart';
 import 'widgets/node_properties_panel.dart';
 import 'widgets/run_dashboard/recovery_banner.dart';
 
-// MOBILE SEQUENCE EDITOR
-
 /// Touch-friendly sequence authoring surface for the mobile companion app.
 ///
 /// Designed to live inside an `Expanded` slot — uses a `Column` with an
@@ -384,8 +382,6 @@ class _MobileSequenceEditorState extends ConsumerState<MobileSequenceEditor> {
   }
 }
 
-// ROW MODEL + WIDGET
-
 class _NodeRow {
   final SequenceNode node;
   final int depth;
@@ -601,8 +597,6 @@ class _AddNodeFab extends StatelessWidget {
     );
   }
 }
-
-// SEQUENCER RECOVERY ACTIONS BANNER (phone variant)
 
 /// Compact phone variant of [RunDashboardRecoveryBanner].
 ///

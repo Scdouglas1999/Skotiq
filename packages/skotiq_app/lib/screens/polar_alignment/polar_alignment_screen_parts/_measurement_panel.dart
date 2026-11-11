@@ -222,7 +222,6 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
           ),
           const SizedBox(height: 20),
 
-          // Azimuth direction
           Text(
             'Azimuth',
             style: TextStyle(
@@ -256,7 +255,6 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
 
           const SizedBox(height: 20),
 
-          // Altitude direction
           Text(
             'Altitude',
             style: TextStyle(
@@ -301,7 +299,6 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
 
           const SizedBox(height: SkotiqTokens.spaceLg),
 
-          // Progress toward threshold
           Text(
             'Threshold: ${formatPolarError(config.autoCompleteThreshold)}',
             style: TextStyle(
@@ -329,7 +326,6 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
           ),
           const SizedBox(height: 12),
 
-          // Auto-complete indicator
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -369,6 +365,4 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
       ),
     );
   }
-
-  /// Task 4.3: Before/After Summary Card
 }

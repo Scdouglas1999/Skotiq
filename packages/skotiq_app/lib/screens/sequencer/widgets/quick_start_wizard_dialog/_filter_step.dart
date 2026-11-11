@@ -2,8 +2,6 @@
 part of '../quick_start_wizard_dialog.dart';
 
 extension _FilterStep on _QuickStartWizardDialogState {
-  // STEP 2: FILTERS & EXPOSURES
-
   Widget _buildFiltersStep(SkotiqColors colors) {
     final hasFilters = _hasConfiguredFilters;
 
@@ -73,7 +71,6 @@ extension _FilterStep on _QuickStartWizardDialogState {
         ),
         const SizedBox(height: 8),
 
-        // Column headers
         Padding(
           padding: const EdgeInsets.only(left: 40),
           child: Row(

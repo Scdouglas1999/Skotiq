@@ -36,13 +36,11 @@ class UnfoldedGroupIdsNotifier extends StateNotifier<Set<String>> {
 
   bool isUnfolded(String groupId) => state.contains(groupId);
 
-  /// Expand a folded group into its member rows.
   void unfold(String groupId) {
     if (state.contains(groupId)) return;
     state = {...state, groupId};
   }
 
-  /// Collapse an expanded group back into its folded row.
   void fold(String groupId) {
     if (!state.contains(groupId)) return;
     state = Set<String>.from(state)..remove(groupId);

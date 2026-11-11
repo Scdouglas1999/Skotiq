@@ -171,7 +171,6 @@ class _HistoryTabState extends ConsumerState<HistoryTab> {
 
           const SizedBox(height: 16),
 
-          // Content
           Expanded(
             child: ref.watch(filteredRunsProvider).when(
                   data: (rows) {
@@ -564,7 +563,6 @@ class _RunCard extends ConsumerWidget {
           borderRadius: SkotiqTokens.radiusLg,
           child: Row(
             children: [
-              // Status icon
               Container(
                 width: 40,
                 height: 40,
@@ -577,7 +575,6 @@ class _RunCard extends ConsumerWidget {
               ),
               const SizedBox(width: 16),
 
-              // Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -598,7 +595,6 @@ class _RunCard extends ConsumerWidget {
                 ),
               ),
 
-              // Quick stats
               if (stats != null) ...[
                 _StatChip(
                   colors: colors,

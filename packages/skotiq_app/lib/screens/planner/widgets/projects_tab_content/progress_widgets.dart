@@ -1,7 +1,5 @@
 part of '../projects_tab_content.dart';
 
-// Active project progress: targets + accrued-vs-remaining roll-up.
-
 class _ActiveProjectProgress extends ConsumerWidget {
   final SkotiqColors colors;
   final Future<void> Function(int projectId, Set<int> attachedIds) onAddTarget;

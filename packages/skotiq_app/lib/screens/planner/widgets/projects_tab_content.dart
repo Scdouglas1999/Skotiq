@@ -160,8 +160,6 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
     );
   }
 
-  // Create / edit / delete project
-
   Future<void> _openCreateDialog() async {
     if (_projectMutationInFlight || _changingProject) return;
     if (_blockedOnRemote()) return;
@@ -364,8 +362,6 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
     }
   }
 
-  // Add target
-
   Future<void> _openAddTargetDialog(int projectId, Set<int> attachedIds) async {
     if (_projectMutationInFlight || _changingProject) return;
     if (_blockedOnRemote()) return;
@@ -471,8 +467,6 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
     }
   }
 
-  // Edit goals
-
   Future<void> _openGoalsDialog(int targetId, String targetName) async {
     final profile = ref.read(activeEquipmentProfileProvider);
     final availableFilters =
@@ -491,8 +485,6 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
       ),
     );
   }
-
-  // Smart night handoff (component C11)
 
   /// One-click handoff of the active project's still-incomplete targets into
   /// the Smart Night planner. Reads the active project's roll-up, pulls out the
@@ -579,8 +571,6 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
     }
   }
 
-  // Body
-
   Widget _buildBody({
     required SkotiqColors colors,
     required List<Project> projects,
@@ -640,8 +630,6 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
       ],
     );
   }
-
-  // Active-selection reconciliation
 
   /// Schedule a write of [fallbackId] into the persisted active-project id.
   ///

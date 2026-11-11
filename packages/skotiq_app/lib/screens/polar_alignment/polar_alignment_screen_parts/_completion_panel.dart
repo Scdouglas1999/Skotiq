@@ -82,14 +82,12 @@ extension _CompletionPanel on _PolarAlignmentScreenState {
             ),
           ),
         const SizedBox(height: 24),
-        // Before/After summary card
         if (state.initialError != null && state.currentError != null)
           _buildCompletionSummary(colors, state),
       ],
     );
   }
 
-  /// Task 4.3: Completion summary widget showing before/after
   Widget _buildCompletionSummary(
       SkotiqColors colors, PolarAlignmentState state) {
     final initial = state.initialError!;
@@ -151,10 +149,8 @@ extension _CompletionPanel on _PolarAlignmentScreenState {
                 ),
                 const SizedBox(height: 20),
 
-                // Before/After comparison
                 Row(
                   children: [
-                    // Before
                     Expanded(
                       child: Container(
                         padding: const EdgeInsets.all(12),
@@ -200,7 +196,6 @@ extension _CompletionPanel on _PolarAlignmentScreenState {
                       ),
                     ),
 
-                    // Arrow
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: Icon(
@@ -262,7 +257,6 @@ extension _CompletionPanel on _PolarAlignmentScreenState {
 
                 const SizedBox(height: 16),
 
-                // Improvement progress bar
                 Text(
                   'Improvement',
                   style: TextStyle(

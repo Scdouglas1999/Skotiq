@@ -1,4 +1,3 @@
-// Top-of-tab chrome and primary action chip: snippet summary card, header with search box, category filter chips, and the _ActionButton primitive.
 part of '../templates_tab.dart';
 
 /// "You have N reusable snippets, and they live on the Builder tab."
@@ -74,20 +73,17 @@ class _TemplatesHeaderState extends ConsumerState<_TemplatesHeader> {
     return _buildDesktopHeader(editingTemplate: editingTemplate);
   }
 
-  /// The desktop search field's width.
   static const double _searchFieldWidth = 250;
 
   Widget _buildMobileHeader({required bool editingTemplate}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Title row with save button
         Row(
           children: [
             // No title block: the page header names the screen and the
             // underline tab names the tab.
             const Spacer(),
-            // Quick-start wizard
             SkotiqButton(
               label: 'Wizard',
               icon: LucideIcons.wand2,
@@ -101,7 +97,6 @@ class _TemplatesHeaderState extends ConsumerState<_TemplatesHeader> {
               },
             ),
             const SizedBox(width: SkotiqTokens.spaceSm),
-            // Save current as template button
             SkotiqButton(
               label: editingTemplate ? 'Update' : 'Save',
               icon: LucideIcons.save,
@@ -112,7 +107,6 @@ class _TemplatesHeaderState extends ConsumerState<_TemplatesHeader> {
           ],
         ),
         const SizedBox(height: SkotiqTokens.spaceMd),
-        // Search field - full width on mobile
         SkotiqTextField(
           controller: _searchController,
           hint: 'Search templates',

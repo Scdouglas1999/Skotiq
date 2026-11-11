@@ -101,15 +101,11 @@ Future<void> showInlineNodeEditor({
   );
 }
 
-// Anchored popup shell — positions [child] against the anchor's rect, tapping
-// outside dismisses (the transparent barrier), and styles the floating surface.
-
 /// The preferred width of the floating editor. Wide enough for a stepper +
 /// label or a comfortable list of filter names, narrow enough to read as a
 /// quick-edit popover rather than a panel.
 const double _kEditorWidth = 232;
 
-/// Gap between the anchor and the popup edge.
 const double _kAnchorGap = SkotiqTokens.spaceXs;
 
 /// Outer margin kept clear of the screen edges so the popup never clips.
@@ -178,8 +174,6 @@ class _AnchoredInlineEditor extends StatelessWidget {
     );
   }
 }
-
-// Editor body — dispatches on [InlineEditKind] to the right control.
 
 class _InlineEditorBody extends ConsumerWidget {
   final SequenceNode node;
@@ -259,8 +253,6 @@ T _expect<T extends SequenceNode>(SequenceNode node, InlineEditKind kind) {
   );
 }
 
-// Shared editor chrome — a small titled section the controls slot into.
-
 class _EditorSection extends StatelessWidget {
   final String title;
   final IconData? icon;
@@ -296,8 +288,6 @@ class _EditorSection extends StatelessWidget {
     );
   }
 }
-
-// Numeric text-field editor — commits clamped-on-change, reformats on blur.
 
 /// A compact numeric field that commits its clamped value on every change and
 /// reformats (snaps to the clamp + canonical text) when focus leaves.
@@ -418,8 +408,6 @@ class _NumericFieldEditorState extends State<_NumericFieldEditor> {
   }
 }
 
-// Stepper editors (integer count / iterations).
-
 class _ExposureCountEditor extends ConsumerWidget {
   final ExposureNode node;
   const _ExposureCountEditor({required this.node});
@@ -469,8 +457,6 @@ class _LoopIterationsEditor extends ConsumerWidget {
     );
   }
 }
-
-// Numeric-field editors (scalars with a sensible clamp range).
 
 class _ExposureDurationEditor extends ConsumerWidget {
   final ExposureNode node;
@@ -609,10 +595,6 @@ class _GainEditor extends ConsumerWidget {
   }
 }
 
-// Menu editors (closed enum / filter picks). A vertical list of tappable rows
-// styled on the elevated surface; the current value is marked with a check.
-
-/// One selectable row in a menu editor.
 class _MenuRow extends StatelessWidget {
   final String label;
   final bool selected;

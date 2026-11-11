@@ -156,7 +156,6 @@ class _PolarAlignmentScreenState extends ConsumerState<PolarAlignmentScreen>
       return;
     }
 
-    // Validate equipment is connected before starting
     final cameraState = ref.read(cameraStateProvider);
     final mountState = ref.read(mountStateProvider);
 

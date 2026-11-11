@@ -75,7 +75,6 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
   Future<void> _save() async {
     setState(() => _isSaving = true);
 
-    // Read location data
     final location = ref.read(observerLocationProvider);
     final activeProfile = ref.read(activeProfileProvider).valueOrNull;
 
@@ -141,7 +140,6 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Object info (read-only)
               _InfoRow(
                 label: 'Object',
                 value: widget.object.name,
@@ -174,7 +172,6 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
               Divider(color: colors.border),
               const SizedBox(height: 16),
 
-              // Rating
               Text(
                 'Rating',
                 style:
@@ -204,7 +201,6 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
 
               const SizedBox(height: 16),
 
-              // Seeing conditions
               Text(
                 'Seeing',
                 style:
@@ -220,7 +216,6 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
 
               const SizedBox(height: 16),
 
-              // Transparency
               Text(
                 'Transparency',
                 style:
@@ -236,7 +231,6 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
 
               const SizedBox(height: 16),
 
-              // Notes
               Text(
                 'Notes',
                 style:

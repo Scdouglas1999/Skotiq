@@ -269,7 +269,6 @@ class _ReplayDebugScreenState extends ConsumerState<ReplayDebugScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Search.
           TextField(
             controller: _searchCtrl,
             decoration: InputDecoration(
@@ -291,7 +290,6 @@ class _ReplayDebugScreenState extends ConsumerState<ReplayDebugScreen> {
             onChanged: (v) => setState(() => _searchTerm = v.trim()),
           ),
           const SizedBox(height: 12),
-          // Category chips.
           Wrap(
             spacing: 8,
             runSpacing: 4,

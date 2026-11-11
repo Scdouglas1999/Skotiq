@@ -1,7 +1,4 @@
-// Polar alignment error visualizations: the sparkline error-trend chart (public ErrorTrendChart) and the auto-scaling error bullseye.
 part of '../polar_alignment_screen.dart';
-
-// Task 4.5: error trend sparkline chart
 
 class ErrorTrendChart extends StatelessWidget {
   final SkotiqColors colors;
@@ -47,24 +44,20 @@ class _SparklinePainter extends CustomPainter {
     final chartWidth = size.width - padding * 2;
     final chartHeight = size.height - padding * 2;
 
-    // Find max error for scaling
     final maxError = errors.fold<double>(
       threshold,
       (max, e) => e.totalError > max ? e.totalError : max,
     );
 
-    // Scale to fit
     final yScale = chartHeight / maxError;
     final xStep = chartWidth / (errors.length - 1).clamp(1, double.infinity);
 
-    // Draw threshold line
     final thresholdY = size.height - padding - (threshold * yScale);
     final thresholdPaint = Paint()
       ..color = colors.success.withValues(alpha: 0.5)
       ..strokeWidth = 1
       ..style = PaintingStyle.stroke;
 
-    // Dashed line for threshold
     const dashWidth = 4.0;
     const dashSpace = 4.0;
     var startX = padding;
@@ -77,7 +70,6 @@ class _SparklinePainter extends CustomPainter {
       startX += dashWidth + dashSpace;
     }
 
-    // Build path for error line
     final path = ui.Path();
     final points = <Offset>[];
 
@@ -94,7 +86,6 @@ class _SparklinePainter extends CustomPainter {
       }
     }
 
-    // Draw gradient fill under the line
     final fillPath = ui.Path.from(path);
     fillPath.lineTo(points.last.dx, size.height - padding);
     fillPath.lineTo(points.first.dx, size.height - padding);
@@ -111,7 +102,6 @@ class _SparklinePainter extends CustomPainter {
       );
     canvas.drawPath(fillPath, gradientPaint);
 
-    // Draw the line
     final linePaint = Paint()
       ..color = colors.primary
       ..strokeWidth = 2
@@ -120,7 +110,6 @@ class _SparklinePainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round;
     canvas.drawPath(path, linePaint);
 
-    // Draw current value dot
     if (points.isNotEmpty) {
       final lastPoint = points.last;
       final dotPaint = Paint()
@@ -128,7 +117,6 @@ class _SparklinePainter extends CustomPainter {
         ..style = PaintingStyle.fill;
       canvas.drawCircle(lastPoint, 4, dotPaint);
 
-      // Outer ring
       final ringPaint = Paint()
         ..color = colors.primary.withValues(alpha: 0.3)
         ..style = PaintingStyle.fill;
@@ -144,8 +132,6 @@ class _SparklinePainter extends CustomPainter {
             oldDelegate.errors.last.totalError != errors.last.totalError);
   }
 }
-
-// Polar error bullseye
 
 class _PolarErrorVisualization extends StatelessWidget {
   final SkotiqColors colors;
@@ -228,7 +214,6 @@ String polarBullseyeRingLabel(double arcsec) {
   return '${trim(arcsec / 3600)}°';
 }
 
-/// Gap between a bullseye ring and its label.
 const double kPolarBullseyeLabelGap = 4;
 
 /// Largest outer-ring radius. Beyond this a bigger target only spreads the
@@ -314,7 +299,6 @@ class _PolarErrorPainter extends CustomPainter {
       );
     }
 
-    // Draw crosshairs
     final crossPaint = Paint()
       ..color = colors.border
       ..strokeWidth = 1;

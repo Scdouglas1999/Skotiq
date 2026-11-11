@@ -1,8 +1,3 @@
-// Part of ../node_properties_panel.dart -- migrated from the former
-// instruction_node_properties library. The richer
-// exposure editor: duration + sky-brightness recommendation card, count,
-// frame type, filter, binning/gain/offset profile-default tracking, dither,
-// the adaptive-exposure sub-section, and a Run Test Exposure action.
 part of '../node_properties_panel.dart';
 
 /// Marker index for the synthetic "stored filter not in this profile" dropdown
@@ -95,8 +90,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
     }
   }
 
-  /// Get the effective gain value: use the node's explicit value if set,
-  /// otherwise fall back to the profile default.
   int _effectiveGain(EquipmentProfileModel? profile) {
     if (_userOverrides.contains('gain') && widget.node.gain != null) {
       return widget.node.gain!;
@@ -104,8 +97,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
     return profile?.defaultGain ?? widget.node.gain ?? 0;
   }
 
-  /// Get the effective offset value: use the node's explicit value if set,
-  /// otherwise fall back to the profile default.
   int _effectiveOffset(EquipmentProfileModel? profile) {
     if (_userOverrides.contains('offset') && widget.node.offset != null) {
       return widget.node.offset!;
@@ -221,7 +212,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                 ref.read(currentSequenceProvider.notifier).updateNode(
                       node.copyWith(durationSecs: value),
                     );
-                // Save as default for future nodes
                 ref
                     .read(sequencerDefaultsProvider.notifier)
                     .updateExposureDefaults(
@@ -272,7 +262,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                 ref.read(currentSequenceProvider.notifier).updateNode(
                       node.copyWith(count: count),
                     );
-                // Save as default for future nodes
                 ref
                     .read(sequencerDefaultsProvider.notifier)
                     .updateExposureDefaults(
@@ -303,7 +292,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
 
           _buildFilterDropdown(context),
 
-          // Binning with profile default indicator
           NodePropertyField(
             colors: colors,
             label: _isBinningProfileDefault()
@@ -319,7 +307,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                 ref.read(currentSequenceProvider.notifier).updateNode(
                       node.copyWith(binning: value),
                     );
-                // Save as default for future nodes
                 ref
                     .read(sequencerDefaultsProvider.notifier)
                     .updateExposureDefaults(
@@ -329,7 +316,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
             ),
           ),
 
-          // Gain and Offset with profile default indicators
           Row(
             children: [
               Expanded(
@@ -352,7 +338,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                       ref.read(currentSequenceProvider.notifier).updateNode(
                             node.copyWith(gain: gain),
                           );
-                      // Save as default for future nodes
                       ref
                           .read(sequencerDefaultsProvider.notifier)
                           .updateExposureDefaults(
@@ -384,7 +369,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                       ref.read(currentSequenceProvider.notifier).updateNode(
                             node.copyWith(offset: offset),
                           );
-                      // Save as default for future nodes
                       ref
                           .read(sequencerDefaultsProvider.notifier)
                           .updateExposureDefaults(
@@ -411,7 +395,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                 ref.read(currentSequenceProvider.notifier).updateNode(
                       node.copyWith(ditherEvery: ditherEvery),
                     );
-                // Save as default for future nodes
                 ref
                     .read(sequencerDefaultsProvider.notifier)
                     .updateExposureDefaults(
@@ -452,7 +435,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
             ),
           ),
 
-          // Summary
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
@@ -489,14 +471,12 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
     // the filenames.
     final filterNames = builderFilterSource(ref).names;
 
-    // Build list of filter options with their indices
     final filterOptions = <({int index, String name})>[
       (index: -1, name: ''), // No filter option
       for (int i = 0; i < filterNames.length; i++)
         (index: i, name: filterNames[i]),
     ];
 
-    // Find current selection
     if (kDebugMode) {
       developer.log(
           '_buildFilterDropdown: node.filter="${node.filter}" node.filterIndex=${node.filterIndex} filterNames=$filterNames',
@@ -822,8 +802,3 @@ class _LongValueWarning extends StatelessWidget {
     );
   }
 }
-
-// Sky-brightness adaptive exposure UI block for the
-// _ExposureProperties panel. Off by default; expanding shows SNR / reference
-// / min / max + per-filter overrides + a live preview the user can glance
-// at to see what the next burst will actually capture at.

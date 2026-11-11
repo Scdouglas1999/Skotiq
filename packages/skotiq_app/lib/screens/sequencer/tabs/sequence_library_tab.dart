@@ -50,7 +50,6 @@ final sequenceTagFilterProvider =
 final sequenceFavoritesOnlyProvider =
     StateProvider.autoDispose<bool>((ref) => false);
 
-/// Sort order for sequences
 enum SequenceSortOrder { name, dateModified, dateCreated, nodeCount }
 
 /// Provider for sort order
@@ -152,17 +151,14 @@ class SequenceLibraryTab extends ConsumerWidget {
       padding: EdgeInsets.all(isMobile ? 12 : 24),
       child: Column(
         children: [
-          // Header
           _LibraryHeader(colors: colors),
 
           const SizedBox(height: 16),
 
-          // Tag / favorite filter row
           _LibraryFilterRow(colors: colors),
 
           const SizedBox(height: 16),
 
-          // Content
           Expanded(
             child: filteredAsync.when(
               data: (filtered) {

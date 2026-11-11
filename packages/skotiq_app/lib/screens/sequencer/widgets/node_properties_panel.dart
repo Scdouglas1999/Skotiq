@@ -94,7 +94,6 @@ class NodePropertiesPanel extends ConsumerWidget {
       BuildContext context, WidgetRef ref, SequenceNode? selectedNode) {
     return Column(
       children: [
-        // Handle bar
         Center(
           child: Container(
             margin: const EdgeInsets.only(top: 12, bottom: 8),
@@ -107,7 +106,6 @@ class NodePropertiesPanel extends ConsumerWidget {
           ),
         ),
 
-        // Header with close button
         Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: SkotiqTokens.spaceLg,
@@ -133,7 +131,6 @@ class NodePropertiesPanel extends ConsumerWidget {
           Divider(color: colors.border, height: 1),
         ],
 
-        // Content
         Expanded(
           child: selectedNode == null
               ? _EmptySelection(colors: colors, isMobile: true)
