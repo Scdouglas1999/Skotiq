@@ -2,8 +2,6 @@
 
 use super::*;
 
-// DeviceDriver implementation
-
 #[async_trait]
 impl DeviceDriver for GPhoto2Camera {
     fn id(&self) -> &str {
@@ -68,7 +66,6 @@ impl DeviceDriver for GPhoto2Camera {
         // stored in `self.gp_camera` / `self.gp_context` and live until `disconnect`.
         // Out-pointer (`camera`) is a stack local.
         unsafe {
-            // Create context
             let context = (sdk.context_new)();
             if context.is_null() {
                 return Err(DriverError::SdkError(
@@ -76,7 +73,6 @@ impl DeviceDriver for GPhoto2Camera {
                 ));
             }
 
-            // Create camera
             let mut camera: *mut GPCamera = std::ptr::null_mut();
             let ret = (sdk.camera_new)(&mut camera);
             if ret < GP_OK || camera.is_null() {
@@ -151,8 +147,6 @@ impl DeviceDriver for GPhoto2Camera {
         Ok(())
     }
 }
-
-// CameraDriver implementation
 
 #[async_trait]
 impl CameraDriver for GPhoto2Camera {
@@ -372,7 +366,6 @@ impl CameraDriver for GPhoto2Camera {
                 start,
                 duration_secs,
             } => {
-                // Check if the bulb exposure duration has elapsed
                 Ok(start.elapsed().as_secs_f64() >= duration_secs)
             }
         }
@@ -453,10 +446,8 @@ impl CameraDriver for GPhoto2Camera {
             ));
         }
 
-        // Download the raw file from camera
         let raw_bytes = self.download_from_camera(&sdk)?;
 
-        // Reset state
         self.exposure_state = ExposureState::Idle;
         self.last_capture_path = None;
 
@@ -665,7 +656,6 @@ impl CameraDriver for GPhoto2Camera {
 
 impl Drop for GPhoto2Camera {
     fn drop(&mut self) {
-        // Ensure camera resources are cleaned up
         if self.connected {
             if let Ok(sdk) = GPhoto2Sdk::installed() {
                 // Unlocked on purpose; the SAFETY note below says why.

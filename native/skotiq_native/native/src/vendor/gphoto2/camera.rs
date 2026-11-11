@@ -50,7 +50,6 @@ pub(crate) const SHUTTER_SPEEDS: &[(f64, &str)] = &[
     (30.0, "30"),
 ];
 
-/// Exposure state tracking
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum ExposureState {
     Idle,
@@ -70,7 +69,6 @@ pub(crate) enum ExposureState {
     },
     /// Exposure done, image waiting to be downloaded from camera storage.
     Complete,
-    /// Exposure failed.
     Failed,
 }
 
@@ -93,17 +91,13 @@ pub(crate) enum BulbWidget {
     BulbToggle,
 }
 
-/// gPhoto2 DSLR/Mirrorless Camera implementation
 pub struct GPhoto2Camera {
     /// Camera index from autodetect
     pub(crate) camera_index: usize,
-    /// Camera model name
     pub(crate) model_name: String,
     /// USB port path
     pub(crate) port_path: String,
-    /// Unique device ID
     pub(crate) device_id: String,
-    /// Connected state
     pub(crate) connected: bool,
 
     /// gPhoto2 camera handle (owned, must be freed on disconnect)
@@ -150,7 +144,6 @@ pub struct GPhoto2Camera {
     // discovered on connect. None => camera exposes no image-format widget.
     pub(crate) raw_format: Option<(String, String)>,
 
-    // Exposure tracking
     pub(crate) exposure_state: ExposureState,
     pub(crate) exposure_time: f64,
     pub(crate) current_gain: i32,   // Maps to ISO index
@@ -451,7 +444,6 @@ impl GPhoto2Camera {
             }
         }
 
-        // Try to read ISO values
         match self.get_config_choices(sdk, "iso") {
             Ok(isos) => {
                 tracing::info!("gPhoto2: Available ISO values: {:?}", isos);
@@ -499,7 +491,6 @@ impl GPhoto2Camera {
             }
         }
 
-        // Try to read available shutter speeds
         match self.get_config_choices(sdk, "shutterspeed") {
             Ok(speeds) => {
                 tracing::info!("gPhoto2: Available shutter speeds: {:?}", speeds);
@@ -1043,12 +1034,10 @@ impl GPhoto2Camera {
         // return code and non-null guard; the slice we build is immediately copied
         // into a Vec before `file_free` invalidates the underlying buffer.
         unsafe {
-            // Create a CameraFile to receive the data
             let mut gp_file: *mut CameraFile = std::ptr::null_mut();
             let ret = (sdk.file_new)(&mut gp_file);
             check_gp_error(ret, "file_new")?;
 
-            // Download the file from camera
             let ret = (sdk.camera_file_get)(
                 self.gp_camera,
                 c_folder.as_ptr(),
@@ -1065,7 +1054,6 @@ impl GPhoto2Camera {
                 )));
             }
 
-            // Get the data pointer and size
             let mut data_ptr: *const c_char = std::ptr::null();
             let mut data_size: u64 = 0;
             let ret = (sdk.file_get_data_and_size)(gp_file, &mut data_ptr, &mut data_size);
@@ -1088,7 +1076,6 @@ impl GPhoto2Camera {
                 name_str
             );
 
-            // Free the CameraFile
             (sdk.file_free)(gp_file);
 
             // Delete the file from camera to free space (optional, but good practice)

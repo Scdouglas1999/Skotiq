@@ -65,7 +65,6 @@ pub fn build_device_id(index: usize, model: &str, port: &str) -> String {
 pub(crate) fn parse_shutter_speed_to_secs(speed: &str) -> Option<f64> {
     let speed = speed.trim();
 
-    // Handle "Bulb" or "bulb"
     if speed.eq_ignore_ascii_case("bulb") {
         return None;
     }
