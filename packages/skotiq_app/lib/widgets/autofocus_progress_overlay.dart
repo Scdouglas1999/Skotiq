@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_app/screens/shell/shell_chrome.dart';
+import 'package:skotiq_app/utils/v_curve_chart_data.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -286,7 +287,7 @@ class _AutofocusProgressOverlayState
                       painter: VCurvePainter(
                         series: [
                           VCurveSeries(
-                            points: overlayState.vcurvePoints,
+                            points: overlayState.vcurvePoints.toChartSamples(),
                             color: colors.primary,
                             label: 'Autofocus',
                             vertexPosition: overlayState.result?.bestPosition,
@@ -294,7 +295,7 @@ class _AutofocusProgressOverlayState
                             highlightLatest: overlayState.isRunning,
                           ),
                         ],
-                        focusRange: overlayState.focusRange,
+                        focusRange: overlayState.focusRange?.toChartRange(),
                         gridColor: colors.border,
                         textColor: colors.textMuted,
                         repaintTick: overlayState.currentPoint,

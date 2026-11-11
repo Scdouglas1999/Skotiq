@@ -15,6 +15,7 @@ import '../../actions/night_action_controller.dart';
 import '../../data/session/session_events_provider.dart';
 import '../../data/session/session_format.dart';
 import '../../night_control_contracts.dart';
+import '../../../../utils/v_curve_chart_data.dart';
 import '../panel_ops.dart';
 import '../panel_widgets.dart';
 import 'focus_panel_vm.dart';
@@ -123,7 +124,7 @@ class NightAutofocusSection extends ConsumerWidget {
               density: VCurveChartDensity.compact,
               series: <VCurveSeries>[
                 VCurveSeries(
-                  points: points,
+                  points: points.toChartSamples(),
                   color: colors.primary,
                   label: l10n.text('nightPanelAutofocus'),
                   vertexPosition: vm.bestPosition,
@@ -132,7 +133,7 @@ class NightAutofocusSection extends ConsumerWidget {
                   highlightLatest: running,
                 ),
               ],
-              focusRange: vm.focusRange,
+              focusRange: vm.focusRange?.toChartRange(),
               gridColor: colors.border,
               textColor: colors.textMuted,
               repaintTick: vm.point ?? points.length,
