@@ -168,17 +168,14 @@ impl PreparedFrame {
         self.src.len() == self.width * self.height * self.channels as usize
     }
 
-    /// Frame width in pixels.
     pub fn width(&self) -> u32 {
         self.width as u32
     }
 
-    /// Frame height in pixels.
     pub fn height(&self) -> u32 {
         self.height as u32
     }
 
-    /// Channel count.
     pub fn channels(&self) -> u32 {
         self.channels
     }
@@ -400,8 +397,6 @@ pub fn radec_to_tile(ra_deg: f64, dec_deg: f64, order: u32) -> TileId {
     zphi_to_nest(z, phi, order)
 }
 
-// Public tile addressing
-
 /// `(ra_deg in [0,360), dec_deg)` of a tile's centre.
 pub fn tile_center(id: TileId, order: u32) -> (f64, f64) {
     let (z, phi) = nest_to_zphi(id, order);
@@ -545,8 +540,6 @@ pub fn tile_wcs(id: TileId, order: u32) -> SipWcs {
     )
 }
 
-// Provenance
-
 /// One contributor's fold into a tile (mirrors the master's `FoldRecord`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TileFoldRecord {
@@ -585,8 +578,6 @@ impl TileProvenance {
     }
 }
 
-// Errors
-
 /// Errors from the sky-atlas API. Every variant is a caller mistake surfaced
 /// loudly rather than silently producing a wrong tile.
 #[derive(Debug, thiserror::Error, PartialEq)]
@@ -600,25 +591,19 @@ pub enum AtlasError {
     /// Two tiles disagree on id (e.g. a merge across different sky positions).
     #[error("tile geometry mismatch: {got} vs {expected}")]
     GeometryMismatch {
-        /// The id that was supplied.
         got: TileId,
-        /// The id that was expected.
         expected: TileId,
     },
     /// Two tiles disagree on HEALPix order.
     #[error("tile order mismatch: {got} vs {expected}")]
     OrderMismatch {
-        /// The order that was supplied.
         got: u32,
-        /// The order that was expected.
         expected: u32,
     },
     /// Two tiles (or a frame and a tile) disagree on channel count.
     #[error("channel mismatch: {got} vs {expected}")]
     ChannelMismatch {
-        /// The channel count that was supplied.
         got: u32,
-        /// The channel count that was expected.
         expected: u32,
     },
     /// A serialized tile is truncated or its payload is inconsistent.
@@ -639,8 +624,6 @@ pub enum AtlasError {
     #[error("tile I/O error: {0}")]
     Io(String),
 }
-
-// SkyTileAccumulator
 
 /// Outcome of [`SkyAtlas::compact_sidecars`].
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
@@ -690,7 +673,6 @@ pub struct SkyTileAccumulator {
     pub mode: AccumulationMode,
     /// The six running vectors.
     pub state: PerPixelAccumulator,
-    /// Provenance + summary metadata.
     pub provenance: TileProvenance,
 }
 
@@ -1116,8 +1098,6 @@ struct TileHeader {
     slot_count: usize,
 }
 
-// Federation: merge / subtract
-
 /// Add `other` into `dst` (same tile id + order + grid). Sums the six running
 /// vectors (scaling `other`'s weighted sums by `trust`) and unions provenance.
 /// With `clip == None` this is **exact** versus folding both contributors'
@@ -1219,8 +1199,6 @@ fn merge_signed(
     Ok(())
 }
 
-// Out-of-core atlas: per-tile sidecars on disk
-
 /// A handle to an on-disk atlas: a directory of serialized tile sidecars under
 /// `<root>/tiles/<order>/<tileId>.skt`. The atlas is the bulk pixel store; the
 /// DB index (`sky_tiles`) lives separately. No tile pixels are held in RAM
@@ -1259,7 +1237,6 @@ pub struct AtlasFoldOutcome {
 /// A tile's state after a batch fold.
 #[derive(Debug, Clone)]
 pub struct AtlasTileState {
-    /// Tile id.
     pub tile_id: TileId,
     /// Mean coverage depth of this layer's tile.
     pub coverage_mean: f64,
@@ -1267,7 +1244,6 @@ pub struct AtlasTileState {
     pub total_frames: usize,
     /// Seconds this layer's tile has counted.
     pub total_integration_seconds: f64,
-    /// Channel count.
     pub channels: u32,
 }
 
@@ -2622,7 +2598,6 @@ mod tests {
             .unwrap();
         assert!(recs.iter().any(|(_, r)| r.frames_added > 0));
 
-        // The sidecar exists on disk.
         assert!(atlas.tile_path(tid).exists());
 
         // Reload and confirm the centre value.

@@ -33,7 +33,6 @@ use crate::robust_stats::{LevelCounts, MAD_TO_SIGMA};
 use crate::ImageData;
 use rayon::prelude::*;
 
-/// Stretch parameters
 #[derive(Debug, Clone)]
 pub struct StretchParams {
     pub shadows: f64,    // Black point (0-1)

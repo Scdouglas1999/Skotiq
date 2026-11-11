@@ -136,11 +136,8 @@ impl Default for MosaicStitchConfig {
 /// Diagnostics from a completed stitch.
 #[derive(Debug, Clone, PartialEq)]
 pub struct MosaicStitchStats {
-    /// Number of panels stitched.
     pub panels: usize,
-    /// Output canvas width in pixels.
     pub out_width: u32,
-    /// Output canvas height in pixels.
     pub out_height: u32,
     /// Number of overlapping panel pairs found (the photometric adjacency edges).
     pub overlap_pairs: usize,
@@ -150,7 +147,6 @@ pub struct MosaicStitchStats {
     pub mean_panel_gain: f64,
 }
 
-/// The result of a stitch.
 #[derive(Debug, Clone)]
 pub struct MosaicOutput {
     /// The stitched mosaic master (`F32`, same channel count as the panels).
@@ -159,9 +155,7 @@ pub struct MosaicOutput {
     /// panel covered the pixel; ~`n` in an n-panel overlap (None blend) or the
     /// summed feather weight (Feather blend).
     pub coverage: ImageData,
-    /// The output canvas WCS.
     pub wcs: WcsInfo,
-    /// Stitch diagnostics.
     pub stats: MosaicStitchStats,
 }
 
@@ -170,7 +164,6 @@ pub struct MosaicOutput {
 /// canvas.
 #[derive(Debug, Error, PartialEq)]
 pub enum MosaicError {
-    /// No panels were supplied.
     #[error("no panels supplied to the mosaic stitcher")]
     NoPanels,
     /// A panel has zero width or height (nothing to project).
@@ -220,8 +213,6 @@ fn delta_ra_deg(a: f64, b: f64) -> f64 {
     }
     d
 }
-
-// Decoded panel (f64 planar-interleaved) + footprint
 
 /// A panel decoded once to interleaved `f64` (`data[y·stride + x·channels + c]`,
 /// matching the resampler's layout) plus its projection and canvas footprint.
@@ -433,8 +424,6 @@ fn catmull_rom(x: f64) -> f64 {
     }
 }
 
-// Output-canvas construction
-
 /// Build the output canvas WCS + integer dimensions from the panel projections.
 ///
 /// Reference centre = median panel `CRVAL` (RA centroid taken modulo the 0h
@@ -576,8 +565,6 @@ fn compute_footprints(panels: &mut [DecodedPanel], out_proj: &SipWcs, out_w: u32
         };
     }
 }
-
-// Cross-panel photometric solve
 
 /// Per-panel photometric correction `value ← gain·sample + offset`.
 #[derive(Debug, Clone, Copy)]
@@ -786,8 +773,6 @@ fn fit_overlap_pair(
     Some((coeffs.scale, coeffs.offset))
 }
 
-// Render
-
 /// Render the output canvas, one row per rayon task.
 ///
 /// For each output pixel: world ← output WCS; for each panel whose footprint
@@ -897,7 +882,6 @@ fn render_canvas(
         })
         .collect();
 
-    // Stitch rows back into flat buffers.
     let mut master = vec![0.0f32; out_w * out_h * channels];
     let mut coverage = vec![0.0f32; out_w * out_h];
     for (oy, (mrow, crow)) in rows.into_iter().enumerate() {
@@ -936,8 +920,6 @@ fn panel_weight(sx: f64, sy: f64, width: usize, height: usize, cfg: &MosaicStitc
     }
 }
 
-// Public entry point
-
 /// Stitch `panels` into a single mosaic master onto a common tangent-plane
 /// canvas.
 ///
@@ -968,7 +950,6 @@ pub fn stitch_mosaic(
         return Err(MosaicError::NoPanels);
     }
 
-    // Decode + validate.
     let mut decoded: Vec<DecodedPanel> = panels
         .iter()
         .map(DecodedPanel::decode)
@@ -979,13 +960,10 @@ pub fn stitch_mosaic(
         return Err(MosaicError::ChannelMismatch);
     }
 
-    // Output canvas.
     let (out_wcs, out_proj, out_w, out_h) = build_output_wcs(&decoded, cfg)?;
 
-    // Footprints.
     compute_footprints(&mut decoded, &out_proj, out_w, out_h);
 
-    // Photometric solve.
     let (photometry, overlap_pairs) = if cfg.normalize {
         solve_panel_photometry(&decoded, &out_proj)
     } else {
@@ -1009,7 +987,6 @@ pub fn stitch_mosaic(
         photometry.iter().map(|p| p.gain).sum::<f64>() / photometry.len() as f64
     };
 
-    // Render.
     let (master_data, coverage_data) = render_canvas(
         &decoded,
         &photometry,
@@ -1059,8 +1036,6 @@ fn count_overlaps(panels: &[DecodedPanel]) -> usize {
     }
     count
 }
-
-// Tests
 
 #[cfg(test)]
 mod tests {

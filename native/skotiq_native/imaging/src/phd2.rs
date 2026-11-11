@@ -37,20 +37,15 @@ fn is_phd2_server_listening(host: &str, port: u16) -> bool {
     TcpStream::connect_timeout(&addr, Duration::from_millis(500)).is_ok()
 }
 
-/// PHD2 connection state
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Phd2State {
-    /// Not connected to PHD2
     Disconnected,
     /// Connected but not guiding
     Connected,
-    /// Calibrating
     Calibrating,
-    /// Guiding
     Guiding,
     /// Looping (exposures without guiding)
     Looping,
-    /// Paused
     Paused,
     /// Settling after dither
     Settling,
@@ -66,7 +61,6 @@ pub enum Phd2State {
     Unknown(String),
 }
 
-/// PHD2 guide statistics
 #[derive(Debug, Clone, Default)]
 pub struct GuideStats {
     /// RMS error in RA (arcseconds)
@@ -79,9 +73,7 @@ pub struct GuideStats {
     pub peak_ra: f64,
     /// Peak Dec error (arcseconds)
     pub peak_dec: f64,
-    /// Number of guide frames
     pub frame_count: u32,
-    /// SNR of guide star
     pub snr: f64,
     /// Guide star mass (brightness)
     pub star_mass: f64,
@@ -90,11 +82,8 @@ pub struct GuideStats {
 /// Star image data from PHD2
 #[derive(Debug, Clone)]
 pub struct StarImageData {
-    /// Frame number
     pub frame: u32,
-    /// Image width in pixels
     pub width: u32,
-    /// Image height in pixels
     pub height: u32,
     /// Star centroid X position within the subframe
     pub star_x: f64,
@@ -107,9 +96,7 @@ pub struct StarImageData {
 /// PHD2 Brain algorithm parameter
 #[derive(Debug, Clone)]
 pub struct AlgoParam {
-    /// Parameter name
     pub name: String,
-    /// Parameter value
     pub value: f64,
 }
 
@@ -117,25 +104,16 @@ pub struct AlgoParam {
 /// Uses Welford's online algorithm for numerically stable variance calculation
 #[derive(Debug, Clone)]
 pub struct RollingGuideStats {
-    /// Maximum number of samples to keep
     max_samples: usize,
-    /// Recent RA errors
     ra_samples: Vec<f64>,
-    /// Recent Dec errors
     dec_samples: Vec<f64>,
-    /// Recent SNR values
     snr_samples: Vec<f64>,
-    /// Recent star masses
     mass_samples: Vec<f64>,
     /// Running count of all frames
     total_frame_count: u32,
-    /// Peak RA error seen
     peak_ra: f64,
-    /// Peak Dec error seen
     peak_dec: f64,
-    /// Last calculated stats
     cached_stats: GuideStats,
-    /// Whether cache is valid
     cache_valid: bool,
 }
 
@@ -162,7 +140,6 @@ impl RollingGuideStats {
         }
     }
 
-    /// Add a new guide frame to the rolling statistics
     pub fn add_frame(&mut self, frame: &GuideFrame) {
         self.total_frame_count += 1;
         self.cache_valid = false;
@@ -180,7 +157,6 @@ impl RollingGuideStats {
         self.snr_samples.push(frame.snr);
         self.mass_samples.push(frame.star_mass);
 
-        // Track peak errors
         let ra_abs = frame.ra_distance.abs();
         let dec_abs = frame.dec_distance.abs();
         if ra_abs > self.peak_ra {
@@ -191,7 +167,6 @@ impl RollingGuideStats {
         }
     }
 
-    /// Calculate current statistics
     pub fn get_stats(&mut self) -> GuideStats {
         if self.cache_valid {
             return self.cached_stats.clone();
@@ -202,18 +177,15 @@ impl RollingGuideStats {
             return GuideStats::default();
         }
 
-        // Calculate RMS for RA
         let ra_sum_sq: f64 = self.ra_samples.iter().map(|x| x * x).sum();
         let rms_ra = (ra_sum_sq / n as f64).sqrt();
 
-        // Calculate RMS for Dec
         let dec_sum_sq: f64 = self.dec_samples.iter().map(|x| x * x).sum();
         let rms_dec = (dec_sum_sq / n as f64).sqrt();
 
         // Total RMS (pythagorean)
         let rms_total = (rms_ra * rms_ra + rms_dec * rms_dec).sqrt();
 
-        // Average SNR
         let snr = self.snr_samples.iter().sum::<f64>() / n as f64;
         let star_mass = self.mass_samples.iter().sum::<f64>() / n as f64;
 
@@ -232,7 +204,6 @@ impl RollingGuideStats {
         self.cached_stats.clone()
     }
 
-    /// Reset all statistics
     pub fn reset(&mut self) {
         self.ra_samples.clear();
         self.dec_samples.clear();
@@ -244,7 +215,6 @@ impl RollingGuideStats {
         self.cache_valid = false;
     }
 
-    /// Get the number of samples in the rolling window
     pub fn sample_count(&self) -> usize {
         self.ra_samples.len()
     }
@@ -253,13 +223,11 @@ impl RollingGuideStats {
 /// Connection configuration for auto-reconnect
 #[derive(Debug, Clone)]
 pub struct Phd2ConnectionConfig {
-    /// Maximum number of reconnection attempts
     pub max_reconnect_attempts: u32,
     /// Initial delay between reconnection attempts (ms)
     pub initial_reconnect_delay_ms: u64,
     /// Maximum delay between reconnection attempts (ms)
     pub max_reconnect_delay_ms: u64,
-    /// Whether to auto-reconnect on disconnect
     pub auto_reconnect: bool,
 }
 
@@ -274,12 +242,9 @@ impl Default for Phd2ConnectionConfig {
     }
 }
 
-/// PHD2 guide frame data
 #[derive(Debug, Clone)]
 pub struct GuideFrame {
-    /// Frame number
     pub frame: u32,
-    /// Timestamp
     pub timestamp: f64,
     /// RA offset in arcseconds
     pub ra_distance: f64,
@@ -293,28 +258,21 @@ pub struct GuideFrame {
     pub ra_direction: String,
     /// Dec guide direction ("North" or "South")
     pub dec_direction: String,
-    /// Guide star SNR
     pub snr: f64,
     /// Guide star mass (brightness)
     pub star_mass: f64,
-    /// Star position X
     pub star_x: f64,
-    /// Star position Y
     pub star_y: f64,
     /// Average distance (RMS)
     pub avg_dist: f64,
 }
 
-/// Events from PHD2
 #[derive(Debug, Clone)]
 pub enum Phd2Event {
-    /// State changed
     StateChanged(Phd2State),
     /// New guide frame
     GuideStep(GuideFrame),
-    /// Settling started
     SettleBegin,
-    /// Settling complete
     SettleDone {
         /// PHD2 settle status: 0 = success, non-zero = settle failed.
         status: i32,
@@ -323,17 +281,12 @@ pub enum Phd2Event {
         total_frames: u32,
         dropped_frames: u32,
     },
-    /// Star lost
     StarLost,
-    /// Star selected
     StarSelected { x: f64, y: f64 },
-    /// Calibration complete
     CalibrationComplete,
-    /// Alert from PHD2
     Alert { message: String, alert_type: String },
     /// Connection lost
     Disconnected,
-    /// Error occurred
     Error(String),
 }
 
@@ -575,13 +528,9 @@ pub struct Phd2Client {
     request_id: u32,
     running: Arc<AtomicBool>,
     event_callback: Option<Phd2EventCallback>,
-    /// Rolling guide statistics
     rolling_stats: Arc<Mutex<RollingGuideStats>>,
-    /// Connection configuration
     config: Phd2ConnectionConfig,
-    /// Current connection state
     state: Arc<Mutex<Phd2State>>,
-    /// Number of reconnection attempts
     reconnect_attempts: Arc<std::sync::atomic::AtomicU32>,
     /// Registry of pending RPC response senders, keyed by request ID.
     /// The reader thread sends response lines to the matching sender.
@@ -595,7 +544,6 @@ pub struct Phd2Client {
 }
 
 impl Phd2Client {
-    /// Create a new PHD2 client
     pub fn new(host: &str, port: u16) -> Self {
         Self {
             write_stream: None,
@@ -617,7 +565,6 @@ impl Phd2Client {
         }
     }
 
-    /// Create a new PHD2 client with custom configuration
     pub fn with_config(host: &str, port: u16, config: Phd2ConnectionConfig) -> Self {
         Self {
             write_stream: None,
@@ -644,7 +591,6 @@ impl Phd2Client {
         Self::new("127.0.0.1", PHD2_DEFAULT_PORT)
     }
 
-    /// Get rolling guide statistics
     pub fn get_rolling_stats(&self) -> GuideStats {
         // Why: `std::sync::Mutex::lock()` only fails on
         // *poison* (a previous holder panicked while the guard was live).
@@ -665,14 +611,12 @@ impl Phd2Client {
         }
     }
 
-    /// Reset rolling guide statistics
     pub fn reset_stats(&self) {
         if let Ok(mut stats) = self.rolling_stats.lock() {
             stats.reset();
         }
     }
 
-    /// Get current connection state
     pub fn get_state(&self) -> Phd2State {
         // Why: Mutex poison here would mean the reader
         // thread crashed mid-update. The TCP connection is therefore
@@ -691,7 +635,6 @@ impl Phd2Client {
         }
     }
 
-    /// Set event callback
     pub fn set_event_callback<F>(&mut self, callback: F)
     where
         F: Fn(Phd2Event) + Send + 'static,
@@ -724,7 +667,6 @@ impl Phd2Client {
                     tracing::warn!("PHD2 reconnection failed: {}", e);
                     if attempt < max_attempts {
                         std::thread::sleep(Duration::from_millis(delay));
-                        // Exponential backoff with cap
                         delay = (delay * 2).min(self.config.max_reconnect_delay_ms);
                     }
                 }
@@ -762,7 +704,6 @@ impl Phd2Client {
         ))
     }
 
-    /// Connect to PHD2
     pub fn connect(&mut self) -> Result<(), String> {
         self.connect_with_settle(None)
     }
@@ -828,7 +769,6 @@ impl Phd2Client {
         Ok(())
     }
 
-    /// Disconnect from PHD2
     pub fn disconnect(&mut self) {
         self.connection_wanted = false;
         self.close_transport();
@@ -848,7 +788,6 @@ impl Phd2Client {
             registry.clear();
         }
 
-        // Update connection state
         if let Ok(mut state) = self.state.lock() {
             *state = Phd2State::Disconnected;
         }
@@ -856,7 +795,6 @@ impl Phd2Client {
         tracing::info!("Disconnected from PHD2");
     }
 
-    /// Check if connected
     pub fn is_connected(&self) -> bool {
         self.write_stream.is_some() && self.running.load(Ordering::SeqCst)
     }
@@ -945,7 +883,6 @@ impl Phd2Client {
                         }
 
                         received_lines.fetch_add(1, Ordering::Relaxed);
-                        // Process the complete line
                         Self::process_line(
                             json,
                             &response_registry,
@@ -956,7 +893,6 @@ impl Phd2Client {
                             &looping,
                         );
 
-                        // Clear buffer for next line
                         line_buf.clear();
                     }
                     Err(e) => {
@@ -983,7 +919,6 @@ impl Phd2Client {
                                 waiting
                             })
                             .unwrap_or(false);
-                        // Update state to disconnected
                         if let Ok(mut s) = state.lock() {
                             *s = Phd2State::Disconnected;
                         }
@@ -1019,7 +954,6 @@ impl Phd2Client {
         settle_tracker: &Arc<Mutex<SettleTracker>>,
         looping: &LoopingFrames,
     ) {
-        // Parse JSON
         let parsed: serde_json::Value = match serde_json::from_str(json) {
             Ok(v) => v,
             Err(e) => {
@@ -1075,14 +1009,12 @@ impl Phd2Client {
                     }
                 }
                 if let Some(event) = parse_phd2_event(&event_msg) {
-                    // Update rolling stats for guide frames
                     if let Phd2Event::GuideStep(ref frame) = event {
                         if let Ok(mut stats) = rolling_stats.lock() {
                             stats.add_frame(frame);
                         }
                     }
 
-                    // Update state for state change events
                     if let Phd2Event::StateChanged(ref new_state) = event {
                         if let Ok(mut s) = state.lock() {
                             *s = new_state.clone();
@@ -1124,7 +1056,6 @@ impl Phd2Client {
                         }
                     }
 
-                    // Call user callback
                     if let Some(ref cb) = callback {
                         tracing::debug!("PHD2: Dispatching event to callback: {:?}", event);
                         match cb.lock() {
@@ -1230,7 +1161,6 @@ impl Phd2Client {
             }
         };
 
-        // Parse the response
         let resp: JsonRpcResponse = serde_json::from_str(&response_line)
             .map_err(|e| format!("Failed to parse response: {}", e))?;
 
@@ -1301,9 +1231,6 @@ impl Phd2Client {
         })
     }
 
-    // PHD2 commands
-
-    /// Get PHD2 application state
     pub fn get_app_state(&mut self) -> Result<Phd2State, String> {
         let result = self.send_request("get_app_state", None)?;
         let state_str = result
@@ -1499,7 +1426,6 @@ impl Phd2Client {
         Ok(())
     }
 
-    /// Clear calibration
     pub fn clear_calibration(&mut self, which: &str) -> Result<(), String> {
         // PHD2's positional JSON-RPC contract requires an array here.
         // Sending the bare string makes PHD2 2.6.14 execute the clear but omit
@@ -1536,7 +1462,6 @@ impl Phd2Client {
         Ok((x, y))
     }
 
-    /// Get exposure time
     pub fn get_exposure(&mut self) -> Result<u32, String> {
         let result = self.send_request("get_exposure", None)?;
         // PHD2 always returns the exposure as an unsigned
@@ -1756,19 +1681,16 @@ impl Phd2Client {
         Ok(params)
     }
 
-    /// Get the current calibration data
     pub fn get_calibration_data(&mut self, which: &str) -> Result<serde_json::Value, String> {
         let params = serde_json::json!({ "which": which });
         self.send_request("get_calibration_data", Some(params))
     }
 
-    /// Deselect the current guide star
     pub fn deselect_star(&mut self) -> Result<(), String> {
         self.send_request("deselect_star", None)?;
         Ok(())
     }
 
-    /// Get current camera frame dimensions
     pub fn get_camera_frame_size(&mut self) -> Result<(u32, u32), String> {
         let result = self.send_request("get_camera_frame_size", None)?;
         let arr = result
@@ -1791,7 +1713,6 @@ impl Phd2Client {
         Ok((width, height))
     }
 
-    /// Get guide output enabled status
     pub fn get_guide_output_enabled(&mut self) -> Result<bool, String> {
         let result = self.send_request("get_guide_output_enabled", None)?;
         // see `get_connected`. A non-bool means protocol
@@ -1802,13 +1723,11 @@ impl Phd2Client {
             .ok_or_else(|| format!("get_guide_output_enabled: expected bool, got {}", result))
     }
 
-    /// Set guide output enabled status
     pub fn set_guide_output_enabled(&mut self, enabled: bool) -> Result<(), String> {
         self.send_request("set_guide_output_enabled", Some(serde_json::json!(enabled)))?;
         Ok(())
     }
 
-    /// Get current profile name
     pub fn get_profile(&mut self) -> Result<String, String> {
         let result = self.send_request("get_profile", None)?;
         // Surface the absence rather than displaying "Unknown": the field is
@@ -2127,7 +2046,6 @@ pub fn is_phd2_running() -> bool {
     is_phd2_server_listening("127.0.0.1", PHD2_DEFAULT_PORT)
 }
 
-/// Check if PHD2 is installed
 pub fn is_phd2_installed() -> bool {
     #[cfg(target_os = "windows")]
     {
@@ -2185,7 +2103,6 @@ pub fn is_phd2_installed() -> bool {
     }
 }
 
-/// Launch PHD2 application
 pub fn launch_phd2() -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
@@ -2202,7 +2119,6 @@ pub fn launch_phd2() -> Result<(), String> {
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        // Parse path from output
         let path_line = stdout
             .lines()
             .find(|l| l.contains("InstallLocation"))

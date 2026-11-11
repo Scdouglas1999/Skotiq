@@ -34,7 +34,6 @@ use chrono::{DateTime, Local, Utc};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-/// Frame type for image classification
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum FrameType {
     #[default]
@@ -78,7 +77,6 @@ impl std::fmt::Display for FrameType {
     }
 }
 
-/// Metadata for file naming
 #[derive(Debug, Clone, Default)]
 pub struct NamingContext {
     pub target: Option<String>,
@@ -96,7 +94,6 @@ pub struct NamingContext {
     pub sequence: Option<String>,
     pub timestamp: Option<DateTime<Utc>>,
     pub session_id: Option<String>,
-    /// Custom variables
     pub custom: HashMap<String, String>,
 }
 
@@ -105,102 +102,83 @@ impl NamingContext {
         Self::default()
     }
 
-    /// Set the timestamp to now
     pub fn with_current_time(mut self) -> Self {
         self.timestamp = Some(Utc::now());
         self
     }
 
-    /// Set target name
     pub fn with_target(mut self, target: impl Into<String>) -> Self {
         self.target = Some(target.into());
         self
     }
 
-    /// Set filter name
     pub fn with_filter(mut self, filter: impl Into<String>) -> Self {
         self.filter = Some(filter.into());
         self
     }
 
-    /// Set exposure time
     pub fn with_exposure(mut self, seconds: f64) -> Self {
         self.exposure_time = Some(seconds);
         self
     }
 
-    /// Set frame type
     pub fn with_frame_type(mut self, frame_type: FrameType) -> Self {
         self.frame_type = frame_type;
         self
     }
 
-    /// Set frame number
     pub fn with_frame_number(mut self, num: u32) -> Self {
         self.frame_number = Some(num);
         self
     }
 
-    /// Set camera gain
     pub fn with_gain(mut self, gain: i32) -> Self {
         self.gain = Some(gain);
         self
     }
 
-    /// Set camera offset
     pub fn with_offset(mut self, offset: i32) -> Self {
         self.offset = Some(offset);
         self
     }
 
-    /// Set sensor temperature
     pub fn with_temperature(mut self, temp: f64) -> Self {
         self.temperature = Some(temp);
         self
     }
 
-    /// Set binning
     pub fn with_binning(mut self, x: u32, y: u32) -> Self {
         self.binning_x = Some(x);
         self.binning_y = Some(y);
         self
     }
 
-    /// Set camera name
     pub fn with_camera(mut self, camera: impl Into<String>) -> Self {
         self.camera = Some(camera.into());
         self
     }
 
-    /// Set telescope name
     pub fn with_telescope(mut self, telescope: impl Into<String>) -> Self {
         self.telescope = Some(telescope.into());
         self
     }
 
-    /// Set sequence name
     pub fn with_sequence(mut self, sequence: impl Into<String>) -> Self {
         self.sequence = Some(sequence.into());
         self
     }
 
-    /// Add custom variable
     pub fn with_custom(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.custom.insert(key.into(), value.into());
         self
     }
 }
 
-/// File naming pattern
 #[derive(Debug, Clone)]
 pub struct NamingPattern {
-    /// The pattern string
     pattern: String,
-    /// File extension
     extension: String,
-    /// Base directory
     base_dir: PathBuf,
-    /// Whether to create subdirectories based on pattern
     create_subdirs: bool,
 }
 
@@ -216,7 +194,6 @@ impl Default for NamingPattern {
 }
 
 impl NamingPattern {
-    /// Create a new naming pattern
     pub fn new(pattern: impl Into<String>) -> Self {
         Self {
             pattern: pattern.into(),
@@ -224,25 +201,21 @@ impl NamingPattern {
         }
     }
 
-    /// Set the file extension
     pub fn with_extension(mut self, ext: impl Into<String>) -> Self {
         self.extension = ext.into();
         self
     }
 
-    /// Set the base directory
     pub fn with_base_dir(mut self, dir: impl Into<PathBuf>) -> Self {
         self.base_dir = dir.into();
         self
     }
 
-    /// Set whether to create subdirectories
     pub fn with_subdirs(mut self, create: bool) -> Self {
         self.create_subdirs = create;
         self
     }
 
-    /// Generate a filename from the context
     pub fn generate(&self, context: &NamingContext) -> PathBuf {
         let filename = self.expand_pattern(&self.pattern, context);
         let sanitized = sanitize_filename(&filename);
@@ -264,15 +237,12 @@ impl NamingPattern {
         path
     }
 
-    /// Expand pattern variables
     fn expand_pattern(&self, pattern: &str, ctx: &NamingContext) -> String {
         let mut result = pattern.to_string();
 
-        // Get timestamp
         let ts = ctx.timestamp.unwrap_or_else(Utc::now);
         let local_ts: DateTime<Local> = ts.into();
 
-        // Replace all variables
         let replacements: Vec<(&str, String)> = vec![
             (
                 "$TARGET",
@@ -343,7 +313,6 @@ impl NamingPattern {
             result = result.replace(var, &value);
         }
 
-        // Replace custom variables
         for (key, value) in &ctx.custom {
             let var = format!("${}", key.to_uppercase());
             result = result.replace(&var, value);
@@ -353,7 +322,6 @@ impl NamingPattern {
     }
 }
 
-/// Format exposure time for filename
 fn format_exposure(seconds: f64) -> String {
     if seconds >= 1.0 {
         format!("{}s", seconds as i32)
@@ -364,7 +332,6 @@ fn format_exposure(seconds: f64) -> String {
     }
 }
 
-/// Format temperature for filename
 fn format_temperature(temp: Option<f64>) -> String {
     match temp {
         Some(t) => {
@@ -406,12 +373,10 @@ pub fn scan_for_next_frame_number(
     // semantically-correct fallback — we want to count siblings of the test path.
     let parent = test_path.parent().unwrap_or(base_dir);
 
-    // If directory doesn't exist, start at 1
     if !parent.exists() {
         return 1;
     }
 
-    // Scan for existing files
     let mut max_num = 0u32;
 
     if let Ok(entries) = std::fs::read_dir(parent) {
@@ -439,18 +404,15 @@ pub fn scan_for_next_frame_number(
 fn extract_frame_number(name: &str, pos: usize) -> Option<&str> {
     let bytes = name.as_bytes();
 
-    // Check if we're at a digit
     if !bytes.get(pos)?.is_ascii_digit() {
         return None;
     }
 
-    // Find start of number sequence
     let mut start = pos;
     while start > 0 && bytes[start - 1].is_ascii_digit() {
         start -= 1;
     }
 
-    // Find end of number sequence
     let mut end = pos;
     while end < bytes.len() && bytes[end].is_ascii_digit() {
         end += 1;

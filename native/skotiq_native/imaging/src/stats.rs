@@ -20,7 +20,6 @@ use crate::robust_stats::LevelCounts;
 use crate::ImageData;
 use rayon::prelude::*;
 
-/// Statistics for an image
 #[derive(Debug, Clone, Default)]
 pub struct ImageStats {
     pub min: f64,
@@ -67,7 +66,6 @@ pub(crate) fn stats_from_levels(levels: &LevelCounts) -> ImageStats {
     }
 }
 
-/// Star detection result
 #[derive(Debug, Clone)]
 pub struct DetectedStar {
     pub x: f64,
@@ -146,7 +144,6 @@ pub const DETECTION_MAX_ECCENTRICITY: f64 = 0.95;
 /// the detector measured so per-frame shape statistics stay honest.
 pub const SELECTION_MAX_ECCENTRICITY: f64 = 0.7;
 
-/// Star detection configuration
 #[derive(Debug, Clone)]
 pub struct StarDetectionConfig {
     /// Detection threshold, in sigmas of the noise of the matched-filtered
@@ -453,7 +450,6 @@ pub fn calculate_histogram(image: &ImageData, bins: usize) -> Vec<u32> {
 pub fn calculate_display_histogram(image: &ImageData, logarithmic: bool) -> Vec<f32> {
     let histogram = calculate_histogram(image, 256);
 
-    // Parallel processing for display conversion
     if logarithmic {
         histogram
             .par_iter()
@@ -594,7 +590,6 @@ pub fn frame_eccentricity(stars: &[DetectedStar]) -> Option<f64> {
     Some(eccs[eccs.len() / 2])
 }
 
-/// Run full star detection with summary statistics
 pub fn detect_stars_with_stats(
     image: &ImageData,
     config: &StarDetectionConfig,
@@ -645,7 +640,6 @@ pub fn detect_stars_with_stats(
         selection_ceiling
     );
 
-    // Calculate median statistics
     let (median_hfr, median_fwhm, median_snr) = if !stars.is_empty() {
         let count = (stars.len() / 2).clamp(1, 50);
 
@@ -685,17 +679,13 @@ pub fn detect_stars_with_stats(
 pub struct StarCropData {
     /// Cropped image pixels as 8-bit grayscale (normalized/stretched)
     pub pixels: Vec<u8>,
-    /// Width of the crop
     pub width: u32,
-    /// Height of the crop
     pub height: u32,
     /// Star X position in original image
     pub star_x: f64,
     /// Star Y position in original image
     pub star_y: f64,
-    /// Star's HFR value
     pub hfr: f64,
-    /// Star's SNR value
     pub snr: f64,
 }
 
@@ -781,7 +771,6 @@ pub fn extract_top_star_crops(
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
-    // Extract crops for top N
     sorted_stars
         .into_iter()
         .take(max_crops)

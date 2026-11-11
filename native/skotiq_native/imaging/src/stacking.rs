@@ -42,12 +42,10 @@ pub enum SensorMode {
     Auto,
 }
 
-/// Configuration for the live stacking engine
 #[derive(Debug, Clone)]
 pub struct LiveStackConfig {
     /// Sigma threshold for pixel rejection (e.g. 2.5 means reject > 2.5 sigma from running mean)
     pub sigma_clip_threshold: f64,
-    /// Whether sigma clipping is enabled
     pub sigma_clip_enabled: bool,
     /// Maximum number of stars to use for matching (brightest N)
     pub max_match_stars: usize,
@@ -173,7 +171,6 @@ pub fn debayer_cfa_to_rgb(
     ))
 }
 
-/// Statistics about the stacking process
 #[derive(Debug, Clone, Default)]
 pub struct StackingStats {
     /// Total frames added (including rejected)
@@ -203,7 +200,6 @@ struct AffineTransform {
 }
 
 impl AffineTransform {
-    /// Identity transform (no shift, no rotation)
     fn identity() -> Self {
         Self {
             tx: 0.0,
@@ -213,7 +209,6 @@ impl AffineTransform {
         }
     }
 
-    /// Apply transform to a point
     fn apply(&self, x: f64, y: f64) -> (f64, f64) {
         let rx = self.cos_theta * x - self.sin_theta * y + self.tx;
         let ry = self.sin_theta * x + self.cos_theta * y + self.ty;
@@ -225,7 +220,6 @@ impl AffineTransform {
 /// Stores sum and sum-of-squares to compute mean and variance incrementally.
 #[derive(Debug, Clone)]
 struct PixelAccumulator {
-    /// Running sum of pixel values
     sum: f64,
     /// Running sum of squared pixel values (for variance)
     sum_sq: f64,
@@ -243,9 +237,7 @@ impl Default for PixelAccumulator {
     }
 }
 
-/// The main live stacking engine
 pub struct LiveStacker {
-    /// Image dimensions
     width: u32,
     height: u32,
     channels: u32,
@@ -257,10 +249,8 @@ pub struct LiveStacker {
     /// Length: width * height * channels
     accumulators: Vec<PixelAccumulator>,
 
-    /// Configuration
     config: LiveStackConfig,
 
-    /// Running statistics
     stats: StackingStats,
 
     /// What the stacked frames' own headers said, folded for the master's FITS
@@ -396,7 +386,6 @@ impl LiveStacker {
     ) -> Result<ImageData, String> {
         self.stats.total_frames_attempted += 1;
 
-        // Validate dimensions
         if frame.width != self.width || frame.height != self.height {
             return Err(format!(
                 "Frame dimensions {}x{} don't match reference {}x{}",
@@ -526,7 +515,6 @@ impl LiveStacker {
         // Step 5: Accumulate with optional sigma clipping
         let sigma_rejected = self.accumulate_pixels(&aligned_pixels);
 
-        // Update stats
         self.stats.stacked_frame_count += 1;
         self.provenance.fold(provenance);
         // Why (audit IMG-): `avg_matched_pairs` and
@@ -558,7 +546,6 @@ impl LiveStacker {
             sigma_rejected,
         );
 
-        // Return current stack
         Ok(self.get_current_stack())
     }
 
@@ -579,8 +566,6 @@ impl LiveStacker {
         let sigma_enabled = self.config.sigma_clip_enabled;
         let sigma_threshold = self.config.sigma_clip_threshold;
 
-        // Process in parallel chunks for cache efficiency
-        // We need mutable access to accumulators, so we use par_iter_mut
         let rejected: u64 = self
             .accumulators
             .par_iter_mut()
@@ -648,12 +633,10 @@ impl LiveStacker {
         tracing::info!("Live stacker reset");
     }
 
-    /// Get the number of successfully stacked frames.
     pub fn frame_count(&self) -> u32 {
         self.stats.stacked_frame_count
     }
 
-    /// Get stacking statistics.
     pub fn get_stats(&self) -> StackingStats {
         self.stats.clone()
     }
@@ -663,8 +646,6 @@ impl LiveStacker {
         &self.provenance
     }
 }
-
-// Star matching
 
 /// A matched star pair: reference star index, frame star index, distance
 #[derive(Debug, Clone)]
@@ -767,8 +748,6 @@ fn match_stars(
     matches
 }
 
-// Affine transform computation
-
 /// Compute the best-fit affine transform (translation + rotation) from matched star pairs.
 ///
 /// Uses the Procrustes method:
@@ -789,7 +768,6 @@ fn compute_affine_transform(
 
     let n = matches.len() as f64;
 
-    // Compute centroids of matched pairs
     let (ref_cx, ref_cy) = matches.iter().fold((0.0, 0.0), |(sx, sy), m| {
         (sx + m.ref_star.x, sy + m.ref_star.y)
     });
@@ -1080,8 +1058,6 @@ fn compute_alignment_residual(matches: &[StarMatch], transform: &AffineTransform
     (sum_sq / matches.len() as f64).sqrt()
 }
 
-// Frame alignment (pixel resampling)
-
 /// Apply the inverse affine transform to resample frame pixels onto the reference grid.
 ///
 /// For each output pixel (in reference coordinates), we compute where it maps
@@ -1104,7 +1080,6 @@ fn apply_transform_bilinear(
     // For rotation matrix R(theta), R^-1 = R(-theta)
     let inv_cos = transform.cos_theta; // cos(-theta) = cos(theta)
     let inv_sin = -transform.sin_theta; // sin(-theta) = -sin(theta)
-                                        // Process rows in parallel
     let result: Vec<f64> = (0..height)
         .into_par_iter()
         .flat_map(|y| {
@@ -1117,7 +1092,6 @@ fn apply_transform_bilinear(
                 let fx = inv_cos * rx - inv_sin * ry;
                 let fy = inv_sin * rx + inv_cos * ry;
 
-                // Bilinear interpolation
                 let fx_floor = fx.floor();
                 let fy_floor = fy.floor();
                 let ix = fx_floor as i64;
@@ -1165,8 +1139,6 @@ fn apply_transform_bilinear(
     debug_assert_eq!(result.len(), pixel_count);
     result
 }
-
-// Utility functions
 
 // Master frame combination (bias / dark / flat)
 //
@@ -1248,13 +1220,9 @@ pub enum MasterOutputType {
 /// method was used and how many frames contributed.
 #[derive(Debug, Clone)]
 pub struct MasterFrame {
-    /// The combined pixel data.
     pub image: ImageData,
-    /// What kind of master this represents.
     pub kind: MasterFrameKind,
-    /// How many input frames contributed to the combine.
     pub frame_count: u32,
-    /// Which combine method produced the master.
     pub method: CombineMethod,
     /// The final output pixel type. Mirrors `image.pixel_type` for
     /// quick inspection without unpacking `image`.
@@ -1318,7 +1286,6 @@ fn combine_master_frames_banded(
     output_type: MasterOutputType,
     band_rows: usize,
 ) -> Result<MasterFrame, String> {
-    // Validation
     if frames.is_empty() {
         return Err(format!(
             "combine_master_frames: cannot build {} master from zero frames",
@@ -1484,7 +1451,6 @@ fn combine_master_frames_banded(
         MasterFrameKind::Bias | MasterFrameKind::Dark => (combined, input_mean),
     };
 
-    // Materialise the output ImageData
     let image = match output_type {
         MasterOutputType::U16 => {
             let u16_data: Vec<u16> = final_pixels

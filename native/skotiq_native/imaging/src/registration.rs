@@ -40,8 +40,6 @@ use crate::numeric::{lanczos3, solve_dense};
 use crate::{detect_stars, DetectedStar, ImageData, PixelType, StarDetectionConfig};
 use rayon::prelude::*;
 
-// Public types
-
 /// Which transform family to fit between the two frames.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TransformKind {
@@ -78,7 +76,6 @@ pub struct TransformModel {
 }
 
 impl TransformModel {
-    /// The identity transform.
     pub fn identity() -> Self {
         Self {
             matrix: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
@@ -165,7 +162,6 @@ pub struct RegisteredFrame {
     /// channel count, and pixel type as the reference. Pixels with no valid
     /// source support (mapped outside the source frame) are zero-filled.
     pub aligned: ImageData,
-    /// Quality metrics for this registration.
     pub stats: RegistrationStats,
 }
 
@@ -184,7 +180,6 @@ pub struct RegistrationConfig {
     /// distortion at the cost of more spurious descriptor matches (which the
     /// vote step and RANSAC then filter).
     pub descriptor_tolerance: f64,
-    /// Transform family to fit.
     pub transform_kind: TransformKind,
     /// RANSAC inlier threshold in reference-frame pixels.
     pub ransac_threshold_px: f64,
@@ -193,7 +188,6 @@ pub struct RegistrationConfig {
     /// Minimum inlier correspondences required to accept a fit. Below this the
     /// registration fails closed rather than returning a garbage transform.
     pub min_inliers: usize,
-    /// Resampling kernel.
     pub interpolator: Interpolator,
     /// Optional plate scale (arcsec/pixel) to report `rms_residual_arcsec`.
     pub arcsec_per_pixel: Option<f64>,
@@ -246,8 +240,6 @@ pub enum RegistrationError {
     )]
     NoConsistentGeometry { found: usize, needed: usize },
 }
-
-// Public entry point
 
 /// The number of detected stars [`register_frame`] requires on BOTH the
 /// reference and the frame for `kind`: enough to form triangles and to fit the
@@ -351,12 +343,10 @@ impl ReferenceStars {
         self.stars.is_empty()
     }
 
-    /// The reference grid's width and height.
     pub fn size(&self) -> (u32, u32) {
         (self.width, self.height)
     }
 
-    /// The reference's channel count.
     pub fn channels(&self) -> u32 {
         self.channels
     }
@@ -534,8 +524,6 @@ pub fn kernel_inside(sx: f64, sy: f64, w: usize, h: usize, interp: Interpolator)
     };
     x0 + lo >= 0.0 && y0 + lo >= 0.0 && x0 + hi <= (w as f64 - 1.0) && y0 + hi <= (h as f64 - 1.0)
 }
-
-// Validation + detection-plane helpers
 
 fn validate_pair(reference: &ImageData, frame: &ImageData) -> Result<(), RegistrationError> {
     if reference.pixel_type != PixelType::U16 {
@@ -804,8 +792,6 @@ fn lower_bound(slice: &[f64], value: f64) -> usize {
     lo
 }
 
-// RANSAC transform estimation
-
 struct FittedTransform {
     model: TransformModel,
 }
@@ -941,8 +927,6 @@ fn inliers_for(
         })
         .collect()
 }
-
-// Model fitting (least squares)
 
 /// Fit the requested model from `>= min` correspondences (source → reference).
 fn fit_model(pairs: &[Correspondence], kind: TransformKind) -> Option<TransformModel> {
@@ -1135,8 +1119,6 @@ fn model_residual(pairs: &[Correspondence], model: &TransformModel) -> f64 {
     rms(&residuals)
 }
 
-// Resampling (warp source onto reference grid)
-
 /// Warp `frame` onto the `reference` grid using `model` (source → reference)
 /// and `interp`. Output matches the reference dimensions/channels/pixel type.
 /// Reference pixels whose inverse-mapped source location falls outside the
@@ -1293,7 +1275,6 @@ where
     let fx = sx - x0 as f64;
     let fy = sy - y0 as f64;
 
-    // Precompute horizontal and vertical weights.
     let mut wx = [0.0f64; 6];
     let mut wy = [0.0f64; 6];
     let taps = (2 * radius) as usize;
@@ -1387,8 +1368,6 @@ fn rms(values: &[f64]) -> f64 {
     (sum_sq / values.len() as f64).sqrt()
 }
 
-// Deterministic PRNG for RANSAC sampling
-
 /// SplitMix64 — a tiny, fast, deterministic PRNG. We use a fixed seed so
 /// registration is reproducible run-to-run (important for stack determinism and
 /// for the tests below), while still giving RANSAC well-distributed samples.
@@ -1409,8 +1388,6 @@ impl Rng {
         z ^ (z >> 31)
     }
 }
-
-// Tests
 
 #[cfg(test)]
 mod tests {
