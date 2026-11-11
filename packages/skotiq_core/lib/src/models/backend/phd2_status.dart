@@ -145,12 +145,10 @@ String? guidingStopReasonText(String? reason) {
   };
 }
 
-/// PHD2 guiding status
 class Phd2Status {
   /// Current PHD2 state (Stopped, Guiding, Calibrating, etc.)
   final String state;
 
-  /// Whether connected to PHD2
   final bool connected;
 
   /// RMS error in RA (arcseconds)
@@ -203,7 +201,6 @@ class Phd2Status {
     this.stopReason,
   });
 
-  /// Create from JSON (for network transport)
   factory Phd2Status.fromJson(Map<String, dynamic> json) {
     return Phd2Status(
       state: json['state'] as String,
@@ -220,7 +217,6 @@ class Phd2Status {
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'state': state,
     'connected': connected,
@@ -235,13 +231,10 @@ class Phd2Status {
     'stopReason': stopReason,
   };
 
-  /// Check if PHD2 is actively guiding
   bool get isGuiding => state == 'Guiding';
 
-  /// Check if PHD2 is calibrating
   bool get isCalibrating => state == 'Calibrating';
 
-  /// Check if guiding is stopped
   bool get isStopped => state == 'Stopped';
 
   static double? _positiveOrNull(Object? value) {

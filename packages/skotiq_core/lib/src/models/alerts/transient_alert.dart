@@ -3,7 +3,6 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'transient_alert.freezed.dart';
 part 'transient_alert.g.dart';
 
-/// Type of astronomical transient event
 enum TransientType {
   /// Classical or recurrent nova
   nova,
@@ -30,7 +29,6 @@ enum TransientType {
   other,
 }
 
-/// Source of transient alert data
 enum TransientSource {
   /// American Association of Variable Star Observers
   aavso,
@@ -57,21 +55,16 @@ enum TransientSource {
 /// a dead source reads to the operator as a quiet sky.
 const Set<TransientSource> kFetchableTransientSources = {TransientSource.tns};
 
-/// Current state of a transient alert
 enum TransientAlertState {
   /// New alert, not yet reviewed
   newAlert,
 
-  /// User has acknowledged the alert
   acknowledged,
 
-  /// Alert has been queued for observation
   queued,
 
-  /// Target has been observed
   observed,
 
-  /// Alert has been dismissed
   dismissed,
 }
 
@@ -79,13 +72,11 @@ enum TransientAlertState {
 @freezed
 abstract class TransientAlert with _$TransientAlert {
   const factory TransientAlert({
-    /// Unique identifier for this alert
     required String id,
 
     /// Object name/designation (e.g., "SN 2024abc", "V404 Cyg")
     required String name,
 
-    /// Type of transient event
     required TransientType type,
 
     /// Right ascension in hours (0-24)
@@ -100,13 +91,10 @@ abstract class TransientAlert with _$TransientAlert {
     /// Peak/discovery magnitude if known
     double? peakMagnitude,
 
-    /// When the transient was discovered
     required DateTime discoveryTime,
 
-    /// When this alert was last updated
     required DateTime lastUpdated,
 
-    /// Source of the alert data
     required TransientSource source,
 
     /// URL to source announcement/page
@@ -115,13 +103,11 @@ abstract class TransientAlert with _$TransientAlert {
     /// Priority level 1-10 (1=highest, 10=lowest)
     @Default(5) int priority,
 
-    /// User notes about this transient
     String? notes,
 
     /// Spectral classification if available (e.g., "Type Ia", "He-rich")
     String? classification,
 
-    /// Current state of this alert
     @Default(TransientAlertState.newAlert) TransientAlertState state,
   }) = _TransientAlert;
 
@@ -129,7 +115,6 @@ abstract class TransientAlert with _$TransientAlert {
       _$TransientAlertFromJson(json);
 }
 
-/// Settings for transient alert monitoring and notifications
 @freezed
 abstract class TransientAlertSettings with _$TransientAlertSettings {
   const factory TransientAlertSettings({
@@ -145,7 +130,6 @@ abstract class TransientAlertSettings with _$TransientAlertSettings {
     /// Only show alerts brighter than this magnitude
     @Default(15.0) double magnitudeThreshold,
 
-    /// Which transient types to monitor
     @Default({
       TransientType.nova,
       TransientType.supernova,
@@ -158,10 +142,8 @@ abstract class TransientAlertSettings with _$TransientAlertSettings {
     })
     Set<TransientType> typesToMonitor,
 
-    /// Show notification when new alerts arrive
     @Default(true) bool notifyOnNew,
 
-    /// Automatically queue bright transients for observation
     @Default(false) bool autoQueueBright,
 
     /// Magnitude threshold for auto-queuing (brighter = lower number)
@@ -176,7 +158,6 @@ abstract class TransientAlertSettings with _$TransientAlertSettings {
   factory TransientAlertSettings.fromJson(Map<String, dynamic> json) =>
       _$TransientAlertSettingsFromJson(json);
 
-  /// Default transient alert settings instance
   static TransientAlertSettings get defaultSettings =>
       const TransientAlertSettings();
 }

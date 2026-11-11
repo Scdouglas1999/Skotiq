@@ -4,7 +4,6 @@
 /// and Dart frontend, as well as across network boundaries for remote operation.
 library;
 
-/// Event severity levels
 enum EventSeverity { info, warning, error, critical }
 
 // Canonical event-type string broadcast over the WS

@@ -3,9 +3,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'annotation_settings.freezed.dart';
 part 'annotation_settings.g.dart';
 
-/// Grid overlay type for the imaging view
 enum GridType {
-  /// No grid overlay
   none,
 
   /// Fixed pixel-based grid (existing behavior)
@@ -25,11 +23,9 @@ enum AnnotationObjectFilter {
   other,
 }
 
-/// Settings for controlling annotation display and behavior
 @freezed
 abstract class AnnotationSettings with _$AnnotationSettings {
   const factory AnnotationSettings({
-    /// Whether annotations are enabled
     @Default(true) bool enabled,
 
     /// Magnitude cutoff for displayed objects (fainter = higher number)
@@ -38,7 +34,6 @@ abstract class AnnotationSettings with _$AnnotationSettings {
     /// Minimum magnitude to display (brighter = lower number)
     @Default(-5.0) double minMagnitude,
 
-    /// Object types to display
     @Default({
       AnnotationObjectFilter.galaxies,
       AnnotationObjectFilter.nebulae,
@@ -47,10 +42,8 @@ abstract class AnnotationSettings with _$AnnotationSettings {
     })
     Set<AnnotationObjectFilter> visibleTypes,
 
-    /// Whether to show object labels
     @Default(true) bool showLabels,
 
-    /// Whether to show magnitude values
     @Default(false) bool showMagnitudes,
 
     /// Whether to fade annotations when mouse is not over image
@@ -65,16 +58,13 @@ abstract class AnnotationSettings with _$AnnotationSettings {
     /// Duration of fade animation in milliseconds
     @Default(400) int fadeAnimationMs,
 
-    /// Whether to enable click-to-identify
     @Default(true) bool clickToIdentify,
 
     /// Search radius for click-to-identify in arcseconds
     @Default(30.0) double clickSearchRadiusArcsec,
 
-    /// Whether to auto-annotate new captured images
     @Default(true) bool autoAnnotate,
 
-    /// Maximum number of objects to display
     @Default(500) int maxObjectsToDisplay,
 
     /// Fractional padding around the catalog FOV bounding box. 0.05 = 5%
@@ -89,10 +79,8 @@ abstract class AnnotationSettings with _$AnnotationSettings {
     /// Whether to show scale bar overlay (angular size reference)
     @Default(true) bool scaleBarEnabled,
 
-    /// Grid overlay type (none, pixel, or celestial RA/Dec)
     @Default(GridType.none) GridType gridType,
 
-    /// Whether to show plate solve residual vectors overlay
     @Default(false) bool showSolveResiduals,
   }) = _AnnotationSettings;
 
@@ -125,10 +113,8 @@ abstract class AnnotationMarkerStyle with _$AnnotationMarkerStyle {
     /// Stroke width for marker outlines
     @Default(1.5) double strokeWidth,
 
-    /// Font size for labels
     @Default(12.0) double labelFontSize,
 
-    /// Whether to scale markers based on object size
     @Default(true) bool scaleBySize,
 
     /// Minimum marker size in pixels
@@ -142,7 +128,6 @@ abstract class AnnotationMarkerStyle with _$AnnotationMarkerStyle {
       _$AnnotationMarkerStyleFromJson(json);
 }
 
-/// Named preset for annotation display settings
 @freezed
 abstract class AnnotationPreset with _$AnnotationPreset {
   const factory AnnotationPreset({
@@ -182,7 +167,6 @@ abstract class CustomAnnotation with _$CustomAnnotation {
     /// For circles: radius in pixels.
     double? radius,
 
-    /// Label text
     @Default('') String label,
 
     /// Color as ARGB int

@@ -18,7 +18,6 @@ class DeviceInfo {
     required this.driverVersion,
   });
 
-  /// Create from JSON (for network transport)
   factory DeviceInfo.fromJson(Map<String, dynamic> json) {
     final deviceTypeName = json['deviceType'] as String?;
     final driverTypeName = json['driverType'] as String?;
@@ -47,7 +46,6 @@ class DeviceInfo {
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
