@@ -54,10 +54,8 @@ extension ImageGradingSettingsSection on AppSettingsNotifier {
   /// Master switch: when false, live frame Pass/Reject grading is disabled
   /// at the executor level. Per-node `quality_check` on TakeExposure
   /// nodes still wins; this only toggles the *default*.
-  Future<void> setEnableImageGrading(bool value) async {
-    await _saveSetting('image_grading_enabled', value.toString());
-    _patchState((s) => s.copyWith(enableImageGrading: value));
-  }
+  Future<void> setEnableImageGrading(bool value) =>
+      _set(AppSettingDefs.enableImageGrading, value);
 
   /// Reject if HFR exceeds this absolute pixel value. Pass `null` to
   /// disable the check while keeping other grading enabled.
@@ -68,11 +66,7 @@ extension ImageGradingSettingsSection on AppSettingsNotifier {
       min: 0.1,
       max: 50,
     );
-    await _saveSetting(
-      'image_grading_hfr_threshold_px',
-      validated == null ? 'null' : validated.toString(),
-    );
-    _patchState((s) => s.copyWith(imageGradingHfrThresholdPx: validated));
+    await _set(AppSettingDefs.imageGradingHfrThresholdPx, validated);
   }
 
   /// Reject if HFR exceeds `baseline * (1 + percent / 100)`. Pass `null`
@@ -84,11 +78,7 @@ extension ImageGradingSettingsSection on AppSettingsNotifier {
       min: 1,
       max: 500,
     );
-    await _saveSetting(
-      'image_grading_hfr_baseline_percent',
-      validated == null ? 'null' : validated.toString(),
-    );
-    _patchState((s) => s.copyWith(imageGradingHfrBaselinePercent: validated));
+    await _set(AppSettingDefs.imageGradingHfrBaselinePercent, validated);
   }
 
   /// Reject if median star eccentricity across the frame exceeds this
@@ -105,13 +95,7 @@ extension ImageGradingSettingsSection on AppSettingsNotifier {
       min: 0,
       max: 1,
     );
-    await _saveSetting(
-      'image_grading_eccentricity_threshold',
-      validated == null ? 'null' : validated.toString(),
-    );
-    _patchState(
-      (s) => s.copyWith(imageGradingEccentricityThreshold: validated),
-    );
+    await _set(AppSettingDefs.imageGradingEccentricityThreshold, validated);
   }
 
   /// Reject if star count drops below this value. A set floor also arms the
@@ -125,11 +109,7 @@ extension ImageGradingSettingsSection on AppSettingsNotifier {
       min: 1,
       max: 100000,
     );
-    await _saveSetting(
-      'image_grading_star_count_min',
-      validated == null ? 'null' : validated.toString(),
-    );
-    _patchState((s) => s.copyWith(imageGradingStarCountMin: validated));
+    await _set(AppSettingDefs.imageGradingStarCountMin, validated);
   }
 
   /// Notify the operator once when this many frames in a row are rejected;
@@ -143,13 +123,7 @@ extension ImageGradingSettingsSection on AppSettingsNotifier {
       min: 1,
       max: 100,
     )!;
-    await _saveSetting(
-      'image_grading_max_consecutive_rejects',
-      validated.toString(),
-    );
-    _patchState(
-      (s) => s.copyWith(imageGradingMaxConsecutiveRejects: validated),
-    );
+    await _set(AppSettingDefs.imageGradingMaxConsecutiveRejects, validated);
   }
 
   /// Override for the reject folder. `null` or empty => use the default
@@ -157,7 +131,6 @@ extension ImageGradingSettingsSection on AppSettingsNotifier {
   /// save_path; absolute paths are honoured verbatim.
   Future<void> setImageGradingRejectFolderPath(String? value) async {
     final normalised = (value == null || value.trim().isEmpty) ? null : value;
-    await _saveSetting('image_grading_reject_folder_path', normalised ?? '');
-    _patchState((s) => s.copyWith(imageGradingRejectFolderPath: normalised));
+    await _set(AppSettingDefs.imageGradingRejectFolderPath, normalised);
   }
 }

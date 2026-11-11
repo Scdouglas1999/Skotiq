@@ -48,23 +48,14 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   /// carry. A linked client reads and writes them through the host's key/value
   /// store, and the host applies them through this notifier so its own copy
   /// stays current.
-  static const Set<String> hostStoreKeys = {
-    'mount_site_sync_mode',
-    'focuser_backlash_offer_mode',
-    'horizon_profile_json',
-  };
+  static final Set<String> hostStoreKeys = AppSettingsCodec.hostStoreKeys;
 
   /// Every `app_settings` key this notifier reads and writes.
-  static final Set<String> storedKeys = Set.unmodifiable(
-    AppSettingsNotifier()
-        ._storedMapFromState(const AppSettingsState())
-        .keys
-        .toSet(),
-  );
+  static final Set<String> storedKeys = AppSettingsCodec.storedKeys;
 
   /// [settings] as the stored rows would hold them.
   Map<String, String> storedRowsOf(AppSettingsState settings) =>
-      _storedMapFromState(settings);
+      AppSettingsCodec.toRows(settings);
 
   /// Save stored rows through the same path as the section setters: the host
   /// on a linked client, this computer's database otherwise. On the local path
@@ -83,8 +74,10 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     await _saveSettings(rows);
     if (ref.read(backendProvider) is! NetworkBackend) {
       _patchState(
-        (current) =>
-            _settingsFromStoredMap({..._storedMapFromState(current), ...rows}),
+        (current) => AppSettingsCodec.fromRows({
+          ...AppSettingsCodec.toRows(current),
+          ...rows,
+        }),
       );
     }
   }
@@ -153,9 +146,8 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     final typed = <String, String>{
       for (final key in keys)
         if (!hostStoreKeys.contains(key) &&
-            _AppSettingsPartialPersistenceMapping._remotableSettingKeys
-                .contains(key) &&
-            !_deviceLocalDisplayKeys.contains(key) &&
+            AppSettingsCodec.hostKeys.contains(key) &&
+            !AppSettingsCodec.clientOwnKeys.contains(key) &&
             !_pendingRemoteKeys.containsKey(key) &&
             rows.containsKey(key))
           key: rows[key]!,
@@ -172,13 +164,10 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   AppSettingsState _applyHostStoreRows(
     AppSettingsState current,
     Map<String, String> rows,
-  ) {
-    return current.copyWith(
-      mountSiteSyncMode: rows['mount_site_sync_mode'],
-      focuserBacklashOfferMode: rows['focuser_backlash_offer_mode'],
-      horizonProfileJson: rows['horizon_profile_json'],
-    );
-  }
+  ) => AppSettingsCodec.applyRows(current, {
+    for (final key in hostStoreKeys)
+      if (rows.containsKey(key)) key: rows[key]!,
+  });
 
   /// Host side of `POST /api/settings/store` for [hostStoreKeys]: persist the
   /// rows locally and patch the state, so the host's in-memory settings and
@@ -217,12 +206,12 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       );
     }
 
-    final remote = _toRemoteSettings(settings);
+    final remote = _toWire(settings);
     // Send only the fields this save changes. The host merges them onto its
     // current settings, so a field changed elsewhere since this client last
     // read it (on the host's own screen, say) keeps that value instead of
     // being reverted by this client's copy.
-    final patch = remoteSettingsPatch(_toRemoteSettings(before), remote);
+    final patch = remoteSettingsPatch(_toWire(before), remote);
     if (patch.isEmpty) {
       _remoteSettingsSnapshot = remote;
       return;
@@ -324,7 +313,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
           final remote = models.AppSettings.fromJson(snapshot);
           _remoteSettingsSnapshot = remote;
           _remoteFetchSucceeded = true;
-          state = AsyncData(_fromRemoteSettings(remote));
+          state = AsyncData(AppSettingsCodec.fromWire(remote));
         } catch (e, st) {
           developer.log(
             'settings.changed snapshot parse failed: $e\n$st',
@@ -358,7 +347,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       }
     }
 
-    final merged = _applyJsonSettingChange(current, key, value);
+    final merged = AppSettingsCodec.applyWireChange(current, key, value);
     if (merged != null && merged != current) {
       state = AsyncData(merged);
     }
@@ -434,7 +423,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         // theme/accent/font/UI-scale are per-device and were saved locally,
         // so a reconnect must not snap the phone back to the desktop's look.
         final fromHost = await _overlayHostStoreRows(
-          _fromRemoteSettings(remoteSettings),
+          AppSettingsCodec.fromWire(remoteSettings),
           generation,
         );
         return _overlayDeviceLocalDisplayPrefs(fromHost);
@@ -454,7 +443,9 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     final dao = ref.read(settingsDaoProvider);
     final allSettings = await dao.getAllSettings();
 
-    return _refreshPlateSolverProjection(_settingsFromStoredMap(allSettings));
+    return _refreshPlateSolverProjection(
+      AppSettingsCodec.fromRows(allSettings),
+    );
   }
 
   /// `plate_solver` is a projection of the native `PlateSolverPreference`, not
@@ -491,28 +482,12 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     }
   }
 
-  /// Display preferences that belong to the DEVICE rendering the UI, not to
-  /// the imaging host: theme (incl. red-night), accent colour, font size, UI
-  /// scale, and the side-rail collapsed state. On a remote client these
-  /// persist to the LOCAL store and never round-trip to the host. Before
-  /// this, a paired phone pushed them over `POST /api/settings` — which is
-  /// admin-scoped (so a control token got "Access denied: Token scope is not
-  /// permitted", and the theme reverted) and, worse, would have reskinned
-  /// the DESKTOP to match the phone.
-  static const Set<String> _deviceLocalDisplayKeys = {
-    'theme',
-    'accent_color',
-    'font_size',
-    'ui_scale',
-    'sidebar_collapsed',
-  };
-
   Future<void> _saveSetting(String key, String value) {
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;
     // Device-local display prefs always persist to the local store, even
     // under a NetworkBackend — they are this device's rendering choice.
-    final isDeviceLocalDisplay = _deviceLocalDisplayKeys.contains(key);
+    final isDeviceLocalDisplay = AppSettingsCodec.clientOwnKeys.contains(key);
     final dao = (backend is NetworkBackend && !isDeviceLocalDisplay)
         ? null
         : ref.read(settingsDaoProvider);
@@ -572,14 +547,12 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   ) async {
     try {
       final dao = ref.read(settingsDaoProvider);
-      var merged = fromHost;
-      for (final key in _deviceLocalDisplayKeys) {
+      final own = <String, String>{};
+      for (final key in AppSettingsCodec.clientOwnKeys) {
         final local = await dao.getSetting(key);
-        if (local == null) continue;
-        final next = _applyJsonSettingChange(merged, key, local);
-        if (next != null) merged = next;
+        if (local != null) own[key] = local;
       }
-      return merged;
+      return AppSettingsCodec.applyRows(fromHost, own);
     } catch (e) {
       // Display-only overlay: on failure the operator sees the host's theme
       // instead of this device's, which is visible and self-correcting. It is
@@ -741,24 +714,24 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   /// Test-only: round-trip a state through the stored-map serialiser and back.
   ///
   /// Exposed (instead of the two private mapping helpers) so the inverse
-  /// invariant `_settingsFromStoredMap(_storedMapFromState(s)) == s` can be
+  /// invariant `AppSettingsCodec.fromRows(AppSettingsCodec.toRows(s)) == s` can be
   /// asserted exhaustively without leaking the DB-key map representation. See
   /// `app_settings_stored_roundtrip_test.dart`. The two helpers are extension
   /// methods that dispatch through `this`, hence this lives on the notifier.
   @visibleForTesting
   AppSettingsState debugRoundTripThroughStoredMap(AppSettingsState s) =>
-      _settingsFromStoredMap(_storedMapFromState(s));
+      AppSettingsCodec.fromRows(AppSettingsCodec.toRows(s));
 
   /// Test-only: the stored DB-key snapshot for [s]. See
   /// [debugRoundTripThroughStoredMap].
   @visibleForTesting
   Map<String, String> debugStoredMapFromState(AppSettingsState s) =>
-      _storedMapFromState(s);
+      AppSettingsCodec.toRows(s);
 
   /// Test-only: the state a stored DB-key snapshot loads as.
   @visibleForTesting
   AppSettingsState debugSettingsFromStoredMap(Map<String, String> stored) =>
-      _settingsFromStoredMap(stored);
+      AppSettingsCodec.fromRows(stored);
 
   /// Apply a full remote [models.AppSettings] on the HOST and persist EVERY
   /// field to the database — the same store the desktop reads and writes.
@@ -802,7 +775,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         );
         var next = before;
         remote.toJson().forEach((key, value) {
-          final updated = _applyJsonSettingChange(next, key, value);
+          final updated = AppSettingsCodec.applyWireChange(next, key, value);
           if (updated != null) next = updated;
         });
 
@@ -819,7 +792,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         // truthful either way.
         next = next.copyWith(plateSolver: before.plateSolver);
 
-        await dao.setSettings(_storedMapFromState(next));
+        await dao.setSettings(AppSettingsCodec.toRows(next));
         if (generation != _backendGeneration ||
             !identical(ref.read(backendProvider), backend) ||
             !identical(ref.read(settingsDaoProvider), dao)) {
@@ -835,9 +808,8 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
 
   /// The current settings projected to the remote wire model — companion to
   /// [applyRemoteSettings] for the headless `GET /api/settings` handler.
-  models.AppSettings exportRemoteSettings() => _toRemoteSettings(
-    _requireLoadedSettings('exporting a remote settings snapshot'),
-  );
+  models.AppSettings exportRemoteSettings() =>
+      _toWire(_requireLoadedSettings('exporting a remote settings snapshot'));
 
   // Section setters are defined in `settings_sections/*.dart` (split via
   // Dart `part` files). The class body below keeps only the lifecycle
@@ -845,4 +817,55 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   // glue that needs protected notifier state, and the state accessors reused
   // by section extensions. Translation helpers live in the adjacent mapping
   // parts.
+
+  models.AppSettings _toWire(AppSettingsState settings) =>
+      AppSettingsCodec.toWire(settings, previous: _remoteSettingsSnapshot);
+
+  /// [current] with [rows] applied, for a write a linked client sends to the
+  /// host. A row the host's typed settings cannot carry would be dropped
+  /// there, leaving the client showing a value that never took effect, so it
+  /// is refused here instead.
+  AppSettingsState _applySettingsMap(
+    AppSettingsState current,
+    Map<String, String> rows,
+  ) {
+    final unsupported = rows.keys
+        .where((key) => !AppSettingsCodec.hostKeys.contains(key))
+        .toList();
+    if (unsupported.isNotEmpty) {
+      throw UnsupportedError(
+        'Cannot save setting${unsupported.length == 1 ? '' : 's'} on the '
+        'host: ${unsupported.join(', ')}. The host\'s settings do not carry '
+        '${unsupported.length == 1 ? 'it' : 'them'}.',
+      );
+    }
+    return AppSettingsCodec.applyRows(current, rows);
+  }
+
+  /// Save [value] for [setting] and show it.
+  Future<void> _set<T>(Setting<T> setting, T value) =>
+      _setAll([setting.to(value)]);
+
+  /// Save several settings in one write and show them.
+  Future<void> _setAll(List<SettingValue<Object?>> values) async {
+    final remote = ref.read(backendProvider) is NetworkBackend;
+    final rows = <String, String>{
+      for (final entry in values)
+        for (final row in entry.rows.entries)
+          // A mirrored older row exists only in this computer's database.
+          if (!remote || row.key == entry.setting.key) row.key: row.value,
+    };
+    if (rows.length == 1) {
+      await _saveSetting(rows.keys.single, rows.values.single);
+    } else {
+      await _saveSettings(rows);
+    }
+    _patchState((current) {
+      var next = current;
+      for (final entry in values) {
+        next = next.withValue(entry.setting, entry.value);
+      }
+      return next;
+    });
+  }
 }

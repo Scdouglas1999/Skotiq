@@ -5,8 +5,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show immutable, visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
-    show kDefaultHeadlessPort;
 import '../backend/network_backend.dart';
 import '../models/backend/event_types.dart'
     show EventCategory, SkotiqEvent, settingsChangedEventType;
@@ -19,9 +17,13 @@ import '../models/plate_solver.dart';
 import '../services/plate_solve_service.dart';
 import '../models/settings/app_settings.dart' as models;
 import '../models/settings/app_settings.dart'
-    show ObserverLocation, SafetyFailMode, kDefaultAccentColorHex;
+    show ObserverLocation, SafetyFailMode;
 import '../models/imaging/imaging_models.dart'
     show AutofocusSettings, FilterAutofocusConfig;
+import '../settings/app_settings_codec.dart';
+import '../settings/app_settings_state.g.dart';
+import '../settings/preflight_strictness.dart';
+import '../settings/setting.dart';
 import '../models/focuser_backlash_calibration.dart'
     show FocuserBacklashCalibrationSettings;
 
@@ -33,8 +35,15 @@ import '../models/focuser_backlash_calibration.dart'
 // the notifier's private helpers (`_saveSetting`, `_patchState`, `_unset`)
 // without leaking them to the public API.
 //
-// A new setting needs a setter in its section file, a field plus copyWith entry
-// in `app_settings_state.dart`, and persistence / remote-sync mapping.
+// A new setting is one entry in `settings/app_settings_table.dart` plus a
+// setter in its section file.
+export '../settings/app_settings_state.g.dart';
+export '../settings/capture_format.dart';
+export '../settings/device_retries.dart';
+export '../settings/preflight_strictness.dart';
+export '../settings/setting.dart'
+    show ExecutorConfig, Setting, SettingSync, SettingValue;
+
 part 'settings_sections/general.dart';
 part 'settings_sections/appearance.dart';
 part 'settings_sections/location.dart';
@@ -55,12 +64,8 @@ part 'settings_sections/plate_solve.dart';
 part 'settings_sections/protocol.dart';
 part 'settings_sections/remote_access.dart';
 part 'settings_sections/sequencer.dart';
-part 'settings_sections/app_settings_state.dart';
-part 'settings_sections/app_settings_state_copy_with.dart';
-part 'settings_sections/app_settings_remote_mapping.dart';
-part 'settings_sections/app_settings_stored_snapshot_mapping.dart';
-part 'settings_sections/app_settings_partial_persistence_mapping.dart';
 part 'settings_sections/app_settings_notifier.dart';
+part 'settings_sections/app_settings_site.dart';
 
 /// The fields of [after] that differ from [before], in the JSON form
 /// `POST /api/settings` takes, so a client save sends only what it changed.
@@ -109,77 +114,7 @@ final appSettingsWriteFailureProvider = StateProvider<AppSettingsWriteFailure?>(
   (ref) => null,
 );
 
-// Pre-flight strictness
-
-/// Pre-flight validation strictness mode. Tunes how aggressively the
-/// pre-flight dialog should warn (or block) on questionable conditions:
-///
-///   * [lax]     — only obvious hardware errors block. Missing darks, stale
-///                 polar alignment, mild time drift all surface as `info`.
-///                 Suitable for "experienced user, knows what they're doing".
-///   * [normal]  — default. Missing darks / stale alignment / cooler ambient
-///                 issues become `warning`. Sequence can still start.
-///   * [strict]  — production / unattended imaging. Missing darks and stale
-///                 polar alignment become `error` (sequence won't start).
-///                 Time-sync drift > 30 s is always an error regardless of
-///                 strictness (it would falsify FITS timestamps).
-enum PreflightStrictness { lax, normal, strict }
-
-extension PreflightStrictnessLabel on PreflightStrictness {
-  String get persistedName {
-    switch (this) {
-      case PreflightStrictness.lax:
-        return 'lax';
-      case PreflightStrictness.normal:
-        return 'normal';
-      case PreflightStrictness.strict:
-        return 'strict';
-    }
-  }
-
-  String get displayName {
-    switch (this) {
-      case PreflightStrictness.lax:
-        return 'Lax';
-      case PreflightStrictness.normal:
-        return 'Normal';
-      case PreflightStrictness.strict:
-        return 'Strict';
-    }
-  }
-
-  String get description {
-    switch (this) {
-      case PreflightStrictness.lax:
-        return 'Soft warnings only. Missing darks and stale calibration surface as info.';
-      case PreflightStrictness.normal:
-        return 'Default. Missing darks and stale calibration are warnings; severe issues block.';
-      case PreflightStrictness.strict:
-        return 'Production / unattended. Missing darks and stale alignment block the start.';
-    }
-  }
-}
-
-PreflightStrictness _parsePreflightStrictness(String? value) {
-  switch (value) {
-    case 'lax':
-      return PreflightStrictness.lax;
-    case 'strict':
-      return PreflightStrictness.strict;
-    case 'normal':
-    case null:
-      return PreflightStrictness.normal;
-    default:
-      return PreflightStrictness.normal;
-  }
-}
-
 // App settings
-
-/// Sentinel used by `AppSettingsState.copyWith` to distinguish "no change"
-/// from "explicitly clear the nullable field": Dart's `T?` parameter cannot
-/// express both. Private to this library so callers go through `copyWith`.
-const Object _unset = Object();
 
 /// Main app settings provider
 final appSettingsProvider =

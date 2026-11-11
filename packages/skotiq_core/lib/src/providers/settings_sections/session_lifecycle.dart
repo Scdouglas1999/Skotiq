@@ -27,54 +27,35 @@ extension SessionLifecycleSettingsSection on AppSettingsNotifier {
   /// when an unfinished session is detected for one of the sequence's
   /// targets. Consumed by `sessionHandoffAutoPromptProvider` and the
   /// preflight widget.
-  Future<void> setSessionHandoffAutoPrompt(bool value) async {
-    await _saveSetting('session.handoff_auto_prompt', value.toString());
-    _patchState((s) => s.copyWith(sessionHandoffAutoPrompt: value));
-  }
+  Future<void> setSessionHandoffAutoPrompt(bool value) =>
+      _set(AppSettingDefs.sessionHandoffAutoPrompt, value);
 
   /// Whether the Targets tab surfaces the per-target campaign rollup
   /// column. Consumed by the targets-tab widget.
-  Future<void> setCampaignRollupSurfaceTargetsTab(bool value) async {
-    await _saveSetting('campaign_rollup.surface_targets_tab', value.toString());
-    _patchState((s) => s.copyWith(campaignRollupSurfaceTargetsTab: value));
-  }
+  Future<void> setCampaignRollupSurfaceTargetsTab(bool value) =>
+      _set(AppSettingDefs.campaignRollupSurfaceTargetsTab, value);
 
   /// Campaign grouping mode (`by_target_name`, `by_target_id`,
   /// `by_user_tag`). Unknown values fall back to `by_target_name`.
-  Future<void> setCampaignRollupGroupingMode(String value) async {
-    const allowed = ['by_target_name', 'by_target_id', 'by_user_tag'];
-    final clamped = allowed.contains(value) ? value : 'by_target_name';
-    await _saveSetting('campaign_rollup.grouping_mode', clamped);
-    _patchState((s) => s.copyWith(campaignRollupGroupingMode: clamped));
-  }
+  Future<void> setCampaignRollupGroupingMode(String value) =>
+      _set(AppSettingDefs.campaignRollupGroupingMode, value);
 
   /// Toggle whether brand-new [TargetSchedulerNode]s ship with adaptive
   /// swap enabled (`swapOnConditionsBelow` set to the default threshold).
   /// Existing nodes are NOT mutated by this setting — see
   /// [TargetSchedulerNode.swapOnConditionsBelow] for the per-node knob.
-  Future<void> setAdaptiveSwapEnabledByDefault(bool value) async {
-    await _saveSetting('adaptive_swap.enabled_by_default', value.toString());
-    _patchState((s) => s.copyWith(adaptiveSwapEnabledByDefault: value));
-  }
+  Future<void> setAdaptiveSwapEnabledByDefault(bool value) =>
+      _set(AppSettingDefs.adaptiveSwapEnabledByDefault, value);
 
   /// Default conditions-score floor (0..=100) seeded into a new
   /// scheduler when [adaptiveSwapEnabledByDefault] is true.
-  Future<void> setAdaptiveSwapDefaultThreshold(double value) async {
-    final clamped = value.clamp(0.0, 100.0);
-    await _saveSetting('adaptive_swap.default_threshold', clamped.toString());
-    _patchState((s) => s.copyWith(adaptiveSwapDefaultThreshold: clamped));
-  }
+  Future<void> setAdaptiveSwapDefaultThreshold(double value) =>
+      _set(AppSettingDefs.adaptiveSwapDefaultThreshold, value);
 
   /// Default `swapHysteresisSecs` (seconds between consecutive swaps)
   /// seeded into a new scheduler.
-  Future<void> setAdaptiveSwapDefaultHysteresisSecs(double value) async {
-    final clamped = value.clamp(0.0, 3600.0);
-    await _saveSetting(
-      'adaptive_swap.default_hysteresis_secs',
-      clamped.toString(),
-    );
-    _patchState((s) => s.copyWith(adaptiveSwapDefaultHysteresisSecs: clamped));
-  }
+  Future<void> setAdaptiveSwapDefaultHysteresisSecs(double value) =>
+      _set(AppSettingDefs.adaptiveSwapDefaultHysteresisSecs, value);
 
   /// Per-axis composer weights for the live ConditionsScore. The map is
   /// JSON-encoded under `adaptive_swap.score_weights`. Unknown keys are
@@ -93,7 +74,6 @@ extension SessionLifecycleSettingsSection on AppSettingsNotifier {
         if (known.contains(entry.key) && entry.value.isFinite)
           entry.key: entry.value < 0 ? 0.0 : entry.value,
     };
-    await _saveSetting('adaptive_swap.score_weights', jsonEncode(sanitised));
-    _patchState((s) => s.copyWith(conditionsScoreWeights: sanitised));
+    await _set(AppSettingDefs.conditionsScoreWeights, sanitised);
   }
 }
