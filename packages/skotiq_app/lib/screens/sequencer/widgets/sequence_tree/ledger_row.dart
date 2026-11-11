@@ -561,8 +561,10 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
     final isSkipped = status == NodeStatus.skipped;
     final isCancelled = status == NodeStatus.cancelled;
     final isDisabled = !node.isEnabled;
-    final isStruckThrough = isDisabled || isSkipped || isCancelled;
-    // Done, skipped and cancelled all recede; a FAILURE does not — it is the
+    // Struck through means "did not run". A stopped step ran, and may have
+    // taken most of its frames, so it recedes without the strike.
+    final isStruckThrough = isDisabled || isSkipped;
+    // Done, skipped and stopped all recede; a FAILURE does not — it is the
     // one outcome the operator has to find, so it keeps the error colour the
     // comfortable row gives it.
     final isMuted = isSuccess || isSkipped || isCancelled || isDisabled;
@@ -846,7 +848,7 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
       NodeStatus.success => 'done',
       NodeStatus.failure => 'failed',
       NodeStatus.skipped => 'skipped',
-      NodeStatus.cancelled => 'canceled',
+      NodeStatus.cancelled => 'stopped',
       _ => widget.node.isEnabled ? '' : 'disabled',
     };
     return <String>[

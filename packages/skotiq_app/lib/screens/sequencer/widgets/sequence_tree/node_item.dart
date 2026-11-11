@@ -521,12 +521,11 @@ class _NodeItemState extends ConsumerState<_NodeItem> {
                                   : (isSkipped || isCancelled)
                                       ? widget.colors.textMuted
                                       : widget.colors.textPrimary,
-                          decoration: isDisabled || isSkipped || isCancelled
+                          decoration: isDisabled || isSkipped
                               ? TextDecoration.lineThrough
                               : null,
-                          decorationColor: isSkipped || isCancelled
-                              ? widget.colors.textMuted
-                              : null,
+                          decorationColor:
+                              isSkipped ? widget.colors.textMuted : null,
                         ),
                         softWrap: false,
                         overflow: TextOverflow.ellipsis,
