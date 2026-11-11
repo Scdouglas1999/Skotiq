@@ -104,6 +104,50 @@ void main() {
   });
 
   testWidgets(
+      'a focuser move the old host finishes after a switch reports nothing',
+      (tester) async {
+    final hostA = mockBackend();
+    final service = _MockDeviceService();
+    final move = Completer<void>();
+    when(() => service.moveFocuserTo(123)).thenAnswer((_) => move.future);
+    late _SwappableBackendNotifier notifier;
+
+    await pumpAppScreen(
+      tester,
+      const ConnectedDeviceCard(type: DeviceType.focuser),
+      extraOverrides: [
+        backendProvider.overrideWith((ref) {
+          notifier = _SwappableBackendNotifier(ref, hostA);
+          return notifier;
+        }),
+        focuserStateProvider.overrideWith(
+          (ref) => _ConnectedFocuserNotifier(ref),
+        ),
+        deviceServiceProvider.overrideWithValue(service),
+      ],
+      settle: false,
+    );
+
+    await tapDeviceAction(tester, 'Move to…');
+    await _pumpFrames(tester);
+    await tester.enterText(find.byType(TextField), '123');
+    await tester.tap(find.text('Move'));
+    await tester.pump();
+    verify(() => service.moveFocuserTo(123)).called(1);
+
+    notifier.switchTo(mockBackend());
+    await _pumpFrames(tester);
+    expect(find.text('Move focuser'), findsNothing);
+
+    move.complete();
+    await _pumpFrames(tester);
+
+    expect(find.byType(ConnectedDeviceCard), findsOneWidget);
+    expect(find.textContaining('Focuser moved'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
       'focuser move shows an honest unknown maximum and remains retryable',
       (tester) async {
     final service = _MockDeviceService();

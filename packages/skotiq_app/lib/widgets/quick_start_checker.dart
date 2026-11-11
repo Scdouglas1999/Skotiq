@@ -69,10 +69,9 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
     }
   }
 
-  Future<CheckpointInfo?> _continuableCheckpoint(
-      SkotiqBackend authority) async {
+  Future<CheckpointInfo?> _continuableCheckpoint(SkotiqBackend host) async {
     try {
-      return await authority.getCheckpointInfo();
+      return await host.getCheckpointInfo();
     } catch (_) {
       return null;
     }
@@ -82,13 +81,13 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
     if (_hasChecked || !mounted) return;
 
     _hasChecked = true;
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope(alive: () => mounted);
 
     try {
       // A client joining a host mid-run is shown the live run. The host's
       // open session belongs to that run, and restoring a setup would move
       // the host's devices under it.
-      final hostControl = authority.remoteHost?.control;
+      final hostControl = host.value.remoteHost?.control;
       if (hostControl != null && await hostControl.hostRunInFlight()) {
         ref.read(loggingServiceProvider).info(
               'The imaging host is running a sequence; skipping the startup '
@@ -101,32 +100,32 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
 
       // The host's own screen decides on its sessions; a client neither
       // resumes nor discards them.
-      if (authority.remoteHost != null) return;
+      if (host.value.remoteHost != null) return;
 
       // First priority: Check for crashed/interrupted sessions. The session
       // of a run whose checkpoint can be continued is that run: the checkpoint
       // prompt or History continues it, so it is not raised a second time.
       final incompleteSessions = withoutCheckpointedRun(
         await ref.read(incompleteSessionsProvider.future),
-        await _continuableCheckpoint(authority),
+        await _continuableCheckpoint(host.value),
       );
 
       if (!mounted) return;
-      if (!_isCurrentAuthority(authority)) {
+      if (host.isStale) {
         _scheduleRecheck();
         return;
       }
 
       if (incompleteSessions.isNotEmpty && mounted) {
-        if (mounted && _isCurrentAuthority(authority)) {
+        if (mounted && host.isCurrent) {
           final uiContext = _uiContext;
           if (uiContext == null || !uiContext.mounted) {
             _scheduleRecheck();
             return;
           }
-          await _showAuthorityDialog<void>(
+          await _showStartupDialog<void>(
             surface: StartupSurface.interruptedSession,
-            authority: authority,
+            host: host,
             context: uiContext,
             barrierDismissible: false,
             builder: (context) => SessionRecoveryDialog(
@@ -134,7 +133,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
             ),
           );
         }
-        if (mounted && !_isCurrentAuthority(authority)) {
+        if (mounted && host.isStale) {
           _scheduleRecheck();
         }
         return;
@@ -150,7 +149,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
           await ref.read(quickStartContextProvider.future);
 
       if (!mounted) return;
-      if (!_isCurrentAuthority(authority)) {
+      if (host.isStale) {
         _scheduleRecheck();
         return;
       }
@@ -163,25 +162,25 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
           quickStartContext.isRecent &&
           !sessionIsFinished(quickStartContext) &&
           mounted) {
-        if (mounted && _isCurrentAuthority(authority)) {
+        if (mounted && host.isCurrent) {
           final uiContext = _uiContext;
           if (uiContext == null || !uiContext.mounted) {
             _scheduleRecheck();
             return;
           }
-          await _showAuthorityDialog<void>(
+          await _showStartupDialog<void>(
             surface: StartupSurface.quickStart,
-            authority: authority,
+            host: host,
             context: uiContext,
             builder: (dialogContext) => QuickStartDialog(
               quickStartContext: quickStartContext,
               onStartFresh: () {
                 Navigator.of(dialogContext).pop();
-                unawaited(_handleStartFresh(quickStartContext, authority));
+                unawaited(_handleStartFresh(quickStartContext, host));
               },
               onResumeProgress: () {
                 Navigator.of(dialogContext).pop();
-                unawaited(_handleResumeProgress(quickStartContext, authority));
+                unawaited(_handleResumeProgress(quickStartContext, host));
               },
               onSkip: () {
                 Navigator.of(dialogContext).pop();
@@ -193,12 +192,12 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
             ),
           );
         }
-        if (mounted && !_isCurrentAuthority(authority)) {
+        if (mounted && host.isStale) {
           _scheduleRecheck();
         }
       }
     } catch (e, st) {
-      if (mounted && !_isCurrentAuthority(authority)) {
+      if (mounted && host.isStale) {
         _scheduleRecheck();
         return;
       }
@@ -239,9 +238,6 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
     }
   }
 
-  bool _isCurrentAuthority(SkotiqBackend authority) =>
-      mounted && identical(ref.read(backendProvider), authority);
-
   BuildContext? get _uiContext => resolveStartupUiContext(ref, context);
 
   void _scheduleRecheck() {
@@ -256,15 +252,15 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
     });
   }
 
-  Future<T?> _showAuthorityDialog<T>({
+  Future<T?> _showStartupDialog<T>({
     required StartupSurface surface,
-    required SkotiqBackend authority,
+    required AsyncScope<SkotiqBackend> host,
     required BuildContext context,
     required WidgetBuilder builder,
     bool barrierDismissible = true,
   }) async {
     return _queue.turn<T?>(surface, () async {
-      if (!mounted || !context.mounted || !_isCurrentAuthority(authority)) {
+      if (!mounted || !context.mounted || host.isStale) {
         return null;
       }
       // The prompt waited its turn behind other startup prompts; a run that
@@ -280,16 +276,6 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
       }
 
       BuildContext? dialogContext;
-      final subscription = ref.listenManual<SkotiqBackend>(
-        backendProvider,
-        (previous, next) {
-          if (identical(next, authority)) return;
-          final routeContext = dialogContext;
-          if (routeContext != null && routeContext.mounted) {
-            closeAuthorityBoundDialog(routeContext);
-          }
-        },
-      );
       // A startup prompt offers to continue or restore a past run; once a
       // run starts it is not one to act on, so the prompt closes itself.
       final runStarted = ref.listenManual<SequenceExecutionState>(
@@ -302,8 +288,9 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
         },
       );
       try {
-        return await showDialog<T>(
+        return await showHostBoundDialog<T>(
           context: context,
+          ref: ref,
           barrierDismissible: barrierDismissible,
           builder: (routeContext) {
             dialogContext = routeContext;
@@ -311,13 +298,12 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
           },
         );
       } finally {
-        subscription.close();
         runStarted.close();
       }
     });
   }
 
-  void _showAuthorityChanged() {
+  void _showHostChanged() {
     if (!mounted) return;
     final uiContext = _uiContext;
     if (uiContext == null) return;
@@ -332,10 +318,10 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
 
   Future<void> _handleStartFresh(
     QuickStartContext context,
-    SkotiqBackend authority,
+    AsyncScope<SkotiqBackend> host,
   ) async {
-    if (!_isCurrentAuthority(authority)) {
-      _showAuthorityChanged();
+    if (host.isStale) {
+      _showHostChanged();
       return;
     }
     final logger = ref.read(loggingServiceProvider);
@@ -346,8 +332,8 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
 
     try {
       if (context.canResumeFromCheckpoint) {
-        await authority.discardCheckpoint();
-        if (!_isCurrentAuthority(authority)) return;
+        await host.value.discardCheckpoint();
+        if (host.isStale) return;
         logger.info(
           'Discarded resumable checkpoint before loading a fresh setup',
           source: 'QuickStart',
@@ -363,7 +349,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
       if (context.profileId != null) {
         final profilesNotifier = ref.read(equipmentProfilesProvider.notifier);
         await profilesNotifier.setActiveProfile(context.profileId!);
-        if (!_isCurrentAuthority(authority)) return;
+        if (host.isStale) return;
         restored.add('equipment profile');
         logger.info('Activated profile ${context.profileId}',
             source: 'QuickStart');
@@ -374,7 +360,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
         final sequence = await ref
             .read(sequenceRepositoryProvider)
             .loadSequence(context.sequenceId!);
-        if (!_isCurrentAuthority(authority)) return;
+        if (host.isStale) return;
         if (sequence != null) {
           ref
               .read(currentSequenceProvider.notifier)
@@ -389,9 +375,9 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
 
       final snapshotResult = await _applyEquipmentSnapshot(
         context.equipmentSnapshot,
-        authority,
+        host,
       );
-      if (!_isCurrentAuthority(authority)) return;
+      if (host.isStale) return;
       restored.addAll(snapshotResult.applied);
       final failures = snapshotResult.failures;
 
@@ -433,7 +419,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
         );
       }
     } catch (e, st) {
-      if (!_isCurrentAuthority(authority)) return;
+      if (host.isStale) return;
       // Caught + surfaced to user via SnackBar; the failure is not fatal but
       // is user-visible, so log as error and include stack for diagnostics.
       ref.read(loggingServiceProvider).error(
@@ -456,10 +442,10 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
 
   Future<void> _handleResumeProgress(
     QuickStartContext context,
-    SkotiqBackend authority,
+    AsyncScope<SkotiqBackend> host,
   ) async {
-    if (!_isCurrentAuthority(authority)) {
-      _showAuthorityChanged();
+    if (host.isStale) {
+      _showHostChanged();
       return;
     }
     final logger = ref.read(loggingServiceProvider);
@@ -477,7 +463,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
       if (context.profileId != null) {
         final profilesNotifier = ref.read(equipmentProfilesProvider.notifier);
         await profilesNotifier.setActiveProfile(context.profileId!);
-        if (!_isCurrentAuthority(authority)) return;
+        if (host.isStale) return;
         logger.info('Activated profile ${context.profileId}',
             source: 'QuickStart');
       }
@@ -486,7 +472,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
       // state and device mapping, and the run waits for Start. Nothing moves
       // from this dialog.
       await executor.restoreFromCheckpoint();
-      if (!_isCurrentAuthority(authority)) return;
+      if (host.isStale) return;
 
       final uiContext = _uiContext;
       if (mounted && uiContext != null && uiContext.mounted) {
@@ -502,7 +488,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
         );
       }
     } catch (e, st) {
-      if (!_isCurrentAuthority(authority)) return;
+      if (host.isStale) return;
       // Caught + surfaced to user via SnackBar; the failure is not fatal but
       // is user-visible, so log as error and include stack for diagnostics.
       ref.read(loggingServiceProvider).error(
@@ -527,7 +513,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
   /// what failed, so callers can describe the outcome instead of asserting one.
   Future<_SnapshotRestore> _applyEquipmentSnapshot(
     EquipmentSnapshot? snapshot,
-    SkotiqBackend authority,
+    AsyncScope<SkotiqBackend> host,
   ) async {
     final logger = ref.read(loggingServiceProvider);
     if (snapshot == null || !snapshot.hasEquipmentData) {
@@ -539,7 +525,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
 
     final applied = <String>[];
     final failures = <String>[];
-    if (!_isCurrentAuthority(authority) || authority.remoteHost != null) {
+    if (host.isStale || host.value.remoteHost != null) {
       return _SnapshotRestore(applied: applied, failures: failures);
     }
 
@@ -571,7 +557,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
     }
 
     if (snapshot.filterPosition != null) {
-      if (!_isCurrentAuthority(authority)) {
+      if (host.isStale) {
         return _SnapshotRestore(applied: applied, failures: failures);
       }
       final filterWheelState = ref.read(filterWheelStateProvider);
@@ -601,7 +587,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
     }
 
     if (snapshot.focuserPosition != null) {
-      if (!_isCurrentAuthority(authority)) {
+      if (host.isStale) {
         return _SnapshotRestore(applied: applied, failures: failures);
       }
       final focuserState = ref.read(focuserStateProvider);

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +10,14 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 class _MockSequenceRepository extends Mock implements SequenceRepository {}
+
+class _SwappableBackendNotifier extends BackendNotifier {
+  _SwappableBackendNotifier(super.ref, SkotiqBackend backend) : super() {
+    state = backend;
+  }
+
+  void switchTo(SkotiqBackend backend) => state = backend;
+}
 
 void main() {
   setUpAll(() {
@@ -210,5 +220,80 @@ void main() {
     await tester.pump();
     expect(editor.state?.id, current.id);
     expect(editor.state?.description, 'Do not lose this');
+  });
+
+  testWidgets(
+      'a template delete the old host finishes after a switch reports nothing',
+      (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(430, 3000);
+    addTearDown(() {
+      tester.view.resetDevicePixelRatio();
+      tester.view.resetPhysicalSize();
+    });
+
+    final repository = _MockSequenceRepository();
+    final custom = Sequence.create(
+      databaseId: 7,
+      name: 'My Galaxy Template',
+      isTemplate: true,
+    );
+    when(() => repository.loadAllTemplates()).thenAnswer((_) async => [custom]);
+    final deletion = Completer<void>();
+    when(() => repository.deleteSequence(7))
+        .thenAnswer((_) => deletion.future);
+    final hostA = DisconnectedBackend();
+    final hostB = DisconnectedBackend();
+    addTearDown(hostA.dispose);
+    addTearDown(hostB.dispose);
+    late _SwappableBackendNotifier notifier;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => notifier = _SwappableBackendNotifier(ref, hostA),
+          ),
+          sequenceRepositoryProvider.overrideWithValue(repository),
+          allSnippetsProvider.overrideWithValue(const []),
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const Scaffold(body: TemplatesTab()),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('Delete'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Delete Template'), findsOneWidget);
+    await tester.tap(find.widgetWithText(SkotiqButton, 'Delete'));
+    await tester.pump();
+    verify(() => repository.deleteSequence(7)).called(1);
+    clearInteractions(repository);
+
+    // The old host answers in the same turn as the switch, before the closed
+    // dialog has left the tree.
+    notifier.switchTo(hostB);
+    deletion.complete();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Delete Template'), findsNothing);
+    expect(
+      find.text('The connected host changed. Template deletion canceled.'),
+      findsOneWidget,
+    );
+    verifyNever(() => repository.loadAllTemplates());
+    ScaffoldMessenger.of(tester.element(find.byType(TemplatesTab)))
+        .removeCurrentSnackBar();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Deleted "My Galaxy Template"'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 }

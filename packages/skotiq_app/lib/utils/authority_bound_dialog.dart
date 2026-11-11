@@ -28,6 +28,62 @@ void closeAuthorityBoundDialog(BuildContext context) {
   }
 }
 
+/// Shows a dialog built inline whose contents belong to the imaging host
+/// that is current now: the [HostBoundDialogState] behavior for a dialog
+/// that has no state class of its own.
+///
+/// The dialog closes, with [hostChangedMessage] when one is given, as soon as
+/// the app links to another host, also when that happens before the dialog
+/// first builds. [ref] belongs to the widget asking for the dialog.
+Future<T?> showHostBoundDialog<T>({
+  required BuildContext context,
+  required WidgetRef ref,
+  required WidgetBuilder builder,
+  String? hostChangedMessage,
+  bool hostChangeDiscardsInput = false,
+  bool barrierDismissible = true,
+}) async {
+  final openedUnder = ref.read(backendProvider);
+  BuildContext? routeContext;
+  var hostChanged = false;
+  var closed = false;
+  void close() {
+    final dialogContext = routeContext;
+    if (closed || dialogContext == null || !dialogContext.mounted) return;
+    closed = true;
+    _announceHostChange(
+      dialogContext,
+      hostChangedMessage,
+      discardsInput: hostChangeDiscardsInput,
+    );
+    closeAuthorityBoundDialog(dialogContext);
+  }
+
+  final subscription = ref.listenManual<SkotiqBackend>(
+    backendProvider,
+    (previous, next) {
+      if (hostChanged || identical(next, openedUnder)) return;
+      hostChanged = true;
+      close();
+    },
+  );
+  try {
+    return await showDialog<T>(
+      context: context,
+      barrierDismissible: barrierDismissible,
+      builder: (dialogContext) {
+        routeContext = dialogContext;
+        if (hostChanged) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => close());
+        }
+        return builder(dialogContext);
+      },
+    );
+  } finally {
+    subscription.close();
+  }
+}
+
 /// State of a dialog whose contents belong to one imaging host.
 ///
 /// The dialog captures the host it was opened under as [host]. If the app

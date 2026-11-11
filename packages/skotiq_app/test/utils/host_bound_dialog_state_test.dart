@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -128,5 +130,64 @@ void main() {
     expect(state.hostScopes.begin().isStale, isTrue);
     await tester.pumpAndSettle();
     expect(find.byType(_Dialog), findsNothing);
+  });
+
+  testWidgets(
+      'an inline host-bound dialog closes with its message, also when the '
+      'host changes before it first builds', (tester) async {
+    final hostA = DisconnectedBackend();
+    final hostB = DisconnectedBackend();
+    addTearDown(hostA.dispose);
+    addTearDown(hostB.dispose);
+    late _SwappableBackendNotifier notifier;
+    late WidgetRef launcherRef;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          backendProvider.overrideWith(
+            (ref) => notifier = _SwappableBackendNotifier(ref, hostA),
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: Consumer(
+              builder: (context, ref, _) {
+                launcherRef = ref;
+                ref.watch(backendProvider);
+                return const Text('page');
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Future<void> open() => showHostBoundDialog<void>(
+          context: tester.element(find.text('page')),
+          ref: launcherRef,
+          hostChangedMessage: 'Host changed. Closed.',
+          builder: (_) => const AlertDialog(content: Text('inline')),
+        );
+
+    unawaited(open());
+    await tester.pumpAndSettle();
+    expect(find.text('inline'), findsOneWidget);
+    notifier.switchTo(hostB);
+    await tester.pumpAndSettle();
+    expect(find.text('inline'), findsNothing);
+    expect(find.text('Host changed. Closed.'), findsOneWidget);
+    expect(find.text('page'), findsOneWidget);
+
+    ScaffoldMessenger.of(tester.element(find.text('page')))
+        .removeCurrentSnackBar();
+    await tester.pumpAndSettle();
+    unawaited(open());
+    notifier.switchTo(hostA);
+    await tester.pumpAndSettle();
+    expect(find.text('inline'), findsNothing);
+    expect(find.text('Host changed. Closed.'), findsOneWidget);
+    expect(find.text('page'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

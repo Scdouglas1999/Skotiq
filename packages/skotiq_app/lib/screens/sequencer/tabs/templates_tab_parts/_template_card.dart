@@ -711,113 +711,94 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
   Future<void> _deleteTemplate(BuildContext context) async {
     final dbId = widget.template.databaseId;
     if (dbId == null) return;
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final repository = ref.read(sequenceRepositoryProvider);
     var isDeleting = false;
-    BuildContext? routeContext;
-    final subscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (previous == null || identical(previous, next)) return;
-        final dialogContext = routeContext;
-        if (dialogContext != null && dialogContext.mounted) {
-          dialogContext.showWarningSnackBar(
-            'The connected host changed. Template deletion canceled.',
-          );
-          closeAuthorityBoundDialog(dialogContext);
-        }
+    await showHostBoundDialog<void>(
+      context: context,
+      ref: ref,
+      hostChangedMessage:
+          'The connected host changed. Template deletion canceled.',
+      hostChangeDiscardsInput: true,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) => PopScope(
+            canPop: !isDeleting,
+            child: AlertDialog(
+              backgroundColor: widget.colors.surface,
+              shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(SkotiqTokens.radiusInline8)),
+              title: Text(
+                'Delete Template',
+                style: TextStyle(color: widget.colors.textPrimary),
+              ),
+              content: ConstrainedBox(
+                constraints: AdaptiveDialogConstraints.hybrid(
+                  dialogContext,
+                  designMaxWidth: 400,
+                ),
+                child: Text(
+                  'Are you sure you want to delete "${widget.template.name}"? This action cannot be undone.',
+                  style: TextStyle(color: widget.colors.textSecondary),
+                ),
+              ),
+              actions: [
+                SkotiqButton(
+                  onPressed: isDeleting
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  label: 'Cancel',
+                  variant: ButtonVariant.ghost,
+                  size: ButtonSize.small,
+                ),
+                SkotiqButton(
+                  onPressed: isDeleting
+                      ? null
+                      : () async {
+                          setDialogState(() => isDeleting = true);
+                          try {
+                            if (host.isStale) {
+                              Navigator.of(dialogContext).pop();
+                              return;
+                            }
+                            await repository.deleteSequence(dbId);
+
+                            if (!dialogContext.mounted || host.isStale) {
+                              return;
+                            }
+
+                            notifySequenceCatalogChanged(
+                              ref,
+                              sequenceId: dbId,
+                              action: 'deleted',
+                              name: widget.template.name,
+                              isTemplate: true,
+                            );
+                            ref.invalidate(sequenceTemplatesProvider);
+
+                            if (!dialogContext.mounted) return;
+                            dialogContext.showSuccessSnackBar(
+                                'Deleted "${widget.template.name}"');
+                            Navigator.of(dialogContext).pop();
+                          } catch (e) {
+                            if (!dialogContext.mounted) return;
+                            setDialogState(() => isDeleting = false);
+                            dialogContext.showErrorSnackBar(
+                                'Failed to delete template: $e');
+                          }
+                        },
+                  label: 'Delete',
+                  variant: ButtonVariant.destructive,
+                  size: ButtonSize.small,
+                  isLoading: isDeleting,
+                ),
+              ],
+            ),
+          ),
+        );
       },
     );
-
-    try {
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) {
-          routeContext = dialogContext;
-          return StatefulBuilder(
-            builder: (dialogContext, setDialogState) => PopScope(
-              canPop: !isDeleting,
-              child: AlertDialog(
-                backgroundColor: widget.colors.surface,
-                shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusInline8)),
-                title: Text(
-                  'Delete Template',
-                  style: TextStyle(color: widget.colors.textPrimary),
-                ),
-                content: ConstrainedBox(
-                  constraints: AdaptiveDialogConstraints.hybrid(
-                    dialogContext,
-                    designMaxWidth: 400,
-                  ),
-                  child: Text(
-                    'Are you sure you want to delete "${widget.template.name}"? This action cannot be undone.',
-                    style: TextStyle(color: widget.colors.textSecondary),
-                  ),
-                ),
-                actions: [
-                  SkotiqButton(
-                    onPressed: isDeleting
-                        ? null
-                        : () => Navigator.of(dialogContext).pop(),
-                    label: 'Cancel',
-                    variant: ButtonVariant.ghost,
-                    size: ButtonSize.small,
-                  ),
-                  SkotiqButton(
-                    onPressed: isDeleting
-                        ? null
-                        : () async {
-                            setDialogState(() => isDeleting = true);
-                            try {
-                              if (!identical(
-                                  ref.read(backendProvider), authority)) {
-                                Navigator.of(dialogContext).pop();
-                                return;
-                              }
-                              await repository.deleteSequence(dbId);
-
-                              if (!dialogContext.mounted ||
-                                  !identical(
-                                      ref.read(backendProvider), authority)) {
-                                return;
-                              }
-
-                              notifySequenceCatalogChanged(
-                                ref,
-                                sequenceId: dbId,
-                                action: 'deleted',
-                                name: widget.template.name,
-                                isTemplate: true,
-                              );
-                              ref.invalidate(sequenceTemplatesProvider);
-
-                              if (!dialogContext.mounted) return;
-                              dialogContext.showSuccessSnackBar(
-                                  'Deleted "${widget.template.name}"');
-                              Navigator.of(dialogContext).pop();
-                            } catch (e) {
-                              if (!dialogContext.mounted) return;
-                              setDialogState(() => isDeleting = false);
-                              dialogContext.showErrorSnackBar(
-                                  'Failed to delete template: $e');
-                            }
-                          },
-                    label: 'Delete',
-                    variant: ButtonVariant.destructive,
-                    size: ButtonSize.small,
-                    isLoading: isDeleting,
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      );
-    } finally {
-      subscription.close();
-    }
   }
 }
 

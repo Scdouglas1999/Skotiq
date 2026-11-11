@@ -15,8 +15,9 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
     String? errorText;
     final pageContext = context;
 
-    await _showEquipmentDialog<void>(
+    await showHostBoundDialog<void>(
       context: context,
+      ref: ref,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) {
@@ -206,8 +207,9 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
     String? errorText;
     final pageContext = context;
 
-    await _showEquipmentDialog<void>(
+    await showHostBoundDialog<void>(
       context: context,
+      ref: ref,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) {
@@ -366,8 +368,9 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
     String? errorText;
     final pageContext = context;
 
-    await _showEquipmentDialog<void>(
+    await showHostBoundDialog<void>(
       context: context,
+      ref: ref,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) {
