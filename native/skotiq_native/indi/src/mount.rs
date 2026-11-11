@@ -190,7 +190,7 @@ impl IndiMount {
     }
 
     /// Get current coordinates (RA in hours, Dec in degrees)
-    pub async fn get_coordinates(&self) -> Result<(f64, f64), String> {
+    pub async fn get_coordinates(&self) -> IndiResult<(f64, f64)> {
         let coord = self.equatorial_coord_property().await;
         let client = self.client.read().await;
         let prop = coord.as_str();
@@ -198,12 +198,12 @@ impl IndiMount {
         let ra = client
             .get_number(&self.device_name, prop, RA)
             .await
-            .ok_or_else(|| format!("RA not available on {}", prop))?;
+            .ok_or_else(|| IndiError::Unavailable(format!("RA not available on {}", prop)))?;
 
         let dec = client
             .get_number(&self.device_name, prop, DEC)
             .await
-            .ok_or_else(|| format!("Dec not available on {}", prop))?;
+            .ok_or_else(|| IndiError::Unavailable(format!("Dec not available on {}", prop)))?;
 
         Ok((ra, dec))
     }
@@ -329,7 +329,7 @@ impl IndiMount {
         ra_hours: f64,
         dec_degrees: f64,
         timeout: Option<Duration>,
-    ) -> Result<(), String> {
+    ) -> IndiResult<()> {
         // Read config outside the closure - async-friendly
         let timeout_duration = if let Some(t) = timeout {
             t
@@ -359,7 +359,7 @@ impl IndiMount {
             {
                 Self::restore_on_coord_set_mode(&mut client, &self.device_name, previous_mode)
                     .await;
-                return Err(error.to_string());
+                return Err(error);
             }
         }
 
@@ -368,11 +368,12 @@ impl IndiMount {
         client
             .wait_for_property_not_busy(&self.device_name, coord_prop, timeout_duration)
             .await
-            .map_err(|e| {
-                format!(
-                    "Mount slew to RA={:.4}h, Dec={:.4}° failed: {}",
-                    ra_hours, dec_degrees, e
-                )
+            .map_err(|e| IndiError::Failed {
+                what: format!(
+                    "Mount slew to RA={:.4}h, Dec={:.4}°",
+                    ra_hours, dec_degrees
+                ),
+                cause: Box::new(e),
             })
     }
 
@@ -706,16 +707,16 @@ impl IndiMount {
     }
 
     /// Get horizontal coordinates (Altitude, Azimuth)
-    pub async fn get_horizontal_coordinates(&self) -> Result<(f64, f64), String> {
+    pub async fn get_horizontal_coordinates(&self) -> IndiResult<(f64, f64)> {
         let client = self.client.read().await;
         let alt = client
             .get_number(&self.device_name, HORIZONTAL_COORD, ALT)
             .await
-            .ok_or_else(|| "Altitude not available".to_string())?;
+            .ok_or_else(|| IndiError::Unavailable("Altitude not available".to_string()))?;
         let az = client
             .get_number(&self.device_name, HORIZONTAL_COORD, AZ)
             .await
-            .ok_or_else(|| "Azimuth not available".to_string())?;
+            .ok_or_else(|| IndiError::Unavailable("Azimuth not available".to_string()))?;
         Ok((alt, az))
     }
 }

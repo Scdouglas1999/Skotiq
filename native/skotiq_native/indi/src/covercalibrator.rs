@@ -21,7 +21,7 @@
 //! `bridge/src/dispatch/indi.rs:148`.
 
 use crate::client::IndiClient;
-use crate::error::IndiResult;
+use crate::error::{IndiError, IndiResult};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -130,7 +130,7 @@ impl IndiCoverCalibrator {
     // Cover control (Dust Cap)
 
     /// Open the cover (unpark dust cap)
-    pub async fn open_cover(&self) -> Result<(), String> {
+    pub async fn open_cover(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
 
         // Try CAP_PARK first (common INDI standard)
@@ -161,11 +161,11 @@ impl IndiCoverCalibrator {
             return Ok(());
         }
 
-        Err("No compatible cover control property found".to_string())
+        Err(IndiError::Unavailable("No compatible cover control property found".to_string()))
     }
 
     /// Close the cover (park dust cap)
-    pub async fn close_cover(&self) -> Result<(), String> {
+    pub async fn close_cover(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
 
         // Try CAP_PARK first (common INDI standard)
@@ -195,11 +195,11 @@ impl IndiCoverCalibrator {
             return Ok(());
         }
 
-        Err("No compatible cover control property found".to_string())
+        Err(IndiError::Unavailable("No compatible cover control property found".to_string()))
     }
 
     /// Halt cover movement (abort)
-    pub async fn halt_cover(&self) -> Result<(), String> {
+    pub async fn halt_cover(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
 
         // Try standard abort property
@@ -216,7 +216,7 @@ impl IndiCoverCalibrator {
             return Ok(());
         }
 
-        Err("No compatible cover abort property found".to_string())
+        Err(IndiError::Unavailable("No compatible cover abort property found".to_string()))
     }
 
     /// Get cover state
@@ -402,7 +402,7 @@ impl IndiCoverCalibrator {
     // Calibrator control (Flat Light)
 
     /// Turn on the calibrator light at specified brightness
-    pub async fn calibrator_on(&self, brightness: i32) -> Result<(), String> {
+    pub async fn calibrator_on(&self, brightness: i32) -> IndiResult<()> {
         let mut client = self.client.write().await;
 
         // Set brightness first if supported
@@ -457,11 +457,11 @@ impl IndiCoverCalibrator {
             return Ok(());
         }
 
-        Err("No compatible calibrator control property found".to_string())
+        Err(IndiError::Unavailable("No compatible calibrator control property found".to_string()))
     }
 
     /// Turn off the calibrator light
-    pub async fn calibrator_off(&self) -> Result<(), String> {
+    pub async fn calibrator_off(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
 
         // Try FLAT_LIGHT_CONTROL first
@@ -502,7 +502,7 @@ impl IndiCoverCalibrator {
             return Ok(());
         }
 
-        Err("No compatible calibrator control property found".to_string())
+        Err(IndiError::Unavailable("No compatible calibrator control property found".to_string()))
     }
 
     /// Get calibrator state
@@ -582,7 +582,7 @@ impl IndiCoverCalibrator {
     // Brightness control
 
     /// Get current brightness (0-max)
-    pub async fn get_brightness(&self) -> Result<i32, String> {
+    pub async fn get_brightness(&self) -> IndiResult<i32> {
         let client = self.client.read().await;
 
         // Try FLAT_LIGHT_INTENSITY
@@ -609,11 +609,11 @@ impl IndiCoverCalibrator {
             return Ok(brightness as i32);
         }
 
-        Err("Brightness property not available".to_string())
+        Err(IndiError::Unavailable("Brightness property not available".to_string()))
     }
 
     /// Set brightness (0-max)
-    pub async fn set_brightness(&self, brightness: i32) -> Result<(), String> {
+    pub async fn set_brightness(&self, brightness: i32) -> IndiResult<()> {
         let mut client = self.client.write().await;
 
         // Try FLAT_LIGHT_INTENSITY
@@ -644,11 +644,11 @@ impl IndiCoverCalibrator {
             return Ok(());
         }
 
-        Err("Brightness property not available".to_string())
+        Err(IndiError::Unavailable("Brightness property not available".to_string()))
     }
 
     /// Get maximum brightness
-    pub async fn get_max_brightness(&self) -> Result<i32, String> {
+    pub async fn get_max_brightness(&self) -> IndiResult<i32> {
         let client = self.client.read().await;
 
         if let Some(limits) = client
@@ -675,7 +675,7 @@ impl IndiCoverCalibrator {
             }
         }
 
-        Err("Brightness property limits not available".to_string())
+        Err(IndiError::Unavailable("Brightness property limits not available".to_string()))
     }
 }
 
@@ -702,7 +702,7 @@ async fn set_switch_when_defined(
     device_name: &str,
     property: &str,
     element: &str,
-) -> Result<bool, String> {
+) -> IndiResult<bool> {
     if !client.has_property(device_name, property).await {
         return Ok(false);
     }
@@ -710,7 +710,6 @@ async fn set_switch_when_defined(
         .set_switch(device_name, property, element, true)
         .await
         .map(|_| true)
-        .map_err(|e| e.to_string())
 }
 
 async fn set_number_when_defined(
@@ -719,7 +718,7 @@ async fn set_number_when_defined(
     property: &str,
     element: &str,
     value: f64,
-) -> Result<bool, String> {
+) -> IndiResult<bool> {
     if !client.has_property(device_name, property).await {
         return Ok(false);
     }
@@ -727,5 +726,4 @@ async fn set_number_when_defined(
         .set_number(device_name, property, element, value)
         .await
         .map(|_| true)
-        .map_err(|e| e.to_string())
 }

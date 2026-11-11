@@ -3,7 +3,7 @@
 //! Provides high-level focuser control via INDI protocol.
 
 use crate::client::IndiClient;
-use crate::error::IndiResult;
+use crate::error::{IndiError, IndiResult};
 use crate::protocol::standard_properties::*;
 use std::sync::Arc;
 use std::time::Duration;
@@ -151,7 +151,7 @@ impl IndiFocuser {
         &self,
         position: i32,
         timeout: Option<Duration>,
-    ) -> Result<(), String> {
+    ) -> IndiResult<()> {
         // Read config outside the closure - async-friendly
         let timeout_duration = if let Some(t) = timeout {
             t
@@ -169,7 +169,10 @@ impl IndiFocuser {
         client
             .wait_for_property_not_busy(&self.device_name, ABS_FOCUS_POSITION, timeout_duration)
             .await
-            .map_err(|e| format!("Focuser move to position {} failed: {}", position, e))
+            .map_err(|e| IndiError::Failed {
+                what: format!("Focuser move to position {}", position),
+                cause: Box::new(e),
+            })
     }
 
     /// Move relative (inward/outward)
@@ -212,7 +215,7 @@ impl IndiFocuser {
         &self,
         steps: i32,
         timeout: Option<Duration>,
-    ) -> Result<(), String> {
+    ) -> IndiResult<()> {
         // Read config outside the closure - async-friendly
         let timeout_duration = if let Some(t) = timeout {
             t
@@ -229,7 +232,10 @@ impl IndiFocuser {
         client
             .wait_for_property_not_busy(&self.device_name, REL_FOCUS_POSITION, timeout_duration)
             .await
-            .map_err(|e| format!("Focuser relative move by {} steps failed: {}", steps, e))
+            .map_err(|e| IndiError::Failed {
+                what: format!("Focuser relative move by {} steps", steps),
+                cause: Box::new(e),
+            })
     }
 
     /// Abort motion
@@ -241,7 +247,7 @@ impl IndiFocuser {
     }
 
     /// Get current position
-    pub async fn get_position(&self) -> Result<i32, String> {
+    pub async fn get_position(&self) -> IndiResult<i32> {
         let client = self.client.read().await;
         client
             .get_number(
@@ -253,7 +259,7 @@ impl IndiFocuser {
             // Why: INDI wire f64 -> i32 focuser position; bounded by focuser
             // max (typically <2^31). f64 -> i32 saturates per Rust 1.45 spec.
             .map(|p| p as i32)
-            .ok_or_else(|| "Position not available".to_string())
+            .ok_or_else(|| IndiError::Unavailable("Position not available".to_string()))
     }
 
     /// Check if moving
@@ -270,12 +276,12 @@ impl IndiFocuser {
     }
 
     /// Get temperature
-    pub async fn get_temperature(&self) -> Result<f64, String> {
+    pub async fn get_temperature(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
             .get_number(&self.device_name, FOCUS_TEMPERATURE, "TEMPERATURE")
             .await
-            .ok_or_else(|| "Temperature not available".to_string())
+            .ok_or_else(|| IndiError::Unavailable("Temperature not available".to_string()))
     }
 
     /// Maximum focuser travel in steps (`FOCUS_MAX` / `FOCUS_MAX_VALUE`).

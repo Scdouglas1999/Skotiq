@@ -28,7 +28,7 @@
 //! the only fail-open / fail-closed decision.
 
 use crate::client::IndiClient;
-use crate::error::IndiResult;
+use crate::error::{IndiError, IndiResult};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -80,7 +80,7 @@ impl IndiSafetyMonitor {
     /// 1. WEATHER_STATUS property (for Weather devices)
     /// 2. SAFETY_STATUS property (for dedicated safety monitors)
     /// 3. Individual weather parameters (cloud, rain, wind)
-    pub async fn is_safe(&self) -> Result<bool, String> {
+    pub async fn is_safe(&self) -> IndiResult<bool> {
         let client = self.client.read().await;
 
         // First, try the standard WEATHER_STATUS property
@@ -137,12 +137,12 @@ impl IndiSafetyMonitor {
             return Ok(false);
         }
 
-        Err(format!(
+        Err(IndiError::Unavailable(format!(
             "No INDI safety indicators resolved for device '{}' (checked \
              WEATHER_STATUS/WEATHER_SAFE, SAFETY_STATUS/SAFE, AUX_SAFETY/ENABLED, \
              and rain/wind/cloud alerts)",
             self.device_name
-        ))
+        )))
     }
 
     /// Check if any safety monitoring is available

@@ -15,7 +15,7 @@
 //! errors normally — silent fallback here applies only to status probes.
 
 use crate::client::IndiClient;
-use crate::error::IndiResult;
+use crate::error::{IndiError, IndiResult};
 use crate::IndiPropertyState;
 use std::sync::Arc;
 use std::time::Duration;
@@ -77,7 +77,7 @@ impl IndiDome {
     // Position
 
     /// Get the current dome azimuth position in degrees (0-360)
-    pub async fn get_azimuth(&self) -> Result<f64, String> {
+    pub async fn get_azimuth(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
             .get_number(
@@ -86,7 +86,7 @@ impl IndiDome {
                 "DOME_ABSOLUTE_POSITION",
             )
             .await
-            .ok_or_else(|| "Azimuth not available".to_string())
+            .ok_or_else(|| IndiError::Unavailable("Azimuth not available".to_string()))
     }
 
     /// Slew dome to specific azimuth
@@ -107,7 +107,7 @@ impl IndiDome {
         &self,
         azimuth: f64,
         timeout: Option<Duration>,
-    ) -> Result<(), String> {
+    ) -> IndiResult<()> {
         // Read config outside the closure - async-friendly
         let timeout_duration = if let Some(t) = timeout {
             t
@@ -134,7 +134,10 @@ impl IndiDome {
         client
             .wait_for_property_not_busy(&self.device_name, "ABS_DOME_POSITION", timeout_duration)
             .await
-            .map_err(|e| format!("Dome slew to azimuth {:.1} degrees failed: {}", azimuth, e))
+            .map_err(|e| IndiError::Failed {
+                what: format!("Dome slew to azimuth {:.1} degrees", azimuth),
+                cause: Box::new(e),
+            })
     }
 
     /// Sync dome to current azimuth
@@ -168,7 +171,7 @@ impl IndiDome {
     }
 
     /// Open the dome shutter with timeout
-    pub async fn open_shutter_with_timeout(&self, timeout: Option<Duration>) -> Result<(), String> {
+    pub async fn open_shutter_with_timeout(&self, timeout: Option<Duration>) -> IndiResult<()> {
         // Read config outside the closure - async-friendly
         let timeout_duration = if let Some(t) = timeout {
             t
@@ -192,14 +195,17 @@ impl IndiDome {
         client
             .wait_for_property_not_busy(&self.device_name, "DOME_SHUTTER", timeout_duration)
             .await
-            .map_err(|e| format!("Dome shutter open operation failed: {}", e))
+            .map_err(|e| IndiError::Failed {
+                what: "Dome shutter open operation".to_string(),
+                cause: Box::new(e),
+            })
     }
 
     /// Close the dome shutter with timeout
     pub async fn close_shutter_with_timeout(
         &self,
         timeout: Option<Duration>,
-    ) -> Result<(), String> {
+    ) -> IndiResult<()> {
         // Read config outside the closure - async-friendly
         let timeout_duration = if let Some(t) = timeout {
             t
@@ -223,7 +229,10 @@ impl IndiDome {
         client
             .wait_for_property_not_busy(&self.device_name, "DOME_SHUTTER", timeout_duration)
             .await
-            .map_err(|e| format!("Dome shutter close operation failed: {}", e))
+            .map_err(|e| IndiError::Failed {
+                what: "Dome shutter close operation".to_string(),
+                cause: Box::new(e),
+            })
     }
 
     /// Get shutter status by checking switch states
@@ -414,21 +423,21 @@ impl IndiDome {
     }
 
     /// Get home position
-    pub async fn get_home_position(&self) -> Result<f64, String> {
+    pub async fn get_home_position(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
             .get_number(&self.device_name, "DOME_PARAMS", "HOME_POSITION")
             .await
-            .ok_or_else(|| "Home position not available".to_string())
+            .ok_or_else(|| IndiError::Unavailable("Home position not available".to_string()))
     }
 
     /// Get park position
-    pub async fn get_park_position(&self) -> Result<f64, String> {
+    pub async fn get_park_position(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
             .get_number(&self.device_name, "DOME_PARAMS", "PARK_POSITION")
             .await
-            .ok_or_else(|| "Park position not available".to_string())
+            .ok_or_else(|| IndiError::Unavailable("Park position not available".to_string()))
     }
 }
 

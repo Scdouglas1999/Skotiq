@@ -76,6 +76,15 @@ pub enum IndiError {
     },
     /// Reconnection failed after max attempts
     ReconnectionFailed { attempts: u32, last_error: String },
+    /// The device has not published the value, or has no property that
+    /// offers the control. Holds the whole sentence shown to the user.
+    Unavailable(String),
+    /// An operation the device accepted did not finish: it raised an alert,
+    /// ran past its deadline, or the event stream ended. Holds the whole
+    /// sentence shown to the user.
+    Incomplete(String),
+    /// `what` was started and then failed for `cause`.
+    Failed { what: String, cause: Box<IndiError> },
 }
 
 impl std::error::Error for IndiError {}
@@ -185,6 +194,10 @@ impl fmt::Display for IndiError {
                     value, min, max, device, property, element
                 )
             }
+            IndiError::Unavailable(sentence) | IndiError::Incomplete(sentence) => {
+                write!(f, "{}", sentence)
+            }
+            IndiError::Failed { what, cause } => write!(f, "{} failed: {}", what, cause),
             IndiError::ReconnectionFailed {
                 attempts,
                 last_error,
