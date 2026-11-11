@@ -14,8 +14,6 @@ const double _discoveryPeekHeight = 60.0;
 /// The drawer never takes more than 44% of the device column, per 06 §Equipment.
 const double _discoveryMaxFraction = 0.44;
 
-// Devices tab body
-
 class _EquipmentMainColumn extends ConsumerWidget {
   final EquipmentProfileModel? selectedProfile;
   final VoidCallback onSettings;
@@ -116,8 +114,6 @@ class _EquipmentMainColumn extends ConsumerWidget {
   }
 }
 
-// Side panel (desktop, wide screens)
-
 /// The 320 px right column: the profile block, the readiness blockers and
 /// system health. No icon strip — 05 §15: a side panel with a single content
 /// stream has no strip.
@@ -214,7 +210,6 @@ class _ProfileBlock extends ConsumerWidget {
     required this.onDisconnectAll,
   });
 
-  /// Side of the profile's icon square.
   static const double squareSize = 36.0;
 
   @override

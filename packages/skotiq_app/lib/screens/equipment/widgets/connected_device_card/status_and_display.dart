@@ -201,7 +201,6 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
     }
   }
 
-  /// The device's last error (if any) for the current device type.
   DeviceError? _getDeviceError() {
     switch (widget.type) {
       case ConnectedDeviceType.camera:

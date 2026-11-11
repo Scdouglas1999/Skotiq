@@ -1,7 +1,5 @@
 part of '../connected_device_card.dart';
 
-// Helper widgets
-
 /// One measurement on a device panel: a mono value, an optional unit attached
 /// to it, and a quiet label. A null [value] renders the em dash through
 /// [Readout] — the card never invents a placeholder string.

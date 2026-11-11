@@ -27,7 +27,6 @@ enum _DeviceType {
   rotator,
 }
 
-/// A vertical sidebar for profile selection and management
 class ProfileSidebar extends ConsumerWidget {
   final int? selectedProfileId;
   final ValueChanged<int> onProfileSelected;
@@ -69,7 +68,6 @@ class ProfileSidebar extends ConsumerWidget {
     final colors = SkotiqColors.of(context);
     final profiles = ref.watch(sortedProfilesProvider);
 
-    // Find selected profile
     final selectedProfile = selectedProfileId != null
         ? profiles.where((p) => p.id == selectedProfileId).firstOrNull
         : null;
@@ -99,10 +97,8 @@ class ProfileSidebar extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header
           _buildHeader(context, colors),
 
-          // Profile list or empty state
           Expanded(
             child: profiles.isEmpty
                 ? _buildEmptyState(context, colors)
@@ -115,7 +111,6 @@ class ProfileSidebar extends ConsumerWidget {
                   ),
           ),
 
-          // Footer actions
           if (selectedProfile != null)
             _buildFooter(
               context,
@@ -271,7 +266,6 @@ class ProfileSidebar extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
           ],
-          // Show Connect All when selected profile has disconnected devices
           if (hasDisconnectedDevices) ...[
             SkotiqButton(
               // Spotlight target for the Equipment Setup tour's "Connect
@@ -287,7 +281,6 @@ class ProfileSidebar extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
           ],
-          // Show Disconnect All when any devices connected
           if (hasConnectedDevices) ...[
             SkotiqButton(
               label: 'Disconnect all',
@@ -297,7 +290,6 @@ class ProfileSidebar extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
           ],
-          // Always show Edit Profile when a profile is selected
           SkotiqButton(
             label: 'Edit profile',
             icon: LucideIcons.pencil,
@@ -504,7 +496,6 @@ class ProfileSidebar extends ConsumerWidget {
   }
 }
 
-/// Individual profile card widget with all interactions
 class _ProfileCard extends StatefulWidget {
   final EquipmentProfileModel profile;
   final bool isSelected;
@@ -592,7 +583,6 @@ class _ProfileCardState extends State<_ProfileCard>
 
   @override
   Widget build(BuildContext context) {
-    // Get profile color or fall back to primary
     final profileColor = widget.profile.profileColor != null
         ? Color(widget.profile.profileColor!)
         : widget.colors.primary;
@@ -634,7 +624,6 @@ class _ProfileCardState extends State<_ProfileCard>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Top row: icon, name, default star
                   Row(
                     children: [
                       // Profile glyph. The stored emoji is a user choice and
@@ -656,7 +645,6 @@ class _ProfileCardState extends State<_ProfileCard>
                         ),
                       const SizedBox(width: SkotiqTokens.spaceSm),
 
-                      // Profile name
                       Expanded(
                         child: Text(
                           widget.profile.name,
@@ -667,7 +655,6 @@ class _ProfileCardState extends State<_ProfileCard>
                         ),
                       ),
 
-                      // Default star indicator
                       if (widget.profile.isDefault)
                         Tooltip(
                           message: 'Starts up with this profile',
@@ -708,7 +695,6 @@ class _ProfileCardState extends State<_ProfileCard>
 
                   const SizedBox(height: 4),
 
-                  // Subtitle row
                   Text(
                     widget.profile.subtitle,
                     style: SkotiqTypography.caption.copyWith(
@@ -720,11 +706,9 @@ class _ProfileCardState extends State<_ProfileCard>
 
                   const SizedBox(height: 8),
 
-                  // Bottom row: device dots + connection count
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Device dots
                       _buildDeviceDots(),
 
                       // "Selected" (this card is highlighted) and "in use by
@@ -742,7 +726,6 @@ class _ProfileCardState extends State<_ProfileCard>
                           ),
                         ),
 
-                      // Connection count
                       if (widget.totalCount > 0)
                         Text(
                           '${widget.connectedCount}/${widget.totalCount}',

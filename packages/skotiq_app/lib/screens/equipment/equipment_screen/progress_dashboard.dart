@@ -178,8 +178,6 @@ class _ConnectAllProgressChip extends StatelessWidget {
   }
 }
 
-// The page header's connection chip
-
 /// `[dot] N connected` in the page header — the ONE place this screen states
 /// how many devices are up.
 /// How many devices are connected right now, across every slot.
@@ -243,8 +241,6 @@ class _ConnectionStatusSummary extends ConsumerWidget {
   }
 }
 
-// Device grid
-
 class _DeviceDashboard extends ConsumerWidget {
   final EquipmentProfileModel? profile;
 
@@ -287,7 +283,6 @@ class _DeviceDashboard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Watch device connection states
     final cameraState = ref.watch(cameraStateProvider);
     final mountState = ref.watch(mountStateProvider);
     final focuserState = ref.watch(focuserStateProvider);
@@ -307,7 +302,6 @@ class _DeviceDashboard extends ConsumerWidget {
     final sessionOnlySlots = ref.watch(sessionOnlyConnectedSlotsProvider);
     bool adHoc(ProfileDeviceSlot slot) => sessionOnlySlots.contains(slot);
 
-    // Build list of connected device cards
     final connectedCards = <Widget>[];
 
     if (cameraState.connectionState == DeviceConnectionState.connected) {

@@ -6,8 +6,6 @@ const EdgeInsets _controlsPadding = EdgeInsets.all(SkotiqTokens.spaceLg);
 /// Gap between two groups in a controls column (03 §3.1: section gap).
 const double _groupGap = SkotiqTokens.spaceLg;
 
-// Quick capture controls
-
 class _QuickCaptureControls extends ConsumerWidget {
   const _QuickCaptureControls();
 
@@ -67,8 +65,6 @@ class _QuickCaptureControls extends ConsumerWidget {
     );
   }
 }
-
-// Batch capture controls
 
 class _BatchCaptureControls extends ConsumerWidget {
   const _BatchCaptureControls();
@@ -136,8 +132,6 @@ class _BatchCaptureControls extends ConsumerWidget {
     );
   }
 }
-
-// Sky flats controls
 
 class _SkyFlatsControls extends ConsumerWidget {
   const _SkyFlatsControls();
