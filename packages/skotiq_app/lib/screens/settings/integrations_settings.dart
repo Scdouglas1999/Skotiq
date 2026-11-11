@@ -57,7 +57,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/src/providers/plugin_enablement_provider.dart'
     show pluginEnablementProvider;
 import 'package:skotiq_core/skotiq_core.dart'
-    show NetworkBackend, backendProvider;
+    show HostDataDispatch, backendProvider;
 
 import 'settings_sections.dart';
 import 'widgets/settings_widgets.dart';
@@ -108,7 +108,7 @@ class IntegrationsSettings extends ConsumerWidget {
     // Plugin code and credentials live on the process that executes the
     // sequence. A thin client must not register/configure a second local host
     // and imply those changes affect the remote rig.
-    if (ref.watch(backendProvider) is NetworkBackend) {
+    if (ref.watch(backendProvider).remoteHost != null) {
       return SettingsPage(
         title: 'Integrations',
         description:

@@ -45,28 +45,31 @@ class SessionReplayScreen extends ConsumerStatefulWidget {
 
 class _SessionReplayScreenState extends ConsumerState<SessionReplayScreen> {
   SessionReplayDataSource? _dataSource;
-  NetworkBackend? _dataSourceBackend;
+  RemoteHost? _dataSourceBackend;
 
   SessionReplayDataSource _resolveDataSource(SkotiqBackend backend) {
     final override = widget.dataSourceOverride;
     if (override != null) return override;
-    if (backend is! NetworkBackend) {
+    final linkedHost = backend.remoteHost;
+    if (linkedHost == null) {
       // The picker screen guards against this before opening the replay
       // screen, so reaching here means a backend swap happened mid-navigation.
       // Throw rather than fake a data source: replay on the FFI backend is
       // genuinely not implemented, and an empty timeline would read as a
       // session with no frames.
       throw StateError(
-        'Session replay requires NetworkBackend; got ${backend.runtimeType}',
+        'Session replay requires a linked imaging host; got ${backend.runtimeType}',
       );
     }
     final existing = _dataSource;
-    if (existing != null && identical(_dataSourceBackend, backend)) {
+    if (existing != null && identical(_dataSourceBackend, linkedHost)) {
       return existing;
     }
-    final ds = NetworkSessionReplayDataSource(backend: backend);
+    final ds = NetworkSessionReplayDataSource(
+      backend: linkedHost.imagingRecords,
+    );
     _dataSource = ds;
-    _dataSourceBackend = backend;
+    _dataSourceBackend = linkedHost;
     return ds;
   }
 

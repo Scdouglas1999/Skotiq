@@ -15,6 +15,7 @@ import '../providers/settings_provider.dart';
 import 'sky_brightness_tracker.dart';
 import 'flat_exposure_calculator.dart';
 import 'flat_exposure_follower.dart';
+import '../backend/remote_host.dart';
 part 'flat_wizard_service/flat_wizard_models.dart';
 part 'flat_wizard_service/exposure_events.dart';
 part 'flat_wizard_service/exposure_event_keys.dart';
@@ -203,7 +204,7 @@ class FlatWizardService {
       canAsymmetricBin: canAsymmetricBin,
       maxBinX: caps?.maxBinX ?? binX,
       maxBinY: caps?.maxBinY ?? binY,
-      hostAuthoritative: backend is NetworkBackend,
+      hostAuthoritative: backend.remoteHost != null,
       capabilitiesKnown: caps != null,
       rangeKnown: rangeKnown,
     );

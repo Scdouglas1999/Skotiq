@@ -343,9 +343,9 @@ class _OnboardingCaptureDirStepState
     _FolderCheck outcome;
     String? detail;
     if (isRemote) {
-      if (authority is NetworkBackend) {
+      if (authority.remoteHost case final linkedHost?) {
         try {
-          final result = await authority.validateRemoteDirectory(
+          final result = await linkedHost.files.validateRemoteDirectory(
             path,
             mustExist: true,
             mustBeWritable: true,

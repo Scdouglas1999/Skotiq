@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/network_backend.dart';
+import '../backend/remote_host.dart';
 import '../database/database.dart' as db;
 import '../models/equipment_profile.dart' as remote_profile;
 import '../models/equipment_profile_remote_mapping.dart';
@@ -529,7 +530,7 @@ Stream<List<db.SequenceRun>> pollRemoteSequenceRuns(
 /// shared prevents reports and live history surfaces from quietly diverging
 /// once an installation has accumulated more than one response page.
 Future<List<RemoteSequenceRun>> fetchAllRemoteSequenceRuns(
-  NetworkBackend backend, {
+  HostImagingRecords backend, {
   int? sequenceId,
 }) async {
   const pageSize = 1000;

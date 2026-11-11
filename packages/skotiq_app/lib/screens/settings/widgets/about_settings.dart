@@ -213,12 +213,12 @@ final systemInformationProvider = Provider<List<SupportFact>>((ref) {
     ..add(SupportFact('OS version', Platform.operatingSystemVersion))
     ..add(SupportFact('Dart', Platform.version.split(' ').first));
 
-  final backend = ref.watch(backendProvider);
+  final linkedHost = ref.watch(backendProvider).remoteHost;
   facts.add(
     SupportFact(
       'Connected to',
-      backend is NetworkBackend
-          ? 'imaging host ${backend.serverHost}'
+      linkedHost != null
+          ? 'imaging host ${linkedHost.link.serverHost}'
           : 'this computer',
     ),
   );

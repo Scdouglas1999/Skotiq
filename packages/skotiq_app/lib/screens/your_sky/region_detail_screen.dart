@@ -408,9 +408,8 @@ class _RegionCutoutActionsState extends ConsumerState<RegionCutoutActions> {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final backend = ref.watch(backendProvider);
-    final isHost =
-        backend is! NetworkBackend && backend is! DisconnectedBackend;
-    final canAccessAtlas = backend is! DisconnectedBackend;
+    final isHost = backend.runsRigHere;
+    final canAccessAtlas = !backend.hasNoHost;
 
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
       if (_busy && previous != null && !identical(previous, next)) {
@@ -469,9 +468,9 @@ class _RegionCutoutActionsState extends ConsumerState<RegionCutoutActions> {
     setState(() => _busy = true);
     try {
       final String sharePath;
-      if (backend is NetworkBackend) {
+      if (backend.remoteHost case final linkedHost?) {
         // Slave: pull PNG bytes over the wire and stage a temp file to share.
-        final bytes = await backend.getAtlasRegionCutout(regionId);
+        final bytes = await linkedHost.skyAtlas.getAtlasRegionCutout(regionId);
         if (!_isCurrent(generation, backend, regionId)) return;
         final dir = await getTemporaryDirectory();
         if (!_isCurrent(generation, backend, regionId)) return;
@@ -482,7 +481,7 @@ class _RegionCutoutActionsState extends ConsumerState<RegionCutoutActions> {
         await file.writeAsBytes(bytes);
         if (!_isCurrent(generation, backend, regionId)) return;
         sharePath = file.path;
-      } else if (backend is! DisconnectedBackend) {
+      } else if (!backend.hasNoHost) {
         final export = await ref.read(yourSkyRegionExporterProvider)(regionId);
         if (!_isCurrent(generation, backend, regionId)) return;
         if (export == null || export.pngPath == null) {
@@ -520,7 +519,7 @@ class _RegionCutoutActionsState extends ConsumerState<RegionCutoutActions> {
     final backend = ref.read(backendProvider);
     setState(() => _busy = true);
     try {
-      if (backend is NetworkBackend || backend is DisconnectedBackend) {
+      if (!backend.runsRigHere) {
         throw StateError(
           'Reference frames can only be armed on the imaging host.',
         );

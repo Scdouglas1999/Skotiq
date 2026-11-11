@@ -58,8 +58,9 @@ class _CleanupHeaderRow extends ConsumerWidget {
     }
 
     try {
-      final deleted = authority is NetworkBackend
-          ? await authority.removeUntrackedTargets()
+      final hostRecords = authority.remoteHost?.imagingRecords;
+      final deleted = hostRecords != null
+          ? await hostRecords.removeUntrackedTargets()
           : await ref.read(targetsDaoProvider).deleteUntrackedTargets();
       if (!context.mounted ||
           !identical(ref.read(backendProvider), authority)) {

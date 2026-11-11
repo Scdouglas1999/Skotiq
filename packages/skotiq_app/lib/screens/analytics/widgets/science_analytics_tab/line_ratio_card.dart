@@ -285,8 +285,8 @@ class _LineRatioCardState extends ConsumerState<_LineRatioCard> {
     }
 
     try {
-      if (backend is NetworkBackend) {
-        final result = await backend.generateSessionLineRatios(sessionId);
+      if (backend.remoteHost case final linkedHost?) {
+        final result = await linkedHost.science.generateSessionLineRatios(sessionId);
         if (!mounted || !_ownsOperation(generation, sessionId, backend)) return;
         ref.invalidate(sessionLineRatioProductsProvider(sessionId));
         setState(() {

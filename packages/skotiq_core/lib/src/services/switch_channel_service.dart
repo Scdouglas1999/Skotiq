@@ -2,8 +2,6 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
-import '../backend/ffi_backend.dart';
-import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../providers/backend_provider.dart';
@@ -11,6 +9,7 @@ import '../providers/equipment_provider.dart';
 import 'device_exceptions.dart';
 import 'error_service.dart';
 import 'logging_service.dart';
+import '../backend/remote_host.dart';
 
 /// Type alias for the switch-bridge `apiSwitchGetMax` shim used by
 /// [SwitchChannelService.refreshChannels]. Tests override the static
@@ -46,8 +45,8 @@ typedef SwitchBridgeSetValueFn =
 ///
 /// ## Testable seam
 ///
-/// The FFI branch is normally guarded by `_backend is FfiBackend`, which
-/// `MockBackend` cannot satisfy. Tests set
+/// The bridge branch is normally taken only when the backend owns the device
+/// bridge, which `MockBackend` does not. Tests set
 /// [switchBridgeBypassBackendCheck] = true and override the four
 /// function-pointer hooks so the bridge calls are intercepted without
 /// changing the backend type-check used in production.
@@ -74,13 +73,18 @@ class SwitchChannelService {
     }
   }
 
+  /// True when channel reads and writes go through the device bridge in this
+  /// process rather than to a linked host.
+  bool get _usesBridge =>
+      _backend.ownsDeviceBridge || switchBridgeBypassBackendCheck;
+
   bool _stillOwnsRefresh(int generation, String deviceId) =>
       generation == _refreshGeneration && _stillOwnsDevice(deviceId);
 
   // Switch bridge hooks (testable seam)
   // Follow-up: the per-channel switch UI needs to call FFI even
-  // when the test rig swaps in a MockBackend. The MockBackend can't
-  // satisfy `_backend is FfiBackend`, so the actual `apiSwitch*` calls
+  // when the test rig swaps in a MockBackend. A MockBackend does not own
+  // the device bridge, so the actual `apiSwitch*` calls
   // would otherwise be skipped. Static function-pointer hooks let
   // tests swap in fakes for the bridge calls without touching the
   // backend type check. Production code calls
@@ -114,9 +118,9 @@ class SwitchChannelService {
       );
 
   /// When true, [refreshChannels] and [setChannel] will call the bridge
-  /// hooks above unconditionally instead of gating on
-  /// `_backend is FfiBackend`. Tests set this to true so MockBackend
-  /// can stand in for FfiBackend without satisfying its type.
+  /// hooks above unconditionally instead of asking whether the backend owns
+  /// the device bridge. Tests set this to true so MockBackend can stand in
+  /// for the local backend.
   /// MUST remain false in production builds.
   @visibleForTesting
   static bool switchBridgeBypassBackendCheck = false;
@@ -174,14 +178,14 @@ class SwitchChannelService {
     if (state.connectionState != DeviceConnectionState.connected) return;
     if (!_stillOwnsRefresh(generation, deviceId)) return;
 
-    final backend = _backend;
-    if (backend is! FfiBackend && !switchBridgeBypassBackendCheck) {
+    if (!_usesBridge) {
       // Remote path: a tablet/desktop talking to the headless appliance reads
       // channels over REST (`GET /api/switch/status?deviceId=`) instead of the
       // FFI bridge. Without this branch the per-channel panel stays empty on a
       // remote client even though the rig has a switch device connected.
-      if (backend is NetworkBackend) {
-        await _refreshChannelsRemote(backend, deviceId, notifier, generation);
+      final host = _backend.remoteHost?.devices;
+      if (host != null) {
+        await _refreshChannelsRemote(host, deviceId, notifier, generation);
         return;
       }
       _safeLog(
@@ -333,13 +337,13 @@ class SwitchChannelService {
   /// single-device switch snapshot over REST and stores it on the provider.
   /// Mirrors the FFI path's error handling (log + ErrorService toast).
   Future<void> _refreshChannelsRemote(
-    NetworkBackend backend,
+    HostDeviceControl host,
     String deviceId,
     SwitchStateNotifier notifier,
     int generation,
   ) async {
     try {
-      final status = await backend.getSwitchStatus(deviceId: deviceId);
+      final status = await host.getSwitchStatus(deviceId: deviceId);
       if (!_stillOwnsRefresh(generation, deviceId)) return;
       final raw = status['switches'];
       final switches = raw is List ? raw : const <dynamic>[];
@@ -484,12 +488,12 @@ class SwitchChannelService {
       throw StateError('The active switch connection changed.');
     }
 
-    final backend = _backend;
-    if (backend is! FfiBackend && !switchBridgeBypassBackendCheck) {
+    if (!_usesBridge) {
       // Remote path: write the channel over REST (`POST /api/switch/set`).
-      if (backend is NetworkBackend) {
+      final host = _backend.remoteHost?.devices;
+      if (host != null) {
         try {
-          await backend.setSwitch(
+          await host.setSwitch(
             deviceId: deviceId,
             switchId: channelIndex,
             value: on,
@@ -611,15 +615,15 @@ class SwitchChannelService {
       throw StateError('The active switch connection changed.');
     }
 
-    final backend = _backend;
+    final host = _backend.remoteHost?.devices;
     try {
-      if (backend is NetworkBackend && !switchBridgeBypassBackendCheck) {
-        await backend.setSwitch(
+      if (host != null && !switchBridgeBypassBackendCheck) {
+        await host.setSwitch(
           deviceId: deviceId,
           switchId: channelIndex,
           value: value,
         );
-      } else if (backend is FfiBackend || switchBridgeBypassBackendCheck) {
+      } else if (_usesBridge) {
         await switchBridgeSetValue(deviceId, channelIndex, value);
       } else {
         throw UnsupportedError(

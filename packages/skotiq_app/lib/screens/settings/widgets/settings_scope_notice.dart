@@ -17,7 +17,8 @@ class SettingsScopeNotice extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final backend = ref.watch(backendProvider);
-    if (backend is! NetworkBackend) return const SizedBox.shrink();
+    final linkedHost = backend.remoteHost;
+    if (linkedHost == null) return const SizedBox.shrink();
     final colors = SkotiqColors.of(context);
     final onHost = !section.onThisDevice;
     // A desktop linked with the one-tap pairing holds a control token, which
@@ -30,7 +31,7 @@ class SettingsScopeNotice extends ConsumerWidget {
             'computer was linked with one tap, so it can view them but '
             '${rig.name} refuses changes from here.'
         : onHost
-            ? 'Saved on the imaging host (${backend.serverHost}). A change '
+            ? 'Saved on the imaging host (${linkedHost.link.serverHost}). A change '
                 'here changes the rig for everyone linked to it.'
             : 'Saved on this computer only. The imaging host keeps its own.';
     return Padding(

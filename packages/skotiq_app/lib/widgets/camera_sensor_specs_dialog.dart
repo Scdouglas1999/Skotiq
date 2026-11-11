@@ -459,7 +459,7 @@ class _CameraSensorSpecsDialogState
       // Locally the chain rides the settings stream and refreshes itself; on a
       // paired remote client the settings live on the host and are fetched, so
       // the fetch has to be dropped by hand.
-      if (ref.read(backendProvider) is NetworkBackend) {
+      if (ref.read(backendProvider).remoteHost != null) {
         ref.invalidate(rigCameraSettingsProvider);
       }
       if (mounted) Navigator.of(context).pop(true);
@@ -478,9 +478,9 @@ class _CameraSensorSpecsDialogState
   static const int _profileGainFallback = 100;
 
   Future<List<CameraHardwareSpec>> _loadExisting() async {
-    final backend = ref.read(backendProvider);
-    final raw = backend is NetworkBackend
-        ? (await backend.getSmartNightSettings())[
+    final hostPlanning = ref.read(backendProvider).remoteHost?.planning;
+    final raw = hostPlanning != null
+        ? (await hostPlanning.getSmartNightSettings())[
             HardwareSpecsService.cameraOverridesSettingKey]
         : await ref
             .read(settingsDaoProvider)
@@ -494,8 +494,8 @@ class _CameraSensorSpecsDialogState
   Future<void> _persist(List<CameraHardwareSpec> specs) async {
     final encoded = jsonEncode(specs.map((spec) => spec.toJson()).toList());
     final backend = ref.read(backendProvider);
-    if (backend is NetworkBackend) {
-      await backend.updateSmartNightSettings({
+    if (backend.remoteHost case final linkedHost?) {
+      await linkedHost.planning.updateSmartNightSettings({
         HardwareSpecsService.cameraOverridesSettingKey: encoded,
       });
       return;

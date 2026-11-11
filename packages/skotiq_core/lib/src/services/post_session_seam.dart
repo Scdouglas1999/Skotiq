@@ -10,6 +10,7 @@ import '../models/imaging/integration_curve.dart';
 import '../models/imaging/mosaic_stitch_result.dart';
 import '../models/imaging/star_photometry.dart';
 import '../providers/backend_provider.dart';
+import '../backend/remote_host.dart';
 
 /// Injectable seam over the four post-session batch-processing FFI functions
 /// (`apiIntegrateSession`, `apiMasterAccumulate`, `apiBuildMasterFlat`,
@@ -155,10 +156,7 @@ class BridgePostSessionSeam implements PostSessionSeam {
   /// bridge (whose result would be computed against the *client's* filesystem,
   /// where the subs do not exist). This is the post-session twin of
   /// `LiveStackingService._remote`.
-  NetworkBackend? get _remote {
-    final backend = _backend;
-    return backend is NetworkBackend ? backend : null;
-  }
+  HostPostSession? get _remote => _backend?.remoteHost?.postSession;
 
   @override
   Future<IntegrateSessionResult> integrateSession(

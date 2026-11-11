@@ -122,13 +122,13 @@ class _LogViewerState extends ConsumerState<LogViewer>
     final backend = ref.read(backendProvider);
     final backendGeneration = _backendGeneration;
     final request = ++_nextRefreshRequest;
-    if (backend is NetworkBackend) {
+    if (backend.remoteHost case final linkedHost?) {
       // Fire-and-forget refresh; the user's filters apply once the
       // response lands. Errors silently fall back to whatever was last
       // rendered — surfaced via the SnackBars on Clear/Export so the
       // operator still gets feedback when the action they triggered
       // failed.
-      backend.fetchRecentServerLogs(limit: 500).then((logs) {
+      linkedHost.logs.fetchRecentServerLogs(limit: 500).then((logs) {
         if (!mounted ||
             backendGeneration != _backendGeneration ||
             request < _lastAppliedRequest ||
@@ -410,7 +410,7 @@ class _LogViewerState extends ConsumerState<LogViewer>
   }
 
   Widget _buildActionBar(SkotiqColors colors, bool isMobile) {
-    final isRemote = ref.watch(backendProvider) is NetworkBackend;
+    final isRemote = ref.watch(backendProvider).remoteHost != null;
     return Wrap(
       spacing: 8,
       runSpacing: 8,

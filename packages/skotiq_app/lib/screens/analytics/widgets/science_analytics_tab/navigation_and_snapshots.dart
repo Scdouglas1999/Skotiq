@@ -17,11 +17,12 @@ Future<File> exportScienceShortcutReport({
   Future<Directory> Function()? documentsDirectoryProvider,
   DateTime? generatedAt,
 }) async {
-  if (backend is! NetworkBackend) {
+  final linkedHost = backend.remoteHost;
+  if (linkedHost == null) {
     return localExporter.exportToDisk(sessionId, period: period);
   }
 
-  final bytes = await backend.generateObservationReport(sessionId);
+  final bytes = await linkedHost.science.generateObservationReport(sessionId);
   if (bytes.isEmpty) {
     throw StateError('The imaging host returned an empty science report.');
   }

@@ -69,7 +69,7 @@ final latestScienceSessionProvider = FutureProvider<int?>((ref) async {
   // A linked client asks the same question of the host's frames, so both
   // machines open on the same session. Returning null here opened the client
   // on the quick captures while the host opened on its last night.
-  if (backend is NetworkBackend) {
+  if (backend.remoteHost != null) {
     final rows = await ref.watch(allDbImagesProvider.future);
     return latestSessionIdWithLightFrames(rows);
   }
@@ -105,7 +105,7 @@ int? latestSessionIdWithLightFrames(Iterable<DbCapturedImage> rows) {
 /// the session picker beside it.
 final latestScienceProductSessionProvider = FutureProvider<int?>((ref) async {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) return null;
+  if (backend.remoteHost != null) return null;
   final sessions = await ref.watch(allSessionsProvider.future);
   if (sessions.isEmpty) return null;
   final withProducts = <int>{

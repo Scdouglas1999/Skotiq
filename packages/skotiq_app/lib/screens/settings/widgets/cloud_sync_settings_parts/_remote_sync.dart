@@ -56,10 +56,11 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
       });
     }
     try {
-      if (backend is! NetworkBackend) {
+      final linkedHost = backend.remoteHost;
+      if (linkedHost == null) {
         throw StateError('The imaging host is not connected.');
       }
-      final status = await backend.getCloudSyncStatus();
+      final status = await linkedHost.cloudSync.getCloudSyncStatus();
       if (!mounted ||
           generation != _loadGeneration ||
           !identical(ref.read(backendProvider), backend)) {
@@ -93,7 +94,8 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
   Future<void> _pushNow() async {
     if (_pushing) return;
     final backend = ref.read(backendProvider);
-    if (backend is! NetworkBackend) {
+    final linkedHost = backend.remoteHost;
+    if (linkedHost == null) {
       setState(() => _error = 'The imaging host is not connected.');
       return;
     }
@@ -102,7 +104,7 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
       _error = null;
     });
     try {
-      final result = await backend.pushCloudSyncNow();
+      final result = await linkedHost.cloudSync.pushCloudSyncNow();
       if (!mounted || !identical(ref.read(backendProvider), backend)) return;
       if (!result.success) {
         setState(() {

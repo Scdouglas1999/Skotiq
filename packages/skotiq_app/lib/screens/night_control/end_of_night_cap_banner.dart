@@ -17,8 +17,7 @@ class EndOfNightCapBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // On a linked client the calibration runs on the imaging host: show the
     // host's request and answer it there.
-    final backend = ref.watch(backendProvider);
-    final remote = backend is NetworkBackend ? backend : null;
+    final remote = ref.watch(backendProvider).remoteHost?.night;
     final status = remote != null
         ? ref.watch(hostEndOfNightStatusProvider)
         : ref.watch(endOfNightCalibrationProvider);

@@ -114,7 +114,7 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
     try {
       final result = await ref.read(flatWizardSavePathPickerProvider)(
         context: context,
-        isRemote: authority is NetworkBackend,
+        isRemote: authority.remoteHost != null,
         currentPath: current,
       );
       if (!_isCurrentBrowse(generation, authority)) return;

@@ -118,7 +118,7 @@ class PushRegistrationService {
   /// Never throws to the caller — push registration is best-effort and must
   /// not break the connect path. Failures are logged.
   Future<void> ensureRegistered({
-    required NetworkBackend backend,
+    required HostLink backend,
     required String deviceId,
   }) async {
     if (!_isIos && !_isAndroid) {

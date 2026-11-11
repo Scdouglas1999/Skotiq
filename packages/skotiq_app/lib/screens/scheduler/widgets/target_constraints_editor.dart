@@ -84,8 +84,8 @@ class _TargetConstraintsEditorState
     final constraints = await svc.listForTarget(widget.targetId);
 
     final List<HorizonProfile> profiles;
-    if (backend is NetworkBackend) {
-      profiles = (await backend.getHorizonProfiles())
+    if (backend.remoteHost case final linkedHost?) {
+      profiles = (await linkedHost.planning.getHorizonProfiles())
         ..sort((a, b) => a.name.compareTo(b.name));
     } else {
       profiles = (await loadHorizonProfiles(ref.read(databaseProvider)))

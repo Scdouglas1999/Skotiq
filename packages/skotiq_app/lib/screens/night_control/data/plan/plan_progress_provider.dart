@@ -74,7 +74,7 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
     // what this app saw arrive, and a client that joined after the run
     // started saw none of the frames before it.
     final sessionRows = terminal?.isCalibration == true ||
-        ref.watch(backendProvider) is NetworkBackend;
+        ref.watch(backendProvider).remoteHost != null;
     final frames = sessionRows
         ? ref.watch(nightRunLightRowsProvider).map(capturedImageFromDbRow)
         : ref.watch(recentSessionFramesProvider);

@@ -3,12 +3,12 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
 import '../models/sequence/sequence_models.dart';
 import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart';
 import '../providers/sequence_provider.dart';
 import 'sequence_file_service.dart';
+import '../backend/remote_host.dart';
 
 /// Settings key holding the plan being edited while it has unsaved changes.
 const String kEditorDraftKey = 'editor.unsaved_draft';
@@ -21,7 +21,7 @@ const Duration kEditorDraftInterval = Duration(seconds: 10);
 /// a killed process then costs at most the last few seconds of editing, not
 /// the plan. A remote client keeps no draft: the host holds its plan.
 final editorDraftLifecycleProvider = Provider<void>((ref) {
-  if (ref.watch(backendProvider) is NetworkBackend) return;
+  if (ref.watch(backendProvider).remoteHost != null) return;
   String? written;
   Future<void> persist() async {
     final draft = editorDraftJson(ref.read);
@@ -53,7 +53,7 @@ String? editorDraftJson(T Function<T>(ProviderListenable<T>) read) {
 Future<Sequence?> restoreEditorDraft(
   T Function<T>(ProviderListenable<T>) read,
 ) async {
-  if (read(backendProvider) is NetworkBackend) return null;
+  if (read(backendProvider).remoteHost != null) return null;
   if (read(currentSequenceProvider) != null) return null;
   final dao = read(settingsDaoProvider);
   final raw = await dao.getSetting(kEditorDraftKey);

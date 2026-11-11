@@ -507,7 +507,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
       // (the plan's exposures/timing/targets come from synced settings +
       // profile and are unaffected). Browse the rig's darks via the
       // Calibration Library screen instead.
-      final isRemoteBackend = ref.read(backendProvider) is NetworkBackend;
+      final isRemoteBackend = ref.read(backendProvider).remoteHost != null;
       final SmartNightDarkLibraryMissing darkLibraryMissing;
       if (exposureContext == null || isRemoteBackend) {
         darkLibraryMissing = const SmartNightDarkLibraryMissing.empty();

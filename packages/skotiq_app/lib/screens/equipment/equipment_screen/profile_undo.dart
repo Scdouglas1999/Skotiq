@@ -50,7 +50,7 @@ Future<void> restoreDeletedProfile(
 
   try {
     final int restoredId;
-    if (backendAtDelete is NetworkBackend) {
+    if (backendAtDelete.remoteHost != null) {
       final notifier = container.read(equipmentProfilesProvider.notifier);
       restoredId = await notifier.updateProfile(
         deletedProfile.toInsertionCopy(name: deletedProfile.name),

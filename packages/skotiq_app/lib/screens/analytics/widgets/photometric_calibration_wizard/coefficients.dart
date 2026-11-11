@@ -245,8 +245,9 @@ extension _PhotometricWizardCoefficients on _PhotometricCalibrationWizardState {
 
     try {
       final profileId = ref.read(activeEquipmentProfileIdProvider);
-      final coefficients = authority is NetworkBackend
-          ? await authority.computePhotometricTransform(
+      final hostScience = authority.remoteHost?.science;
+      final coefficients = hostScience != null
+          ? await hostScience.computePhotometricTransform(
               starMatches: starMatches,
               filterName: filterName,
               equipmentProfileId: profileId,
@@ -264,7 +265,7 @@ extension _PhotometricWizardCoefficients on _PhotometricCalibrationWizardState {
         _computedCoefficients = coefficients;
         _isComputing = false;
         if (coefficients == null) {
-          final reason = authority is NetworkBackend
+          final reason = authority.remoteHost != null
               ? null
               : ref.read(photometricTransformServiceProvider).lastRefusalReason;
           _statusMessage = reason ??

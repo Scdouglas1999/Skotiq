@@ -21,7 +21,6 @@ import '../providers/app_version_provider.dart';
 import '../providers/autofocus_progress_provider.dart';
 import '../providers/unified_discovery_provider.dart';
 import 'smart_notification_service.dart';
-import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart' hide TrackingRate;
 import '../backend/skotiq_exception.dart' show ConnectionException;
 import '../models/equipment/equipment_models.dart';
@@ -48,6 +47,7 @@ import 'profile_service.dart' show profileServiceProvider;
 import '../models/focuser_backlash_calibration.dart';
 import '../models/mount_site_reconciliation.dart';
 import '../providers/mount_site_provider.dart';
+import '../backend/remote_host.dart';
 
 // Re-export backend types so importers of this file get them too.
 export '../models/backend/device_types.dart' show DeviceType, DriverType;
@@ -263,7 +263,7 @@ class DeviceService {
 
   /// True on a companion: the imaging host owns every device, so this client
   /// never tears one down to clean up after its own failed request.
-  bool get _hostOwnsDevices => _backend is NetworkBackend;
+  bool get _hostOwnsDevices => _backend.remoteHost != null;
 
   DeviceService(this._ref, this._backend) {
     _temperaturePoller = CameraTemperaturePoller(ref: _ref, backend: _backend);

@@ -191,13 +191,14 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
 
   void _setNetworkHeartbeatPaused(bool paused) {
     final backend = ref.read(backendProvider);
-    if (backend is! NetworkBackend) {
+    final linkedHost = backend.remoteHost;
+    if (linkedHost == null) {
       return;
     }
     if (paused) {
-      backend.pauseWebSocketHeartbeatForAppLifecycle();
+      linkedHost.link.pauseWebSocketHeartbeatForAppLifecycle();
     } else {
-      backend.resumeWebSocketHeartbeatForAppLifecycle();
+      linkedHost.link.resumeWebSocketHeartbeatForAppLifecycle();
     }
   }
 
@@ -221,12 +222,16 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
       return;
     }
     final backend = ref.read(backendProvider);
-    if (backend is! NetworkBackend) {
+    final linkedHost = backend.remoteHost;
+    if (linkedHost == null) {
       return;
     }
     final deviceId = await MobilePairingService.deviceId();
     final service = _pushRegistration ??= PushRegistrationService();
-    await service.ensureRegistered(backend: backend, deviceId: deviceId);
+    await service.ensureRegistered(
+      backend: linkedHost.link,
+      deviceId: deviceId,
+    );
   }
 
   void _startConnectionMonitor() {
@@ -234,13 +239,14 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
     // A live session again: the next drop starts its backoff from the top.
     _lostSessionRetryAttempt = 0;
     final backend = ref.read(backendProvider);
-    if (backend is! NetworkBackend) {
+    final linkedHost = backend.remoteHost;
+    if (linkedHost == null) {
       // Only NetworkBackend exposes the WS heartbeat. Other backends
       // either run locally (FfiBackend) or are explicitly disconnected.
       return;
     }
 
-    _connectionStateSubscription = backend.connectionStateStream.listen((
+    _connectionStateSubscription = linkedHost.link.connectionStateStream.listen((
       state,
     ) {
       if (!mounted) return;
@@ -290,8 +296,8 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
           _disconnectGraceTimer ??= Timer(_connectionGracePeriod, () async {
             if (!mounted) return;
             final current = ref.read(backendProvider);
-            if (current is! NetworkBackend ||
-                current.connectionState == BackendConnectionState.connected) {
+            if (current.remoteHost == null ||
+                linkedHost.link.connectionState == BackendConnectionState.connected) {
               return;
             }
             developer.log(

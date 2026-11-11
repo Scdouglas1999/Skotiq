@@ -222,8 +222,8 @@ final runDashboardSessionIntegrationProvider =
   // Keep the FutureProvider re-evaluated on the dashboard's existing refresh
   // ticks (callers re-read it) so the slave's totals stay fresh.
   final List<DbCapturedImage> images;
-  if (backend is NetworkBackend) {
-    final rows = await backend.getSessionImageRows(sessionId);
+  if (backend.remoteHost case final linkedHost?) {
+    final rows = await linkedHost.imagingRecords.getSessionImageRows(sessionId);
     images = rows.map(DbCapturedImage.fromJson).toList();
   } else {
     final dao = ref.watch(imagesDaoProvider);

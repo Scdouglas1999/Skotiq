@@ -73,7 +73,7 @@ class _FramingExportMosaicButtonState
 
   Future<void> _createProject() async {
     if (_isExporting || widget.panels.isEmpty) return;
-    if (ref.read(backendProvider) is NetworkBackend) {
+    if (ref.read(backendProvider).remoteHost != null) {
       context.showInfoSnackBar(
         'Create durable mosaic projects on the imaging host.',
       );
@@ -114,7 +114,7 @@ class _FramingExportMosaicButtonState
 
   @override
   Widget build(BuildContext context) {
-    final isRemote = ref.watch(backendProvider) is NetworkBackend;
+    final isRemote = ref.watch(backendProvider).remoteHost != null;
     return SkotiqButton(
       label: _isExporting
           ? 'Creating project...'

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart'
-    show NetworkBackend, backendProvider;
+    show HostDataDispatch, backendProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
@@ -26,8 +26,7 @@ class StarCatalogFallbackBanner extends ConsumerWidget {
     // Catalogs live on each machine. A linked client draws its sky from its
     // own catalog folder, so a fresh one shows the built-in list while the
     // host it is linked to has the full sky.
-    final backend = ref.watch(backendProvider);
-    final host = backend is NetworkBackend ? backend.serverHost : null;
+    final host = ref.watch(backendProvider).remoteHost?.link.serverHost;
 
     return SkotiqAlert(
       severity: SkotiqAlertSeverity.warning,

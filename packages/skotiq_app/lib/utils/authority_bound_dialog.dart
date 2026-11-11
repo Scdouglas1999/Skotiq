@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
+import 'snackbar_helper.dart';
+
 /// Closes the dialog route owning [context] after its backing authority
 /// changes.
 ///
@@ -38,6 +40,10 @@ mixin HostBoundDialogState<W extends ConsumerStatefulWidget>
   /// The sentence shown when the host changes under the open dialog.
   String get hostChangedMessage;
 
+  /// True when closing loses something the user typed or chose; the notice
+  /// is then shown in the warning style.
+  bool get hostChangeDiscardsInput => false;
+
   late final AsyncScope<SkotiqBackend> host;
   ProviderSubscription<SkotiqBackend>? _hostSubscription;
 
@@ -49,9 +55,13 @@ mixin HostBoundDialogState<W extends ConsumerStatefulWidget>
       backendProvider,
       (previous, next) {
         if (previous == null || identical(previous, next) || !mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(hostChangedMessage)),
-        );
+        if (hostChangeDiscardsInput) {
+          context.showWarningSnackBar(hostChangedMessage);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(hostChangedMessage)),
+          );
+        }
         closeAuthorityBoundDialog(context);
       },
     );

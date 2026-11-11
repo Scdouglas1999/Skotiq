@@ -55,7 +55,8 @@ class _ConnectionStaleBannerState extends ConsumerState<ConnectionStaleBanner> {
   Future<void> _handleRetry() async {
     if (_retrying) return;
     final backend = ref.read(backendProvider);
-    if (backend is! NetworkBackend) {
+    final linkedHost = backend.remoteHost;
+    if (linkedHost == null) {
       if (mounted) {
         context.showErrorSnackBar(
           'The remote session is no longer available. Reconnect from the '
@@ -67,7 +68,7 @@ class _ConnectionStaleBannerState extends ConsumerState<ConnectionStaleBanner> {
     final generation = ++_retryGeneration;
     setState(() => _retrying = true);
     try {
-      await backend.reconnectNow();
+      await linkedHost.link.reconnectNow();
     } catch (e) {
       if (mounted && _isCurrentRetry(generation, backend)) {
         context.showErrorSnackBar('Reconnect failed: $e');
@@ -79,7 +80,7 @@ class _ConnectionStaleBannerState extends ConsumerState<ConnectionStaleBanner> {
     }
   }
 
-  bool _isCurrentRetry(int generation, NetworkBackend backend) =>
+  bool _isCurrentRetry(int generation, SkotiqBackend backend) =>
       mounted &&
       generation == _retryGeneration &&
       identical(ref.read(backendProvider), backend);
@@ -93,8 +94,8 @@ class _ConnectionStaleBannerState extends ConsumerState<ConnectionStaleBanner> {
         lostHost != null ||
         unansweredSeconds != null;
     if (!stale) return const SizedBox.shrink();
-    final backend = ref.watch(backendProvider);
-    final canRetry = backend is NetworkBackend;
+    final linkedHost = ref.watch(backendProvider).remoteHost;
+    final canRetry = linkedHost != null;
 
     final colors = SkotiqColors.of(context);
     final bg = colors.warning;
@@ -118,8 +119,8 @@ class _ConnectionStaleBannerState extends ConsumerState<ConnectionStaleBanner> {
                     ? 'Lost connection to $lostHost, reconnecting… Device '
                         'values and run state shown are the last known, not '
                         'live.'
-                    : unansweredSeconds != null && backend is NetworkBackend
-                        ? '${backend.serverHost} has not answered for '
+                    : unansweredSeconds != null && linkedHost != null
+                        ? '${linkedHost.link.serverHost} has not answered for '
                             '$unansweredSeconds s. Device values and run '
                             'state shown are the last known, not live.'
                         : 'Reconnecting to server… session controls may be '
@@ -192,11 +193,11 @@ class HostLinkStaleScope extends ConsumerWidget {
     if (lostHost != null) {
       label = 'Last known values, no link to $lostHost';
     } else {
-      final backend = ref.watch(backendProvider);
+      final linkedHost = ref.watch(backendProvider).remoteHost;
       final notAnswering =
           ref.watch(hostUnansweredSecondsProvider).valueOrNull != null;
-      if (!notAnswering || backend is! NetworkBackend) return child;
-      label = 'Last known values, ${backend.serverHost} is not answering';
+      if (!notAnswering || linkedHost == null) return child;
+      label = 'Last known values, ${linkedHost.link.serverHost} is not answering';
     }
     return Semantics(
       container: true,

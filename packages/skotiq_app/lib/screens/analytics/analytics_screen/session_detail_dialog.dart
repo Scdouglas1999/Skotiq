@@ -145,7 +145,7 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final imagesAsyncValue = ref.watch(dbSessionImagesProvider(session.id));
-    // The client ROLE, not the connection. `backend is NetworkBackend` is a
+    // The client ROLE, not the connection. `backend.remoteHost != null` is a
     // CONNECTION fact: a desktop launched with `--remote-host` that has not
     // reached its rig is `Disconnected`, so that test read false for the whole
     // pre-handshake window and after every drop — and during exactly that
@@ -659,8 +659,8 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
   Future<void> _exportJson(BuildContext context, WidgetRef ref) async {
     try {
       final backend = ref.read(backendProvider);
-      if (backend is NetworkBackend) {
-        final filePath = await _saveRemoteExport(backend, session.id, 'json');
+      if (backend.remoteHost case final linkedHost?) {
+        final filePath = await _saveRemoteExport(linkedHost, session.id, 'json');
         if (context.mounted) {
           await revealExportedFile(
             context,
@@ -699,8 +699,8 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
   Future<void> _exportCsv(BuildContext context, WidgetRef ref) async {
     try {
       final backend = ref.read(backendProvider);
-      if (backend is NetworkBackend) {
-        final filePath = await _saveRemoteExport(backend, session.id, 'csv');
+      if (backend.remoteHost case final linkedHost?) {
+        final filePath = await _saveRemoteExport(linkedHost, session.id, 'csv');
         if (context.mounted) {
           await revealExportedFile(
             context,
@@ -745,8 +745,8 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
     try {
       final backend = ref.read(backendProvider);
       final String filePath;
-      if (backend is NetworkBackend) {
-        filePath = await _saveRemoteExport(backend, session.id, 'csv');
+      if (backend.remoteHost case final linkedHost?) {
+        filePath = await _saveRemoteExport(linkedHost, session.id, 'csv');
       } else {
         final clock = ref.read(clockProvider);
         final exportService = SessionExportService(
@@ -774,8 +774,8 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
   Future<void> _exportReport(BuildContext context, WidgetRef ref) async {
     try {
       final backend = ref.read(backendProvider);
-      if (backend is NetworkBackend) {
-        final filePath = await _saveRemoteExport(backend, session.id, 'html');
+      if (backend.remoteHost case final linkedHost?) {
+        final filePath = await _saveRemoteExport(linkedHost, session.id, 'html');
         if (context.mounted) {
           await revealExportedFile(
             context,
@@ -810,7 +810,7 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
 }
 
 Stream<List<DbCapturedImage>> _pollRemoteSessionImages(
-  NetworkBackend backend,
+  RemoteHost backend,
   int sessionId, {
   required Duration interval,
 }) =>
@@ -820,7 +820,7 @@ Stream<List<DbCapturedImage>> _pollRemoteSessionImages(
     );
 
 Stream<List<DbCapturedImage>> _pollRemoteStandaloneImages(
-  NetworkBackend backend, {
+  RemoteHost backend, {
   required Duration interval,
 }) =>
     _pollRemoteImages(
@@ -839,26 +839,26 @@ Stream<List<DbCapturedImage>> _pollRemoteImages(
     );
 
 Future<List<DbCapturedImage>> _fetchRemoteSessionImages(
-  NetworkBackend backend,
+  RemoteHost backend,
   int sessionId,
 ) async {
-  final rows = await backend.getSessionImageRows(sessionId);
+  final rows = await backend.imagingRecords.getSessionImageRows(sessionId);
   return rows.map(DbCapturedImage.fromJson).toList(growable: false);
 }
 
 Future<List<DbCapturedImage>> _fetchRemoteStandaloneImages(
-  NetworkBackend backend,
+  RemoteHost backend,
 ) async {
-  final rows = await backend.getStandaloneImageRows();
+  final rows = await backend.imagingRecords.getStandaloneImageRows();
   return rows.map(DbCapturedImage.fromJson).toList(growable: false);
 }
 
 Future<String> _saveRemoteExport(
-  NetworkBackend backend,
+  RemoteHost backend,
   int sessionId,
   String format,
 ) async {
-  final bytes = await backend.downloadSessionExport(sessionId, format);
+  final bytes = await backend.files.downloadSessionExport(sessionId, format);
   final docsDir = await resolveSkotiqDocumentsDirectory();
   final exportDir = Directory(path.join(docsDir.path, 'Skotiq', 'exports'));
   if (!await exportDir.exists()) {

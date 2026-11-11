@@ -159,8 +159,8 @@ class _QueueTable extends ConsumerWidget {
     SkotiqBackend? authority,
   }) async {
     final backend = authority ?? ref.read(backendProvider);
-    if (backend is NetworkBackend) {
-      await backend.controlScheduler('evaluate');
+    if (backend?.remoteHost case final linkedHost?) {
+      await linkedHost.planning.controlScheduler('evaluate');
       ref.invalidate(schedulerRemoteSnapshotProvider);
       ref.invalidate(schedulerPreviewDecisionProvider);
       return;

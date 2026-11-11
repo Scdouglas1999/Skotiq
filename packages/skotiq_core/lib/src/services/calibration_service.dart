@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:path/path.dart' as path;
 
-import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/backend/host_mutation_event.dart';
 import '../providers/backend_provider.dart';
@@ -16,6 +15,7 @@ import '../services/dark_library_service.dart';
 import '../services/logging_service.dart';
 import '../utils/host_paths.dart';
 import '../providers/database_provider.dart';
+import '../backend/remote_host.dart';
 
 /// Sentinel object used by [CalibrationSettings.copyWith] to distinguish
 /// "parameter not passed" from an explicit `null`.
@@ -208,7 +208,8 @@ class CalibrationService {
     _logger.info('Calibrating: $lightPath', source: 'CalibrationService');
 
     final backend = _backend;
-    final isRemote = backend is NetworkBackend;
+    final host = backend.remoteHost?.calibrationTools;
+    final isRemote = host != null;
 
     // Determine dark frame path. A manual override always wins; the library
     // auto-match only runs when no manual dark was supplied.
@@ -217,13 +218,13 @@ class CalibrationService {
         darkPath == null &&
         exposureTime != null &&
         gain != null) {
-      if (backend is NetworkBackend) {
+      if (host != null) {
         // Remote: the dark library lives on the host, so the client can't
         // run the matcher itself. Ask the host to match and hand back the
         // dark's on-host path. The path is fed to `calibrateImageFile`,
         // which reads it host-side. The host applies the same unified
         // tolerances the local path and coverage UI consult.
-        final matchedHostPath = await backend.matchDarkFromLibrary(
+        final matchedHostPath = await host.matchDarkFromLibrary(
           exposureTime: exposureTime,
           gain: gain,
           offset: offset ?? 0,
@@ -416,20 +417,20 @@ final calibrationSettingsProvider =
       final backend = ref.watch(backendProvider);
       return CalibrationSettingsNotifier(
         ref,
-        remote: backend is NetworkBackend ? backend : null,
+        remote: backend.remoteHost?.calibrationTools,
       );
     });
 
 /// Manages calibration settings with persistence via app settings.
 class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
   final Ref _ref;
-  final NetworkBackend? _remote;
+  final HostCalibrationTools? _remote;
 
   ProviderSubscription? _settingsSub;
   StreamSubscription? _remoteEventSub;
   Future<void>? _remoteLoad;
 
-  CalibrationSettingsNotifier(this._ref, {NetworkBackend? remote})
+  CalibrationSettingsNotifier(this._ref, {HostCalibrationTools? remote})
     : _remote = remote,
       super(
         remote == null

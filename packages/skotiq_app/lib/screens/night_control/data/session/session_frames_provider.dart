@@ -29,7 +29,7 @@ final nightSessionIdProvider = Provider<int?>((ref) {
         ? ref.watch(completedImagingRunProvider)?.result.dbSessionId
         : terminal.dbSessionId;
   }
-  if (ref.watch(backendProvider) is! NetworkBackend) return null;
+  if (ref.watch(backendProvider).remoteHost == null) return null;
   // Sorted newest first on both paths, so the first active row is the
   // host's current session.
   final sessions = ref.watch(allSessionsProvider).valueOrNull;
@@ -78,7 +78,7 @@ final _hostNightRowsProvider = StreamProvider.autoDispose
 /// the night over on the host and on every linked client.
 final nightSessionRowsProvider = Provider<List<DbCapturedImage>>((ref) {
   final window = ref.watch(nightWindowProvider);
-  if (ref.watch(backendProvider) is NetworkBackend) {
+  if (ref.watch(backendProvider).remoteHost != null) {
     // The host's rows arrive through the remote-aware poll of all images.
     final rows = ref.watch(allDbImagesProvider).valueOrNull;
     if (rows == null) return const <DbCapturedImage>[];
@@ -101,7 +101,7 @@ final nightSessionRowsProvider = Provider<List<DbCapturedImage>>((ref) {
 final nightRunRowsProvider = Provider<List<DbCapturedImage>>((ref) {
   final sessionId = ref.watch(nightSessionIdProvider);
   if (sessionId == null) return const <DbCapturedImage>[];
-  if (ref.watch(backendProvider) is NetworkBackend) {
+  if (ref.watch(backendProvider).remoteHost != null) {
     // The host's rows arrive through the remote-aware poll of all images.
     final rows = ref.watch(allDbImagesProvider).valueOrNull;
     if (rows == null) return const <DbCapturedImage>[];
@@ -138,7 +138,7 @@ final nightRunLightRowsProvider = Provider<List<DbCapturedImage>>((ref) {
 /// strip loads thumbnails through the existing thumbnail service by file.
 final nightSessionFramesProvider = Provider<List<StripFrameVm>>((ref) {
   final rows = ref.watch(nightSessionLightRowsProvider);
-  final remote = ref.watch(backendProvider) is NetworkBackend;
+  final remote = ref.watch(backendProvider).remoteHost != null;
   return <StripFrameVm>[
     for (var i = 0; i < rows.length; i++)
       StripFrameVm(

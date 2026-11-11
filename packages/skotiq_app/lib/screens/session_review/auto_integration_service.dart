@@ -30,8 +30,8 @@ class AutoIntegrationResult {
 final autoIntegrationEnabledProvider =
     FutureProvider.autoDispose<bool>((ref) async {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return backend.getAutoIntegrationEnabled();
+  if (backend.remoteHost case final linkedHost?) {
+    return linkedHost.postSession.getAutoIntegrationEnabled();
   }
   final raw =
       await ref.watch(settingsDaoProvider).getSetting(kAutoIntegrateSettingKey);
@@ -42,21 +42,21 @@ final autoIntegrationSettingsActionsProvider = Provider((ref) {
   final backend = ref.watch(backendProvider);
   return AutoIntegrationSettingsActions(
     ref,
-    remote: backend is NetworkBackend ? backend : null,
-    local: backend is NetworkBackend ? null : ref.read(settingsDaoProvider),
+    remote: backend.remoteHost?.postSession,
+    local: backend.remoteHost != null ? null : ref.read(settingsDaoProvider),
   );
 });
 
 class AutoIntegrationSettingsActions {
   AutoIntegrationSettingsActions(
     this._ref, {
-    required NetworkBackend? remote,
+    required HostPostSession? remote,
     required SettingsDao? local,
   })  : _remote = remote,
         _local = local;
 
   final Ref _ref;
-  final NetworkBackend? _remote;
+  final HostPostSession? _remote;
   final SettingsDao? _local;
 
   Future<void> setEnabled(bool enabled) async {
@@ -154,7 +154,7 @@ const _nightDecisionTimeout = Duration(seconds: 30);
 /// cut short.
 final autoIntegrationCoordinatorProvider = Provider<void>((ref) {
   final backend = ref.watch(backendProvider);
-  if (backend is! FfiBackend) return;
+  if (!backend.ownsDeviceBridge) return;
 
   // Created first so it sees every terminal run this coordinator sees.
   final night = ref.read(endOfNightCalibrationCoordinatorProvider);

@@ -14,12 +14,18 @@ class _SaveTemplateDialog extends ConsumerStatefulWidget {
       _SaveTemplateDialogState();
 }
 
-class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
+class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog>
+    with HostBoundDialogState<_SaveTemplateDialog> {
+  @override
+  String get hostChangedMessage =>
+      'The connected host changed. Template save canceled.';
+
+  @override
+  bool get hostChangeDiscardsInput => true;
+
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
-  late final SkotiqBackend _authority;
   late final SequenceRepository _repository;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
   bool _isSaving = false;
 
   bool get _isExistingTemplate =>
@@ -42,25 +48,13 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
     _nameController = TextEditingController(text: widget.sequence.name);
     _descriptionController =
         TextEditingController(text: widget.sequence.description);
-    _authority = ref.read(backendProvider);
     _repository = ref.read(sequenceRepositoryProvider);
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (previous == null || identical(previous, next) || !mounted) return;
-        context.showWarningSnackBar(
-          'The connected host changed. Template save canceled.',
-        );
-        closeAuthorityBoundDialog(context);
-      },
-    );
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
-    _backendSubscription?.close();
     super.dispose();
   }
 
@@ -70,7 +64,7 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
       return;
     }
 
-    if (!identical(ref.read(backendProvider), _authority)) {
+    if (host.isStale) {
       context.showWarningSnackBar(
         'The connected host changed. Reopen the template editor.',
       );
@@ -92,7 +86,7 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
       final savedId =
           await _repository.saveSequence(templateSequence, isTemplate: true);
 
-      if (!mounted || !identical(ref.read(backendProvider), _authority)) {
+      if (!mounted || host.isStale) {
         return;
       }
 
@@ -123,11 +117,11 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
         );
       }
     } catch (e) {
-      if (mounted && identical(ref.read(backendProvider), _authority)) {
+      if (mounted && host.isCurrent) {
         context.showErrorSnackBar('Failed to save template: $e');
       }
     } finally {
-      if (mounted && identical(ref.read(backendProvider), _authority)) {
+      if (mounted && host.isCurrent) {
         setState(() => _isSaving = false);
       }
     }

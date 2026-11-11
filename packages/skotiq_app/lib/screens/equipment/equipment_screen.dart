@@ -416,7 +416,7 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen> {
       // Keep the undo payload in the authority that owns it. A remote profile
       // is already fully represented by [deletedProfile], while a local
       // profile retains the service's versioned JSON for an exact restore.
-      final deletedProfileJson = backendAtDelete is NetworkBackend
+      final deletedProfileJson = backendAtDelete.remoteHost != null
           ? null
           : await ref.read(profileServiceProvider).exportProfileToJson(
                 profileId,

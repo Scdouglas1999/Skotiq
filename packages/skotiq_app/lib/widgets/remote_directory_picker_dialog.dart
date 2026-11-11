@@ -72,7 +72,9 @@ class _RemoteDirectoryPickerDialogState
     final generation = ++_loadGeneration;
     _lastRequestedPath = path;
 
-    if (backend is! NetworkBackend) {
+    final linkedHost = backend.remoteHost;
+
+    if (linkedHost == null) {
       setState(() {
         _loading = false;
         _loadError =
@@ -88,7 +90,7 @@ class _RemoteDirectoryPickerDialogState
     });
 
     try {
-      final listing = await backend.browseRemoteDirectories(path: path);
+      final listing = await linkedHost.files.browseRemoteDirectories(path: path);
       // Silently discard if the dialog closed or a newer navigation superseded
       // this one — the fresher request owns the UI.
       if (!mounted || generation != _loadGeneration) return;
@@ -125,7 +127,8 @@ class _RemoteDirectoryPickerDialogState
     if (selectedPath == null) {
       return;
     }
-    if (backend is! NetworkBackend) {
+    final linkedHost = backend.remoteHost;
+    if (linkedHost == null) {
       setState(() {
         _validationError =
             'The imaging host is disconnected. Reconnect and try again.';
@@ -140,7 +143,7 @@ class _RemoteDirectoryPickerDialogState
 
     Map<String, dynamic> validation;
     try {
-      validation = await backend.validateRemoteDirectory(
+      validation = await linkedHost.files.validateRemoteDirectory(
         selectedPath,
         mustExist: true,
         mustBeWritable: true,

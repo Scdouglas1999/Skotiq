@@ -89,7 +89,7 @@ class _PredictiveAfSettingsPageState
   void _attachDriftListener() {
     final revision = ++_driftRevision;
     _driftSub?.cancel();
-    if (ref.read(backendProvider) is NetworkBackend) {
+    if (ref.read(backendProvider).remoteHost != null) {
       _driftSub = null;
       return;
     }

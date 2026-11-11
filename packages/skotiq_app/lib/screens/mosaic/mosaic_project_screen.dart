@@ -137,7 +137,7 @@ class _MosaicProjectScreenState extends ConsumerState<MosaicProjectScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    if (ref.watch(backendProvider) is NetworkBackend) {
+    if (ref.watch(backendProvider).remoteHost != null) {
       return _chrome(
         context,
         colors,

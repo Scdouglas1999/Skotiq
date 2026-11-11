@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/network_backend.dart';
 import '../../database/database.dart' as db;
 import '../../models/scheduler/integration_goal.dart';
 import '../../providers/backend_provider.dart';
 import '../../providers/database_provider.dart';
 import '../../utils/resilient_poll_stream.dart';
+import '../../backend/remote_host.dart';
 
 /// Persistence + business-logic for integration goals.
 ///
@@ -27,9 +27,9 @@ class IntegrationGoalService {
   /// in the HOST DB, not the slave's empty local SQLite, so every read/write
   /// routes over `/api/integration-goals`. Null on the host (FfiBackend) and
   /// in tests — the local-DB path below is then taken verbatim, unchanged.
-  final NetworkBackend? _remote;
+  final HostPlanningData? _remote;
 
-  IntegrationGoalService(this._db, {NetworkBackend? remote}) : _remote = remote;
+  IntegrationGoalService(this._db, {HostPlanningData? remote}) : _remote = remote;
 
   void _notifyMutated() {
     if (!_mutations.isClosed) _mutations.add(null);
@@ -238,7 +238,7 @@ final integrationGoalServiceProvider = Provider<IntegrationGoalService>((ref) {
   final backend = ref.watch(backendProvider);
   final service = IntegrationGoalService(
     ref.watch(databaseProvider),
-    remote: backend is NetworkBackend ? backend : null,
+    remote: backend.remoteHost?.planning,
   );
   ref.onDispose(() => service.dispose());
   return service;

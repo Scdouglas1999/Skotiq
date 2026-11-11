@@ -14,12 +14,18 @@ class _SaveSequenceDialog extends ConsumerStatefulWidget {
       _SaveSequenceDialogState();
 }
 
-class _SaveSequenceDialogState extends ConsumerState<_SaveSequenceDialog> {
+class _SaveSequenceDialogState extends ConsumerState<_SaveSequenceDialog>
+    with HostBoundDialogState<_SaveSequenceDialog> {
+  @override
+  String get hostChangedMessage =>
+      'The connected host changed. Sequence save canceled.';
+
+  @override
+  bool get hostChangeDiscardsInput => true;
+
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
-  late final SkotiqBackend _authority;
   late final SequenceRepository _repository;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
   bool _isSaving = false;
 
   @override
@@ -28,25 +34,13 @@ class _SaveSequenceDialogState extends ConsumerState<_SaveSequenceDialog> {
     _nameController = TextEditingController(text: widget.sequence.name);
     _descriptionController =
         TextEditingController(text: widget.sequence.description);
-    _authority = ref.read(backendProvider);
     _repository = ref.read(sequenceRepositoryProvider);
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (previous == null || identical(previous, next) || !mounted) return;
-        context.showWarningSnackBar(
-          'The connected host changed. Sequence save canceled.',
-        );
-        closeAuthorityBoundDialog(context);
-      },
-    );
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
-    _backendSubscription?.close();
     super.dispose();
   }
 
@@ -93,7 +87,7 @@ class _SaveSequenceDialogState extends ConsumerState<_SaveSequenceDialog> {
     );
     if (confirmed != true ||
         !mounted ||
-        !identical(ref.read(backendProvider), _authority)) {
+        host.isStale) {
       return;
     }
 
@@ -153,7 +147,7 @@ class _SaveSequenceDialogState extends ConsumerState<_SaveSequenceDialog> {
   }
 
   Future<void> _persist(Sequence sequenceToSave) async {
-    if (!identical(ref.read(backendProvider), _authority)) {
+    if (host.isStale) {
       context.showWarningSnackBar(
         'The connected host changed. Reopen the sequence library.',
       );
@@ -180,7 +174,7 @@ class _SaveSequenceDialogState extends ConsumerState<_SaveSequenceDialog> {
         versionSnapshotError = e;
       }
 
-      if (!mounted || !identical(ref.read(backendProvider), _authority)) {
+      if (!mounted || host.isStale) {
         return;
       }
 
@@ -199,7 +193,7 @@ class _SaveSequenceDialogState extends ConsumerState<_SaveSequenceDialog> {
         name: sequenceToSave.name,
       );
 
-      if (mounted && identical(ref.read(backendProvider), _authority)) {
+      if (mounted && host.isCurrent) {
         Navigator.pop(context);
         if (versionSnapshotError == null) {
           context
@@ -212,11 +206,11 @@ class _SaveSequenceDialogState extends ConsumerState<_SaveSequenceDialog> {
         }
       }
     } catch (e) {
-      if (mounted && identical(ref.read(backendProvider), _authority)) {
+      if (mounted && host.isCurrent) {
         context.showErrorSnackBar('Failed to save sequence: $e');
       }
     } finally {
-      if (mounted && identical(ref.read(backendProvider), _authority)) {
+      if (mounted && host.isCurrent) {
         setState(() => _isSaving = false);
       }
     }

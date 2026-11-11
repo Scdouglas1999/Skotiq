@@ -47,7 +47,8 @@ extension _ImagingServiceFilePaths on ImagingService {
     );
 
     final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
+    final hostRecords = backend.remoteHost?.imagingRecords;
+    if (hostRecords != null) {
       // The host writes the keeper and creates its folder, so the path is
       // built in the host's style and only the host can say what is taken.
       final hostPaths = hostPathContext(basePath);
@@ -58,7 +59,7 @@ extension _ImagingServiceFilePaths on ImagingService {
         substitutions: substitutions,
         pathContext: hostPaths,
       );
-      final taken = await _hostTakenKeeperPaths(backend, hostPaths);
+      final taken = await _hostTakenKeeperPaths(hostRecords, hostPaths);
       final unique = await ImagingService.uniqueFilePath(
         fullPath,
         hostPaths,
@@ -102,7 +103,7 @@ extension _ImagingServiceFilePaths on ImagingService {
   /// endpoint overwrites an existing file and offers no way to test for one,
   /// so its image records are the only listing a client can read.
   Future<Set<String>> _hostTakenKeeperPaths(
-    NetworkBackend backend,
+    HostImagingRecords backend,
     path.Context hostPaths,
   ) async {
     final taken = <String>{..._hostReservedKeeperPaths};
@@ -157,7 +158,7 @@ extension _ImagingServiceFilePaths on ImagingService {
       if (basePath == null || basePath.isEmpty) return fallback;
 
       final backend = _ref.read(backendProvider);
-      final hostPaths = backend is NetworkBackend
+      final hostPaths = backend.remoteHost != null
           ? hostPathContext(basePath)
           : null;
       final namingPattern = _ref.read(namingPatternProvider);

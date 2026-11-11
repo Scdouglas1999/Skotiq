@@ -129,7 +129,7 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
     // it read "0 found · Never scanned" beside a host that had found its
     // devices. It asks the host once, quietly, when the list is first shown.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || ref.read(backendProvider) is! NetworkBackend) return;
+      if (!mounted || ref.read(backendProvider).remoteHost == null) return;
       if (ref.read(lastScanTimeProvider) != null ||
           ref.read(unifiedDiscoveryProvider).lastDiscoveryCompletedAt != null) {
         return;

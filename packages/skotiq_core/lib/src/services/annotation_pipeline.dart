@@ -129,7 +129,7 @@ extension AnnotationPipeline on AnnotationService {
       );
 
       // PRE-FLIGHT CHECK 3: Verify backend is available
-      if (backend is DisconnectedBackend) {
+      if (backend.hasNoHost) {
         _logger.error(
           'Backend disconnected, cannot plate solve',
           source: 'Annotation',

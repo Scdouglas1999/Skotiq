@@ -43,7 +43,7 @@ class _HomeAssistantSectionState extends ConsumerState<_HomeAssistantSection> {
 
   @override
   Widget build(BuildContext context) {
-    if (ref.watch(backendProvider) is NetworkBackend) {
+    if (ref.watch(backendProvider).remoteHost != null) {
       return const _RemoteHomeAssistantSection();
     }
     final cfgAsync = ref.watch(homeAssistantConfigProvider);
@@ -306,11 +306,12 @@ class _RemoteHomeAssistantFormState
     });
     try {
       final backend = ref.read(backendProvider);
-      if (backend is! NetworkBackend) {
+      final linkedHost = backend.remoteHost;
+      if (linkedHost == null) {
         throw StateError('The imaging host is no longer connected.');
       }
       final replacement = _password.text;
-      final updated = await backend.updateHomeAssistantHostSettings(
+      final updated = await linkedHost.notifications.updateHomeAssistantHostSettings(
         config: HomeAssistantDiscoveryConfig(
           enabled: _enabled,
           deviceName: _deviceName.text.trim(),

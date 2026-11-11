@@ -180,7 +180,7 @@ class _CalibrationMatchPanelState extends ConsumerState<CalibrationMatchPanel> {
   /// Start from the settings of the newest light frame on this computer, so
   /// the check answers "what would my last night get" without typing.
   Future<void> _prefillFromLatestLight() async {
-    if (ref.read(backendProvider) is NetworkBackend) return;
+    if (ref.read(backendProvider).remoteHost != null) return;
     try {
       final db = ref.read(databaseProvider);
       final latest = await (db.select(db.capturedImages)

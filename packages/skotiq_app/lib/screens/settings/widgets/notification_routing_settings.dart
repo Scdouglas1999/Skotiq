@@ -49,7 +49,7 @@ class NotificationRoutingSettings extends ConsumerWidget {
     final colors = SkotiqColors.of(context);
     final backend = ref.watch(backendProvider);
 
-    if (backend is NetworkBackend) {
+    if (backend.remoteHost != null) {
       return Column(
         children: [
           const SettingsSection(

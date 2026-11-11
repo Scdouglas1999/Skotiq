@@ -209,7 +209,7 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
 
     try {
       final backend = ref.read(backendProvider);
-      final rig = backend is NetworkBackend ? backend : null;
+      final rig = backend.remoteHost?.catalogs;
       final statuses = await Future.wait<CatalogStatus>([
         CatalogManager.instance.getStarCatalogStatus(),
         CatalogManager.instance.getDsoCatalogStatus(),

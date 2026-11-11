@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../backend/roles/host_data/calibration_library.dart';
-import '../backend/network_backend.dart';
 import '../database/daos/settings_dao.dart';
 import '../database/database.dart';
 import '../models/calibration/calibration_library_models.dart';
@@ -20,6 +19,7 @@ import 'dark_library_service.dart';
 import 'darkroom_build_service.dart'
     show darkroomTemperatureGapC, observingNight, flatSetupKey;
 import 'flat_library_service.dart';
+import '../backend/remote_host.dart';
 
 /// The kinds of raw calibration frame the backlog builds masters from.
 enum CalibrationFrameKind {
@@ -1007,6 +1007,6 @@ final calibrationBacklogProvider =
     StateNotifierProvider<CalibrationBacklogNotifier, CalibrationBacklogState>((
       ref,
     ) {
-      final remote = ref.watch(backendProvider) is NetworkBackend;
+      final remote = ref.watch(backendProvider).remoteHost != null;
       return CalibrationBacklogNotifier(ref, remote: remote);
     });

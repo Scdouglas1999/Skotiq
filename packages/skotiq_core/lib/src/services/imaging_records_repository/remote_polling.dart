@@ -73,7 +73,7 @@ Map<String, dynamic> _companionToCreateJson(
 }
 
 Stream<List<db.CapturedImage>> _pollRemoteSessionImages(
-  NetworkBackend backend,
+  HostImagingRecords backend,
   int sessionId, {
   required Duration interval,
 }) => _pollRemoteDistinct(
@@ -83,7 +83,7 @@ Stream<List<db.CapturedImage>> _pollRemoteSessionImages(
 );
 
 Future<List<db.CapturedImage>> _fetchRemoteSessionImages(
-  NetworkBackend backend,
+  HostImagingRecords backend,
   int sessionId,
 ) async {
   final rows = await backend.getSessionImageRows(sessionId);
@@ -93,7 +93,7 @@ Future<List<db.CapturedImage>> _fetchRemoteSessionImages(
 }
 
 Stream<List<ProducingNodeThumbnail>> _pollRemoteProducingNodeThumbnails(
-  NetworkBackend backend, {
+  HostImagingRecords backend, {
   required String producingNodeId,
   String? producingRunId,
   int limit = 100,
@@ -110,7 +110,7 @@ Stream<List<ProducingNodeThumbnail>> _pollRemoteProducingNodeThumbnails(
 );
 
 Future<List<ProducingNodeThumbnail>> _fetchRemoteProducingNodeThumbnails(
-  NetworkBackend backend, {
+  HostImagingRecords backend, {
   required String producingNodeId,
   String? producingRunId,
   int limit = 100,

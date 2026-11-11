@@ -619,9 +619,9 @@ String? _formatAnalyticsIntegration(double seconds) {
 final dbSessionImagesProvider =
     StreamProvider.family<List<DbCapturedImage>, int>((ref, sessionId) {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
+  if (backend.remoteHost case final linkedHost?) {
     return _pollRemoteSessionImages(
-      backend,
+      linkedHost,
       sessionId,
       interval: ref.watch(analyticsRemoteImagePollIntervalProvider),
     );
@@ -631,9 +631,9 @@ final dbSessionImagesProvider =
 
 final standaloneImagesProvider = StreamProvider<List<DbCapturedImage>>((ref) {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
+  if (backend.remoteHost case final linkedHost?) {
     return _pollRemoteStandaloneImages(
-      backend,
+      linkedHost,
       interval: ref.watch(analyticsRemoteImagePollIntervalProvider),
     );
   }

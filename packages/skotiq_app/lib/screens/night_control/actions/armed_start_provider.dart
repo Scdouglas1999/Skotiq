@@ -20,7 +20,7 @@ final nightAstroDarkProvider = Provider<DateTime?>((ref) {
 /// The note an armed start carries: on the imaging host the app must stay
 /// open; on a client the host starts the run whatever this computer does.
 final armedStartNoteKeyProvider = Provider<String>(
-  (ref) => ref.watch(backendProvider) is NetworkBackend
+  (ref) => ref.watch(backendProvider).remoteHost != null
       ? 'nightActArmedOnHost'
       : 'nightActArmedKeepOpen',
 );
@@ -39,7 +39,7 @@ class ArmedStartController extends Notifier<DateTime?> {
     ref.onDispose(_cancelTimer);
     // A client shows the host's schedule; arming and canceling go to the host
     // (see NightActionController).
-    if (ref.watch(backendProvider) is NetworkBackend) {
+    if (ref.watch(backendProvider).remoteHost != null) {
       return ref.watch(hostScheduledStartProvider);
     }
     // A run started some other way (the header's Start, a remote client)

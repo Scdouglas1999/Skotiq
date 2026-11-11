@@ -257,7 +257,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(appSettingsProvider);
     final authority = ref.watch(backendProvider);
-    final isRemoteController = authority is NetworkBackend;
+    final isRemoteController = authority.remoteHost != null;
     final AsyncValue<PushNotificationConfig>? pushConfigAsync =
         isRemoteController ? null : ref.watch(pushNotificationConfigProvider);
     // Real delivery state, so the critical-alert row can stop asserting a

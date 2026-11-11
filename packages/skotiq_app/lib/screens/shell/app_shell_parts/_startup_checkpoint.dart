@@ -140,8 +140,10 @@ bool catalogSetupWasSkipped(String? persistedValue) =>
 /// is then that live run's, so a client joining it is shown the run and is
 /// never offered to recover it.
 @visibleForTesting
-Future<bool> hostRunHoldsCheckpoint(Object backend) async =>
-    backend is NetworkBackend && await backend.hostRunInFlight();
+Future<bool> hostRunHoldsCheckpoint(SequencerBackend backend) async {
+  final hostControl = backend.remoteHost?.control;
+  return hostControl != null && await hostControl.hostRunInFlight();
+}
 
 /// Whether launch offers to recover [info]'s run: only a run the app died
 /// under. A run that was stopped, failed or ended early keeps its checkpoint

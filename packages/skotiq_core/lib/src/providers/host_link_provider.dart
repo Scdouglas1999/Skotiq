@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/network_backend.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 
 /// The link to the imaging host this app controls, as it changes; null when
@@ -43,7 +44,7 @@ const Duration hostAnswerStaleAfter = Duration(seconds: 10);
 
 /// Whole seconds the host has gone without answering, or null while it is
 /// answering within [hostAnswerStaleAfter].
-int? unansweredSecondsFor(NetworkBackend backend) {
+int? unansweredSecondsFor(HostLink backend) {
   final age = backend.unansweredPingAge;
   if (age == null || age < hostAnswerStaleAfter) return null;
   return age.inSeconds;

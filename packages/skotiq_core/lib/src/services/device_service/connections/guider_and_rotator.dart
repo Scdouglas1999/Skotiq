@@ -35,7 +35,7 @@ extension _DeviceServiceGuiderRotatorConnections on DeviceService {
           // they delegate launch to the desktop via POST /api/phd2/connect.
           // For remote PHD2 hosts (host != localhost/127.0.0.1) we never spawn.
           final connectHost = resolvePhd2ConnectHost(requestedHost);
-          if (_backend is! NetworkBackend &&
+          if (_backend.remoteHost == null &&
               _phd2Launcher.isLocalHost(requestedHost)) {
             await _phd2Launcher.ensureRunning(
               executablePath: settings.phd2Path,

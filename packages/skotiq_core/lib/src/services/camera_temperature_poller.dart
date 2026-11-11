@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/imaging/imaging_models.dart' show CoolingStatus;
 import '../providers/equipment_provider.dart';
@@ -13,6 +12,7 @@ import '../models/sequence/sequence_models.dart'
     show SequenceExecutionStateCapabilities;
 import '../providers/sequence/sequence_progress.dart'
     show sequenceExecutionStateProvider;
+import '../backend/remote_host.dart';
 
 /// Maximum absolute deviation, in degrees Celsius, between the live sensor
 /// temperature and the cooling target at which the cooler is considered to
@@ -136,8 +136,7 @@ class CameraTemperaturePoller {
     // identical warning to the log every 5 s until the operator re-pairs.
     // Ticks keep rescheduling (each becomes a cheap flag check) so polling
     // resumes on its own once a reconnect clears the latch.
-    final backend = _backend;
-    if (backend is NetworkBackend && backend.isAuthTokenRejected) return;
+    if (_backend.remoteHost?.link.isAuthTokenRejected == true) return;
 
     try {
       final status = await _backend.getCameraStatus(deviceId);
