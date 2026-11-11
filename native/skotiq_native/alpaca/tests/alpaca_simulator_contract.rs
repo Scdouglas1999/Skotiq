@@ -323,7 +323,8 @@ async fn alpaca_simulator_fault_contract_surfaces_device_and_payload_errors() {
     let exposure_err = rejecting_camera
         .start_exposure(0.01, true)
         .await
-        .expect_err("device-side error should fail the exposure call");
+        .expect_err("device-side error should fail the exposure call")
+        .to_string();
     assert!(
         exposure_err.contains("simulated camera rejected exposure"),
         "unexpected exposure error: {exposure_err}"
@@ -333,7 +334,8 @@ async fn alpaca_simulator_fault_contract_surfaces_device_and_payload_errors() {
     let image_err = malformed_camera
         .download_image_data()
         .await
-        .expect_err("malformed imagearrayvariant JSON should fail image download");
+        .expect_err("malformed imagearrayvariant JSON should fail image download")
+        .to_string();
     assert!(
         image_err.contains("JSON") || image_err.contains("parse") || image_err.contains("EOF"),
         "unexpected malformed image error: {image_err}"

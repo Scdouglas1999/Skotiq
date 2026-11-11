@@ -6,21 +6,12 @@
 use super::*;
 
 impl AlpacaCamera {
-    /// Download image as parsed pixel data
-    /// Returns (width, height, data as u16 vec)
-    /// Uses very long timeout (configurable, defaults to 15 minutes for large images)
-    pub async fn download_image_data(&self) -> Result<(u32, u32, Vec<u16>), String> {
-        self.download_image_data_typed()
-            .await
-            .map_err(|e| e.to_string())
-    }
-
     /// Download image with typed error handling.
     ///
     /// Returns `(width, height, pixels)` for **rank 2 (monochrome)** Alpaca
     /// image arrays only. For rank-3 color frames the function fails fast with
     /// `AlpacaError::ColorImageUnsupported` so callers cannot silently lose the
-    /// channel dimension; use [`download_image_array_full_typed`] for those.
+    /// channel dimension; use [`download_image_array_full`] for those.
     ///
     /// A pixel that fails `as_i64`/`as_f64` propagates as
     /// `AlpacaError::PixelParseError` carrying the exact offset and offending
@@ -30,8 +21,8 @@ impl AlpacaCamera {
     /// The transport is the pooled client from `AlpacaClient::http_client()`
     /// with the per-request timeout set via `RequestBuilder::timeout(...)`, so
     /// a download does not cost a TLS handshake per frame.
-    pub async fn download_image_data_typed(&self) -> Result<(u32, u32, Vec<u16>), AlpacaError> {
-        let result = self.download_image_array_full_typed().await?;
+    pub async fn download_image_data(&self) -> Result<(u32, u32, Vec<u16>), AlpacaError> {
+        let result = self.download_image_array_full().await?;
 
         if result.planes != 1 {
             return Err(AlpacaError::ColorImageUnsupported {
@@ -57,7 +48,7 @@ impl AlpacaCamera {
     /// for both binary and JSON so older servers that only know
     /// `application/json` still return a usable response, which we then parse
     /// on the JSON path.
-    pub async fn download_image_array_full_typed(&self) -> Result<ImageArrayResult, AlpacaError> {
+    pub async fn download_image_array_full(&self) -> Result<ImageArrayResult, AlpacaError> {
         // Why: subframe geometry tells us the expected shape; we cross-check
         // the parsed array against this so a server that reports inconsistent
         // sizes can't slip past as a partially-filled frame.
@@ -66,18 +57,26 @@ impl AlpacaCamera {
         // bug. `u32::try_from` surfaces that as a structured error rather
         // than wrapping into a giant u32 that would propagate through
         // pixel-count math.
-        let width = u32::try_from(self.num_x().await.map_err(AlpacaError::OperationFailed)?)
-            .map_err(|_| {
-                AlpacaError::OperationFailed(
-                    "NumX returned negative subframe width; ASCOM camera bug".to_string(),
-                )
-            })?;
-        let height = u32::try_from(self.num_y().await.map_err(AlpacaError::OperationFailed)?)
-            .map_err(|_| {
-                AlpacaError::OperationFailed(
-                    "NumY returned negative subframe height; ASCOM camera bug".to_string(),
-                )
-            })?;
+        let width = u32::try_from(
+            self.num_x()
+                .await
+                .map_err(|e| AlpacaError::OperationFailed(e.to_string()))?,
+        )
+        .map_err(|_| {
+            AlpacaError::OperationFailed(
+                "NumX returned negative subframe width; ASCOM camera bug".to_string(),
+            )
+        })?;
+        let height = u32::try_from(
+            self.num_y()
+                .await
+                .map_err(|e| AlpacaError::OperationFailed(e.to_string()))?,
+        )
+        .map_err(|_| {
+            AlpacaError::OperationFailed(
+                "NumY returned negative subframe height; ASCOM camera bug".to_string(),
+            )
+        })?;
 
         // Why: at minimum 10MB/s network speed plus extra margin; the configured
         // very-long timeout (camera preset = 15 min) covers a 24 MP frame in

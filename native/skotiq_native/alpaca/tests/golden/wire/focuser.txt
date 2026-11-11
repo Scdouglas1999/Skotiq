@@ -701,15 +701,11 @@
 
 ## focuser.move_to [http 500]
 > PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=1&Position=6620]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=2&Position=6620]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+= Err(HTTP error 500: Internal server error)
 
 ## focuser.move_to [malformed json]
 > PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=1&Position=6620]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=2&Position=6620]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
 ## focuser.move_to [ascom 0x401]
 > PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
@@ -749,89 +745,13 @@
 
 ## focuser.move_to [http 429 retry-after 0]
 > PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=1&Position=6620]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=2&Position=6620]
-= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+= Err(HTTP error 429: Slow down)
 
 ## focuser.move_to [http 503]
 > PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=1&Position=6620]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=2&Position=6620]
-= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
-
-## focuser.move_to [wrong value type]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-= Ok(())
-
-## focuser.move_to_typed [ok]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-= Ok(())
-
-## focuser.move_to_typed [ascom 0x400]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-= Err(Device error 1024: Property or method is not implemented)
-
-## focuser.move_to_typed [ascom 0x4FF without Value]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-= Err(Device error 1279: Unspecified driver fault)
-
-## focuser.move_to_typed [http 400]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-= Err(HTTP error 400: Method not implemented)
-
-## focuser.move_to_typed [http 500]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-= Err(HTTP error 500: Internal server error)
-
-## focuser.move_to_typed [malformed json]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## focuser.move_to_typed [ascom 0x401]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-= Err(Device error 1025: Invalid value)
-
-## focuser.move_to_typed [ascom 0x402]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-= Err(Device error 1026: Value not set)
-
-## focuser.move_to_typed [ascom 0x407]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-= Err(Device error 1031: Not connected)
-
-## focuser.move_to_typed [ascom 0x408]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-= Err(Device error 1032: Invalid while parked)
-
-## focuser.move_to_typed [ascom 0x409]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-= Err(Device error 1033: Invalid while slaved)
-
-## focuser.move_to_typed [ascom 0x40B]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-= Err(Device error 1035: Invalid operation)
-
-## focuser.move_to_typed [ascom 0x40C without Value]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-= Err(Device error 1036: Action not implemented)
-
-## focuser.move_to_typed [ascom 0x500]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-= Err(Device error 1280: Driver specific error)
-
-## focuser.move_to_typed [http 404]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-= Err(HTTP error 404: Not Found)
-
-## focuser.move_to_typed [http 429 retry-after 0]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
-= Err(HTTP error 429: Slow down)
-
-## focuser.move_to_typed [http 503]
-> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
 = Err(HTTP error 503: Service Unavailable)
 
-## focuser.move_to_typed [wrong value type]
+## focuser.move_to [wrong value type]
 > PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
 = Ok(())
 

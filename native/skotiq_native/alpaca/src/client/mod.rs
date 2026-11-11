@@ -281,8 +281,8 @@ impl AlpacaClient {
         })
     }
 
-    /// Make a GET request with typed error handling
-    pub async fn get_typed<T: for<'de> Deserialize<'de>>(
+    /// Make a GET request, retrying transient failures.
+    pub async fn get<T: for<'de> Deserialize<'de>>(
         &self,
         endpoint: &str,
     ) -> Result<T, AlpacaError> {
@@ -326,23 +326,8 @@ impl AlpacaClient {
         .await
     }
 
-    /// Make a GET request (backward compatible with String errors)
-    pub async fn get<T: for<'de> Deserialize<'de>>(&self, endpoint: &str) -> Result<T, String> {
-        self.get_typed(endpoint).await.map_err(|e| e.to_string())
-    }
-
-    /// Make a GET request with query parameters.
+    /// Make a GET request with query parameters, retrying transient failures.
     pub async fn get_with_params<T: for<'de> Deserialize<'de>>(
-        &self,
-        endpoint: &str,
-        params: &[(&str, &str)],
-    ) -> Result<T, String> {
-        self.get_typed_with_params(endpoint, params)
-            .await
-            .map_err(|e| e.to_string())
-    }
-
-    pub async fn get_typed_with_params<T: for<'de> Deserialize<'de>>(
         &self,
         endpoint: &str,
         params: &[(&str, &str)],
@@ -399,8 +384,8 @@ impl AlpacaClient {
         .await
     }
 
-    /// Make a PUT request with typed error handling
-    pub async fn put_typed<T: DeserializeOwned + 'static>(
+    /// Make a PUT request, retrying transient failures.
+    pub async fn put<T: DeserializeOwned + 'static>(
         &self,
         endpoint: &str,
         params: &[(&str, &str)],
@@ -449,17 +434,6 @@ impl AlpacaClient {
             }
         })
         .await
-    }
-
-    /// Make a PUT request (backward compatible with String errors)
-    pub async fn put<T: DeserializeOwned + 'static>(
-        &self,
-        endpoint: &str,
-        params: &[(&str, &str)],
-    ) -> Result<T, String> {
-        self.put_typed(endpoint, params)
-            .await
-            .map_err(|e| e.to_string())
     }
 
     /// Make a quick GET request with shorter timeout (no retry)
@@ -598,32 +572,22 @@ impl AlpacaClient {
     // Common device properties
 
     /// Check if the device is connected
-    pub async fn is_connected(&self) -> Result<bool, String> {
+    pub async fn is_connected(&self) -> Result<bool, AlpacaError> {
         self.get("connected").await
     }
 
-    /// Check if the device is connected (typed error)
-    pub async fn is_connected_typed(&self) -> Result<bool, AlpacaError> {
-        self.get_quick("connected").await
-    }
-
     /// Connect to the device
-    pub async fn connect(&self) -> Result<(), String> {
-        self.connect_typed().await.map_err(|e| e.to_string())
-    }
-
-    /// Connect to the device (typed error)
-    pub async fn connect_typed(&self) -> Result<(), AlpacaError> {
+    pub async fn connect(&self) -> Result<(), AlpacaError> {
         // A successful setter response is not enough for a bridge-backed
         // device. The previous transport may still be finishing an async
         // disconnect and can flip the shared hardware connection back off
         // immediately after this PUT. Confirm the readback, and repeat the
         // idempotent connect when that handover race is observed.
         for attempt in 0..3 {
-            self.put_typed::<()>("connected", &[("Connected", "true")])
+            self.put::<()>("connected", &[("Connected", "true")])
                 .await?;
             tokio::time::sleep(Duration::from_millis(250)).await;
-            if self.is_connected_typed().await? {
+            if self.get_quick("connected").await? {
                 return Ok(());
             }
             if attempt < 2 {
@@ -637,58 +601,37 @@ impl AlpacaClient {
     }
 
     /// Disconnect from the device
-    pub async fn disconnect(&self) -> Result<(), String> {
+    pub async fn disconnect(&self) -> Result<(), AlpacaError> {
         self.put::<()>("connected", &[("Connected", "false")]).await
     }
 
-    /// Disconnect from the device (typed error)
-    pub async fn disconnect_typed(&self) -> Result<(), AlpacaError> {
-        self.put_typed::<()>("connected", &[("Connected", "false")])
-            .await
-    }
-
     /// Get the device name
-    pub async fn get_name(&self) -> Result<String, String> {
+    pub async fn get_name(&self) -> Result<String, AlpacaError> {
         self.get("name").await
     }
 
-    /// Get the device name (typed error)
-    pub async fn get_name_typed(&self) -> Result<String, AlpacaError> {
-        self.get_typed("name").await
-    }
-
     /// Get the device description
-    pub async fn get_description(&self) -> Result<String, String> {
+    pub async fn get_description(&self) -> Result<String, AlpacaError> {
         self.get("description").await
     }
 
-    /// Get the device description (typed error)
-    pub async fn get_description_typed(&self) -> Result<String, AlpacaError> {
-        self.get_typed("description").await
-    }
-
     /// Get the driver version
-    pub async fn get_driver_version(&self) -> Result<String, String> {
+    pub async fn get_driver_version(&self) -> Result<String, AlpacaError> {
         self.get("driverversion").await
     }
 
-    /// Get the driver version (typed error)
-    pub async fn get_driver_version_typed(&self) -> Result<String, AlpacaError> {
-        self.get_typed("driverversion").await
-    }
-
     /// Get the driver info
-    pub async fn get_driver_info(&self) -> Result<String, String> {
+    pub async fn get_driver_info(&self) -> Result<String, AlpacaError> {
         self.get("driverinfo").await
     }
 
     /// Get the interface version
-    pub async fn get_interface_version(&self) -> Result<i32, String> {
+    pub async fn get_interface_version(&self) -> Result<i32, AlpacaError> {
         self.get("interfaceversion").await
     }
 
     /// Get supported actions
-    pub async fn get_supported_actions(&self) -> Result<Vec<String>, String> {
+    pub async fn get_supported_actions(&self) -> Result<Vec<String>, AlpacaError> {
         self.get("supportedactions").await
     }
 

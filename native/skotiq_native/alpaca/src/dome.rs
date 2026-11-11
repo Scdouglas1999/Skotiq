@@ -73,82 +73,82 @@ impl AlpacaDome {
 
     // Connection methods
 
-    pub async fn connect(&self) -> Result<(), String> {
+    pub async fn connect(&self) -> Result<(), AlpacaError> {
         self.client.connect().await
     }
 
-    pub async fn disconnect(&self) -> Result<(), String> {
+    pub async fn disconnect(&self) -> Result<(), AlpacaError> {
         self.client.disconnect().await
     }
 
-    pub async fn is_connected(&self) -> Result<bool, String> {
+    pub async fn is_connected(&self) -> Result<bool, AlpacaError> {
         self.client.is_connected().await
     }
 
     // Dome information
 
-    pub async fn name(&self) -> Result<String, String> {
+    pub async fn name(&self) -> Result<String, AlpacaError> {
         self.client.get_name().await
     }
 
-    pub async fn description(&self) -> Result<String, String> {
+    pub async fn description(&self) -> Result<String, AlpacaError> {
         self.client.get_description().await
     }
 
     /// Get the driver version string
-    pub async fn driver_version(&self) -> Result<String, String> {
+    pub async fn driver_version(&self) -> Result<String, AlpacaError> {
         self.client.get_driver_version().await
     }
 
     /// Get the driver info string
-    pub async fn driver_info(&self) -> Result<String, String> {
+    pub async fn driver_info(&self) -> Result<String, AlpacaError> {
         self.client.get_driver_info().await
     }
 
     /// Get the interface version number
-    pub async fn interface_version(&self) -> Result<i32, String> {
+    pub async fn interface_version(&self) -> Result<i32, AlpacaError> {
         self.client.get_interface_version().await
     }
 
     /// Get the list of supported custom actions
-    pub async fn supported_actions(&self) -> Result<Vec<String>, String> {
+    pub async fn supported_actions(&self) -> Result<Vec<String>, AlpacaError> {
         self.client.get_supported_actions().await
     }
 
     // Position
 
-    pub async fn altitude(&self) -> Result<f64, String> {
+    pub async fn altitude(&self) -> Result<f64, AlpacaError> {
         self.client.get("altitude").await
     }
 
-    pub async fn azimuth(&self) -> Result<f64, String> {
+    pub async fn azimuth(&self) -> Result<f64, AlpacaError> {
         self.client.get("azimuth").await
     }
 
     // Status
 
-    pub async fn at_home(&self) -> Result<bool, String> {
+    pub async fn at_home(&self) -> Result<bool, AlpacaError> {
         self.client.get("athome").await
     }
 
-    pub async fn at_park(&self) -> Result<bool, String> {
+    pub async fn at_park(&self) -> Result<bool, AlpacaError> {
         self.client.get("atpark").await
     }
 
-    pub async fn shutter_status(&self) -> Result<ShutterStatus, String> {
+    pub async fn shutter_status(&self) -> Result<ShutterStatus, AlpacaError> {
         let status: i32 = self.client.get("shutterstatus").await?;
         Ok(ShutterStatus::from(status))
     }
 
-    pub async fn slewing(&self) -> Result<bool, String> {
+    pub async fn slewing(&self) -> Result<bool, AlpacaError> {
         self.client.get("slewing").await
     }
 
-    pub async fn slaved(&self) -> Result<bool, String> {
+    pub async fn slaved(&self) -> Result<bool, AlpacaError> {
         self.client.get("slaved").await
     }
 
-    pub async fn set_slaved(&self, slaved: bool) -> Result<(), String> {
+    pub async fn set_slaved(&self, slaved: bool) -> Result<(), AlpacaError> {
         self.client
             .put("slaved", &[("Slaved", &slaved.to_string())])
             .await
@@ -156,119 +156,79 @@ impl AlpacaDome {
 
     // Capabilities
 
-    pub async fn can_find_home(&self) -> Result<bool, String> {
+    pub async fn can_find_home(&self) -> Result<bool, AlpacaError> {
         self.client.get("canfindhome").await
     }
 
-    pub async fn can_park(&self) -> Result<bool, String> {
+    pub async fn can_park(&self) -> Result<bool, AlpacaError> {
         self.client.get("canpark").await
     }
 
-    pub async fn can_set_altitude(&self) -> Result<bool, String> {
+    pub async fn can_set_altitude(&self) -> Result<bool, AlpacaError> {
         self.client.get("cansetaltitude").await
     }
 
-    pub async fn can_set_azimuth(&self) -> Result<bool, String> {
+    pub async fn can_set_azimuth(&self) -> Result<bool, AlpacaError> {
         self.client.get("cansetazimuth").await
     }
 
-    pub async fn can_set_shutter(&self) -> Result<bool, String> {
+    pub async fn can_set_shutter(&self) -> Result<bool, AlpacaError> {
         self.client.get("cansetshutter").await
     }
 
-    pub async fn can_slave(&self) -> Result<bool, String> {
+    pub async fn can_slave(&self) -> Result<bool, AlpacaError> {
         self.client.get("canslave").await
     }
 
-    pub async fn can_sync_azimuth(&self) -> Result<bool, String> {
+    pub async fn can_sync_azimuth(&self) -> Result<bool, AlpacaError> {
         self.client.get("cansyncazimuth").await
     }
 
     // Movement commands
 
-    pub async fn abort_slew(&self) -> Result<(), String> {
+    pub async fn abort_slew(&self) -> Result<(), AlpacaError> {
         self.client.put("abortslew", &[]).await
     }
 
-    /// Close the dome shutter
-    /// Uses long timeout as shutter operations can take several minutes
-    pub async fn close_shutter(&self) -> Result<(), String> {
-        self.close_shutter_typed().await.map_err(|e| e.to_string())
-    }
-
     /// Close shutter with typed error handling and long timeout
-    pub async fn close_shutter_typed(&self) -> Result<(), AlpacaError> {
+    pub async fn close_shutter(&self) -> Result<(), AlpacaError> {
         self.client.put_long("closeshutter", &[]).await
     }
 
-    /// Find the dome home position
-    /// Uses very long timeout as homing can take several minutes
-    pub async fn find_home(&self) -> Result<(), String> {
-        self.find_home_typed().await.map_err(|e| e.to_string())
-    }
-
     /// Find home with typed error handling and very long timeout
-    pub async fn find_home_typed(&self) -> Result<(), AlpacaError> {
+    pub async fn find_home(&self) -> Result<(), AlpacaError> {
         self.client.put_very_long("findhome", &[]).await
     }
 
-    /// Open the dome shutter
-    /// Uses long timeout as shutter operations can take several minutes
-    pub async fn open_shutter(&self) -> Result<(), String> {
-        self.open_shutter_typed().await.map_err(|e| e.to_string())
-    }
-
     /// Open shutter with typed error handling and long timeout
-    pub async fn open_shutter_typed(&self) -> Result<(), AlpacaError> {
+    pub async fn open_shutter(&self) -> Result<(), AlpacaError> {
         self.client.put_long("openshutter", &[]).await
     }
 
-    /// Park the dome
-    /// Uses long timeout as parking can take several minutes
-    pub async fn park(&self) -> Result<(), String> {
-        self.park_typed().await.map_err(|e| e.to_string())
-    }
-
     /// Park with typed error handling and long timeout
-    pub async fn park_typed(&self) -> Result<(), AlpacaError> {
+    pub async fn park(&self) -> Result<(), AlpacaError> {
         self.client.put_long("park", &[]).await
     }
 
-    pub async fn set_park(&self) -> Result<(), String> {
+    pub async fn set_park(&self) -> Result<(), AlpacaError> {
         self.client.put("setpark", &[]).await
     }
 
-    /// Slew dome to altitude
-    /// Uses long timeout as dome rotation can take time
-    pub async fn slew_to_altitude(&self, altitude: f64) -> Result<(), String> {
-        self.slew_to_altitude_typed(altitude)
-            .await
-            .map_err(|e| e.to_string())
-    }
-
     /// Slew to altitude with typed error handling and long timeout
-    pub async fn slew_to_altitude_typed(&self, altitude: f64) -> Result<(), AlpacaError> {
+    pub async fn slew_to_altitude(&self, altitude: f64) -> Result<(), AlpacaError> {
         self.client
             .put_long("slewtoaltitude", &[("Altitude", &altitude.to_string())])
             .await
     }
 
-    /// Slew dome to azimuth
-    /// Uses very long timeout as full rotation can take many minutes
-    pub async fn slew_to_azimuth(&self, azimuth: f64) -> Result<(), String> {
-        self.slew_to_azimuth_typed(azimuth)
-            .await
-            .map_err(|e| e.to_string())
-    }
-
     /// Slew to azimuth with typed error handling and very long timeout
-    pub async fn slew_to_azimuth_typed(&self, azimuth: f64) -> Result<(), AlpacaError> {
+    pub async fn slew_to_azimuth(&self, azimuth: f64) -> Result<(), AlpacaError> {
         self.client
             .put_very_long("slewtoazimuth", &[("Azimuth", &azimuth.to_string())])
             .await
     }
 
-    pub async fn sync_to_azimuth(&self, azimuth: f64) -> Result<(), String> {
+    pub async fn sync_to_azimuth(&self, azimuth: f64) -> Result<(), AlpacaError> {
         self.client
             .put("synctoazimuth", &[("Azimuth", &azimuth.to_string())])
             .await
@@ -277,7 +237,7 @@ impl AlpacaDome {
     // Status aggregation
 
     /// Get comprehensive dome status
-    pub async fn get_status(&self) -> Result<DomeStatus, String> {
+    pub async fn get_status(&self) -> Result<DomeStatus, AlpacaError> {
         // Query all status properties in parallel for efficiency
         let (shutter_status, azimuth, altitude, slewing, at_home, at_park, slaved) = tokio::join!(
             self.shutter_status(),

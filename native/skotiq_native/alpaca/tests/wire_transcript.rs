@@ -337,7 +337,12 @@ fn envelope(value: Option<Value>, error_number: i32, error_message: &str) -> Vec
     if let Some(value) = value {
         body["Value"] = value;
     }
-    http_reply("200 OK", "application/json", "", body.to_string().as_bytes())
+    http_reply(
+        "200 OK",
+        "application/json",
+        "",
+        body.to_string().as_bytes(),
+    )
 }
 
 fn image_bytes_payload(error_number: i32, message: &[u8]) -> Vec<u8> {
@@ -408,7 +413,12 @@ fn build_reply(
                     "ErrorNumber": 0,
                     "ErrorMessage": "",
                 });
-                return http_reply("200 OK", "application/json", "", body.to_string().as_bytes());
+                return http_reply(
+                    "200 OK",
+                    "application/json",
+                    "",
+                    body.to_string().as_bytes(),
+                );
             }
             _ => {}
         }
@@ -740,19 +750,13 @@ fn check_golden(kind: &str, actual: &str) {
 async fn safety_monitor_wire_transcript() {
     let members = members![AlpacaSafetyMonitor;
         "connect" [rep] => |d| d.connect(),
-        "connect_typed" [rep] => |d| d.connect_typed(),
         "disconnect" [rep] => |d| d.disconnect(),
-        "disconnect_typed" => |d| d.disconnect_typed(),
         "is_connected" [rep] => |d| d.is_connected(),
-        "is_connected_typed" [rep] => |d| d.is_connected_typed(),
         "validate_connection" [rep] => |d| d.validate_connection(),
         "heartbeat" [rep] => |d| async move { d.heartbeat().await.map(|_| "<ms>") },
         "name" => |d| d.name(),
-        "name_typed" => |d| d.name_typed(),
         "description" => |d| d.description(),
-        "description_typed" => |d| d.description_typed(),
         "driver_version" => |d| d.driver_version(),
-        "driver_version_typed" => |d| d.driver_version_typed(),
         "driver_info" => |d| d.driver_info(),
         "interface_version" => |d| d.interface_version(),
         "supported_actions" => |d| d.supported_actions(),
@@ -761,9 +765,7 @@ async fn safety_monitor_wire_transcript() {
         "command_blind" => |d| d.command_blind(":Q#", false),
         "command_bool" => |d| d.command_bool(":X#", true),
         "is_safe" [rep] => |d| d.is_safe(),
-        "is_safe_typed" [rep] => |d| d.is_safe_typed(),
         "get_status" [par] => |d| d.get_status(),
-        "get_status_typed" [par] => |d| d.get_status_typed(),
         "get_info" [par] => |d| d.get_info(),
     ];
     let actual = transcript("safetymonitor", AlpacaSafetyMonitor::from_server, members).await;
@@ -855,9 +857,7 @@ async fn cover_calibrator_wire_transcript() {
         "brightness" => |d| d.brightness(),
         "max_brightness" => |d| d.max_brightness(),
         "open_cover" [rep] => |d| d.open_cover(),
-        "open_cover_typed" => |d| d.open_cover_typed(),
         "close_cover" => |d| d.close_cover(),
-        "close_cover_typed" => |d| d.close_cover_typed(),
         "halt_cover" => |d| d.halt_cover(),
         "calibrator_on" [rep] => |d| d.calibrator_on(128),
         "calibrator_off" => |d| d.calibrator_off(),
@@ -961,7 +961,6 @@ async fn focuser_wire_transcript() {
         "set_temp_comp" => |d| d.set_temp_comp(true),
         "temperature" => |d| d.temperature(),
         "move_to" [rep] => |d| d.move_to(6620),
-        "move_to_typed" [rep] => |d| d.move_to_typed(6620),
         "halt" => |d| d.halt(),
         "get_status" [par] => |d| d.get_status(),
         "get_capabilities" [par] => |d| d.get_capabilities(),
@@ -999,18 +998,12 @@ async fn dome_wire_transcript() {
         "can_sync_azimuth" => |d| d.can_sync_azimuth(),
         "abort_slew" => |d| d.abort_slew(),
         "close_shutter" [rep] => |d| d.close_shutter(),
-        "close_shutter_typed" => |d| d.close_shutter_typed(),
         "find_home" [rep] => |d| d.find_home(),
-        "find_home_typed" => |d| d.find_home_typed(),
         "open_shutter" => |d| d.open_shutter(),
-        "open_shutter_typed" => |d| d.open_shutter_typed(),
         "park" => |d| d.park(),
-        "park_typed" => |d| d.park_typed(),
         "set_park" => |d| d.set_park(),
         "slew_to_altitude" => |d| d.slew_to_altitude(45.5),
-        "slew_to_altitude_typed" => |d| d.slew_to_altitude_typed(45.5),
         "slew_to_azimuth" => |d| d.slew_to_azimuth(270.0),
-        "slew_to_azimuth_typed" => |d| d.slew_to_azimuth_typed(270.0),
         "sync_to_azimuth" => |d| d.sync_to_azimuth(123.456),
         "get_status" [par] => |d| d.get_status(),
     ];
@@ -1090,20 +1083,14 @@ async fn telescope_wire_transcript() {
         "is_pulse_guiding" => |d| d.is_pulse_guiding(),
         "abort_slew" [rep] => |d| d.abort_slew(),
         "find_home" => |d| d.find_home(),
-        "find_home_typed" => |d| d.find_home_typed(),
         "park" [rep] => |d| d.park(),
-        "park_typed" => |d| d.park_typed(),
         "unpark" [rep] => |d| d.unpark(),
-        "unpark_typed" => |d| d.unpark_typed(),
         "set_park" => |d| d.set_park(),
         "slew_to_coordinates" => |d| d.slew_to_coordinates(5.5, -12.25),
-        "slew_to_coordinates_typed" => |d| d.slew_to_coordinates_typed(5.5, -12.25),
         "slew_to_coordinates_async" [rep] => |d| d.slew_to_coordinates_async(23.999, 89.5),
         "slew_to_target" => |d| d.slew_to_target(),
-        "slew_to_target_typed" => |d| d.slew_to_target_typed(),
         "slew_to_target_async" => |d| d.slew_to_target_async(),
         "slew_to_alt_az" => |d| d.slew_to_alt_az(45.5, 180.25),
-        "slew_to_alt_az_typed" => |d| d.slew_to_alt_az_typed(45.5, 180.25),
         "slew_to_alt_az_async" => |d| d.slew_to_alt_az_async(45.5, 180.25),
         "sync_to_coordinates" [rep] => |d| d.sync_to_coordinates(5.5, -12.25),
         "sync_to_target" => |d| d.sync_to_target(),
@@ -1199,9 +1186,8 @@ async fn camera_wire_transcript() {
         "image_array" => |d| d.image_array(),
         "pulse_guide" => |d| d.pulse_guide(3, 500),
         "download_image_data" [rep] => |d| d.download_image_data(),
-        "download_image_data_typed" => |d| d.download_image_data_typed(),
-        "download_image_array_full_typed" => |d| async move {
-            d.download_image_array_full_typed().await.map(|image| {
+        "download_image_array_full" => |d| async move {
+            d.download_image_array_full().await.map(|image| {
                 (image.width, image.height, image.planes, image.pixels, image.element_type)
             })
         },

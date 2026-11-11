@@ -104,112 +104,100 @@ impl AlpacaCoverCalibrator {
 
     // Connection methods
 
-    pub async fn connect(&self) -> Result<(), String> {
+    pub async fn connect(&self) -> Result<(), AlpacaError> {
         self.client.connect().await
     }
 
-    pub async fn disconnect(&self) -> Result<(), String> {
+    pub async fn disconnect(&self) -> Result<(), AlpacaError> {
         self.client.disconnect().await
     }
 
-    pub async fn is_connected(&self) -> Result<bool, String> {
+    pub async fn is_connected(&self) -> Result<bool, AlpacaError> {
         self.client.is_connected().await
     }
 
     // Cover Calibrator information
 
-    pub async fn name(&self) -> Result<String, String> {
+    pub async fn name(&self) -> Result<String, AlpacaError> {
         self.client.get_name().await
     }
 
-    pub async fn description(&self) -> Result<String, String> {
+    pub async fn description(&self) -> Result<String, AlpacaError> {
         self.client.get_description().await
     }
 
     /// Get the driver version string
-    pub async fn driver_version(&self) -> Result<String, String> {
+    pub async fn driver_version(&self) -> Result<String, AlpacaError> {
         self.client.get_driver_version().await
     }
 
     /// Get the driver info string
-    pub async fn driver_info(&self) -> Result<String, String> {
+    pub async fn driver_info(&self) -> Result<String, AlpacaError> {
         self.client.get_driver_info().await
     }
 
     /// Get the interface version number
-    pub async fn interface_version(&self) -> Result<i32, String> {
+    pub async fn interface_version(&self) -> Result<i32, AlpacaError> {
         self.client.get_interface_version().await
     }
 
     /// Get the list of supported custom actions
-    pub async fn supported_actions(&self) -> Result<Vec<String>, String> {
+    pub async fn supported_actions(&self) -> Result<Vec<String>, AlpacaError> {
         self.client.get_supported_actions().await
     }
 
     // Status
 
-    pub async fn cover_state(&self) -> Result<CoverStatus, String> {
+    pub async fn cover_state(&self) -> Result<CoverStatus, AlpacaError> {
         let state: i32 = self.client.get("coverstate").await?;
         Ok(CoverStatus::from(state))
     }
 
-    pub async fn calibrator_state(&self) -> Result<CalibratorStatus, String> {
+    pub async fn calibrator_state(&self) -> Result<CalibratorStatus, AlpacaError> {
         let state: i32 = self.client.get("calibratorstate").await?;
         Ok(CalibratorStatus::from(state))
     }
 
-    pub async fn brightness(&self) -> Result<i32, String> {
+    pub async fn brightness(&self) -> Result<i32, AlpacaError> {
         self.client.get("brightness").await
     }
 
-    pub async fn max_brightness(&self) -> Result<i32, String> {
+    pub async fn max_brightness(&self) -> Result<i32, AlpacaError> {
         self.client.get("maxbrightness").await
     }
 
     // Cover control
 
-    /// Open the dust cover
-    /// Uses long timeout as motorized covers can take time to open
-    pub async fn open_cover(&self) -> Result<(), String> {
-        self.open_cover_typed().await.map_err(|e| e.to_string())
-    }
-
     /// Open cover with typed error handling and long timeout
-    pub async fn open_cover_typed(&self) -> Result<(), AlpacaError> {
+    pub async fn open_cover(&self) -> Result<(), AlpacaError> {
         self.client.put_long("opencover", &[]).await
     }
 
-    /// Close the dust cover
-    /// Uses long timeout as motorized covers can take time to close
-    pub async fn close_cover(&self) -> Result<(), String> {
-        self.close_cover_typed().await.map_err(|e| e.to_string())
-    }
-
     /// Close cover with typed error handling and long timeout
-    pub async fn close_cover_typed(&self) -> Result<(), AlpacaError> {
+    pub async fn close_cover(&self) -> Result<(), AlpacaError> {
         self.client.put_long("closecover", &[]).await
     }
 
-    pub async fn halt_cover(&self) -> Result<(), String> {
+    pub async fn halt_cover(&self) -> Result<(), AlpacaError> {
         self.client.put("haltcover", &[]).await
     }
 
     // Calibrator control
 
-    pub async fn calibrator_on(&self, brightness: i32) -> Result<(), String> {
+    pub async fn calibrator_on(&self, brightness: i32) -> Result<(), AlpacaError> {
         self.client
             .put("calibratoron", &[("Brightness", &brightness.to_string())])
             .await
     }
 
-    pub async fn calibrator_off(&self) -> Result<(), String> {
+    pub async fn calibrator_off(&self) -> Result<(), AlpacaError> {
         self.client.put("calibratoroff", &[]).await
     }
 
     // Wait methods
 
     /// Get comprehensive cover calibrator status
-    pub async fn get_status(&self) -> Result<CoverCalibratorStatus, String> {
+    pub async fn get_status(&self) -> Result<CoverCalibratorStatus, AlpacaError> {
         let (cover_state, calibrator_state, brightness) = tokio::join!(
             self.cover_state(),
             self.calibrator_state(),

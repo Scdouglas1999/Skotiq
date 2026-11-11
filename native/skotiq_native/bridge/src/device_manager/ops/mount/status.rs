@@ -590,22 +590,22 @@ impl DeviceManager {
                     // see the underlying reason verbatim. UI can match on the prefix
                     // "PropertyNotImplemented" if it wants to render Unsupported.
                     let alt_opt = Self::availability_from_string_result(
-                        mount.altitude().await,
+                        mount.altitude().await.map_err(|e| e.to_string()),
                         mount_status_field::ALTITUDE,
                         &mut availability,
                     );
                     let az_opt = Self::availability_from_string_result(
-                        mount.azimuth().await,
+                        mount.azimuth().await.map_err(|e| e.to_string()),
                         mount_status_field::AZIMUTH,
                         &mut availability,
                     );
                     let at_home_opt = Self::availability_from_string_result(
-                        mount.at_home().await,
+                        mount.at_home().await.map_err(|e| e.to_string()),
                         mount_status_field::AT_HOME,
                         &mut availability,
                     );
                     let sidereal_time_opt = Self::availability_from_string_result(
-                        mount.sidereal_time().await,
+                        mount.sidereal_time().await.map_err(|e| e.to_string()),
                         mount_status_field::SIDEREAL_TIME,
                         &mut availability,
                     );
@@ -637,7 +637,7 @@ impl DeviceManager {
                             Self::set_mount_availability(
                                 &mut availability,
                                 mount_status_field::SIDE_OF_PIER,
-                                FieldAvailability::Error(e),
+                                FieldAvailability::Error(e.to_string()),
                             );
                             None
                         }
@@ -687,7 +687,7 @@ impl DeviceManager {
                             Self::set_mount_availability(
                                 &mut availability,
                                 mount_status_field::TRACKING_RATE,
-                                FieldAvailability::Error(e),
+                                FieldAvailability::Error(e.to_string()),
                             );
                             None
                         }

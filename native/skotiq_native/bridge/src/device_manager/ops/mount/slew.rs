@@ -175,7 +175,7 @@ impl DeviceManager {
                             mount
                                 .slew_to_coordinates_async(ra, dec)
                                 .await
-                                .map_err(SkotiqError::OperationFailed)
+                                .map_err(|e| SkotiqError::OperationFailed(e.to_string()))
                         },
                         device_id,
                     )
@@ -344,7 +344,12 @@ impl DeviceManager {
                 let mounts = self.alpaca_mounts.read().await;
                 if let Some(mount) = mounts.get(device_id) {
                     return with_timeout_str(
-                        mount.slew_to_alt_az_async(altitude, azimuth),
+                        async {
+                            mount
+                                .slew_to_alt_az_async(altitude, azimuth)
+                                .await
+                                .map_err(|e| e.to_string())
+                        },
                         Timeouts::long_slew(),
                         device_id,
                         "slew_to_alt_az",

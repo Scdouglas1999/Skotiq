@@ -96,104 +96,6 @@
 > GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=5]
 = Err(Connection validation failed: Connected=true succeeded, but the device still reports disconnected after 3 attempts)
 
-## safetymonitor.connect_typed [ok]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=1]
-= Ok(())
-
-## safetymonitor.connect_typed [ascom 0x400]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
-= Err(Device error 1024: Property or method is not implemented)
-
-## safetymonitor.connect_typed [ascom 0x4FF without Value]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
-= Err(Device error 1279: Unspecified driver fault)
-
-## safetymonitor.connect_typed [http 400]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
-= Err(HTTP error 400: Method not implemented)
-
-## safetymonitor.connect_typed [http 500]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=true]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## safetymonitor.connect_typed [malformed json]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=true]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## safetymonitor.connect_typed [ascom 0x401]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
-= Err(Device error 1025: Invalid value)
-
-## safetymonitor.connect_typed [ascom 0x402]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
-= Err(Device error 1026: Value not set)
-
-## safetymonitor.connect_typed [ascom 0x407]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
-= Err(Device error 1031: Not connected)
-
-## safetymonitor.connect_typed [ascom 0x408]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
-= Err(Device error 1032: Invalid while parked)
-
-## safetymonitor.connect_typed [ascom 0x409]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
-= Err(Device error 1033: Invalid while slaved)
-
-## safetymonitor.connect_typed [ascom 0x40B]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
-= Err(Device error 1035: Invalid operation)
-
-## safetymonitor.connect_typed [ascom 0x40C without Value]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
-= Err(Device error 1036: Action not implemented)
-
-## safetymonitor.connect_typed [ascom 0x500]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
-= Err(Device error 1280: Driver specific error)
-
-## safetymonitor.connect_typed [http 404]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
-= Err(HTTP error 404: Not Found)
-
-## safetymonitor.connect_typed [http 429 retry-after 0]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=true]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
-= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
-
-## safetymonitor.connect_typed [http 503]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=true]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
-= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
-
-## safetymonitor.connect_typed [wrong value type]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=1]
-= Err(Request failed: error decoding response body: invalid type: map, expected a boolean at line 1 column 91)
-
-## safetymonitor.connect_typed [connected reads false x1]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=1]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=3]
-= Ok(())
-
-## safetymonitor.connect_typed [connected reads false x99]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=1]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=3]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=4&Connected=true]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=5]
-= Err(Connection validation failed: Connected=true succeeded, but the device still reports disconnected after 3 attempts)
-
 ## safetymonitor.disconnect [ok]
 > PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
 = Ok(())
@@ -273,34 +175,6 @@
 ## safetymonitor.disconnect [wrong value type]
 > PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
 = Ok(())
-
-## safetymonitor.disconnect_typed [ok]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
-= Ok(())
-
-## safetymonitor.disconnect_typed [ascom 0x400]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
-= Err(Device error 1024: Property or method is not implemented)
-
-## safetymonitor.disconnect_typed [ascom 0x4FF without Value]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
-= Err(Device error 1279: Unspecified driver fault)
-
-## safetymonitor.disconnect_typed [http 400]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
-= Err(HTTP error 400: Method not implemented)
-
-## safetymonitor.disconnect_typed [http 500]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=false]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=false]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## safetymonitor.disconnect_typed [malformed json]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=false]
-> PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=false]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
 ## safetymonitor.is_connected [ok]
 > GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
@@ -387,78 +261,6 @@
 > GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=1]
 > GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=2]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected a boolean at line 1 column 91)
-
-## safetymonitor.is_connected_typed [ok]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-= Ok(true)
-
-## safetymonitor.is_connected_typed [ascom 0x400]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## safetymonitor.is_connected_typed [ascom 0x4FF without Value]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-= Err(Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## safetymonitor.is_connected_typed [http 400]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## safetymonitor.is_connected_typed [http 500]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 500: Internal server error)
-
-## safetymonitor.is_connected_typed [malformed json]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## safetymonitor.is_connected_typed [ascom 0x401]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1025: Invalid value)
-
-## safetymonitor.is_connected_typed [ascom 0x402]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1026: Value not set)
-
-## safetymonitor.is_connected_typed [ascom 0x407]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1031: Not connected)
-
-## safetymonitor.is_connected_typed [ascom 0x408]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1032: Invalid while parked)
-
-## safetymonitor.is_connected_typed [ascom 0x409]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1033: Invalid while slaved)
-
-## safetymonitor.is_connected_typed [ascom 0x40B]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1035: Invalid operation)
-
-## safetymonitor.is_connected_typed [ascom 0x40C without Value]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-= Err(Request failed: error decoding response body: missing field `Value` at line 1 column 108)
-
-## safetymonitor.is_connected_typed [ascom 0x500]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1280: Driver specific error)
-
-## safetymonitor.is_connected_typed [http 404]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 404: Not Found)
-
-## safetymonitor.is_connected_typed [http 429 retry-after 0]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 429: Slow down)
-
-## safetymonitor.is_connected_typed [http 503]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 503: Service Unavailable)
-
-## safetymonitor.is_connected_typed [wrong value type]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-= Err(Request failed: error decoding response body: invalid type: map, expected a boolean at line 1 column 91)
 
 ## safetymonitor.validate_connection [ok]
 > GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
@@ -634,36 +436,6 @@
 > GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=2]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
-## safetymonitor.name_typed [ok]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=0]
-= Ok("Sim Name")
-
-## safetymonitor.name_typed [ascom 0x400]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## safetymonitor.name_typed [ascom 0x4FF without Value]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## safetymonitor.name_typed [http 400]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## safetymonitor.name_typed [http 500]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## safetymonitor.name_typed [malformed json]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
 ## safetymonitor.description [ok]
 > GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=0]
 = Ok("Sim Description")
@@ -694,36 +466,6 @@
 > GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=2]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
-## safetymonitor.description_typed [ok]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=0]
-= Ok("Sim Description")
-
-## safetymonitor.description_typed [ascom 0x400]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## safetymonitor.description_typed [ascom 0x4FF without Value]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## safetymonitor.description_typed [http 400]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## safetymonitor.description_typed [http 500]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## safetymonitor.description_typed [malformed json]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
 ## safetymonitor.driver_version [ok]
 > GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
 = Ok("1.2.3")
@@ -749,36 +491,6 @@
 = Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
 
 ## safetymonitor.driver_version [malformed json]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## safetymonitor.driver_version_typed [ok]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
-= Ok("1.2.3")
-
-## safetymonitor.driver_version_typed [ascom 0x400]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## safetymonitor.driver_version_typed [ascom 0x4FF without Value]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## safetymonitor.driver_version_typed [http 400]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## safetymonitor.driver_version_typed [http 500]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## safetymonitor.driver_version_typed [malformed json]
 > GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
 > GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
 > GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
@@ -1126,92 +838,6 @@
 > GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=2]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected a boolean at line 1 column 91)
 
-## safetymonitor.is_safe_typed [ok]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-= Ok(true)
-
-## safetymonitor.is_safe_typed [ascom 0x400]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## safetymonitor.is_safe_typed [ascom 0x4FF without Value]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## safetymonitor.is_safe_typed [http 400]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## safetymonitor.is_safe_typed [http 500]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## safetymonitor.is_safe_typed [malformed json]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## safetymonitor.is_safe_typed [ascom 0x401]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1025: Invalid value)
-
-## safetymonitor.is_safe_typed [ascom 0x402]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1026: Value not set)
-
-## safetymonitor.is_safe_typed [ascom 0x407]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1031: Not connected)
-
-## safetymonitor.is_safe_typed [ascom 0x408]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1032: Invalid while parked)
-
-## safetymonitor.is_safe_typed [ascom 0x409]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1033: Invalid while slaved)
-
-## safetymonitor.is_safe_typed [ascom 0x40B]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1035: Invalid operation)
-
-## safetymonitor.is_safe_typed [ascom 0x40C without Value]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
-
-## safetymonitor.is_safe_typed [ascom 0x500]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1280: Driver specific error)
-
-## safetymonitor.is_safe_typed [http 404]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 404: Not Found)
-
-## safetymonitor.is_safe_typed [http 429 retry-after 0]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
-
-## safetymonitor.is_safe_typed [http 503]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
-
-## safetymonitor.is_safe_typed [wrong value type]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected a boolean at line 1 column 91)
-
 ## safetymonitor.get_status [ok]
 > GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
@@ -1253,42 +879,6 @@
 > GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## safetymonitor.get_status_typed [ok]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-= Ok(SafetyMonitorStatus { connected: true, is_safe: true })
-
-## safetymonitor.get_status_typed [ascom 0x400]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Device error 1024: Property or method is not implemented)
-
-## safetymonitor.get_status_typed [ascom 0x4FF without Value]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## safetymonitor.get_status_typed [http 400]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(HTTP error 400: Method not implemented)
-
-## safetymonitor.get_status_typed [http 500]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(HTTP error 500: Internal server error)
-
-## safetymonitor.get_status_typed [malformed json]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
 ## safetymonitor.get_info [ok]
 > GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=<txn>]

@@ -55,15 +55,15 @@ impl AlpacaRotator {
 
     // Connection methods
 
-    pub async fn connect(&self) -> Result<(), String> {
+    pub async fn connect(&self) -> Result<(), AlpacaError> {
         self.client.connect().await
     }
 
-    pub async fn disconnect(&self) -> Result<(), String> {
+    pub async fn disconnect(&self) -> Result<(), AlpacaError> {
         self.client.disconnect().await
     }
 
-    pub async fn is_connected(&self) -> Result<bool, String> {
+    pub async fn is_connected(&self) -> Result<bool, AlpacaError> {
         self.client.is_connected().await
     }
 
@@ -79,31 +79,31 @@ impl AlpacaRotator {
 
     // Rotator information
 
-    pub async fn name(&self) -> Result<String, String> {
+    pub async fn name(&self) -> Result<String, AlpacaError> {
         self.client.get_name().await
     }
 
-    pub async fn description(&self) -> Result<String, String> {
+    pub async fn description(&self) -> Result<String, AlpacaError> {
         self.client.get_description().await
     }
 
     /// Get the driver version string
-    pub async fn driver_version(&self) -> Result<String, String> {
+    pub async fn driver_version(&self) -> Result<String, AlpacaError> {
         self.client.get_driver_version().await
     }
 
     /// Get the driver info string
-    pub async fn driver_info(&self) -> Result<String, String> {
+    pub async fn driver_info(&self) -> Result<String, AlpacaError> {
         self.client.get_driver_info().await
     }
 
     /// Get the interface version number
-    pub async fn interface_version(&self) -> Result<i32, String> {
+    pub async fn interface_version(&self) -> Result<i32, AlpacaError> {
         self.client.get_interface_version().await
     }
 
     /// Get the list of supported custom actions
-    pub async fn supported_actions(&self) -> Result<Vec<String>, String> {
+    pub async fn supported_actions(&self) -> Result<Vec<String>, AlpacaError> {
         self.client.get_supported_actions().await
     }
 
@@ -111,47 +111,47 @@ impl AlpacaRotator {
 
     /// Get the current rotator position (degrees, 0-360)
     /// This is the synced/offset position
-    pub async fn position(&self) -> Result<f64, String> {
+    pub async fn position(&self) -> Result<f64, AlpacaError> {
         self.client.get("position").await
     }
 
     /// Get the mechanical position (degrees, 0-360)
     /// This is the actual physical position without sync offset
-    pub async fn mechanical_position(&self) -> Result<f64, String> {
+    pub async fn mechanical_position(&self) -> Result<f64, AlpacaError> {
         self.client.get("mechanicalposition").await
     }
 
     /// Get the target position (degrees)
-    pub async fn target_position(&self) -> Result<f64, String> {
+    pub async fn target_position(&self) -> Result<f64, AlpacaError> {
         self.client.get("targetposition").await
     }
 
     /// Get the step size in degrees
-    pub async fn step_size(&self) -> Result<f64, String> {
+    pub async fn step_size(&self) -> Result<f64, AlpacaError> {
         self.client.get("stepsize").await
     }
 
     // Status
 
     /// Check if rotator is currently moving
-    pub async fn is_moving(&self) -> Result<bool, String> {
+    pub async fn is_moving(&self) -> Result<bool, AlpacaError> {
         self.client.get("ismoving").await
     }
 
     // Reversal
 
     /// Check if rotator can reverse direction
-    pub async fn can_reverse(&self) -> Result<bool, String> {
+    pub async fn can_reverse(&self) -> Result<bool, AlpacaError> {
         self.client.get("canreverse").await
     }
 
     /// Get the current reverse setting
-    pub async fn reverse(&self) -> Result<bool, String> {
+    pub async fn reverse(&self) -> Result<bool, AlpacaError> {
         self.client.get("reverse").await
     }
 
     /// Set the reverse direction
-    pub async fn set_reverse(&self, reverse: bool) -> Result<(), String> {
+    pub async fn set_reverse(&self, reverse: bool) -> Result<(), AlpacaError> {
         self.client
             .put("reverse", &[("Reverse", &reverse.to_string())])
             .await
@@ -160,34 +160,34 @@ impl AlpacaRotator {
     // Movement commands
 
     /// Move to an absolute position (degrees, 0-360)
-    pub async fn move_absolute(&self, position: f64) -> Result<(), String> {
+    pub async fn move_absolute(&self, position: f64) -> Result<(), AlpacaError> {
         self.client
             .put("moveabsolute", &[("Position", &position.to_string())])
             .await
     }
 
     /// Move relative from current position (degrees)
-    pub async fn move_relative(&self, offset: f64) -> Result<(), String> {
+    pub async fn move_relative(&self, offset: f64) -> Result<(), AlpacaError> {
         self.client
             .put("move", &[("Position", &offset.to_string())])
             .await
     }
 
     /// Move to the mechanical position (degrees)
-    pub async fn move_mechanical(&self, position: f64) -> Result<(), String> {
+    pub async fn move_mechanical(&self, position: f64) -> Result<(), AlpacaError> {
         self.client
             .put("movemechanical", &[("Position", &position.to_string())])
             .await
     }
 
     /// Halt any rotator motion
-    pub async fn halt(&self) -> Result<(), String> {
+    pub async fn halt(&self) -> Result<(), AlpacaError> {
         self.client.put("halt", &[]).await
     }
 
     /// Sync the rotator position to a new value
     /// This sets the offset between mechanical and synced positions
-    pub async fn sync(&self, position: f64) -> Result<(), String> {
+    pub async fn sync(&self, position: f64) -> Result<(), AlpacaError> {
         self.client
             .put("sync", &[("Position", &position.to_string())])
             .await
@@ -196,7 +196,7 @@ impl AlpacaRotator {
     // Parallel status methods
 
     /// Get comprehensive rotator status in a single parallel query
-    pub async fn get_status(&self) -> Result<RotatorStatus, String> {
+    pub async fn get_status(&self) -> Result<RotatorStatus, AlpacaError> {
         let (connected, position, mechanical_position, is_moving) = tokio::join!(
             self.is_connected(),
             self.position(),
@@ -213,7 +213,7 @@ impl AlpacaRotator {
     }
 
     /// Get rotator capabilities in a single parallel query
-    pub async fn get_capabilities(&self) -> Result<RotatorCapabilities, String> {
+    pub async fn get_capabilities(&self) -> Result<RotatorCapabilities, AlpacaError> {
         let (can_reverse, step_size) = tokio::join!(self.can_reverse(), self.step_size(),);
 
         Ok(RotatorCapabilities {

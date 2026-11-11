@@ -6,10 +6,17 @@ use serde::Deserialize;
 /// Capability endpoints are optional in practice even when a server exposes
 /// the rest of the Telescope API. Treat an explicit not-implemented response
 /// as `false`, while preserving transport and malformed-response failures.
-fn capability_or_unsupported(result: Result<bool, String>) -> Result<bool, String> {
+fn capability_or_unsupported(result: Result<bool, AlpacaError>) -> Result<bool, AlpacaError> {
     match result {
         Ok(value) => Ok(value),
-        Err(error) if error.to_ascii_lowercase().contains("not implemented") => Ok(false),
+        Err(error)
+            if error
+                .to_string()
+                .to_ascii_lowercase()
+                .contains("not implemented") =>
+        {
+            Ok(false)
+        }
         Err(error) => Err(error),
     }
 }
@@ -242,15 +249,15 @@ impl AlpacaTelescope {
 
     // Connection methods
 
-    pub async fn connect(&self) -> Result<(), String> {
+    pub async fn connect(&self) -> Result<(), AlpacaError> {
         self.client.connect().await
     }
 
-    pub async fn disconnect(&self) -> Result<(), String> {
+    pub async fn disconnect(&self) -> Result<(), AlpacaError> {
         self.client.disconnect().await
     }
 
-    pub async fn is_connected(&self) -> Result<bool, String> {
+    pub async fn is_connected(&self) -> Result<bool, AlpacaError> {
         self.client.is_connected().await
     }
 
@@ -266,87 +273,87 @@ impl AlpacaTelescope {
 
     // Telescope information
 
-    pub async fn name(&self) -> Result<String, String> {
+    pub async fn name(&self) -> Result<String, AlpacaError> {
         self.client.get_name().await
     }
 
-    pub async fn description(&self) -> Result<String, String> {
+    pub async fn description(&self) -> Result<String, AlpacaError> {
         self.client.get_description().await
     }
 
     /// Get the driver version string
-    pub async fn driver_version(&self) -> Result<String, String> {
+    pub async fn driver_version(&self) -> Result<String, AlpacaError> {
         self.client.get_driver_version().await
     }
 
     /// Get the driver info string
-    pub async fn driver_info(&self) -> Result<String, String> {
+    pub async fn driver_info(&self) -> Result<String, AlpacaError> {
         self.client.get_driver_info().await
     }
 
     /// Get the interface version number
-    pub async fn interface_version(&self) -> Result<i32, String> {
+    pub async fn interface_version(&self) -> Result<i32, AlpacaError> {
         self.client.get_interface_version().await
     }
 
     /// Get the list of supported custom actions
-    pub async fn supported_actions(&self) -> Result<Vec<String>, String> {
+    pub async fn supported_actions(&self) -> Result<Vec<String>, AlpacaError> {
         self.client.get_supported_actions().await
     }
 
-    pub async fn alignment_mode(&self) -> Result<i32, String> {
+    pub async fn alignment_mode(&self) -> Result<i32, AlpacaError> {
         self.client.get("alignmentmode").await
     }
 
-    pub async fn aperture_area(&self) -> Result<f64, String> {
+    pub async fn aperture_area(&self) -> Result<f64, AlpacaError> {
         self.client.get("aperturearea").await
     }
 
-    pub async fn aperture_diameter(&self) -> Result<f64, String> {
+    pub async fn aperture_diameter(&self) -> Result<f64, AlpacaError> {
         self.client.get("aperturediameter").await
     }
 
-    pub async fn focal_length(&self) -> Result<f64, String> {
+    pub async fn focal_length(&self) -> Result<f64, AlpacaError> {
         self.client.get("focallength").await
     }
 
-    pub async fn equatorial_system(&self) -> Result<i32, String> {
+    pub async fn equatorial_system(&self) -> Result<i32, AlpacaError> {
         self.client.get("equatorialsystem").await
     }
 
     // Position
 
-    pub async fn right_ascension(&self) -> Result<f64, String> {
+    pub async fn right_ascension(&self) -> Result<f64, AlpacaError> {
         self.client.get("rightascension").await
     }
 
-    pub async fn declination(&self) -> Result<f64, String> {
+    pub async fn declination(&self) -> Result<f64, AlpacaError> {
         self.client.get("declination").await
     }
 
-    pub async fn altitude(&self) -> Result<f64, String> {
+    pub async fn altitude(&self) -> Result<f64, AlpacaError> {
         self.client.get("altitude").await
     }
 
-    pub async fn azimuth(&self) -> Result<f64, String> {
+    pub async fn azimuth(&self) -> Result<f64, AlpacaError> {
         self.client.get("azimuth").await
     }
 
-    pub async fn sidereal_time(&self) -> Result<f64, String> {
+    pub async fn sidereal_time(&self) -> Result<f64, AlpacaError> {
         self.client.get("siderealtime").await
     }
 
-    pub async fn utc_date(&self) -> Result<String, String> {
+    pub async fn utc_date(&self) -> Result<String, AlpacaError> {
         self.client.get("utcdate").await
     }
 
     // Target coordinates
 
-    pub async fn target_right_ascension(&self) -> Result<f64, String> {
+    pub async fn target_right_ascension(&self) -> Result<f64, AlpacaError> {
         self.client.get("targetrightascension").await
     }
 
-    pub async fn set_target_right_ascension(&self, ra: f64) -> Result<(), String> {
+    pub async fn set_target_right_ascension(&self, ra: f64) -> Result<(), AlpacaError> {
         self.client
             .put(
                 "targetrightascension",
@@ -355,11 +362,11 @@ impl AlpacaTelescope {
             .await
     }
 
-    pub async fn target_declination(&self) -> Result<f64, String> {
+    pub async fn target_declination(&self) -> Result<f64, AlpacaError> {
         self.client.get("targetdeclination").await
     }
 
-    pub async fn set_target_declination(&self, dec: f64) -> Result<(), String> {
+    pub async fn set_target_declination(&self, dec: f64) -> Result<(), AlpacaError> {
         self.client
             .put(
                 "targetdeclination",
@@ -370,26 +377,26 @@ impl AlpacaTelescope {
 
     // Status
 
-    pub async fn slewing(&self) -> Result<bool, String> {
+    pub async fn slewing(&self) -> Result<bool, AlpacaError> {
         self.client.get("slewing").await
     }
 
-    pub async fn tracking(&self) -> Result<bool, String> {
+    pub async fn tracking(&self) -> Result<bool, AlpacaError> {
         self.client.get("tracking").await
     }
 
-    pub async fn set_tracking(&self, tracking: bool) -> Result<(), String> {
+    pub async fn set_tracking(&self, tracking: bool) -> Result<(), AlpacaError> {
         self.client
             .put("tracking", &[("Tracking", &tracking.to_string())])
             .await
     }
 
-    pub async fn tracking_rate(&self) -> Result<DriveRate, String> {
+    pub async fn tracking_rate(&self) -> Result<DriveRate, AlpacaError> {
         let rate: i32 = self.client.get("trackingrate").await?;
         Ok(DriveRate::from(rate))
     }
 
-    pub async fn set_tracking_rate(&self, rate: DriveRate) -> Result<(), String> {
+    pub async fn set_tracking_rate(&self, rate: DriveRate) -> Result<(), AlpacaError> {
         // Why: `DriveRate` is a C-like enum with explicit
         // discriminants in [0, 3]; `as i32` extracts the discriminant value
         // — SAFE narrowing (default isize repr fits in i32 trivially for the
@@ -402,20 +409,20 @@ impl AlpacaTelescope {
             .await
     }
 
-    pub async fn at_home(&self) -> Result<bool, String> {
+    pub async fn at_home(&self) -> Result<bool, AlpacaError> {
         self.client.get("athome").await
     }
 
-    pub async fn at_park(&self) -> Result<bool, String> {
+    pub async fn at_park(&self) -> Result<bool, AlpacaError> {
         self.client.get("atpark").await
     }
 
-    pub async fn side_of_pier(&self) -> Result<PierSide, String> {
+    pub async fn side_of_pier(&self) -> Result<PierSide, AlpacaError> {
         let side: i32 = self.client.get("sideofpier").await?;
         Ok(PierSide::from(side))
     }
 
-    pub async fn set_side_of_pier(&self, side: PierSide) -> Result<(), String> {
+    pub async fn set_side_of_pier(&self, side: PierSide) -> Result<(), AlpacaError> {
         // Why: `PierSide` is a C-like enum with explicit
         // discriminants in {-1, 0, 1}; `as i32` extracts the discriminant —
         // SAFE narrowing.
@@ -426,31 +433,31 @@ impl AlpacaTelescope {
 
     // Site location
 
-    pub async fn site_latitude(&self) -> Result<f64, String> {
+    pub async fn site_latitude(&self) -> Result<f64, AlpacaError> {
         self.client.get("sitelatitude").await
     }
 
-    pub async fn set_site_latitude(&self, lat: f64) -> Result<(), String> {
+    pub async fn set_site_latitude(&self, lat: f64) -> Result<(), AlpacaError> {
         self.client
             .put("sitelatitude", &[("SiteLatitude", &lat.to_string())])
             .await
     }
 
-    pub async fn site_longitude(&self) -> Result<f64, String> {
+    pub async fn site_longitude(&self) -> Result<f64, AlpacaError> {
         self.client.get("sitelongitude").await
     }
 
-    pub async fn set_site_longitude(&self, lon: f64) -> Result<(), String> {
+    pub async fn set_site_longitude(&self, lon: f64) -> Result<(), AlpacaError> {
         self.client
             .put("sitelongitude", &[("SiteLongitude", &lon.to_string())])
             .await
     }
 
-    pub async fn site_elevation(&self) -> Result<f64, String> {
+    pub async fn site_elevation(&self) -> Result<f64, AlpacaError> {
         self.client.get("siteelevation").await
     }
 
-    pub async fn set_site_elevation(&self, elev: f64) -> Result<(), String> {
+    pub async fn set_site_elevation(&self, elev: f64) -> Result<(), AlpacaError> {
         self.client
             .put("siteelevation", &[("SiteElevation", &elev.to_string())])
             .await
@@ -458,85 +465,85 @@ impl AlpacaTelescope {
 
     // Capabilities
 
-    pub async fn can_find_home(&self) -> Result<bool, String> {
+    pub async fn can_find_home(&self) -> Result<bool, AlpacaError> {
         self.client.get("canfindhome").await
     }
 
-    pub async fn can_park(&self) -> Result<bool, String> {
+    pub async fn can_park(&self) -> Result<bool, AlpacaError> {
         self.client.get("canpark").await
     }
 
-    pub async fn can_unpark(&self) -> Result<bool, String> {
+    pub async fn can_unpark(&self) -> Result<bool, AlpacaError> {
         self.client.get("canunpark").await
     }
 
-    pub async fn can_set_park(&self) -> Result<bool, String> {
+    pub async fn can_set_park(&self) -> Result<bool, AlpacaError> {
         self.client.get("cansetpark").await
     }
 
-    pub async fn can_slew(&self) -> Result<bool, String> {
+    pub async fn can_slew(&self) -> Result<bool, AlpacaError> {
         self.client.get("canslew").await
     }
 
-    pub async fn can_slew_async(&self) -> Result<bool, String> {
+    pub async fn can_slew_async(&self) -> Result<bool, AlpacaError> {
         self.client.get("canslewasync").await
     }
 
-    pub async fn can_slew_alt_az(&self) -> Result<bool, String> {
+    pub async fn can_slew_alt_az(&self) -> Result<bool, AlpacaError> {
         self.client.get("canslewaltaz").await
     }
 
-    pub async fn can_slew_alt_az_async(&self) -> Result<bool, String> {
+    pub async fn can_slew_alt_az_async(&self) -> Result<bool, AlpacaError> {
         self.client.get("canslewaltazasync").await
     }
 
-    pub async fn can_sync(&self) -> Result<bool, String> {
+    pub async fn can_sync(&self) -> Result<bool, AlpacaError> {
         self.client.get("cansync").await
     }
 
-    pub async fn can_sync_alt_az(&self) -> Result<bool, String> {
+    pub async fn can_sync_alt_az(&self) -> Result<bool, AlpacaError> {
         self.client.get("cansyncaltaz").await
     }
 
-    pub async fn can_set_tracking(&self) -> Result<bool, String> {
+    pub async fn can_set_tracking(&self) -> Result<bool, AlpacaError> {
         self.client.get("cansettracking").await
     }
 
-    pub async fn can_pulse_guide(&self) -> Result<bool, String> {
+    pub async fn can_pulse_guide(&self) -> Result<bool, AlpacaError> {
         self.client.get("canpulseguide").await
     }
 
-    pub async fn can_set_guide_rates(&self) -> Result<bool, String> {
+    pub async fn can_set_guide_rates(&self) -> Result<bool, AlpacaError> {
         self.client.get("cansetguiderates").await
     }
 
-    pub async fn can_set_right_ascension_rate(&self) -> Result<bool, String> {
+    pub async fn can_set_right_ascension_rate(&self) -> Result<bool, AlpacaError> {
         self.client.get("cansetrightascensionrate").await
     }
 
     /// Supported tracking rates for this mount (`trackingrates`).
-    pub async fn tracking_rates(&self) -> Result<Vec<DriveRate>, String> {
+    pub async fn tracking_rates(&self) -> Result<Vec<DriveRate>, AlpacaError> {
         let rates: Vec<i32> = self.client.get("trackingrates").await?;
         Ok(rates.into_iter().map(DriveRate::from).collect())
     }
 
     /// Permitted `MoveAxis` rates for the given axis (`axisrates`).
-    pub async fn axis_rates(&self, axis: TelescopeAxis) -> Result<Vec<AxisRate>, String> {
+    pub async fn axis_rates(&self, axis: TelescopeAxis) -> Result<Vec<AxisRate>, AlpacaError> {
         self.axis_rates_for_axis(axis.as_i32()).await
     }
 
     /// Permitted `MoveAxis` rates for the given axis number.
-    pub async fn axis_rates_for_axis(&self, axis: i32) -> Result<Vec<AxisRate>, String> {
+    pub async fn axis_rates_for_axis(&self, axis: i32) -> Result<Vec<AxisRate>, AlpacaError> {
         self.client
             .get_with_params("axisrates", &[("Axis", &axis.to_string())])
             .await
     }
 
-    pub async fn can_set_declination_rate(&self) -> Result<bool, String> {
+    pub async fn can_set_declination_rate(&self) -> Result<bool, AlpacaError> {
         self.client.get("cansetdeclinationrate").await
     }
 
-    pub async fn can_move_axis(&self, axis: i32) -> Result<bool, String> {
+    pub async fn can_move_axis(&self, axis: i32) -> Result<bool, AlpacaError> {
         // axis: 0=Primary (RA), 1=Secondary (Dec), 2=Tertiary
         let axis_string = axis.to_string();
         self.client
@@ -546,11 +553,11 @@ impl AlpacaTelescope {
 
     // Guide rates
 
-    pub async fn guide_rate_right_ascension(&self) -> Result<f64, String> {
+    pub async fn guide_rate_right_ascension(&self) -> Result<f64, AlpacaError> {
         self.client.get("guideraterightascension").await
     }
 
-    pub async fn set_guide_rate_right_ascension(&self, rate: f64) -> Result<(), String> {
+    pub async fn set_guide_rate_right_ascension(&self, rate: f64) -> Result<(), AlpacaError> {
         self.client
             .put(
                 "guideraterightascension",
@@ -559,11 +566,11 @@ impl AlpacaTelescope {
             .await
     }
 
-    pub async fn guide_rate_declination(&self) -> Result<f64, String> {
+    pub async fn guide_rate_declination(&self) -> Result<f64, AlpacaError> {
         self.client.get("guideratedeclination").await
     }
 
-    pub async fn set_guide_rate_declination(&self, rate: f64) -> Result<(), String> {
+    pub async fn set_guide_rate_declination(&self, rate: f64) -> Result<(), AlpacaError> {
         self.client
             .put(
                 "guideratedeclination",
@@ -572,62 +579,37 @@ impl AlpacaTelescope {
             .await
     }
 
-    pub async fn is_pulse_guiding(&self) -> Result<bool, String> {
+    pub async fn is_pulse_guiding(&self) -> Result<bool, AlpacaError> {
         self.client.get("ispulseguiding").await
     }
 
     // Movement commands
 
-    pub async fn abort_slew(&self) -> Result<(), String> {
+    pub async fn abort_slew(&self) -> Result<(), AlpacaError> {
         self.client.put("abortslew", &[]).await
     }
 
-    /// Find the telescope home position
-    /// Uses long timeout as homing can take several minutes
-    pub async fn find_home(&self) -> Result<(), String> {
-        self.find_home_typed().await.map_err(|e| e.to_string())
-    }
-
     /// Find home with typed error handling and long timeout
-    pub async fn find_home_typed(&self) -> Result<(), AlpacaError> {
+    pub async fn find_home(&self) -> Result<(), AlpacaError> {
         self.client.put_long("findhome", &[]).await
     }
 
-    /// Park the telescope
-    /// Uses long timeout as parking can take several minutes for some mounts
-    pub async fn park(&self) -> Result<(), String> {
-        self.park_typed().await.map_err(|e| e.to_string())
-    }
-
     /// Park with typed error handling and long timeout
-    pub async fn park_typed(&self) -> Result<(), AlpacaError> {
+    pub async fn park(&self) -> Result<(), AlpacaError> {
         self.client.put_long("park", &[]).await
     }
 
-    /// Unpark the telescope
-    pub async fn unpark(&self) -> Result<(), String> {
-        self.unpark_typed().await.map_err(|e| e.to_string())
-    }
-
     /// Unpark with typed error handling
-    pub async fn unpark_typed(&self) -> Result<(), AlpacaError> {
-        self.client.put_typed("unpark", &[]).await
+    pub async fn unpark(&self) -> Result<(), AlpacaError> {
+        self.client.put("unpark", &[]).await
     }
 
-    pub async fn set_park(&self) -> Result<(), String> {
+    pub async fn set_park(&self) -> Result<(), AlpacaError> {
         self.client.put("setpark", &[]).await
     }
 
-    /// Slew to equatorial coordinates (blocking)
-    /// Uses long timeout as slewing can take several minutes
-    pub async fn slew_to_coordinates(&self, ra: f64, dec: f64) -> Result<(), String> {
-        self.slew_to_coordinates_typed(ra, dec)
-            .await
-            .map_err(|e| e.to_string())
-    }
-
     /// Slew to coordinates with typed error handling and long timeout
-    pub async fn slew_to_coordinates_typed(&self, ra: f64, dec: f64) -> Result<(), AlpacaError> {
+    pub async fn slew_to_coordinates(&self, ra: f64, dec: f64) -> Result<(), AlpacaError> {
         self.client
             .put_long(
                 "slewtocoordinates",
@@ -640,7 +622,7 @@ impl AlpacaTelescope {
     }
 
     /// Slew to equatorial coordinates (async - starts slew and returns immediately)
-    pub async fn slew_to_coordinates_async(&self, ra: f64, dec: f64) -> Result<(), String> {
+    pub async fn slew_to_coordinates_async(&self, ra: f64, dec: f64) -> Result<(), AlpacaError> {
         self.client
             .put(
                 "slewtocoordinatesasync",
@@ -652,32 +634,18 @@ impl AlpacaTelescope {
             .await
     }
 
-    /// Slew to target coordinates (blocking)
-    /// Uses long timeout as slewing can take several minutes
-    pub async fn slew_to_target(&self) -> Result<(), String> {
-        self.slew_to_target_typed().await.map_err(|e| e.to_string())
-    }
-
     /// Slew to target with typed error handling and long timeout
-    pub async fn slew_to_target_typed(&self) -> Result<(), AlpacaError> {
+    pub async fn slew_to_target(&self) -> Result<(), AlpacaError> {
         self.client.put_long("slewtotarget", &[]).await
     }
 
     /// Slew to target coordinates (async - starts slew and returns immediately)
-    pub async fn slew_to_target_async(&self) -> Result<(), String> {
+    pub async fn slew_to_target_async(&self) -> Result<(), AlpacaError> {
         self.client.put("slewtotargetasync", &[]).await
     }
 
-    /// Slew to alt-az coordinates (blocking)
-    /// Uses long timeout as slewing can take several minutes
-    pub async fn slew_to_alt_az(&self, alt: f64, az: f64) -> Result<(), String> {
-        self.slew_to_alt_az_typed(alt, az)
-            .await
-            .map_err(|e| e.to_string())
-    }
-
     /// Slew to alt-az with typed error handling and long timeout
-    pub async fn slew_to_alt_az_typed(&self, alt: f64, az: f64) -> Result<(), AlpacaError> {
+    pub async fn slew_to_alt_az(&self, alt: f64, az: f64) -> Result<(), AlpacaError> {
         self.client
             .put_long(
                 "slewtoaltaz",
@@ -687,7 +655,7 @@ impl AlpacaTelescope {
     }
 
     /// Slew to alt-az coordinates (async - starts slew and returns immediately)
-    pub async fn slew_to_alt_az_async(&self, alt: f64, az: f64) -> Result<(), String> {
+    pub async fn slew_to_alt_az_async(&self, alt: f64, az: f64) -> Result<(), AlpacaError> {
         self.client
             .put(
                 "slewtoaltazasync",
@@ -697,7 +665,7 @@ impl AlpacaTelescope {
     }
 
     /// Sync to equatorial coordinates
-    pub async fn sync_to_coordinates(&self, ra: f64, dec: f64) -> Result<(), String> {
+    pub async fn sync_to_coordinates(&self, ra: f64, dec: f64) -> Result<(), AlpacaError> {
         self.client
             .put(
                 "synctocoordinates",
@@ -710,12 +678,12 @@ impl AlpacaTelescope {
     }
 
     /// Sync to target coordinates
-    pub async fn sync_to_target(&self) -> Result<(), String> {
+    pub async fn sync_to_target(&self) -> Result<(), AlpacaError> {
         self.client.put("synctotarget", &[]).await
     }
 
     /// Sync to alt-az coordinates
-    pub async fn sync_to_alt_az(&self, alt: f64, az: f64) -> Result<(), String> {
+    pub async fn sync_to_alt_az(&self, alt: f64, az: f64) -> Result<(), AlpacaError> {
         self.client
             .put(
                 "synctoaltaz",
@@ -725,7 +693,7 @@ impl AlpacaTelescope {
     }
 
     /// Pulse guide in a direction
-    pub async fn pulse_guide(&self, direction: i32, duration_ms: i32) -> Result<(), String> {
+    pub async fn pulse_guide(&self, direction: i32, duration_ms: i32) -> Result<(), AlpacaError> {
         self.client
             .put(
                 "pulseguide",
@@ -738,7 +706,7 @@ impl AlpacaTelescope {
     }
 
     /// Move axis at a rate
-    pub async fn move_axis(&self, axis: i32, rate: f64) -> Result<(), String> {
+    pub async fn move_axis(&self, axis: i32, rate: f64) -> Result<(), AlpacaError> {
         self.client
             .put(
                 "moveaxis",
@@ -748,7 +716,11 @@ impl AlpacaTelescope {
     }
 
     /// Destination side of pier for slew to coordinates
-    pub async fn destination_side_of_pier(&self, ra: f64, dec: f64) -> Result<PierSide, String> {
+    pub async fn destination_side_of_pier(
+        &self,
+        ra: f64,
+        dec: f64,
+    ) -> Result<PierSide, AlpacaError> {
         let side: i32 = self
             .client
             .get(&format!(
@@ -762,7 +734,7 @@ impl AlpacaTelescope {
     // Parallel status methods
 
     /// Get comprehensive telescope status in a single parallel query
-    pub async fn get_status(&self) -> Result<TelescopeStatus, String> {
+    pub async fn get_status(&self) -> Result<TelescopeStatus, AlpacaError> {
         let (
             connected,
             right_ascension,
@@ -808,7 +780,7 @@ impl AlpacaTelescope {
     }
 
     /// Get telescope capabilities in a single parallel query
-    pub async fn get_capabilities(&self) -> Result<TelescopeCapabilities, String> {
+    pub async fn get_capabilities(&self) -> Result<TelescopeCapabilities, AlpacaError> {
         let (
             can_find_home,
             can_park,
@@ -857,7 +829,7 @@ impl AlpacaTelescope {
     }
 
     /// Get site information in a single parallel query
-    pub async fn get_site_info(&self) -> Result<TelescopeSiteInfo, String> {
+    pub async fn get_site_info(&self) -> Result<TelescopeSiteInfo, AlpacaError> {
         let (site_latitude, site_longitude, site_elevation) = tokio::join!(
             self.site_latitude(),
             self.site_longitude(),
@@ -872,7 +844,7 @@ impl AlpacaTelescope {
     }
 
     /// Get optics information in a single parallel query
-    pub async fn get_optics_info(&self) -> Result<TelescopeOpticsInfo, String> {
+    pub async fn get_optics_info(&self) -> Result<TelescopeOpticsInfo, AlpacaError> {
         let (aperture_area, aperture_diameter, focal_length, alignment_mode) = tokio::join!(
             self.aperture_area(),
             self.aperture_diameter(),
@@ -891,7 +863,7 @@ impl AlpacaTelescope {
     /// Get comprehensive telescope status in a single parallel query
     /// This includes position, state, target coordinates, and guide rates
     /// Use this for efficient status polling instead of making multiple individual calls
-    pub async fn get_full_status(&self) -> Result<TelescopeFullStatus, String> {
+    pub async fn get_full_status(&self) -> Result<TelescopeFullStatus, AlpacaError> {
         // Query all status properties in parallel for maximum efficiency
         // This reduces the number of network round-trips from ~18 to 1
         let (
@@ -970,13 +942,21 @@ mod tests {
 
     #[test]
     fn unsupported_capability_is_false_without_masking_other_errors() {
+        let not_implemented = AlpacaError::HttpError {
+            status: 400,
+            message: "Method not implemented: canfindhome".to_string(),
+            retry_after: None,
+        };
         assert_eq!(
-            capability_or_unsupported(Err(
-                "HTTP error 400: Method not implemented: canfindhome".to_string()
-            )),
-            Ok(false)
+            not_implemented.to_string(),
+            "HTTP error 400: Method not implemented: canfindhome"
         );
-        assert!(capability_or_unsupported(Err("connection refused".to_string())).is_err());
+        assert!(matches!(
+            capability_or_unsupported(Err(not_implemented)),
+            Ok(false)
+        ));
+        let refused = AlpacaError::connection_refused("http://127.0.0.1:1", "connection refused");
+        assert!(capability_or_unsupported(Err(refused)).is_err());
     }
 
     async fn serve_alpaca_response(

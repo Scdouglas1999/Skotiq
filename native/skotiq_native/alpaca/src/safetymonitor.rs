@@ -52,33 +52,18 @@ impl AlpacaSafetyMonitor {
     // ASCOM common methods, implemented by every device
 
     /// Connect to the device
-    pub async fn connect(&self) -> Result<(), String> {
+    pub async fn connect(&self) -> Result<(), AlpacaError> {
         self.client.connect().await
     }
 
-    /// Connect with typed error
-    pub async fn connect_typed(&self) -> Result<(), AlpacaError> {
-        self.client.connect_typed().await
-    }
-
     /// Disconnect from the device
-    pub async fn disconnect(&self) -> Result<(), String> {
+    pub async fn disconnect(&self) -> Result<(), AlpacaError> {
         self.client.disconnect().await
     }
 
-    /// Disconnect with typed error
-    pub async fn disconnect_typed(&self) -> Result<(), AlpacaError> {
-        self.client.disconnect_typed().await
-    }
-
     /// Check if the device is connected
-    pub async fn is_connected(&self) -> Result<bool, String> {
+    pub async fn is_connected(&self) -> Result<bool, AlpacaError> {
         self.client.is_connected().await
-    }
-
-    /// Check if the device is connected (typed error)
-    pub async fn is_connected_typed(&self) -> Result<bool, AlpacaError> {
-        self.client.is_connected_typed().await
     }
 
     /// Validate connection is alive (quick check with short timeout)
@@ -92,48 +77,33 @@ impl AlpacaSafetyMonitor {
     }
 
     /// Get the device name
-    pub async fn name(&self) -> Result<String, String> {
+    pub async fn name(&self) -> Result<String, AlpacaError> {
         self.client.get_name().await
     }
 
-    /// Get the device name (typed error)
-    pub async fn name_typed(&self) -> Result<String, AlpacaError> {
-        self.client.get_name_typed().await
-    }
-
     /// Get the device description
-    pub async fn description(&self) -> Result<String, String> {
+    pub async fn description(&self) -> Result<String, AlpacaError> {
         self.client.get_description().await
     }
 
-    /// Get the device description (typed error)
-    pub async fn description_typed(&self) -> Result<String, AlpacaError> {
-        self.client.get_description_typed().await
-    }
-
     /// Get the driver version
-    pub async fn driver_version(&self) -> Result<String, String> {
+    pub async fn driver_version(&self) -> Result<String, AlpacaError> {
         self.client.get_driver_version().await
     }
 
-    /// Get the driver version (typed error)
-    pub async fn driver_version_typed(&self) -> Result<String, AlpacaError> {
-        self.client.get_driver_version_typed().await
-    }
-
     /// Get the driver info string
-    pub async fn driver_info(&self) -> Result<String, String> {
+    pub async fn driver_info(&self) -> Result<String, AlpacaError> {
         self.client.get_driver_info().await
     }
 
     /// Get the interface version (typically 1, 2, or 3 for ISafetyMonitorV1, V2, V3)
-    pub async fn interface_version(&self) -> Result<i32, String> {
+    pub async fn interface_version(&self) -> Result<i32, AlpacaError> {
         self.client.get_interface_version().await
     }
 
     /// Get supported actions
     /// Returns a list of action names supported by the Action method
-    pub async fn supported_actions(&self) -> Result<Vec<String>, String> {
+    pub async fn supported_actions(&self) -> Result<Vec<String>, AlpacaError> {
         self.client.get_supported_actions().await
     }
 
@@ -146,7 +116,7 @@ impl AlpacaSafetyMonitor {
         &self,
         action_name: &str,
         action_parameters: &str,
-    ) -> Result<String, String> {
+    ) -> Result<String, AlpacaError> {
         self.client
             .put(
                 "action",
@@ -160,7 +130,7 @@ impl AlpacaSafetyMonitor {
     /// # Arguments
     /// * `command` - The command string to send
     /// * `raw` - If true, the command is sent without interpretation
-    pub async fn command_string(&self, command: &str, raw: bool) -> Result<String, String> {
+    pub async fn command_string(&self, command: &str, raw: bool) -> Result<String, AlpacaError> {
         self.client
             .put(
                 "commandstring",
@@ -174,7 +144,7 @@ impl AlpacaSafetyMonitor {
     /// # Arguments
     /// * `command` - The command string to send
     /// * `raw` - If true, the command is sent without interpretation
-    pub async fn command_blind(&self, command: &str, raw: bool) -> Result<(), String> {
+    pub async fn command_blind(&self, command: &str, raw: bool) -> Result<(), AlpacaError> {
         self.client
             .put(
                 "commandblind",
@@ -188,7 +158,7 @@ impl AlpacaSafetyMonitor {
     /// # Arguments
     /// * `command` - The command string to send
     /// * `raw` - If true, the command is sent without interpretation
-    pub async fn command_bool(&self, command: &str, raw: bool) -> Result<bool, String> {
+    pub async fn command_bool(&self, command: &str, raw: bool) -> Result<bool, AlpacaError> {
         self.client
             .put(
                 "commandbool",
@@ -203,19 +173,14 @@ impl AlpacaSafetyMonitor {
     ///
     /// Returns true if conditions are safe, false otherwise.
     /// This is the primary property for determining if observing can proceed.
-    pub async fn is_safe(&self) -> Result<bool, String> {
+    pub async fn is_safe(&self) -> Result<bool, AlpacaError> {
         self.client.get("issafe").await
-    }
-
-    /// Indicates whether the monitored state is safe for use (typed error)
-    pub async fn is_safe_typed(&self) -> Result<bool, AlpacaError> {
-        self.client.get_typed("issafe").await
     }
 
     // Parallel status methods
 
     /// Get comprehensive safety monitor status in a single parallel query
-    pub async fn get_status(&self) -> Result<SafetyMonitorStatus, String> {
+    pub async fn get_status(&self) -> Result<SafetyMonitorStatus, AlpacaError> {
         let (connected, is_safe) = tokio::join!(self.is_connected(), self.is_safe(),);
 
         Ok(SafetyMonitorStatus {
@@ -224,18 +189,8 @@ impl AlpacaSafetyMonitor {
         })
     }
 
-    /// Get safety monitor status with typed errors
-    pub async fn get_status_typed(&self) -> Result<SafetyMonitorStatus, AlpacaError> {
-        let (connected, is_safe) = tokio::join!(self.is_connected_typed(), self.is_safe_typed(),);
-
-        Ok(SafetyMonitorStatus {
-            connected: connected?,
-            is_safe: is_safe?,
-        })
-    }
-
     /// Get device information in a single parallel query
-    pub async fn get_info(&self) -> Result<SafetyMonitorInfo, String> {
+    pub async fn get_info(&self) -> Result<SafetyMonitorInfo, AlpacaError> {
         let (name, description, driver_version, driver_info, interface_version) = tokio::join!(
             self.name(),
             self.description(),

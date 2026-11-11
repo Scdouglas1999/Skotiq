@@ -1,6 +1,6 @@
 //! Alpaca Switch API implementation
 
-use crate::{AlpacaClient, AlpacaDevice, AlpacaDeviceType};
+use crate::{AlpacaClient, AlpacaDevice, AlpacaDeviceType, AlpacaError};
 
 /// Alpaca Switch client
 pub struct AlpacaSwitch {
@@ -24,61 +24,61 @@ impl AlpacaSwitch {
 
     // Connection methods
 
-    pub async fn connect(&self) -> Result<(), String> {
+    pub async fn connect(&self) -> Result<(), AlpacaError> {
         self.client.connect().await
     }
 
-    pub async fn disconnect(&self) -> Result<(), String> {
+    pub async fn disconnect(&self) -> Result<(), AlpacaError> {
         self.client.disconnect().await
     }
 
-    pub async fn is_connected(&self) -> Result<bool, String> {
+    pub async fn is_connected(&self) -> Result<bool, AlpacaError> {
         self.client.is_connected().await
     }
 
     // Switch information
 
-    pub async fn name(&self) -> Result<String, String> {
+    pub async fn name(&self) -> Result<String, AlpacaError> {
         self.client.get_name().await
     }
 
-    pub async fn description(&self) -> Result<String, String> {
+    pub async fn description(&self) -> Result<String, AlpacaError> {
         self.client.get_description().await
     }
 
     /// Get the driver version string
-    pub async fn driver_version(&self) -> Result<String, String> {
+    pub async fn driver_version(&self) -> Result<String, AlpacaError> {
         self.client.get_driver_version().await
     }
 
     /// Get the driver info string
-    pub async fn driver_info(&self) -> Result<String, String> {
+    pub async fn driver_info(&self) -> Result<String, AlpacaError> {
         self.client.get_driver_info().await
     }
 
     /// Get the interface version number
-    pub async fn interface_version(&self) -> Result<i32, String> {
+    pub async fn interface_version(&self) -> Result<i32, AlpacaError> {
         self.client.get_interface_version().await
     }
 
     /// Get the list of supported custom actions
-    pub async fn supported_actions(&self) -> Result<Vec<String>, String> {
+    pub async fn supported_actions(&self) -> Result<Vec<String>, AlpacaError> {
         self.client.get_supported_actions().await
     }
 
-    pub async fn max_switch(&self) -> Result<i32, String> {
+    pub async fn max_switch(&self) -> Result<i32, AlpacaError> {
         self.client.get("maxswitch").await
     }
 
     // Switch operations
 
-    pub async fn get_switch(&self, id: i32) -> Result<bool, String> {
+    pub async fn get_switch(&self, id: i32) -> Result<bool, AlpacaError> {
         self.client
             .get_with_params("getswitch", &[("Id", &id.to_string())])
             .await
     }
 
-    pub async fn set_switch(&self, id: i32, state: bool) -> Result<(), String> {
+    pub async fn set_switch(&self, id: i32, state: bool) -> Result<(), AlpacaError> {
         self.client
             .put(
                 "setswitch",
@@ -87,31 +87,31 @@ impl AlpacaSwitch {
             .await
     }
 
-    pub async fn get_switch_name(&self, id: i32) -> Result<String, String> {
+    pub async fn get_switch_name(&self, id: i32) -> Result<String, AlpacaError> {
         self.client
             .get_with_params("getswitchname", &[("Id", &id.to_string())])
             .await
     }
 
-    pub async fn set_switch_name(&self, id: i32, name: &str) -> Result<(), String> {
+    pub async fn set_switch_name(&self, id: i32, name: &str) -> Result<(), AlpacaError> {
         self.client
             .put("setswitchname", &[("Id", &id.to_string()), ("Name", name)])
             .await
     }
 
-    pub async fn get_switch_description(&self, id: i32) -> Result<String, String> {
+    pub async fn get_switch_description(&self, id: i32) -> Result<String, AlpacaError> {
         self.client
             .get_with_params("getswitchdescription", &[("Id", &id.to_string())])
             .await
     }
 
-    pub async fn get_switch_value(&self, id: i32) -> Result<f64, String> {
+    pub async fn get_switch_value(&self, id: i32) -> Result<f64, AlpacaError> {
         self.client
             .get_with_params("getswitchvalue", &[("Id", &id.to_string())])
             .await
     }
 
-    pub async fn set_switch_value(&self, id: i32, value: f64) -> Result<(), String> {
+    pub async fn set_switch_value(&self, id: i32, value: f64) -> Result<(), AlpacaError> {
         self.client
             .put(
                 "setswitchvalue",
@@ -120,19 +120,19 @@ impl AlpacaSwitch {
             .await
     }
 
-    pub async fn min_switch_value(&self, id: i32) -> Result<f64, String> {
+    pub async fn min_switch_value(&self, id: i32) -> Result<f64, AlpacaError> {
         self.client
             .get_with_params("minswitchvalue", &[("Id", &id.to_string())])
             .await
     }
 
-    pub async fn max_switch_value(&self, id: i32) -> Result<f64, String> {
+    pub async fn max_switch_value(&self, id: i32) -> Result<f64, AlpacaError> {
         self.client
             .get_with_params("maxswitchvalue", &[("Id", &id.to_string())])
             .await
     }
 
-    pub async fn can_write(&self, id: i32) -> Result<bool, String> {
+    pub async fn can_write(&self, id: i32) -> Result<bool, AlpacaError> {
         self.client
             .get_with_params("canwrite", &[("Id", &id.to_string())])
             .await

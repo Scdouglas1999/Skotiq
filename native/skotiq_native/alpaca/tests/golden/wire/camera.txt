@@ -2553,89 +2553,45 @@
 > GET /api/v1/camera/#/imagearrayvariant query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
 = Err(Device error 1035: No image is ready)
 
-## camera.download_image_data_typed [ok]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/imagearrayvariant query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
-= Ok((2, 2, [10, 20, 30, 40]))
-
-## camera.download_image_data_typed [ascom 0x400]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
-= Err(Operation failed: Device error 1024: Property or method is not implemented)
-
-## camera.download_image_data_typed [ascom 0x4FF without Value]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
-= Err(Operation failed: Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## camera.download_image_data_typed [http 400]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
-= Err(Operation failed: HTTP error 400: Method not implemented)
-
-## camera.download_image_data_typed [http 500]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
-= Err(Operation failed: Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## camera.download_image_data_typed [malformed json]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
-= Err(Operation failed: Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## camera.download_image_data_typed [imagebytes]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/imagearrayvariant query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
-= Ok((2, 2, [10, 30, 20, 40]))
-
-## camera.download_image_data_typed [imagebytes error]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/imagearrayvariant query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
-= Err(Device error 1035: No image is ready)
-
-## camera.download_image_array_full_typed [ok]
+## camera.download_image_array_full [ok]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
 > GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
 > GET /api/v1/camera/#/imagearrayvariant query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
 = Ok((2, 2, 1, [10, 20, 30, 40], Int32))
 
-## camera.download_image_array_full_typed [ascom 0x400]
+## camera.download_image_array_full [ascom 0x400]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
 = Err(Operation failed: Device error 1024: Property or method is not implemented)
 
-## camera.download_image_array_full_typed [ascom 0x4FF without Value]
+## camera.download_image_array_full [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
 = Err(Operation failed: Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
 
-## camera.download_image_array_full_typed [http 400]
+## camera.download_image_array_full [http 400]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
 = Err(Operation failed: HTTP error 400: Method not implemented)
 
-## camera.download_image_array_full_typed [http 500]
+## camera.download_image_array_full [http 500]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
 = Err(Operation failed: Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
 
-## camera.download_image_array_full_typed [malformed json]
+## camera.download_image_array_full [malformed json]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
 = Err(Operation failed: Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
-## camera.download_image_array_full_typed [imagebytes]
+## camera.download_image_array_full [imagebytes]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
 > GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
 > GET /api/v1/camera/#/imagearrayvariant query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
 = Ok((2, 2, 1, [10, 30, 20, 40], Int32))
 
-## camera.download_image_array_full_typed [imagebytes error]
+## camera.download_image_array_full [imagebytes error]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
 > GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
 > GET /api/v1/camera/#/imagearrayvariant query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]

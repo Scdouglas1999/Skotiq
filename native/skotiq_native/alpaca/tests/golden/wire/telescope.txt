@@ -2309,30 +2309,6 @@
 > PUT /api/v1/telescope/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
 = Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
-## telescope.find_home_typed [ok]
-> PUT /api/v1/telescope/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
-= Ok(())
-
-## telescope.find_home_typed [ascom 0x400]
-> PUT /api/v1/telescope/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## telescope.find_home_typed [ascom 0x4FF without Value]
-> PUT /api/v1/telescope/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1279: Unspecified driver fault)
-
-## telescope.find_home_typed [http 400]
-> PUT /api/v1/telescope/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## telescope.find_home_typed [http 500]
-> PUT /api/v1/telescope/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 500: Internal server error)
-
-## telescope.find_home_typed [malformed json]
-> PUT /api/v1/telescope/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
 ## telescope.park [ok]
 > PUT /api/v1/telescope/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
 = Ok(())
@@ -2404,30 +2380,6 @@
 ## telescope.park [wrong value type]
 > PUT /api/v1/telescope/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
 = Ok(())
-
-## telescope.park_typed [ok]
-> PUT /api/v1/telescope/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
-= Ok(())
-
-## telescope.park_typed [ascom 0x400]
-> PUT /api/v1/telescope/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## telescope.park_typed [ascom 0x4FF without Value]
-> PUT /api/v1/telescope/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1279: Unspecified driver fault)
-
-## telescope.park_typed [http 400]
-> PUT /api/v1/telescope/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## telescope.park_typed [http 500]
-> PUT /api/v1/telescope/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 500: Internal server error)
-
-## telescope.park_typed [malformed json]
-> PUT /api/v1/telescope/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
 ## telescope.unpark [ok]
 > PUT /api/v1/telescope/#/unpark query[] form[ClientID=<id>&ClientTransactionID=0]
@@ -2509,34 +2461,6 @@
 > PUT /api/v1/telescope/#/unpark query[] form[ClientID=<id>&ClientTransactionID=0]
 = Ok(())
 
-## telescope.unpark_typed [ok]
-> PUT /api/v1/telescope/#/unpark query[] form[ClientID=<id>&ClientTransactionID=0]
-= Ok(())
-
-## telescope.unpark_typed [ascom 0x400]
-> PUT /api/v1/telescope/#/unpark query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## telescope.unpark_typed [ascom 0x4FF without Value]
-> PUT /api/v1/telescope/#/unpark query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1279: Unspecified driver fault)
-
-## telescope.unpark_typed [http 400]
-> PUT /api/v1/telescope/#/unpark query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## telescope.unpark_typed [http 500]
-> PUT /api/v1/telescope/#/unpark query[] form[ClientID=<id>&ClientTransactionID=0]
-> PUT /api/v1/telescope/#/unpark query[] form[ClientID=<id>&ClientTransactionID=1]
-> PUT /api/v1/telescope/#/unpark query[] form[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## telescope.unpark_typed [malformed json]
-> PUT /api/v1/telescope/#/unpark query[] form[ClientID=<id>&ClientTransactionID=0]
-> PUT /api/v1/telescope/#/unpark query[] form[ClientID=<id>&ClientTransactionID=1]
-> PUT /api/v1/telescope/#/unpark query[] form[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
 ## telescope.set_park [ok]
 > PUT /api/v1/telescope/#/setpark query[] form[ClientID=<id>&ClientTransactionID=0]
 = Ok(())
@@ -2586,30 +2510,6 @@
 = Err(HTTP error 500: Internal server error)
 
 ## telescope.slew_to_coordinates [malformed json]
-> PUT /api/v1/telescope/#/slewtocoordinates query[] form[ClientID=<id>&ClientTransactionID=0&Declination=-12.25&RightAscension=5.5]
-= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## telescope.slew_to_coordinates_typed [ok]
-> PUT /api/v1/telescope/#/slewtocoordinates query[] form[ClientID=<id>&ClientTransactionID=0&Declination=-12.25&RightAscension=5.5]
-= Ok(())
-
-## telescope.slew_to_coordinates_typed [ascom 0x400]
-> PUT /api/v1/telescope/#/slewtocoordinates query[] form[ClientID=<id>&ClientTransactionID=0&Declination=-12.25&RightAscension=5.5]
-= Err(Device error 1024: Property or method is not implemented)
-
-## telescope.slew_to_coordinates_typed [ascom 0x4FF without Value]
-> PUT /api/v1/telescope/#/slewtocoordinates query[] form[ClientID=<id>&ClientTransactionID=0&Declination=-12.25&RightAscension=5.5]
-= Err(Device error 1279: Unspecified driver fault)
-
-## telescope.slew_to_coordinates_typed [http 400]
-> PUT /api/v1/telescope/#/slewtocoordinates query[] form[ClientID=<id>&ClientTransactionID=0&Declination=-12.25&RightAscension=5.5]
-= Err(HTTP error 400: Method not implemented)
-
-## telescope.slew_to_coordinates_typed [http 500]
-> PUT /api/v1/telescope/#/slewtocoordinates query[] form[ClientID=<id>&ClientTransactionID=0&Declination=-12.25&RightAscension=5.5]
-= Err(HTTP error 500: Internal server error)
-
-## telescope.slew_to_coordinates_typed [malformed json]
 > PUT /api/v1/telescope/#/slewtocoordinates query[] form[ClientID=<id>&ClientTransactionID=0&Declination=-12.25&RightAscension=5.5]
 = Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
@@ -2717,30 +2617,6 @@
 > PUT /api/v1/telescope/#/slewtotarget query[] form[ClientID=<id>&ClientTransactionID=0]
 = Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
-## telescope.slew_to_target_typed [ok]
-> PUT /api/v1/telescope/#/slewtotarget query[] form[ClientID=<id>&ClientTransactionID=0]
-= Ok(())
-
-## telescope.slew_to_target_typed [ascom 0x400]
-> PUT /api/v1/telescope/#/slewtotarget query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## telescope.slew_to_target_typed [ascom 0x4FF without Value]
-> PUT /api/v1/telescope/#/slewtotarget query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1279: Unspecified driver fault)
-
-## telescope.slew_to_target_typed [http 400]
-> PUT /api/v1/telescope/#/slewtotarget query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## telescope.slew_to_target_typed [http 500]
-> PUT /api/v1/telescope/#/slewtotarget query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 500: Internal server error)
-
-## telescope.slew_to_target_typed [malformed json]
-> PUT /api/v1/telescope/#/slewtotarget query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
 ## telescope.slew_to_target_async [ok]
 > PUT /api/v1/telescope/#/slewtotargetasync query[] form[ClientID=<id>&ClientTransactionID=0]
 = Ok(())
@@ -2790,30 +2666,6 @@
 = Err(HTTP error 500: Internal server error)
 
 ## telescope.slew_to_alt_az [malformed json]
-> PUT /api/v1/telescope/#/slewtoaltaz query[] form[Altitude=45.5&Azimuth=180.25&ClientID=<id>&ClientTransactionID=0]
-= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## telescope.slew_to_alt_az_typed [ok]
-> PUT /api/v1/telescope/#/slewtoaltaz query[] form[Altitude=45.5&Azimuth=180.25&ClientID=<id>&ClientTransactionID=0]
-= Ok(())
-
-## telescope.slew_to_alt_az_typed [ascom 0x400]
-> PUT /api/v1/telescope/#/slewtoaltaz query[] form[Altitude=45.5&Azimuth=180.25&ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## telescope.slew_to_alt_az_typed [ascom 0x4FF without Value]
-> PUT /api/v1/telescope/#/slewtoaltaz query[] form[Altitude=45.5&Azimuth=180.25&ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1279: Unspecified driver fault)
-
-## telescope.slew_to_alt_az_typed [http 400]
-> PUT /api/v1/telescope/#/slewtoaltaz query[] form[Altitude=45.5&Azimuth=180.25&ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## telescope.slew_to_alt_az_typed [http 500]
-> PUT /api/v1/telescope/#/slewtoaltaz query[] form[Altitude=45.5&Azimuth=180.25&ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 500: Internal server error)
-
-## telescope.slew_to_alt_az_typed [malformed json]
 > PUT /api/v1/telescope/#/slewtoaltaz query[] form[Altitude=45.5&Azimuth=180.25&ClientID=<id>&ClientTransactionID=0]
 = Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 

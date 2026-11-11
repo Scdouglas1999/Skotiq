@@ -9,7 +9,16 @@
 use crate::device::*;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::device_common_metadata::fetch_api_version;
+use crate::dispatch::error::DeviceOpError;
 use std::sync::Arc;
+
+/// Alpaca errors propagated with `?` keep the text the wrappers used to hand
+/// over as a `String`, in the same uncategorized variant.
+impl From<skotiq_alpaca::AlpacaError> for DeviceOpError {
+    fn from(e: skotiq_alpaca::AlpacaError) -> Self {
+        DeviceOpError::Message(e.to_string())
+    }
+}
 
 impl DeviceManager {
     /// Connect to an Alpaca device

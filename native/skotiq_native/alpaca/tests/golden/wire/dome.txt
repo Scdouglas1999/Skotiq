@@ -941,30 +941,6 @@
 > PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
 = Ok(())
 
-## dome.close_shutter_typed [ok]
-> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
-= Ok(())
-
-## dome.close_shutter_typed [ascom 0x400]
-> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## dome.close_shutter_typed [ascom 0x4FF without Value]
-> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1279: Unspecified driver fault)
-
-## dome.close_shutter_typed [http 400]
-> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## dome.close_shutter_typed [http 500]
-> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 500: Internal server error)
-
-## dome.close_shutter_typed [malformed json]
-> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
 ## dome.find_home [ok]
 > PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
 = Ok(())
@@ -1037,30 +1013,6 @@
 > PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
 = Ok(())
 
-## dome.find_home_typed [ok]
-> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
-= Ok(())
-
-## dome.find_home_typed [ascom 0x400]
-> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## dome.find_home_typed [ascom 0x4FF without Value]
-> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1279: Unspecified driver fault)
-
-## dome.find_home_typed [http 400]
-> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## dome.find_home_typed [http 500]
-> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 500: Internal server error)
-
-## dome.find_home_typed [malformed json]
-> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
 ## dome.open_shutter [ok]
 > PUT /api/v1/dome/#/openshutter query[] form[ClientID=<id>&ClientTransactionID=0]
 = Ok(())
@@ -1085,30 +1037,6 @@
 > PUT /api/v1/dome/#/openshutter query[] form[ClientID=<id>&ClientTransactionID=0]
 = Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
-## dome.open_shutter_typed [ok]
-> PUT /api/v1/dome/#/openshutter query[] form[ClientID=<id>&ClientTransactionID=0]
-= Ok(())
-
-## dome.open_shutter_typed [ascom 0x400]
-> PUT /api/v1/dome/#/openshutter query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## dome.open_shutter_typed [ascom 0x4FF without Value]
-> PUT /api/v1/dome/#/openshutter query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1279: Unspecified driver fault)
-
-## dome.open_shutter_typed [http 400]
-> PUT /api/v1/dome/#/openshutter query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## dome.open_shutter_typed [http 500]
-> PUT /api/v1/dome/#/openshutter query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 500: Internal server error)
-
-## dome.open_shutter_typed [malformed json]
-> PUT /api/v1/dome/#/openshutter query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
 ## dome.park [ok]
 > PUT /api/v1/dome/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
 = Ok(())
@@ -1130,30 +1058,6 @@
 = Err(HTTP error 500: Internal server error)
 
 ## dome.park [malformed json]
-> PUT /api/v1/dome/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## dome.park_typed [ok]
-> PUT /api/v1/dome/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
-= Ok(())
-
-## dome.park_typed [ascom 0x400]
-> PUT /api/v1/dome/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## dome.park_typed [ascom 0x4FF without Value]
-> PUT /api/v1/dome/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1279: Unspecified driver fault)
-
-## dome.park_typed [http 400]
-> PUT /api/v1/dome/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## dome.park_typed [http 500]
-> PUT /api/v1/dome/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 500: Internal server error)
-
-## dome.park_typed [malformed json]
 > PUT /api/v1/dome/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
 = Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
@@ -1209,30 +1113,6 @@
 > PUT /api/v1/dome/#/slewtoaltitude query[] form[Altitude=45.5&ClientID=<id>&ClientTransactionID=0]
 = Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
-## dome.slew_to_altitude_typed [ok]
-> PUT /api/v1/dome/#/slewtoaltitude query[] form[Altitude=45.5&ClientID=<id>&ClientTransactionID=0]
-= Ok(())
-
-## dome.slew_to_altitude_typed [ascom 0x400]
-> PUT /api/v1/dome/#/slewtoaltitude query[] form[Altitude=45.5&ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## dome.slew_to_altitude_typed [ascom 0x4FF without Value]
-> PUT /api/v1/dome/#/slewtoaltitude query[] form[Altitude=45.5&ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1279: Unspecified driver fault)
-
-## dome.slew_to_altitude_typed [http 400]
-> PUT /api/v1/dome/#/slewtoaltitude query[] form[Altitude=45.5&ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## dome.slew_to_altitude_typed [http 500]
-> PUT /api/v1/dome/#/slewtoaltitude query[] form[Altitude=45.5&ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 500: Internal server error)
-
-## dome.slew_to_altitude_typed [malformed json]
-> PUT /api/v1/dome/#/slewtoaltitude query[] form[Altitude=45.5&ClientID=<id>&ClientTransactionID=0]
-= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
 ## dome.slew_to_azimuth [ok]
 > PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
 = Ok(())
@@ -1254,30 +1134,6 @@
 = Err(HTTP error 500: Internal server error)
 
 ## dome.slew_to_azimuth [malformed json]
-> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
-= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## dome.slew_to_azimuth_typed [ok]
-> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
-= Ok(())
-
-## dome.slew_to_azimuth_typed [ascom 0x400]
-> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## dome.slew_to_azimuth_typed [ascom 0x4FF without Value]
-> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1279: Unspecified driver fault)
-
-## dome.slew_to_azimuth_typed [http 400]
-> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## dome.slew_to_azimuth_typed [http 500]
-> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 500: Internal server error)
-
-## dome.slew_to_azimuth_typed [malformed json]
 > PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
 = Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 

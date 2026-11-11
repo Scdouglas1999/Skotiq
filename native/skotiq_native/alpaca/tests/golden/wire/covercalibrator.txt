@@ -529,30 +529,6 @@
 > PUT /api/v1/covercalibrator/#/opencover query[] form[ClientID=<id>&ClientTransactionID=0]
 = Ok(())
 
-## covercalibrator.open_cover_typed [ok]
-> PUT /api/v1/covercalibrator/#/opencover query[] form[ClientID=<id>&ClientTransactionID=0]
-= Ok(())
-
-## covercalibrator.open_cover_typed [ascom 0x400]
-> PUT /api/v1/covercalibrator/#/opencover query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## covercalibrator.open_cover_typed [ascom 0x4FF without Value]
-> PUT /api/v1/covercalibrator/#/opencover query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1279: Unspecified driver fault)
-
-## covercalibrator.open_cover_typed [http 400]
-> PUT /api/v1/covercalibrator/#/opencover query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## covercalibrator.open_cover_typed [http 500]
-> PUT /api/v1/covercalibrator/#/opencover query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 500: Internal server error)
-
-## covercalibrator.open_cover_typed [malformed json]
-> PUT /api/v1/covercalibrator/#/opencover query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
 ## covercalibrator.close_cover [ok]
 > PUT /api/v1/covercalibrator/#/closecover query[] form[ClientID=<id>&ClientTransactionID=0]
 = Ok(())
@@ -574,30 +550,6 @@
 = Err(HTTP error 500: Internal server error)
 
 ## covercalibrator.close_cover [malformed json]
-> PUT /api/v1/covercalibrator/#/closecover query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## covercalibrator.close_cover_typed [ok]
-> PUT /api/v1/covercalibrator/#/closecover query[] form[ClientID=<id>&ClientTransactionID=0]
-= Ok(())
-
-## covercalibrator.close_cover_typed [ascom 0x400]
-> PUT /api/v1/covercalibrator/#/closecover query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## covercalibrator.close_cover_typed [ascom 0x4FF without Value]
-> PUT /api/v1/covercalibrator/#/closecover query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1279: Unspecified driver fault)
-
-## covercalibrator.close_cover_typed [http 400]
-> PUT /api/v1/covercalibrator/#/closecover query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## covercalibrator.close_cover_typed [http 500]
-> PUT /api/v1/covercalibrator/#/closecover query[] form[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 500: Internal server error)
-
-## covercalibrator.close_cover_typed [malformed json]
 > PUT /api/v1/covercalibrator/#/closecover query[] form[ClientID=<id>&ClientTransactionID=0]
 = Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
