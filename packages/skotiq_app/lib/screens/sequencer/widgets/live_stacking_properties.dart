@@ -1,10 +1,3 @@
-// Properties editor for the LiveStacking node.
-//
-// Renders the configurable knobs (mode, stack method, broadcast port,
-// path, auth token, watermark template, thumbnail size, frame cap)
-// as a vertically-scrolling property sheet that matches the look of
-// SmartExposureProperties / ExposureProperties.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';

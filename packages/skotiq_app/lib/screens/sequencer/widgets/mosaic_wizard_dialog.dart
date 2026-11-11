@@ -626,5 +626,3 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog> {
     );
   }
 }
-
-// Configuration widgets

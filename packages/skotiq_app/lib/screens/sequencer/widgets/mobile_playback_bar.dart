@@ -38,9 +38,7 @@ class MobilePlaybackBar extends ConsumerWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // At very narrow widths (< 360px), hide info chips to prevent overflow
           final isVeryNarrow = constraints.maxWidth < 360;
-          // At narrow widths (< 400px), use smaller spacing
           final isNarrow = constraints.maxWidth < 400;
           final buttonSpacing = isNarrow ? 4.0 : 8.0;
           Future<void> stopSequence() async {
@@ -123,7 +121,6 @@ class MobilePlaybackBar extends ConsumerWidget {
 
               SizedBox(width: buttonSpacing),
 
-              // Skip button
               _MobilePlaybackButton(
                 colors: colors,
                 icon: LucideIcons.skipForward,
@@ -140,9 +137,7 @@ class MobilePlaybackBar extends ConsumerWidget {
 
               const Spacer(),
 
-              // Status indicator and info (hidden at very narrow widths)
               if (sequence != null && !isVeryNarrow) ...[
-                // Frames count
                 _InfoChip(
                   colors: colors,
                   icon: LucideIcons.camera,
@@ -150,7 +145,6 @@ class MobilePlaybackBar extends ConsumerWidget {
                   isCompact: isNarrow,
                 ),
                 SizedBox(width: isNarrow ? 4 : 8),
-                // Duration
                 _InfoChip(
                   colors: colors,
                   icon: LucideIcons.clock,
@@ -162,7 +156,6 @@ class MobilePlaybackBar extends ConsumerWidget {
                 SizedBox(width: isNarrow ? 4 : 8),
               ],
 
-              // Status badge
               _StatusBadge(
                   colors: colors,
                   state: executionState,
