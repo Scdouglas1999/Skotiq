@@ -31,29 +31,24 @@ class _TooltipWidget extends StatelessWidget {
     required this.onSkip,
   });
 
-  /// Get responsive tooltip width based on screen size
   double _getTooltipWidth(double screenWidth) {
     if (screenWidth < 600) return screenWidth * 0.85; // Mobile
     if (screenWidth < 1200) return 360; // Tablet
     return 400; // Desktop
   }
 
-  /// Get responsive title font size
   double _getTitleSize(double screenWidth) {
     return screenWidth < 600 ? 14 : 16;
   }
 
-  /// Get responsive description font size
   double _getDescriptionSize(double screenWidth) {
     return screenWidth < 600 ? 12 : 13;
   }
 
-  /// Get responsive padding
   double _getPadding(double screenWidth) {
     return screenWidth < 600 ? 16 : 20;
   }
 
-  /// Calculate the best position for the tooltip to avoid overflow
   ({double? left, double? top, double? right, double? bottom})
       _calculateBestPosition(
     Rect? targetRect,
@@ -64,7 +59,6 @@ class _TooltipWidget extends StatelessWidget {
     const estimatedTooltipHeight = 200.0;
     final screenWidth = screenSize.width;
 
-    // No target - use position hint or default placement
     if (targetRect == null) {
       if (step.position == TooltipPosition.center) {
         // Place in bottom-right corner so users can see main content
@@ -84,7 +78,6 @@ class _TooltipWidget extends StatelessWidget {
           bottom: tooltipPadding + 24,
         );
       }
-      // Center the tooltip
       return (
         left: (screenWidth - tooltipWidth) / 2,
         top: screenSize.height / 2 - 100,
@@ -93,7 +86,6 @@ class _TooltipWidget extends StatelessWidget {
       );
     }
 
-    // Has target but wants center - center below target
     if (step.position == TooltipPosition.center) {
       return (
         left: (screenWidth - tooltipWidth) / 2,
@@ -104,7 +96,6 @@ class _TooltipWidget extends StatelessWidget {
       );
     }
 
-    // Try preferred position first
     var preferredPosition = step.position;
     var result = _tryPosition(
       preferredPosition,
@@ -120,7 +111,6 @@ class _TooltipWidget extends StatelessWidget {
       return result;
     }
 
-    // Try opposite position
     final oppositePosition = _getOppositePosition(preferredPosition);
     result = _tryPosition(
       oppositePosition,
@@ -136,7 +126,6 @@ class _TooltipWidget extends StatelessWidget {
       return result;
     }
 
-    // Try perpendicular positions
     final perpendicularPositions =
         _getPerpendicularPositions(preferredPosition);
     for (final position in perpendicularPositions) {
@@ -155,7 +144,6 @@ class _TooltipWidget extends StatelessWidget {
       }
     }
 
-    // Last resort: center on screen
     return (
       left: (screenWidth - tooltipWidth) / 2,
       top: (screenSize.height - estimatedTooltipHeight) / 2,
@@ -164,7 +152,6 @@ class _TooltipWidget extends StatelessWidget {
     );
   }
 
-  /// Try to position the tooltip at a specific position
   ({double? left, double? top, double? right, double? bottom}) _tryPosition(
     TooltipPosition position,
     Rect targetRect,
@@ -212,7 +199,6 @@ class _TooltipWidget extends StatelessWidget {
     }
   }
 
-  /// Check if a position would result in the tooltip being visible on screen
   bool _isValidPosition(
     ({double? left, double? top, double? right, double? bottom}) position,
     Size screenSize,
@@ -223,24 +209,20 @@ class _TooltipWidget extends StatelessWidget {
     double left = position.left ?? 0;
     double top = position.top ?? 0;
 
-    // Calculate actual left if right is specified
     if (position.right != null) {
       left = screenSize.width - position.right! - tooltipWidth;
     }
 
-    // Calculate actual top if bottom is specified
     if (position.bottom != null) {
       top = screenSize.height - position.bottom! - tooltipHeight;
     }
 
-    // Check bounds
     return left >= padding &&
         left + tooltipWidth <= screenSize.width - padding &&
         top >= padding &&
         top + tooltipHeight <= screenSize.height - padding;
   }
 
-  /// Get the opposite position
   TooltipPosition _getOppositePosition(TooltipPosition position) {
     switch (position) {
       case TooltipPosition.top:
@@ -256,7 +238,6 @@ class _TooltipWidget extends StatelessWidget {
     }
   }
 
-  /// Get perpendicular positions
   List<TooltipPosition> _getPerpendicularPositions(TooltipPosition position) {
     switch (position) {
       case TooltipPosition.top:
@@ -281,18 +262,15 @@ class _TooltipWidget extends StatelessWidget {
     final screenSize = MediaQuery.sizeOf(context);
     final screenWidth = screenSize.width;
 
-    // Responsive sizing
     final tooltipWidth = _getTooltipWidth(screenWidth);
     final titleSize = _getTitleSize(screenWidth);
     final descriptionSize = _getDescriptionSize(screenWidth);
     final padding = _getPadding(screenWidth);
     const tooltipPadding = 16.0;
 
-    // Calculate smart tooltip position
     final position =
         _calculateBestPosition(targetRect, screenSize, tooltipWidth);
 
-    // Apply clamping to ensure tooltip stays on screen
     double? finalLeft = position.left;
     double? finalTop = position.top;
 
@@ -338,7 +316,6 @@ class _TooltipWidget extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Title
                 Semantics(
                   header: true,
                   child: Text(
@@ -352,7 +329,6 @@ class _TooltipWidget extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
 
-                // Description
                 Text(
                   step.description,
                   style: TextStyle(
@@ -369,7 +345,6 @@ class _TooltipWidget extends StatelessWidget {
                   label: 'Progress: step ${currentIndex + 1} of $totalSteps',
                   child: Row(
                     children: [
-                      // Progress bar
                       Expanded(
                         child: ClipRRect(
                           borderRadius:
@@ -400,10 +375,8 @@ class _TooltipWidget extends StatelessWidget {
 
                 const SizedBox(height: 16),
 
-                // Navigation buttons
                 Row(
                   children: [
-                    // Skip button
                     Semantics(
                       button: true,
                       // Live 2026-08-09: `button: true` without `enabled` publishes no
@@ -423,7 +396,6 @@ class _TooltipWidget extends StatelessWidget {
 
                     const Spacer(),
 
-                    // Previous button
                     if (!isFirst)
                       Semantics(
                         button: true,
@@ -445,7 +417,6 @@ class _TooltipWidget extends StatelessWidget {
 
                     const SizedBox(width: 8),
 
-                    // Next/Done button
                     Semantics(
                       button: true,
                       // Live 2026-08-09: `button: true` without `enabled` publishes no

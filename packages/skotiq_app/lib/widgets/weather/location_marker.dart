@@ -11,7 +11,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 /// animation carries no information and would hold the whole app at 60fps for
 /// as long as the radar is on screen.
 class LocationMarker extends StatefulWidget {
-  /// Theme colors for styling the marker
   final SkotiqColors colors;
 
   const LocationMarker({
@@ -118,7 +117,6 @@ class _LocationMarkerState extends State<LocationMarker>
   }
 }
 
-/// Custom painter for the location marker
 class _LocationMarkerPainter extends CustomPainter {
   final SkotiqColors colors;
   final Color highlightColor;
@@ -136,7 +134,6 @@ class _LocationMarkerPainter extends CustomPainter {
     final baseRadius = size.width / 6;
     final pulseScale = pulse.value;
 
-    // Outer pulsing ring
     final outerRingPaint = Paint()
       ..color = colors.primary.withValues(alpha: 0.3 * (2.0 - pulseScale))
       ..style = PaintingStyle.fill;
@@ -147,7 +144,6 @@ class _LocationMarkerPainter extends CustomPainter {
       outerRingPaint,
     );
 
-    // Middle ring (static)
     final middleRingPaint = Paint()
       ..color = colors.primary.withValues(alpha: 0.5)
       ..style = PaintingStyle.stroke
@@ -159,7 +155,6 @@ class _LocationMarkerPainter extends CustomPainter {
       middleRingPaint,
     );
 
-    // Inner dot (solid)
     final innerDotPaint = Paint()
       ..color = colors.primary
       ..style = PaintingStyle.fill;
@@ -170,7 +165,6 @@ class _LocationMarkerPainter extends CustomPainter {
       innerDotPaint,
     );
 
-    // Center highlight (white dot)
     final highlightPaint = Paint()
       ..color = highlightColor
       ..style = PaintingStyle.fill;

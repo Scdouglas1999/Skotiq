@@ -52,28 +52,20 @@ int latestObservedRadarFrameIndex(List<RadarFrame> frames) {
   return nearest;
 }
 
-/// Timeline scrubber for radar frame animation
-/// Shows past frames, current time, and forecast frames
 class RadarTimelineScrubber extends ConsumerStatefulWidget {
-  /// All available radar frames
   final List<RadarFrame> frames;
 
-  /// Currently selected frame index
   final int currentIndex;
 
-  /// Callback when frame selection changes
   final ValueChanged<int> onFrameChanged;
 
-  /// Whether animation is playing
   final bool isPlaying;
 
-  /// Callback to toggle play/pause
   final VoidCallback onPlayPauseToggle;
 
   /// Playback speed multiplier (1.0 = normal)
   final double playbackSpeed;
 
-  /// Callback when playback speed changes
   final ValueChanged<double>? onSpeedChanged;
 
   /// Put the readouts on their own row beneath the transport instead of
@@ -154,7 +146,6 @@ class _RadarTimelineScrubberState extends ConsumerState<RadarTimelineScrubber>
     super.dispose();
   }
 
-  /// Updates the animation timer based on play state and speed
   void _updateAnimationTimer() {
     _animationTimer?.cancel();
     _animationTimer = null;
@@ -182,7 +173,6 @@ class _RadarTimelineScrubberState extends ConsumerState<RadarTimelineScrubber>
     }
   }
 
-  /// Advances to the next frame, looping back to start if at end
   void _advanceFrame() {
     if (widget.frames.isEmpty) return;
 
@@ -190,7 +180,6 @@ class _RadarTimelineScrubberState extends ConsumerState<RadarTimelineScrubber>
     widget.onFrameChanged(nextIndex);
   }
 
-  /// Steps backward one frame
   void _stepBackward() {
     if (widget.frames.isEmpty) return;
 
@@ -200,7 +189,6 @@ class _RadarTimelineScrubberState extends ConsumerState<RadarTimelineScrubber>
     widget.onFrameChanged(prevIndex);
   }
 
-  /// Steps forward one frame
   void _stepForward() {
     if (widget.frames.isEmpty) return;
 
@@ -212,7 +200,6 @@ class _RadarTimelineScrubberState extends ConsumerState<RadarTimelineScrubber>
     return widget.currentIndex.clamp(0, widget.frames.length - 1);
   }
 
-  /// Finds the index of the frame closest to current time
   int? _findNowIndex() {
     if (widget.frames.isEmpty) return null;
 
@@ -228,7 +215,6 @@ class _RadarTimelineScrubberState extends ConsumerState<RadarTimelineScrubber>
       }
     }
 
-    // Only return if the closest frame is within 30 minutes of now
     if (smallestDiff != null && smallestDiff.inMinutes <= 30) {
       return closestIndex;
     }
@@ -236,7 +222,6 @@ class _RadarTimelineScrubberState extends ConsumerState<RadarTimelineScrubber>
     return null;
   }
 
-  /// Formats timestamp for display
   String _formatTimestamp(DateTime time) {
     // Frames carry absolute instants whose `DateTime` zone varies by provider
     // (RainViewer/NOAA build local-zoned instants from a Unix epoch, OpenMeteo
@@ -578,7 +563,6 @@ class _SpeedSelector extends StatelessWidget {
   }
 }
 
-/// Custom painter for the timeline track
 class _TimelineTrackPainter extends CustomPainter {
   final List<RadarFrame> frames;
   final int currentIndex;
@@ -605,7 +589,6 @@ class _TimelineTrackPainter extends CustomPainter {
         hasMultipleFrames ? size.width / (frames.length - 1) : 0.0;
     final singleFrameX = size.width / 2;
 
-    // Draw track background
     final trackRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(
         0,
@@ -622,12 +605,10 @@ class _TimelineTrackPainter extends CustomPainter {
 
     canvas.drawRRect(trackRect, trackPaint);
 
-    // Draw frame tick marks
     for (int i = 0; i < frames.length; i++) {
       final frame = frames[i];
       final x = hasMultipleFrames ? i * segmentWidth : singleFrameX;
 
-      // Tick color based on frame type
       final tickColor = frame.isForecast
           ? colors.warning.withValues(alpha: 0.5)
           : colors.textMuted.withValues(alpha: 0.5);
@@ -644,7 +625,6 @@ class _TimelineTrackPainter extends CustomPainter {
       );
     }
 
-    // Draw "now" marker if present
     if (nowIndex != null) {
       final nowX = hasMultipleFrames ? nowIndex! * segmentWidth : singleFrameX;
       final nowPaint = Paint()
@@ -658,7 +638,6 @@ class _TimelineTrackPainter extends CustomPainter {
         nowPaint,
       );
 
-      // Draw "NOW" label
       final textSpan = TextSpan(
         text: 'NOW',
         style: SkotiqTypography.readoutLabel.copyWith(
@@ -676,7 +655,6 @@ class _TimelineTrackPainter extends CustomPainter {
       );
     }
 
-    // Draw progress fill up to current frame
     if (currentIndex > 0 && hasMultipleFrames) {
       final progressWidth = currentIndex * segmentWidth;
       final progressRect = RRect.fromRectAndRadius(
@@ -696,7 +674,6 @@ class _TimelineTrackPainter extends CustomPainter {
       canvas.drawRRect(progressRect, progressPaint);
     }
 
-    // Draw current position thumb
     final thumbX =
         hasMultipleFrames ? currentIndex * segmentWidth : singleFrameX;
     final thumbPaint = Paint()

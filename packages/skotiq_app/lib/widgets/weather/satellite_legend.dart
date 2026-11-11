@@ -19,13 +19,10 @@ class SatelliteLegend extends StatelessWidget {
     this.compact = false,
   });
 
-  /// Width of the compact gradient bar.
   static const double _compactBarWidth = 92;
 
-  /// Height of the compact gradient bar.
   static const double _compactBarHeight = 10;
 
-  /// Height of the full gradient bar.
   static const double _fullBarHeight = 20;
 
   /// The infrared ramp, as 24-bit RGB.
