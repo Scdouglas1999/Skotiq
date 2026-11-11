@@ -12,6 +12,7 @@ import '../../../widgets/tutorial_keys/settings_keys.dart';
 import '../../../widgets/work_locally.dart';
 import '../../equipment/dialogs/indi_server_dialog.dart';
 import 'connection_settings_alpaca_dialog.dart';
+import 'settings_scope_notice.dart';
 import 'settings_widgets.dart';
 
 class ConnectionSettings extends ConsumerWidget {
@@ -73,6 +74,9 @@ class ConnectionSettings extends ConsumerWidget {
       isMobile: isMobile,
       hideHeader: isMobile,
       children: [
+        // This page keeps groups in both places: the link is this
+        // computer's, discovery is the imaging host's.
+        const SettingsScopeNotice(onHost: false, padding: _groupNoticePadding),
         SettingsSection(
           title: 'Server status',
           isMobile: isMobile,
@@ -146,6 +150,8 @@ class ConnectionSettings extends ConsumerWidget {
               ),
           ],
         ),
+        if (settings != null)
+          const SettingsScopeNotice(onHost: true, padding: _groupNoticePadding),
         if (settings != null)
           SettingsSection(
             title: 'Discovery',
@@ -324,7 +330,8 @@ class ConnectionSettings extends ConsumerWidget {
                           if (!ctx.mounted) return;
                           setDialogState(() {
                             disconnecting = false;
-                            disconnectError = 'Disconnect blocked: ${userFacingError(e)}';
+                            disconnectError =
+                                'Disconnect blocked: ${userFacingError(e)}';
                           });
                         }
                       },
@@ -349,6 +356,8 @@ class ConnectionSettings extends ConsumerWidget {
 
 /// What the QHY switch does here. The QHY SDK runs on the computer that owns
 /// the rig, so on a linked client the switch is the host's.
+const _groupNoticePadding = EdgeInsets.only(bottom: SkotiqTokens.spaceSm);
+
 String _qhyDiscoverySubtitle({
   required bool linked,
   required bool? sdkAvailable,
@@ -562,8 +571,9 @@ class _ConnectToServerDialogState
         _statusMessage = switch ((hadLocalBackend, restoreError)) {
           (true, null) =>
             'Connection failed: ${userFacingError(e)}\nStill working locally on this computer.',
-          (true, final String problem) => 'Connection failed: ${userFacingError(e)}\n'
-              'Could not return to local mode either: $problem',
+          (true, final String problem) =>
+            'Connection failed: ${userFacingError(e)}\n'
+                'Could not return to local mode either: $problem',
           _ => 'Connection failed: ${userFacingError(e)}',
         };
       });

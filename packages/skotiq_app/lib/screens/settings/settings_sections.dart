@@ -29,6 +29,18 @@ enum SettingsGroupId {
       ];
 }
 
+/// On a linked client, where a Settings section's values are stored.
+enum SettingsScope {
+  /// On the imaging host, shared by everyone linked to it.
+  imagingHost,
+
+  /// On the device showing them: its look, its help and app version.
+  thisDevice,
+
+  /// Some groups on each: the section labels each of its groups itself.
+  eachGroup,
+}
+
 /// Every Settings section. The declaration order within a group is the
 /// sidebar order; this enum is the only place a section's key, group and
 /// position are written down.
@@ -38,13 +50,15 @@ enum SettingsGroupId {
 /// A section that is renamed or merged keeps resolving through [aliases].
 enum SettingsSectionId {
   general('general', SettingsGroupId.general),
-  appearance('appearance', SettingsGroupId.general, onThisDevice: true),
+  appearance('appearance', SettingsGroupId.general,
+      scope: SettingsScope.thisDevice),
   location('location', SettingsGroupId.general),
   filesStorage('files-storage', SettingsGroupId.general),
-  help('help', SettingsGroupId.general, onThisDevice: true),
-  about('about', SettingsGroupId.general, onThisDevice: true),
+  help('help', SettingsGroupId.general, scope: SettingsScope.thisDevice),
+  about('about', SettingsGroupId.general, scope: SettingsScope.thisDevice),
 
-  connection('connection', SettingsGroupId.equipment, onThisDevice: true),
+  connection('connection', SettingsGroupId.equipment,
+      scope: SettingsScope.eachGroup),
   equipmentProfiles('equipment-profiles', SettingsGroupId.equipment),
   phd2Guiding('phd2-guiding', SettingsGroupId.equipment),
   plateSolving('plate-solving', SettingsGroupId.equipment),
@@ -54,7 +68,8 @@ enum SettingsSectionId {
   imaging('imaging', SettingsGroupId.imaging),
   adaptiveExposure('adaptive-exposure', SettingsGroupId.imaging),
   imageGrading('image-grading', SettingsGroupId.imaging),
-  annotations('annotations', SettingsGroupId.imaging, onThisDevice: true),
+  annotations('annotations', SettingsGroupId.imaging,
+      scope: SettingsScope.thisDevice),
   catalogs('catalogs', SettingsGroupId.imaging),
 
   sequencer('sequencer', SettingsGroupId.automationSafety),
@@ -83,20 +98,23 @@ enum SettingsSectionId {
 
   logs('logs', SettingsGroupId.advanced),
   backup('backup', SettingsGroupId.advanced),
-  updates('updates', SettingsGroupId.advanced, onThisDevice: true),
+  updates('updates', SettingsGroupId.advanced, scope: SettingsScope.thisDevice),
   rigCatalogs('rig-catalogs', SettingsGroupId.advanced),
   capturedImages('captured-images', SettingsGroupId.advanced),
-  replayDebug('replay-debug', SettingsGroupId.advanced, onThisDevice: true);
+  replayDebug('replay-debug', SettingsGroupId.advanced,
+      scope: SettingsScope.thisDevice);
 
-  const SettingsSectionId(this.key, this.group, {this.onThisDevice = false});
+  const SettingsSectionId(
+    this.key,
+    this.group, {
+    this.scope = SettingsScope.imagingHost,
+  });
 
   final String key;
   final SettingsGroupId group;
 
-  /// On a linked client, whether the section's values belong to the device
-  /// showing them (its look, its own link to the host, its help and app
-  /// version) rather than to the imaging host.
-  final bool onThisDevice;
+  /// On a linked client, where the section's values are stored.
+  final SettingsScope scope;
 
   /// The section a fresh Settings screen shows.
   static const SettingsSectionId first = SettingsSectionId.general;

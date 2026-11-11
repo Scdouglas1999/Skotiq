@@ -7,12 +7,40 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../link_rig/link_rig_dialog.dart';
 import '../settings_sections.dart';
 
-/// On a linked client, one line above a Settings section saying whose
-/// settings these are. Shows nothing on the machine that owns the rig.
+/// On a linked client, one line above a Settings section, or above one group
+/// of a section that keeps groups in both places, saying whose settings these
+/// are. Shows nothing on the machine that owns the rig.
 class SettingsScopeNotice extends ConsumerWidget {
-  const SettingsScopeNotice({super.key, required this.section});
+  const SettingsScopeNotice({
+    super.key,
+    required this.onHost,
+    this.padding = EdgeInsets.zero,
+  });
 
-  final SettingsSectionId section;
+  /// The line above [section]; nothing for a section that labels each of its
+  /// groups.
+  static Widget forSection(SettingsSectionId section) {
+    const padding = EdgeInsets.fromLTRB(
+      SkotiqTokens.spaceLg,
+      SkotiqTokens.spaceMd,
+      SkotiqTokens.spaceLg,
+      0,
+    );
+    return switch (section.scope) {
+      SettingsScope.imagingHost =>
+        const SettingsScopeNotice(onHost: true, padding: padding),
+      SettingsScope.thisDevice =>
+        const SettingsScopeNotice(onHost: false, padding: padding),
+      SettingsScope.eachGroup => const SizedBox.shrink(),
+    };
+  }
+
+  /// Whether these settings are stored on the imaging host rather than on
+  /// this device.
+  final bool onHost;
+
+  /// Space around the line when it shows.
+  final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -20,7 +48,6 @@ class SettingsScopeNotice extends ConsumerWidget {
     final linkedHost = backend.remoteHost;
     if (linkedHost == null) return const SizedBox.shrink();
     final colors = SkotiqColors.of(context);
-    final onHost = !section.onThisDevice;
     // A desktop linked with the one-tap pairing holds a control token, which
     // the host refuses for settings writes. Say so before the operator edits
     // anything, and offer the code pairing that grants the access.
@@ -35,12 +62,7 @@ class SettingsScopeNotice extends ConsumerWidget {
                 'here changes the rig for everyone linked to it.'
             : 'Saved on this computer only. The imaging host keeps its own.';
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        SkotiqTokens.spaceLg,
-        SkotiqTokens.spaceMd,
-        SkotiqTokens.spaceLg,
-        0,
-      ),
+      padding: padding,
       child: Semantics(
         container: true,
         label: readOnly ? null : text,
