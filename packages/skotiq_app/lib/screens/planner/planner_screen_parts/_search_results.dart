@@ -259,7 +259,6 @@ class _SearchResultActions extends ConsumerWidget {
   }
 }
 
-/// One line saying a lookup is in flight.
 class _SearchProgressLine extends StatelessWidget {
   final String label;
 
@@ -313,7 +312,6 @@ class _SearchQuietLine extends StatelessWidget {
   }
 }
 
-/// One line saying a lookup did not produce anything usable.
 class _SearchProblemLine extends StatelessWidget {
   final String label;
   final String detail;

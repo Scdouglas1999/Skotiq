@@ -30,7 +30,6 @@ class _TargetDetailColumn extends ConsumerWidget {
   /// Height of the altitude well, its degree and clock scales included.
   static const double _altitudeHeight = 128;
 
-  /// Whether the selected target IS the one the optimizer chose.
   bool get _isOptimizerPick => plan.primaryTarget?.targetId == target.targetId;
 
   @override

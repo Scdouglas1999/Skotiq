@@ -70,7 +70,6 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
     final filtersState = ref.watch(suggestionFilterProvider);
     final candidatesAsync = ref.watch(plannerFilteredSuggestionsProvider);
 
-    // Keep the search field in sync if the provider changes from elsewhere.
     if (_searchController.text != filtersState.searchQuery) {
       _searchController.value = TextEditingValue(
         text: filtersState.searchQuery,

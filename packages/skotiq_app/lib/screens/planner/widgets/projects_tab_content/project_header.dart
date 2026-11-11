@@ -7,8 +7,6 @@ class _ProjectFormResult {
   const _ProjectFormResult({required this.name, this.description});
 }
 
-// Header bar: project selector + create / edit / delete.
-
 class _ProjectHeaderBar extends StatelessWidget {
   final SkotiqColors colors;
   final List<Project> projects;
