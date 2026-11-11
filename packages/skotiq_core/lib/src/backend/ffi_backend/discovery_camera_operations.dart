@@ -176,11 +176,11 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
     await bridge.apiRescanDevices();
   }
 
-  bool get qhySdkAvailable =>
+  Future<bool> qhySdkAvailable() async =>
       bridge.NativeBridge.isNativeAvailable &&
       bridge.apiGetQhyDiscoveryStatus().sdkAvailable;
 
-  void setQhyDiscoveryEnabled(bool enabled) {
+  Future<void> setQhyDiscoveryEnabled(bool enabled) async {
     if (!bridge.NativeBridge.isNativeAvailable) return;
     bridge.apiSetQhyDiscoveryEnabled(enabled: enabled);
   }

@@ -21,7 +21,7 @@ Future<HarnessHandle> _pump(WidgetTester tester, {required bool? sdk}) async {
     size: const Size(1280, 1600),
     extraOverrides: [
       appSettingsProvider.overrideWith(_StubAppSettingsNotifier.new),
-      qhySdkAvailableProvider.overrideWithValue(sdk),
+      qhySdkAvailableProvider.overrideWith((ref) async => sdk),
     ],
   );
   await tester.pumpAndSettle();

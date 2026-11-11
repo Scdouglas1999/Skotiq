@@ -219,7 +219,7 @@ class ConnectionSettings extends ConsumerWidget {
                 title: 'Look for QHY cameras',
                 subtitle: _qhyDiscoverySubtitle(
                   linked: isNetwork,
-                  sdkAvailable: ref.watch(qhySdkAvailableProvider),
+                  sdkAvailable: ref.watch(qhySdkAvailableProvider).valueOrNull,
                 ),
                 trailing: SettingsSwitch(
                   value: settings.qhyDiscoveryEnabled,

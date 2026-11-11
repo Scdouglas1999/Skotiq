@@ -428,10 +428,10 @@ Future<void> _startUpdateReceiver(HostStartup host) async {
 /// computer or from a linked client.
 Future<void> _followQhyDiscoverySetting(HostStartup host) async {
   await host.backendReady;
-  void apply(bool enabled) {
+  Future<void> apply(bool enabled) async {
     final backend = host.container.read(backendProvider);
     if (backend is! VendorSdkBackend) return;
-    (backend as VendorSdkBackend).setQhyDiscoveryEnabled(enabled);
+    await (backend as VendorSdkBackend).setQhyDiscoveryEnabled(enabled);
     if (!enabled) {
       host.logger.info(
         'QHY cameras are left out of device scans (Settings > Connection)',
@@ -441,11 +441,11 @@ Future<void> _followQhyDiscoverySetting(HostStartup host) async {
   }
 
   final settings = await host.container.read(appSettingsProvider.future);
-  apply(settings.qhyDiscoveryEnabled);
+  await apply(settings.qhyDiscoveryEnabled);
   final subscription = host.container.listen<bool?>(
     appSettingsProvider.select((s) => s.valueOrNull?.qhyDiscoveryEnabled),
     (previous, next) {
-      if (next != null && next != previous) apply(next);
+      if (next != null && next != previous) unawaited(apply(next));
     },
   );
   host.onStop('QHY discovery switch', () async => subscription.close());

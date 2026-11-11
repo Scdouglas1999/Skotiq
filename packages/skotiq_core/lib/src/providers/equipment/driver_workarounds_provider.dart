@@ -14,8 +14,8 @@ final deviceQuirksProvider = FutureProvider.autoDispose
 
 /// Whether the QHY SDK loaded on this computer; null when this app does not
 /// run the vendor SDKs itself (a linked client, or no backend yet).
-final qhySdkAvailableProvider = Provider<bool?>((ref) {
+final qhySdkAvailableProvider = FutureProvider<bool?>((ref) async {
   final backend = ref.watch(backendProvider);
   if (backend is! VendorSdkBackend) return null;
-  return (backend as VendorSdkBackend).qhySdkAvailable;
+  return (backend as VendorSdkBackend).qhySdkAvailable();
 });
