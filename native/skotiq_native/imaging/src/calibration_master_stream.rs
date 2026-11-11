@@ -17,12 +17,13 @@
 //! reads brighter than the first frames of its group. Such frames are left out
 //! of the master and reported.
 
-use crate::fits::{copy_header_cards, read_header, write_fits, FitsError, FitsHeader};
+use crate::fits::{copy_header_cards, write_fits, FitsError, FitsHeader};
+use crate::fits_reader::FitsReader;
 use crate::integration::{integrate_columns, Combine, IntegrationConfig, IntegrationFrame, Reject};
 use crate::robust_stats::median_and_sigma_upper;
 use crate::{ImageData, PixelType};
 use std::fs::File;
-use std::io::{BufReader, Read, Seek, SeekFrom};
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
 /// Which calibration master is being built. Only the `IMAGETYP` card differs.
@@ -173,48 +174,18 @@ pub fn assess_light_leak(levels: &[f64], config: &LightLeakConfig) -> LightLeakA
 /// One input FITS file, opened for band reads.
 struct BandSource {
     path: PathBuf,
-    reader: BufReader<File>,
-    header: FitsHeader,
-    data_offset: u64,
-    bitpix: i64,
-    bzero: f64,
-    bscale: f64,
+    reader: FitsReader<BufReader<File>>,
     width: u32,
     height: u32,
     scratch: Vec<u8>,
-}
-
-struct CountingReader<R> {
-    inner: R,
-    count: u64,
-}
-
-impl<R: Read> Read for CountingReader<R> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let n = self.inner.read(buf)?;
-        self.count += n as u64;
-        Ok(n)
-    }
 }
 
 impl BandSource {
     fn open(path: &Path) -> Result<Self, String> {
         let describe = |e: FitsError| format!("{}: {e}", path.display());
         let file = File::open(path).map_err(|e| format!("{}: {e}", path.display()))?;
-        let mut counting = CountingReader {
-            inner: BufReader::new(file),
-            count: 0,
-        };
-        let header = read_header(&mut counting).map_err(describe)?;
-        // The data unit starts at the first 2880-byte block after END.
-        let data_offset = counting.count.div_ceil(2880) * 2880;
-        let reader = counting.inner;
-        let bitpix = header
-            .get_int("BITPIX")
-            .ok_or_else(|| format!("{}: no BITPIX", path.display()))?;
-        if !matches!(bitpix, 8 | 16 | 32 | -32 | -64) {
-            return Err(format!("{}: unsupported BITPIX {bitpix}", path.display()));
-        }
+        let reader = FitsReader::open(BufReader::new(file)).map_err(describe)?;
+        let header = reader.header();
         let naxis = header.get_int("NAXIS").unwrap_or(0);
         if naxis != 2 && !(naxis == 3 && header.get_int("NAXIS3") == Some(1)) {
             return Err(format!(
@@ -222,83 +193,35 @@ impl BandSource {
                 path.display()
             ));
         }
-        let width = header.get_int("NAXIS1").unwrap_or(0);
-        let height = header.get_int("NAXIS2").unwrap_or(0);
-        if width <= 0 || height <= 0 {
-            return Err(format!("{}: empty image", path.display()));
-        }
-        let bzero = header.get_float("BZERO").unwrap_or(0.0);
-        let bscale = header.get_float("BSCALE").unwrap_or(1.0);
+        let (width, height) = reader
+            .shape()
+            .map(|shape| (shape.width, shape.height))
+            .filter(|(w, h)| *w > 0 && *h > 0)
+            .ok_or_else(|| format!("{}: empty image", path.display()))?;
         Ok(Self {
             path: path.to_path_buf(),
             reader,
-            header,
-            data_offset,
-            bitpix,
-            bzero,
-            bscale,
-            width: width as u32,
-            height: height as u32,
+            width,
+            height,
             scratch: Vec::new(),
         })
     }
 
-    fn bytes_per_sample(&self) -> usize {
-        (self.bitpix.unsigned_abs() / 8) as usize
+    fn header(&self) -> &FitsHeader {
+        self.reader.header()
     }
 
     /// Decode rows `row..row + rows` into `out` as physical `f64` values.
     fn read_rows(&mut self, row: usize, rows: usize, out: &mut Vec<f64>) -> Result<(), String> {
-        let bps = self.bytes_per_sample();
-        let row_bytes = self.width as usize * bps;
-        let start = self.data_offset + (row * row_bytes) as u64;
-        self.scratch.resize(rows * row_bytes, 0);
         self.reader
-            .seek(SeekFrom::Start(start))
-            .and_then(|_| self.reader.read_exact(&mut self.scratch))
+            .read_rows(row, rows, &mut self.scratch, out)
             .map_err(|e| {
                 format!(
                     "{}: reading rows {row}..{}: {e}",
                     self.path.display(),
                     row + rows
                 )
-            })?;
-        out.clear();
-        out.reserve(rows * self.width as usize);
-        let (bzero, bscale) = (self.bzero, self.bscale);
-        let physical = |stored: f64| stored * bscale + bzero;
-        match self.bitpix {
-            8 => out.extend(self.scratch.iter().map(|&v| physical(f64::from(v)))),
-            16 => out.extend(
-                self.scratch
-                    .as_chunks::<2>()
-                    .0
-                    .iter()
-                    .map(|c| physical(f64::from(i16::from_be_bytes(*c)))),
-            ),
-            32 => out.extend(
-                self.scratch
-                    .as_chunks::<4>()
-                    .0
-                    .iter()
-                    .map(|c| physical(f64::from(i32::from_be_bytes(*c)))),
-            ),
-            -32 => out.extend(
-                self.scratch
-                    .as_chunks::<4>()
-                    .0
-                    .iter()
-                    .map(|c| physical(f64::from(f32::from_be_bytes(*c)))),
-            ),
-            _ => out.extend(
-                self.scratch
-                    .as_chunks::<8>()
-                    .0
-                    .iter()
-                    .map(|c| physical(f64::from_be_bytes(*c))),
-            ),
-        }
-        Ok(())
+            })
     }
 }
 
@@ -366,7 +289,7 @@ fn check_agreement(sources: &[BandSource]) -> Result<(), String> {
             ));
         }
         let exposure = |h: &FitsHeader| card_f64(h, &["EXPTIME", "EXPOSURE"]);
-        if let (Some(a), Some(b)) = (exposure(&first.header), exposure(&source.header)) {
+        if let (Some(a), Some(b)) = (exposure(first.header()), exposure(source.header())) {
             if (a - b).abs() > 1e-3_f64.max(a.abs() * 1e-4) {
                 return Err(format!(
                     "{} was exposed {b} s but {} was exposed {a} s",
@@ -377,8 +300,8 @@ fn check_agreement(sources: &[BandSource]) -> Result<(), String> {
         }
         for key in ["GAIN", "OFFSET", "XBINNING", "YBINNING"] {
             if let (Some(a), Some(b)) = (
-                card_i64(&first.header, &[key]),
-                card_i64(&source.header, &[key]),
+                card_i64(first.header(), &[key]),
+                card_i64(source.header(), &[key]),
             ) {
                 if a != b {
                     return Err(format!(
@@ -499,10 +422,10 @@ pub fn build_streamed_master(
         row += rows;
     }
 
-    let first = &kept[0].header;
+    let first = kept[0].header();
     let temps: Vec<f64> = kept
         .iter()
-        .filter_map(|s| card_f64(&s.header, &["CCD-TEMP", "CCD_TEMP"]))
+        .filter_map(|s| card_f64(s.header(), &["CCD-TEMP", "CCD_TEMP"]))
         .collect();
     let ccd_temp_mean = (!temps.is_empty()).then(|| temps.iter().sum::<f64>() / temps.len() as f64);
     let exposure_secs = card_f64(first, &["EXPTIME", "EXPOSURE"]);

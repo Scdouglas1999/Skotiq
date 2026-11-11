@@ -218,7 +218,7 @@ impl FitsHeader {
     }
 
     /// Remove a keyword (and any inline comment) from the header.
-    fn remove(&mut self, key: &str) {
+    pub(crate) fn remove(&mut self, key: &str) {
         let key_upper = key.to_uppercase();
         self.keywords.remove(&key_upper);
         self.keyword_comments.remove(&key_upper);
@@ -564,154 +564,20 @@ pub(crate) fn geometry_from_header(
     Ok((width, height, depth, pixel_type))
 }
 
-/// Internal function to read FITS from any reader
 fn read_fits_from_reader<R: Read>(reader: &mut R) -> Result<(ImageData, FitsHeader), FitsError> {
-    // Read header
-    let mut header = read_header(reader)?;
-
-    let bitpix = header
-        .get_int("BITPIX")
-        .ok_or_else(|| FitsError::MissingKeyword("BITPIX".to_string()))?;
-
-    if header.get_int("NAXIS") == Some(0) {
-        // No data, just header
-        return Ok((ImageData::new(0, 0, 1, PixelType::U16), header));
-    }
-
-    let (width, height, depth, _) = geometry_from_header(&header)?;
-
-    // Get scaling parameters. Why: per FITS 4.4.2.5, the in-memory data after applying
-    // BSCALE/BZERO is the "physical" value; storing the original BSCALE/BZERO in the
-    // returned header would cause a subsequent write_fits to apply a second scaling pass.
-    // Why: per FITS standard 4.4.2.5, BZERO and BSCALE are OPTIONAL
-    // header cards; when absent the convention is BZERO=0.0, BSCALE=1.0 (the identity
-    // transform). These are documented defaults, not silent error fallbacks.
-    let bzero = header.get_float("BZERO").unwrap_or(0.0);
-    let bscale = header.get_float("BSCALE").unwrap_or(1.0);
-
-    // Determine pixel type and read data
-    let (pixel_type, data) = match bitpix as i32 {
-        8 => {
-            let raw = read_u8_data(reader, width, height, depth)?;
-            // Apply scaling if needed
-            if bzero != 0.0 || bscale != 1.0 {
-                let scaled: Vec<u8> = raw
-                    .iter()
-                    .map(|&v| ((v as f64 * bscale + bzero) as i32).clamp(0, 255) as u8)
-                    .collect();
-                (PixelType::U8, scaled)
-            } else {
-                (PixelType::U8, raw)
-            }
-        }
-        16 => {
-            let raw = read_i16_data(reader, width, height, depth)?;
-            // Convert to u16 with BZERO=32768 for unsigned.
-            // NOTE: the codebase has no signed integer PixelType, so genuinely
-            // signed FITS (BZERO=0) with negative physical samples is clamped to
-            // zero here. That is acceptable in practice — cameras emit unsigned
-            // (BZERO=32768) and calibrated data that can go negative is written
-            // as float (BITPIX -32/-64), which is preserved exactly above.
-            let adjusted: Vec<u8> = if bzero == 32768.0 && bscale == 1.0 {
-                // Fast path: unsigned 16-bit stored as signed with BZERO=32768,
-                // no rescale. Guard on bscale too — a non-unit BSCALE must go
-                // through the general path below or the scaling is dropped.
-                raw.iter()
-                    .flat_map(|&v| {
-                        let unsigned = (v as i32 + 32768).clamp(0, 65535) as u16;
-                        unsigned.to_le_bytes()
-                    })
-                    .collect()
-            } else {
-                raw.iter()
-                    .flat_map(|&v| {
-                        let scaled = (v as f64 * bscale + bzero).clamp(0.0, 65535.0) as u16;
-                        scaled.to_le_bytes()
-                    })
-                    .collect()
-            };
-            (PixelType::U16, adjusted)
-        }
-        32 => {
-            let raw = read_i32_data(reader, width, height, depth)?;
-            // Convert to u32
-            let adjusted: Vec<u8> = raw
-                .iter()
-                .flat_map(|&v| {
-                    let scaled = (v as f64 * bscale + bzero).clamp(0.0, u32::MAX as f64) as u32;
-                    scaled.to_le_bytes()
-                })
-                .collect();
-            (PixelType::U32, adjusted)
-        }
-        -32 => {
-            let raw = read_f32_data(reader, width, height, depth)?;
-            // Keep as f32
-            let bytes: Vec<u8> = raw
-                .iter()
-                .flat_map(|&v| {
-                    let scaled = v * bscale as f32 + bzero as f32;
-                    scaled.to_le_bytes()
-                })
-                .collect();
-            (PixelType::F32, bytes)
-        }
-        -64 => {
-            let raw = read_f64_data(reader, width, height, depth)?;
-            let bytes: Vec<u8> = raw
-                .iter()
-                .flat_map(|&v| {
-                    let scaled = v * bscale + bzero;
-                    scaled.to_le_bytes()
-                })
-                .collect();
-            (PixelType::F64, bytes)
-        }
-        other => return Err(FitsError::UnsupportedBitpix(other)),
-    };
-
-    let data = if depth > 1 {
-        let channels = depth as usize;
-        let pixels = (width as usize) * (height as usize);
-        let layout = crate::fits_layout::layout_from_header(&header).unwrap_or_else(|| {
-            crate::fits_layout::detect_layout(width as usize, height as usize, channels, |k| {
-                crate::fits_layout::le_sample(&data, pixel_type, k)
-            })
-        });
-        match layout {
-            crate::fits_layout::PlaneLayout::Planar => crate::fits_layout::planar_to_interleaved(
-                &data,
-                pixels,
-                channels,
-                pixel_type.byte_size(),
-            ),
-            crate::fits_layout::PlaneLayout::Interleaved => data,
-        }
-    } else {
-        data
-    };
-    header.remove(crate::fits_layout::LAYOUT_KEYWORD);
-
-    let image = ImageData {
-        width,
-        height,
-        channels: depth,
-        pixel_type,
-        data,
-    };
-
-    // Why: after BSCALE/BZERO have been folded into the data buffer, the header
-    // entries are stale. Leaving them in `keyword_order` would cause write_fits
-    // to emit them, double-scaling on round-trip. Strip them now so the next
-    // write computes fresh values for the chosen output BITPIX.
-    header.remove("BZERO");
-    header.remove("BSCALE");
-
-    Ok((image, header))
+    crate::fits_reader::FitsReader::open(reader)?.into_image()
 }
 
 /// Read the FITS header (80-character records until END)
 pub(crate) fn read_header<R: Read>(reader: &mut R) -> Result<FitsHeader, FitsError> {
+    read_header_measured(reader).map(|(header, _)| header)
+}
+
+/// [`read_header`], also reporting how many bytes it consumed: the header
+/// records and their padding, so the data unit starts that far in.
+pub(crate) fn read_header_measured<R: Read>(
+    reader: &mut R,
+) -> Result<(FitsHeader, u64), FitsError> {
     let mut header = FitsHeader::new();
     let mut buffer = [0u8; 80];
     let mut total_records: usize = 0;
@@ -797,7 +663,57 @@ pub(crate) fn read_header<R: Read>(reader: &mut R) -> Result<FitsHeader, FitsErr
         reader.read_exact(&mut skip)?;
     }
 
-    Ok(header)
+    Ok((header, (header_bytes + padding) as u64))
+}
+
+/// Length of one FITS header card, fixed by the standard.
+const CARD_LEN: usize = 80;
+
+/// Split header text into its cards.
+///
+/// A FITS header on disk is fixed-width 80-character cards packed end to end
+/// with **no line terminators**; iterating one with `str::lines()` yields the
+/// whole header as a single line, so only the first card is ever seen. Text
+/// that does carry newlines (some solvers write one card per line) is split
+/// on them first, and any segment longer than a card is split by width.
+pub fn header_text_cards(content: &str) -> Vec<&str> {
+    let mut cards = Vec::new();
+    for segment in content.lines() {
+        if segment.len() <= CARD_LEN {
+            cards.push(segment);
+            continue;
+        }
+        let bytes = segment.as_bytes();
+        let mut start = 0;
+        while start < bytes.len() {
+            let end = (start + CARD_LEN).min(bytes.len());
+            // A FITS header is ASCII, so every card boundary is a char
+            // boundary. Anything else is not a header that can be split by
+            // width; what is left is handed back in one piece.
+            match std::str::from_utf8(&bytes[start..end]) {
+                Ok(card) => cards.push(card),
+                Err(_) => {
+                    cards.push(&segment[start..]);
+                    break;
+                }
+            }
+            start = end;
+        }
+    }
+    cards
+}
+
+/// The keyword and raw value text of a value card (`KEYWORD = value /
+/// comment`), comment removed and both trimmed. `None` for a card with no
+/// value indicator (`COMMENT`, `HISTORY`, `END`, blanks).
+pub fn card_keyword_and_value(card: &str) -> Option<(&str, &str)> {
+    let keyword = card.get(..8)?.trim();
+    let rest = card.get(8..)?;
+    if card.len() < 10 || !rest.starts_with('=') {
+        return None;
+    }
+    let (value, _) = split_value_and_comment(card.get(10..)?);
+    Some((keyword, value.trim()))
 }
 
 /// Parse a FITS value from string. `s` may still contain a trailing `/ comment`;
@@ -890,141 +806,6 @@ fn is_valid_keyword(keyword: &str) -> bool {
         && keyword.bytes().all(|byte| {
             byte.is_ascii_uppercase() || byte.is_ascii_digit() || byte == b'-' || byte == b'_'
         })
-}
-
-/// Compute pixel count from FITS NAXIS dimensions, surfacing overflow as a
-/// structured error rather than a wrapping `as usize`.
-///
-/// Why: the previous `(width * height * depth) as usize`
-/// in u32 silently wraps for >4G-pixel images; promoting to u64 with
-/// checked_mul forces the failure to surface at the I/O boundary where the
-/// caller can map it to a structured FitsError.
-fn fits_pixel_count(width: u32, height: u32, depth: u32) -> Result<usize, FitsError> {
-    let product = u64::from(width)
-        .checked_mul(u64::from(height))
-        .and_then(|n| n.checked_mul(u64::from(depth)))
-        .ok_or_else(|| {
-            FitsError::InvalidFormat(format!(
-                "FITS NAXIS dimensions overflow: {}*{}*{}",
-                width, height, depth
-            ))
-        })?;
-    usize::try_from(product).map_err(|_| {
-        FitsError::InvalidFormat(format!("FITS pixel count {} exceeds usize::MAX", product))
-    })
-}
-
-/// Read unsigned 8-bit data
-fn read_u8_data<R: Read>(
-    reader: &mut R,
-    width: u32,
-    height: u32,
-    depth: u32,
-) -> Result<Vec<u8>, FitsError> {
-    let size = fits_pixel_count(width, height, depth)?;
-    let mut data = vec![0u8; size];
-    reader.read_exact(&mut data)?;
-    Ok(data)
-}
-
-/// Read signed 16-bit data (big-endian)
-fn read_i16_data<R: Read>(
-    reader: &mut R,
-    width: u32,
-    height: u32,
-    depth: u32,
-) -> Result<Vec<i16>, FitsError> {
-    let size = fits_pixel_count(width, height, depth)?;
-    let buffer_len = size.checked_mul(2).ok_or_else(|| {
-        FitsError::InvalidFormat(format!("FITS i16 buffer overflow for {} pixels", size))
-    })?;
-    let mut buffer = vec![0u8; buffer_len];
-    reader.read_exact(&mut buffer)?;
-
-    let data: Vec<i16> = buffer
-        .as_chunks::<2>()
-        .0
-        .iter()
-        .map(|chunk| i16::from_be_bytes([chunk[0], chunk[1]]))
-        .collect();
-
-    Ok(data)
-}
-
-/// Read signed 32-bit data (big-endian)
-fn read_i32_data<R: Read>(
-    reader: &mut R,
-    width: u32,
-    height: u32,
-    depth: u32,
-) -> Result<Vec<i32>, FitsError> {
-    let size = fits_pixel_count(width, height, depth)?;
-    let buffer_len = size.checked_mul(4).ok_or_else(|| {
-        FitsError::InvalidFormat(format!("FITS i32 buffer overflow for {} pixels", size))
-    })?;
-    let mut buffer = vec![0u8; buffer_len];
-    reader.read_exact(&mut buffer)?;
-
-    let data: Vec<i32> = buffer
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|chunk| i32::from_be_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
-        .collect();
-
-    Ok(data)
-}
-
-/// Read 32-bit float data (big-endian IEEE 754)
-fn read_f32_data<R: Read>(
-    reader: &mut R,
-    width: u32,
-    height: u32,
-    depth: u32,
-) -> Result<Vec<f32>, FitsError> {
-    let size = fits_pixel_count(width, height, depth)?;
-    let buffer_len = size.checked_mul(4).ok_or_else(|| {
-        FitsError::InvalidFormat(format!("FITS f32 buffer overflow for {} pixels", size))
-    })?;
-    let mut buffer = vec![0u8; buffer_len];
-    reader.read_exact(&mut buffer)?;
-
-    let data: Vec<f32> = buffer
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|chunk| f32::from_be_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
-        .collect();
-
-    Ok(data)
-}
-
-/// Read 64-bit float data (big-endian IEEE 754)
-fn read_f64_data<R: Read>(
-    reader: &mut R,
-    width: u32,
-    height: u32,
-    depth: u32,
-) -> Result<Vec<f64>, FitsError> {
-    let size = fits_pixel_count(width, height, depth)?;
-    let buffer_len = size.checked_mul(8).ok_or_else(|| {
-        FitsError::InvalidFormat(format!("FITS f64 buffer overflow for {} pixels", size))
-    })?;
-    let mut buffer = vec![0u8; buffer_len];
-    reader.read_exact(&mut buffer)?;
-
-    let data: Vec<f64> = buffer
-        .as_chunks::<8>()
-        .0
-        .iter()
-        .map(|chunk| {
-            f64::from_be_bytes([
-                chunk[0], chunk[1], chunk[2], chunk[3], chunk[4], chunk[5], chunk[6], chunk[7],
-            ])
-        })
-        .collect();
-
-    Ok(data)
 }
 
 /// Write a FITS file to disk.
