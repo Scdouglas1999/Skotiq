@@ -145,7 +145,7 @@ $vendorDlls = @(
     }
     # Core - LibRaw (MUST be 64-bit RELEASE build - Debug builds require VS installed)
     @{
-        Source = Join-Path $repoRoot "apps/desktop/windows/runner/Release/libraw.dll"
+        Source = Join-Path $repoRoot "lib/libraw/libraw.dll"
         Dest   = Join-Path $releaseDir "libraw.dll"
         Verify64Bit = $true
         VerifyReleaseBuild = $true

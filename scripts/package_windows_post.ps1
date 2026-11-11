@@ -56,7 +56,7 @@ $vendorDlls = @(
     @{ Source = "$env:SystemRoot\System32\msvcr120.dll";       Dest = Join-Path $releaseDir "msvcr120.dll" },
     @{ Source = "$env:SystemRoot\System32\msvcp100.dll";       Dest = Join-Path $releaseDir "msvcp100.dll" },
     @{ Source = "$env:SystemRoot\System32\msvcr100.dll";       Dest = Join-Path $releaseDir "msvcr100.dll" },
-    @{ Source = Join-Path $repoRoot "apps/desktop/windows/runner/Release/libraw.dll"; Dest = Join-Path $releaseDir "libraw.dll" },
+    @{ Source = Join-Path $repoRoot "lib/libraw/libraw.dll"; Dest = Join-Path $releaseDir "libraw.dll" },
     @{ Source = Join-Path $repoRoot "SDKs/ZWO/ASI_Camera_SDK/ASI_Windows_SDK_V1.40/ASI SDK/lib/x64/ASICamera2.dll"; Dest = Join-Path $releaseDir "ASICamera2.dll" },
     @{ Source = Join-Path $repoRoot "SDKs/ZWO/EAF_SDK/EAF_Windows_SDK_V1.6/EAF SDK/lib/Win64/EAF_focuser.dll";       Dest = Join-Path $releaseDir "EAF_focuser.dll" },
     @{ Source = Join-Path $repoRoot "SDKs/ZWO/EFW_SDK/EFW_Windows_SDK_V1.7/EFW SDK/lib/Win64/EFW_filter.dll";       Dest = Join-Path $releaseDir "EFW_filter.dll" },
