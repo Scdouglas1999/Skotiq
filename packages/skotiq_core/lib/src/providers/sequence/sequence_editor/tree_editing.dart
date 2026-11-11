@@ -409,6 +409,21 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
     );
   }
 
+  /// Apply [change] to node [nodeId] as the plan holds it now.
+  ///
+  /// For an editor field that commits on every keystroke: its closure can hold
+  /// the node from a frame ago, and building the edit from that copy undoes
+  /// whatever the previous keystroke changed alongside (a target's name that
+  /// followed its target name read "M" after typing "M34").
+  void editNode<N extends SequenceNode>(
+    String nodeId,
+    N Function(N node) change,
+  ) {
+    final current = _currentSequence?.nodes[nodeId];
+    if (current is! N) return;
+    updateNode(change(current));
+  }
+
   void updateNode(SequenceNode node) {
     if (_currentSequence == null) return;
     _ensureEditable('update node');

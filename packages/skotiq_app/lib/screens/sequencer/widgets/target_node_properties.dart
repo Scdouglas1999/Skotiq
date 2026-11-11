@@ -74,8 +74,11 @@ class TargetGroupProperties extends ConsumerWidget {
               colors: colors,
               value: node.targetName,
               onChanged: (value) {
-                ref.read(currentSequenceProvider.notifier).updateNode(
-                      node.copyWith(targetName: value),
+                ref
+                    .read(currentSequenceProvider.notifier)
+                    .editNode<TargetHeaderNode>(
+                      node.id,
+                      (current) => current.copyWith(targetName: value),
                     );
               },
             ),

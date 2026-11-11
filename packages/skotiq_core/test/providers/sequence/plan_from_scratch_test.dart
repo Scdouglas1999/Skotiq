@@ -125,6 +125,22 @@ void main() {
       expect(sequence().nodes['f']!.name, 'Luminance');
     });
 
+    test('takes the typed name when keystrokes outrun the editor', () {
+      editor().createSequence();
+      final target = TargetHeaderNode(
+          id: 't', targetName: 'New Target', raHours: 0, decDegrees: 0);
+      add(target);
+      // Each keystroke's closure holds the node as it was drawn: the first
+      // copy, before any keystroke landed.
+      for (final typed in ['M', 'M3', 'M34']) {
+        editor().editNode<TargetHeaderNode>(
+          't',
+          (current) => current.copyWith(targetName: typed),
+        );
+      }
+      expect(sequence().nodes['t']!.name, 'M34');
+    });
+
     test('keeps a name the operator gave it', () {
       editor().createSequence();
       add(TargetHeaderNode(

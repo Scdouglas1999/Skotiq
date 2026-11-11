@@ -425,30 +425,21 @@ class _NodeNumberInputState extends State<NodeNumberInput> {
                   style: SkotiqTypography.inputMono.copyWith(
                     color: widget.colors.textPrimary,
                   ),
+                  // The unit rides inside the field. As a Flexible beside the
+                  // Expanded field it took half the row, so a 290 px inspector
+                  // showed "02" for an RA of 2.702.
                   decoration: InputDecoration(
                     border: InputBorder.none,
                     isDense: true,
                     contentPadding:
                         EdgeInsets.symmetric(vertical: inputPaddingV),
-                  ),
-                ),
-              ),
-              // Flexible, not a bare Text: the unit is inflexible content in
-              // a Row whose other child is Expanded, so in a narrow column
-              // (a half-width field in the properties pane) a suffix wider
-              // than the whole box overflowed the row rather than giving way.
-              if (widget.suffix != null)
-                Flexible(
-                  child: Text(
-                    widget.suffix!,
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.ellipsis,
-                    style: SkotiqTypography.caption.copyWith(
+                    suffixText: widget.suffix,
+                    suffixStyle: SkotiqTypography.caption.copyWith(
                       color: widget.colors.textMuted,
                     ),
                   ),
                 ),
+              ),
             ],
           ),
         ),
