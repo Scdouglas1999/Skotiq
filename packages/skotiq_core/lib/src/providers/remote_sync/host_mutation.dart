@@ -12,8 +12,6 @@ void _applyHostMutation(Object reader, Map<String, dynamic> data) {
       _applyEquipmentMutationFromHost(reader, action, data);
     case HostMutationEntity.guider:
       _applyGuiderMutationFromHost(reader, action, data);
-    case HostMutationEntity.framing:
-      _applyFramingMutationFromHost(reader, action, data);
     case HostMutationEntity.sequencer:
       _applySequencerMutationFromHost(reader, action, data);
     case HostMutationEntity.sequenceEditor:
@@ -41,11 +39,6 @@ void _applyHostMutation(Object reader, Map<String, dynamic> data) {
       _invalidateHostSessions(reader);
     case HostMutationEntity.capturedImage:
       _invalidateHostCapturedImages(reader);
-    case HostMutationEntity.scheduledStart:
-      _read(reader, hostScheduledStartProvider.notifier).state =
-          parseHostScheduledStart(data['at']);
-    case HostMutationEntity.endOfNight:
-      _applyHostEndOfNight(reader, EonStatus.fromHostJson(data['status']));
     default:
       break;
   }
@@ -112,45 +105,6 @@ void _applyGuiderMutationFromHost(
   }
 }
 
-void _applyFramingMutationFromHost(
-  Object reader,
-  String action,
-  Map<String, dynamic> data,
-) {
-  if (action != HostMutationAction.updated &&
-      action != HostMutationAction.created) {
-    return;
-  }
-
-  final ra = data['ra'];
-  final dec = data['dec'];
-  final name = data['name'] as String?;
-  if (ra is! num || dec is! num) {
-    return;
-  }
-
-  _read(reader, framingProvider.notifier).setTargetCoordinates(
-    ra.toDouble(),
-    dec.toDouble(),
-    name: name,
-    fromRemoteSync: true,
-  );
-}
-
-void _applyFramingTargetChanged(Object reader, SkotiqEvent event) {
-  final ra = (event.data['ra'] as num?)?.toDouble();
-  final dec = (event.data['dec'] as num?)?.toDouble();
-  final name = event.data['name'] as String?;
-  if (ra == null || dec == null || name == null || name.isEmpty) {
-    return;
-  }
-
-  _read(
-    reader,
-    framingProvider.notifier,
-  ).setTargetCoordinates(ra, dec, name: name, fromRemoteSync: true);
-}
-
 void _invalidateHostProfiles(Object reader) {
   _invalidateEquipmentSyncProviders(reader);
   _invalidate(reader, allProfilesProvider);
@@ -178,21 +132,4 @@ void _invalidateHostSessions(Object reader) {
 void _invalidateTargetProgress(Object reader) {
   _invalidate(reader, allTargetProgressProvider);
   _invalidate(reader, targetProgressProvider);
-}
-
-/// Mirror the host's end-of-night status, and say so on this screen when the
-/// host starts waiting for a cap: the darks are skipped if nobody answers.
-void _applyHostEndOfNight(Object reader, EonStatus? next) {
-  final notifier = _read(reader, hostEndOfNightStatusProvider.notifier);
-  final previous = notifier.state;
-  notifier.state = next;
-  if (next?.phase == EonPhase.waitingForCap &&
-      previous?.phase != EonPhase.waitingForCap) {
-    _read(reader, uiNotificationProvider.notifier).showWarning(
-      'The filter wheel has no dark slot. Cap the telescope, then confirm on '
-      'Tonight. The darks and bias are skipped if nobody confirms.',
-      title: 'Cap the telescope for darks',
-      duration: const Duration(seconds: 30),
-    );
-  }
 }

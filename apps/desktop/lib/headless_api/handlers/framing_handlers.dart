@@ -369,11 +369,8 @@ class FramingHandlers implements RouteSource {
     final dec = requireDouble(payload, 'dec', min: -90, max: 90);
     final name = requireString(payload, 'name');
 
-    // The host announces the new target to linked clients from the framing
-    // state itself (hostStateAnnouncerProvider), the same way it does for a
-    // target picked on its own screen, so this handler does not announce it
-    // again. Reading the announcer keeps it alive on a host without a screen.
-    container.read(hostStateAnnouncerProvider);
+    // Linked clients get the target from the framingTarget runtime channel,
+    // as they do one picked on the host's own screen.
     container
         .read(framingProvider.notifier)
         .setTargetCoordinates(ra, dec, name: name);

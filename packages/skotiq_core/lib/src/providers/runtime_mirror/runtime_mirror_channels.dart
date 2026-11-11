@@ -5,11 +5,13 @@ import 'channels/auxiliary_device_channels.dart';
 import 'channels/autofocus_run_channel.dart';
 import 'channels/centering_channels.dart';
 import 'channels/cooler_reading_channel.dart';
+import 'channels/end_of_night_channel.dart';
 import 'channels/current_frame_channel.dart';
 import 'channels/environment_channel.dart';
 import 'channels/frame_solve_channel.dart';
 import 'channels/live_broadcast_channel.dart';
 import 'channels/framing_geometry_channel.dart';
+import 'channels/framing_target_channel.dart';
 import 'channels/manual_action_channel.dart';
 import 'channels/manual_loop_channel.dart';
 import 'channels/meridian_flip_channel.dart';
@@ -17,6 +19,7 @@ import 'channels/notice_acks_channel.dart';
 import 'channels/pending_start_channel.dart';
 import 'channels/plate_solve_channel.dart';
 import 'channels/run_record_channel.dart';
+import 'channels/scheduled_start_channel.dart';
 import 'channels/sequence_run_channel.dart';
 import 'channels/session_frames_channel.dart';
 import 'runtime_mirror_channel.dart';
@@ -42,11 +45,14 @@ final runtimeMirrorChannelsProvider =
         ManualActionChannel(),
         ManualLoopChannel(),
         FramingGeometryChannel(),
+        FramingTargetChannel(),
         PendingStartChannel(),
         CoverCalibratorChannel(),
         SwitchChannelsChannel(),
         NoticeAcknowledgmentsChannel(),
         LiveBroadcastChannel(),
+        ScheduledStartChannel(),
+        EndOfNightChannel(),
       ],
     );
 

@@ -45,24 +45,6 @@ Future<void> hydrateRemoteSessionState(
   // reported when the client connected.
   refreshHostPlateSolverState(reader);
 
-  // Start at dark is held by the host; mirror what it has scheduled.
-  try {
-    final scheduled = await host.runState.hostScheduledStart();
-    if (!_isCurrentRemoteBackend(reader, backend)) return;
-    _read(reader, hostScheduledStartProvider.notifier).state = scheduled;
-  } catch (_) {
-    // An older host without the endpoint: it schedules nothing for clients.
-  }
-
-  // The end-of-night calibration runs on the host; mirror where it stands.
-  try {
-    final status = await host.runState.hostEndOfNightStatus();
-    if (!_isCurrentRemoteBackend(reader, backend)) return;
-    _read(reader, hostEndOfNightStatusProvider.notifier).state = status;
-  } catch (_) {
-    // A host that cannot report it leaves the last known status.
-  }
-
   // The warm-up runs on the host; show whether it is still going.
   if (_read(reader, cameraStateProvider).connectionState ==
       DeviceConnectionState.connected) {
@@ -137,13 +119,6 @@ Future<void> hydrateRemoteSessionState(
   // re-hydrate, so a change the host did not announce still arrives within
   // one cycle. Providers re-read only when a value actually changed.
   _read(reader, hostSettingsStoreProvider)?.refresh();
-
-  // Framing target is NOT seeded from framing/current-position here: that GET
-  // returns the mount's current pointing (already mirrored via getMountStatus),
-  // not a chosen framing target, and FramingNotifier.setTargetCoordinates would
-  // clobber the real target + trigger a survey-image load + push back to the
-  // host. Framing target parity flows through the framingTargetChanged event +
-  // HostMutationEntity.framing path instead.
 
   _invalidateEquipmentSyncProviders(reader);
   host.runtimeMirror.invalidateDeviceCache();

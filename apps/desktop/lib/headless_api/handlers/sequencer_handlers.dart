@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
-import 'package:skotiq_app/screens/night_control/actions/armed_start_provider.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
 import 'package:shelf/shelf.dart';
 
@@ -109,20 +108,7 @@ class SequencerHandlers implements RouteSource {
   /// generates a UUID v4 commandId and includes it in the response.
   final CommandCorrelator? commandCorrelator;
 
-  SequencerHandlers(this.container, {this.commandCorrelator}) {
-    // Clients mirror this host's Start at dark; tell them when it changes
-    // here, including when it fires or the host's own screen cancels it.
-    container.listen<DateTime?>(nightArmedStartProvider, (previous, next) {
-      if (previous == next) return;
-      publishHostMutationFromContainer(
-        container,
-        entityType: HostMutationEntity.scheduledStart,
-        action: HostMutationAction.updated,
-        extra: {'at': next?.toUtc().toIso8601String()},
-        remoteOnly: true,
-      );
-    });
-  }
+  SequencerHandlers(this.container, {this.commandCorrelator});
 
   /// Device ids a caller assigned on purpose through
   /// `POST /api/sequencer/devices`, keyed by type. `null` records an explicit

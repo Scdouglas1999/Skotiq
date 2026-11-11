@@ -1,12 +1,6 @@
 part of '../network_backend.dart';
 
 mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
-  /// Remote-only: the host's scheduled start (Start at dark), or null.
-  Future<DateTime?> hostScheduledStart() async {
-    final response = await _get('night/scheduled-start');
-    return parseHostScheduledStart(response['at']);
-  }
-
   /// Remote-only: schedule the run loaded on the host to start at tonight's
   /// astronomical dark. The host starts it itself, so it does not depend on
   /// this client staying awake or connected. Returns when it will start.
@@ -18,12 +12,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   /// Remote-only: cancel the host's scheduled start.
   Future<void> cancelHostScheduledStart() async {
     await _post('night/scheduled-start/cancel', const {}, null, 1);
-  }
-
-  /// Remote-only: the host's end-of-night calibration status.
-  Future<EonStatus?> hostEndOfNightStatus() async {
-    final response = await _get('calibration/end-of-night');
-    return EonStatus.fromHostJson(response['status']);
   }
 
   /// Remote-only: tell the host the telescope is capped for its darks.

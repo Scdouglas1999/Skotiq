@@ -54,7 +54,7 @@ class FramingGeometry {
 /// Rotation and mosaic on the Framing screen, the same on both ends of a
 /// link. Each window kept its own, so a 2x2 mosaic at 90 degrees laid out on
 /// the client showed as a single frame at 0 degrees on the host. The target
-/// travels separately, with the framing-target announcement.
+/// travels separately, on the `framingTarget` channel.
 class FramingGeometryChannel extends SharedStateChannel<FramingGeometry> {
   const FramingGeometryChannel();
 

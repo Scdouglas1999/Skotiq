@@ -28,8 +28,6 @@ import '../models/errors/skotiq_error.dart' as dart_error;
 import 'remote_display_jpeg.dart';
 import 'skotiq_exception.dart'
     show ImagingException, IoException, ValidationException;
-import '../providers/host_scheduled_start_provider.dart'
-    show parseHostScheduledStart;
 
 part 'network_backend/remote_operations.dart';
 part 'network_backend/remote_calibration_catalog_operations.dart';

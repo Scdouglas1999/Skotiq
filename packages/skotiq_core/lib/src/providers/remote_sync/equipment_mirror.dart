@@ -33,10 +33,10 @@ void _applyEquipmentEvent(
       // every mirrored Connected/Disconnected event made "Plan Tonight" thrash
       // (constant refresh). Connection STATE is already applied above via the
       // per-device state providers. Profile refreshes happen on actual profile
-      // events (profileChanged / HostMutationEntity.profile) instead.
+      // events (HostMutationEntity.profile) instead.
       break;
     case 'Disconnected':
-      _applyDeviceDisconnectedFromSyncPayload(reader, data);
+      _applyDisconnectedDevice(reader, data);
       break;
     default:
       // Live telemetry mirroring is SLAVE-ONLY: on the host both

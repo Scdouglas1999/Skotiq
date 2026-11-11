@@ -169,7 +169,7 @@ extension _HeadlessApiServerHandlerInitialization on HeadlessApiServer {
       ),
       BroadcastHandlers(container: container),
       LogHandlers(container),
-      CalibrationHandlers(container)..mirrorEndOfNightToClients(),
+      CalibrationHandlers(container),
       CalibrationLibraryHandlers(container),
       CatalogHandlers(
         jobManager: _jobManager,

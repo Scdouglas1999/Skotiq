@@ -300,12 +300,6 @@ final List<AlwaysOnService> alwaysOnServices = [
     'results a client computes reaching the host and the other clients',
   ),
   AlwaysOnService(
-    'host state announcer',
-    hostStateAnnouncerProvider,
-    _windows,
-    "a framing target set on the host's screen reaching linked clients",
-  ),
-  AlwaysOnService(
     'host local sync',
     hostLocalSyncProvider,
     // It refreshes what a host window shows after a client changed it.

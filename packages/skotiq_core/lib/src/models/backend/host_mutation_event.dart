@@ -21,19 +21,10 @@ abstract final class HostMutationEntity {
   /// [sequencer] (run-state control): this mirrors the master's live editor so
   /// a slave's sequencer screen reflects the open canvas in real time.
   static const sequenceEditor = 'sequenceEditor';
-  static const framing = 'framing';
   static const settings = 'settings';
   static const session = 'session';
   static const capturedImage = 'capturedImage';
   static const atlas = 'atlas';
-
-  /// The host's scheduled start (Start at dark): `at` carries the UTC instant,
-  /// or null once it fired or was canceled.
-  static const scheduledStart = 'scheduledStart';
-
-  /// The host's end-of-night calibration status: `status` carries
-  /// [EonStatus.toJson] without the report.
-  static const endOfNight = 'endOfNight';
 }
 
 /// Mutation verbs emitted after successful REST handler completion.
