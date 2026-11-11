@@ -42,7 +42,6 @@ pub use skotiq_device::ascom::{
 /// Default Alpaca discovery port
 pub const ALPACA_DISCOVERY_PORT: u16 = 32227;
 
-/// Alpaca device types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AlpacaDeviceType {
     Camera,
@@ -90,7 +89,6 @@ impl AlpacaDeviceType {
         }
     }
 
-    /// Get a display name for the device type
     pub fn display_name(&self) -> &'static str {
         match self {
             AlpacaDeviceType::Camera => "Camera",
@@ -159,7 +157,6 @@ impl AlpacaDevice {
         }
     }
 
-    /// Get a unique identifier for this device
     pub fn id(&self) -> String {
         format!(
             "alpaca:{}:{}:{}",

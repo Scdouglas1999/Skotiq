@@ -1,6 +1,5 @@
 use super::*;
 
-/// Alpaca-specific error types
 #[derive(Debug, Error)]
 pub enum AlpacaError {
     #[error("Connection timeout after {duration_ms}ms during {operation}")]
@@ -132,7 +131,6 @@ impl AlpacaError {
         }
     }
 
-    /// Create a connection refused error
     pub fn connection_refused(url: impl Into<String>, cause: impl Into<String>) -> Self {
         AlpacaError::ConnectionRefused {
             url: url.into(),
@@ -140,7 +138,6 @@ impl AlpacaError {
         }
     }
 
-    /// Check if this error is retryable
     pub fn is_retryable(&self) -> bool {
         match self {
             AlpacaError::Timeout { .. } => true,
@@ -150,7 +147,6 @@ impl AlpacaError {
                 *status >= 500 || *status == 429
             }
             AlpacaError::RequestFailed(_) => true,
-            // Don't retry device errors, parse errors, validation failures
             AlpacaError::DeviceError { .. } => false,
             AlpacaError::ParseError(_) => false,
             AlpacaError::PixelParseError { .. } => false,

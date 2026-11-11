@@ -1,7 +1,6 @@
 //! Alpaca Switch API implementation
 
 alpaca_device!(
-    /// Alpaca Switch client
     AlpacaSwitch,
     Switch
 );

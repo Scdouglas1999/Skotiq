@@ -40,7 +40,6 @@ pub struct CameraCapabilities {
     pub max_bin_y: i32,
 }
 
-/// Camera sensor information
 #[derive(Debug, Clone)]
 pub struct CameraSensorInfo {
     pub camera_x_size: i32,
@@ -54,7 +53,6 @@ pub struct CameraSensorInfo {
     pub bayer_offset_y: Option<i32>,
 }
 
-/// Camera subframe settings
 #[derive(Debug, Clone)]
 pub struct CameraSubframe {
     pub start_x: i32,
@@ -67,23 +65,18 @@ pub struct CameraSubframe {
 /// Includes all status, gain/offset, binning, and subframe in a single query
 #[derive(Debug, Clone)]
 pub struct CameraFullStatus {
-    // Core state
     pub state: CameraState,
     pub connected: bool,
     pub image_ready: bool,
     pub percent_completed: Option<i32>,
-    // Temperature/cooling
     pub ccd_temperature: Option<f64>,
     pub cooler_on: Option<bool>,
     pub cooler_power: Option<f64>,
     pub heat_sink_temperature: Option<f64>,
-    // Gain and offset
     pub gain: Option<i32>,
     pub offset: Option<i32>,
-    // Binning
     pub bin_x: i32,
     pub bin_y: i32,
-    // Subframe
     pub start_x: i32,
     pub start_y: i32,
     pub num_x: i32,
@@ -99,21 +92,15 @@ pub struct CameraFullStatus {
 pub enum ImageArrayElementType {
     /// Type 0 - server omitted/unknown
     Unknown = 0,
-    /// Type 1 - Int16
     Int16 = 1,
-    /// Type 2 - Int32
     Int32 = 2,
-    /// Type 3 - Double
     Double = 3,
     /// Type 4 - Single (float32)
     Single = 4,
-    /// Type 5 - UInt64
     UInt64 = 5,
     /// Type 6 - Byte (UInt8)
     Byte = 6,
-    /// Type 7 - Int64
     Int64 = 7,
-    /// Type 8 - UInt16
     UInt16 = 8,
 }
 
@@ -157,7 +144,6 @@ pub struct ImageArrayResult {
 }
 
 alpaca_device!(
-    /// Alpaca Camera client
     AlpacaCamera,
     Camera
 );
@@ -171,8 +157,6 @@ impl AlpacaCamera {
     pub async fn image_array(&self) -> Result<String, AlpacaError> {
         self.client.get("imagearray").await
     }
-
-    // Parallel status methods
 
     /// Get comprehensive camera status in a single parallel query
     pub async fn get_status(&self) -> Result<CameraStatus, AlpacaError> {
@@ -305,8 +289,6 @@ impl AlpacaCamera {
     /// This includes state, temperature, cooling, gain/offset, binning, and subframe
     /// Use this for efficient status polling instead of making multiple individual calls
     pub async fn get_full_status(&self) -> Result<CameraFullStatus, AlpacaError> {
-        // Query all status properties in parallel for maximum efficiency
-        // This reduces the number of network round-trips from ~16 to 1
         let (
             state,
             connected,

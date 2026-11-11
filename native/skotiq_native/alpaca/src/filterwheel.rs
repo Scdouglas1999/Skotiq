@@ -18,7 +18,6 @@ pub struct FilterWheelInfo {
 }
 
 alpaca_device!(
-    /// Alpaca Filter Wheel client
     AlpacaFilterWheel,
     FilterWheel
 );
@@ -26,16 +25,12 @@ alpaca_device!(
 impl AlpacaFilterWheel {
     skotiq_device::ascom_filter_wheel_members!(alpaca_member);
 
-    // Position
-
     /// Check if filter wheel is currently moving
     /// Position returns -1 during movement, so we check for that
     pub async fn is_moving(&self) -> Result<bool, AlpacaError> {
         let pos = self.position().await?;
         Ok(pos == -1)
     }
-
-    // Parallel status methods
 
     /// Get comprehensive filter wheel status in a single query
     pub async fn get_status(&self) -> Result<FilterWheelStatus, AlpacaError> {
@@ -59,7 +54,6 @@ impl AlpacaFilterWheel {
         })
     }
 
-    /// Set filter by name (convenience method)
     pub async fn set_filter_by_name(&self, filter_name: &str) -> Result<(), AlpacaError> {
         let names = self.names().await?;
         for (idx, name) in names.iter().enumerate() {
@@ -77,7 +71,6 @@ impl AlpacaFilterWheel {
         Err(AlpacaError::FilterNotFound(filter_name.to_string()))
     }
 
-    /// Get the current filter name
     pub async fn current_filter_name(&self) -> Result<String, AlpacaError> {
         let pos = self.position().await?;
         if pos < 0 {
@@ -94,7 +87,6 @@ impl AlpacaFilterWheel {
             .ok_or(AlpacaError::InvalidFilterPosition(pos))
     }
 
-    /// Get the focus offset for the current filter
     pub async fn current_focus_offset(&self) -> Result<i32, AlpacaError> {
         let pos = self.position().await?;
         if pos < 0 {

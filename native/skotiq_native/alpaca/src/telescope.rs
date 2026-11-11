@@ -56,7 +56,6 @@ pub struct TelescopeCapabilities {
     pub can_set_guide_rates: bool,
 }
 
-/// Telescope site information
 #[derive(Debug, Clone)]
 pub struct TelescopeSiteInfo {
     pub site_latitude: f64,
@@ -64,7 +63,6 @@ pub struct TelescopeSiteInfo {
     pub site_elevation: f64,
 }
 
-/// Telescope optical information
 #[derive(Debug, Clone)]
 pub struct TelescopeOpticsInfo {
     pub aperture_area: Option<f64>,
@@ -77,14 +75,11 @@ pub struct TelescopeOpticsInfo {
 /// Includes position, state, target coordinates, and guide rates in a single query
 #[derive(Debug, Clone)]
 pub struct TelescopeFullStatus {
-    // Connection state
     pub connected: bool,
-    // Current position
     pub right_ascension: f64,
     pub declination: f64,
     pub altitude: f64,
     pub azimuth: f64,
-    // Motion state
     pub slewing: bool,
     pub tracking: bool,
     pub tracking_rate: DriveRate,
@@ -94,11 +89,9 @@ pub struct TelescopeFullStatus {
     // `.unwrap_or(false)` silently coerced both error and parse failures to
     // "not guiding", which the audit flagged as a house-rules violation.
     pub is_pulse_guiding: Option<bool>,
-    // Position state
     pub at_home: bool,
     pub at_park: bool,
     pub side_of_pier: PierSide,
-    // Time
     pub sidereal_time: f64,
     // Target coordinates (may not be set)
     pub target_right_ascension: Option<f64>,
@@ -109,7 +102,6 @@ pub struct TelescopeFullStatus {
 }
 
 alpaca_device!(
-    /// Alpaca Telescope (Mount) client
     AlpacaTelescope,
     Telescope
 );
@@ -117,14 +109,10 @@ alpaca_device!(
 impl AlpacaTelescope {
     skotiq_device::ascom_telescope_members!(alpaca_member);
 
-    // Capabilities
-
     /// Permitted `MoveAxis` rates for the given axis (`axisrates`).
     pub async fn axis_rates(&self, axis: TelescopeAxis) -> Result<Vec<AxisRate>, AlpacaError> {
         self.axis_rates_for_axis(axis.as_i32()).await
     }
-
-    // Parallel status methods
 
     /// Get comprehensive telescope status in a single parallel query
     pub async fn get_status(&self) -> Result<TelescopeStatus, AlpacaError> {
@@ -257,8 +245,6 @@ impl AlpacaTelescope {
     /// This includes position, state, target coordinates, and guide rates
     /// Use this for efficient status polling instead of making multiple individual calls
     pub async fn get_full_status(&self) -> Result<TelescopeFullStatus, AlpacaError> {
-        // Query all status properties in parallel for maximum efficiency
-        // This reduces the number of network round-trips from ~18 to 1
         let (
             connected,
             right_ascension,

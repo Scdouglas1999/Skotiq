@@ -105,7 +105,6 @@ fn test_transaction_id_uniqueness_multi_thread() {
         handles.push(handle);
     }
 
-    // Collect all IDs from all threads
     for handle in handles {
         let local_ids = handle.join().unwrap();
         let mut ids_lock = ids.lock().unwrap();
@@ -285,7 +284,6 @@ fn test_alpaca_error_conversion() {
 
 #[test]
 fn test_alpaca_error_is_retryable() {
-    // Retryable errors
     assert!(AlpacaError::timeout("test", 5000).is_retryable());
     assert!(AlpacaError::connection_refused("http://localhost", "refused").is_retryable());
     assert!(AlpacaError::RequestFailed("network error".to_string()).is_retryable());
@@ -308,7 +306,6 @@ fn test_alpaca_error_is_retryable() {
     }
     .is_retryable());
 
-    // Non-retryable errors
     assert!(!AlpacaError::DeviceError {
         code: 1,
         message: "device error".to_string()

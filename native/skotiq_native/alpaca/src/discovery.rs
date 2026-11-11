@@ -75,18 +75,14 @@ impl DiscoveredAlpacaServer {
     }
 }
 
-/// Discovery configuration
 #[derive(Debug, Clone)]
 pub struct DiscoveryConfig {
-    /// Total discovery timeout
     pub discovery_timeout: Duration,
     /// Time to wait for individual responses
     pub response_wait: Duration,
     /// Timeout for HTTP requests to get device info
     pub http_timeout: Duration,
-    /// Number of discovery broadcasts to send
     pub broadcast_count: u32,
-    /// Delay between broadcasts
     pub broadcast_delay: Duration,
     /// Send IPv4 subnet broadcasts (per network interface).
     pub use_ipv4: bool,
@@ -184,7 +180,6 @@ pub fn send_ipv6_discovery_probes(message: &[u8], port: u16) {
 }
 
 impl DiscoveryConfig {
-    /// Create a quick discovery config for fast scans
     pub fn quick() -> Self {
         Self {
             discovery_timeout: Duration::from_secs(2),
@@ -197,7 +192,6 @@ impl DiscoveryConfig {
         }
     }
 
-    /// Create a thorough discovery config for comprehensive scans
     pub fn thorough() -> Self {
         Self {
             discovery_timeout: Duration::from_secs(10),
@@ -260,7 +254,6 @@ pub async fn discover_servers_detailed_with_config(
         }
     }
 
-    // Receive responses with timeout
     let mut buf = [0u8; 1024];
     let deadline = tokio::time::Instant::now() + config.discovery_timeout;
 
@@ -270,7 +263,6 @@ pub async fn discover_servers_detailed_with_config(
             break;
         }
 
-        // Use the configured response wait time or remaining time, whichever is shorter
         let wait_time = remaining.min(config.response_wait);
 
         match timeout(wait_time, socket.recv_from(&mut buf)).await {
@@ -321,7 +313,6 @@ pub async fn discover_servers_detailed_with_config(
     discovered
 }
 
-/// Get configured devices from an Alpaca server
 pub async fn get_configured_devices(
     server_ip: &str,
     port: u16,
@@ -329,7 +320,6 @@ pub async fn get_configured_devices(
     get_configured_devices_with_timeout(server_ip, port, Duration::from_secs(10)).await
 }
 
-/// Get configured devices from an Alpaca server with custom timeout
 pub async fn get_configured_devices_with_timeout(
     server_ip: &str,
     port: u16,
@@ -400,7 +390,6 @@ pub async fn get_configured_devices_with_timeout(
     Ok(devices)
 }
 
-/// Discover all Alpaca devices on the network
 pub async fn discover_all_devices(timeout_duration: Duration) -> Vec<AlpacaDevice> {
     discover_all_devices_with_config(DiscoveryConfig {
         discovery_timeout: timeout_duration,
@@ -409,13 +398,11 @@ pub async fn discover_all_devices(timeout_duration: Duration) -> Vec<AlpacaDevic
     .await
 }
 
-/// Discover all Alpaca devices with custom configuration
 pub async fn discover_all_devices_with_config(config: DiscoveryConfig) -> Vec<AlpacaDevice> {
     let mut all_devices = Vec::new();
 
     let servers = discover_servers_detailed_with_config(config.clone()).await;
 
-    // Fetch devices from all servers in parallel
     let fetch_futures: Vec<_> = servers
         .iter()
         .filter_map(|server| {
@@ -449,7 +436,6 @@ pub async fn discover_all_devices_with_config(config: DiscoveryConfig) -> Vec<Al
         })
         .collect();
 
-    // Execute all fetches in parallel
     let results = futures::future::join_all(fetch_futures).await;
 
     for devices in results {
@@ -459,7 +445,6 @@ pub async fn discover_all_devices_with_config(config: DiscoveryConfig) -> Vec<Al
     all_devices
 }
 
-/// Get supported API versions from a server
 pub async fn get_api_versions(server_ip: &str, port: u16) -> Result<Vec<u32>, AlpacaError> {
     let url = format!("http://{}:{}/management/apiversions", server_ip, port);
 

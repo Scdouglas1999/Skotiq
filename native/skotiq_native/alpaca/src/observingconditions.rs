@@ -1,7 +1,6 @@
 //! Alpaca Observing Conditions (Weather Station) API implementation
 
 alpaca_device!(
-    /// Alpaca Observing Conditions client
     AlpacaObservingConditions,
     ObservingConditions
 );

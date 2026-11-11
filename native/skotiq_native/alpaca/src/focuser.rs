@@ -12,7 +12,6 @@ pub struct FocuserStatus {
     pub temp_comp: Option<bool>,
 }
 
-/// Focuser capabilities
 #[derive(Debug, Clone)]
 pub struct FocuserCapabilities {
     pub absolute: bool,
@@ -23,15 +22,12 @@ pub struct FocuserCapabilities {
 }
 
 alpaca_device!(
-    /// Alpaca Focuser client
     AlpacaFocuser,
     Focuser
 );
 
 impl AlpacaFocuser {
     skotiq_device::ascom_focuser_members!(alpaca_member);
-
-    // Parallel status methods
 
     /// Get comprehensive focuser status in a single parallel query
     pub async fn get_status(&self) -> Result<FocuserStatus, AlpacaError> {
