@@ -9,8 +9,8 @@ part of '../network_backend.dart';
 /// constraint editor, project list, and campaign-progress roll-up all read
 /// nothing and (worse) the autopilot gates with zero constraints/horizons.
 /// These methods mirror the host's rows over REST. They are NOT part of the
-/// abstract [SkotiqBackend] surface — only a slave calls them, behind an
-/// `is NetworkBackend` branch in the corresponding service/provider.
+/// abstract [SkotiqBackend] surface — only a slave calls them, through
+/// `backend.remoteHost?.planning` in the corresponding service/provider.
 mixin _NetworkBackendPlanningDataOperations on _NetworkBackendTransport {
   // Integration goals
 

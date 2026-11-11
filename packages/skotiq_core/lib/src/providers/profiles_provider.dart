@@ -3,7 +3,8 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
-import '../backend/network_backend.dart';
+import '../backend/remote_host.dart';
+import '../backend/skotiq_backend.dart' show SkotiqBackend;
 import '../database/database.dart';
 import '../models/backend/device_capabilities.dart';
 import '../models/backend/device_types.dart' show DeviceType;

@@ -3,7 +3,7 @@ import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
+import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import '../database/daos/settings_dao.dart';
 import '../models/equipment/equipment_models.dart';
@@ -31,11 +31,11 @@ import 'profiles_provider.dart';
 final rigCameraSettingsProvider = FutureProvider<Map<String, String>>((
   ref,
 ) async {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
+  final hostSettings = ref.watch(backendProvider).remoteHost?.rigSettings;
+  if (hostSettings != null) {
     final values = await Future.wait([
-      backend.getScienceSettings(),
-      backend.getSmartNightSettings(),
+      hostSettings.getScienceSettings(),
+      hostSettings.getSmartNightSettings(),
     ]);
     return {...values[0], ...values[1]};
   }
@@ -85,7 +85,7 @@ final activeCameraSensorSpecsProvider =
           : (profile?.cameraName ?? deviceName);
 
       final backend = ref.watch(backendProvider);
-      final settingsDao = backend is NetworkBackend
+      final settingsDao = backend.remoteHost != null
           ? null
           : ref.watch(settingsDaoProvider);
       final gain = connected

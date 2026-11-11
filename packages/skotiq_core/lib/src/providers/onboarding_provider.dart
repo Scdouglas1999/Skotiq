@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/hardware_presets/hardware_preset_models.dart';
 import '../models/onboarding/onboarding_state.dart';
-import '../backend/network_backend.dart';
+import '../backend/remote_host.dart';
 import '../database/database.dart'
     show
         kSimGuideCameraId,
@@ -33,7 +33,7 @@ final shouldRunEquipmentOnboardingProvider = FutureProvider<bool>((ref) async {
   // a companion that cannot reach its host must say so instead of offering to
   // configure this machine.
   if (ref.watch(isRemoteClientProvider)) return false;
-  if (ref.watch(backendProvider) is NetworkBackend) return false;
+  if (ref.watch(backendProvider).remoteHost != null) return false;
   final profilesDao = ref.read(equipmentProfilesDaoProvider);
   final profiles = await profilesDao.getAllProfiles();
   if (profiles.isNotEmpty) return false;
@@ -371,10 +371,11 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
     // Persist the new equipment profile. The DAO marks the first profile
     // as default+active on insert so the user lands on the dashboard
     // already pointed at their new rig.
-    final dao = backend is NetworkBackend
+    final hostProfiles = backend.remoteHost?.profiles;
+    final dao = hostProfiles != null
         ? null
         : _ref.read(equipmentProfilesDaoProvider);
-    final localProfiles = backend is NetworkBackend
+    final localProfiles = hostProfiles != null
         ? null
         : _ref.read(equipmentProfilesProvider.notifier);
     final focalRatio =
@@ -435,11 +436,11 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
     );
 
     final int id;
-    if (backend is NetworkBackend) {
-      await backend.saveProfile(profile.toRemoteProfile());
+    if (hostProfiles != null) {
+      await hostProfiles.saveProfile(profile.toRemoteProfile());
       requireAuthority('creating the equipment profile');
       _ref.invalidate(equipmentProfilesProvider);
-      final createdId = backend.lastSavedProfileId;
+      final createdId = hostProfiles.lastSavedProfileId;
       if (createdId == null || createdId.isEmpty) {
         throw StateError(
           'Host saved onboarding profile "${profile.name}" but did not '
@@ -452,7 +453,7 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
           'Host saved onboarding profile "${profile.name}" with non-numeric id',
         );
       }
-      await backend.loadProfile(createdId);
+      await hostProfiles.loadProfile(createdId);
       requireAuthority('activating the equipment profile');
       _ref.invalidate(equipmentProfilesProvider);
       id = parsedId;
@@ -467,7 +468,7 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
       // store, making the terminal "active & ready" screen truthful. Idempotent
       // for the first-profile case (already active), and it performs the native
       // write-through a bare DAO insert skips. Local-only: this is the
-      // non-NetworkBackend branch, so [setActiveProfile] never hits the host.
+      // branch without a linked host, so [setActiveProfile] never hits one.
       await localProfiles!.setActiveProfile(id);
       requireAuthority('activating the equipment profile');
     }
@@ -514,7 +515,7 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
     final indi = draft.selectedDrivers.contains(DriverType.indi);
     final alpaca = draft.selectedDrivers.contains(DriverType.alpaca);
 
-    if (backend is NetworkBackend) {
+    if (backend.remoteHost != null) {
       final settings = await backend.getSettings();
       requireAuthority('loading the app settings');
       await backend.updateSettings(

@@ -31,8 +31,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_diag;
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_caps;
 
-import '../../backend/ffi_backend.dart';
-import '../../backend/network_backend.dart';
+import '../../backend/remote_host.dart';
 import '../../models/backend/device_capabilities.dart';
 import '../../models/equipment/equipment_models.dart';
 import '../backend_provider.dart';
@@ -113,9 +112,9 @@ typedef DomeCapabilityFetcher =
 /// catastrophic failure — the same contract as the other backend.getXCapabilities
 /// methods.
 final domeCapabilityFetcherProvider = Provider<DomeCapabilityFetcher>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return backend.getDomeCapabilities;
+  final host = ref.watch(backendProvider).remoteHost?.devices;
+  if (host != null) {
+    return host.getDomeCapabilities;
   }
   return (deviceId) async {
     final caps = await bridge_diag.apiGetDomeCapabilities(deviceId: deviceId);
@@ -249,7 +248,7 @@ final coverCalibratorStatusPollerProvider = Provider<void>((ref) {
 
   void bind() {
     stop();
-    if (ref.read(backendProvider) is! FfiBackend) return;
+    if (!ref.read(backendProvider).ownsDeviceBridge) return;
     final state = ref.read(coverCalibratorStateProvider);
     final deviceId = state.deviceId;
     if (deviceId == null ||
@@ -284,10 +283,10 @@ typedef CoverCalibratorCapabilityFetcher =
 
 final coverCalibratorCapabilityFetcherProvider =
     Provider<CoverCalibratorCapabilityFetcher>((ref) {
-      final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
+      final host = ref.watch(backendProvider).remoteHost?.devices;
+      if (host != null) {
         return (deviceId) async => CoverCalibratorCapabilitySnapshot.fromJson(
-          await backend.getCoverStatus(deviceId),
+          await host.getCoverStatus(deviceId),
         );
       }
       return (deviceId) async {

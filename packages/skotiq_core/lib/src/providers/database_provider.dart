@@ -1,15 +1,10 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
-import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../backend/network_backend.dart';
 import '../backend/network_backend/host_data/remote_host_records.dart';
 import '../backend/remote_host.dart';
 import '../backend/roles/host_data/host_records.dart';
 import '../database/database.dart' as db;
-import '../models/equipment_profile.dart' as remote_profile;
-import '../models/equipment_profile_remote_mapping.dart';
 import '../database/daos/equipment_profiles_dao.dart';
 import '../database/daos/targets_dao.dart';
 import '../database/daos/sessions_dao.dart';
@@ -20,7 +15,6 @@ import '../database/daos/science_dao.dart';
 import '../database/daos/guide_rms_history_dao.dart';
 import '../database/daos/narrator_events_dao.dart';
 import '../services/imaging_records_repository.dart';
-import '../utils/resilient_poll_stream.dart';
 import 'backend_provider.dart';
 import 'host_settings/host_settings_providers.dart';
 
@@ -103,6 +97,13 @@ final sequenceLibraryProvider = Provider<SequenceLibrary>(
       ref.watch(sequencesDaoProvider),
 );
 
+/// The equipment profiles of whichever machine is the imaging host.
+final equipmentProfileLibraryProvider = Provider<EquipmentProfileLibrary>(
+  (ref) =>
+      ref.watch(backendProvider).remoteHost?.records ??
+      ref.watch(equipmentProfilesDaoProvider),
+);
+
 /// The recorded sessions of whichever machine is the imaging host.
 final sessionHistoryProvider = Provider<SessionHistory>(
   (ref) =>
@@ -115,20 +116,12 @@ final sessionHistoryProvider = Provider<SessionHistory>(
 
 /// Watch all equipment profiles
 final allProfilesProvider = StreamProvider<List<db.EquipmentProfile>>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return _pollRemoteEquipmentProfiles(backend);
-  }
-  return ref.watch(equipmentProfilesDaoProvider).watchAllProfiles();
+  return ref.watch(equipmentProfileLibraryProvider).watchAllProfiles();
 });
 
 /// Watch the active equipment profile
 final activeProfileProvider = StreamProvider<db.EquipmentProfile?>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return _pollRemoteActiveProfile(backend);
-  }
-  return ref.watch(equipmentProfilesDaoProvider).watchActiveProfile();
+  return ref.watch(equipmentProfileLibraryProvider).watchActiveProfile();
 });
 
 /// Watch all targets (database entities)
@@ -432,69 +425,3 @@ final capturedImageWcsProvider =
 final allSettingsProvider = StreamProvider<Map<String, String>>((ref) {
   return ref.watch(settingsDaoProvider).watchAllSettings();
 });
-
-Stream<List<db.EquipmentProfile>> _pollRemoteEquipmentProfiles(
-  NetworkBackend backend,
-) => _pollRemote(() => _fetchRemoteEquipmentProfiles(backend), listEquals);
-
-Stream<db.EquipmentProfile?> _pollRemoteActiveProfile(NetworkBackend backend) =>
-    _pollRemote(() => _fetchRemoteActiveProfile(backend), (a, b) => a == b);
-
-Future<List<db.EquipmentProfile>> _fetchRemoteEquipmentProfiles(
-  NetworkBackend backend,
-) async {
-  final profiles = await backend.getProfiles();
-  return profiles.map(_equipmentProfileFromRemote).toList()
-    ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-}
-
-Future<db.EquipmentProfile?> _fetchRemoteActiveProfile(
-  NetworkBackend backend,
-) async {
-  final active = await backend.getActiveProfile();
-  if (active == null) {
-    return null;
-  }
-  return _equipmentProfileFromRemote(active);
-}
-
-db.EquipmentProfile _equipmentProfileFromRemote(
-  remote_profile.EquipmentProfile profile,
-) {
-  // Route through the single canonical converter so the slave's profile stream
-  // stays lossless (carries safetyMonitorId/switchId/meridianFlipOverrides) and
-  // never drifts from the host's `/api/profiles` mapping. No `existing` arg =>
-  // the remote payload's own isDefault/isActive/sortOrder flags are carried
-  // through, matching the host's row.
-  return remoteProfileToDbRow(profile);
-}
-
-/// Polls [fetch] every [interval], emitting the first value and thereafter
-/// ONLY when the value actually changes (per [unchanged]).
-///
-/// The remote list/profile providers below are backed by these polls, and the
-/// planner's `tonightSuggestionsProvider` awaits those streams: an emission
-/// that carries no change still reloads the whole suggestion pipeline and
-/// blanks the Plan Tonight tab. The change-guard makes a quiet host emit
-/// exactly once.
-///
-/// Every list polled here also changes on the host's mutation events, which
-/// refresh it at once; the poll is the safety net, so it runs every 30 s.
-Stream<T> _pollRemote<T>(
-  Future<T> Function() fetch,
-  bool Function(T a, T b) unchanged, {
-  Duration interval = const Duration(seconds: 30),
-}) => resilientDistinctPoll(
-  fetch: fetch,
-  unchanged: unchanged,
-  interval: interval,
-  onRetainedError: (error, stackTrace) {
-    developer.log(
-      'Remote poll failed; retaining last value',
-      name: 'DatabaseProvider',
-      level: 900,
-      error: error,
-      stackTrace: stackTrace,
-    );
-  },
-);

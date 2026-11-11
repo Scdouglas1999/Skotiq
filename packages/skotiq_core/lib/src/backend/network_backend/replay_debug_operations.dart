@@ -7,8 +7,8 @@ part of '../network_backend.dart';
 /// [SkotiqBackend] role) because they only make sense against a host:
 /// a remote client reads the HOST's `sequence_decisions` table and
 /// `app_settings` over REST instead of its own empty local database. The
-/// authority-branching providers in `replay_debug_provider.dart` call
-/// these only after asserting `backend is NetworkBackend`.
+/// providers in `replay_debug_provider.dart` reach these through
+/// `backend.remoteHost?.replayDebug`, which is null locally.
 ///
 /// Every method fails loud: a 404 from an older host (no replay endpoints)
 /// surfaces as a thrown error, never a false-empty list or fabricated

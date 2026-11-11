@@ -29,16 +29,29 @@ class EquipmentProfilesState {
   }
 }
 
+/// A linked host's profiles, with the backend they came from and the notifier
+/// that says whether that backend is still the current one. The owner is held
+/// rather than read through this notifier's `ref`: the notifier watches the
+/// backend, so a `ref.read` after a host switch and before the rebuild throws.
+typedef _LinkedProfiles = ({
+  HostProfiles host,
+  SkotiqBackend backend,
+  BackendNotifier owner,
+});
+
 /// Notifier for managing equipment profiles
 class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
-  ({NetworkBackend backend, BackendNotifier owner})? get _remoteAuthority {
+  /// The linked host's profiles, or null when the profiles are in this
+  /// process's database.
+  _LinkedProfiles? get _remote {
     final owner = ref.read(backendProvider.notifier);
     final backend = owner.currentBackend;
-    return backend is NetworkBackend ? (backend: backend, owner: owner) : null;
+    final host = backend.remoteHost?.profiles;
+    return host == null ? null : (host: host, backend: backend, owner: owner);
   }
 
-  void _requireRemoteAuthority(NetworkBackend backend, BackendNotifier owner) {
-    if (!owner.isCurrentBackend(backend)) {
+  void _requireSameHost(_LinkedProfiles remote) {
+    if (!remote.owner.isCurrentBackend(remote.backend)) {
       throw StateError(
         'The imaging host changed while the profile operation was running.',
       );
@@ -46,13 +59,12 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
   }
 
   Future<int?> _resolveRemoteProfileIdByName(
-    NetworkBackend backend,
-    BackendNotifier owner,
+    _LinkedProfiles remote,
     String name, {
     Set<int> excludingIds = const <int>{},
   }) async {
-    final profiles = await backend.getProfiles();
-    _requireRemoteAuthority(backend, owner);
+    final profiles = await remote.host.getProfiles();
+    _requireSameHost(remote);
     final candidates = <int>[];
     for (final profile in profiles) {
       if (profile.name == name) {
@@ -70,11 +82,11 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
 
   @override
   Future<EquipmentProfilesState> build() async {
-    final backend = ref.watch(backendProvider);
-    if (backend is NetworkBackend) {
+    final host = ref.watch(backendProvider).remoteHost?.profiles;
+    if (host != null) {
       try {
-        final remoteProfiles = await backend.getProfiles();
-        final activeRemote = await backend.getActiveProfile();
+        final remoteProfiles = await host.getProfiles();
+        final activeRemote = await host.getActiveProfile();
         final profiles =
             remoteProfiles.map(EquipmentProfileModel.fromRemoteProfile).toList()
               ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
@@ -125,27 +137,25 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
 
   /// Create a new profile
   Future<int> createProfile({required String name, String? description}) async {
-    final authority = _remoteAuthority;
-    if (authority != null) {
-      final remote = authority.backend;
+    final remote = _remote;
+    if (remote != null) {
       final current = await future;
-      _requireRemoteAuthority(remote, authority.owner);
+      _requireSameHost(remote);
       final existingIds = current.profiles
           .map((profile) => profile.id)
           .whereType<int>()
           .toSet();
-      await remote.saveProfile(
+      await remote.host.saveProfile(
         EquipmentProfileModel(
           name: name,
           description: description,
         ).toRemoteProfile(),
       );
-      _requireRemoteAuthority(remote, authority.owner);
+      _requireSameHost(remote);
       final id =
-          int.tryParse(remote.lastSavedProfileId ?? '') ??
+          int.tryParse(remote.host.lastSavedProfileId ?? '') ??
           await _resolveRemoteProfileIdByName(
             remote,
-            authority.owner,
             name,
             excludingIds: existingIds,
           );
@@ -180,21 +190,19 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
   /// decides create-vs-update by the parsed id, so a null-id model is accepted
   /// as a remote CREATE. The local (host/desktop) DAO path still requires an id.
   Future<int> updateProfile(EquipmentProfileModel profile) async {
-    final authority = _remoteAuthority;
-    if (authority != null) {
-      final remote = authority.backend;
+    final remote = _remote;
+    if (remote != null) {
       final next = profile.toRemoteProfile();
-      await remote.saveProfileFields(
+      await remote.host.saveProfileFields(
         next,
         fields: _changedRemoteFields(profile.id, next),
       );
-      _requireRemoteAuthority(remote, authority.owner);
+      _requireSameHost(remote);
       final savedId =
-          int.tryParse(remote.lastSavedProfileId ?? '') ??
+          int.tryParse(remote.host.lastSavedProfileId ?? '') ??
           profile.id ??
           await _resolveRemoteProfileIdByName(
             remote,
-            authority.owner,
             profile.name,
           );
       if (savedId == null || savedId <= 0) {
@@ -299,11 +307,10 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
 
   /// Delete a profile
   Future<void> deleteProfile(int profileId) async {
-    final authority = _remoteAuthority;
-    if (authority != null) {
-      final remote = authority.backend;
-      await remote.deleteProfile(profileId.toString());
-      _requireRemoteAuthority(remote, authority.owner);
+    final remote = _remote;
+    if (remote != null) {
+      await remote.host.deleteProfile(profileId.toString());
+      _requireSameHost(remote);
       ref.invalidateSelf();
       return;
     }
@@ -335,14 +342,13 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
       _activateProfile(profileId);
 
   Future<void> _activateProfile(int profileId) async {
-    final authority = _remoteAuthority;
-    if (authority != null) {
-      final remote = authority.backend;
+    final remote = _remote;
+    if (remote != null) {
       // Host owns activation and its own native write-through; a failed host
       // load already throws, which is exactly the strict behaviour startup
       // needs on a remote companion. No slave-local SQLite/native write.
-      await remote.loadProfile(profileId.toString());
-      _requireRemoteAuthority(remote, authority.owner);
+      await remote.host.loadProfile(profileId.toString());
+      _requireSameHost(remote);
       ref.invalidateSelf();
       return;
     }
@@ -393,22 +399,21 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
     int? profileId, {
     bool makeActive = true,
   }) async {
-    final authority = _remoteAuthority;
-    if (authority != null) {
-      final remote = authority.backend;
+    final remote = _remote;
+    if (remote != null) {
       if (profileId != null) {
         // Dedicated host endpoint: setDefaultProfile atomically unsets the
         // previous default and makes this row active (makeActive is owned
         // host-side). The generic saveProfile path could never flip the
         // host's isDefault because the converter preserves existing.isDefault.
-        await remote.setDefaultProfileRemote(profileId.toString());
+        await remote.host.setDefaultProfileRemote(profileId.toString());
       } else {
         // Clear-default: dedicated host endpoint (the saveProfile path can't
         // clear isDefault because the converter preserves the existing row's
         // flag).
-        await remote.clearDefaultProfileRemote();
+        await remote.host.clearDefaultProfileRemote();
       }
-      _requireRemoteAuthority(remote, authority.owner);
+      _requireSameHost(remote);
       ref.invalidateSelf();
       return;
     }
@@ -453,13 +458,12 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
   /// sortOrder because the converter preserves the existing row's value);
   /// locally it writes the DAO directly.
   Future<void> reorderProfiles(List<int> orderedIds) async {
-    final authority = _remoteAuthority;
-    if (authority != null) {
-      final remote = authority.backend;
-      await remote.reorderProfilesRemote(
+    final remote = _remote;
+    if (remote != null) {
+      await remote.host.reorderProfilesRemote(
         orderedIds.map((id) => id.toString()).toList(),
       );
-      _requireRemoteAuthority(remote, authority.owner);
+      _requireSameHost(remote);
       ref.invalidateSelf();
       return;
     }
@@ -471,11 +475,10 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
 
   /// Duplicate a profile
   Future<int> duplicateProfile(int sourceId, String newName) async {
-    final authority = _remoteAuthority;
-    if (authority != null) {
-      final remote = authority.backend;
+    final remote = _remote;
+    if (remote != null) {
       final current = await future;
-      _requireRemoteAuthority(remote, authority.owner);
+      _requireSameHost(remote);
       EquipmentProfileModel? source;
       for (final profile in current.profiles) {
         if (profile.id == sourceId) {
@@ -491,19 +494,18 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
       // name, every other field preserved. `copyWith(id: null)` cannot clear the
       // id (id ?? this.id) and would send the source id — silently overwriting
       // the source instead of duplicating it.
-      await remote.saveProfile(
+      await remote.host.saveProfile(
         source.toInsertionCopy(name: newName).toRemoteProfile(),
       );
-      _requireRemoteAuthority(remote, authority.owner);
+      _requireSameHost(remote);
       final existingIds = current.profiles
           .map((profile) => profile.id)
           .whereType<int>()
           .toSet();
       final id =
-          int.tryParse(remote.lastSavedProfileId ?? '') ??
+          int.tryParse(remote.host.lastSavedProfileId ?? '') ??
           await _resolveRemoteProfileIdByName(
             remote,
-            authority.owner,
             newName,
             excludingIds: existingIds,
           );
