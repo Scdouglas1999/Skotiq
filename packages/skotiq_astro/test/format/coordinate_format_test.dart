@@ -46,6 +46,39 @@ void main() {
       expect(CoordinateFormat.raCompact(5.9999), '06h00m');
       expect(CoordinateFormat.decCompact(5.9999), "+06°00'");
     });
+
+    // The value a user typed as +42 47 00 arrives as 42.78333...; a field-wise
+    // split reads it as 46' 59.99999" and printed "+42° 46' 60\"".
+    test('a typed whole arcminute reads back as typed', () {
+      const dec = 42 + 47 / 60;
+      expect(CoordinateFormat.decReadout(dec), '+42° 47\' 00"');
+      expect(CoordinateFormat.decDense(-dec), '-42°47\'00"');
+      expect(CoordinateFormat.decCompact(dec), "+42°47'");
+    });
+
+    test('seconds of arc carry at every rounding boundary', () {
+      double dec(int d, int m, double s) => d + m / 60 + s / 3600;
+      expect(CoordinateFormat.decReadout(dec(10, 20, 59.95)), '+10° 21\' 00"');
+      expect(CoordinateFormat.decReadout(dec(10, 20, 59.995)), '+10° 21\' 00"');
+      expect(CoordinateFormat.decReadout(dec(10, 20, 59.49)), '+10° 20\' 59"');
+      expect(CoordinateFormat.decReadout(dec(10, 59, 59.96)), '+11° 00\' 00"');
+      expect(
+        CoordinateFormat.decReadout(-dec(10, 59, 59.96)),
+        '-11° 00\' 00"',
+      );
+      expect(CoordinateFormat.decDense(dec(89, 59, 59.96)), '+90°00\'00"');
+    });
+
+    test('seconds of time carry at every rounding boundary', () {
+      double ra(int h, int m, double s) => h + m / 60 + s / 3600;
+      expect(CoordinateFormat.raReadout(ra(2, 42, 59.95)), '02h 43m 00.0s');
+      expect(CoordinateFormat.raReadout(ra(2, 42, 59.94)), '02h 42m 59.9s');
+      expect(CoordinateFormat.raReadout(ra(2, 59, 59.96)), '03h 00m 00.0s');
+      expect(CoordinateFormat.raDense(ra(2, 59, 59.5)), '03h00m00s');
+      expect(CoordinateFormat.raReadout(ra(23, 59, 59.96)), '00h 00m 00.0s');
+      expect(CoordinateFormat.raDense(ra(23, 59, 59.96)), '00h00m00s');
+      expect(CoordinateFormat.raCompact(ra(23, 59, 59.96)), '00h00m');
+    });
   });
 
   group('right ascension folds into one day', () {

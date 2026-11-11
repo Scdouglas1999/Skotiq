@@ -263,14 +263,14 @@ class FramingMosaicSection extends ConsumerWidget {
                         ),
                         Expanded(
                           child: Text(
-                            panel.raFormatted,
+                            CoordinateFormat.raDense(panel.centerRaHours),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: SkotiqTypography.monoXs.copyWith(color: ink),
                           ),
                         ),
                         Text(
-                          panel.decFormatted,
+                          CoordinateFormat.decDense(panel.centerDecDegrees),
                           style: SkotiqTypography.monoXs.copyWith(color: ink),
                         ),
                       ],

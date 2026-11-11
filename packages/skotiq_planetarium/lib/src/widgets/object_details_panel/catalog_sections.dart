@@ -2,20 +2,6 @@ part of '../object_details_panel.dart';
 
 extension _ObjectDetailsPanelCatalogSections on ObjectDetailsPanel {
   Widget _buildCoordinatesSection(Color txtColor) {
-    final raHours = object.coordinates.ra.floor();
-    final raMinutes = ((object.coordinates.ra - raHours) * 60).floor();
-    final raSeconds =
-        ((object.coordinates.ra - raHours - raMinutes / 60) * 3600)
-            .toStringAsFixed(1);
-
-    final decSign = object.coordinates.dec >= 0 ? '+' : '';
-    final decDegrees = object.coordinates.dec.abs().floor();
-    final decMinutes = ((object.coordinates.dec.abs() - decDegrees) * 60)
-        .floor();
-    final decSeconds =
-        ((object.coordinates.dec.abs() - decDegrees - decMinutes / 60) * 3600)
-            .toStringAsFixed(0);
-
     final constellation = _getConstellation();
 
     return Column(
@@ -32,12 +18,12 @@ extension _ObjectDetailsPanelCatalogSections on ObjectDetailsPanel {
         const SizedBox(height: 8),
         _buildInfoRow(
           'RA',
-          '${raHours}h ${raMinutes}m ${raSeconds}s',
+          CoordinateFormat.raReadout(object.coordinates.ra),
           txtColor,
         ),
         _buildInfoRow(
           'Dec',
-          '$decSign$decDegrees° $decMinutes\' $decSeconds"',
+          CoordinateFormat.decReadout(object.coordinates.dec),
           txtColor,
         ),
         if (constellation != null)

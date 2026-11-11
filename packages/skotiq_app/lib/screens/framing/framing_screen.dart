@@ -62,8 +62,10 @@ class _FramingViewState extends ConsumerState<FramingView> {
     final currentState = ref.read(framingProvider);
     if (currentState.target != null) {
       _searchController.text = currentState.target!.name;
-      _raController.text = currentState.target!.raFormatted;
-      _decController.text = currentState.target!.decFormatted;
+      _raController.text =
+          CoordinateFormat.raReadout(currentState.target!.raHours);
+      _decController.text =
+          CoordinateFormat.decReadout(currentState.target!.decDegrees);
     }
   }
 
@@ -414,8 +416,8 @@ class _FramingViewState extends ConsumerState<FramingView> {
     notifier.setTarget(target);
     ref.read(targetSearchProvider.notifier).clear();
     _searchController.text = target.name;
-    _raController.text = target.raFormatted;
-    _decController.text = target.decFormatted;
+    _raController.text = CoordinateFormat.raReadout(target.raHours);
+    _decController.text = CoordinateFormat.decReadout(target.decDegrees);
     _searchFocusNode.unfocus();
     // Alt/Az auto-refreshes on the next build (framingProvider watch triggers it).
   }

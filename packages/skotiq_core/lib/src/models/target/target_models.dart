@@ -101,24 +101,6 @@ class CelestialTarget extends Equatable {
     this.updatedAt,
   });
 
-  /// Format RA as HH:MM:SS
-  String get raFormatted {
-    final hours = raHours.floor();
-    final minutes = ((raHours - hours) * 60).floor();
-    final seconds = (((raHours - hours) * 60 - minutes) * 60).round();
-    return '${hours.toString().padLeft(2, '0')}h ${minutes.toString().padLeft(2, '0')}m ${seconds.toString().padLeft(2, '0')}s';
-  }
-
-  /// Format Dec as ±DD°MM'SS"
-  String get decFormatted {
-    final sign = decDegrees >= 0 ? '+' : '-';
-    final absDec = decDegrees.abs();
-    final degrees = absDec.floor();
-    final minutes = ((absDec - degrees) * 60).floor();
-    final seconds = (((absDec - degrees) * 60 - minutes) * 60).round();
-    return '$sign${degrees.toString().padLeft(2, '0')}° ${minutes.toString().padLeft(2, '0')}\' ${seconds.toString().padLeft(2, '0')}"';
-  }
-
   String get integrationFormatted {
     final hours = (totalIntegrationSecs / 3600).floor();
     final minutes = ((totalIntegrationSecs % 3600) / 60).floor();
