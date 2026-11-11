@@ -5,7 +5,9 @@ library;
 /// clients in the field read each of them, so the host keeps writing the one
 /// a route has always written; a reader accepts all three.
 enum ApiErrorLayout {
-  /// `{error: <code>, message, requestId?, ...details}`: thrown failures.
+  /// `{error: <code>, code, message, requestId?, ...details}`: thrown
+  /// failures. `code` repeats `error` so a reader can tell this body from the
+  /// older `{error: <category>, message}` pair, which carries no code.
   codeAsError,
 
   /// `{...details, error: <message>, code, message}`: `error` repeats the
@@ -80,6 +82,7 @@ class ApiErrorBody {
   Map<String, Object?> toJson() => switch (layout) {
     ApiErrorLayout.codeAsError => {
       'error': code,
+      'code': code,
       'message': message,
       if (requestId != null) 'requestId': requestId,
       if (details != null) ...details!,
