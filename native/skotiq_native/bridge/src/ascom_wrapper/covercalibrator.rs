@@ -162,7 +162,7 @@ impl AscomCoverCalibratorWrapper {
         }
     }
 
-    pub async fn connect(&mut self) -> Result<(), String> {
+    pub async fn connect(&self) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCoverCalibratorCommand::Connect(tx))
@@ -171,7 +171,7 @@ impl AscomCoverCalibratorWrapper {
         Self::recv_with_timeout(rx, Timeouts::connection(), "connect").await
     }
 
-    pub async fn disconnect(&mut self) -> Result<(), String> {
+    pub async fn disconnect(&self) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCoverCalibratorCommand::Disconnect(tx))
@@ -180,7 +180,7 @@ impl AscomCoverCalibratorWrapper {
         Self::recv_with_timeout(rx, Timeouts::connection(), "disconnect").await
     }
 
-    pub async fn open_cover(&mut self) -> Result<(), String> {
+    pub async fn open_cover(&self) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCoverCalibratorCommand::OpenCover(tx))
@@ -189,7 +189,7 @@ impl AscomCoverCalibratorWrapper {
         Self::recv_with_timeout(rx, Timeouts::cover_calibrator(), "open_cover").await
     }
 
-    pub async fn close_cover(&mut self) -> Result<(), String> {
+    pub async fn close_cover(&self) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCoverCalibratorCommand::CloseCover(tx))
@@ -198,7 +198,7 @@ impl AscomCoverCalibratorWrapper {
         Self::recv_with_timeout(rx, Timeouts::cover_calibrator(), "close_cover").await
     }
 
-    pub async fn halt_cover(&mut self) -> Result<(), String> {
+    pub async fn halt_cover(&self) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCoverCalibratorCommand::HaltCover(tx))
@@ -207,7 +207,7 @@ impl AscomCoverCalibratorWrapper {
         Self::recv_with_timeout(rx, Timeouts::property_write(), "halt_cover").await
     }
 
-    pub async fn calibrator_on(&mut self, brightness: i32) -> Result<(), String> {
+    pub async fn calibrator_on(&self, brightness: i32) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCoverCalibratorCommand::CalibratorOn(brightness, tx))
@@ -216,7 +216,7 @@ impl AscomCoverCalibratorWrapper {
         Self::recv_with_timeout(rx, Timeouts::property_write(), "calibrator_on").await
     }
 
-    pub async fn calibrator_off(&mut self) -> Result<(), String> {
+    pub async fn calibrator_off(&self) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomCoverCalibratorCommand::CalibratorOff(tx))

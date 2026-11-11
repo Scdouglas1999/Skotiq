@@ -321,6 +321,28 @@ impl IndiClient {
             .await
     }
 
+    /// Waits until the driver reads `device` back as disconnected.
+    /// `disconnect_device` returning only means the command was written; a
+    /// backend that claims the same hardware before the readback can have its
+    /// connect undone by the pending disconnect.
+    pub async fn wait_until_device_disconnected(
+        &self,
+        device: &str,
+        timeout: Duration,
+    ) -> IndiResult<()> {
+        let deadline = tokio::time::Instant::now() + timeout;
+        while self.is_device_connected(device).await {
+            if tokio::time::Instant::now() >= deadline {
+                return Err(IndiError::Incomplete(format!(
+                    "Timed out waiting for INDI device {} to confirm disconnection",
+                    device
+                )));
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        Ok(())
+    }
+
     pub async fn is_device_connected(&self, device: &str) -> bool {
         self.get_switch(device, "CONNECTION", "CONNECT")
             .await

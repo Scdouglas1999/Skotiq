@@ -8,6 +8,7 @@
 //! monolithic `devices.rs`.
 
 use crate::device::*;
+use crate::device_manager::handle::{device_noun, protocol_label};
 use crate::device_manager::identity::{DeviceIdentity, IDENTITY_CONFLICT_MARKER};
 use crate::device_manager::{DeviceManager, ManagedDevice};
 use crate::event::*;
@@ -991,6 +992,10 @@ impl DeviceManager {
             }
         }
 
+        if let Some(handle) = crate::device_manager::simulated::accessory_handle(info) {
+            self.handles.insert(&info.id, handle);
+        }
+
         tracing::info!(
             "Simulator connected: id={} type={:?}",
             info.id,
@@ -1151,247 +1156,176 @@ impl DeviceManager {
                 );
             }
         }
-        match device_info.driver_type {
-            DriverType::Native => {
-                // Remove from generic native_devices map
-                let mut native_devices = self.native_devices.write().await;
-                if let Some(mut device) = native_devices.remove(device_id) {
-                    record_disconnect!("Native device", device.disconnect().await);
-                }
+        // An INDI device is released through the shared server connection
+        // below, whatever its type.
+        let handle = self
+            .handles
+            .remove(device_id)
+            .filter(|_| device_info.driver_type != DriverType::Indi);
+        if let Some(handle) = handle {
+            let label = format!(
+                "{} {}",
+                protocol_label(device_info.driver_type),
+                device_noun(device_info.device_type)
+            );
+            record_disconnect!(label, handle.accessory().disconnect().await);
+        } else {
+            match device_info.driver_type {
+                DriverType::Native => {
+                    // Remove from generic native_devices map
+                    let mut native_devices = self.native_devices.write().await;
+                    if let Some(mut device) = native_devices.remove(device_id) {
+                        record_disconnect!("Native device", device.disconnect().await);
+                    }
 
-                // Also remove from typed native storage maps
-                match device_info.device_type {
-                    DeviceType::Camera => {
-                        let mut cameras = self.native_cameras.write().await;
-                        if let Some(mut camera) = cameras.remove(device_id) {
-                            record_disconnect!("Native camera", camera.disconnect().await);
+                    // Also remove from typed native storage maps
+                    match device_info.device_type {
+                        DeviceType::Camera => {
+                            let mut cameras = self.native_cameras.write().await;
+                            if let Some(mut camera) = cameras.remove(device_id) {
+                                record_disconnect!("Native camera", camera.disconnect().await);
+                            }
                         }
-                    }
-                    DeviceType::Mount => {
-                        let mut mounts = self.native_mounts.write().await;
-                        if let Some(mut mount) = mounts.remove(device_id) {
-                            record_disconnect!("Native mount", mount.disconnect().await);
+                        DeviceType::Mount => {
+                            let mut mounts = self.native_mounts.write().await;
+                            if let Some(mut mount) = mounts.remove(device_id) {
+                                record_disconnect!("Native mount", mount.disconnect().await);
+                            }
                         }
-                    }
-                    DeviceType::Focuser => {
-                        let mut focusers = self.native_focusers.write().await;
-                        if let Some(mut focuser) = focusers.remove(device_id) {
-                            record_disconnect!("Native focuser", focuser.disconnect().await);
+                        DeviceType::Focuser => {
+                            let mut focusers = self.native_focusers.write().await;
+                            if let Some(mut focuser) = focusers.remove(device_id) {
+                                record_disconnect!("Native focuser", focuser.disconnect().await);
+                            }
                         }
-                    }
-                    DeviceType::FilterWheel => {
-                        let mut fws = self.native_filter_wheels.write().await;
-                        if let Some(mut fw) = fws.remove(device_id) {
-                            record_disconnect!("Native filter wheel", fw.disconnect().await);
+                        DeviceType::FilterWheel => {
+                            let mut fws = self.native_filter_wheels.write().await;
+                            if let Some(mut fw) = fws.remove(device_id) {
+                                record_disconnect!("Native filter wheel", fw.disconnect().await);
+                            }
                         }
+                        // Rotator, dome, weather, safety monitor, switch and
+                        // cover calibrator have no native-SDK driver: the generic
+                        // `native_devices` removal above is the whole cleanup.
+                        DeviceType::Rotator
+                        | DeviceType::Dome
+                        | DeviceType::Weather
+                        | DeviceType::SafetyMonitor
+                        | DeviceType::Switch
+                        | DeviceType::CoverCalibrator
+                        | DeviceType::Guider => {}
                     }
-                    // Rotator, dome, weather, safety monitor, switch and
-                    // cover calibrator have no native-SDK driver: the generic
-                    // `native_devices` removal above is the whole cleanup.
-                    DeviceType::Rotator
-                    | DeviceType::Dome
-                    | DeviceType::Weather
-                    | DeviceType::SafetyMonitor
-                    | DeviceType::Switch
-                    | DeviceType::CoverCalibrator
-                    | DeviceType::Guider => {}
                 }
-            }
-            DriverType::Alpaca => {
-                // Remove from Alpaca storage based on device type
-                match device_info.device_type {
-                    DeviceType::Camera => {
-                        let mut cameras = self.alpaca_cameras.write().await;
-                        if let Some(camera) = cameras.remove(device_id) {
-                            record_disconnect!("Alpaca camera", camera.disconnect().await);
+                DriverType::Alpaca => {
+                    // Remove from Alpaca storage based on device type
+                    match device_info.device_type {
+                        DeviceType::Camera => {
+                            let mut cameras = self.alpaca_cameras.write().await;
+                            if let Some(camera) = cameras.remove(device_id) {
+                                record_disconnect!("Alpaca camera", camera.disconnect().await);
+                            }
                         }
-                    }
-                    DeviceType::Mount => {
-                        let mut mounts = self.alpaca_mounts.write().await;
-                        if let Some(mount) = mounts.remove(device_id) {
-                            record_disconnect!("Alpaca mount", mount.disconnect().await);
+                        DeviceType::Mount => {
+                            let mut mounts = self.alpaca_mounts.write().await;
+                            if let Some(mount) = mounts.remove(device_id) {
+                                record_disconnect!("Alpaca mount", mount.disconnect().await);
+                            }
                         }
-                    }
-                    DeviceType::Focuser => {
-                        let mut focusers = self.alpaca_focusers.write().await;
-                        if let Some(focuser) = focusers.remove(device_id) {
-                            record_disconnect!("Alpaca focuser", focuser.disconnect().await);
+                        DeviceType::Focuser => {
+                            let mut focusers = self.alpaca_focusers.write().await;
+                            if let Some(focuser) = focusers.remove(device_id) {
+                                record_disconnect!("Alpaca focuser", focuser.disconnect().await);
+                            }
                         }
-                    }
-                    DeviceType::FilterWheel => {
-                        let mut fws = self.alpaca_filter_wheels.write().await;
-                        if let Some(fw) = fws.remove(device_id) {
-                            record_disconnect!("Alpaca filter wheel", fw.disconnect().await);
+                        DeviceType::FilterWheel => {
+                            let mut fws = self.alpaca_filter_wheels.write().await;
+                            if let Some(fw) = fws.remove(device_id) {
+                                record_disconnect!("Alpaca filter wheel", fw.disconnect().await);
+                            }
                         }
+                        // Accessories are released through their handle above;
+                        // Alpaca guiders are not managed here.
+                        _ => {}
                     }
-                    DeviceType::Rotator => {
-                        let mut rotators = self.alpaca_rotators.write().await;
-                        if let Some(rotator) = rotators.remove(device_id) {
-                            record_disconnect!("Alpaca rotator", rotator.disconnect().await);
-                        }
-                    }
-                    DeviceType::Dome => {
-                        let mut domes = self.alpaca_domes.write().await;
-                        if let Some(dome) = domes.remove(device_id) {
-                            record_disconnect!("Alpaca dome", dome.disconnect().await);
-                        }
-                    }
-                    DeviceType::Weather => {
-                        let mut weather = self.alpaca_weather.write().await;
-                        if let Some(w) = weather.remove(device_id) {
-                            record_disconnect!("Alpaca weather", w.disconnect().await);
-                        }
-                    }
-                    DeviceType::SafetyMonitor => {
-                        let mut safety = self.alpaca_safety_monitors.write().await;
-                        if let Some(s) = safety.remove(device_id) {
-                            record_disconnect!("Alpaca safety monitor", s.disconnect().await);
-                        }
-                    }
-                    DeviceType::Switch => {
-                        let mut switches = self.alpaca_switches.write().await;
-                        if let Some(sw) = switches.remove(device_id) {
-                            record_disconnect!("Alpaca switch", sw.disconnect().await);
-                        }
-                    }
-                    DeviceType::CoverCalibrator => {
-                        let mut covers = self.alpaca_cover_calibrators.write().await;
-                        if let Some(cover) = covers.remove(device_id) {
-                            record_disconnect!("Alpaca cover calibrator", cover.disconnect().await);
-                        }
-                    }
-                    DeviceType::Guider => {} // Alpaca guider devices are not currently managed here
                 }
-            }
-            #[cfg(windows)]
-            DriverType::Ascom => {
-                // Remove from ASCOM storage based on device type
-                match device_info.device_type {
-                    DeviceType::Camera => {
-                        let mut cameras = self.ascom_cameras.write().await;
-                        if let Some(camera) = cameras.remove(device_id) {
-                            let mut cam = camera.write().await;
-                            record_disconnect!("ASCOM camera", cam.disconnect().await);
+                #[cfg(windows)]
+                DriverType::Ascom => {
+                    // Remove from ASCOM storage based on device type
+                    match device_info.device_type {
+                        DeviceType::Camera => {
+                            let mut cameras = self.ascom_cameras.write().await;
+                            if let Some(camera) = cameras.remove(device_id) {
+                                let mut cam = camera.write().await;
+                                record_disconnect!("ASCOM camera", cam.disconnect().await);
+                            }
                         }
-                    }
-                    DeviceType::Mount => {
-                        let mut mounts = self.ascom_mounts.write().await;
-                        if let Some(mount) = mounts.remove(device_id) {
-                            let mut m = mount.write().await;
-                            record_disconnect!("ASCOM mount", m.disconnect().await);
+                        DeviceType::Mount => {
+                            let mut mounts = self.ascom_mounts.write().await;
+                            if let Some(mount) = mounts.remove(device_id) {
+                                let mut m = mount.write().await;
+                                record_disconnect!("ASCOM mount", m.disconnect().await);
+                            }
                         }
-                    }
-                    DeviceType::Focuser => {
-                        let mut focusers = self.ascom_focusers.write().await;
-                        if let Some(focuser) = focusers.remove(device_id) {
-                            let mut f = focuser.write().await;
-                            record_disconnect!("ASCOM focuser", f.disconnect().await);
+                        DeviceType::Focuser => {
+                            let mut focusers = self.ascom_focusers.write().await;
+                            if let Some(focuser) = focusers.remove(device_id) {
+                                let mut f = focuser.write().await;
+                                record_disconnect!("ASCOM focuser", f.disconnect().await);
+                            }
                         }
-                    }
-                    DeviceType::FilterWheel => {
-                        let mut fws = self.ascom_filter_wheels.write().await;
-                        if let Some(fw) = fws.remove(device_id) {
-                            let mut f = fw.write().await;
-                            record_disconnect!("ASCOM filter wheel", f.disconnect().await);
+                        DeviceType::FilterWheel => {
+                            let mut fws = self.ascom_filter_wheels.write().await;
+                            if let Some(fw) = fws.remove(device_id) {
+                                let mut f = fw.write().await;
+                                record_disconnect!("ASCOM filter wheel", f.disconnect().await);
+                            }
                         }
+                        _ => {}
                     }
-                    DeviceType::Rotator => {
-                        let mut rotators = self.ascom_rotators.write().await;
-                        if let Some(rotator) = rotators.remove(device_id) {
-                            let mut r = rotator.write().await;
-                            record_disconnect!("ASCOM rotator", r.disconnect().await);
-                        }
-                    }
-                    DeviceType::Dome => {
-                        let mut domes = self.ascom_domes.write().await;
-                        if let Some(dome) = domes.remove(device_id) {
-                            let mut d = dome.write().await;
-                            record_disconnect!("ASCOM dome", d.disconnect().await);
-                        }
-                    }
-                    DeviceType::Weather => {
-                        let mut weather = self.ascom_weather.write().await;
-                        if let Some(device) = weather.remove(device_id) {
-                            let mut w = device.write().await;
-                            record_disconnect!("ASCOM weather", w.disconnect().await);
-                        }
-                    }
-                    DeviceType::SafetyMonitor => {
-                        let mut safety_monitors = self.ascom_safety_monitors.write().await;
-                        if let Some(monitor) = safety_monitors.remove(device_id) {
-                            let mut sm = monitor.write().await;
-                            record_disconnect!("ASCOM safety monitor", sm.disconnect().await);
-                        }
-                    }
-                    DeviceType::Switch => {
-                        let mut switches = self.ascom_switches.write().await;
-                        if let Some(sw) = switches.remove(device_id) {
-                            let mut s = sw.write().await;
-                            record_disconnect!("ASCOM switch", s.disconnect().await);
-                        }
-                    }
-                    DeviceType::CoverCalibrator => {
-                        let mut covers = self.ascom_cover_calibrators.write().await;
-                        if let Some(cover) = covers.remove(device_id) {
-                            let mut c = cover.write().await;
-                            record_disconnect!("ASCOM cover calibrator", c.disconnect().await);
-                        }
-                    }
-                    _ => {}
                 }
-            }
-            #[cfg(not(windows))]
-            DriverType::Ascom => {
-                // ASCOM not available on non-Windows platforms
-            }
-            DriverType::Indi => {
-                let (host, port, device_name) = Self::parse_indi_device_id(device_id)?;
-                let server_key = format!("{host}:{port}");
-
-                let client = {
-                    let clients = self.indi_clients.read().await;
-                    clients.get(&server_key).cloned()
-                };
-
-                let Some(client) = client else {
-                    return Err(format!("INDI client not connected for {}", server_key));
-                };
-
-                let mut locked_client = client.write().await;
-                locked_client
-                    .disconnect_device(&device_name)
-                    .await
-                    .map_err(|e| {
-                        format!(
-                            "Failed to disconnect INDI device {} via {}: {}",
-                            device_name, server_key, e
-                        )
-                    })?;
-
-                // The command has only been written at this point. Wait for
-                // the driver's CONNECTION readback before allowing another
-                // backend to claim the same hardware; otherwise its connect
-                // can be undone milliseconds later by this pending disconnect.
-                let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
-                while locked_client.is_device_connected(&device_name).await {
-                    if tokio::time::Instant::now() >= deadline {
-                        return Err(format!(
-                            "Timed out waiting for INDI device {} to confirm disconnection",
-                            device_name
-                        ));
-                    }
-                    tokio::time::sleep(Duration::from_millis(50)).await;
+                #[cfg(not(windows))]
+                DriverType::Ascom => {
+                    // ASCOM not available on non-Windows platforms
                 }
-            }
-            DriverType::Simulator => {
-                // Flip the matching `simulation.rs` singleton's `connected`
-                // bit back to false so the heartbeat loop and any other
-                // observer agrees the simulator is offline. Errors here are
-                // logged but do not block the rest of disconnect cleanup —
-                // the user has already asked to release the device, and the
-                // managed-device state is being torn down regardless.
-                if let Err(e) = self.disconnect_simulator(&device_info).await {
-                    tracing::warn!("disconnect_simulator failed for {}: {}", device_info.id, e);
+                DriverType::Indi => {
+                    let (host, port, device_name) = Self::parse_indi_device_id(device_id)?;
+                    let server_key = format!("{host}:{port}");
+
+                    let client = {
+                        let clients = self.indi_clients.read().await;
+                        clients.get(&server_key).cloned()
+                    };
+
+                    let Some(client) = client else {
+                        return Err(format!("INDI client not connected for {}", server_key));
+                    };
+
+                    let mut locked_client = client.write().await;
+                    locked_client
+                        .disconnect_device(&device_name)
+                        .await
+                        .map_err(|e| {
+                            format!(
+                                "Failed to disconnect INDI device {} via {}: {}",
+                                device_name, server_key, e
+                            )
+                        })?;
+
+                    locked_client
+                        .wait_until_device_disconnected(&device_name, Duration::from_secs(5))
+                        .await
+                        .map_err(|e| e.to_string())?;
+                }
+                DriverType::Simulator => {
+                    // Flip the matching `simulation.rs` singleton's `connected`
+                    // bit back to false so the heartbeat loop and any other
+                    // observer agrees the simulator is offline. Errors here are
+                    // logged but do not block the rest of disconnect cleanup —
+                    // the user has already asked to release the device, and the
+                    // managed-device state is being torn down regardless.
+                    if let Err(e) = self.disconnect_simulator(&device_info).await {
+                        tracing::warn!("disconnect_simulator failed for {}: {}", device_info.id, e);
+                    }
                 }
             }
         }

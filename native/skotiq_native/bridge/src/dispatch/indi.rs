@@ -1,11 +1,12 @@
 //! INDI driver dispatch helpers.
 //!
 //! Methods in this module are additional impl blocks on `DeviceManager` and
-//! provide INDI-only logic: device discovery, connection, switch helpers, and
-//! the per-device health check. Two free helper functions that map INDI
+//! provide INDI-only logic: device discovery, connection and the per-device
+//! health check. Two free helper functions that map INDI
 //! properties / names to a `DeviceType` also live here.
 
 use crate::device::*;
+use crate::device_manager::handle::DeviceHandle;
 use crate::device_manager::DeviceManager;
 use std::sync::Arc;
 use std::time::Duration;
@@ -166,6 +167,34 @@ pub(crate) fn infer_indi_device_type_from_name_driver(
     None
 }
 
+/// The handle for an INDI accessory, `None` for the other device types.
+fn accessory_handle(
+    device_type: DeviceType,
+    client: Arc<RwLock<skotiq_indi::IndiClient>>,
+    device_name: &str,
+) -> Option<DeviceHandle> {
+    use skotiq_indi::*;
+    Some(match device_type {
+        DeviceType::Dome => DeviceHandle::Dome(Arc::new(IndiDome::new(client, device_name))),
+        DeviceType::Rotator => {
+            DeviceHandle::Rotator(Arc::new(IndiRotator::new(client, device_name)))
+        }
+        DeviceType::Switch => {
+            DeviceHandle::Switch(Arc::new(IndiSwitchDevice::new(client, device_name)))
+        }
+        DeviceType::Weather => {
+            DeviceHandle::Weather(Arc::new(IndiWeather::new(client, device_name)))
+        }
+        DeviceType::SafetyMonitor => {
+            DeviceHandle::SafetyMonitor(Arc::new(IndiSafetyMonitor::new(client, device_name)))
+        }
+        DeviceType::CoverCalibrator => {
+            DeviceHandle::CoverCalibrator(Arc::new(IndiCoverCalibrator::new(client, device_name)))
+        }
+        _ => return None,
+    })
+}
+
 impl DeviceManager {
     pub(crate) fn parse_indi_device_id(device_id: &str) -> Result<(String, u16, String), String> {
         let parsed = crate::device_id::parse_device_id_cached(device_id)
@@ -313,6 +342,11 @@ impl DeviceManager {
                 last_connect_write = tokio::time::Instant::now();
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+
+        drop(locked_client);
+        if let Some(handle) = accessory_handle(info.device_type, client, &device_name) {
+            self.handles.insert(&info.id, handle);
         }
 
         tracing::info!(
@@ -584,46 +618,6 @@ impl DeviceManager {
             client.reader_consecutive_failures(),
             client.is_reconnecting()
         ))
-    }
-
-    pub(crate) async fn indi_get_all_switches(
-        &self,
-        device_id: &str,
-    ) -> Result<Vec<skotiq_indi::IndiSwitchInfo>, String> {
-        let (host, port, device_name) = Self::parse_indi_device_id(device_id)?;
-        let server_key = format!("{host}:{port}");
-
-        let clients = self.indi_clients.read().await;
-        if let Some(client) = clients.get(&server_key) {
-            let switch_dev = skotiq_indi::IndiSwitchDevice::new(client.clone(), &device_name);
-            return Ok(switch_dev.get_all_switches().await);
-        }
-        Err("INDI switch device not connected".to_string())
-    }
-
-    /// Get the Nth INDI switch element (0-indexed).
-    pub(crate) async fn indi_get_switch_at(
-        &self,
-        device_id: &str,
-        index: i32,
-    ) -> Result<skotiq_indi::IndiSwitchInfo, String> {
-        let switches = self.indi_get_all_switches(device_id).await?;
-        // Why: a negative i32 wraps to a huge usize which
-        // would trip the immediate `idx >= switches.len()` check below; the
-        // structured "out of range" error replaces what would otherwise be
-        // a buffer-overrun-fault, so the cast is bounded by the next line.
-        let idx = usize::try_from(index).unwrap_or(usize::MAX);
-        if idx >= switches.len() {
-            return Err(format!(
-                "Switch index {} out of range (device has {} switches)",
-                index,
-                switches.len()
-            ));
-        }
-        Ok(switches
-            .into_iter()
-            .nth(idx)
-            .ok_or_else(|| format!("Switch index {} out of range", index))?)
     }
 }
 

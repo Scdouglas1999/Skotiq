@@ -204,6 +204,22 @@ impl DeviceManager {
         device_type: &DeviceType,
         driver_type: &DriverType,
     ) -> Result<bool, String> {
+        // INDI devices are checked through the shared server connection,
+        // which that check also recovers.
+        if *driver_type != DriverType::Indi {
+            if let Some(handle) = self.handles.get(device_id) {
+                return Ok(match handle.accessory().heartbeat().await {
+                    Ok(()) => {
+                        tracing::trace!("{} heartbeat: healthy", device_id);
+                        true
+                    }
+                    Err(e) => {
+                        tracing::debug!("{} heartbeat failed: {}", device_id, e);
+                        false
+                    }
+                });
+            }
+        }
         match driver_type {
             DriverType::Alpaca => {
                 self.perform_alpaca_health_check(device_id, device_type)

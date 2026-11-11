@@ -218,6 +218,12 @@ impl From<IndiError> for String {
 
 pub type IndiResult<T> = Result<T, IndiError>;
 
+impl From<IndiError> for skotiq_device::DriverError {
+    fn from(err: IndiError) -> Self {
+        skotiq_device::DriverError::Backend(Box::new(err))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

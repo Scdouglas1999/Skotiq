@@ -1995,6 +1995,7 @@ checksum = "703d5c7ef118737c72f1af64ad2f6f8c5e1921f818cdcb97b8fe6fc69bf66214"
 name = "skotiq_alpaca"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "chrono",
  "futures",
  "if-addrs",
@@ -2085,6 +2086,7 @@ dependencies = [
 name = "skotiq_indi"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "base64 0.22.1",
  "fastrand",
  "if-addrs",

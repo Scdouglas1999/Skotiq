@@ -142,6 +142,60 @@ impl IndiRotator {
     }
 }
 
+indi_accessory!(IndiRotator);
+
+#[async_trait::async_trait]
+impl skotiq_device::RotatorDriver for IndiRotator {
+    async fn move_absolute(&self, position_deg: f64) -> Result<(), skotiq_device::DriverError> {
+        let mut client = self.client.write().await;
+        Ok(client
+            .set_number(&self.device_name, "ABS_ROTATOR_ANGLE", "ANGLE", position_deg)
+            .await?)
+    }
+
+    /// A rotator that has not published its angle answers as not connected.
+    async fn position(&self) -> Result<f64, skotiq_device::DriverError> {
+        let client = self.client.read().await;
+        client
+            .get_number(&self.device_name, "ABS_ROTATOR_ANGLE", "ANGLE")
+            .await
+            .ok_or(skotiq_device::DriverError::NotConnected)
+    }
+
+    async fn is_moving(&self) -> Result<bool, skotiq_device::DriverError> {
+        let client = self.client.read().await;
+        Ok(client
+            .is_property_busy(&self.device_name, "ABS_ROTATOR_ANGLE")
+            .await)
+    }
+
+    async fn halt(&self) -> Result<(), skotiq_device::DriverError> {
+        let mut client = self.client.write().await;
+        Ok(client
+            .set_switch(&self.device_name, "ROTATOR_ABORT_MOTION", "ABORT", true)
+            .await?)
+    }
+
+    async fn sync(&self, position_deg: f64) -> Result<(), skotiq_device::DriverError> {
+        let mut client = self.client.write().await;
+        Ok(client
+            .set_number(&self.device_name, "SYNC_ROTATOR_ANGLE", "ANGLE", position_deg)
+            .await?)
+    }
+
+    async fn set_reverse(&self, reverse: bool) -> Result<(), skotiq_device::DriverError> {
+        let element = if reverse {
+            "INDI_ENABLED"
+        } else {
+            "INDI_DISABLED"
+        };
+        let mut client = self.client.write().await;
+        Ok(client
+            .set_switch(&self.device_name, "ROTATOR_REVERSE", element, true)
+            .await?)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

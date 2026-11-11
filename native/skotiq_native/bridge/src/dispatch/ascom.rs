@@ -6,6 +6,8 @@
 //! previous monolithic `devices.rs`.
 
 use crate::device::*;
+#[cfg(windows)]
+use crate::device_manager::handle::DeviceHandle;
 use crate::device_manager::DeviceManager;
 // DeviceDriver / MountDriver required so the trait methods `connect`,
 // `disconnect`, `get_tracking` — which the ASCOM wrappers implement via the
@@ -111,63 +113,51 @@ impl DeviceManager {
             }
             DeviceType::Rotator => {
                 use crate::ascom_wrapper::rotator::AscomRotatorWrapper;
-
-                disconnect_existing_ascom!(self.ascom_rotators, "rotator");
-
-                let mut rotator = AscomRotatorWrapper::new(prog_id.to_string())?;
+                self.disconnect_previous_ascom_accessory(&info.id).await;
+                let rotator = AscomRotatorWrapper::new(prog_id.to_string())?;
                 rotator.connect().await?;
-
-                let mut ascom_rotators = self.ascom_rotators.write().await;
-                ascom_rotators.insert(info.id.clone(), Arc::new(RwLock::new(rotator)));
+                self.handles
+                    .insert(&info.id, DeviceHandle::Rotator(Arc::new(rotator)));
             }
             DeviceType::Dome => {
                 use crate::ascom_wrapper::dome::AscomDomeWrapper;
-                disconnect_existing_ascom!(self.ascom_domes, "dome");
-                let mut dome = AscomDomeWrapper::new(prog_id.to_string())?;
+                self.disconnect_previous_ascom_accessory(&info.id).await;
+                let dome = AscomDomeWrapper::new(prog_id.to_string())?;
                 dome.connect().await?;
-
-                let mut ascom_domes = self.ascom_domes.write().await;
-                ascom_domes.insert(info.id.clone(), Arc::new(RwLock::new(dome)));
+                self.handles
+                    .insert(&info.id, DeviceHandle::Dome(Arc::new(dome)));
             }
             DeviceType::Switch => {
                 use crate::ascom_wrapper::switch::AscomSwitchWrapper;
-                disconnect_existing_ascom!(self.ascom_switches, "switch");
-                let mut sw = AscomSwitchWrapper::new(prog_id.to_string())?;
-                sw.connect().await.map_err(|e| e.to_string())?;
-
-                let mut ascom_switches = self.ascom_switches.write().await;
-                ascom_switches.insert(info.id.clone(), Arc::new(RwLock::new(sw)));
+                self.disconnect_previous_ascom_accessory(&info.id).await;
+                let sw = AscomSwitchWrapper::new(prog_id.to_string())?;
+                sw.connect().await?;
+                self.handles
+                    .insert(&info.id, DeviceHandle::Switch(Arc::new(sw)));
             }
             DeviceType::Weather => {
                 use crate::ascom_wrapper::weather::AscomObservingConditionsWrapper;
-
-                disconnect_existing_ascom!(self.ascom_weather, "weather");
-
-                let mut weather = AscomObservingConditionsWrapper::new(prog_id.to_string())?;
+                self.disconnect_previous_ascom_accessory(&info.id).await;
+                let weather = AscomObservingConditionsWrapper::new(prog_id.to_string())?;
                 weather.connect().await?;
-
-                let mut ascom_weather = self.ascom_weather.write().await;
-                ascom_weather.insert(info.id.clone(), Arc::new(RwLock::new(weather)));
+                self.handles
+                    .insert(&info.id, DeviceHandle::Weather(Arc::new(weather)));
             }
             DeviceType::SafetyMonitor => {
                 use crate::ascom_wrapper::safetymonitor::AscomSafetyMonitorWrapper;
-
-                disconnect_existing_ascom!(self.ascom_safety_monitors, "safety monitor");
-
-                let mut safety = AscomSafetyMonitorWrapper::new(prog_id.to_string())?;
+                self.disconnect_previous_ascom_accessory(&info.id).await;
+                let safety = AscomSafetyMonitorWrapper::new(prog_id.to_string())?;
                 safety.connect().await?;
-
-                let mut ascom_safety_monitors = self.ascom_safety_monitors.write().await;
-                ascom_safety_monitors.insert(info.id.clone(), Arc::new(RwLock::new(safety)));
+                self.handles
+                    .insert(&info.id, DeviceHandle::SafetyMonitor(Arc::new(safety)));
             }
             DeviceType::CoverCalibrator => {
                 use crate::ascom_wrapper::covercalibrator::AscomCoverCalibratorWrapper;
-                disconnect_existing_ascom!(self.ascom_cover_calibrators, "cover calibrator");
-                let mut cover_cal = AscomCoverCalibratorWrapper::new(prog_id.to_string())?;
+                self.disconnect_previous_ascom_accessory(&info.id).await;
+                let cover_cal = AscomCoverCalibratorWrapper::new(prog_id.to_string())?;
                 cover_cal.connect().await?;
-
-                let mut ascom_cover_cals = self.ascom_cover_calibrators.write().await;
-                ascom_cover_cals.insert(info.id.clone(), Arc::new(RwLock::new(cover_cal)));
+                self.handles
+                    .insert(&info.id, DeviceHandle::CoverCalibrator(Arc::new(cover_cal)));
             }
             _ => {
                 return Err(format!(
@@ -178,6 +168,26 @@ impl DeviceManager {
         }
 
         Ok(())
+    }
+
+    /// Releases the wrapper a previous connect of `device_id` left behind, so
+    /// the COM object is not held twice across a reconnect.
+    #[cfg(windows)]
+    async fn disconnect_previous_ascom_accessory(&self, device_id: &str) {
+        let Some(old) = self.handles.remove(device_id) else {
+            return;
+        };
+        match old.accessory().disconnect().await {
+            Ok(()) => tracing::info!(
+                "Disconnected old ASCOM wrapper for {} before reconnect",
+                device_id
+            ),
+            Err(error) => tracing::warn!(
+                "Failed to disconnect old ASCOM wrapper for {} before reconnect: {}",
+                device_id,
+                error
+            ),
+        }
     }
 
     #[cfg(not(windows))]
@@ -277,144 +287,6 @@ impl DeviceManager {
                     }
                 } else {
                     Err(format!("ASCOM filter wheel {} not found", device_id))
-                }
-            }
-            DeviceType::Dome => {
-                let domes = self.ascom_domes.read().await;
-                if let Some(dome) = domes.get(device_id) {
-                    match dome.read().await.heartbeat().await {
-                        Ok(()) => {
-                            tracing::trace!("ASCOM dome {} heartbeat: healthy", device_id);
-                            Ok(true)
-                        }
-                        Err(e) => {
-                            tracing::debug!("ASCOM dome {} heartbeat failed: {:?}", device_id, e);
-                            Ok(false)
-                        }
-                    }
-                } else {
-                    Err(format!("ASCOM dome {} not found", device_id))
-                }
-            }
-            DeviceType::SafetyMonitor => {
-                let safety_monitors = self.ascom_safety_monitors.read().await;
-                if let Some(safety) = safety_monitors.get(device_id) {
-                    // IsSafe is a mandatory ISafetyMonitor property; reading it is a
-                    // live COM round-trip that both confirms the driver is responding
-                    // and exercises the actual safety-reporting path. Without this arm
-                    // the heartbeat always failed ("No ASCOM heartbeat implementation"),
-                    // which is what drove the JustAHub safety-monitor error flood.
-                    match safety.read().await.is_safe().await {
-                        Ok(_) => {
-                            tracing::trace!(
-                                "ASCOM safety monitor {} heartbeat: healthy",
-                                device_id
-                            );
-                            Ok(true)
-                        }
-                        Err(e) => {
-                            tracing::debug!(
-                                "ASCOM safety monitor {} heartbeat failed: {:?}",
-                                device_id,
-                                e
-                            );
-                            Ok(false)
-                        }
-                    }
-                } else {
-                    Err(format!("ASCOM safety monitor {} not found", device_id))
-                }
-            }
-            DeviceType::Rotator => {
-                let rotators = self.ascom_rotators.read().await;
-                if let Some(rotator) = rotators.get(device_id) {
-                    // Position is a mandatory IRotatorV3 property.
-                    match rotator.read().await.position().await {
-                        Ok(_) => {
-                            tracing::trace!("ASCOM rotator {} heartbeat: healthy", device_id);
-                            Ok(true)
-                        }
-                        Err(e) => {
-                            tracing::debug!(
-                                "ASCOM rotator {} heartbeat failed: {:?}",
-                                device_id,
-                                e
-                            );
-                            Ok(false)
-                        }
-                    }
-                } else {
-                    Err(format!("ASCOM rotator {} not found", device_id))
-                }
-            }
-            DeviceType::CoverCalibrator => {
-                let cover_cals = self.ascom_cover_calibrators.read().await;
-                if let Some(cover_cal) = cover_cals.get(device_id) {
-                    // CoverState is a mandatory ICoverCalibratorV1 property (it returns
-                    // NotPresent rather than throwing when no cover is fitted).
-                    match cover_cal.read().await.cover_state().await {
-                        Ok(_) => {
-                            tracing::trace!(
-                                "ASCOM cover calibrator {} heartbeat: healthy",
-                                device_id
-                            );
-                            Ok(true)
-                        }
-                        Err(e) => {
-                            tracing::debug!(
-                                "ASCOM cover calibrator {} heartbeat failed: {:?}",
-                                device_id,
-                                e
-                            );
-                            Ok(false)
-                        }
-                    }
-                } else {
-                    Err(format!("ASCOM cover calibrator {} not found", device_id))
-                }
-            }
-            DeviceType::Weather => {
-                let weather = self.ascom_weather.read().await;
-                if let Some(w) = weather.get(device_id) {
-                    // Every ObservingConditions sensor is optional and may throw
-                    // PropertyNotImplemented, so probe InterfaceVersion — a mandatory
-                    // IAscomDriver member — for a live COM round-trip that never
-                    // depends on an unimplemented sensor.
-                    match w.read().await.interface_version().await {
-                        Ok(_) => {
-                            tracing::trace!("ASCOM weather {} heartbeat: healthy", device_id);
-                            Ok(true)
-                        }
-                        Err(e) => {
-                            tracing::debug!(
-                                "ASCOM weather {} heartbeat failed: {:?}",
-                                device_id,
-                                e
-                            );
-                            Ok(false)
-                        }
-                    }
-                } else {
-                    Err(format!("ASCOM weather {} not found", device_id))
-                }
-            }
-            DeviceType::Switch => {
-                let switches = self.ascom_switches.read().await;
-                if let Some(sw) = switches.get(device_id) {
-                    // No mandatory scalar count is exposed on the wrapper, so probe
-                    // InterfaceVersion — a mandatory IAscomDriver member — for liveness.
-                    match sw.read().await.interface_version().await {
-                        Ok(_) => {
-                            tracing::trace!("ASCOM switch {} heartbeat: healthy", device_id);
-                            Ok(true)
-                        }
-                        Err(e) => {
-                            tracing::debug!("ASCOM switch {} heartbeat failed: {:?}", device_id, e);
-                            Ok(false)
-                        }
-                    }
-                } else {
-                    Err(format!("ASCOM switch {} not found", device_id))
                 }
             }
             _ => Err(format!(

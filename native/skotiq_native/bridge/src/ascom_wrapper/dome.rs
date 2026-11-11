@@ -16,7 +16,6 @@ enum AscomDomeCommand {
     GetShutterStatus(oneshot::Sender<Result<i32, String>>),
     GetSlewing(oneshot::Sender<Result<bool, String>>),
     GetAtPark(oneshot::Sender<Result<bool, String>>),
-    GetAzimuth(oneshot::Sender<Result<f64, String>>),
     SlewToAzimuth {
         azimuth: f64,
         reply: oneshot::Sender<Result<(), String>>,
@@ -112,9 +111,6 @@ impl AscomDomeWrapper {
                     AscomDomeCommand::GetAtPark(reply) => {
                         let _ = reply.send(dome.at_park().map_err(|e| e.to_string()));
                     }
-                    AscomDomeCommand::GetAzimuth(reply) => {
-                        let _ = reply.send(dome.azimuth().map_err(|e| e.to_string()));
-                    }
                     AscomDomeCommand::SlewToAzimuth { azimuth, reply } => {
                         let _ =
                             reply.send(dome.slew_to_azimuth(azimuth).map_err(|e| e.to_string()));
@@ -165,7 +161,7 @@ impl AscomDomeWrapper {
         }
     }
 
-    pub async fn connect(&mut self) -> Result<(), String> {
+    pub async fn connect(&self) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomDomeCommand::Connect(tx))
@@ -178,7 +174,7 @@ impl AscomDomeWrapper {
         result
     }
 
-    pub async fn disconnect(&mut self) -> Result<(), String> {
+    pub async fn disconnect(&self) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomDomeCommand::Disconnect(tx))
@@ -257,15 +253,6 @@ impl AscomDomeWrapper {
             .await
             .map_err(|e| format!("Send error: {}", e))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "at_park").await
-    }
-
-    pub async fn azimuth(&self) -> Result<f64, String> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomDomeCommand::GetAzimuth(tx))
-            .await
-            .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "azimuth").await
     }
 
     pub async fn slew_to_azimuth(&self, azimuth: f64) -> Result<(), String> {

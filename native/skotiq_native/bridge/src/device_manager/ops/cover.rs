@@ -1,50 +1,13 @@
-//! Cover calibrator operations dispatcher.
+//! Cover calibrator operations.
 //!
-//! Methods in this module are an additional impl block on `DeviceManager`
-//! using Rust's split-impl-block feature. Behavior is identical to the
-//! previous monolithic `devices.rs`.
-//!
-//! # `as`-cast policy
-//!
-//! - **i32 brightness → f64 INDI wire** (line 201): exact widening.
-//! - **i32 state → i32** (lines 275, 327, 489, 490): these are no-op
-//!   widenings around enum discriminant extraction (CoverState /
-//!   CalibratorState are small {0..5} enums per ASCOM ICoverCalibratorV1).
-//! - **i32 brightness → i32** (line 409): no-op widening; brightness is
-//!   already i32 in the ASCOM API.
-//!
-//! # `unwrap_or` policy
-//!
-//! Every `unwrap_or` / `unwrap_or_else` in this file is a property-read
-//! failure on the ICoverCalibrator interface (ASCOM/Alpaca) or its INDI
-//! switch equivalent. Each site logs via `warn!` with the device id +
-//! error message AND falls back to the documented "unknown" sentinel:
-//!
-//!   * `cover_state` / `calibrator_state` → `4` (the ASCOM "Unknown" enum
-//!     value). The UI renders these as a yellow "?" badge.
-//!   * `brightness` → `0` (the off state — safe for night-time imaging).
-//!   * `max_brightness` → `255` (the ASCOM default; the brightness slider
-//!     UI then renders 0-255 instead of a calibrator-specific scale).
-//!
-//! Each substitution carries a `warn!` naming the device and the failed
-//! read, so a placeholder is never mistaken for a reading.
-//!
-//! # Simulator arm
-//!
-//! Every `DriverType::Simulator` arm delegates to
-//! [`crate::api::devices::simulation`], which owns the lid's travel and the
-//! panel's warm-up. It is deliberately NOT a set of `Ok(constant)` returns:
-//! `wait_for_cover_state` and `wait_for_calibrator_state` in the sequencer poll
-//! until the device reports the state they want, so a cover that reported
-//! `Open` on the same call that commanded it would let both waits return before
-//! real hardware had begun moving — and the timeout, the halt path and the
-//! `Error` state would never be reached at all.
+//! A status read substitutes what it cannot read (an unknown state, brightness
+//! 0, maximum 255) and logs a warning naming the device; see each driver's
+//! `CoverCalibratorDriver::status`.
 
-use crate::api::devices::simulation as sim;
 use crate::device::*;
+use crate::device_manager::handle::device_error;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
-use tracing::warn;
 
 use crate::device_manager::ops::state_events::property;
 
@@ -104,709 +67,136 @@ impl DeviceManager {
 }
 
 impl DeviceManager {
-    async fn indi_cover_calibrator(
-        &self,
-        device_id: &str,
-    ) -> Result<skotiq_indi::IndiCoverCalibrator, DeviceOpError> {
-        let (host, port, device_name) = Self::parse_indi_device_id(device_id)?;
-        let server_key = format!("{}:{}", host, port);
-        let clients = self.indi_clients.read().await;
-        let client = clients.get(&server_key).cloned();
-        drop(clients);
-
-        client
-            .map(|client| skotiq_indi::IndiCoverCalibrator::new(client, &device_name))
-            .ok_or_else(|| {
-                DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    "INDI cover calibrator not connected",
-                )
-            })
-    }
-
-    // Cover calibrator control
-
-    /// Open cover calibrator cover
     async fn cover_calibrator_open_cover_dispatch(
         &self,
         device_id: &str,
     ) -> Result<(), DeviceOpError> {
-        let driver_type = {
-            let devices = self.devices.read().await;
-            devices.get(device_id).map(|d| d.info.driver_type.clone())
-        };
-
-        match driver_type {
-            Some(DriverType::Alpaca) => {
-                let cover_cals = self.alpaca_cover_calibrators.read().await;
-                if let Some(cover_cal) = cover_cals.get(device_id) {
-                    return cover_cal.open_cover().await.map_err(DeviceOpError::driver);
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    format!("Alpaca cover calibrator {} not found", device_id),
-                ))
-            }
-            #[cfg(windows)]
-            Some(DriverType::Ascom) => {
-                let cover_cals = self.ascom_cover_calibrators.read().await;
-                if let Some(cover_cal) = cover_cals.get(device_id) {
-                    let mut locked = cover_cal.write().await;
-                    return locked.open_cover().await.map_err(DeviceOpError::driver);
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    format!("ASCOM cover calibrator {} not found", device_id),
-                ))
-            }
-            Some(DriverType::Indi) => {
-                let cover_cal = self.indi_cover_calibrator(device_id).await?;
-                cover_cal.open_cover().await.map_err(DeviceOpError::driver)
-            }
-            Some(DriverType::Native) => Err(DeviceOpError::not_connected(
-                Some(device_id.to_string()),
-                format!("Native cover calibrator {} not found", device_id),
-            )),
-            Some(DriverType::Simulator) => {
-                sim::sim_cover_move(true).await.map_err(DeviceOpError::from)
-            }
-            _ => Err(DeviceOpError::unsupported(
-                "Cover calibrator not supported for this driver type",
-            )),
-        }
+        self.cover_calibrator(device_id)
+            .await?
+            .open_cover()
+            .await
+            .map_err(|e| device_error(device_id, e))
     }
 
-    /// Close cover calibrator cover
     async fn cover_calibrator_close_cover_dispatch(
         &self,
         device_id: &str,
     ) -> Result<(), DeviceOpError> {
-        let driver_type = {
-            let devices = self.devices.read().await;
-            devices.get(device_id).map(|d| d.info.driver_type.clone())
-        };
-
-        match driver_type {
-            Some(DriverType::Alpaca) => {
-                let cover_cals = self.alpaca_cover_calibrators.read().await;
-                if let Some(cover_cal) = cover_cals.get(device_id) {
-                    return cover_cal.close_cover().await.map_err(DeviceOpError::driver);
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    format!("Alpaca cover calibrator {} not found", device_id),
-                ))
-            }
-            #[cfg(windows)]
-            Some(DriverType::Ascom) => {
-                let cover_cals = self.ascom_cover_calibrators.read().await;
-                if let Some(cover_cal) = cover_cals.get(device_id) {
-                    let mut locked = cover_cal.write().await;
-                    return locked.close_cover().await.map_err(DeviceOpError::driver);
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    format!("ASCOM cover calibrator {} not found", device_id),
-                ))
-            }
-            Some(DriverType::Indi) => {
-                let cover_cal = self.indi_cover_calibrator(device_id).await?;
-                cover_cal.close_cover().await.map_err(DeviceOpError::driver)
-            }
-            Some(DriverType::Native) => Err(DeviceOpError::not_connected(
-                Some(device_id.to_string()),
-                format!("Native cover calibrator {} not found", device_id),
-            )),
-            Some(DriverType::Simulator) => sim::sim_cover_move(false)
-                .await
-                .map_err(DeviceOpError::from),
-            _ => Err(DeviceOpError::unsupported(
-                "Cover calibrator not supported for this driver type",
-            )),
-        }
+        self.cover_calibrator(device_id)
+            .await?
+            .close_cover()
+            .await
+            .map_err(|e| device_error(device_id, e))
     }
 
-    /// Halt cover calibrator cover movement
     async fn cover_calibrator_halt_cover_dispatch(
         &self,
         device_id: &str,
     ) -> Result<(), DeviceOpError> {
-        let driver_type = {
-            let devices = self.devices.read().await;
-            devices.get(device_id).map(|d| d.info.driver_type.clone())
-        };
-
-        match driver_type {
-            Some(DriverType::Alpaca) => {
-                let cover_cals = self.alpaca_cover_calibrators.read().await;
-                if let Some(cover_cal) = cover_cals.get(device_id) {
-                    return cover_cal.halt_cover().await.map_err(DeviceOpError::driver);
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    format!("Alpaca cover calibrator {} not found", device_id),
-                ))
-            }
-            #[cfg(windows)]
-            Some(DriverType::Ascom) => {
-                let cover_cals = self.ascom_cover_calibrators.read().await;
-                if let Some(cover_cal) = cover_cals.get(device_id) {
-                    let mut locked = cover_cal.write().await;
-                    return locked.halt_cover().await.map_err(DeviceOpError::driver);
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    format!("ASCOM cover calibrator {} not found", device_id),
-                ))
-            }
-            Some(DriverType::Indi) => {
-                let cover_cal = self.indi_cover_calibrator(device_id).await?;
-                cover_cal.halt_cover().await.map_err(DeviceOpError::driver)
-            }
-            Some(DriverType::Native) => Err(DeviceOpError::not_connected(
-                Some(device_id.to_string()),
-                format!("Native cover calibrator {} not found", device_id),
-            )),
-            Some(DriverType::Simulator) => sim::sim_cover_halt().await.map_err(DeviceOpError::from),
-            _ => Err(DeviceOpError::unsupported(
-                "Cover calibrator not supported for this driver type",
-            )),
-        }
+        self.cover_calibrator(device_id)
+            .await?
+            .halt_cover()
+            .await
+            .map_err(|e| device_error(device_id, e))
     }
 
-    /// Turn on cover calibrator light
     async fn cover_calibrator_calibrator_on_dispatch(
         &self,
         device_id: &str,
         brightness: i32,
     ) -> Result<(), DeviceOpError> {
-        let driver_type = {
-            let devices = self.devices.read().await;
-            devices.get(device_id).map(|d| d.info.driver_type.clone())
-        };
-
-        match driver_type {
-            Some(DriverType::Alpaca) => {
-                let cover_cals = self.alpaca_cover_calibrators.read().await;
-                if let Some(cover_cal) = cover_cals.get(device_id) {
-                    return cover_cal
-                        .calibrator_on(brightness)
-                        .await
-                        .map_err(DeviceOpError::driver);
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    format!("Alpaca cover calibrator {} not found", device_id),
-                ))
-            }
-            #[cfg(windows)]
-            Some(DriverType::Ascom) => {
-                let cover_cals = self.ascom_cover_calibrators.read().await;
-                if let Some(cover_cal) = cover_cals.get(device_id) {
-                    let mut locked = cover_cal.write().await;
-                    return locked
-                        .calibrator_on(brightness)
-                        .await
-                        .map_err(DeviceOpError::driver);
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    format!("ASCOM cover calibrator {} not found", device_id),
-                ))
-            }
-            Some(DriverType::Indi) => {
-                let cover_cal = self.indi_cover_calibrator(device_id).await?;
-                cover_cal
-                    .calibrator_on(brightness)
-                    .await
-                    .map_err(DeviceOpError::driver)
-            }
-            Some(DriverType::Native) => Err(DeviceOpError::not_connected(
-                Some(device_id.to_string()),
-                format!("Native cover calibrator {} not found", device_id),
-            )),
-            Some(DriverType::Simulator) => sim::sim_calibrator_on(brightness)
-                .await
-                .map_err(DeviceOpError::from),
-            _ => Err(DeviceOpError::unsupported(
-                "Cover calibrator not supported for this driver type",
-            )),
-        }
+        self.cover_calibrator(device_id)
+            .await?
+            .calibrator_on(brightness)
+            .await
+            .map_err(|e| device_error(device_id, e))
     }
 
-    /// Turn off cover calibrator light
     async fn cover_calibrator_calibrator_off_dispatch(
         &self,
         device_id: &str,
     ) -> Result<(), DeviceOpError> {
-        let driver_type = {
-            let devices = self.devices.read().await;
-            devices.get(device_id).map(|d| d.info.driver_type.clone())
-        };
-
-        match driver_type {
-            Some(DriverType::Alpaca) => {
-                let cover_cals = self.alpaca_cover_calibrators.read().await;
-                if let Some(cover_cal) = cover_cals.get(device_id) {
-                    return cover_cal
-                        .calibrator_off()
-                        .await
-                        .map_err(DeviceOpError::driver);
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    format!("Alpaca cover calibrator {} not found", device_id),
-                ))
-            }
-            #[cfg(windows)]
-            Some(DriverType::Ascom) => {
-                let cover_cals = self.ascom_cover_calibrators.read().await;
-                if let Some(cover_cal) = cover_cals.get(device_id) {
-                    let mut locked = cover_cal.write().await;
-                    return locked.calibrator_off().await.map_err(DeviceOpError::driver);
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    format!("ASCOM cover calibrator {} not found", device_id),
-                ))
-            }
-            Some(DriverType::Indi) => {
-                let cover_cal = self.indi_cover_calibrator(device_id).await?;
-                cover_cal
-                    .calibrator_off()
-                    .await
-                    .map_err(DeviceOpError::driver)
-            }
-            Some(DriverType::Native) => Err(DeviceOpError::not_connected(
-                Some(device_id.to_string()),
-                format!("Native cover calibrator {} not found", device_id),
-            )),
-            Some(DriverType::Simulator) => {
-                sim::sim_calibrator_off().await.map_err(DeviceOpError::from)
-            }
-            _ => Err(DeviceOpError::unsupported(
-                "Cover calibrator not supported for this driver type",
-            )),
-        }
+        self.cover_calibrator(device_id)
+            .await?
+            .calibrator_off()
+            .await
+            .map_err(|e| device_error(device_id, e))
     }
 
-    /// Get cover calibrator cover state
-    /// Returns: 0=NotPresent, 1=Closed, 2=Moving, 3=Open, 4=Unknown, 5=Error
+    /// The ASCOM `CoverStatus` number.
     pub async fn cover_calibrator_get_cover_state(
         &self,
         device_id: &str,
     ) -> Result<i32, DeviceOpError> {
-        let driver_type = {
-            let devices = self.devices.read().await;
-            devices.get(device_id).map(|d| d.info.driver_type.clone())
-        };
-
-        match driver_type {
-            Some(DriverType::Alpaca) => {
-                let cover_cals = self.alpaca_cover_calibrators.read().await;
-                if let Some(cover_cal) = cover_cals.get(device_id) {
-                    let state = cover_cal.cover_state().await?;
-                    return Ok(state as i32);
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    format!("Alpaca cover calibrator {} not found", device_id),
-                ))
-            }
-            #[cfg(windows)]
-            Some(DriverType::Ascom) => {
-                let cover_cals = self.ascom_cover_calibrators.read().await;
-                if let Some(cover_cal) = cover_cals.get(device_id) {
-                    let locked = cover_cal.read().await;
-                    return locked.cover_state().await.map_err(DeviceOpError::driver);
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    format!("ASCOM cover calibrator {} not found", device_id),
-                ))
-            }
-            Some(DriverType::Indi) => {
-                let cover_cal = self.indi_cover_calibrator(device_id).await?;
-                Ok(cover_cal.get_cover_state().await.to_i32())
-            }
-            Some(DriverType::Native) => Err(DeviceOpError::not_connected(
-                Some(device_id.to_string()),
-                format!("Native cover calibrator {} not found", device_id),
-            )),
-            Some(DriverType::Simulator) => sim::sim_cover_status()
-                .await
-                .map(|status| status.cover_state.to_i32())
-                .map_err(DeviceOpError::from),
-            _ => Err(DeviceOpError::unsupported(
-                "Cover calibrator not supported for this driver type",
-            )),
-        }
+        let state = self
+            .cover_calibrator(device_id)
+            .await?
+            .cover_status()
+            .await
+            .map_err(|e| device_error(device_id, e))?;
+        Ok(state as i32)
     }
 
-    /// Get cover calibrator calibrator state
-    /// Returns: 0=NotPresent, 1=Off, 2=NotReady, 3=Ready, 4=Unknown, 5=Error
+    /// The ASCOM `CalibratorStatus` number.
     pub async fn cover_calibrator_get_calibrator_state(
         &self,
         device_id: &str,
     ) -> Result<i32, DeviceOpError> {
-        let driver_type = {
-            let devices = self.devices.read().await;
-            devices.get(device_id).map(|d| d.info.driver_type.clone())
-        };
-
-        match driver_type {
-            Some(DriverType::Alpaca) => {
-                let cover_cals = self.alpaca_cover_calibrators.read().await;
-                if let Some(cover_cal) = cover_cals.get(device_id) {
-                    let state = cover_cal.calibrator_state().await?;
-                    return Ok(state as i32);
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    format!("Alpaca cover calibrator {} not found", device_id),
-                ))
-            }
-            #[cfg(windows)]
-            Some(DriverType::Ascom) => {
-                let cover_cals = self.ascom_cover_calibrators.read().await;
-                if let Some(cover_cal) = cover_cals.get(device_id) {
-                    let locked = cover_cal.read().await;
-                    return locked
-                        .calibrator_state()
-                        .await
-                        .map_err(DeviceOpError::driver);
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    format!("ASCOM cover calibrator {} not found", device_id),
-                ))
-            }
-            Some(DriverType::Indi) => {
-                let cover_cal = self.indi_cover_calibrator(device_id).await?;
-                Ok(cover_cal.get_calibrator_state().await.to_i32())
-            }
-            Some(DriverType::Native) => Err(DeviceOpError::not_connected(
-                Some(device_id.to_string()),
-                format!("Native cover calibrator {} not found", device_id),
-            )),
-            Some(DriverType::Simulator) => sim::sim_cover_status()
-                .await
-                .map(|status| status.calibrator_state.to_i32())
-                .map_err(DeviceOpError::from),
-            _ => Err(DeviceOpError::unsupported(
-                "Cover calibrator not supported for this driver type",
-            )),
-        }
+        let state = self
+            .cover_calibrator(device_id)
+            .await?
+            .calibrator_status()
+            .await
+            .map_err(|e| device_error(device_id, e))?;
+        Ok(state as i32)
     }
 
-    /// Get cover calibrator brightness
     pub async fn cover_calibrator_get_brightness(
         &self,
         device_id: &str,
     ) -> Result<i32, DeviceOpError> {
-        let driver_type = {
-            let devices = self.devices.read().await;
-            devices.get(device_id).map(|d| d.info.driver_type.clone())
-        };
-
-        match driver_type {
-            Some(DriverType::Alpaca) => {
-                let cover_cals = self.alpaca_cover_calibrators.read().await;
-                if let Some(cover_cal) = cover_cals.get(device_id) {
-                    return cover_cal.brightness().await.map_err(DeviceOpError::driver);
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    format!("Alpaca cover calibrator {} not found", device_id),
-                ))
-            }
-            #[cfg(windows)]
-            Some(DriverType::Ascom) => {
-                let cover_cals = self.ascom_cover_calibrators.read().await;
-                if let Some(cover_cal) = cover_cals.get(device_id) {
-                    let locked = cover_cal.read().await;
-                    return locked.brightness().await.map_err(DeviceOpError::driver);
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    format!("ASCOM cover calibrator {} not found", device_id),
-                ))
-            }
-            Some(DriverType::Indi) => {
-                let cover_cal = self.indi_cover_calibrator(device_id).await?;
-                cover_cal
-                    .get_brightness()
-                    .await
-                    .map_err(DeviceOpError::driver)
-            }
-            Some(DriverType::Native) => Err(DeviceOpError::not_connected(
-                Some(device_id.to_string()),
-                format!("Native cover calibrator {} not found", device_id),
-            )),
-            Some(DriverType::Simulator) => sim::sim_cover_status()
-                .await
-                .map(|status| status.brightness)
-                .map_err(DeviceOpError::from),
-            _ => Err(DeviceOpError::unsupported(
-                "Cover calibrator not supported for this driver type",
-            )),
-        }
+        self.cover_calibrator(device_id)
+            .await?
+            .brightness()
+            .await
+            .map_err(|e| device_error(device_id, e))
     }
 
-    /// Get cover calibrator max brightness
     pub async fn cover_calibrator_get_max_brightness(
         &self,
         device_id: &str,
     ) -> Result<i32, DeviceOpError> {
-        let driver_type = {
-            let devices = self.devices.read().await;
-            devices.get(device_id).map(|d| d.info.driver_type.clone())
-        };
-
-        match driver_type {
-            Some(DriverType::Alpaca) => {
-                let cover_cals = self.alpaca_cover_calibrators.read().await;
-                if let Some(cover_cal) = cover_cals.get(device_id) {
-                    return cover_cal
-                        .max_brightness()
-                        .await
-                        .map_err(DeviceOpError::driver);
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    format!("Alpaca cover calibrator {} not found", device_id),
-                ))
-            }
-            #[cfg(windows)]
-            Some(DriverType::Ascom) => {
-                let cover_cals = self.ascom_cover_calibrators.read().await;
-                if let Some(cover_cal) = cover_cals.get(device_id) {
-                    let locked = cover_cal.read().await;
-                    return locked.max_brightness().await.map_err(DeviceOpError::driver);
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    format!("ASCOM cover calibrator {} not found", device_id),
-                ))
-            }
-            Some(DriverType::Indi) => {
-                let cover_cal = self.indi_cover_calibrator(device_id).await?;
-                cover_cal
-                    .get_max_brightness()
-                    .await
-                    .map_err(DeviceOpError::driver)
-            }
-            Some(DriverType::Native) => Err(DeviceOpError::not_connected(
-                Some(device_id.to_string()),
-                format!("Native cover calibrator {} not found", device_id),
-            )),
-            Some(DriverType::Simulator) => sim::sim_cover_status()
-                .await
-                .map(|status| status.max_brightness)
-                .map_err(DeviceOpError::from),
-            _ => Err(DeviceOpError::unsupported(
-                "Cover calibrator not supported for this driver type",
-            )),
-        }
+        self.cover_calibrator(device_id)
+            .await?
+            .max_brightness()
+            .await
+            .map_err(|e| device_error(device_id, e))
     }
 
-    /// Get cover calibrator status (combined state)
     pub async fn cover_calibrator_get_status(
         &self,
         device_id: &str,
     ) -> Result<CoverCalibratorStatus, DeviceOpError> {
-        let driver_type = {
-            let devices = self.devices.read().await;
-            devices.get(device_id).map(|d| d.info.driver_type.clone())
-        };
-
-        match driver_type {
-            Some(DriverType::Alpaca) => {
-                let cover_cals = self.alpaca_cover_calibrators.read().await;
-                let Some(cover_cal) = cover_cals.get(device_id) else {
-                    return Err(DeviceOpError::not_connected(
-                        Some(device_id.to_string()),
-                        format!("Alpaca cover calibrator {} not found", device_id),
-                    ));
-                };
-
-                let status = cover_cal.get_status().await?;
-                let max_brightness = cover_cal.max_brightness().await.unwrap_or_else(|e| {
-                    warn!(
-                        "Failed to read cover calibrator max_brightness for {}: {}. Using default 255.",
-                        device_id, e
-                    );
-                    255
-                });
-
-                Ok(CoverCalibratorStatus {
-                    connected: true,
-                    cover_state: CoverState::from_i32(status.cover_state as i32),
-                    calibrator_state: CalibratorState::from_i32(status.calibrator_state as i32),
-                    brightness: status.brightness.unwrap_or(0),
-                    max_brightness,
-                })
-            }
-            #[cfg(windows)]
-            Some(DriverType::Ascom) => {
-                let cover_cals = self.ascom_cover_calibrators.read().await;
-                let Some(cover_cal) = cover_cals.get(device_id) else {
-                    return Err(DeviceOpError::not_connected(
-                        Some(device_id.to_string()),
-                        format!("ASCOM cover calibrator {} not found", device_id),
-                    ));
-                };
-
-                let locked = cover_cal.read().await;
-                let cover_state_raw = locked.cover_state().await.unwrap_or_else(|e| {
-                    warn!(
-                        "Failed to read cover calibrator cover_state for {}: {}. Using Unknown (4).",
-                        device_id, e
-                    );
-                    4
-                });
-                let calibrator_state_raw = locked.calibrator_state().await.unwrap_or_else(|e| {
-                    warn!(
-                        "Failed to read cover calibrator calibrator_state for {}: {}. Using Unknown (4).",
-                        device_id, e
-                    );
-                    4
-                });
-                let brightness = locked.brightness().await.unwrap_or_else(|e| {
-                    warn!(
-                        "Failed to read cover calibrator brightness for {}: {}. Using default 0.",
-                        device_id, e
-                    );
-                    0
-                });
-
-                Ok(CoverCalibratorStatus {
-                    connected: true,
-                    cover_state: CoverState::from_i32(cover_state_raw),
-                    calibrator_state: CalibratorState::from_i32(calibrator_state_raw),
-                    brightness,
-                    max_brightness: locked.cached_max_brightness(),
-                })
-            }
-            Some(DriverType::Indi) => {
-                let cover_state_raw = match self.cover_calibrator_get_cover_state(device_id).await {
-                    Ok(s) => s,
-                    Err(e) => {
-                        warn!(
-                            "Failed to read cover calibrator cover_state for {}: {}. Using Unknown (4).",
-                            device_id, e
-                        );
-                        4
-                    }
-                };
-                let calibrator_state_raw = match self
-                    .cover_calibrator_get_calibrator_state(device_id)
-                    .await
-                {
-                    Ok(s) => s,
-                    Err(e) => {
-                        warn!(
-                                "Failed to read cover calibrator calibrator_state for {}: {}. Using Unknown (4).",
-                                device_id, e
-                            );
-                        4
-                    }
-                };
-                let brightness = self
-                    .cover_calibrator_get_brightness(device_id)
-                    .await
-                    .unwrap_or_else(|e| {
-                        warn!(
-                            "Failed to read cover calibrator brightness for {}: {}. Using default 0.",
-                            device_id, e
-                        );
-                        0
-                    });
-                let max_brightness = self
-                    .cover_calibrator_get_max_brightness(device_id)
-                    .await
-                    .unwrap_or_else(|e| {
-                        warn!(
-                            "Failed to read cover calibrator max_brightness for {}: {}. Using default 255.",
-                            device_id, e
-                        );
-                        255
-                    });
-
-                Ok(CoverCalibratorStatus {
-                    connected: true,
-                    cover_state: CoverState::from_i32(cover_state_raw),
-                    calibrator_state: CalibratorState::from_i32(calibrator_state_raw),
-                    brightness,
-                    max_brightness,
-                })
-            }
-            Some(DriverType::Native) => {
-                let cover_state_raw = match self.cover_calibrator_get_cover_state(device_id).await {
-                    Ok(s) => s,
-                    Err(e) => {
-                        warn!(
-                            "Failed to read native cover calibrator cover_state for {}: {}. Using Unknown (4).",
-                            device_id, e
-                        );
-                        4
-                    }
-                };
-                let calibrator_state_raw = match self
-                    .cover_calibrator_get_calibrator_state(device_id)
-                    .await
-                {
-                    Ok(s) => s,
-                    Err(e) => {
-                        warn!(
-                            "Failed to read native cover calibrator calibrator_state for {}: {}. Using Unknown (4).",
-                            device_id, e
-                        );
-                        4
-                    }
-                };
-                let brightness = self
-                    .cover_calibrator_get_brightness(device_id)
-                    .await
-                    .unwrap_or_else(|e| {
-                        warn!(
-                            "Failed to read native cover calibrator brightness for {}: {}. Using default 0.",
-                            device_id, e
-                        );
-                        0
-                    });
-                let max_brightness = self
-                    .cover_calibrator_get_max_brightness(device_id)
-                    .await
-                    .unwrap_or_else(|e| {
-                        warn!(
-                            "Failed to read native cover calibrator max_brightness for {}: {}. Using default 255.",
-                            device_id, e
-                        );
-                        255
-                    });
-
-                Ok(CoverCalibratorStatus {
-                    connected: true,
-                    cover_state: CoverState::from_i32(cover_state_raw),
-                    calibrator_state: CalibratorState::from_i32(calibrator_state_raw),
-                    brightness,
-                    max_brightness,
-                })
-            }
-            Some(DriverType::Simulator) => {
-                sim::sim_cover_status().await.map_err(DeviceOpError::from)
-            }
-            _ => Err(DeviceOpError::unsupported(
-                "Cover calibrator not supported for this driver type",
-            )),
-        }
+        let status = self
+            .cover_calibrator(device_id)
+            .await?
+            .status()
+            .await
+            .map_err(|e| device_error(device_id, e))?;
+        Ok(CoverCalibratorStatus {
+            connected: true,
+            cover_state: CoverState::from_i32(status.cover as i32),
+            calibrator_state: CalibratorState::from_i32(status.calibrator as i32),
+            brightness: status.brightness,
+            max_brightness: status.max_brightness,
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::device_manager::handle::DeviceHandle;
     use crate::device_manager::ManagedDevice;
     use crate::state::AppState;
     use std::time::Duration;
@@ -891,9 +281,17 @@ mod tests {
             skotiq_indi::IndiClient::with_timeout_config("127.0.0.1", Some(port), timeout_config);
         client.connect().await.expect("connect fake INDI client");
 
-        manager.indi_clients.write().await.insert(
-            format!("127.0.0.1:{}", port),
-            std::sync::Arc::new(tokio::sync::RwLock::new(client)),
+        let client = std::sync::Arc::new(tokio::sync::RwLock::new(client));
+        manager
+            .indi_clients
+            .write()
+            .await
+            .insert(format!("127.0.0.1:{}", port), client.clone());
+        manager.handles.insert(
+            &device_id,
+            DeviceHandle::CoverCalibrator(std::sync::Arc::new(
+                skotiq_indi::IndiCoverCalibrator::new(client, "FlatMaster"),
+            )),
         );
 
         wait_for_lightbox_property(&manager, &device_id).await;

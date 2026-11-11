@@ -1,157 +1,44 @@
-//! Weather (observing conditions) operations dispatcher.
-//!
-//! Methods in this module are an additional impl block on `DeviceManager`
-//! using Rust's split-impl-block feature. Behavior is identical to the
-//! previous monolithic `devices.rs`.
+//! Weather (observing conditions) operations.
 
 use crate::device::*;
+use crate::device_manager::handle::device_error;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
-use skotiq_indi::{IndiWeather, DEFAULT_WEATHER_STALE_MS};
-use std::time::Duration;
-
-async fn indi_weather_conditions(
-    device_id: &str,
-    weather: &IndiWeather,
-    max_age: Duration,
-) -> Result<WeatherConditions, DeviceOpError> {
-    if weather.has_weather_parameters().await && weather.is_parameters_stale(max_age).await {
-        return Err(DeviceOpError::hardware(
-            Some(device_id.to_string()),
-            format!(
-                "INDI weather parameters for {} are stale or have never updated",
-                device_id
-            ),
-        ));
-    }
-
-    Ok(WeatherConditions {
-        temperature: weather.get_temperature().await,
-        humidity: weather.get_humidity().await,
-        pressure: weather.get_pressure().await,
-        cloud_cover: weather.get_cloud_cover().await,
-        dew_point: weather.get_dew_point().await,
-        wind_speed: weather.get_wind_speed().await,
-        wind_direction: weather.get_wind_direction().await,
-        sky_quality: weather.get_sky_quality().await,
-        sky_temperature: weather.get_sky_temperature().await,
-        rain_rate: weather.get_rain_rate().await,
-    })
-}
 
 impl DeviceManager {
-    // Weather (observing conditions)
-
-    /// Get weather conditions
+    /// What the weather station reports; a sensor it does not have is `None`.
     pub async fn weather_get_conditions(
         &self,
         device_id: &str,
     ) -> Result<WeatherConditions, DeviceOpError> {
-        let driver_type = {
-            let devices = self.devices.read().await;
-            devices.get(device_id).map(|d| d.info.driver_type.clone())
-        };
-
-        match driver_type {
-            Some(DriverType::Alpaca) => {
-                let weather_devs = self.alpaca_weather.read().await;
-                if let Some(weather) = weather_devs.get(device_id) {
-                    return Ok(WeatherConditions {
-                        temperature: weather.temperature().await.ok(),
-                        humidity: weather.humidity().await.ok(),
-                        pressure: weather.pressure().await.ok(),
-                        cloud_cover: weather.cloud_cover().await.ok(),
-                        dew_point: weather.dew_point().await.ok(),
-                        wind_speed: weather.wind_speed().await.ok(),
-                        wind_direction: weather.wind_direction().await.ok(),
-                        sky_quality: weather.sky_quality().await.ok(),
-                        sky_temperature: weather.sky_temperature().await.ok(),
-                        rain_rate: weather.rain_rate().await.ok(),
-                    });
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    format!("Alpaca weather device {} not found", device_id),
-                ))
-            }
-            Some(DriverType::Indi) => {
-                let (host, port, device_name) = Self::parse_indi_device_id(device_id)
-                    .map_err(DeviceOpError::invalid_device_id)?;
-                let server_key = format!("{host}:{port}");
-
-                let clients = self.indi_clients.read().await;
-                let client = clients.get(&server_key).cloned();
-                drop(clients);
-
-                if let Some(client) = client {
-                    let weather = IndiWeather::new(client, &device_name);
-                    return indi_weather_conditions(
-                        device_id,
-                        &weather,
-                        Duration::from_millis(DEFAULT_WEATHER_STALE_MS),
-                    )
-                    .await;
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    "INDI weather device not connected",
-                ))
-            }
-            Some(DriverType::Ascom) => {
-                #[cfg(windows)]
-                {
-                    let weather_devices = self.ascom_weather.read().await;
-                    if let Some(weather) = weather_devices.get(device_id) {
-                        let weather_guard = weather.read().await;
-                        return Ok(WeatherConditions {
-                            temperature: weather_guard.temperature().await.ok(),
-                            humidity: weather_guard.humidity().await.ok(),
-                            pressure: weather_guard.pressure().await.ok(),
-                            cloud_cover: weather_guard.cloud_cover().await.ok(),
-                            dew_point: weather_guard.dew_point().await.ok(),
-                            wind_speed: weather_guard.wind_speed().await.ok(),
-                            wind_direction: weather_guard.wind_direction().await.ok(),
-                            sky_quality: weather_guard.sky_quality().await.ok(),
-                            sky_temperature: weather_guard.sky_temperature().await.ok(),
-                            rain_rate: weather_guard.rain_rate().await.ok(),
-                        });
-                    }
-                    Err(DeviceOpError::not_connected(
-                        Some(device_id.to_string()),
-                        format!("ASCOM weather device {} not found", device_id),
-                    ))
-                }
-                #[cfg(not(windows))]
-                Err(DeviceOpError::unsupported(
-                    "ASCOM is only available on Windows",
-                ))
-            }
-            Some(DriverType::Native) => Err(DeviceOpError::not_connected(
-                Some(device_id.to_string()),
-                "Native weather device not connected",
-            )),
-            Some(DriverType::Simulator) => {
-                let weather = crate::api::devices::simulation::get_sim_weather()
-                    .read()
-                    .await;
-                if !weather.connected {
-                    return Err(DeviceOpError::not_connected(
-                        Some(device_id.to_string()),
-                        "Simulator weather device not connected",
-                    ));
-                }
-                Ok(weather.conditions.clone())
-            }
-            None => Err(DeviceOpError::device_not_found(device_id)),
-        }
+        let r = self
+            .weather(device_id)
+            .await?
+            .readings()
+            .await
+            .map_err(|e| device_error(device_id, e))?;
+        Ok(WeatherConditions {
+            temperature: r.temperature,
+            humidity: r.humidity,
+            pressure: r.pressure,
+            cloud_cover: r.cloud_cover,
+            dew_point: r.dew_point,
+            wind_speed: r.wind_speed,
+            wind_direction: r.wind_direction,
+            sky_quality: r.sky_quality,
+            sky_temperature: r.sky_temperature,
+            rain_rate: r.rain_rate,
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::device_manager::handle::DeviceHandle;
     use crate::device_manager::ManagedDevice;
     use crate::state::AppState;
+    use skotiq_indi::IndiWeather;
     use std::time::Duration;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -219,9 +106,15 @@ mod tests {
             skotiq_indi::IndiClient::with_timeout_config("127.0.0.1", Some(port), timeout_config);
         client.connect().await.expect("connect fake INDI client");
 
-        manager.indi_clients.write().await.insert(
-            format!("127.0.0.1:{}", port),
-            std::sync::Arc::new(tokio::sync::RwLock::new(client)),
+        let client = std::sync::Arc::new(tokio::sync::RwLock::new(client));
+        manager
+            .indi_clients
+            .write()
+            .await
+            .insert(format!("127.0.0.1:{}", port), client.clone());
+        manager.handles.insert(
+            &device_id,
+            DeviceHandle::Weather(std::sync::Arc::new(IndiWeather::new(client, device_name))),
         );
 
         (manager, device_id, server)
@@ -278,7 +171,8 @@ mod tests {
         let weather = IndiWeather::new(client, "Weather Station");
 
         tokio::time::sleep(Duration::from_millis(5)).await;
-        let err = indi_weather_conditions(&device_id, &weather, Duration::from_millis(1))
+        let err = weather
+            .readings_within(Duration::from_millis(1))
             .await
             .expect_err("stale weather parameters must fail closed");
 

@@ -4,10 +4,13 @@
 //! protocol reaches it (vendor SDK, serial, ASCOM COM, Alpaca, INDI, simulator).
 //!
 //! The camera, mount, focuser and filter wheel traits are implemented by the
-//! vendor drivers and by the bridge's ASCOM wrappers. The dome, rotator,
-//! switch, weather, safety monitor and cover calibrator traits name the
-//! operations the bridge performs on those devices today through one match
-//! per protocol; nothing implements them yet.
+//! vendor drivers and by the bridge's ASCOM wrappers. They take `&mut self`
+//! for commands because the vendor drivers keep state between calls.
+//!
+//! The accessory traits (dome, rotator, switch, weather, safety monitor, cover
+//! calibrator) take `&self` throughout: every backend behind them (Alpaca,
+//! INDI, the ASCOM wrappers, the simulator) is a client of something that
+//! keeps the state elsewhere, so one value is shared by every caller.
 
 use crate::ascom::{CalibratorStatus, CoverStatus, ShutterStatus};
 use crate::camera::*;
@@ -353,9 +356,38 @@ pub trait FilterWheelDriver: DeviceDriver {
     async fn set_filter_name(&mut self, position: i32, name: String) -> Result<(), DriverError>;
 }
 
+/// What every accessory driver answers besides its own operations.
+#[async_trait]
+pub trait AccessoryDriver: Send + Sync {
+    async fn disconnect(&self) -> Result<(), DriverError>;
+
+    /// One cheap call that fails when the device no longer answers.
+    async fn heartbeat(&self) -> Result<(), DriverError>;
+}
+
+/// What a dome reports in one status read.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DomeState {
+    /// Degrees, north through east.
+    pub azimuth: f64,
+    /// Degrees above the horizon, for domes that report it.
+    pub altitude: Option<f64>,
+    /// `None` when the dome does not say.
+    pub shutter: Option<ShutterStatus>,
+    pub slewing: bool,
+    pub at_home: bool,
+    pub at_park: bool,
+    pub can_set_altitude: bool,
+    pub can_set_azimuth: bool,
+    pub can_set_shutter: bool,
+    pub can_slave: bool,
+    /// Whether the dome follows the mount by itself.
+    pub slaved: bool,
+}
+
 /// A dome or roll-off roof.
 #[async_trait]
-pub trait DomeDriver: DeviceDriver {
+pub trait DomeDriver: AccessoryDriver {
     async fn open_shutter(&self) -> Result<(), DriverError>;
 
     async fn close_shutter(&self) -> Result<(), DriverError>;
@@ -365,27 +397,21 @@ pub trait DomeDriver: DeviceDriver {
     /// Degrees, north through east.
     async fn slew_to_azimuth(&self, azimuth_deg: f64) -> Result<(), DriverError>;
 
-    async fn azimuth(&self) -> Result<f64, DriverError>;
-
-    async fn is_slewing(&self) -> Result<bool, DriverError>;
-
     async fn abort_slew(&self) -> Result<(), DriverError>;
 
     async fn park(&self) -> Result<(), DriverError>;
 
     async fn find_home(&self) -> Result<(), DriverError>;
 
-    async fn at_home(&self) -> Result<bool, DriverError>;
-
-    async fn at_park(&self) -> Result<bool, DriverError>;
-
     /// Whether the dome follows the mount by itself.
     async fn set_slaved(&self, slaved: bool) -> Result<(), DriverError>;
+
+    async fn status(&self) -> Result<DomeState, DriverError>;
 }
 
 /// A camera rotator.
 #[async_trait]
-pub trait RotatorDriver: DeviceDriver {
+pub trait RotatorDriver: AccessoryDriver {
     /// Degrees of sky position angle.
     async fn move_absolute(&self, position_deg: f64) -> Result<(), DriverError>;
 
@@ -403,7 +429,7 @@ pub trait RotatorDriver: DeviceDriver {
 
 /// A box of switches and gauges (power ports, dew heaters, sensors).
 #[async_trait]
-pub trait SwitchDriver: DeviceDriver {
+pub trait SwitchDriver: AccessoryDriver {
     /// Number of switches; they are addressed `0..count`.
     async fn count(&self) -> Result<i32, DriverError>;
 
@@ -453,18 +479,27 @@ pub struct WeatherReadings {
 }
 
 #[async_trait]
-pub trait WeatherDriver: DeviceDriver {
+pub trait WeatherDriver: AccessoryDriver {
     async fn readings(&self) -> Result<WeatherReadings, DriverError>;
 }
 
 #[async_trait]
-pub trait SafetyMonitorDriver: DeviceDriver {
+pub trait SafetyMonitorDriver: AccessoryDriver {
     async fn is_safe(&self) -> Result<bool, DriverError>;
+}
+
+/// What a cover calibrator reports in one status read.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CoverCalibratorState {
+    pub cover: CoverStatus,
+    pub calibrator: CalibratorStatus,
+    pub brightness: i32,
+    pub max_brightness: i32,
 }
 
 /// A dust cover, a flat panel, or both in one device.
 #[async_trait]
-pub trait CoverCalibratorDriver: DeviceDriver {
+pub trait CoverCalibratorDriver: AccessoryDriver {
     async fn open_cover(&self) -> Result<(), DriverError>;
 
     async fn close_cover(&self) -> Result<(), DriverError>;
@@ -483,4 +518,6 @@ pub trait CoverCalibratorDriver: DeviceDriver {
     async fn brightness(&self) -> Result<i32, DriverError>;
 
     async fn max_brightness(&self) -> Result<i32, DriverError>;
+
+    async fn status(&self) -> Result<CoverCalibratorState, DriverError>;
 }

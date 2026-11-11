@@ -171,7 +171,7 @@ impl AscomSwitchWrapper {
         }
     }
 
-    pub async fn connect(&mut self) -> Result<(), String> {
+    pub async fn connect(&self) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomSwitchCommand::Connect(tx))
@@ -180,7 +180,7 @@ impl AscomSwitchWrapper {
         Self::recv_with_timeout(rx, Timeouts::connection(), "connect").await
     }
 
-    pub async fn disconnect(&mut self) -> Result<(), String> {
+    pub async fn disconnect(&self) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomSwitchCommand::Disconnect(tx))
@@ -207,7 +207,7 @@ impl AscomSwitchWrapper {
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_switch").await
     }
 
-    pub async fn set_switch(&mut self, id: i32, state: bool) -> Result<(), String> {
+    pub async fn set_switch(&self, id: i32, state: bool) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomSwitchCommand::SetSwitch(id, state, tx))
@@ -243,7 +243,7 @@ impl AscomSwitchWrapper {
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_switch_value").await
     }
 
-    pub async fn set_switch_value(&mut self, id: i32, value: f64) -> Result<(), String> {
+    pub async fn set_switch_value(&self, id: i32, value: f64) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomSwitchCommand::SetSwitchValue(id, value, tx))

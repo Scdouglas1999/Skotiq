@@ -387,6 +387,46 @@ impl IndiWeather {
     }
 }
 
+indi_accessory!(IndiWeather);
+
+impl IndiWeather {
+    /// Every reading, refused when `WEATHER_PARAMETERS` is older than
+    /// `max_age`: a station that stopped updating must not pass for one
+    /// reporting calm weather. A sensor the station lacks is `None`.
+    pub async fn readings_within(
+        &self,
+        max_age: Duration,
+    ) -> IndiResult<skotiq_device::WeatherReadings> {
+        if self.has_weather_parameters().await && self.is_parameters_stale(max_age).await {
+            return Err(crate::IndiError::Unavailable(format!(
+                "INDI weather parameters for {} are stale or have never updated",
+                self.device_name
+            )));
+        }
+        Ok(skotiq_device::WeatherReadings {
+            temperature: self.get_temperature().await,
+            humidity: self.get_humidity().await,
+            pressure: self.get_pressure().await,
+            cloud_cover: self.get_cloud_cover().await,
+            dew_point: self.get_dew_point().await,
+            wind_speed: self.get_wind_speed().await,
+            wind_direction: self.get_wind_direction().await,
+            sky_quality: self.get_sky_quality().await,
+            sky_temperature: self.get_sky_temperature().await,
+            rain_rate: self.get_rain_rate().await,
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl skotiq_device::WeatherDriver for IndiWeather {
+    async fn readings(&self) -> Result<skotiq_device::WeatherReadings, skotiq_device::DriverError> {
+        Ok(self
+            .readings_within(Duration::from_millis(DEFAULT_WEATHER_STALE_MS))
+            .await?)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -7,11 +7,13 @@
 
 pub(crate) mod connection;
 pub(crate) mod epoch;
+pub(crate) mod handle;
 pub(crate) mod heartbeat;
 pub mod identity;
 pub(crate) mod motion_guard;
 pub(crate) mod ops;
 pub(crate) mod read_health;
+pub(crate) mod simulated;
 
 use crate::device::*;
 use crate::state::SharedAppState;
@@ -395,16 +397,13 @@ pub struct DeviceManager {
     /// Flag to stop the reconnection task
     stop_reconnect: Arc<RwLock<bool>>,
 
+    /// The connected devices that have a handle (the accessory types).
+    pub(crate) handles: handle::Handles,
+
     /// Active native device instances
-    // Visibility bumped to pub(crate) so dispatch/native.rs can insert connected
-    // generic DeviceDriver handles without an extra accessor layer.
     pub(crate) native_devices: RwLock<HashMap<String, Box<dyn DeviceDriver>>>,
 
-    /// Active ASCOM camera wrappers (for typed access, wrapped in RwLock for interior mutability)
-    #[cfg(windows)]
-    /// Active ASCOM camera wrappers (for typed access, wrapped in RwLock for interior mutability)
-    // Visibility bumped to pub(crate) so dispatch/ascom.rs can manage the typed
-    // wrappers directly during connect / query / health-check paths.
+    /// Active ASCOM camera wrappers
     #[cfg(windows)]
     pub(crate) ascom_cameras:
         RwLock<HashMap<String, Arc<RwLock<crate::ascom_wrapper::camera::AscomCameraWrapper>>>>,
@@ -425,56 +424,10 @@ pub struct DeviceManager {
         HashMap<String, Arc<RwLock<crate::ascom_wrapper::filterwheel::AscomFilterWheelWrapper>>>,
     >,
 
-    /// Active ASCOM rotator wrappers
-    #[cfg(windows)]
-    pub(crate) ascom_rotators:
-        RwLock<HashMap<String, Arc<RwLock<crate::ascom_wrapper::rotator::AscomRotatorWrapper>>>>,
-
-    /// Active ASCOM dome wrappers
-    #[cfg(windows)]
-    pub(crate) ascom_domes:
-        RwLock<HashMap<String, Arc<RwLock<crate::ascom_wrapper::dome::AscomDomeWrapper>>>>,
-
-    /// Active ASCOM weather wrappers
-    #[cfg(windows)]
-    pub(crate) ascom_weather: RwLock<
-        HashMap<
-            String,
-            Arc<RwLock<crate::ascom_wrapper::weather::AscomObservingConditionsWrapper>>,
-        >,
-    >,
-
-    /// Active ASCOM safety monitor wrappers
-    #[cfg(windows)]
-    pub(crate) ascom_safety_monitors: RwLock<
-        HashMap<
-            String,
-            Arc<RwLock<crate::ascom_wrapper::safetymonitor::AscomSafetyMonitorWrapper>>,
-        >,
-    >,
-
-    /// Active ASCOM switch wrappers
-    #[cfg(windows)]
-    pub(crate) ascom_switches:
-        RwLock<HashMap<String, Arc<RwLock<crate::ascom_wrapper::switch::AscomSwitchWrapper>>>>,
-
-    /// Active ASCOM cover calibrator wrappers
-    #[cfg(windows)]
-    pub(crate) ascom_cover_calibrators: RwLock<
-        HashMap<
-            String,
-            Arc<RwLock<crate::ascom_wrapper::covercalibrator::AscomCoverCalibratorWrapper>>,
-        >,
-    >,
-
     /// Active INDI clients (key: "host:port")
-    // Visibility bumped to pub(crate) so dispatch/indi.rs can manage the client
-    // pool directly during connect / discover / health-check paths.
     pub(crate) indi_clients: RwLock<HashMap<String, Arc<RwLock<skotiq_indi::IndiClient>>>>,
 
     /// Active Alpaca camera clients
-    // Visibility bumped to pub(crate) so dispatch/alpaca.rs can manage the typed
-    // wrappers directly during connect / query / health-check paths.
     pub(crate) alpaca_cameras: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaCamera>>>,
 
     /// Active Alpaca mount clients
@@ -485,27 +438,6 @@ pub struct DeviceManager {
 
     /// Active Alpaca filter wheel clients
     pub(crate) alpaca_filter_wheels: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaFilterWheel>>>,
-
-    /// Active Alpaca rotator clients
-    pub(crate) alpaca_rotators: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaRotator>>>,
-
-    /// Active Alpaca dome clients
-    pub(crate) alpaca_domes: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaDome>>>,
-
-    /// Active Alpaca observing conditions (weather) clients
-    pub(crate) alpaca_weather:
-        RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaObservingConditions>>>,
-
-    /// Active Alpaca safety monitor clients
-    pub(crate) alpaca_safety_monitors:
-        RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaSafetyMonitor>>>,
-
-    /// Active Alpaca switch clients
-    pub(crate) alpaca_switches: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaSwitch>>>,
-
-    /// Active Alpaca cover calibrator clients
-    pub(crate) alpaca_cover_calibrators:
-        RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaCoverCalibrator>>>,
 
     /// Active Native SDK cameras (stored separately for typed access)
     pub(crate) native_cameras: RwLock<HashMap<String, Box<dyn CameraDriver + Send + Sync>>>,
@@ -721,6 +653,7 @@ impl DeviceManager {
             expected_models: Default::default(),
             reconnect_config: ReconnectConfig::default(),
             stop_reconnect: Arc::new(RwLock::new(false)),
+            handles: Default::default(),
             native_devices: RwLock::new(HashMap::new()),
             #[cfg(windows)]
             ascom_cameras: RwLock::new(HashMap::new()),
@@ -730,29 +663,11 @@ impl DeviceManager {
             ascom_focusers: RwLock::new(HashMap::new()),
             #[cfg(windows)]
             ascom_filter_wheels: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_rotators: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_domes: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_weather: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_safety_monitors: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_switches: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_cover_calibrators: RwLock::new(HashMap::new()),
             indi_clients: RwLock::new(HashMap::new()),
             alpaca_cameras: RwLock::new(HashMap::new()),
             alpaca_mounts: RwLock::new(HashMap::new()),
             alpaca_focusers: RwLock::new(HashMap::new()),
             alpaca_filter_wheels: RwLock::new(HashMap::new()),
-            alpaca_rotators: RwLock::new(HashMap::new()),
-            alpaca_domes: RwLock::new(HashMap::new()),
-            alpaca_weather: RwLock::new(HashMap::new()),
-            alpaca_safety_monitors: RwLock::new(HashMap::new()),
-            alpaca_switches: RwLock::new(HashMap::new()),
-            alpaca_cover_calibrators: RwLock::new(HashMap::new()),
             native_cameras: RwLock::new(HashMap::new()),
             native_focusers: RwLock::new(HashMap::new()),
             native_filter_wheels: RwLock::new(HashMap::new()),
@@ -852,72 +767,6 @@ impl DeviceManager {
             .filter(|d| d.connection_state == ConnectionState::Connected)
             .map(|d| d.info.clone())
             .collect()
-    }
-
-    /// Clone the shared Alpaca HTTP client for a connected device, if present.
-    ///
-    /// Reads the typed Alpaca maps owned by `DeviceManager` (not the legacy
-    /// `ALPACA_CLIENTS` static in `api/connection.rs`).
-    pub async fn alpaca_client_for_device(
-        &self,
-        device_id: &str,
-    ) -> Option<Arc<skotiq_alpaca::AlpacaClient>> {
-        let registered = self.alpaca_cameras.read().await.contains_key(device_id)
-            || self.alpaca_mounts.read().await.contains_key(device_id)
-            || self.alpaca_focusers.read().await.contains_key(device_id)
-            || self
-                .alpaca_filter_wheels
-                .read()
-                .await
-                .contains_key(device_id)
-            || self.alpaca_rotators.read().await.contains_key(device_id)
-            || self.alpaca_domes.read().await.contains_key(device_id)
-            || self.alpaca_weather.read().await.contains_key(device_id)
-            || self
-                .alpaca_safety_monitors
-                .read()
-                .await
-                .contains_key(device_id)
-            || self.alpaca_switches.read().await.contains_key(device_id)
-            || self
-                .alpaca_cover_calibrators
-                .read()
-                .await
-                .contains_key(device_id);
-
-        if registered {
-            Self::alpaca_client_from_device_id(device_id)
-        } else {
-            None
-        }
-    }
-
-    /// Construct an Alpaca HTTP client from a canonical device id (legacy API helper).
-    fn alpaca_client_from_device_id(device_id: &str) -> Option<Arc<skotiq_alpaca::AlpacaClient>> {
-        use crate::device_id::{parse_device_id_cached, ConnectionInfo};
-        use skotiq_alpaca::{AlpacaClient, AlpacaDevice, AlpacaDeviceType};
-
-        let parsed = parse_device_id_cached(device_id).ok()?;
-        let ConnectionInfo::Alpaca {
-            base_url,
-            device_type,
-            device_num,
-            ..
-        } = parsed.connection_info
-        else {
-            return None;
-        };
-        let alpaca_type = AlpacaDeviceType::from_str(&device_type)?;
-        let device = AlpacaDevice {
-            device_type: alpaca_type,
-            device_number: device_num,
-            server_name: base_url.clone(),
-            manufacturer: String::new(),
-            device_name: String::new(),
-            unique_id: device_id.to_string(),
-            base_url,
-        };
-        Some(Arc::new(AlpacaClient::new(&device)))
     }
 }
 

@@ -280,6 +280,15 @@ impl IndiSafetyMonitor {
     }
 }
 
+indi_accessory!(IndiSafetyMonitor);
+
+#[async_trait::async_trait]
+impl skotiq_device::SafetyMonitorDriver for IndiSafetyMonitor {
+    async fn is_safe(&self) -> Result<bool, skotiq_device::DriverError> {
+        Ok(IndiSafetyMonitor::is_safe(self).await?)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

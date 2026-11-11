@@ -7,6 +7,7 @@
 #[macro_use]
 mod members;
 
+mod accessory;
 mod camera;
 mod client;
 mod covercalibrator;

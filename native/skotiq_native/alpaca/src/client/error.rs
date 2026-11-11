@@ -223,3 +223,9 @@ impl From<AlpacaError> for String {
         err.to_string()
     }
 }
+
+impl From<AlpacaError> for skotiq_device::DriverError {
+    fn from(err: AlpacaError) -> Self {
+        skotiq_device::DriverError::Backend(Box::new(err))
+    }
+}

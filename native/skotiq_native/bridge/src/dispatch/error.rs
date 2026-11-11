@@ -226,16 +226,6 @@ impl From<&str> for DeviceOpError {
     }
 }
 
-/// INDI protocol errors propagated via bare `?` from `IndiClient` calls.
-///
-/// The legacy code path returned `Result<_, String>` and relied on
-/// `From<IndiError> for String` (the INDI crate's own conversion) when a
-/// `?`-propagated `IndiError` crossed into a `String`-typed function. To keep
-/// those `?` sites compiling — and the surfaced message byte-identical — we
-/// reproduce that exact string (`e.to_string()`) but classify it as a
-/// [`DeviceOpError::Hardware`] (INDI failures are protocol/comm failures, i.e.
-/// retryable). The device id is not in scope at the trait-error boundary, so
-/// it is left `None`; the INDI message already names the property that failed.
 /// Classify a vendor-SDK error instead of flattening it to `Hardware`.
 ///
 /// [`DeviceOpError::driver`] takes `impl Display`, so every native driver
@@ -260,6 +250,7 @@ impl From<skotiq_device::DriverError> for DeviceOpError {
         use skotiq_device::DriverError as N;
         let detail = e.to_string();
         match e {
+            N::Backend(inner) => backend_error(inner),
             N::NotSupported => DeviceOpError::Unsupported { detail },
             N::InvalidParameter(_) => DeviceOpError::InvalidParameter { detail },
             N::InvalidDevice(_) => DeviceOpError::InvalidDeviceId { detail },
@@ -278,6 +269,34 @@ impl From<skotiq_device::DriverError> for DeviceOpError {
     }
 }
 
+/// A backend failure carried through `DriverError::Backend`: an ops-layer
+/// error is handed back as it was raised, an INDI write to a read-only
+/// property is an unsupported operation, anything else a hardware fault.
+fn backend_error(inner: Box<dyn std::error::Error + Send + Sync>) -> DeviceOpError {
+    let inner = match inner.downcast::<DeviceOpError>() {
+        Ok(op) => return *op,
+        Err(other) => other,
+    };
+    let detail = inner.to_string();
+    match inner.downcast_ref::<skotiq_indi::IndiError>() {
+        Some(skotiq_indi::IndiError::PermissionDenied(_)) => DeviceOpError::Unsupported { detail },
+        _ => DeviceOpError::Hardware {
+            device_id: None,
+            detail,
+        },
+    }
+}
+
+/// INDI protocol errors propagated via bare `?` from `IndiClient` calls.
+///
+/// The legacy code path returned `Result<_, String>` and relied on
+/// `From<IndiError> for String` (the INDI crate's own conversion) when a
+/// `?`-propagated `IndiError` crossed into a `String`-typed function. To keep
+/// those `?` sites compiling — and the surfaced message byte-identical — we
+/// reproduce that exact string (`e.to_string()`) but classify it as a
+/// [`DeviceOpError::Hardware`] (INDI failures are protocol/comm failures, i.e.
+/// retryable). The device id is not in scope at the trait-error boundary, so
+/// it is left `None`; the INDI message already names the property that failed.
 impl From<skotiq_indi::IndiError> for DeviceOpError {
     fn from(e: skotiq_indi::IndiError) -> Self {
         DeviceOpError::Hardware {

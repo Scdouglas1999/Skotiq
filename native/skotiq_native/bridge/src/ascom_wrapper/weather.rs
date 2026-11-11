@@ -128,7 +128,7 @@ impl AscomObservingConditionsWrapper {
         }
     }
 
-    pub async fn connect(&mut self) -> Result<(), String> {
+    pub async fn connect(&self) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomWeatherCommand::Connect(tx))
@@ -141,7 +141,7 @@ impl AscomObservingConditionsWrapper {
         result
     }
 
-    pub async fn disconnect(&mut self) -> Result<(), String> {
+    pub async fn disconnect(&self) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomWeatherCommand::Disconnect(tx))
