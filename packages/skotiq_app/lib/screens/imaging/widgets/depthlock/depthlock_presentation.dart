@@ -90,19 +90,6 @@ int depthLockApertureCount(DepthLockMeasurement measurement) {
   return columns * rows;
 }
 
-/// The aperture side in native pixels at [pixelScaleArcsec].
-///
-/// The native sampler refuses anything outside 4–64 pixels, so the editor
-/// shows this beside the scale field: an operator choosing arcseconds has no
-/// other way to see they are about to ask for a two-pixel aperture.
-double depthLockAperturePixels({
-  required double scaleArcsec,
-  required double pixelScaleArcsec,
-}) {
-  if (pixelScaleArcsec <= 0) return 0;
-  return scaleArcsec / pixelScaleArcsec;
-}
-
 /// Coverage as the count it actually is — "15 of 16 apertures" — rather than
 /// a bare fraction.
 String depthLockCoverageLabel({

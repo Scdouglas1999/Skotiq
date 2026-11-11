@@ -45,15 +45,6 @@ List<double> passTicks(double lo, double hi, int maxTicks) {
   return out.isEmpty ? <double>[lo, hi] : out;
 }
 
-/// The smallest of 1, 2, 2.5, 5 times a power of ten that is at least [v].
-double passNiceCeil(double v) {
-  final mag = math.pow(10, (math.log(v) / math.ln10).floor()).toDouble();
-  for (final m in const <double>[1, 2, 2.5, 5, 10]) {
-    if (m * mag >= v - 1e-9) return m * mag;
-  }
-  return 10 * mag;
-}
-
 String passTickLabel(double v, double step) {
   if (step >= 1 || v == v.roundToDouble() && step >= 1) {
     return v.round().toString();

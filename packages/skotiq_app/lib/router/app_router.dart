@@ -31,11 +31,6 @@ import '../screens/onboarding/onboarding_screen.dart';
 import '../widgets/first_light/first_light_launcher.dart';
 import 'page_transitions.dart';
 
-/// Optional top-level routes registered by an app entry point (e.g. desktop
-/// dev screens). Defaults to empty so mobile/web builds are unaffected.
-final extraTopLevelRoutesProvider =
-    Provider<List<RouteBase>>((ref) => const []);
-
 /// Where the standalone `/planetarium` deep-link lands.
 ///
 /// Planetarium is a Plan Tonight tab, so the standalone path redirects onto the
@@ -49,11 +44,9 @@ String planetariumRedirectLocation(Uri uri) {
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final extraRoutes = ref.watch(extraTopLevelRoutesProvider);
   return GoRouter(
     initialLocation: '/dashboard',
     routes: [
-      ...extraRoutes,
       // Phone-tailored dashboard lives outside the shell because it
       // brings its own scaffold + bottom-nav and the desktop AppShell
       // would double-up the chrome and steal the bottom 78 px from the

@@ -43,19 +43,6 @@ SkotiqAlertSeverity readinessLevelAlertSeverity(ReadinessLevel level) {
   }
 }
 
-/// Maps a [ReadinessLevel] onto a [StatusPillStatus]. Used by the readiness
-/// chip; exposed here so the chip and panel agree on the mapping.
-StatusPillStatus readinessLevelPillStatus(ReadinessLevel level) {
-  switch (level) {
-    case ReadinessLevel.ready:
-      return StatusPillStatus.success;
-    case ReadinessLevel.caution:
-      return StatusPillStatus.warning;
-    case ReadinessLevel.blocked:
-      return StatusPillStatus.error;
-  }
-}
-
 /// Per-item leading icon, keyed off the stable [ReadinessItemId] so the icon is
 /// independent of the (localizable) title text.
 IconData readinessItemIcon(ReadinessItemId id) {

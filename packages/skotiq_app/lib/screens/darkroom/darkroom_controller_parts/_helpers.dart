@@ -268,57 +268,6 @@ List<DarkroomStep> decodeDarkroomDraft(Map<String, dynamic> reply) {
   ];
 }
 
-/// A decoded draft after the identity rule has been applied: the steps it
-/// carries, and the account of the one it dropped.
-///
-/// Modelled rather than returned as a bare list because the omission is a fact
-/// the recipe row has to store: a stack that silently arrives one step shorter
-/// than the registry proposed is a stack hiding one of its own decisions.
-class DarkroomDraftSteps {
-  /// The steps the draft carries.
-  final List<DarkroomStep> steps;
-
-  /// Why the drafted crop was left out, or null when the draft kept the crop —
-  /// or was never offered one.
-  final String? omittedCropReason;
-
-  const DarkroomDraftSteps({
-    required this.steps,
-    required this.omittedCropReason,
-  });
-}
-
-/// [steps] without a crop whose rectangle covers the whole [width]×[height]
-/// master.
-///
-/// The registry proposes a crop for every master, measured as the area every
-/// registered frame covers. When the frames all cover the same pixels that area
-/// IS the frame, and the step trims nothing — so "Draft for me" wrote
-/// `{x: 0, y: 0, width: W, height: H}` over a W×H master and its card read
-/// "Applied by the last render" over an operation that moved no pixel.
-///
-/// The rule and its wording are [darkroomCropIsIdentity] and
-/// [darkroomIdentityCropReason], which the dawn autopilot's own draft builder
-/// uses: one rule, so the draft an operator asks for and the draft that arrives
-/// at dawn decide this the same way.
-DarkroomDraftSteps darkroomDropIdentityCrop(
-  List<DarkroomStep> steps, {
-  required int width,
-  required int height,
-}) {
-  String? reason;
-  final kept = <DarkroomStep>[];
-  for (final step in steps) {
-    if (step.opId == 'crop' &&
-        darkroomCropIsIdentity(step.params, width: width, height: height)) {
-      reason = darkroomIdentityCropReason(width, height);
-      continue;
-    }
-    kept.add(step);
-  }
-  return DarkroomDraftSteps(steps: kept, omittedCropReason: reason);
-}
-
 /// The notes the registry recorded while composing a draft — the operations it
 /// decided about and did not carry. Empty when the reply carried none.
 List<RecipeDraftNote> decodeDarkroomDraftNotes(Map<String, dynamic> reply) {

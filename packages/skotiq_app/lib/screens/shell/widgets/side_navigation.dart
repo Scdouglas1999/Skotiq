@@ -53,12 +53,6 @@ List<SideNavEntry> sideNavigationEntries(BuildContext context) {
   return entries;
 }
 
-/// Every rail destination, ungrouped — the tutorial keys index by this.
-List<SideNavTab> sideNavigationTabs(BuildContext context) => [
-      for (final entry in sideNavigationEntries(context))
-        if (entry is SideNavTab) entry,
-    ];
-
 /// The left sidebar (the window's own pane, g1-glass).
 ///
 /// 64 px of icons by default, 220 px with labels and group headings when

@@ -101,10 +101,6 @@ void revealSequenceRow(
 // into the next sequencer session.
 final isDraggingNodeProvider = StateProvider.autoDispose<bool>((ref) => false);
 
-/// Tree search query — filters the in-tree "jump to node" results popover in
-/// the sequence header. autoDispose so it resets between sequencer visits.
-final treeSearchQueryProvider = StateProvider.autoDispose<String>((ref) => '');
-
 /// Provider for "follow execution" toggle — auto-scrolls tree to current node
 // autoDispose: tab/screen-scoped toggle; default (on) is the right initial
 // state on each visit to the sequencer.

@@ -28,9 +28,6 @@ abstract final class ShellExit {
     if (identical(_recorder, recorder)) _recorder = null;
   }
 
-  /// True when an entry point is listening (mobile/web never register).
-  static bool get hasRecorder => _recorder != null;
-
   /// Record an operator-initiated quit. Safe to call when nothing is
   /// registered.
   static void recordClean(String reason) => _recorder?.call(reason);

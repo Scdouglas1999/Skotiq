@@ -53,8 +53,6 @@ String describeCheckpointFailure(Object error) {
   return trimmed;
 }
 
-const String kCatalogSetupSkippedSettingKey = 'catalog_setup_skipped';
-
 /// File names the native `CheckpointManager` uses inside the checkpoint
 /// directory (`native/skotiq_native/sequencer/src/checkpoint.rs`,
 /// `CHECKPOINT_FILENAME` / `CHECKPOINT_BACKUP`). Only
