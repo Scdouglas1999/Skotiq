@@ -43,6 +43,19 @@ String planetariumTargetLocation({
   ).toString();
 }
 
+/// Whether the planner shows its Planetarium tab; the planner sets it as its
+/// tab changes. Read through [skyIsOnScreen], which also checks the planner
+/// is the page on show.
+final plannerShowsSkyProvider = StateProvider<bool>((ref) => false);
+
+/// Whether the planetarium is what the operator is looking at.
+bool skyIsOnScreen(BuildContext context, WidgetRef ref) {
+  final router = GoRouter.maybeOf(context);
+  if (router == null || !ref.read(plannerShowsSkyProvider)) return false;
+  return router.routerDelegate.currentConfiguration.uri.path ==
+      router.namedLocation('planner');
+}
+
 /// Center the sky view on [coordinate] and select it.
 ///
 /// Forces the equatorial frame: the caller is handing over an RA/Dec, and in

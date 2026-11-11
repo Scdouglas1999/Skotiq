@@ -249,7 +249,20 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
         plannerTabFromQuery(widget.initialTabQuery) ??
         PlannerTab.recommendation;
     _currentSubTab = resolved.index;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _publishTab();
+    });
   }
+
+  void _showTab(int index) {
+    setState(() => _currentSubTab = index);
+    _publishTab();
+  }
+
+  /// Lets the command palette know whether its target rows should move the
+  /// sky on screen or open Framing.
+  void _publishTab() => ref.read(plannerShowsSkyProvider.notifier).state =
+      _currentSubTab == PlannerTab.planetarium.index;
 
   @override
   void didUpdateWidget(PlannerScreen oldWidget) {
@@ -261,7 +274,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
     if (widget.initialTabQuery != oldWidget.initialTabQuery) {
       final resolved = plannerTabFromQuery(widget.initialTabQuery);
       if (resolved != null && resolved.index != _currentSubTab) {
-        setState(() => _currentSubTab = resolved.index);
+        _showTab(resolved.index);
       }
     }
   }
@@ -337,7 +350,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
     final tabBar = AdaptiveTabBar(
       tabs: [for (final t in tabs) t.$2],
       selectedIndex: _currentSubTab,
-      onSelected: (index) => setState(() => _currentSubTab = index),
+      onSelected: _showTab,
       // The page header owns the 24px gutter, so the strip starts flush
       // against the title block.
       horizontalPadding: 0,

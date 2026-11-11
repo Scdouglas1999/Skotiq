@@ -8,6 +8,7 @@ import 'package:skotiq_planetarium/skotiq_planetarium.dart'
 import 'package:skotiq_astro/skotiq_astro.dart' show CelestialObject;
 
 import '../../localization/skotiq_localizations.dart';
+import '../../screens/planetarium/show_in_sky.dart';
 import '../../screens/settings/settings_catalog.dart';
 import '../../screens/equipment/utils/connect_all_action.dart';
 import '../../screens/settings/settings_search_index.g.dart';
@@ -310,12 +311,17 @@ String _normalizeDesignation(String text) =>
     text.toLowerCase().replaceAll(RegExp(r'\s+'), '');
 
 /// Deep-sky objects and named stars from the installed catalogs that match
-/// [query]; choosing one opens it in Framing.
+/// [query]. Choosing one opens it in Framing, or, [inSky] (the planetarium on
+/// screen), centers the sky on it; Shift+Enter does the other.
 ///
 /// Designations match with or without spaces ("NGC 891", "ngc891", "M31"),
 /// common names by substring, and stars by their proper name. Nothing is
 /// listed before two characters are typed or while the catalogs load.
-List<CommandEntry> buildTargetEntries(WidgetRef ref, String query) {
+List<CommandEntry> buildTargetEntries(
+  WidgetRef ref,
+  String query, {
+  bool inSky = false,
+}) {
   final normalized = _normalizeDesignation(query);
   if (normalized.length < 2) return const [];
   final dsos = ref.read(loadedDsosProvider).valueOrNull ?? const [];
@@ -360,18 +366,33 @@ List<CommandEntry> buildTargetEntries(WidgetRef ref, String query) {
         group: CommandGroup.targets,
         icon: LucideIcons.crosshair,
         label: label,
-        hint: 'Open in Framing',
+        hint: inSky
+            ? 'Show in sky · Shift+Enter: Framing'
+            : 'Open in Framing · Shift+Enter: sky',
         // Matched here already; the query must not filter these out again
         // when the label shows a different designation than the one typed.
         keywords: [query],
-        invoke: (context, ref) {
-          ref.read(framingProvider.notifier).setTargetCoordinates(
-                object.coordinates.ra,
-                object.coordinates.dec,
-                name: object.name,
-              );
-          context.go('/framing');
-        },
+        invoke: inSky ? _showInSky(object) : _openInFraming(object),
+        invokeAlternate: inSky ? _openInFraming(object) : _showInSky(object),
       ),
   ];
 }
+
+void Function(BuildContext, WidgetRef) _openInFraming(CelestialObject object) =>
+    (context, ref) {
+      ref.read(framingProvider.notifier).setTargetCoordinates(
+            object.coordinates.ra,
+            object.coordinates.dec,
+            name: object.name,
+          );
+      context.go('/framing');
+    };
+
+void Function(BuildContext, WidgetRef) _showInSky(CelestialObject object) =>
+    (context, ref) => showTargetInSky(
+          context,
+          ref,
+          raHours: object.coordinates.ra,
+          decDegrees: object.coordinates.dec,
+          name: object.name,
+        );
