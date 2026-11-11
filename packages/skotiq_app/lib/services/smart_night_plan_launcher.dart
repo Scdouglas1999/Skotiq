@@ -27,9 +27,7 @@ class SmartNightPlanLauncher {
     await read(sequenceExecutorProvider).start();
 
     if (draftId != null) {
-      await SmartNightDraftService(
-        settingsDao: read(settingsDaoProvider),
-      ).markStarted(draftId);
+      await read(smartNightDraftServiceProvider).markStarted(draftId);
     }
   }
 }

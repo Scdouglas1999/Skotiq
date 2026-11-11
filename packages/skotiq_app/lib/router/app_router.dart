@@ -445,7 +445,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // desktop (same shell). Sibling to /planner; the deep planner and
           // sequencer stay fully available via the screen's "Advanced" link.
           GoRoute(
-            path: '/tonight',
+            path: kOneTapTonightRoutePath,
             name: 'tonight',
             pageBuilder: (context, state) => const CustomTransitionPage(
               child: TonightScreen(),

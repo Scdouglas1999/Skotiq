@@ -145,6 +145,16 @@ class SmartNightDraftService {
     await _saveAll(drafts);
   }
 
+  /// Removes the draft with [id]; a draft that is already gone is not an error.
+  Future<void> discard(String id) async {
+    final drafts = await loadAll();
+    final before = drafts.length;
+    drafts.removeWhere((d) => d.id == id);
+    if (drafts.length != before) {
+      await _saveAll(drafts);
+    }
+  }
+
   Future<void> cleanupExpiredPending() async {
     final cutoff = _now().subtract(pendingTtl);
     final drafts = await loadAll();
@@ -159,8 +169,14 @@ class SmartNightDraftService {
     }
   }
 
-  Future<List<SmartNightDraft>> loadAll() async {
-    final raw = await settingsDao.getSetting(settingsKey);
+  Future<List<SmartNightDraft>> loadAll() async =>
+      _decode(await settingsDao.getSetting(settingsKey));
+
+  /// Every stored draft, again each time the store changes.
+  Stream<List<SmartNightDraft>> watchAll() =>
+      settingsDao.watchSetting(settingsKey).map(_decode);
+
+  static List<SmartNightDraft> _decode(String? raw) {
     if (raw == null || raw.trim().isEmpty) return <SmartNightDraft>[];
     final decoded = jsonDecode(raw);
     if (decoded is! List) {

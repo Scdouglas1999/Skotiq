@@ -11,6 +11,7 @@ import '../../screens/settings/settings_catalog.dart';
 import '../../screens/equipment/utils/connect_all_action.dart';
 import '../../screens/settings/settings_search_index.g.dart';
 import '../../screens/shell/shell_navigation.dart';
+import '../../screens/tonight/tonight_screen.dart' show kOneTapTonightRoutePath;
 import '../../services/mount_command_service.dart';
 import '../../services/sequence_action_service.dart';
 import 'command_entry.dart';
@@ -96,6 +97,13 @@ List<CommandEntry> buildScreenEntries(BuildContext context) {
     label: l10n.text('navFlatWizard'),
     route: '/flat-wizard',
     keywords: const ['flat', 'calibration', 'wizard'],
+  );
+  screen(
+    id: 'screen:$kOneTapTonightRoutePath',
+    icon: LucideIcons.moonStar,
+    label: "Image tonight's best target",
+    route: kOneTapTonightRoutePath,
+    keywords: const ['one tap', 'best', 'tonight', 'automatic', 'start'],
   );
   screen(
     id: 'screen:/session-review',

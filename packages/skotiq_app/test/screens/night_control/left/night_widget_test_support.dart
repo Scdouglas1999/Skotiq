@@ -192,7 +192,8 @@ class NightHarness {
       ];
 
   /// Pumps [child] at [size], with the text scaled by [textScale]. The
-  /// child sits at the top of a page that also has a Sequencer route.
+  /// child sits at the top of a page that also has Sequencer and one-tap
+  /// routes.
   Future<void> pump(
     WidgetTester tester,
     Widget child, {
@@ -221,6 +222,10 @@ class NightHarness {
         GoRoute(
           path: '/sequencer',
           builder: (context, state) => const Scaffold(body: Text('sequencer')),
+        ),
+        GoRoute(
+          path: '/tonight',
+          builder: (context, state) => const Scaffold(body: Text('one tap')),
         ),
       ],
     );

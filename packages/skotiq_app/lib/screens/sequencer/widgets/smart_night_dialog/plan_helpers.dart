@@ -349,18 +349,18 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     _countDraftDebounce?.cancel();
     _countDraftDebounce = Timer(const Duration(milliseconds: 400), () async {
       try {
-        final draft = await SmartNightDraftService(
-          settingsDao: ref.read(settingsDaoProvider),
-        ).savePending(
-          profileId: profile.id.toString(),
-          astronomicalDay: patched.context.windowStart,
-          plan: patched,
-        );
+        final draft =
+            await ref.read(smartNightDraftServiceProvider).savePending(
+                  profileId: profile.id.toString(),
+                  astronomicalDay: _nightStart!,
+                  plan: patched,
+                );
         if (!mounted) return;
         setState(() => _previewDraftId = draft.id);
       } catch (e) {
         if (mounted) {
-          context.showWarningSnackBar('Could not save adjusted counts: ${userFacingError(e)}');
+          context.showWarningSnackBar(
+              'Could not save adjusted counts: ${userFacingError(e)}');
         }
       }
     });
@@ -445,7 +445,8 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
       );
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Could not start Smart Night sequence: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Could not start Smart Night sequence: ${userFacingError(e)}');
       }
       return;
     } finally {
@@ -474,7 +475,8 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
           .saveSequence(plan.sequence, isTemplate: true);
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Could not save template: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Could not save template: ${userFacingError(e)}');
       }
       return;
     } finally {
@@ -485,6 +487,63 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     context.showSuccessSnackBar(
       'Saved "${plan.sequence.name}" as a template.',
     );
+  }
+
+  /// Tonight's draft key for the active profile; null until the night's
+  /// window is known.
+  SmartNightDraftLookup? _draftLookup() {
+    final profile = ref.watch(activeEquipmentProfileProvider);
+    final night = _nightStart;
+    if (profile == null || night == null) return null;
+    return SmartNightDraftLookup(
+      profileId: profile.id.toString(),
+      astronomicalDay: night,
+    );
+  }
+
+  /// Reopens [draft] on the Preview step with the choices it was built from,
+  /// so Back walks through them as they were.
+  void _continueDraft(SmartNightDraft draft) {
+    final plan = draft.plan;
+    final remainingStart = _windowStart;
+    setState(() {
+      _draftOfferAnswered = true;
+      _preview = plan;
+      _previewDraftId = draft.id;
+      _previewError = null;
+      // A window that opened before now is planned from now if rebuilt.
+      _windowStart = remainingStart != null &&
+              plan.context.windowStart.isBefore(remainingStart)
+          ? remainingStart
+          : plan.context.windowStart;
+      _windowEnd = plan.context.windowEnd;
+      _strategy = plan.strategy;
+      _settings = plan.settings;
+      _autoSelect = false;
+      _selectedTargetIds
+        ..clear()
+        ..addAll(plan.plannedTargets.map((t) => t.suggestion.targetId));
+      _step = 4;
+    });
+  }
+
+  Future<void> _discardDraft(
+    SmartNightDraft draft,
+    SmartNightDraftLookup lookup,
+  ) async {
+    try {
+      await ref.read(smartNightDraftServiceProvider).discard(draft.id);
+    } catch (e) {
+      if (mounted) {
+        context.showErrorSnackBar(
+          'Could not delete the saved plan: ${userFacingError(e)}',
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    ref.invalidate(pendingSmartNightDraftProvider(lookup));
+    setState(() => _draftOfferAnswered = true);
   }
 
   Future<void> _pickDateTime({
@@ -511,5 +570,4 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
       time.minute,
     ));
   }
-
 }

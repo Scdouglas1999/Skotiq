@@ -72,7 +72,7 @@ void main() {
     expect(find.textContaining('≈'), findsNothing);
   });
 
-  testWidgets('no plan says so', (tester) async {
+  testWidgets('no plan says so and offers the one-tap night', (tester) async {
     final harness = NightHarness(board: NightFixtures.ready(), noPlan: true);
     await harness.pump(
       tester,
@@ -80,5 +80,42 @@ void main() {
       size: const Size(272, 758),
     );
     expect(find.text('No plan loaded'), findsOneWidget);
+
+    await tester.tap(find.text("Image tonight's best target"));
+    await tester.pumpAndSettle();
+    expect(find.text('one tap'), findsOneWidget);
+  });
+
+  testWidgets('a plan with nothing to capture offers the one-tap night',
+      (tester) async {
+    final harness = NightHarness(
+      board: NightFixtures.ready(),
+      plan: const NightPlanVm(
+        rows: <PlanFilterRowVm>[],
+        integrated: Duration.zero,
+      ),
+    );
+    await harness.pump(
+      tester,
+      const SizedBox(width: 272, child: NightPlanSection()),
+      size: const Size(272, 758),
+    );
+    expect(find.text("Image tonight's best target"), findsOneWidget);
+  });
+
+  testWidgets('a live run never offers the one-tap night', (tester) async {
+    final harness = NightHarness(
+      board: NightFixtures.running(),
+      plan: const NightPlanVm(
+        rows: <PlanFilterRowVm>[],
+        integrated: Duration.zero,
+      ),
+    );
+    await harness.pump(
+      tester,
+      const SizedBox(width: 272, child: NightPlanSection()),
+      size: const Size(272, 758),
+    );
+    expect(find.text("Image tonight's best target"), findsNothing);
   });
 }
