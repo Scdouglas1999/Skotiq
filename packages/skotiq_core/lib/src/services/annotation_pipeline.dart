@@ -586,7 +586,7 @@ extension AnnotationPipeline on AnnotationService {
           annotations.add(
             CelestialObjectAnnotation(
               id: 'star_${star.id}',
-              name: star.name,
+              name: star.label,
               type: ObjectType.star,
               ra: raDeg,
               dec: decDeg,

@@ -32,19 +32,24 @@ Future<_StarLoad> _loadStarsInIsolate(String path) async {
   }
 
   _nameComponentStars(rows);
-  final stars = [for (final row in rows) row.star];
-  stars.sort((a, b) => (a.magnitude ?? 99).compareTo(b.magnitude ?? 99));
+  rows.sort(
+    (a, b) => (a.star.magnitude ?? 99).compareTo(b.star.magnitude ?? 99),
+  );
 
+  final stars = <Star>[];
   final lower = <String>[];
   final normalized = <String>[];
-  for (final star in stars) {
+  for (final row in rows) {
+    final star = row.star;
+    stars.add(star);
     final id = star.id.toLowerCase();
     CatalogNameKeys.add(
       lower,
       normalized,
-      // A star with no designation is named by its id, whose normalized form
-      // is the id itself.
-      [if (star.name != star.id) star.name],
+      // Name search matches a star by proper name and catalog number only.
+      // A Bayer or Flamsteed name ends in its constellation, so "andromeda"
+      // would list twenty stars of Andromeda under M31.
+      [if (row.proper) star.name],
       lowerOnly: [id, ...star.catalogIds],
       alreadyNormalized: [
         id,
@@ -106,6 +111,7 @@ void _nameComponentStars(List<_HygRow> rows) {
       comp: row.comp,
       compPrimary: row.compPrimary,
       named: true,
+      proper: false,
     );
   }
 }
@@ -269,6 +275,7 @@ _HygRow? _parseHygLine(String line) {
     comp: comp,
     compPrimary: compPrimary,
     named: named,
+    proper: properName.isNotEmpty,
   );
 }
 

@@ -177,10 +177,12 @@ class HygStarCatalog {
 ///
 /// [named] is false when the row carried no proper name, Bayer letter or
 /// Flamsteed number, so the star's name is currently just its catalogue id.
+/// [proper] is true when the name is the row's proper name ("Vega").
 typedef _HygRow = ({
   Star star,
   int hygId,
   int comp,
   int compPrimary,
   bool named,
+  bool proper,
 });

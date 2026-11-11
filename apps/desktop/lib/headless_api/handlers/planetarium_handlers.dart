@@ -463,7 +463,7 @@ class PlanetariumHandlers implements RouteSource {
 
       for (final star in stars) {
         results.add({
-          'name': star.name,
+          'name': star.label,
           'catalogId': star.id,
           'ra': star.coordinates.raDegrees,
           'raHours': star.coordinates.ra, // canonical hours field; see B14

@@ -39,6 +39,11 @@ class Star implements CelestialObject {
     this.catalogIds = const [],
   });
 
+  /// What to call this star in a list or on an image: its name, or for a
+  /// star with none its first catalog designation ("HIP 3293").
+  String get label =>
+      name == id && catalogIds.isNotEmpty ? catalogIds.first : name;
+
   /// The number of this star in [catalog] ("HIP", "HD", "HR"), from
   /// [catalogIds].
   int? catalogNumber(String catalog) {

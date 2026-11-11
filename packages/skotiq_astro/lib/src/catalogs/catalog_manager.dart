@@ -126,7 +126,7 @@ class CatalogManager extends CatalogInstaller {
       final s = objects[i];
       results.add(
         CatalogSearchResult(
-          name: s.name,
+          name: s.label,
           catalogId: s.id,
           ra: s.coordinates.raDegrees,
           dec: s.coordinates.dec,
