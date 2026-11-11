@@ -22,6 +22,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_app/screens/imaging/widgets/guiding_panel.dart';
 
 import '../harness/mock_backend.dart';
+import '../harness/mock_database.dart' show inMemoryDatabaseOverride;
 import 'surface_golden_harness.dart';
 
 /// Pins the backend provider to a specific [SkotiqBackend] (the mock)
@@ -95,6 +96,8 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          // The panel's dither and settle values are the app settings.
+          inMemoryDatabaseOverride(),
           backendProvider
               .overrideWith((ref) => _FixedBackendNotifier(ref, backend)),
           guiderStateProvider
