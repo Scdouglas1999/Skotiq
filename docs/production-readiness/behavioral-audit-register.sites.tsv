@@ -152,7 +152,6 @@ apps/desktop/lib/headless_api/handlers/weather_handlers.dart	handleGetForecast	l
 apps/desktop/lib/headless_api/handlers/weather_handlers.dart	handleGetRadarData	literal_null_coalesce	1	V0036	final forceRefresh = optionalQueryBool(query, 'refresh') ?? false;
 apps/desktop/lib/headless_api/handlers/weather_handlers.dart	handleGetRadarData	literal_null_coalesce	1	V0036	if ((query['lat'] ?? '').isEmpty || (query['lon'] ?? '').isEmpty) {
 apps/desktop/lib/headless_api/job_manager.dart	Job	comment_best_effort	1	V0121	/// best-effort correlation between a job and the underlying driver's
-apps/desktop/lib/headless_api/routes/headless_route.dart	-	comment_best_effort	1	V0121	/// placeholders in the URL, and we have ~30 routes that take an
 apps/desktop/lib/headless_api/update_wiring.dart	provisionUpdateStack	literal_null_coalesce	1	V0121	: (Platform.environment['SKOTIQ_UPDATE_SERVER']?.trim() ?? '');
 apps/desktop/lib/headless_api/update_wiring.dart	provisionUpdateStack	literal_null_coalesce	1	V0121	final resolvedUrl = (serverUrl?.trim().isNotEmpty ?? false)
 apps/desktop/lib/headless_api/validation.dart	errorTranslationMiddleware	literal_null_coalesce	1	V0068	if (shouldBypass?.call(request) ?? false) {
@@ -2319,11 +2318,6 @@ packages/skotiq_astro/lib/src/catalogs/star_catalog/hyg_parser.dart	_parseHygLin
 packages/skotiq_astro/lib/src/catalogs/star_catalog/hyg_parser.dart	_parseHygLine	literal_null_coalesce	1	V0290	final hygId = int.tryParse(parts[0]) ?? 0;
 packages/skotiq_astro/lib/src/catalogs/star_catalog/hyg_parser.dart	_parseHygLine	literal_null_coalesce	1	V0292	starName = '$flamsteedNumber ${constellationFullName(constellation ?? '')}';
 packages/skotiq_astro/lib/src/catalogs/variable_star_catalog.dart	search	literal_null_coalesce	1	V0135	(s.designation?.toLowerCase().contains(lower) ?? false) ||
-packages/skotiq_bridge/lib/src/bridge_stub/guiding_operations.dart	isPhd2Running	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_bridge/lib/src/bridge_stub/native_bridge_facade.dart	sequencerSetSimulationMode	simulated_runtime_path	1	V0121	_nativeBridge.sequencerSetSimulationMode(enabled);
-packages/skotiq_bridge/lib/src/bridge_stub/native_bridge_facade.dart	sequencerSetSimulationMode	simulated_runtime_path	1	V0121	static Future<void> sequencerSetSimulationMode(bool enabled) =>
-packages/skotiq_bridge/lib/src/bridge_stub/sequencer_operations.dart	sequencerSetSimulationMode	simulated_runtime_path	1	V0121	Future<void> sequencerSetSimulationMode(bool enabled) async {
-packages/skotiq_bridge/lib/src/bridge_stub/sequencer_operations.dart	sequencerSetSimulationMode	simulated_runtime_path	1	V0121	_nativeBridgeRequired('sequencerSetSimulationMode');
 packages/skotiq_bridge/lib/src/event/sequencer.dart	SequencerEvent.frameRejected	nonconvergence_best_guess	1	V0288	/// consulted or could not pick a single best guess. Dart maps
 packages/skotiq_bridge/lib/src/event/sequencer.freezed.dart	-	nonconvergence_best_guess	1	V0289	/// consulted or could not pick a single best guess. Dart maps
 packages/skotiq_bridge/lib/src/event_display.dart	_filterSlot	literal_null_coalesce	1	V0906	final trimmed = name?.trim() ?? '';
@@ -2414,7 +2408,6 @@ packages/skotiq_core/lib/src/backend/bridge_event_mapper.dart	_systemEventFromCo
 packages/skotiq_core/lib/src/backend/bridge_event_mapper.dart	_systemEventFromCore	literal_null_coalesce	1	V0092	message: data['message'] as String? ?? '',
 packages/skotiq_core/lib/src/backend/bridge_event_mapper.dart	_systemEventFromCore	literal_null_coalesce	1	V0092	title: data['title'] as String? ?? '',
 packages/skotiq_core/lib/src/backend/bridge_event_mapper.dart	_systemEventFromCore	literal_null_coalesce	1	V0092	totalDropped: BigInt.from(_optionalInt(data, 'total_dropped') ?? 0),
-packages/skotiq_core/lib/src/backend/disconnected_backend.dart	sequencerSetSimulationMode	simulated_runtime_path	1	V0010	Future<void> sequencerSetSimulationMode(bool enabled) async {
 packages/skotiq_core/lib/src/backend/ffi_backend/bridge_model_mappers.dart	_fromBridgeMountStatus	literal_null_coalesce	1	V0121	// three carried `?? 0.0`, which turned "this mount cannot say" — what
 packages/skotiq_core/lib/src/backend/ffi_backend/bridge_model_mappers.dart	_fromBridgeMountStatus	literal_null_coalesce	1	V0121	atHome: s.atHome ?? false,
 packages/skotiq_core/lib/src/backend/ffi_backend/bridge_model_mappers.dart	_fromBridgeSettings	literal_null_coalesce	1	V0121	elevation: loc?.elevation ?? 0.0,
@@ -2422,10 +2415,12 @@ packages/skotiq_core/lib/src/backend/ffi_backend/bridge_model_mappers.dart	_from
 packages/skotiq_core/lib/src/backend/ffi_backend/bridge_model_mappers.dart	_fromBridgeSettings	literal_null_coalesce	1	V0121	longitude: loc?.longitude ?? 0.0,
 packages/skotiq_core/lib/src/backend/ffi_backend/depthlock_operations.dart	createDepthLockGoal	literal_null_coalesce	1	V0768	goalId: goalId ?? '',
 packages/skotiq_core/lib/src/backend/ffi_backend/event_mapping.dart	_FfiBackendEventMapping	empty_catch	1	V0121	} catch (_) {
+packages/skotiq_core/lib/src/backend/ffi_backend/mount_guiding_operations.dart	isPhd2Running	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/backend/ffi_backend/mount_guiding_operations.dart	phd2GetStatus	empty_catch	1	V0121	} catch (_) {
+packages/skotiq_core/lib/src/backend/ffi_backend/native_runtime.dart	_NativeProcessState	simulated_runtime_path	1	U2-02	/// Dart-side copy of the flag `sequencerSetSimulationMode` last pushed.
 packages/skotiq_core/lib/src/backend/ffi_backend/sequencer_recovery_operations.dart	sequencerUpdateConditionsScore	guessed_now_timestamp	1	V0121	final generatedAt = score?.generatedAt.toUtc() ?? DateTime.now().toUtc();
+packages/skotiq_core/lib/src/backend/ffi_backend/sequencer_recovery_operations.dart	sequencerSetSimulationMode	simulated_runtime_path	1	V0121	'sequencerSetSimulationMode',
 packages/skotiq_core/lib/src/backend/ffi_backend/sequencer_recovery_operations.dart	sequencerSetSimulationMode	simulated_runtime_path	1	V0121	Future<void> sequencerSetSimulationMode(bool enabled) async {
-packages/skotiq_core/lib/src/backend/ffi_backend/sequencer_recovery_operations.dart	sequencerSetSimulationMode	simulated_runtime_path	1	V0121	await bridge.NativeBridge.sequencerSetSimulationMode(enabled);
 packages/skotiq_core/lib/src/backend/ffi_backend/session_heartbeat_operations.dart	getSessionImages	literal_null_coalesce	1	V0121	gain: dbImg.gain ?? 0,
 packages/skotiq_core/lib/src/backend/ffi_backend/session_heartbeat_operations.dart	getSessionImages	literal_null_coalesce	1	V0121	offset: dbImg.offset ?? 0,
 packages/skotiq_core/lib/src/backend/network_backend/device_operations.dart	_discoverAtAddress	literal_null_coalesce	1	V0121	description: d['description'] as String? ?? '',
@@ -3027,6 +3022,7 @@ packages/skotiq_core/lib/src/models/weather/weather_settings.g.dart	_$WeatherSet
 packages/skotiq_core/lib/src/models/weather/weather_status.g.dart	_$WeatherStatusFromJson	literal_null_coalesce	1	V0014	currentFrameIndex: (json['currentFrameIndex'] as num?)?.toInt() ?? 0,
 packages/skotiq_core/lib/src/models/weather/weather_status.g.dart	_$WeatherStatusFromJson	literal_null_coalesce	1	V0014	isLoading: json['isLoading'] as bool? ?? false,
 packages/skotiq_core/lib/src/providers/app_version_provider.dart	-	empty_catch	1	V0121	} catch (_) {
+packages/skotiq_core/lib/src/providers/async_scope.dart	beginLatest	literal_null_coalesce	1	U2-02	final turn = (_latest[slot] ?? 0) + 1;
 packages/skotiq_core/lib/src/providers/autofocus_preview_feeder.dart	_fetch	empty_catch	1	V0811	} catch (_) {
 packages/skotiq_core/lib/src/providers/autofocus_preview_feeder.dart	fetchLatestFrame	guessed_now_timestamp	1	V0812	final capturedAt = tryParseUtcTimestamp(result.timestamp) ?? DateTime.now();
 packages/skotiq_core/lib/src/providers/autofocus_preview_feeder.dart	onEvent	literal_null_coalesce	1	V0813	final attempt = (detail?['attempt'] as num?)?.toInt() ?? 0;
