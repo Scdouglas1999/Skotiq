@@ -24,14 +24,32 @@ extension _SkotiqDatabaseSchemaHelpers on SkotiqDatabase {
   /// step that introduced a table creates it from there, so the columns later
   /// versions added are already present and those versions' guarded
   /// `ADD COLUMN` steps find nothing to do.
+  ///
+  /// With [keepGoingPastIndexFailures], an index that cannot be built is
+  /// reported and skipped. That is for the pass that closes an upgrade: it
+  /// may be the first time a database is asked for an index it never had,
+  /// and rows that break a UNIQUE index must not stop the database opening.
   Future<void> _createMissing(
     Migrator m,
-    Iterable<DatabaseSchemaEntity> entities,
-  ) async {
+    Iterable<DatabaseSchemaEntity> entities, {
+    bool keepGoingPastIndexFailures = false,
+  }) async {
     final rows = await customSelect('SELECT name FROM sqlite_master').get();
     final existing = {for (final row in rows) row.read<String>('name')};
     for (final entity in entities) {
       if (existing.contains(entity.entityName)) continue;
+      if (entity is Index && keepGoingPastIndexFailures) {
+        try {
+          await m.create(entity);
+        } catch (error) {
+          // ignore: avoid_print
+          print(
+            '[skotiq_db] WARNING: could not create the index '
+            '${entity.entityName} ($error). The database opens without it.',
+          );
+        }
+        continue;
+      }
       await m.create(entity);
     }
   }

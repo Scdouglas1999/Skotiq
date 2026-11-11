@@ -192,7 +192,11 @@ extension _SkotiqDatabaseMigration on SkotiqDatabase {
 
     // Whatever the steps above did not create: a table or index declared in
     // drift needs no step of its own to reach an upgraded database.
-    await _createMissing(m, allSchemaEntities);
+    await _createMissing(
+      m,
+      allSchemaEntities,
+      keepGoingPastIndexFailures: true,
+    );
     await _ensureDefaultSettings();
   }
 

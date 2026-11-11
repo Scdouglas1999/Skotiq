@@ -250,6 +250,36 @@ void main() {
     );
   });
 
+  test('rows that break an index the database never had do not stop it '
+      'opening', () async {
+    // Databases upgraded through v52 never got `idx_sky_tiles_pixel`, so
+    // nothing stopped two rows for one pixel.
+    final file = _unpackPopulatedFixture(dir);
+    _withRaw(file, (db) {
+      db.execute('DROP INDEX idx_sky_tiles_pixel');
+      final columns = [
+        for (final c in db.select('PRAGMA table_info(sky_tiles)'))
+          if (c['name'] != 'id') '"${c['name']}"',
+      ].join(', ');
+      db.execute(
+        'INSERT INTO sky_tiles ($columns) SELECT $columns FROM sky_tiles',
+      );
+    });
+
+    await _openAndClose(file);
+
+    _withRaw(file, (db) {
+      expect(db.select('PRAGMA user_version').first.values, [65]);
+      expect(db.select('SELECT COUNT(*) AS n FROM sky_tiles').first['n'], 2);
+      expect(
+        db.select(
+          "SELECT 1 FROM sqlite_master WHERE name = 'idx_sky_tiles_pixel'",
+        ),
+        isEmpty,
+      );
+    });
+  });
+
   test(
     'a fresh database has the structure the raw-DDL build created',
     () async {
