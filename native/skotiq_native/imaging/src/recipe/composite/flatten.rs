@@ -440,41 +440,7 @@ fn least_squares(samples: &[&(f64, f64, f64)], terms: &[(u32, u32)]) -> Option<V
             }
         }
     }
-    solve_dense(ata, atb)
-}
-
-/// Gaussian elimination with partial pivoting; `None` for a singular system.
-fn solve_dense(mut a: Vec<f64>, mut b: Vec<f64>) -> Option<Vec<f64>> {
-    let n = b.len();
-    for col in 0..n {
-        let pivot =
-            (col..n).max_by(|&p, &q| a[p * n + col].abs().total_cmp(&a[q * n + col].abs()))?;
-        if a[pivot * n + col].abs() < 1e-12 {
-            return None;
-        }
-        if pivot != col {
-            for k in 0..n {
-                a.swap(col * n + k, pivot * n + k);
-            }
-            b.swap(col, pivot);
-        }
-        for row in col + 1..n {
-            let factor = a[row * n + col] / a[col * n + col];
-            for k in col..n {
-                a[row * n + k] -= factor * a[col * n + k];
-            }
-            b[row] -= factor * b[col];
-        }
-    }
-    let mut x = vec![0.0; n];
-    for row in (0..n).rev() {
-        let mut acc = b[row];
-        for k in row + 1..n {
-            acc -= a[row * n + k] * x[k];
-        }
-        x[row] = acc / a[row * n + row];
-    }
-    x.iter().all(|v| v.is_finite()).then_some(x)
+    crate::numeric::solve_dense(ata, atb, 1e-12).filter(|x| x.iter().all(|v| v.is_finite()))
 }
 
 fn surface_range(surface: &Surface, width: usize, height: usize) -> (f64, f64) {

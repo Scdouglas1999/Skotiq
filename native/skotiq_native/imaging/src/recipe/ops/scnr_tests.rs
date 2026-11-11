@@ -4,7 +4,7 @@
 use serde_json::json;
 
 use super::*;
-use crate::color_composite::test_scene::mono;
+use crate::recipe::composite::test_scene::mono;
 
 fn pixels(values: &[[f32; 3]]) -> OpImage {
     let header = mono(1, 1, vec![0.0], "L").header().clone();

@@ -901,7 +901,7 @@ fn average_star_scene(
     paint: impl Fn(usize, usize, usize) -> f64,
 ) -> OpImage {
     let (w, h) = (512usize, 512usize);
-    let mut rng = crate::color_composite::test_scene::Lcg::new(23);
+    let mut rng = crate::recipe::composite::test_scene::Lcg::new(23);
     let mut data = vec![0.0_f32; w * h * 3];
     let mut stars = Vec::new();
     let mut n = 0;

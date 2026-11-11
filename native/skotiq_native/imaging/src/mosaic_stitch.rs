@@ -59,6 +59,7 @@ use thiserror::Error;
 use crate::normalization::{
     estimate_normalization, CoverageMask, NormEstimator, NormalizationConfig,
 };
+use crate::numeric::{lanczos3, solve_dense};
 use crate::registration::Interpolator;
 use crate::robust_stats::median_in_place;
 use crate::{ImageData, SipWcs, WcsInfo};
@@ -432,19 +433,6 @@ fn catmull_rom(x: f64) -> f64 {
     }
 }
 
-/// Lanczos kernel with a = 3 — matches `registration::lanczos3`.
-fn lanczos3(x: f64) -> f64 {
-    const A: f64 = 3.0;
-    if x.abs() < f64::EPSILON {
-        1.0
-    } else if x.abs() < A {
-        let px = std::f64::consts::PI * x;
-        (A * px.sin() * (px / A).sin()) / (px * px)
-    } else {
-        0.0
-    }
-}
-
 // Output-canvas construction
 
 /// Build the output canvas WCS + integer dimensions from the panel projections.
@@ -724,52 +712,7 @@ fn solve_anchored_chain(n: usize, edges: impl Iterator<Item = (usize, usize, f64
     for k in 1..n {
         a[k][k] += 1e-9;
     }
-    gaussian_solve(a, b).unwrap_or_else(|| vec![0.0; n])
-}
-
-/// Dense Gaussian elimination with partial pivoting. `None` if singular.
-// Index loops: row/column elimination is the natural index-keyed algorithm.
-#[allow(clippy::needless_range_loop)]
-fn gaussian_solve(mut a: Vec<Vec<f64>>, mut b: Vec<f64>) -> Option<Vec<f64>> {
-    let n = b.len();
-    for col in 0..n {
-        // Pivot.
-        let mut piv = col;
-        let mut best = a[col][col].abs();
-        for r in (col + 1)..n {
-            let v = a[r][col].abs();
-            if v > best {
-                best = v;
-                piv = r;
-            }
-        }
-        if best < 1e-15 {
-            return None;
-        }
-        a.swap(col, piv);
-        b.swap(col, piv);
-        // Eliminate.
-        for r in (col + 1)..n {
-            let f = a[r][col] / a[col][col];
-            if f == 0.0 {
-                continue;
-            }
-            for c in col..n {
-                a[r][c] -= f * a[col][c];
-            }
-            b[r] -= f * b[col];
-        }
-    }
-    // Back-substitute.
-    let mut x = vec![0.0f64; n];
-    for row in (0..n).rev() {
-        let mut s = b[row];
-        for c in (row + 1)..n {
-            s -= a[row][c] * x[c];
-        }
-        x[row] = s / a[row][row];
-    }
-    Some(x)
+    solve_dense(a.concat(), b, 1e-15).unwrap_or_else(|| vec![0.0; n])
 }
 
 /// Fit `v_i ≈ s·v_j + o` over the canvas region where panels `i` and `j` both

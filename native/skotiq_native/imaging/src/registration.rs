@@ -36,6 +36,7 @@
 //!
 //! The public entry point is [`register_frame`].
 
+use crate::numeric::{lanczos3, solve_dense};
 use crate::{detect_stars, DetectedStar, ImageData, PixelType, StarDetectionConfig};
 use rayon::prelude::*;
 
@@ -1115,7 +1116,7 @@ fn fit_homography(pairs: &[Correspondence]) -> Option<TransformModel> {
         accumulate(&row_y, yp);
     }
 
-    let h = solve_linear_system(&mut ata, &mut atb)?;
+    let h = solve_dense(ata.concat(), atb.to_vec(), 1e-12)?;
 
     Some(TransformModel {
         matrix: [[h[0], h[1], h[2]], [h[3], h[4], h[5]], [h[6], h[7], 1.0]],
@@ -1344,19 +1345,6 @@ fn catmull_rom(x: f64) -> f64 {
     }
 }
 
-/// Lanczos kernel with `a = 3` (windowed sinc).
-fn lanczos3(x: f64) -> f64 {
-    const A: f64 = 3.0;
-    if x.abs() < f64::EPSILON {
-        1.0
-    } else if x.abs() < A {
-        let px = std::f64::consts::PI * x;
-        (A * px.sin() * (px / A).sin()) / (px * px)
-    } else {
-        0.0
-    }
-}
-
 // Small linear-algebra helpers (no nalgebra dependency)
 
 /// Invert a 3×3 matrix; `None` if singular.
@@ -1389,58 +1377,6 @@ fn mat3_vec3(m: &[[f64; 3]; 3], v: &[f64; 3]) -> [f64; 3] {
         m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2],
         m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2],
     ]
-}
-
-/// Solve `A x = b` for an 8×8 system by Gaussian elimination with partial
-/// pivoting. Mutates `a` and `b`. Returns `None` if the matrix is singular.
-///
-/// `needless_range_loop` is allowed here: this is textbook Gaussian
-/// elimination where each inner loop reads the *pivot* row `a[col]` while
-/// mutating row `a[r]`, and the outer loop swaps whole rows. Index arithmetic
-/// is the clearest, and the borrow-checker-friendliest, way to express
-/// simultaneous cross-row access; an `enumerate()` rewrite would obscure it.
-#[allow(clippy::needless_range_loop)]
-fn solve_linear_system(a: &mut [[f64; 8]; 8], b: &mut [f64; 8]) -> Option<[f64; 8]> {
-    const N: usize = 8;
-    for col in 0..N {
-        // Partial pivot.
-        let mut pivot = col;
-        let mut max_abs = a[col][col].abs();
-        for r in (col + 1)..N {
-            if a[r][col].abs() > max_abs {
-                max_abs = a[r][col].abs();
-                pivot = r;
-            }
-        }
-        if max_abs < 1e-12 {
-            return None;
-        }
-        a.swap(col, pivot);
-        b.swap(col, pivot);
-
-        // Eliminate below.
-        let pivot_val = a[col][col];
-        for r in (col + 1)..N {
-            let factor = a[r][col] / pivot_val;
-            if factor != 0.0 {
-                for c in col..N {
-                    a[r][c] -= factor * a[col][c];
-                }
-                b[r] -= factor * b[col];
-            }
-        }
-    }
-
-    // Back-substitution.
-    let mut x = [0.0f64; N];
-    for i in (0..N).rev() {
-        let mut sum = b[i];
-        for j in (i + 1)..N {
-            sum -= a[i][j] * x[j];
-        }
-        x[i] = sum / a[i][i];
-    }
-    Some(x)
 }
 
 fn rms(values: &[f64]) -> f64 {
@@ -2039,17 +1975,6 @@ mod tests {
                 "homography mismatch at ({x},{y}): expected ({ex},{ey}) got ({ax},{ay})"
             );
         }
-    }
-
-    #[test]
-    fn lanczos_kernel_partition_of_unity_at_integer_offsets() {
-        // At an exact integer sample location, Lanczos must return the sample
-        // itself: kernel(0) = 1, kernel(non-zero integer) = 0.
-        assert!((lanczos3(0.0) - 1.0).abs() < 1e-12);
-        for k in 1..=3 {
-            assert!(lanczos3(k as f64).abs() < 1e-9, "lanczos3({k}) not ~0");
-        }
-        assert!(lanczos3(3.5).abs() < 1e-12);
     }
 
     #[test]

@@ -3,8 +3,8 @@ use std::sync::Arc;
 use serde_json::{json, Value};
 
 use super::*;
-use crate::color_composite::test_scene::{mono, pyramid, render_master, similarity, stars, Star};
-use crate::color_composite::PyramidSources;
+use crate::recipe::composite::test_scene::{mono, pyramid, render_master, similarity, stars, Star};
+use crate::recipe::composite::PyramidSources;
 use crate::recipe::{MasterSource, OpContext};
 
 const W: u32 = 480;
@@ -72,7 +72,7 @@ fn lrgb_scene() -> Scene {
             "width": W, "height": H, "transform": map.m.to_vec(),
         }));
     }
-    let crop = crate::color_composite::overlap_rect(
+    let crop = crate::recipe::composite::overlap_rect(
         W,
         H,
         &maps.iter().map(|m| (m.2, W, H)).collect::<Vec<_>>(),

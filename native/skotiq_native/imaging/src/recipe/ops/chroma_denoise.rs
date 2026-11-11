@@ -27,7 +27,7 @@
 use rayon::prelude::*;
 use serde_json::{json, Value};
 
-use crate::color_composite::mix::{background_and_noise, gaussian_blur};
+use crate::recipe::composite::mix::{background_and_noise, gaussian_blur};
 use crate::recipe::{DarkroomOp, OpApplied, OpContext, OpError, OpImage, OpStage, Params};
 
 /// Registry id.

@@ -19,7 +19,6 @@ pub mod calibration_master_stream; // Memory-bounded dark/bias masters straight 
 pub mod calibration_masters; // NEW: Master-flat build + cosmetic (hot/cold) correction
 pub mod channel_combine; // NEW: Narrowband/LRGB channel combination
 pub mod color_calibration; // NEW: Photometric color calibration (per-channel white balance)
-pub mod color_composite;
 pub mod deconvolution; // NEW: PSF estimation + Richardson-Lucy deconvolution
 pub mod defect_map;
 pub mod depthlock;
@@ -29,8 +28,8 @@ pub mod drizzle; // NEW: Drizzle (variable-pixel linear reconstruction) integrat
 
 mod debayer;
 mod fits;
-pub mod fits_reader;
 pub mod fits_layout;
+pub mod fits_reader;
 mod frame_shape; // Per-frame star size/shape for grading (local background, adaptive moments)
 pub mod frame_weighting; // NEW: Per-sub quality weighting for batch integration
 pub mod integration; // NEW: Advanced weighted batch integration + pixel rejection
@@ -38,6 +37,7 @@ pub mod master_accumulation; // NEW: Multi-night accumulating master frame
 pub mod mosaic_stitch; // NEW: WCS-driven panel mosaic stitching
 mod naming;
 pub mod normalization; // NEW: Light-frame normalization to a reference (batch integration)
+mod numeric;
 pub mod optimizer; // NEW: Marginal-SNR integration optimizer (subset recommendation)
 mod phd2;
 mod platesolve;
@@ -80,6 +80,8 @@ pub use optimizer::*; // NEW: Export integration-optimizer types
 pub use phd2::*;
 pub use platesolve::*;
 pub use raw::*; // NEW: Export RAW types
+/// The color-composite stages, under the name the bridge imports them by.
+pub use recipe::composite as color_composite;
 pub use registration::*; // NEW: Export registration types
 pub use sky_atlas::*; // NEW: Export sky-atlas (keystone) types
 pub use star_reduction::*; // NEW: Export star-reduction types

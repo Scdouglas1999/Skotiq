@@ -20,6 +20,7 @@
 use rayon::prelude::*;
 
 use crate::detection_plane::DetectionPlane;
+use crate::numeric::lanczos3;
 use crate::recipe::ops::star_detect::detection_plane;
 use crate::recipe::{OpContext, OpError, OpImage, CANCEL_POLL_PIXELS};
 use crate::registration::{solve_registration_from_stars, RegistrationConfig, TransformKind};
@@ -777,19 +778,6 @@ pub fn overlap_rect(
 
 /// Lanczos-3 kernel samples per unit of distance in the lookup table.
 const LANCZOS_LUT_RESOLUTION: usize = 1024;
-
-fn lanczos3(x: f64) -> f64 {
-    const A: f64 = 3.0;
-    let x = x.abs();
-    if x < 1e-12 {
-        1.0
-    } else if x < A {
-        let px = std::f64::consts::PI * x;
-        (A * px.sin() * (px / A).sin()) / (px * px)
-    } else {
-        0.0
-    }
-}
 
 fn lanczos_table() -> &'static [f32] {
     static TABLE: std::sync::OnceLock<Vec<f32>> = std::sync::OnceLock::new();

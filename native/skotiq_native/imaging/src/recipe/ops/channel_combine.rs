@@ -12,11 +12,11 @@
 //! # What it computes
 //!
 //! 1. Every input is resampled onto the reference grid inside `crop` with
-//!    clamped Lanczos-3 (see [`crate::color_composite::align`]).
+//!    clamped Lanczos-3 (see [`crate::recipe::composite::align`]).
 //! 2. Several masters of one filter (several sessions) are scaled onto the
 //!    first of them and averaged by inverse noise variance.
 //! 3. With `flatten`, every plane is flattened before any channel meets
-//!    another (see [`crate::color_composite::flatten`]): its throughput across
+//!    another (see [`crate::recipe::composite::flatten`]): its throughput across
 //!    the field, read from the stars against the luminance plane, is divided
 //!    out; its sky surface is subtracted; and after the palette has made red,
 //!    green and blue, their sky's color is flattened on a box lattice. This is
@@ -34,7 +34,7 @@
 //!    * `osc`: one-shot-color masters averaged.
 //! 5. For `lrgb` and `haLrgb` the luminance master, fitted onto the RGB's own
 //!    luminance, sets each pixel's lightness and the RGB its chromaticity
-//!    ([`crate::color_composite::mix::apply_luminance`]).
+//!    ([`crate::recipe::composite::mix::apply_luminance`]).
 //!
 //! # Deviation from PixInsight, and why
 //!
@@ -63,13 +63,13 @@ use std::collections::BTreeMap;
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
 
-use crate::color_composite::align::{warp_window, Affine2, Rect};
-use crate::color_composite::filters::{FilterRole, Palette};
-use crate::color_composite::flatten::{
+use crate::recipe::composite::align::{warp_window, Affine2, Rect};
+use crate::recipe::composite::filters::{FilterRole, Palette};
+use crate::recipe::composite::flatten::{
     apply_background, apply_throughput, flatten_chroma, measure_background, measure_throughput,
     FieldStars, Surface, CHROMA_BOX_DEFAULT,
 };
-use crate::color_composite::mix::{
+use crate::recipe::composite::mix::{
     apply_luminance, blend, psf_match_sigmas, robust_fit, weighted_mean, LinearFit,
 };
 use crate::recipe::{DarkroomOp, OpApplied, OpContext, OpError, OpImage, OpStage};

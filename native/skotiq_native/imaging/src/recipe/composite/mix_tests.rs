@@ -1,5 +1,5 @@
 use super::*;
-use crate::color_composite::test_scene::Lcg;
+use crate::recipe::composite::test_scene::Lcg;
 
 fn sky_with_stars(n: usize, pedestal: f64, noise: f64, seed: u64) -> (Vec<f32>, Vec<usize>) {
     let mut rng = Lcg::new(seed);
