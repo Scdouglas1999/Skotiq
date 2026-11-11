@@ -250,13 +250,6 @@ class _LibraryHeaderState extends ConsumerState<_LibraryHeader> {
       context.showErrorSnackBar('No sequence to save');
       return;
     }
-
-    showDialog(
-      context: context,
-      builder: (context) => _SaveSequenceDialog(
-        colors: widget.colors,
-        sequence: currentSequence,
-      ),
-    );
+    showSaveSequenceDialog(context, sequence: currentSequence);
   }
 }

@@ -1,9 +1,10 @@
 // Two different things were both called "Save", and two different surfaces
 // were both called "Templates".
 //
-//   * The toolbar floppy wrote a .skeq file through the OS chooser; the
-//     Sequences tab's "Save Current" saves into the app library. A new user
-//     cannot tell which one persists their work.
+//   * The toolbar floppy wrote a .skeq file through the OS chooser while the
+//     Saved tab's "Save current" saved into the app library. A new user
+//     could not tell which one persisted their work. The floppy now saves to
+//     the library and the file write is "Export sequence file…" in the menu.
 //   * The Builder's left panel is the "Snippets" tab, its import tooltip says
 //     "Import snippet from file...", it stores TemplateSnippets - and it
 //     titled itself "Templates", which is also the name of a top-level tab
@@ -50,18 +51,18 @@ class _FailingFileService extends SequenceFileService {
   }
 }
 
-/// The canvas bar's export-to-file button.
-Finder _exportButton() => find.byWidgetPredicate(
+/// The canvas bar's floppy.
+Finder _saveButton() => find.byWidgetPredicate(
       (widget) =>
           widget is SkotiqIconButton &&
-          widget.tooltip.startsWith('Export sequence file'),
-      description: 'the canvas bar\'s export button',
+          widget.tooltip == 'Save to the library (Ctrl+S)',
+      description: 'the canvas bar\'s save button',
     );
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('the toolbar file action does not call itself Save',
+  testWidgets('the floppy saves to the library; the file write is Export',
       (tester) async {
     await pumpAppScreen(
       tester,
@@ -74,23 +75,20 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 400));
 
-    // The action is the canvas bar's save button; its tooltip carries the
-    // name. `find.byTooltip` no longer reaches it — SkotiqIconButton
-    // renders SkotiqTooltip and publishes the tooltip as its semantics
-    // label — so match the widget.
-    expect(_exportButton(), findsOneWidget);
+    // `find.byTooltip` does not reach the button — SkotiqIconButton renders
+    // SkotiqTooltip and publishes the tooltip as its semantics label — so
+    // match the widget.
+    expect(_saveButton(), findsOneWidget);
     expect(
       find.byWidgetPredicate(
         (widget) =>
             widget is SkotiqIconButton &&
-            widget.tooltip.toLowerCase().contains('save sequence'),
+            widget.tooltip.startsWith('Export sequence file'),
       ),
       findsNothing,
     );
-    // And there is exactly ONE of it: the duplicate menu entry that spelled
-    // the same action differently is gone.
     await openCanvasBarMenu(tester);
-    expect(canvasBarAction('Export sequence file…'), findsNothing);
+    expect(canvasBarAction('Export sequence file…'), findsOneWidget);
 
     await tester.pump(const Duration(seconds: 1));
   });
@@ -111,7 +109,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 400));
 
-    await tester.tap(_exportButton());
+    await tapCanvasBarAction(tester, 'Export sequence file…');
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 

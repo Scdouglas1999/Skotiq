@@ -29,6 +29,11 @@ final activePlanOwnerProvider = StateProvider<ActivePlanOwner>(
   (ref) => ActivePlanOwner.manual,
 );
 
+/// Whether the open plan has edits its saved copy has not got. Written by
+/// [CurrentSequenceNotifier] (see [CurrentSequenceNotifier.isDirty]); watched
+/// by the builder's title and Save button.
+final sequenceHasUnsavedChangesProvider = StateProvider<bool>((ref) => false);
+
 /// Provider exposing whether the current sequence can be edited.
 ///
 /// Returns `false` while the sequence is Running / Paused / Stopping — those
@@ -110,20 +115,26 @@ class CurrentSequenceNotifier extends StateNotifier<Sequence?>
 
   void _setOwner(ActivePlanOwner owner) {
     _owner = owner;
+    _mirror(activePlanOwnerProvider, owner);
+  }
+
+  /// Publish [value] on [provider], the reactive copy of a fact this notifier
+  /// owns.
+  ///
+  /// Reached during container teardown via SchedulerEngine.dispose() ->
+  /// releaseSequenceOwnership(); if [provider] was disposed first, ref.read
+  /// throws. The notifier's own field is the source of truth and is already
+  /// set, so the mirror failure is dropped rather than escaping disposal as an
+  /// unhandled async error (and leaking engine resources behind the throw).
+  void _mirror<T>(StateProvider<T> provider, T value) {
     final ref = _ref;
     if (ref == null) return;
-    // Mirror onto the global owner provider. This is reached during container
-    // teardown via SchedulerEngine.dispose() -> releaseSequenceOwnership(); if
-    // activePlanOwnerProvider was disposed first, ref.read throws. The local
-    // `_owner` above is the source of truth and is already set, so swallow the
-    // reactive-mirror failure rather than let it escape disposal as an
-    // unhandled async error (and leak engine resources behind the throw).
     try {
-      if (ref.read(activePlanOwnerProvider) != owner) {
-        ref.read(activePlanOwnerProvider.notifier).state = owner;
+      if (ref.read(provider) != value) {
+        ref.read(provider.notifier).state = value;
       }
     } catch (_) {
-      // Provider already torn down — the local _owner remains authoritative.
+      // Provider already torn down.
     }
   }
 
@@ -132,10 +143,14 @@ class CurrentSequenceNotifier extends StateNotifier<Sequence?>
 
   /// True when the in-editor sequence has been mutated since the last
   /// load / create / explicit [markSaved] call. Used by [createSequence]
-  /// and [loadSequence] to refuse to clobber unsaved work, and exposed
-  /// publicly via [isDirty] so the UI can show a "*" on the title bar.
-  ///
-  bool _dirty = false;
+  /// and [loadSequence] to refuse to clobber unsaved work, and mirrored on
+  /// [sequenceHasUnsavedChangesProvider] for the UI.
+  bool _dirtyFlag = false;
+  bool get _dirty => _dirtyFlag;
+  set _dirty(bool value) {
+    _dirtyFlag = value;
+    _mirror(sequenceHasUnsavedChangesProvider, value);
+  }
 
   /// Whether the in-editor sequence has unsaved changes since the last
   /// save (or since it was loaded fresh). UI may surface this via title-
