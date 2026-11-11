@@ -87,6 +87,90 @@ void unsafeRuntimeStub() {
       'baseline comparison should ignore harmless line-number drift',
     );
 
+    // Moving the file keeps the baseline entry attached with no edit.
+    await _moveFile(
+      temp,
+      'apps/desktop/lib/bad.dart',
+      'packages/release_fixture/lib/src/moved/worse.dart',
+    );
+    final movedPass = await _runAudit(
+      script,
+      temp,
+      outHits: '.audit_hits.txt',
+      outHighRisk: '.audit_highrisk.txt',
+      extraArgs: _compareArgs,
+    );
+    _expect(movedPass.exitCode == 0, 'a moved file should stay covered');
+
+    // The same text in a different function is a new, unreviewed marker.
+    await _writeFile(temp, 'apps/desktop/lib/other.dart', '''
+
+void anotherStub() {
+  throw UnimplementedError('release blocker');
+}
+''');
+    final newSite = await _runAudit(
+      script,
+      temp,
+      outHits: '.audit_hits.txt',
+      outHighRisk: '.audit_highrisk.txt',
+      extraArgs: _compareArgs,
+      allowFailure: true,
+    );
+    _expect(
+      newSite.exitCode == 1 &&
+          newSite.stderr.toString().contains('apps/desktop/lib/other.dart:3'),
+      'a new marker should fail and be named (stderr=${newSite.stderr})',
+    );
+
+    // Deleting the code leaves a prunable entry that one command drops.
+    await Directory('${temp.path}/apps').delete(recursive: true);
+    await Directory('${temp.path}/packages').delete(recursive: true);
+    final deletedPass = await _runAudit(
+      script,
+      temp,
+      outHits: '.audit_hits.txt',
+      outHighRisk: '.audit_highrisk.txt',
+      extraArgs: _compareArgs,
+    );
+    _expect(
+      deletedPass.exitCode == 0 &&
+          deletedPass.stdout.toString().contains('Prunable: 1'),
+      'deleted code should leave the gate green and report a prunable entry',
+    );
+    await _runAudit(
+      script,
+      temp,
+      outHits: '.audit_hits.txt',
+      outHighRisk: '.audit_highrisk.txt',
+      extraArgs: [..._compareArgs, '--sync-baseline'],
+    );
+    _expect(
+      !File(
+        '${temp.path}/baseline/highrisk.txt',
+      ).readAsStringSync().contains('UnimplementedError'),
+      '--sync-baseline should drop the entry for deleted code',
+    );
+
+    // --accept-new-highrisk records a reviewed marker in the baseline.
+    await _writeBaselineFixture(temp);
+    await File('${temp.path}/baseline/highrisk.txt').writeAsString('');
+    await _runAudit(
+      script,
+      temp,
+      outHits: '.audit_hits.txt',
+      outHighRisk: '.audit_highrisk.txt',
+      extraArgs: [..._compareArgs, '--accept-new-highrisk'],
+    );
+    final acceptedPass = await _runAudit(
+      script,
+      temp,
+      outHits: '.audit_hits.txt',
+      outHighRisk: '.audit_highrisk.txt',
+      extraArgs: _compareArgs,
+    );
+    _expect(acceptedPass.exitCode == 0, 'an accepted marker should pass');
+
     await File('${temp.path}/baseline/highrisk.txt').writeAsString('');
     final baselineFail = await _runAudit(
       script,
@@ -166,7 +250,9 @@ Future<void> _writeBaselineFixture(Directory root) async {
   await _writeFile(
     root,
     'baseline/highrisk.txt',
-    'apps/desktop/lib/bad.dart:2:  throw UnimplementedError(\'release blocker\');\n',
+    'path\tscope\trule\tcount\tverdict\ttext\n'
+        'apps/desktop/lib/bad.dart\tunsafeRuntimeStub\thighrisk\t1\tbaseline\t'
+        "throw UnimplementedError('release blocker');\n",
   );
 }
 
@@ -222,6 +308,9 @@ Future<ProcessResult> _runAudit(
       outHits,
       '--out-highrisk',
       outHighRisk,
+      // The fixtures are judged against the repository's real scan scope.
+      '--scope',
+      '${Directory.current.path}/docs/production-readiness/audit-scope.yaml',
       ...extraArgs,
     ],
     workingDirectory: root.path,
@@ -235,6 +324,18 @@ Future<ProcessResult> _runAudit(
     );
   }
   return result;
+}
+
+const _compareArgs = [
+  '--compare-highrisk-baseline',
+  'baseline/highrisk.txt',
+  '--fail-on-new-highrisk',
+];
+
+Future<void> _moveFile(Directory root, String from, String to) async {
+  final source = File('${root.path}/$from');
+  await _writeFile(root, to, source.readAsStringSync());
+  await source.delete();
 }
 
 Future<void> _writeFile(

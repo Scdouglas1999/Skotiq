@@ -1,11 +1,38 @@
-import 'dart:convert';
 import 'dart:io';
 
-const _scanRoots = <String>['apps', 'packages', 'native/skotiq_native'];
+import 'src/audit_scope.dart';
+import 'src/behavioral_scan.dart' show readLinesLenient;
+import 'src/site_register.dart';
+
+/// Placeholder/stub marker audit.
+///
+/// Lists every placeholder-like marker in runtime code, and the high-risk
+/// subset. With `--compare-highrisk-baseline <file>` the high-risk hits are
+/// compared with the triaged baseline; `--fail-on-new-highrisk` fails on any
+/// hit the baseline does not cover.
+///
+/// The baseline is a sites file (see `src/site_register.dart`): a hit is
+/// keyed by enclosing declaration and line text, with the path as a hint, so
+/// moved or re-numbered code stays covered with no edit.
+///
+/// Maintenance flags (each rewrites the baseline, then the gate runs):
+/// - `--sync-baseline`: refresh path hints, drop entries whose code is gone,
+///   carry an entry to the same line text under a renamed declaration.
+/// - `--accept-new-highrisk`: add every uncovered high-risk hit after review.
+///   `--only <path prefix>` narrows it.
 const _defaultHitsPath = '.audit_hits.txt';
 const _defaultHighRiskPath = '.audit_highrisk.txt';
 const _defaultAllowlistPath =
     'docs/production-readiness/placeholder-allowlist.txt';
+
+const highRiskRule = 'highrisk';
+const baselineVerdict = 'baseline';
+
+const _baselineHeader = '''
+Triaged high-risk placeholder markers. Written by tools/production/placeholder_audit.dart;
+do not edit by hand (see docs/ci-gates.md, "Keeping the audit gates in step").
+An entry is matched by scope + text. The path is a hint and may be stale.
+''';
 
 const _allowedExtensions = <String>{
   '.dart',
@@ -30,35 +57,6 @@ const _allowedExtensions = <String>{
   '.yaml',
   '.yml',
 };
-
-// Excluded directory NAMES anchored to path-segment boundaries (NOT substring
-// matches), so a production module at packages/skotiq_test_utils/lib/...
-// is not skipped for merely carrying a `/test/`-like fragment in its path.
-const _excludedDirectoryNames = <String>{
-  '.dart_tool',
-  '.git',
-  '.worktrees',
-  'build',
-  'target',
-  'coverage',
-  'generated',
-  'frb_dump',
-  'test',
-  'tests',
-  'example',
-  'samples',
-};
-
-// Substrings that genuinely identify generated code regardless of where they
-// appear in the path. `frb_generated.` is a filename prefix produced by
-// flutter_rust_bridge, never a hand-authored module.
-const _excludedSubstrings = <String>['/frb_generated.'];
-
-final _runtimePathPatterns = <RegExp>[
-  RegExp(r'^apps/[^/]+/lib/'),
-  RegExp(r'^packages/[^/]+/lib/'),
-  RegExp(r'^native/skotiq_native(?:/[^/]+)+/src/'),
-];
 
 final _markerPattern = RegExp(
   r'\bTODO\b|\bFIXME\b|placeholder|\bstub\b|'
@@ -91,105 +89,89 @@ final _highRiskPattern = RegExp(
   caseSensitive: false,
 );
 
-void main(List<String> args) {
-  final hitsPath = _argValue(args, '--out-hits') ?? _defaultHitsPath;
-  final highRiskPath =
-      _argValue(args, '--out-highrisk') ?? _defaultHighRiskPath;
-  final compareBaseline = _argValue(args, '--compare-highrisk-baseline');
-  final allowlistPath = _argValue(args, '--allowlist') ?? _defaultAllowlistPath;
-  final failOnNewHighRisk = args.contains('--fail-on-new-highrisk');
-  final failOnAnyHighRisk = args.contains('--fail-on-any-highrisk');
-  // regression-pin: CI passes either --min-files <N> or the older
-  // --assert-at-least-files-scanned <N>. Both names point at the same check;
-  // the short form is preferred in new YAML.
-  final assertMinFiles =
-      _argValue(args, '--min-files') ??
-      _argValue(args, '--assert-at-least-files-scanned');
+class PlaceholderScan {
+  final List<String> files;
 
+  /// `path:line:text` for every marker.
+  final List<String> hits;
+  final List<Finding> highRisk;
+
+  /// `path:line:text` for the high-risk subset.
+  final List<String> highRiskHits;
+
+  const PlaceholderScan(
+    this.files,
+    this.hits,
+    this.highRisk,
+    this.highRiskHits,
+  );
+}
+
+PlaceholderScan scanPlaceholders(AuditScope scope, String allowlistPath) {
   final allowlist = _loadAllowlist(allowlistPath);
-  final hits = <String>{};
-  final highRisk = <String>{};
-  var filesScanned = 0;
-  final workspaceRoot = _normalize(Directory.current.absolute.path);
-
-  for (final root in _scanRoots) {
-    final rootDir = Directory(root);
-    if (!rootDir.existsSync()) {
+  final files = <String>[];
+  final hits = <String>[];
+  final highRisk = <Finding>[];
+  final highRiskHits = <String>[];
+  for (final path in scope.runtimeFiles(extensions: _allowedExtensions)) {
+    final file = File(path);
+    if (file.statSync().size > 2 * 1024 * 1024) {
       continue;
     }
-
-    for (final entity in rootDir.listSync(
-      recursive: true,
-      followLinks: false,
-    )) {
-      if (entity is! File) {
+    files.add(path);
+    final lines = readLinesLenient(file);
+    for (var i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      if (!_markerPattern.hasMatch(line)) {
         continue;
       }
-
-      final normalizedPath = _toWorkspaceRelative(entity.path, workspaceRoot);
-      if (!_isRuntimePath(normalizedPath) || _shouldSkip(normalizedPath)) {
+      final entry = '$path:${i + 1}:${line.trimRight()}';
+      if (_isAllowlisted(entry, allowlist)) {
         continue;
       }
-      if (!_hasAllowedExtension(normalizedPath)) {
-        continue;
-      }
-
-      final stat = entity.statSync();
-      if (stat.size > 2 * 1024 * 1024) {
-        continue;
-      }
-
-      filesScanned++;
-      final lines = _readLinesSafe(entity);
-      for (var i = 0; i < lines.length; i++) {
-        final line = lines[i];
-        if (!_markerPattern.hasMatch(line)) {
-          continue;
-        }
-
-        final trimmed = line.trimRight();
-        final entry = '$normalizedPath:${i + 1}:$trimmed';
-        if (_isAllowlisted(entry, allowlist)) {
-          continue;
-        }
-
-        hits.add(entry);
-        if (_highRiskPattern.hasMatch(line)) {
-          highRisk.add(entry);
-        }
+      hits.add(entry);
+      if (_highRiskPattern.hasMatch(line)) {
+        highRiskHits.add(entry);
+        highRisk.add(
+          Finding(
+            rule: highRiskRule,
+            scope: enclosingScope(lines, i, extensionOf(path)),
+            text: normalizeText(line),
+            path: path,
+            line: i + 1,
+          ),
+        );
       }
     }
   }
+  return PlaceholderScan(files, hits..sort(), highRisk, highRiskHits..sort());
+}
 
-  final sortedHits = hits.toList()..sort();
-  final sortedHighRisk = highRisk.toList()..sort();
+void writeBaseline(String path, List<SiteRow> rows) =>
+    writeSites(path, rows, header: _baselineHeader);
 
-  _writeTextFile(hitsPath, '${sortedHits.join('\n')}\n');
-  _writeTextFile(highRiskPath, '${sortedHighRisk.join('\n')}\n');
+void main(List<String> args) {
+  final hitsPath = argValue(args, '--out-hits') ?? _defaultHitsPath;
+  final highRiskPath = argValue(args, '--out-highrisk') ?? _defaultHighRiskPath;
+  final compareBaseline = argValue(args, '--compare-highrisk-baseline');
+  final allowlistPath = argValue(args, '--allowlist') ?? _defaultAllowlistPath;
+  final failOnNewHighRisk = args.contains('--fail-on-new-highrisk');
+  final failOnAnyHighRisk = args.contains('--fail-on-any-highrisk');
+  final only = argValue(args, '--only');
+
+  final scope = AuditScope.fromArgs(args);
+  final scan = scanPlaceholders(scope, allowlistPath);
+  _writeTextFile(hitsPath, '${scan.hits.join('\n')}\n');
+  _writeTextFile(highRiskPath, '${scan.highRiskHits.join('\n')}\n');
 
   stdout.writeln('Runtime marker audit complete.');
-  stdout.writeln('Scanned $filesScanned files');
-  stdout.writeln('Hits: ${sortedHits.length} -> $hitsPath');
-  stdout.writeln('High-risk hits: ${sortedHighRisk.length} -> $highRiskPath');
+  stdout.writeln('Scanned ${scan.files.length} files');
+  stdout.writeln('Hits: ${scan.hits.length} -> $hitsPath');
+  stdout.writeln('High-risk hits: ${scan.highRisk.length} -> $highRiskPath');
 
-  // Coverage assertion: CI can pass --assert-at-least-files-scanned=N
-  // so an accidental scope regression — e.g., a glob change that excludes a
-  // package — fails the gate instead of silently shrinking coverage.
-  if (assertMinFiles != null) {
-    final required = int.tryParse(assertMinFiles);
-    if (required == null) {
-      stderr.writeln('Invalid --min-files value: $assertMinFiles');
-      exit(2);
-    }
-    if (filesScanned < required) {
-      stderr.writeln(
-        'Placeholder audit scanned $filesScanned files; required >= $required',
-      );
-      exit(1);
-    }
-  }
+  scope.assertCoverage('Placeholder audit', scan.files, args);
 
-  if (failOnAnyHighRisk && sortedHighRisk.isNotEmpty) {
+  if (failOnAnyHighRisk && scan.highRisk.isNotEmpty) {
     stderr.writeln('High-risk runtime markers detected.');
     exit(1);
   }
@@ -197,57 +179,81 @@ void main(List<String> args) {
   if (compareBaseline == null) {
     return;
   }
-
-  final baselineFile = File(compareBaseline);
-  if (!baselineFile.existsSync()) {
+  if (!File(compareBaseline).existsSync()) {
     stderr.writeln('Baseline not found: $compareBaseline');
     exit(2);
   }
+  var rows = readSites(compareBaseline);
 
-  final baseline = baselineFile
-      .readAsLinesSync()
-      .map((line) => line.trim())
-      .where((line) => line.isNotEmpty)
-      .map(_highRiskBaselineSignature)
-      .toSet();
+  if (args.contains('--sync-baseline')) {
+    final sync = syncSites(scan.highRisk, rows);
+    for (final c in sync.carriedByText) {
+      stdout.writeln(
+        'Carried [${c.from.scope}] ${c.from.path} -> ${c.finding.display}',
+      );
+    }
+    stdout.writeln(
+      'Sync: ${sync.carriedByText.length} entries carried, '
+      '${sync.keptUnmatched ? 0 : sync.unmatchedCount} dropped.',
+    );
+    if (sync.keptUnmatched) {
+      stdout.writeln(
+        'Kept ${sync.unmatchedCount} entries that match no code while '
+        '${sync.unregistered.length} markers are still new. They are '
+        'dropped by the next --sync-baseline once nothing is new.',
+      );
+    }
+    rows = sync.rows;
+    writeBaseline(compareBaseline, rows);
+  }
 
-  final newHighRisk = sortedHighRisk
-      .where((entry) => !baseline.contains(_highRiskBaselineSignature(entry)))
-      .toList();
-  if (newHighRisk.isEmpty) {
+  if (args.contains('--accept-new-highrisk')) {
+    final pending = matchSites(
+      scan.highRisk,
+      rows,
+    ).unregistered.where((f) => only == null || f.path.startsWith(only));
+    var added = 0;
+    for (final finding in pending) {
+      rows.add(
+        SiteRow(
+          rule: highRiskRule,
+          scope: finding.scope,
+          text: finding.text,
+          verdict: baselineVerdict,
+          path: finding.path,
+        ),
+      );
+      added++;
+    }
+    writeBaseline(compareBaseline, rows);
+    rows = readSites(compareBaseline);
+    stdout.writeln('Added $added high-risk markers to the baseline.');
+  }
+
+  final match = matchSites(scan.highRisk, rows);
+  if (match.staleCount > 0) {
+    stdout.writeln(
+      'Prunable: ${match.staleCount} baseline entries describe code that is '
+      'gone. Run with --sync-baseline to drop them.',
+    );
+  }
+  if (match.unregistered.isEmpty) {
     stdout.writeln('No new high-risk markers compared to baseline.');
     return;
   }
 
-  stderr.writeln('Detected ${newHighRisk.length} new high-risk markers:');
-  for (final entry in newHighRisk) {
-    stderr.writeln('  $entry');
+  stderr.writeln(
+    'Detected ${match.unregistered.length} new high-risk markers:',
+  );
+  for (final finding in match.unregistered) {
+    stderr.writeln(
+      '  ${finding.path}:${finding.line} [${finding.scope}] ${finding.text}',
+    );
   }
 
   if (failOnNewHighRisk) {
     exit(1);
   }
-}
-
-String _highRiskBaselineSignature(String entry) {
-  final match = RegExp(r'^([^:]+):\d+:(.*)$').firstMatch(entry);
-  if (match == null) {
-    return entry;
-  }
-  return '${match.group(1)}:${match.group(2)}';
-}
-
-String? _argValue(List<String> args, String key) {
-  for (var i = 0; i < args.length; i++) {
-    final arg = args[i];
-    if (arg == key && i + 1 < args.length) {
-      return args[i + 1];
-    }
-    if (arg.startsWith('$key=')) {
-      return arg.substring(key.length + 1);
-    }
-  }
-  return null;
 }
 
 void _writeTextFile(String path, String content) {
@@ -366,71 +372,5 @@ bool _isAllowlisted(String entry, List<_AllowlistEntry> allowlist) {
   return false;
 }
 
-bool _hasAllowedExtension(String path) {
-  final dot = path.lastIndexOf('.');
-  if (dot < 0) {
-    return false;
-  }
-  final ext = path.substring(dot).toLowerCase();
-  return _allowedExtensions.contains(ext);
-}
-
-bool _isRuntimePath(String path) {
-  for (final pattern in _runtimePathPatterns) {
-    if (pattern.hasMatch(path)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool _shouldSkip(String normalizedPath) {
-  // Directory-name match: only path SEGMENTS named exactly "test" / "example"
-  // / etc. are excluded. Production modules whose paths happen to contain
-  // those words as a substring (e.g., `skotiq_test_utils`) are scanned.
-  final segments = normalizedPath.split('/');
-  for (final segment in segments) {
-    if (_excludedDirectoryNames.contains(segment)) {
-      return true;
-    }
-  }
-  for (final substr in _excludedSubstrings) {
-    if (normalizedPath.contains(substr)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-List<String> _readLinesSafe(File file) {
-  try {
-    return const LineSplitter().convert(file.readAsStringSync());
-  } catch (_) {
-    try {
-      final bytes = file.readAsBytesSync();
-      return const LineSplitter().convert(
-        utf8.decode(bytes, allowMalformed: true),
-      );
-    } catch (_) {
-      return const <String>[];
-    }
-  }
-}
-
 String _normalize(String path) =>
     path.replaceAll('\\', '/').replaceAll(RegExp(r'/+'), '/');
-
-String _toWorkspaceRelative(String path, String workspaceRoot) {
-  final absolute = _normalize(File(path).absolute.path);
-  final lowerAbsolute = absolute.toLowerCase();
-  final lowerRoot = workspaceRoot.toLowerCase();
-  if (lowerAbsolute.startsWith(lowerRoot)) {
-    final start = workspaceRoot.endsWith('/')
-        ? workspaceRoot.length
-        : workspaceRoot.length + 1;
-    if (absolute.length >= start) {
-      return absolute.substring(start);
-    }
-  }
-  return _normalize(path);
-}
