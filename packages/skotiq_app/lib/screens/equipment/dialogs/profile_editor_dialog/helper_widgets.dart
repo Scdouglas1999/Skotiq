@@ -138,8 +138,11 @@ class _IconOption extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
+      enabled: true,
       selected: isSelected,
       label: icon.isEmpty ? 'No icon' : 'Icon $icon',
+      onTap: onTap,
+      excludeSemantics: true,
       child: GestureDetector(
         onTap: onTap,
         child: Container(
@@ -189,8 +192,11 @@ class _ColorOption extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
+      enabled: true,
       selected: isSelected,
       label: color == null ? 'No accent color' : 'Accent color',
+      onTap: onTap,
+      excludeSemantics: true,
       child: GestureDetector(
         onTap: onTap,
         child: Container(
@@ -254,44 +260,75 @@ class _ComputedValue extends StatelessWidget {
   }
 }
 
-/// One device slot: the friendly name, the device picker, and a clear button,
-/// with the assigned device id as the row's help line.
+/// A device a row's picker offers: one connected now, one a scan found, or
+/// one a saved profile assigns.
+class _DeviceChoice {
+  final String id;
+  final String name;
+
+  /// Where the choice comes from, shown under its name.
+  final String detail;
+
+  const _DeviceChoice({
+    required this.id,
+    required this.name,
+    required this.detail,
+  });
+}
+
+/// One device slot: the device picker first, the name the profile shows for it
+/// after it, and a clear button, with the assigned device id as the row's help
+/// line.
 class _DeviceRow extends StatelessWidget {
-  final String type;
+  final String label;
   // Null when this device type has no persisted friendly-name column, so the
-  // row shows only the device id (no editable name field to silently discard).
+  // row shows only the picker (no editable name field to silently discard).
   final TextEditingController? nameController;
   final String? deviceId;
-  final List<UnifiedDevice> discoveredDevices;
+  final List<_DeviceChoice> choices;
   final void Function(String? id, String? name) onDeviceSelected;
   final VoidCallback onClear;
   final VoidCallback onScan;
   final SkotiqColors colors;
 
   const _DeviceRow({
-    required this.type,
+    required this.label,
     required this.nameController,
     required this.deviceId,
-    required this.discoveredDevices,
+    required this.choices,
     required this.onDeviceSelected,
     required this.onClear,
     required this.onScan,
     required this.colors,
   });
 
+  /// Below this width the name field goes under the picker instead of beside
+  /// it, so the picker keeps room for a device name.
+  static const double _sideBySideMinWidth = 360;
+
   @override
   Widget build(BuildContext context) {
     final nameController = this.nameController;
-    final picker = _DeviceDropdown(
+    final picker = _DevicePicker(
+      label: label,
       deviceId: deviceId,
-      discoveredDevices: discoveredDevices,
+      choices: choices,
       onSelected: onDeviceSelected,
       onScan: onScan,
       colors: colors,
     );
+    final nameField = nameController == null
+        ? null
+        : Semantics(
+            label: '$label display name',
+            child: SkotiqTextField(
+              controller: nameController,
+              hint: 'Display name (optional)',
+            ),
+          );
 
     return _EditorRow(
-      label: type,
+      label: label,
       help: deviceId,
       trailing: deviceId == null
           ? null
@@ -301,186 +338,193 @@ class _DeviceRow extends StatelessWidget {
               size: IconButtonSize.sm,
               onPressed: onClear,
             ),
-      child: nameController == null
-          ? Align(alignment: Alignment.centerLeft, child: picker)
-          : Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < _sideBySideMinWidth) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: SkotiqTextField(
-                    controller: nameController,
-                    hint: 'Friendly name',
-                  ),
-                ),
-                const SizedBox(width: SkotiqTokens.spaceSm),
                 picker,
+                if (nameField != null) ...[
+                  const SizedBox(height: SkotiqTokens.spaceSm),
+                  nameField,
+                ],
               ],
-            ),
+            );
+          }
+          // The picker keeps the same width on every row, name field or not,
+          // so the column of pickers lines up.
+          return Row(
+            children: [
+              Expanded(flex: 3, child: picker),
+              const SizedBox(width: SkotiqTokens.spaceSm),
+              Expanded(flex: 2, child: nameField ?? const SizedBox.shrink()),
+            ],
+          );
+        },
+      ),
     );
   }
 }
 
-class _DeviceDropdown extends StatelessWidget {
+class _DevicePicker extends StatefulWidget {
+  final String label;
   final String? deviceId;
-  final List<UnifiedDevice> discoveredDevices;
+  final List<_DeviceChoice> choices;
   final void Function(String? id, String? name) onSelected;
   final VoidCallback onScan;
   final SkotiqColors colors;
 
-  const _DeviceDropdown({
+  const _DevicePicker({
+    required this.label,
     required this.deviceId,
-    required this.discoveredDevices,
+    required this.choices,
     required this.onSelected,
     required this.onScan,
     required this.colors,
   });
 
   @override
+  State<_DevicePicker> createState() => _DevicePickerState();
+}
+
+class _DevicePickerState extends State<_DevicePicker> {
+  static const _scanValue = '_scan_';
+  static const _manualValue = '_manual_';
+
+  final _menuKey = GlobalKey<PopupMenuButtonState<String>>();
+
+  String? get _selectedName {
+    final id = widget.deviceId;
+    if (id == null) return null;
+    return widget.choices.where((c) => c.id == id).firstOrNull?.name ?? id;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      tooltip: 'Select device',
-      onSelected: (value) {
-        if (value == '_manual_') {
-          _showManualEntryDialog(context);
-        } else if (value == '_scan_') {
-          // Trigger a real discovery refresh; the parent watches
-          // unifiedDiscoveryProvider so the dropdown repopulates when it lands.
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Scanning for devices…')),
-          );
-          onScan();
-        } else {
-          final device = discoveredDevices
-              .where((d) => d.activeDeviceId == value)
-              .firstOrNull;
-          onSelected(value, device?.displayName);
-        }
-      },
-      itemBuilder: (context) {
-        final items = <PopupMenuEntry<String>>[];
-
-        if (deviceId != null) {
-          items.add(PopupMenuItem(
-            value: deviceId,
-            child: Row(
-              children: [
-                Icon(
-                  LucideIcons.check,
-                  size: SkotiqTokens.iconXs,
-                  color: colors.primary,
-                ),
-                const SizedBox(width: SkotiqTokens.spaceSm),
-                Expanded(
-                  child: Text(
-                    _getDeviceDisplayName(deviceId!),
-                    style: SkotiqTypography.bodySm
-                        .copyWith(color: colors.textPrimary),
-                  ),
-                ),
-              ],
-            ),
-          ));
-          items.add(const PopupMenuDivider());
-        }
-
-        if (discoveredDevices.isNotEmpty) {
-          for (final device in discoveredDevices) {
-            if (device.activeDeviceId == deviceId) continue;
-            items.add(PopupMenuItem(
-              value: device.activeDeviceId,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+    final colors = widget.colors;
+    final selectedName = _selectedName;
+    // The menu's own button reports DISABLED to assistive technology; the
+    // picker is announced as one button that opens it.
+    return Semantics(
+      button: true,
+      enabled: true,
+      label: '${widget.label}: ${selectedName ?? 'choose a device'}',
+      onTap: () => _menuKey.currentState?.showButtonMenu(),
+      excludeSemantics: true,
+      child: PopupMenuButton<String>(
+        key: _menuKey,
+        tooltip: 'Choose the ${widget.label.toLowerCase()}',
+        onSelected: (value) {
+          if (value == _manualValue) {
+            _showManualEntryDialog(context);
+          } else if (value == _scanValue) {
+            // The parent watches the discovery results, so the list fills in
+            // when the scan lands.
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Scanning for devices…')),
+            );
+            widget.onScan();
+          } else {
+            final choice =
+                widget.choices.where((c) => c.id == value).firstOrNull;
+            widget.onSelected(value, choice?.name);
+          }
+        },
+        itemBuilder: (context) => [
+          for (final choice in widget.choices)
+            PopupMenuItem(
+              value: choice.id,
+              child: Row(
                 children: [
-                  Text(
-                    device.displayName,
-                    style: SkotiqTypography.bodySm
-                        .copyWith(color: colors.textPrimary),
+                  SizedBox(
+                    width: SkotiqTokens.iconXs,
+                    child: choice.id == widget.deviceId
+                        ? Icon(
+                            LucideIcons.check,
+                            size: SkotiqTokens.iconXs,
+                            color: colors.primary,
+                          )
+                        : null,
                   ),
-                  Text(
-                    device.activeBackend.shortLabel,
-                    style: SkotiqTypography.caption
-                        .copyWith(color: colors.textMuted),
+                  const SizedBox(width: SkotiqTokens.spaceSm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          choice.name,
+                          style: SkotiqTypography.bodySm
+                              .copyWith(color: colors.textPrimary),
+                        ),
+                        Text(
+                          choice.detail,
+                          style: SkotiqTypography.caption
+                              .copyWith(color: colors.textMuted),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-            ));
-          }
-          items.add(const PopupMenuDivider());
-        }
-
-        items.add(PopupMenuItem(
-          value: '_scan_',
+            ),
+          if (widget.choices.isNotEmpty) const PopupMenuDivider(),
+          _actionItem(_scanValue, LucideIcons.refreshCw, 'Scan for devices'),
+          _actionItem(_manualValue, LucideIcons.edit3, 'Enter manually…'),
+        ],
+        // The closed control wears the same field face as every other input
+        // in the row, so a select and a text box do not read as two different
+        // kinds of control (05 §8).
+        child: Container(
+          height: fieldHeight,
+          padding: const EdgeInsets.symmetric(
+            horizontal: SkotiqTokens.inputPaddingHorizontal,
+          ),
+          decoration: SkotiqDecorations.field(colors),
           child: Row(
             children: [
-              Icon(
-                LucideIcons.refreshCw,
-                size: SkotiqTokens.iconXs,
-                color: colors.textSecondary,
+              Expanded(
+                child: Text(
+                  selectedName ?? 'Choose a device…',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: SkotiqTypography.input.copyWith(
+                    color: selectedName != null
+                        ? colors.textPrimary
+                        : colors.textMuted,
+                  ),
+                ),
               ),
               const SizedBox(width: SkotiqTokens.spaceSm),
-              Text(
-                'Scan',
-                style: SkotiqTypography.bodySm
-                    .copyWith(color: colors.textSecondary),
+              Icon(
+                LucideIcons.chevronDown,
+                size: SkotiqTokens.iconXs,
+                color: colors.textMuted,
               ),
             ],
           ),
-        ));
-        items.add(PopupMenuItem(
-          value: '_manual_',
-          child: Row(
-            children: [
-              Icon(
-                LucideIcons.edit3,
-                size: SkotiqTokens.iconXs,
-                color: colors.textSecondary,
-              ),
-              const SizedBox(width: SkotiqTokens.spaceSm),
-              Text(
-                'Enter manually…',
-                style: SkotiqTypography.bodySm
-                    .copyWith(color: colors.textSecondary),
-              ),
-            ],
-          ),
-        ));
-
-        return items;
-      },
-      // The closed control wears the same field face as every other input in
-      // the row, so a select and a text box do not read as two different kinds
-      // of control (05 §8).
-      child: Container(
-        height: fieldHeight,
-        padding: const EdgeInsets.symmetric(
-          horizontal: SkotiqTokens.inputPaddingHorizontal,
-        ),
-        decoration: SkotiqDecorations.field(colors),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              deviceId != null ? 'Selected' : 'Select…',
-              style: SkotiqTypography.input.copyWith(
-                color: deviceId != null ? colors.textPrimary : colors.textMuted,
-              ),
-            ),
-            const SizedBox(width: SkotiqTokens.spaceSm),
-            Icon(
-              LucideIcons.chevronDown,
-              size: SkotiqTokens.iconXs,
-              color: colors.textMuted,
-            ),
-          ],
         ),
       ),
     );
   }
 
-  String _getDeviceDisplayName(String id) {
-    final device =
-        discoveredDevices.where((d) => d.activeDeviceId == id).firstOrNull;
-    return device?.displayName ?? id;
+  PopupMenuItem<String> _actionItem(String value, IconData icon, String text) {
+    final colors = widget.colors;
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: SkotiqTokens.iconXs, color: colors.textSecondary),
+          const SizedBox(width: SkotiqTokens.spaceSm),
+          Text(
+            text,
+            style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _showManualEntryDialog(BuildContext context) async {
@@ -514,7 +558,7 @@ class _DeviceDropdown extends StatelessWidget {
     );
     controller.dispose();
     if (result != null && result.isNotEmpty) {
-      onSelected(result, null);
+      widget.onSelected(result, null);
     }
   }
 }
