@@ -16,9 +16,9 @@
 //!
 //! # Algorithm
 //!
-//! 1. **TAN projection helpers** ([`WcsProjection`]) — exact spherical gnomonic
+//! 1. **TAN projection** ([`SipWcs`]) — exact spherical gnomonic
 //!    (RA---TAN / DEC--TAN) forward (pixel→world) and inverse (world→pixel)
-//!    derived from a [`WcsInfo`] CD matrix. This is the FITS-standard projection,
+//!    from each panel's [`WcsInfo`] CD matrix. This is the FITS-standard projection,
 //!    not the small-angle linearisation `wcs_overlay.dart` uses for screen grids;
 //!    a mosaic spans degrees and must not accumulate small-angle error across the
 //!    canvas. Round-trips to < 1e-6 px (see tests).
@@ -59,9 +59,10 @@ use thiserror::Error;
 use crate::normalization::{
     estimate_normalization, CoverageMask, NormEstimator, NormalizationConfig,
 };
+use crate::numeric::{lanczos3, solve_dense};
 use crate::registration::Interpolator;
-use crate::robust_stats::median_in_place as median;
-use crate::{ImageData, WcsInfo};
+use crate::robust_stats::median_in_place;
+use crate::{ImageData, SipWcs, WcsInfo};
 
 /// Hard upper bound on the output canvas in pixels (per channel-plane). At
 /// ~400 megapixels a single F32 plane is 1.6 GB; beyond this the caller almost
@@ -191,148 +192,6 @@ pub enum MosaicError {
     },
 }
 
-// WCS projection (gnomonic / TAN)
-
-/// Forward / inverse gnomonic (RA---TAN, DEC--TAN) projection for one
-/// CD-matrix [`WcsInfo`].
-///
-/// FITS WCS pipeline:
-///   pixel (1-based `x, y`) ──CD──▶ intermediate world `(ξ, η)` in degrees
-///   `(ξ, η)` ──TAN deproject──▶ native spherical `(φ, θ)`
-///   `(φ, θ)` ──rotate by (CRVAL1, CRVAL2)──▶ celestial `(α, δ)`.
-///
-/// We pre-invert the CD matrix once so `world_to_pixel` is a closed form. The
-/// pixel convention here is **0-based** (`x = 0` is the first column centre):
-/// FITS `CRPIXn` is 1-based, so we carry the `-1` offset internally and expose a
-/// 0-based interface that matches the rest of the imaging crate (the resampler,
-/// `ImageData` indexing).
-#[derive(Debug, Clone)]
-pub struct WcsProjection {
-    crval1_rad: f64,
-    crval2_rad: f64,
-    // 0-based reference pixel.
-    crpix1_0: f64,
-    crpix2_0: f64,
-    cd1_1: f64,
-    cd1_2: f64,
-    cd2_1: f64,
-    cd2_2: f64,
-    // Inverse of the CD matrix (deg⁻¹), for world→pixel.
-    inv_cd1_1: f64,
-    inv_cd1_2: f64,
-    inv_cd2_1: f64,
-    inv_cd2_2: f64,
-    // Precomputed trig of the reference declination.
-    sin_dec0: f64,
-    cos_dec0: f64,
-}
-
-impl WcsProjection {
-    /// Build a projection from a [`WcsInfo`], or `None` if the CD matrix is
-    /// singular (determinant below a small epsilon → world↔pixel non-invertible).
-    pub fn new(wcs: &WcsInfo) -> Option<Self> {
-        let det = wcs.cd1_1 * wcs.cd2_2 - wcs.cd1_2 * wcs.cd2_1;
-        // A real CD matrix is ~ (scale)² with scale ~ arcsec/px in degrees, i.e.
-        // tiny but never zero. 1e-18 deg² ≈ (3.6e-6 arcsec)² — far below any real
-        // plate scale, so this rejects only genuine degeneracy.
-        if !det.is_finite() || det.abs() < 1e-18 {
-            return None;
-        }
-        let inv = 1.0 / det;
-        let crval2_rad = wcs.crval2.to_radians();
-        Some(Self {
-            crval1_rad: wcs.crval1.to_radians(),
-            crval2_rad,
-            crpix1_0: wcs.crpix1 - 1.0,
-            crpix2_0: wcs.crpix2 - 1.0,
-            cd1_1: wcs.cd1_1,
-            cd1_2: wcs.cd1_2,
-            cd2_1: wcs.cd2_1,
-            cd2_2: wcs.cd2_2,
-            inv_cd1_1: wcs.cd2_2 * inv,
-            inv_cd1_2: -wcs.cd1_2 * inv,
-            inv_cd2_1: -wcs.cd2_1 * inv,
-            inv_cd2_2: wcs.cd1_1 * inv,
-            sin_dec0: crval2_rad.sin(),
-            cos_dec0: crval2_rad.cos(),
-        })
-    }
-
-    /// Forward projection: 0-based pixel `(x, y)` → celestial `(ra, dec)` in
-    /// **degrees**. `ra` is normalised to `[0, 360)`.
-    pub fn pixel_to_world(&self, x: f64, y: f64) -> (f64, f64) {
-        // Pixel → intermediate world coordinates (degrees) via CD.
-        let dx = x - self.crpix1_0;
-        let dy = y - self.crpix2_0;
-        let xi_deg = self.cd1_1 * dx + self.cd1_2 * dy;
-        let eta_deg = self.cd2_1 * dx + self.cd2_2 * dy;
-        // Intermediate world coords are standard coordinates on the tangent
-        // plane in degrees. TAN deprojection (Calabretta & Greisen 2002):
-        //   ξ = sin(φ)·R, η = -cos(φ)·R with R = cot(θ); equivalently use the
-        // standard-coordinate form below.
-        let xi = xi_deg.to_radians();
-        let eta = eta_deg.to_radians();
-        // ρ = angular distance from the tangent point, with r = tan(ρ).
-        let r = (xi * xi + eta * eta).sqrt();
-        if r < 1e-15 {
-            // At the tangent point exactly.
-            return (
-                normalize_deg(self.crval1_rad.to_degrees()),
-                self.crval2_rad.to_degrees(),
-            );
-        }
-        let rho = r.atan();
-        let sin_rho = rho.sin();
-        let cos_rho = rho.cos();
-        // Native longitude φ measured from the +η (north) axis.
-        // Standard inverse-TAN spherical reconstruction:
-        let sin_dec = cos_rho * self.sin_dec0 + (eta * sin_rho * self.cos_dec0) / r;
-        let dec = sin_dec.clamp(-1.0, 1.0).asin();
-        // RA offset.
-        let y_term = xi * sin_rho;
-        let x_term = r * self.cos_dec0 * cos_rho - eta * self.sin_dec0 * sin_rho;
-        let ra = self.crval1_rad + y_term.atan2(x_term);
-        (normalize_deg(ra.to_degrees()), dec.to_degrees())
-    }
-
-    /// Inverse projection: celestial `(ra, dec)` in **degrees** → 0-based pixel
-    /// `(x, y)`. Returns `None` when the point is on the far hemisphere (behind
-    /// the tangent plane), where the gnomonic projection diverges.
-    pub fn world_to_pixel(&self, ra: f64, dec: f64) -> Option<(f64, f64)> {
-        let ra_rad = ra.to_radians();
-        let dec_rad = dec.to_radians();
-        let sin_dec = dec_rad.sin();
-        let cos_dec = dec_rad.cos();
-        let dra = ra_rad - self.crval1_rad;
-        let cos_dra = dra.cos();
-        let sin_dra = dra.sin();
-        // Cosine of angular separation from the tangent point. Gnomonic projects
-        // only the visible hemisphere; cos_c <= 0 is behind the plane / diverging.
-        let cos_c = self.sin_dec0 * sin_dec + self.cos_dec0 * cos_dec * cos_dra;
-        if cos_c <= 1e-12 {
-            return None;
-        }
-        // Standard coordinates (radians) on the tangent plane.
-        let xi = (cos_dec * sin_dra) / cos_c;
-        let eta = (self.cos_dec0 * sin_dec - self.sin_dec0 * cos_dec * cos_dra) / cos_c;
-        // Radians → degrees (intermediate world coordinates).
-        let xi_deg = xi.to_degrees();
-        let eta_deg = eta.to_degrees();
-        // Intermediate world coords → pixel via the inverse CD matrix.
-        let dx = self.inv_cd1_1 * xi_deg + self.inv_cd1_2 * eta_deg;
-        let dy = self.inv_cd2_1 * xi_deg + self.inv_cd2_2 * eta_deg;
-        Some((dx + self.crpix1_0, dy + self.crpix2_0))
-    }
-
-    /// Approximate pixel scale in arcsec/px (geometric mean of the CD column
-    /// norms). Used for the median-scale canvas default.
-    pub fn pixel_scale_arcsec(&self) -> f64 {
-        let s1 = (self.cd1_1 * self.cd1_1 + self.cd2_1 * self.cd2_1).sqrt();
-        let s2 = (self.cd1_2 * self.cd1_2 + self.cd2_2 * self.cd2_2).sqrt();
-        (s1 * s2).sqrt() * 3600.0
-    }
-}
-
 /// Normalise an angle in degrees to `[0, 360)`.
 fn normalize_deg(d: f64) -> f64 {
     let mut v = d % 360.0;
@@ -340,6 +199,13 @@ fn normalize_deg(d: f64) -> f64 {
         v += 360.0;
     }
     v
+}
+
+/// The projection of a panel or canvas WCS; a singular CD matrix has none.
+fn projection(wcs: &WcsInfo) -> Result<SipWcs, MosaicError> {
+    Some(SipWcs::from(wcs))
+        .filter(SipWcs::is_invertible)
+        .ok_or(MosaicError::DegenerateWcs)
 }
 
 /// Signed RA difference `a − b` in degrees, wrapped to `(−180, 180]`. Used when
@@ -364,7 +230,7 @@ struct DecodedPanel {
     width: usize,
     height: usize,
     channels: usize,
-    proj: WcsProjection,
+    proj: SipWcs,
     /// Axis-aligned bounding box of this panel on the output canvas (inclusive
     /// integer pixel range, clamped to the canvas). `None` if the panel projects
     /// entirely off-canvas.
@@ -396,7 +262,7 @@ impl DecodedPanel {
         if width == 0 || height == 0 {
             return Err(MosaicError::Dimensionless);
         }
-        let proj = WcsProjection::new(&panel.wcs).ok_or(MosaicError::DegenerateWcs)?;
+        let proj = projection(&panel.wcs)?;
         let expected = width * height * channels;
         let data: Vec<f64> = if let Some(f) = panel.image.as_f32() {
             f.into_iter().map(|v| v as f64).collect()
@@ -567,19 +433,6 @@ fn catmull_rom(x: f64) -> f64 {
     }
 }
 
-/// Lanczos kernel with a = 3 — matches `registration::lanczos3`.
-fn lanczos3(x: f64) -> f64 {
-    const A: f64 = 3.0;
-    if x.abs() < f64::EPSILON {
-        1.0
-    } else if x.abs() < A {
-        let px = std::f64::consts::PI * x;
-        (A * px.sin() * (px / A).sin()) / (px * px)
-    } else {
-        0.0
-    }
-}
-
 // Output-canvas construction
 
 /// Build the output canvas WCS + integer dimensions from the panel projections.
@@ -592,28 +445,25 @@ fn lanczos3(x: f64) -> f64 {
 fn build_output_wcs(
     panels: &[DecodedPanel],
     cfg: &MosaicStitchConfig,
-) -> Result<(WcsInfo, WcsProjection, u32, u32), MosaicError> {
+) -> Result<(WcsInfo, SipWcs, u32, u32), MosaicError> {
     // Reference projection centre: median CRVAL.
     // RA is taken relative to the first panel to handle the 0h/24h wrap, then
     // re-wrapped; Dec is a plain median.
-    let ra0 = panels[0].proj.crval1_rad.to_degrees();
+    let ra0 = panels[0].proj.crval1;
     let mut ra_offsets: Vec<f64> = panels
         .iter()
-        .map(|p| delta_ra_deg(p.proj.crval1_rad.to_degrees(), ra0))
+        .map(|p| delta_ra_deg(p.proj.crval1, ra0))
         .collect();
-    let mut decs: Vec<f64> = panels
-        .iter()
-        .map(|p| p.proj.crval2_rad.to_degrees())
-        .collect();
-    let center_ra = normalize_deg(ra0 + median(&mut ra_offsets));
-    let center_dec = median(&mut decs);
+    let mut decs: Vec<f64> = panels.iter().map(|p| p.proj.crval2).collect();
+    let center_ra = normalize_deg(ra0 + median_in_place(&mut ra_offsets));
+    let center_dec = median_in_place(&mut decs);
 
     // Output pixel scale (arcsec/px) → deg/px.
     let scale_arcsec = match cfg.output_pixel_scale_arcsec {
         Some(s) if s > 0.0 => s,
         _ => {
             let mut scales: Vec<f64> = panels.iter().map(|p| p.proj.pixel_scale_arcsec()).collect();
-            median(&mut scales)
+            median_in_place(&mut scales)
         }
     };
     let scale_deg = scale_arcsec / 3600.0;
@@ -630,7 +480,7 @@ fn build_output_wcs(
         cd2_1: 0.0,
         cd2_2: scale_deg,
     };
-    let proj0 = WcsProjection::new(&out_wcs).ok_or(MosaicError::DegenerateWcs)?;
+    let proj0 = projection(&out_wcs)?;
 
     // Project every panel corner onto the provisional output plane.
     let mut min_x = f64::INFINITY;
@@ -682,18 +532,13 @@ fn build_output_wcs(
     // `(-lo_x, -lo_y)`, i.e. 1-based CRPIX = `(-lo_x + 1, -lo_y + 1)`.
     out_wcs.crpix1 = -lo_x + 1.0;
     out_wcs.crpix2 = -lo_y + 1.0;
-    let proj = WcsProjection::new(&out_wcs).ok_or(MosaicError::DegenerateWcs)?;
+    let proj = projection(&out_wcs)?;
 
     Ok((out_wcs, proj, out_w as u32, out_h as u32))
 }
 
 /// Compute and stash each panel's integer canvas bounding box.
-fn compute_footprints(
-    panels: &mut [DecodedPanel],
-    out_proj: &WcsProjection,
-    out_w: u32,
-    out_h: u32,
-) {
+fn compute_footprints(panels: &mut [DecodedPanel], out_proj: &SipWcs, out_w: u32, out_h: u32) {
     for p in panels.iter_mut() {
         let w = p.width as f64;
         let h = p.height as f64;
@@ -759,7 +604,7 @@ struct PanelPhotometry {
 #[allow(clippy::needless_range_loop)]
 fn solve_panel_photometry(
     panels: &[DecodedPanel],
-    out_proj: &WcsProjection,
+    out_proj: &SipWcs,
 ) -> (Vec<PanelPhotometry>, usize) {
     let n = panels.len();
     let mut corrections = vec![
@@ -867,52 +712,7 @@ fn solve_anchored_chain(n: usize, edges: impl Iterator<Item = (usize, usize, f64
     for k in 1..n {
         a[k][k] += 1e-9;
     }
-    gaussian_solve(a, b).unwrap_or_else(|| vec![0.0; n])
-}
-
-/// Dense Gaussian elimination with partial pivoting. `None` if singular.
-// Index loops: row/column elimination is the natural index-keyed algorithm.
-#[allow(clippy::needless_range_loop)]
-fn gaussian_solve(mut a: Vec<Vec<f64>>, mut b: Vec<f64>) -> Option<Vec<f64>> {
-    let n = b.len();
-    for col in 0..n {
-        // Pivot.
-        let mut piv = col;
-        let mut best = a[col][col].abs();
-        for r in (col + 1)..n {
-            let v = a[r][col].abs();
-            if v > best {
-                best = v;
-                piv = r;
-            }
-        }
-        if best < 1e-15 {
-            return None;
-        }
-        a.swap(col, piv);
-        b.swap(col, piv);
-        // Eliminate.
-        for r in (col + 1)..n {
-            let f = a[r][col] / a[col][col];
-            if f == 0.0 {
-                continue;
-            }
-            for c in col..n {
-                a[r][c] -= f * a[col][c];
-            }
-            b[r] -= f * b[col];
-        }
-    }
-    // Back-substitute.
-    let mut x = vec![0.0f64; n];
-    for row in (0..n).rev() {
-        let mut s = b[row];
-        for c in (row + 1)..n {
-            s -= a[row][c] * x[c];
-        }
-        x[row] = s / a[row][row];
-    }
-    Some(x)
+    solve_dense(a.concat(), b, 1e-15).unwrap_or_else(|| vec![0.0; n])
 }
 
 /// Fit `v_i ≈ s·v_j + o` over the canvas region where panels `i` and `j` both
@@ -921,7 +721,7 @@ fn gaussian_solve(mut a: Vec<Vec<f64>>, mut b: Vec<f64>) -> Option<Vec<f64>> {
 fn fit_overlap_pair(
     pi: &DecodedPanel,
     pj: &DecodedPanel,
-    out_proj: &WcsProjection,
+    out_proj: &SipWcs,
     bi: &CanvasBox,
     bj: &CanvasBox,
 ) -> Option<(f64, f64)> {
@@ -1000,7 +800,7 @@ fn fit_overlap_pair(
 fn render_canvas(
     panels: &[DecodedPanel],
     photometry: &[PanelPhotometry],
-    out_proj: &WcsProjection,
+    out_proj: &SipWcs,
     out_w: u32,
     out_h: u32,
     channels: usize,
@@ -1142,7 +942,7 @@ fn panel_weight(sx: f64, sy: f64, width: usize, height: usize, cfg: &MosaicStitc
 /// canvas.
 ///
 /// Pipeline (see the module docs for the full rationale):
-/// 1. Decode each panel to `f64`, build its [`WcsProjection`] (fails
+/// 1. Decode each panel to `f64`, build its projection (fails
 ///    [`MosaicError::DegenerateWcs`] on a singular CD matrix).
 /// 2. Build the output canvas WCS + dimensions ([`build_output_wcs`]); guard
 ///    [`MosaicError::CanvasTooLarge`].
@@ -1305,7 +1105,7 @@ mod tests {
         gain: f64,
         offset: f64,
     ) -> MosaicPanel {
-        let proj = WcsProjection::new(wcs).unwrap();
+        let proj = SipWcs::from(wcs);
         let mut data = vec![0.0f32; (w * h) as usize];
         for y in 0..h {
             for x in 0..w {
@@ -1325,7 +1125,7 @@ mod tests {
     #[test]
     fn tan_round_trip_is_subpixel() {
         let wcs = make_wcs(187.5, 12.3, 2.0, 1000, 800);
-        let proj = WcsProjection::new(&wcs).unwrap();
+        let proj = SipWcs::from(&wcs);
         // Sweep a grid of pixels; world→pixel→world→pixel must close to < 1e-6.
         for &(x, y) in &[
             (0.0, 0.0),
@@ -1348,7 +1148,7 @@ mod tests {
     fn tan_center_pixel_maps_to_crval() {
         // The 0-based reference pixel is (crpix - 1).
         let wcs = make_wcs(45.0, -30.0, 1.5, 600, 600);
-        let proj = WcsProjection::new(&wcs).unwrap();
+        let proj = SipWcs::from(&wcs);
         let cx = wcs.crpix1 - 1.0;
         let cy = wcs.crpix2 - 1.0;
         let (ra, dec) = proj.pixel_to_world(cx, cy);
@@ -1363,7 +1163,7 @@ mod tests {
         // sign flips RA to the left, so +x ⇒ −RA.
         let scale = 3.0; // arcsec/px
         let wcs = make_wcs(100.0, 0.0, scale, 200, 200);
-        let proj = WcsProjection::new(&wcs).unwrap();
+        let proj = SipWcs::from(&wcs);
         let cx = wcs.crpix1 - 1.0;
         let cy = wcs.crpix2 - 1.0;
         let (ra, _dec) = proj.pixel_to_world(cx + 1.0, cy);
@@ -1383,7 +1183,7 @@ mod tests {
         wcs.cd1_2 = 0.0;
         wcs.cd2_1 = 0.0;
         wcs.cd2_2 = 0.0;
-        assert!(WcsProjection::new(&wcs).is_none());
+        assert_eq!(projection(&wcs).unwrap_err(), MosaicError::DegenerateWcs);
         let panel = MosaicPanel {
             image: ImageData::from_f32(100, 100, 1, &vec![1.0; 10000]),
             wcs,
@@ -1463,8 +1263,8 @@ mod tests {
         let oh = out.stats.out_height as usize;
         // Compare the interior (avoid the feathered border) against the original
         // by re-projecting through the output WCS.
-        let out_proj = WcsProjection::new(&out.wcs).unwrap();
-        let in_proj = WcsProjection::new(&wcs).unwrap();
+        let out_proj = SipWcs::from(&out.wcs);
+        let in_proj = SipWcs::from(&wcs);
         let mut max_rel = 0.0f64;
         let mut checked = 0;
         for oy in (20..oh - 20).step_by(7) {
@@ -1559,7 +1359,7 @@ mod tests {
 
         // Seam invisible: in the overlap, the stitched value must match the
         // sky field (both panels sampled the same field, hard-averaged).
-        let out_proj = WcsProjection::new(&out.wcs).unwrap();
+        let out_proj = SipWcs::from(&out.wcs);
         let stitched = out.master.as_f32().unwrap();
         let mut max_diff = 0.0f64;
         let mut n = 0;
@@ -1597,7 +1397,7 @@ mod tests {
         let a = synth_panel(&wcs_a, w, h, ra0, dec0, 1.0, 0.0);
         let b = synth_panel(&wcs_b, w, h, ra0, dec0, 1.7, 400.0);
 
-        let out_proj_test = |out: &MosaicOutput| WcsProjection::new(&out.wcs).unwrap();
+        let out_proj_test = |out: &MosaicOutput| SipWcs::from(&out.wcs);
 
         // With normalization OFF, the overlap shows a seam (A and B disagree).
         let cfg_off = MosaicStitchConfig {
@@ -1701,7 +1501,7 @@ mod tests {
         let oh = out.stats.out_height as usize;
         let cov = out.coverage.as_f32().unwrap();
         // There must be covered pixels near each panel centre.
-        let out_proj = WcsProjection::new(&out.wcs).unwrap();
+        let out_proj = SipWcs::from(&out.wcs);
         for (ra, dec) in [(ra_a, dec0), (ra_b, dec0)] {
             let (ox, oy) = out_proj.world_to_pixel(ra, dec).unwrap();
             let oxi = ox.round() as usize;
@@ -1759,7 +1559,7 @@ mod tests {
         let oh = out.stats.out_height as usize;
         let cov = out.coverage.as_f32().unwrap();
         let stitched = out.master.as_f32().unwrap();
-        let proj = WcsProjection::new(&out.wcs).unwrap();
+        let proj = SipWcs::from(&out.wcs);
 
         // Check the residual in *every* 2-panel overlap against the truth
         // field. B–C, at the far end of the chain, is the strictest: with
@@ -1811,7 +1611,7 @@ mod tests {
         // Build panel A's buffer directly so we can poke a NaN into its centre —
         // a pixel that is firmly covered (and lands inside the A∩B overlap, so
         // the resampler's support window is exercised there too).
-        let proj_a = WcsProjection::new(&wcs_a).unwrap();
+        let proj_a = SipWcs::from(&wcs_a);
         let mut data_a = vec![0.0f32; (w * h) as usize];
         for y in 0..h {
             for x in 0..w {

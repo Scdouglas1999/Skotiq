@@ -36,6 +36,7 @@
 //!
 //! The public entry point is [`register_frame`].
 
+use crate::numeric::{lanczos3, solve_dense};
 use crate::{detect_stars, DetectedStar, ImageData, PixelType, StarDetectionConfig};
 use rayon::prelude::*;
 
@@ -269,7 +270,7 @@ pub fn registrable_star_count(image: &ImageData, config: &RegistrationConfig) ->
     if image.pixel_type != PixelType::U16 || !matches!(image.channels, 1 | 3) {
         return 0;
     }
-    detect_stars(&detection_plane(image), &config.star_detection).len()
+    detect_stars(image, &config.star_detection).len()
 }
 
 /// Register `frame` (source) onto `reference`, returning the fitted transform,
@@ -334,7 +335,7 @@ impl ReferenceStars {
             return Err(RegistrationError::UnsupportedChannels(reference.channels));
         }
         Ok(Self {
-            stars: detect_stars(&detection_plane(reference), &config.star_detection),
+            stars: detect_stars(reference, &config.star_detection),
             width: reference.width,
             height: reference.height,
             channels: reference.channels,
@@ -381,9 +382,18 @@ pub fn solve_registration_against(
     if !matches!(frame.channels, 1 | 3) {
         return Err(RegistrationError::UnsupportedChannels(frame.channels));
     }
-    let ref_stars = &reference.stars;
-    let frame_stars = detect_stars(&detection_plane(frame), &config.star_detection);
+    let frame_stars = detect_stars(frame, &config.star_detection);
+    solve_registration_from_stars(&reference.stars, &frame_stars, config)
+}
 
+/// The geometry fit between two star lists the caller already holds, in the
+/// detector's order (brightest first): the source→reference transform and its
+/// residual statistics.
+pub fn solve_registration_from_stars(
+    ref_stars: &[DetectedStar],
+    frame_stars: &[DetectedStar],
+    config: &RegistrationConfig,
+) -> Result<(TransformModel, RegistrationStats), RegistrationError> {
     // We need at least enough stars to form triangles and a minimal fit.
     let min_stars = min_registration_stars(config.transform_kind);
     if ref_stars.len() < min_stars || frame_stars.len() < min_stars {
@@ -394,7 +404,7 @@ pub fn solve_registration_against(
         });
     }
 
-    let transform = solve_transform_from_stars(ref_stars, &frame_stars, config).ok_or(
+    let transform = solve_transform_from_stars(ref_stars, frame_stars, config).ok_or(
         RegistrationError::NoConsistentGeometry {
             found: 0,
             needed: config.min_inliers,
@@ -402,7 +412,7 @@ pub fn solve_registration_against(
     )?;
 
     // Recompute the correspondence/inlier statistics for the returned model.
-    let correspondences = correspondences_from_stars(ref_stars, &frame_stars, config);
+    let correspondences = correspondences_from_stars(ref_stars, frame_stars, config);
     let residuals: Vec<f64> = correspondences
         .iter()
         .map(|c| {
@@ -480,7 +490,7 @@ pub fn warp_to_grid(
             covered: vec![false; out_w * out_h],
         };
     };
-    let src = crate::calibration::samples_f64(frame);
+    let src = frame.samples_f64();
     let stride = src_w * channels;
     let rows: Vec<(Vec<f32>, Vec<bool>)> = (0..out_h)
         .into_par_iter()
@@ -548,41 +558,6 @@ fn validate_pair(reference: &ImageData, frame: &ImageData) -> Result<(), Registr
         return Err(RegistrationError::UnsupportedChannels(reference.channels));
     }
     Ok(())
-}
-
-/// Single-channel plane that star detection runs on. Mono frames are borrowed
-/// unchanged; RGB frames are collapsed to a Rec. 601 luminance proxy so star
-/// centroids come from a coherent plane (mirrors `stacking::detection_plane`).
-fn detection_plane(frame: &ImageData) -> std::borrow::Cow<'_, ImageData> {
-    match frame.channels {
-        1 => std::borrow::Cow::Borrowed(frame),
-        3 => std::borrow::Cow::Owned(luminance_proxy(frame)),
-        other => unreachable!("validate_pair rejects channel count {other}"),
-    }
-}
-
-fn luminance_proxy(rgb: &ImageData) -> ImageData {
-    let width = rgb.width;
-    let height = rgb.height;
-    let pixel_count = (width as usize) * (height as usize);
-    let interleaved = rgb
-        .as_u16()
-        .expect("luminance_proxy requires a U16 RGB image");
-
-    let luma: Vec<u16> = (0..pixel_count)
-        .into_par_iter()
-        .map(|i| {
-            let base = i * 3;
-            let r = interleaved[base] as f64;
-            let g = interleaved[base + 1] as f64;
-            let b = interleaved[base + 2] as f64;
-            (0.299 * r + 0.587 * g + 0.114 * b)
-                .round()
-                .clamp(0.0, 65535.0) as u16
-        })
-        .collect();
-
-    ImageData::from_u16(width, height, 1, &luma)
 }
 
 // Geometric matching (triangle descriptors -> star correspondences)
@@ -1141,7 +1116,7 @@ fn fit_homography(pairs: &[Correspondence]) -> Option<TransformModel> {
         accumulate(&row_y, yp);
     }
 
-    let h = solve_linear_system(&mut ata, &mut atb)?;
+    let h = solve_dense(ata.concat(), atb.to_vec(), 1e-12)?;
 
     Some(TransformModel {
         matrix: [[h[0], h[1], h[2]], [h[3], h[4], h[5]], [h[6], h[7], 1.0]],
@@ -1370,19 +1345,6 @@ fn catmull_rom(x: f64) -> f64 {
     }
 }
 
-/// Lanczos kernel with `a = 3` (windowed sinc).
-fn lanczos3(x: f64) -> f64 {
-    const A: f64 = 3.0;
-    if x.abs() < f64::EPSILON {
-        1.0
-    } else if x.abs() < A {
-        let px = std::f64::consts::PI * x;
-        (A * px.sin() * (px / A).sin()) / (px * px)
-    } else {
-        0.0
-    }
-}
-
 // Small linear-algebra helpers (no nalgebra dependency)
 
 /// Invert a 3×3 matrix; `None` if singular.
@@ -1415,58 +1377,6 @@ fn mat3_vec3(m: &[[f64; 3]; 3], v: &[f64; 3]) -> [f64; 3] {
         m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2],
         m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2],
     ]
-}
-
-/// Solve `A x = b` for an 8×8 system by Gaussian elimination with partial
-/// pivoting. Mutates `a` and `b`. Returns `None` if the matrix is singular.
-///
-/// `needless_range_loop` is allowed here: this is textbook Gaussian
-/// elimination where each inner loop reads the *pivot* row `a[col]` while
-/// mutating row `a[r]`, and the outer loop swaps whole rows. Index arithmetic
-/// is the clearest, and the borrow-checker-friendliest, way to express
-/// simultaneous cross-row access; an `enumerate()` rewrite would obscure it.
-#[allow(clippy::needless_range_loop)]
-fn solve_linear_system(a: &mut [[f64; 8]; 8], b: &mut [f64; 8]) -> Option<[f64; 8]> {
-    const N: usize = 8;
-    for col in 0..N {
-        // Partial pivot.
-        let mut pivot = col;
-        let mut max_abs = a[col][col].abs();
-        for r in (col + 1)..N {
-            if a[r][col].abs() > max_abs {
-                max_abs = a[r][col].abs();
-                pivot = r;
-            }
-        }
-        if max_abs < 1e-12 {
-            return None;
-        }
-        a.swap(col, pivot);
-        b.swap(col, pivot);
-
-        // Eliminate below.
-        let pivot_val = a[col][col];
-        for r in (col + 1)..N {
-            let factor = a[r][col] / pivot_val;
-            if factor != 0.0 {
-                for c in col..N {
-                    a[r][c] -= factor * a[col][c];
-                }
-                b[r] -= factor * b[col];
-            }
-        }
-    }
-
-    // Back-substitution.
-    let mut x = [0.0f64; N];
-    for i in (0..N).rev() {
-        let mut sum = b[i];
-        for j in (i + 1)..N {
-            sum -= a[i][j] * x[j];
-        }
-        x[i] = sum / a[i][i];
-    }
-    Some(x)
 }
 
 fn rms(values: &[f64]) -> f64 {
@@ -2065,17 +1975,6 @@ mod tests {
                 "homography mismatch at ({x},{y}): expected ({ex},{ey}) got ({ax},{ay})"
             );
         }
-    }
-
-    #[test]
-    fn lanczos_kernel_partition_of_unity_at_integer_offsets() {
-        // At an exact integer sample location, Lanczos must return the sample
-        // itself: kernel(0) = 1, kernel(non-zero integer) = 0.
-        assert!((lanczos3(0.0) - 1.0).abs() < 1e-12);
-        for k in 1..=3 {
-            assert!(lanczos3(k as f64).abs() < 1e-9, "lanczos3({k}) not ~0");
-        }
-        assert!(lanczos3(3.5).abs() < 1e-12);
     }
 
     #[test]

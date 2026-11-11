@@ -30,8 +30,10 @@
 //! frame's typical star (galaxies, nebula knots, foreground objects) are not
 //! reported as stars.
 
+use crate::detection_plane::DetectionPlane;
+use crate::robust_stats::{median_upper_in_place_f32, MAD_TO_SIGMA};
 use crate::stats::compute_snr;
-use crate::{DetectedStar, ImageData, StarDetectionConfig};
+use crate::{DetectedStar, StarDetectionConfig};
 use rayon::prelude::*;
 
 /// Side of a background mesh cell in pixels.
@@ -102,22 +104,27 @@ pub(crate) struct Detection {
     pub noise: f64,
 }
 
-/// Run the detector. Stars come back brightest (largest flux) first.
-pub(crate) fn detect(image: &ImageData, config: &StarDetectionConfig) -> Detection {
-    let width = image.width as usize;
-    let height = image.height as usize;
-    if width < 3 || height < 3 || image.data.len() < width * height * 2 {
-        return Detection {
+impl Detection {
+    /// What a frame with nothing to detect in reports.
+    pub(crate) fn empty() -> Self {
+        Self {
             stars: Vec::new(),
             background: 0.0,
             noise: 1.0,
-        };
+        }
     }
+}
 
-    let raw: Vec<f32> = image.data[..width * height * 2]
-        .par_chunks_exact(2)
-        .map(|c| u16::from_le_bytes([c[0], c[1]]) as f32)
-        .collect();
+/// Run the detector. Stars come back brightest (largest flux) first.
+pub(crate) fn detect(plane: DetectionPlane, config: &StarDetectionConfig) -> Detection {
+    let DetectionPlane {
+        width,
+        height,
+        samples: raw,
+    } = plane;
+    if width < 3 || height < 3 {
+        return Detection::empty();
+    }
 
     let (back, noise) = mesh_grids(&raw, width, height, 1.0);
     let mut residual = raw;
@@ -925,9 +932,7 @@ struct Grid {
 
 impl Grid {
     fn median(&self) -> f32 {
-        let mut v = self.v.clone();
-        let mid = v.len() / 2;
-        *v.select_nth_unstable_by(mid, f32::total_cmp).1
+        median_upper_in_place_f32(&mut self.v.clone())
     }
 
     fn bracket(c: &[f64], t: f64) -> (usize, usize, f64) {
@@ -1078,11 +1083,9 @@ fn clipped_stats(mut v: Vec<f32>) -> Option<(f32, f32)> {
     }
     let mut sigma = 0.0f32;
     for _ in 0..5 {
-        let mid = v.len() / 2;
-        let median = *v.select_nth_unstable_by(mid, f32::total_cmp).1;
+        let median = median_upper_in_place_f32(&mut v);
         let mut dev: Vec<f32> = v.iter().map(|x| (x - median).abs()).collect();
-        let mad = *dev.select_nth_unstable_by(mid, f32::total_cmp).1;
-        sigma = 1.4826 * mad;
+        sigma = MAD_TO_SIGMA as f32 * median_upper_in_place_f32(&mut dev);
         if sigma <= 0.0 {
             sigma = std_dev(&v, median);
         }
@@ -1099,8 +1102,7 @@ fn clipped_stats(mut v: Vec<f32>) -> Option<(f32, f32)> {
             break;
         }
     }
-    let mid = v.len() / 2;
-    let median = *v.select_nth_unstable_by(mid, f32::total_cmp).1;
+    let median = median_upper_in_place_f32(&mut v);
     // Standard deviation of the clipped sample, corrected for the ±3σ
     // truncation of a normal distribution.
     let sd = std_dev(&v, median) / 0.9866;

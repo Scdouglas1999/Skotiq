@@ -65,7 +65,7 @@ use rayon::prelude::*;
 use serde_json::{json, Value};
 
 use crate::recipe::{DarkroomOp, OpContext, OpError, OpImage, OpStage, Params};
-use crate::robust_stats::{median_in_place, percentile_nearest_rank, MAD_TO_SIGMA};
+use crate::robust_stats::{mad_sigma, percentile_nearest_rank};
 
 /// Registry id.
 const OP_ID: &str = "stretch";
@@ -427,8 +427,7 @@ pub fn auto_params(image: &OpImage) -> Result<StretchAutoParams, OpError> {
     samples.sort_unstable_by(f64::total_cmp);
 
     let median = percentile_nearest_rank(&samples, 0.5);
-    let mut deviations: Vec<f64> = samples.iter().map(|value| (value - median).abs()).collect();
-    let sigma = median_in_place(&mut deviations) * MAD_TO_SIGMA;
+    let sigma = mad_sigma(&samples, median);
     if sigma <= 0.0 {
         return Err(auto_failure(
             "the background has no measurable spread to place a black point",

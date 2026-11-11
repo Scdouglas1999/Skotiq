@@ -17,7 +17,8 @@
 //! Where the two parsers genuinely differ, the fixture carries a written
 //! `divergence` and neither implementation is changed — see the fixture README.
 
-use super::{fits_header_cards, parse_wcs_file_inner, PlateSolveError};
+use super::{parse_wcs_file_inner, PlateSolveError};
+use crate::fits::header_text_cards;
 use serde_json::Value;
 use std::path::PathBuf;
 
@@ -86,7 +87,7 @@ fn card_split_matches_the_dart_fits_header_cards() {
     for case in load_cases() {
         let id = case["id"].as_str().expect("case.id");
         let content = header_of(&case);
-        let cards = fits_header_cards(&content);
+        let cards = header_text_cards(&content);
         let expected = &case["cards"];
 
         assert_eq!(
@@ -120,7 +121,7 @@ fn wcs_conformance_terminator_free_header_splits_like_a_crlf_one() {
         .expect("card-stream golden");
     let crlf =
         std::fs::read_to_string(root.join("cases/astap_crlf_delimited.wcs")).expect("crlf golden");
-    assert_eq!(fits_header_cards(&crlf), fits_header_cards(&stream));
+    assert_eq!(header_text_cards(&crlf), header_text_cards(&stream));
 }
 
 #[test]

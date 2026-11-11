@@ -41,8 +41,8 @@ use serde_json::{json, Value};
 use crate::background_extraction::{eval_poly, normalise_xy, poly_terms};
 use crate::recipe::ops::background_extract::{fit_plane, star_disks, Settings, StarDisk};
 use crate::recipe::{OpContext, OpError, OpImage};
-use crate::robust_stats::{median_in_place, MAD_TO_SIGMA};
-use crate::{detect_stars, StarDetectionConfig};
+use crate::robust_stats::{mad_sigma, median_and_sigma, median_in_place, median_of};
+use crate::{detect_stars_in_plane, StarDetectionConfig};
 
 /// Highest polynomial degree a pinned surface may carry.
 pub const SURFACE_DEGREE_MAX: usize = 6;
@@ -218,8 +218,11 @@ impl FieldStars {
     /// Detect the field's stars in `reference`, a single-plane image.
     pub fn detect(reference: &OpImage, ctx: &OpContext) -> Result<Self, OpError> {
         let disks = star_disks(reference, ctx)?;
-        let photometry = match crate::recipe::ops::star_detect::detection_frame(reference, ctx)? {
-            Some(frame) => select_photometry(detect_stars(&frame, &StarDetectionConfig::default())),
+        let photometry = match crate::recipe::ops::star_detect::detection_plane(reference, ctx)? {
+            Some(plane) => select_photometry(detect_stars_in_plane(
+                plane,
+                &StarDetectionConfig::default(),
+            )),
             None => Vec::new(),
         };
         Ok(Self { photometry, disks })
@@ -404,12 +407,7 @@ fn clipped_fit(
             .zip(&keep)
             .filter_map(|(r, k)| k.then_some(*r))
             .collect();
-        let centre = median_in_place(&mut kept_residuals.clone());
-        let mut deviations: Vec<f64> = kept_residuals
-            .iter_mut()
-            .map(|r| (*r - centre).abs())
-            .collect();
-        let sigma = median_in_place(&mut deviations) * MAD_TO_SIGMA;
+        let (centre, sigma) = median_and_sigma(&mut kept_residuals);
         let next: Vec<bool> = residuals
             .iter()
             .map(|r| (r - centre).abs() <= THROUGHPUT_CLIP_SIGMA * sigma.max(1e-12))
@@ -442,41 +440,7 @@ fn least_squares(samples: &[&(f64, f64, f64)], terms: &[(u32, u32)]) -> Option<V
             }
         }
     }
-    solve_dense(ata, atb)
-}
-
-/// Gaussian elimination with partial pivoting; `None` for a singular system.
-fn solve_dense(mut a: Vec<f64>, mut b: Vec<f64>) -> Option<Vec<f64>> {
-    let n = b.len();
-    for col in 0..n {
-        let pivot =
-            (col..n).max_by(|&p, &q| a[p * n + col].abs().total_cmp(&a[q * n + col].abs()))?;
-        if a[pivot * n + col].abs() < 1e-12 {
-            return None;
-        }
-        if pivot != col {
-            for k in 0..n {
-                a.swap(col * n + k, pivot * n + k);
-            }
-            b.swap(col, pivot);
-        }
-        for row in col + 1..n {
-            let factor = a[row * n + col] / a[col * n + col];
-            for k in col..n {
-                a[row * n + k] -= factor * a[col * n + k];
-            }
-            b[row] -= factor * b[col];
-        }
-    }
-    let mut x = vec![0.0; n];
-    for row in (0..n).rev() {
-        let mut acc = b[row];
-        for k in row + 1..n {
-            acc -= a[row * n + k] * x[k];
-        }
-        x[row] = acc / a[row * n + row];
-    }
-    x.iter().all(|v| v.is_finite()).then_some(x)
+    crate::numeric::solve_dense(ata, atb, 1e-12).filter(|x| x.iter().all(|v| v.is_finite()))
 }
 
 fn surface_range(surface: &Surface, width: usize, height: usize) -> (f64, f64) {
@@ -592,12 +556,7 @@ fn sample_noise_floor(plane: &[f32], width: usize, ctx: &OpContext) -> f64 {
     if differences.is_empty() {
         return 0.0;
     }
-    let centre = median_in_place(&mut differences.clone());
-    let mut deviations: Vec<f64> = differences
-        .iter_mut()
-        .map(|v| (*v - centre).abs())
-        .collect();
-    let sigma = median_in_place(&mut deviations) * MAD_TO_SIGMA / std::f64::consts::SQRT_2;
+    let sigma = median_and_sigma(&mut differences).1 / std::f64::consts::SQRT_2;
     let side = crate::recipe::ops::background_extract::sample_box_side(
         (BACKGROUND_SPACING_PX * ctx.scale()).max(1.0),
     ) as f64;
@@ -684,10 +643,9 @@ pub fn flatten_chroma(
         fill_from_neighbors(&mut delta, gw, gh);
         // Every box is filled now, so flattening keeps one value per box.
         let mut delta: Vec<f64> = delta.into_iter().flatten().collect();
-        let centre = median_in_place(&mut delta.clone());
+        let centre = median_of(&delta);
         delta.iter_mut().for_each(|d| *d -= centre);
-        let mut deviations: Vec<f64> = delta.iter().map(|d| d.abs()).collect();
-        removed_sigma[c] = median_in_place(&mut deviations) * MAD_TO_SIGMA;
+        removed_sigma[c] = mad_sigma(&delta, 0.0);
         plane
             .par_chunks_exact_mut(width)
             .enumerate()
@@ -720,9 +678,7 @@ fn box_medians(plane: &[f32], width: usize, box_px: usize, gw: usize, gh: usize)
             if window.is_empty() {
                 return f64::NAN;
             }
-            let centre = median_in_place(&mut window.clone());
-            let mut deviations: Vec<f64> = window.iter().map(|v| (v - centre).abs()).collect();
-            let sigma = median_in_place(&mut deviations) * MAD_TO_SIGMA;
+            let (centre, sigma) = median_and_sigma(&mut window);
             if sigma > 0.0 {
                 window.retain(|v| (v - centre).abs() <= CHROMA_BOX_CLIP_SIGMA * sigma);
             }
@@ -742,9 +698,7 @@ fn object_boxes(mean: &[f64], gw: usize, gh: usize) -> Vec<bool> {
     if finite.is_empty() {
         return vec![false; mean.len()];
     }
-    let centre = median_in_place(&mut finite.clone());
-    let mut deviations: Vec<f64> = finite.iter_mut().map(|v| (*v - centre).abs()).collect();
-    let sigma = median_in_place(&mut deviations) * MAD_TO_SIGMA;
+    let (centre, sigma) = median_and_sigma(&mut finite);
     let seed: Vec<bool> = excess
         .iter()
         .map(|e| !e.is_finite() || e - centre > CHROMA_OBJECT_SIGMA * sigma)

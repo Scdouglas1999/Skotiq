@@ -320,59 +320,12 @@ fn describe_error(e: &MosaicError) -> String {
     }
 }
 
-/// Build a [`WcsInfo`] from a FITS header.
-///
-/// Prefers the explicit CD matrix (`CD1_1..CD2_2`). When the header carries only
-/// the older `CDELT1/2` (+ optional `CROTA2`) convention, the CD matrix is
-/// synthesised from it (this is exactly the inverse of `add_wcs_headers` /
-/// `WcsInfo::from_plate_solve`). Returns `None` if neither a CD matrix nor a
-/// `CDELT` pair (plus `CRVAL`) is present.
+/// The CD-matrix [`WcsInfo`] a FITS header carries
+/// ([`skotiq_imaging::SipWcs::from_header`]): an explicit CD matrix, or one
+/// synthesised from `CDELT1/2` (+ optional `CROTA2`). `None` if the header has
+/// neither (or no `CRVAL`).
 fn wcs_from_header(header: &FitsHeader) -> Option<WcsInfo> {
-    let crval1 = header.get_float("CRVAL1")?;
-    let crval2 = header.get_float("CRVAL2")?;
-    // CRPIX defaults to the geometric centre (1-based) if absent.
-    let naxis1 = header.get_int("NAXIS1").unwrap_or(0) as f64;
-    let naxis2 = header.get_int("NAXIS2").unwrap_or(0) as f64;
-    let crpix1 = header
-        .get_float("CRPIX1")
-        .unwrap_or_else(|| naxis1 / 2.0 + 0.5);
-    let crpix2 = header
-        .get_float("CRPIX2")
-        .unwrap_or_else(|| naxis2 / 2.0 + 0.5);
-
-    // Prefer an explicit CD matrix.
-    if let (Some(cd1_1), Some(cd2_2)) = (header.get_float("CD1_1"), header.get_float("CD2_2")) {
-        let cd1_2 = header.get_float("CD1_2").unwrap_or(0.0);
-        let cd2_1 = header.get_float("CD2_1").unwrap_or(0.0);
-        return Some(WcsInfo {
-            crval1,
-            crval2,
-            crpix1,
-            crpix2,
-            cd1_1,
-            cd1_2,
-            cd2_1,
-            cd2_2,
-        });
-    }
-
-    // Fall back to CDELT + CROTA2 (older WCS convention).
-    let cdelt1 = header.get_float("CDELT1")?;
-    let cdelt2 = header.get_float("CDELT2")?;
-    let crota2 = header.get_float("CROTA2").unwrap_or(0.0).to_radians();
-    let cos_r = crota2.cos();
-    let sin_r = crota2.sin();
-    // Standard CDELT→CD synthesis: CD = [[c1·cosθ, −c2·sinθ], [c1·sinθ, c2·cosθ]].
-    Some(WcsInfo {
-        crval1,
-        crval2,
-        crpix1,
-        crpix2,
-        cd1_1: cdelt1 * cos_r,
-        cd1_2: -cdelt2 * sin_r,
-        cd2_1: cdelt1 * sin_r,
-        cd2_2: cdelt2 * cos_r,
-    })
+    skotiq_imaging::SipWcs::from_header(header).map(|wcs| wcs.cd_only())
 }
 
 /// Ensure the parent directory of `path` exists, creating it if necessary.

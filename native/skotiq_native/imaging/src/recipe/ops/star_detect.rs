@@ -1,10 +1,9 @@
-//! The star detection two operations share. Not a registered operation.
+//! The star detection the operations share. Not a registered operation.
 //!
-//! [`crate::detect_stars`] reads `U16`, and a linear master's ADU scale is not
-//! known in advance — a float master may live in `[0, 1]`, a 16-bit one in
-//! `[0, 65535]`, and a stretched one in `[0, 1]` again. The plane is therefore
-//! quantised between its own [`LUMINANCE_LOW_QUANTILE`] level and its brightest
-//! finite sample, onto `[0, `[`LUMINANCE_FULL_SCALE`]`]`.
+//! A linear master's ADU scale is not known in advance: a float master may
+//! live in `[0, 1]`, a 16-bit one in `[0, 65535]`, and a stretched one in
+//! `[0, 1]` again. The plane is therefore rescaled between its own
+//! [`LUMINANCE_LOW_QUANTILE`] level and its brightest finite sample.
 //!
 //! Both anchors matter. A low anchor at a quantile rather than the minimum keeps
 //! one dead pixel from setting the floor. A high anchor at the brightest sample
@@ -17,18 +16,12 @@
 //! bright only in blue would fall under the detector's gate on a red plane and
 //! be missed everywhere, which is the failure both callers exist to avoid.
 
-use rayon::prelude::*;
-
+use crate::detection_plane::{collapse_channels, ChannelCollapse, DetectionPlane, Quantize};
 use crate::recipe::{OpContext, OpError, OpImage};
 use crate::robust_stats::percentile_nearest_rank;
-use crate::{detect_stars, DetectedStar, ImageData, StarDetectionConfig};
+use crate::{detect_stars_in_plane, DetectedStar, StarDetectionConfig};
 
-/// Code the brightest finite sample maps to. It equals the detector's default
-/// saturation limit and is also the clamp ceiling, so the quantisation never
-/// manufactures a saturated code.
-const LUMINANCE_FULL_SCALE: f64 = 60_000.0;
-
-/// Quantile of the luminance plane mapped to code `0`.
+/// Quantile of the luminance plane mapped to level 0.
 const LUMINANCE_LOW_QUANTILE: f64 = 0.001;
 
 /// Samples the low anchor is measured from. The stride follows from the sample
@@ -44,45 +37,28 @@ pub(super) fn detect(
     config: &StarDetectionConfig,
     ctx: &OpContext,
 ) -> Result<Vec<DetectedStar>, OpError> {
-    Ok(match detection_frame(image, ctx)? {
-        Some(frame) => detect_stars(&frame, config),
+    Ok(match detection_plane(image, ctx)? {
+        Some(plane) => detect_stars_in_plane(plane, config),
         None => Vec::new(),
     })
 }
 
-/// The `U16` plane [`detect`] runs the detector over, or `None` when the image
+/// The plane [`detect`] runs the detector over, or `None` when the image
 /// carries no measurable range.
-pub(crate) fn detection_frame(
+pub(crate) fn detection_plane(
     image: &OpImage,
     ctx: &OpContext,
-) -> Result<Option<ImageData>, OpError> {
+) -> Result<Option<DetectionPlane>, OpError> {
     let width = image.width() as usize;
     let height = image.height() as usize;
-    let channels = image.channels() as usize;
     let pixels = width * height;
 
-    let source = image.data();
-    let mut luminance = vec![0.0_f64; pixels];
-    luminance
-        .par_chunks_exact_mut(width)
-        .enumerate()
-        .for_each(|(y, row)| {
-            if ctx.cancel_requested() {
-                return;
-            }
-            let base = y * width * channels;
-            for (x, slot) in row.iter_mut().enumerate() {
-                let pixel = base + x * channels;
-                let mut peak = f64::NEG_INFINITY;
-                for channel in 0..channels {
-                    let value = source[pixel + channel] as f64;
-                    if value > peak {
-                        peak = value;
-                    }
-                }
-                *slot = peak;
-            }
-        });
+    ctx.check_cancel()?;
+    let luminance = collapse_channels(
+        image.data(),
+        image.channels() as usize,
+        ChannelCollapse::Max,
+    );
     ctx.check_cancel()?;
 
     let stride = (pixels / LUMINANCE_SAMPLE_BUDGET).max(1);
@@ -102,28 +78,14 @@ pub(crate) fn detection_frame(
         .copied()
         .filter(|value| value.is_finite())
         .fold(f64::NEG_INFINITY, f64::max);
-    if !low.is_finite() || !high.is_finite() || high <= low {
-        return Ok(None);
-    }
-
-    let span = high - low;
-    let quantised: Vec<u16> = luminance
-        .iter()
-        .map(|&value| {
-            if value.is_finite() {
-                (((value - low) / span) * LUMINANCE_FULL_SCALE).clamp(0.0, LUMINANCE_FULL_SCALE)
-                    as u16
-            } else {
-                0
-            }
-        })
-        .collect();
     ctx.check_cancel()?;
 
-    Ok(Some(ImageData::from_u16(
-        width as u32,
-        height as u32,
-        1,
-        &quantised,
-    )))
+    Ok(DetectionPlane::from_range(
+        width,
+        height,
+        &luminance,
+        low,
+        high,
+        Quantize::Truncate,
+    ))
 }

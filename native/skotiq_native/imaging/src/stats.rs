@@ -15,6 +15,8 @@
 //!
 //! Sites with a specific invariant comment override the module-level reasoning.
 
+use crate::detection_plane::DetectionPlane;
+use crate::robust_stats::LevelCounts;
 use crate::ImageData;
 use rayon::prelude::*;
 
@@ -31,77 +33,36 @@ pub struct ImageStats {
 
 /// Calculate statistics for a 16-bit image
 pub fn calculate_stats_u16(image: &ImageData) -> ImageStats {
-    if image.data.is_empty() {
+    stats_from_levels(&LevelCounts::of_le_bytes(&image.data))
+}
+
+pub(crate) fn stats_from_levels(levels: &LevelCounts) -> ImageStats {
+    let Some((min, max)) = levels.range() else {
         return ImageStats::default();
-    }
+    };
 
-    // Parallel conversion to u16
-    let mut pixels: Vec<u16> = image
-        .data
-        .par_chunks_exact(2)
-        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
-        .collect();
-
-    if pixels.is_empty() {
-        return ImageStats::default();
-    }
-
-    // Parallel calculation of min, max, sum
-    let (min, max, sum) = pixels
-        .par_iter()
-        .fold(
-            || (u16::MAX, u16::MIN, 0.0f64),
-            |(min, max, sum), &val| (min.min(val), max.max(val), sum + val as f64),
-        )
-        .reduce(
-            || (u16::MAX, u16::MIN, 0.0f64),
-            |(min1, max1, sum1), (min2, max2, sum2)| (min1.min(min2), max1.max(max2), sum1 + sum2),
-        );
-
-    let count = pixels.len() as f64;
-    let mean = sum / count;
-
-    // Parallel variance calculation
-    let variance: f64 = pixels
-        .par_iter()
-        .map(|&p| {
-            let diff = p as f64 - mean;
-            diff * diff
+    let count = levels.total() as f64;
+    let mean = levels.sum() as f64 / count;
+    let variance = levels
+        .present()
+        .map(|(level, n)| {
+            let diff = f64::from(level) - mean;
+            diff * diff * n as f64
         })
         .sum::<f64>()
         / count;
-    let std_dev = variance.sqrt();
 
-    // Parallel sort for median
-    pixels.par_sort_unstable();
-    let median = if pixels.len().is_multiple_of(2) {
-        let mid = pixels.len() / 2;
-        (pixels[mid - 1] as f64 + pixels[mid] as f64) / 2.0
-    } else {
-        pixels[pixels.len() / 2] as f64
-    };
-
-    // Parallel MAD calculation
-    let mut deviations: Vec<f64> = pixels
-        .par_iter()
-        .map(|&p| (p as f64 - median).abs())
-        .collect();
-
-    deviations.par_sort_unstable_by(|a, b| a.total_cmp(b));
-
-    let mad = if deviations.len().is_multiple_of(2) {
-        let mid = deviations.len() / 2;
-        (deviations[mid - 1] + deviations[mid]) / 2.0
-    } else {
-        deviations[deviations.len() / 2]
-    };
+    let median = levels.mapped(f64::from).median();
+    let mad = levels
+        .mapped(|level| (f64::from(level) - median).abs())
+        .median();
 
     ImageStats {
-        min: min as f64,
-        max: max as f64,
+        min: f64::from(min),
+        max: f64::from(max),
         mean,
         median,
-        std_dev,
+        std_dev: variance.sqrt(),
         mad,
     }
 }
@@ -249,7 +210,7 @@ impl Default for StarDetectionConfig {
     }
 }
 
-/// Detect stars in a 16-bit image.
+/// Detect stars in an image whose samples are in 16-bit ADU.
 ///
 /// This is the **measurement** entry point: it returns every source that
 /// survives `config`'s detection filters, including trailed stars up to
@@ -265,7 +226,29 @@ impl Default for StarDetectionConfig {
 /// The method (background mesh, matched filter, prominence deblending,
 /// whole-footprint apertures) is described in the `star_detect` module.
 pub fn detect_stars(image: &ImageData, config: &StarDetectionConfig) -> Vec<DetectedStar> {
-    crate::star_detect::detect(image, config).stars
+    detect_in_image(image, config).stars
+}
+
+/// [`detect_stars`] on a plane the caller built: a float master, a channel
+/// maximum, a rescaled plane. See [`DetectionPlane`] for the scale it must be
+/// in.
+pub fn detect_stars_in_plane(
+    plane: DetectionPlane,
+    config: &StarDetectionConfig,
+) -> Vec<DetectedStar> {
+    crate::star_detect::detect(plane, config).stars
+}
+
+/// Detect on the image's own plane ([`DetectionPlane::from_image`]). An image
+/// with no such plane (two channels, a truncated buffer) has no stars.
+fn detect_in_image(
+    image: &ImageData,
+    config: &StarDetectionConfig,
+) -> crate::star_detect::Detection {
+    match DetectionPlane::from_image(image) {
+        Some(plane) => crate::star_detect::detect(plane, config),
+        None => crate::star_detect::Detection::empty(),
+    }
 }
 
 /// The eccentricity a star must beat to be *usable* under `config`.
@@ -632,7 +615,7 @@ pub fn detect_stars_with_stats(
         stars: detected,
         background,
         noise,
-    } = crate::star_detect::detect(image, &measurement_config);
+    } = detect_in_image(image, &measurement_config);
     let detected_star_count = detected.len() as u32;
     tracing::info!(
         "[STAR_DETECT] Image {}x{}, background {:.1}, noise {:.1}, threshold {} sigma of the filtered frame",

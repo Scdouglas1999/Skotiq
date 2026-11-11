@@ -19,16 +19,17 @@ pub mod calibration_master_stream; // Memory-bounded dark/bias masters straight 
 pub mod calibration_masters; // NEW: Master-flat build + cosmetic (hot/cold) correction
 pub mod channel_combine; // NEW: Narrowband/LRGB channel combination
 pub mod color_calibration; // NEW: Photometric color calibration (per-channel white balance)
-pub mod color_composite;
 pub mod deconvolution; // NEW: PSF estimation + Richardson-Lucy deconvolution
 pub mod defect_map;
 pub mod depthlock;
+pub mod detection_plane;
 pub mod difference_image; // NEW: Difference imaging (Pillar B — First Light) transient detection
 pub mod drizzle; // NEW: Drizzle (variable-pixel linear reconstruction) integration
 
 mod debayer;
 mod fits;
 pub mod fits_layout;
+pub mod fits_reader;
 mod frame_shape; // Per-frame star size/shape for grading (local background, adaptive moments)
 pub mod frame_weighting; // NEW: Per-sub quality weighting for batch integration
 pub mod integration; // NEW: Advanced weighted batch integration + pixel rejection
@@ -36,6 +37,7 @@ pub mod master_accumulation; // NEW: Multi-night accumulating master frame
 pub mod mosaic_stitch; // NEW: WCS-driven panel mosaic stitching
 mod naming;
 pub mod normalization; // NEW: Light-frame normalization to a reference (batch integration)
+mod numeric;
 pub mod optimizer; // NEW: Marginal-SNR integration optimizer (subset recommendation)
 mod phd2;
 mod platesolve;
@@ -43,6 +45,7 @@ mod raw; // NEW: RAW file support
 pub mod recipe; // Darkroom recipe engine: non-destructive, replayable op stack
 pub mod registration; // NEW: High-quality star-based registration
 mod robust_stats; // The crate's one set of order statistics (median / percentile conventions)
+pub mod samples;
 pub mod sky_atlas; // NEW: HEALPix-tiled additive all-sky accumulator (the 5.0 keystone)
 pub mod stack_master; // NEW: the live stack's FITS master (synthesized EXPTIME/DATE-OBS)
 pub mod stacking;
@@ -62,6 +65,7 @@ pub use channel_combine::*; // NEW: Export channel-combination types
 pub use color_calibration::*; // NEW: Export color-calibration types
 pub use debayer::*;
 pub use deconvolution::*; // NEW: Export deconvolution types
+pub use detection_plane::{ChannelCollapse, DetectionPlane, Quantize};
 pub use difference_image::*; // NEW: Export difference-imaging (First Light) types
 pub use drizzle::*; // NEW: Export drizzle types
 pub use fits::*;
@@ -76,6 +80,8 @@ pub use optimizer::*; // NEW: Export integration-optimizer types
 pub use phd2::*;
 pub use platesolve::*;
 pub use raw::*; // NEW: Export RAW types
+/// The color-composite stages, under the name the bridge imports them by.
+pub use recipe::composite as color_composite;
 pub use registration::*; // NEW: Export registration types
 pub use sky_atlas::*; // NEW: Export sky-atlas (keystone) types
 pub use star_reduction::*; // NEW: Export star-reduction types
@@ -408,54 +414,26 @@ impl ImageData {
 
     /// Convert to 8-bit for display (auto-stretched)
     pub fn to_display_u8(&self) -> Vec<u8> {
-        if self.pixel_type == PixelType::U16 {
-            if self.channels == 3 {
-                if let Some(rgb_data) = self.as_u16() {
-                    let (r_params, g_params, b_params) =
-                        auto_stretch_rgb(&rgb_data, self.width, self.height);
-                    let pixel_count = (self.width * self.height) as usize;
-                    let mut stretched = vec![0u8; pixel_count * 3];
-                    let channel_params = [&r_params, &g_params, &b_params];
-
-                    for idx in 0..pixel_count {
-                        for (channel, params) in channel_params.iter().enumerate() {
-                            let normalized = rgb_data[idx * 3 + channel] as f64 / 65535.0;
-                            let range = params.highlights - params.shadows;
-                            let value = if range <= 0.0 {
-                                0.0
-                            } else {
-                                let stretched_value =
-                                    ((normalized - params.shadows) / range).clamp(0.0, 1.0);
-                                display_mtf(stretched_value, params.midtones)
-                            };
-                            stretched[idx * 3 + channel] = (value.clamp(0.0, 1.0) * 255.0) as u8;
-                        }
-                    }
-
-                    stretched
-                } else {
-                    vec![0u8; self.pixel_count()]
+        match self.pixel_type {
+            PixelType::U16 if self.channels == 3 => match self.as_u16() {
+                Some(rgb) => {
+                    let (r, g, b) = auto_stretch_rgb(&rgb, self.width, self.height);
+                    apply_stretch_rgb_per_channel(&rgb, self.width, self.height, &r, &g, &b)
                 }
-            } else {
-                let params = auto_stretch_stf(self);
-                apply_stretch(self, &params)
-            }
-        } else {
-            // For other types, simple linear conversion
-            match self.pixel_type {
-                PixelType::U8 => self.data.clone(),
-                PixelType::F32 => {
-                    // Parallel conversion for F32
-                    self.data
-                        .par_chunks_exact(4)
-                        .map(|chunk| {
-                            let val = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
-                            (val.clamp(0.0, 1.0) * 255.0) as u8
-                        })
-                        .collect()
-                }
-                _ => vec![128u8; self.pixel_count()],
-            }
+                None => vec![0u8; self.pixel_count()],
+            },
+            PixelType::U16 => apply_stretch(self, &auto_stretch_stf(self)),
+            PixelType::U8 => self.data.clone(),
+            // Float data is taken as already normalized to [0, 1].
+            PixelType::F32 => self
+                .data
+                .par_chunks_exact(4)
+                .map(|chunk| {
+                    let val = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+                    (val.clamp(0.0, 1.0) * 255.0) as u8
+                })
+                .collect(),
+            _ => vec![128u8; self.pixel_count()],
         }
     }
 
@@ -470,53 +448,42 @@ impl ImageData {
     /// This is the critical fix for the Fujifilm X-Trans / 3-channel RGB case
     /// that NINA couldn't handle.
     pub fn to_rgba(&self) -> Result<Vec<u8>, ImageDisplayError> {
-        let grayscale = self.to_display_u8();
+        let display = self.to_display_u8();
+        let pixels = (self.width as usize) * (self.height as usize);
 
         match self.channels {
-            // Mono camera FITS or grayscale images
             1 => {
-                // Convert grayscale to RGBA by replicating to R=G=B
-                // Parallel processing for large images
-                Ok(grayscale
-                    .par_iter()
-                    .flat_map(|&v| [v, v, v, 255u8])
-                    .collect())
+                let mut rgba = vec![255u8; pixels * 4];
+                rgba.par_chunks_mut(4 << 12)
+                    .zip(display.par_chunks(1 << 12))
+                    .for_each(|(rgba, gray)| {
+                        for (out, &v) in rgba.as_chunks_mut::<4>().0.iter_mut().zip(gray) {
+                            out[..3].fill(v);
+                        }
+                    });
+                Ok(rgba)
             }
-
-            // Fujifilm X-Trans RGB or Bayer demosaiced RGB
             3 => {
-                // Add alpha channel to RGB data
-                // Parallel processing
-                Ok(grayscale
-                    .par_chunks_exact(3)
-                    .flat_map(|chunk| [chunk[0], chunk[1], chunk[2], 255u8])
-                    .collect())
+                let mut rgba = vec![255u8; pixels * 4];
+                rgba.par_chunks_mut(4 << 12)
+                    .zip(display.par_chunks(3 << 12))
+                    .for_each(|(rgba, rgb)| {
+                        for (out, rgb) in rgba
+                            .as_chunks_mut::<4>()
+                            .0
+                            .iter_mut()
+                            .zip(rgb.as_chunks::<3>().0)
+                        {
+                            out[..3].copy_from_slice(rgb);
+                        }
+                    });
+                Ok(rgba)
             }
-
             // Already RGBA (some TIFFs, PNGs)
-            4 => Ok(grayscale),
-
-            // Unsupported channel count: fail loudly so the caller can surface
-            // a real error to the user instead of displaying a gray placeholder.
+            4 => Ok(display),
+            // Fail loudly so the caller can surface a real error to the user
+            // instead of displaying a gray placeholder.
             other => Err(ImageDisplayError::UnsupportedChannelLayout { channels: other }),
-        }
-    }
-}
-
-fn display_mtf(x: f64, m: f64) -> f64 {
-    if x <= 0.0 {
-        0.0
-    } else if x >= 1.0 {
-        1.0
-    } else if (x - m).abs() < f64::EPSILON {
-        0.5
-    } else {
-        let numerator = (m - 1.0) * x;
-        let denominator = (2.0 * m - 1.0) * x - m;
-        if denominator.abs() < f64::EPSILON {
-            0.5
-        } else {
-            numerator / denominator
         }
     }
 }

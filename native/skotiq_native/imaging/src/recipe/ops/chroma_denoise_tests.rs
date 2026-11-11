@@ -4,7 +4,7 @@
 use serde_json::json;
 
 use super::*;
-use crate::color_composite::test_scene::{mono, Lcg};
+use crate::recipe::composite::test_scene::{mono, Lcg};
 
 const W: usize = 256;
 const H: usize = 256;

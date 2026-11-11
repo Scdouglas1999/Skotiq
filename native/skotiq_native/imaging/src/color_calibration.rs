@@ -64,7 +64,7 @@
 //! choice of which stars to feed in all live in Dart; this module is the
 //! deterministic, unit-tested numeric core.
 
-use crate::robust_stats::{median_in_place as median, MAD_TO_SIGMA};
+use crate::robust_stats::{median_in_place, MAD_TO_SIGMA};
 use crate::{ImageData, PixelType};
 use rayon::prelude::*;
 
@@ -350,11 +350,11 @@ fn fit_channel(points: &[(f64, f64)]) -> Option<ChannelFit> {
         // All stars share one B−V: no colour spread, slope undefined.
         return None;
     }
-    let b0 = median(&mut slopes);
+    let b0 = median_in_place(&mut slopes);
 
     // Step 2: median intercept paired with the Theil–Sen slope.
     let mut intercepts: Vec<f64> = points.iter().map(|&(x, y)| y - b0 * x).collect();
-    let a0 = median(&mut intercepts);
+    let a0 = median_in_place(&mut intercepts);
 
     // Step 3: one Tukey-biweight IRLS refinement.
     let (a, b) = irls_refine(points, a0, b0);
@@ -364,7 +364,7 @@ fn fit_channel(points: &[(f64, f64)]) -> Option<ChannelFit> {
         .iter()
         .map(|&(x, y)| (y - (a + b * x)).abs())
         .collect();
-    let mad = median(&mut residuals);
+    let mad = median_in_place(&mut residuals);
     let rms = mad * MAD_TO_SIGMA;
 
     if !a.is_finite() || !b.is_finite() || !rms.is_finite() {
@@ -389,7 +389,7 @@ fn irls_refine(points: &[(f64, f64)], a0: f64, b0: f64) -> (f64, f64) {
         .iter()
         .map(|&(x, y)| (y - (a0 + b0 * x)).abs())
         .collect();
-    let sigma = median(&mut abs_res) * MAD_TO_SIGMA;
+    let sigma = median_in_place(&mut abs_res) * MAD_TO_SIGMA;
     if sigma <= f64::EPSILON {
         // Seed line already passes through (nearly) every point.
         return (a0, b0);

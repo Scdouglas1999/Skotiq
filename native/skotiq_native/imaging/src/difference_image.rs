@@ -47,7 +47,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::registration::{kernel_inside, sample_interleaved, Interpolator};
 use crate::robust_stats::{
-    median_in_place as median, percentile_nearest_rank as percentile_sorted, MAD_TO_SIGMA,
+    mad_sigma, mad_sigma_upper, median_and_sigma, median_in_place, median_of,
+    percentile_nearest_rank, MAD_TO_SIGMA,
 };
 use crate::sky_atlas::{AtlasError, SkyTileAccumulator};
 use crate::stats::StarDetectionConfig;
@@ -285,7 +286,7 @@ impl DecodedFrame {
     /// nothing).
     pub fn new(frame: &ImageData) -> Self {
         Self {
-            src: decode_to_f64(frame),
+            src: frame.samples_f64(),
             width: frame.width,
             height: frame.height,
             channels: frame.channels,
@@ -477,7 +478,7 @@ pub fn difference_against_decoded(
     if ratios.len() < MIN_NORMALIZATION_STARS {
         return Ok(empty_result(DifferenceRejections::default(), ratios.len()));
     }
-    let scale = median(&mut ratios);
+    let scale = median_in_place(&mut ratios);
     if !(scale.is_finite() && scale > 0.0) {
         return Ok(empty_result(DifferenceRejections::default(), 0));
     }
@@ -485,7 +486,7 @@ pub fn difference_against_decoded(
     // inconsistent photometry. Require the reference field to agree before
     // interpreting an isolated positive residual as a source.
     if offsets.len() < MIN_NORMALIZATION_STARS
-        || median(&mut offsets) > 0.25 * 2.354_820_045 * broad_sigma
+        || median_in_place(&mut offsets) > 0.25 * 2.354_820_045 * broad_sigma
     {
         return Ok(empty_result(
             DifferenceRejections {
@@ -721,15 +722,14 @@ fn subtract_mesh_background(
             if vals.len() >= m * m / 8 {
                 // Clip stars before the median: two passes of 3σ (MAD).
                 for _ in 0..2 {
-                    let med = median(&mut vals.clone());
-                    let mut dev: Vec<f64> = vals.iter().map(|v| (v - med).abs()).collect();
-                    let sigma = MAD_TO_SIGMA * median(&mut dev);
+                    let med = median_of(&vals);
+                    let sigma = mad_sigma(&vals, med);
                     if sigma > 0.0 {
                         vals.retain(|v| (v - med).abs() <= 3.0 * sigma);
                     }
                 }
                 if !vals.is_empty() {
-                    grid[gy * gw + gx] = median(&mut vals);
+                    grid[gy * gw + gx] = median_in_place(&mut vals);
                 }
             }
         }
@@ -739,7 +739,7 @@ fn subtract_mesh_background(
     if filled.is_empty() {
         return;
     }
-    let fill = median(&mut filled);
+    let fill = median_in_place(&mut filled);
     for v in grid.iter_mut() {
         if !v.is_finite() {
             *v = fill;
@@ -821,7 +821,7 @@ fn aperture_sum(
         }
     }
     let bg = if sky.len() >= 8 {
-        median(&mut sky)
+        median_in_place(&mut sky)
     } else {
         0.0
     };
@@ -856,9 +856,7 @@ fn empirical_aperture_sigma(
     if sums.len() < 8 {
         return 0.0;
     }
-    let med = median(&mut sums.clone());
-    let mut dev: Vec<f64> = sums.iter().map(|s| (s - med).abs()).collect();
-    MAD_TO_SIGMA * median(&mut dev)
+    median_and_sigma(&mut sums).1
 }
 
 /// Positive-flux centroid inside the same aperture in two sky-subtracted planes.
@@ -913,9 +911,7 @@ fn template_reference_stars(
     if vals.len() < 64 {
         return Vec::new();
     }
-    let med = median(&mut vals.clone());
-    let mut dev: Vec<f64> = vals.iter().map(|v| (v - med).abs()).collect();
-    let sigma = MAD_TO_SIGMA * median(&mut dev);
+    let (med, sigma) = median_and_sigma(&mut vals);
     vals.clear();
     if sigma.is_nan() || sigma <= 0.0 {
         return Vec::new();
@@ -1041,7 +1037,7 @@ fn too_sharp(
     if ring.len() < 8 || !peak.is_finite() {
         return false;
     }
-    let bg = median(&mut ring);
+    let bg = median_in_place(&mut ring);
     let excess = peak - bg;
     if excess <= 0.0 {
         return false;
@@ -1093,7 +1089,7 @@ fn near_bright_star(
         if ring.is_empty() {
             return false;
         }
-        median(&mut ring)
+        median_in_place(&mut ring)
     };
     let source_peak = s.peak.max(f64::MIN_POSITIVE);
     for y in cy - 25..=cy + 25 {
@@ -1266,10 +1262,10 @@ fn residual_background(plane: &[f64], overlap: &[bool]) -> (f64, f64) {
         return (0.0, 0.0);
     }
     vals.sort_unstable_by(f64::total_cmp);
-    let median = percentile_sorted(&vals, 0.5);
+    let median = percentile_nearest_rank(&vals, 0.5);
     let mut dev: Vec<f64> = vals.iter().map(|&v| (v - median).abs()).collect();
     dev.sort_unstable_by(f64::total_cmp);
-    let mad = percentile_sorted(&dev, 0.5);
+    let mad = percentile_nearest_rank(&dev, 0.5);
     // 1.4826·MAD is the Gaussian-consistent σ estimator.
     let mut sigma = MAD_TO_SIGMA * mad;
 
@@ -1277,7 +1273,7 @@ fn residual_background(plane: &[f64], overlap: &[bool]) -> (f64, f64) {
         // MAD underflowed (a near-perfect subtraction). Use the 84th-percentile
         // absolute deviation as a higher robust spread, which still ignores the
         // sparse bright source pixels but captures the residual's real scatter.
-        sigma = percentile_sorted(&dev, 0.84);
+        sigma = percentile_nearest_rank(&dev, 0.84);
     }
     if !(sigma.is_finite() && sigma > 0.0) {
         // Still zero (a literally flat residual apart from the source spikes):
@@ -1484,11 +1480,8 @@ fn estimate_psf_sigma(
         return None;
     }
     vals.sort_unstable_by(f64::total_cmp);
-    let median = percentile_sorted(&vals, 0.5);
-    let dev: Vec<f64> = vals.iter().map(|&v| (v - median).abs()).collect();
-    let mut dev_sorted = dev;
-    dev_sorted.sort_unstable_by(f64::total_cmp);
-    let sigma_bg = MAD_TO_SIGMA * percentile_sorted(&dev_sorted, 0.5);
+    let median = percentile_nearest_rank(&vals, 0.5);
+    let sigma_bg = mad_sigma_upper(&vals, median);
     let noise = if sigma_bg.is_finite() && sigma_bg > 0.0 {
         sigma_bg
     } else {
@@ -1560,7 +1553,7 @@ fn estimate_psf_sigma(
     let take = sigmas.len().min(12);
     let mut top: Vec<f64> = sigmas[..take].iter().map(|s| s.1).collect();
     top.sort_unstable_by(f64::total_cmp);
-    Some(percentile_sorted(&top, 0.5))
+    Some(percentile_nearest_rank(&top, 0.5))
 }
 
 /// Blur one channel of an interleaved plane in place with a separable Gaussian of
@@ -1616,19 +1609,6 @@ fn blur_channel_gaussian(
             }
             plane[(y * width + x) * channels + channel] = acc;
         }
-    }
-}
-
-/// Decode an [`ImageData`] to channel-interleaved f64 (the resampler's layout).
-/// U16 and F32 are supported (the linear types the pipeline emits); other types
-/// decode to an empty buffer, which the caller treats as no frame contribution.
-fn decode_to_f64(image: &ImageData) -> Vec<f64> {
-    if let Some(f) = image.as_f32() {
-        f.into_iter().map(|v| v as f64).collect()
-    } else if let Some(u) = image.as_u16() {
-        u.into_iter().map(|v| v as f64).collect()
-    } else {
-        Vec::new()
     }
 }
 

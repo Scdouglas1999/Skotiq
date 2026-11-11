@@ -667,42 +667,13 @@ fn fits_image_size(path: &Path) -> Option<(f64, f64)> {
 
 /// Read numeric cards off a FITS primary header without decoding pixel data.
 ///
-/// Returns one slot per requested keyword, in the order asked for.
+/// Returns one slot per requested keyword, in the order asked for; every slot
+/// is empty when the header cannot be read.
 fn fits_header_floats(path: &Path, keys: &[&str]) -> Vec<Option<f64>> {
-    let mut found = vec![None; keys.len()];
-    let Ok(mut file) = std::fs::File::open(path) else {
-        return found;
-    };
-    let mut block = [0u8; 2880];
-    // 64 blocks bounds the scan at 180 KiB of header, far beyond any real
-    // primary header, so a corrupt file cannot spin this loop forever.
-    for _ in 0..64 {
-        if file.read_exact(&mut block).is_err() {
-            return found;
-        }
-        for card in block.chunks(80) {
-            let Ok(card) = std::str::from_utf8(card) else {
-                return found;
-            };
-            let Some(name) = card.get(..8).map(str::trim) else {
-                continue;
-            };
-            if name == "END" {
-                return found;
-            }
-            if let Some(slot) = keys.iter().position(|k| *k == name) {
-                found[slot] = card
-                    .split('=')
-                    .nth(1)
-                    .and_then(|v| v.split('/').next())
-                    .and_then(|v| v.trim().parse::<f64>().ok());
-                if found.iter().all(Option::is_some) {
-                    return found;
-                }
-            }
-        }
+    match crate::fits::read_fits_header(path) {
+        Ok(header) => keys.iter().map(|key| header.get_float(key)).collect(),
+        Err(_) => vec![None; keys.len()],
     }
-    found
 }
 
 /// The plate scale a frame declares about itself, in arcsec per pixel.
@@ -1376,51 +1347,6 @@ impl AstapSolver {
     }
 }
 
-/// Length of one FITS header card, fixed by the standard.
-const FITS_CARD_LEN: usize = 80;
-
-/// Split a FITS header into its 80-character cards.
-///
-/// A `.wcs` file is a raw FITS header: fixed-width cards packed end to end
-/// with **no line terminators at all**. Iterating it with `str::lines()`
-/// therefore yields the whole header as one enormous "line", so only the very
-/// first card (`SIMPLE`) is ever inspected and every keyword after it —
-/// `CRVAL1`, the CD matrix, `NAXIS1/2` — is invisible. ASTAP would solve, the
-/// parse would then report the solution as missing `CRVAL1`, and the caller
-/// counted a successful solve as a failed one: `Plate Solve & Center` failed
-/// every attempt and took the run down with it.
-///
-/// Newlines are still honoured first, because some solvers (and this module's
-/// own test fixtures) do write one card per line; only segments longer than a
-/// single card are split further.
-fn fits_header_cards(content: &str) -> Vec<&str> {
-    let mut cards = Vec::new();
-    for segment in content.lines() {
-        if segment.len() <= FITS_CARD_LEN {
-            cards.push(segment);
-            continue;
-        }
-        let bytes = segment.as_bytes();
-        let mut start = 0;
-        while start < bytes.len() {
-            let end = (start + FITS_CARD_LEN).min(bytes.len());
-            // A FITS header is ASCII, so every card boundary is a char
-            // boundary. Anything else is not a header we can card-split;
-            // hand back what is left in one piece rather than panicking on a
-            // mid-character slice.
-            match std::str::from_utf8(&bytes[start..end]) {
-                Ok(card) => cards.push(card),
-                Err(_) => {
-                    cards.push(&segment[start..]);
-                    break;
-                }
-            }
-            start = end;
-        }
-    }
-    cards
-}
-
 /// Free-function form of WCS parsing so the test module can exercise it
 /// without instantiating an `AstapSolver` (which requires a real ASTAP
 /// install on PATH).
@@ -1468,23 +1394,10 @@ fn parse_wcs_file_with_image_size(
     let mut ap_terms: Vec<(u32, u32, f64)> = Vec::new();
     let mut bp_terms: Vec<(u32, u32, f64)> = Vec::new();
 
-    for line in fits_header_cards(&content) {
-        if line.len() < 10 {
+    for card in crate::fits::header_text_cards(&content) {
+        let Some((keyword, value_str)) = crate::fits::card_keyword_and_value(card) else {
             continue;
-        }
-
-        let keyword = line[..8].trim();
-        if !line[8..].starts_with('=') {
-            continue;
-        }
-
-        let value_part = line[10..].trim();
-        let value_str = if let Some(idx) = value_part.find('/') {
-            &value_part[..idx]
-        } else {
-            value_part
-        }
-        .trim();
+        };
 
         let parse = |slot: &mut Option<f64>| -> Result<(), PlateSolveError> {
             let parsed = value_str

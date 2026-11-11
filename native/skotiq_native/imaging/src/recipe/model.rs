@@ -757,17 +757,10 @@ impl OpImage {
     /// Move the WCS reference pixel by a crop origin of `(dx, dy)` pixels, so a
     /// cropped image keeps pointing at the same sky.
     pub fn translate_reference_pixel(&mut self, dx: f64, dy: f64) {
-        if let Some(crpix1) = self.header.get_float("CRPIX1") {
-            self.header.set_float("CRPIX1", crpix1 - dx);
-        }
-        if let Some(crpix2) = self.header.get_float("CRPIX2") {
-            self.header.set_float("CRPIX2", crpix2 - dy);
-        }
+        crate::wcs_sip::crop_header_wcs(&mut self.header, dx, dy);
     }
 
-    /// The astrometry carried in the header, if it holds a complete `CRVAL` +
-    /// `CRPIX` + `CD` set. SIP terms are read when `A_ORDER`/`B_ORDER` are
-    /// present and default to a CD-only solution otherwise.
+    /// The usable astrometry carried in the header ([`wcs_from_header`]).
     pub fn wcs(&self) -> Option<SipWcs> {
         wcs_from_header(&self.header)
     }
@@ -777,64 +770,11 @@ fn read_le_f32(chunk: &[u8; 4]) -> f32 {
     f32::from_le_bytes(*chunk)
 }
 
-/// Read a [`SipWcs`] out of a FITS header.
-///
-/// Returns `None` unless `CRVAL1/2`, `CRPIX1/2` and all four `CD` terms are
-/// present and the CD matrix is non-degenerate, so a caller never folds a frame
-/// whose astrometry cannot be inverted.
+/// The usable astrometry in a FITS header: [`SipWcs::from_header`], or `None`
+/// when what it reads cannot be inverted, so a caller never folds a frame
+/// whose astrometry is degenerate.
 pub fn wcs_from_header(header: &FitsHeader) -> Option<SipWcs> {
-    let crval1 = header.get_float("CRVAL1")?;
-    let crval2 = header.get_float("CRVAL2")?;
-    let crpix1 = header.get_float("CRPIX1")?;
-    let crpix2 = header.get_float("CRPIX2")?;
-    let cd1_1 = header.get_float("CD1_1")?;
-    let cd1_2 = header.get_float("CD1_2")?;
-    let cd2_1 = header.get_float("CD2_1")?;
-    let cd2_2 = header.get_float("CD2_2")?;
-    let det = cd1_1 * cd2_2 - cd1_2 * cd2_1;
-    if !det.is_finite() || det == 0.0 {
-        return None;
-    }
-    let a_order = header.get_int("A_ORDER").unwrap_or(0).max(0) as u32;
-    let b_order = header.get_int("B_ORDER").unwrap_or(0).max(0) as u32;
-    let ap_order = header.get_int("AP_ORDER").unwrap_or(0).max(0) as u32;
-    let bp_order = header.get_int("BP_ORDER").unwrap_or(0).max(0) as u32;
-    Some(SipWcs {
-        crval1,
-        crval2,
-        crpix1,
-        crpix2,
-        cd1_1,
-        cd1_2,
-        cd2_1,
-        cd2_2,
-        a_order,
-        b_order,
-        a_coeffs: read_sip_coeffs(header, "A", a_order),
-        b_coeffs: read_sip_coeffs(header, "B", b_order),
-        ap_order,
-        bp_order,
-        ap_coeffs: read_sip_coeffs(header, "AP", ap_order),
-        bp_coeffs: read_sip_coeffs(header, "BP", bp_order),
-    })
-}
-
-/// SIP coefficients for one polynomial, packed row-major as `i*(order+1)+j`.
-/// Absent terms are zero, which is the FITS convention for an omitted card.
-fn read_sip_coeffs(header: &FitsHeader, prefix: &str, order: u32) -> Vec<f64> {
-    if order == 0 {
-        return Vec::new();
-    }
-    let n = (order + 1) as usize;
-    let mut coeffs = vec![0.0_f64; n * n];
-    for i in 0..n {
-        for j in 0..n {
-            if let Some(v) = header.get_float(&format!("{prefix}_{i}_{j}")) {
-                coeffs[i * n + j] = v;
-            }
-        }
-    }
-    coeffs
+    SipWcs::from_header(header).filter(SipWcs::is_invertible)
 }
 
 // ---------------------------------------------------------------------------

@@ -13,6 +13,7 @@
 
 pub mod input;
 
+use crate::robust_stats::{median_of, percentile_lower_rank};
 use crate::SipWcs;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -275,19 +276,8 @@ pub struct Candidate {
 
 fn quantile(values: &[f64], fraction: f64) -> f64 {
     let mut sorted = values.to_vec();
-    sorted.sort_by(f64::total_cmp);
-    sorted[((sorted.len() - 1) as f64 * fraction).floor() as usize]
-}
-
-pub(crate) fn median(values: &[f64]) -> f64 {
-    let mut sorted = values.to_vec();
-    sorted.sort_by(f64::total_cmp);
-    let middle = sorted.len() / 2;
-    if sorted.len().is_multiple_of(2) {
-        sorted[middle - 1] / 2.0 + sorted[middle] / 2.0
-    } else {
-        sorted[middle]
-    }
+    sorted.sort_unstable_by(f64::total_cmp);
+    percentile_lower_rank(&sorted, fraction)
 }
 
 fn mean_variance(values: &[f64]) -> (f64, f64) {
@@ -382,7 +372,7 @@ fn summarize(spec: &MeasurementSpec, frames: &[&ApertureFrame]) -> Result<Summar
             return Err("The background box is masked, saturated or off the frame".into());
         }
         let bg: Vec<f64> = frame.background.iter().copied().flatten().collect();
-        backgrounds.push(median(&bg));
+        backgrounds.push(median_of(&bg));
     }
     // Spatial background residuals: per background cell, the mean over the
     // frames that measured it, of (cell - frame sky level). Cells measured
@@ -407,7 +397,7 @@ fn summarize(spec: &MeasurementSpec, frames: &[&ApertureFrame]) -> Result<Summar
     if (present.len() as f64) < (MIN_BACKGROUND_FRACTION * bg_cells as f64).ceil() {
         return Err("The background box is too small for its square size".into());
     }
-    let bg_center = median(&present);
+    let bg_center = median_of(&present);
     let bg_residuals: Vec<f64> = present.iter().map(|v| (v - bg_center).abs()).collect();
     let bg_floor = quantile(&bg_residuals, 0.9);
     let systematic = spec.systematic_floor_adu.max(bg_floor);
@@ -605,11 +595,12 @@ fn forecast(summary: &Summary, threshold: f64, confirmation_frames: usize) -> De
         }
     };
     let window = 8usize.min(summary.frame_noise.len().max(1));
-    let recent = median(&summary.frame_noise[summary.frame_noise.len().saturating_sub(window)..]);
+    let recent =
+        median_of(&summary.frame_noise[summary.frame_noise.len().saturating_sub(window)..]);
     let best = summary
         .frame_noise
         .windows(window)
-        .map(median)
+        .map(median_of)
         .fold(f64::INFINITY, f64::min);
     let (frames_to_threshold, frames_to_confirm) = match crossing {
         Some(at) if at <= summary.frames => {
@@ -785,7 +776,7 @@ pub fn evaluate(
         state: DepthState::Collecting,
         score: Some(score),
         conservative_score: Some(score - margin),
-        uncertainty_adu: Some(median(&errors)),
+        uncertainty_adu: Some(median_of(&errors)),
         coverage: summary.coverage,
         evidence_frames: n,
         excluded_frames: excluded,

@@ -12,6 +12,8 @@
 //!
 //! * [`model`] — the wire format, [`OpImage`], [`OpContext`], [`DarkroomOp`].
 //! * [`ops`] — the operations themselves, one module per registry id.
+//! * [`composite`] — the stages `channel_combine` is built from: filter roles,
+//!   registration, gradient matching and mixing of per-filter masters.
 //! * [`params`] — one parameter-reading taxonomy for every operation.
 //! * [`registry`] — lookup by `(id, version)`; old versions stay forever.
 //! * [`render`] — validation and replay, with a per-step-boundary cache.
@@ -33,6 +35,7 @@
 //! invalidates; one that does not, changes nothing.
 
 pub mod cache;
+pub mod composite;
 pub mod model;
 pub mod ops;
 pub mod params;

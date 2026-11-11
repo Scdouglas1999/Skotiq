@@ -117,11 +117,9 @@ fn thresholded_signal(crop: &[f64], w: usize, h: usize) -> Option<Vec<f64>> {
             for y in j * BLOCK..((j + 1) * BLOCK).min(h) {
                 block.extend_from_slice(&crop[y * w + i * BLOCK..y * w + ((i + 1) * BLOCK).min(w)]);
             }
-            let median = crate::robust_stats::median_in_place(&mut block);
-            let mut deviations: Vec<f64> = block.iter().map(|v| (v - median).abs()).collect();
-            let mad = crate::robust_stats::median_in_place(&mut deviations);
+            let (median, sigma) = crate::robust_stats::median_and_sigma(&mut block);
             medians[j * bx + i] = median;
-            sigmas.push(1.4826 * mad);
+            sigmas.push(sigma);
         }
     }
     let sigma = crate::robust_stats::median_in_place(&mut sigmas);

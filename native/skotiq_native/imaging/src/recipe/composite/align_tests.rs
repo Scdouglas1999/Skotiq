@@ -1,5 +1,5 @@
 use super::*;
-use crate::color_composite::test_scene::{mono, render_master, similarity, stars};
+use crate::recipe::composite::test_scene::{mono, render_master, similarity, stars};
 
 const W: u32 = 640;
 const H: u32 = 480;

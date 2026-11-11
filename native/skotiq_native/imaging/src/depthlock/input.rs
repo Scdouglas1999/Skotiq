@@ -155,34 +155,21 @@ pub fn reference_wcs(header: &FitsHeader) -> Result<SipWcs, String> {
     {
         return Err("Reference must explicitly use ICRS or FK5/J2000 coordinates".into());
     }
-    let cd = if header.get_float("CD1_1").is_some() {
-        [
-            numeric(header, "CD1_1")?,
-            numeric(header, "CD1_2")?,
-            numeric(header, "CD2_1")?,
-            numeric(header, "CD2_2")?,
-        ]
+    // Every card of the form the header uses must be present and finite;
+    // nothing is defaulted.
+    let required: &[&str] = if header.get_float("CD1_1").is_some() {
+        &["CD1_1", "CD1_2", "CD2_1", "CD2_2"]
     } else {
-        let x = numeric(header, "CDELT1")?;
-        let y = numeric(header, "CDELT2")?;
-        let angle = numeric(header, "CROTA2")?.to_radians();
-        [
-            x * angle.cos(),
-            -y * angle.sin(),
-            x * angle.sin(),
-            y * angle.cos(),
-        ]
+        &["CDELT1", "CDELT2", "CROTA2"]
     };
-    let wcs = SipWcs::tan_only(
-        numeric(header, "CRVAL1")?,
-        numeric(header, "CRVAL2")?,
-        numeric(header, "CRPIX1")?,
-        numeric(header, "CRPIX2")?,
-        cd[0],
-        cd[1],
-        cd[2],
-        cd[3],
-    );
+    for key in required
+        .iter()
+        .chain(&["CRVAL1", "CRVAL2", "CRPIX1", "CRPIX2"])
+    {
+        numeric(header, key)?;
+    }
+    let wcs = SipWcs::from_header(header)
+        .ok_or("Reference astrometry is singular or outside the supported sky field")?;
     if !wcs.is_invertible() || !(0.0..360.0).contains(&wcs.crval1) || wcs.crval2.abs() > 85.0 {
         return Err("Reference astrometry is singular or outside the supported sky field".into());
     }
@@ -314,7 +301,7 @@ pub fn calibrate_signed(
     if dark.iter().chain(&flat).any(|v| !v.is_finite()) {
         return Err("Calibration masters contain non-finite pixels".into());
     }
-    let norm = super::median(&flat);
+    let norm = crate::robust_stats::median_of(&flat);
     if !norm.is_finite() || norm <= 0.0 {
         return Err("Flat master has no positive response".into());
     }
@@ -393,12 +380,7 @@ pub fn source_mask(light: &ImageData) -> Result<Vec<bool>, String> {
 fn robust_level_and_noise(pixels: &[f64]) -> (f64, f64) {
     let stride = (pixels.len() / 250_000).max(1);
     let mut sample: Vec<f64> = pixels.iter().copied().step_by(stride).collect();
-    sample.sort_by(f64::total_cmp);
-    let median = sample[sample.len() / 2];
-    let mut deviations: Vec<f64> = sample.iter().map(|v| (v - median).abs()).collect();
-    deviations.sort_by(f64::total_cmp);
-    let mad = deviations[deviations.len() / 2];
-    (median, 1.4826 * mad)
+    crate::robust_stats::median_and_sigma_upper(&mut sample)
 }
 
 /// What identifies one exposure independently of where its file lives or how
@@ -776,11 +758,8 @@ fn neighbour_noise(pixels: &[f64], width: usize) -> f64 {
     if diffs.is_empty() {
         return f64::NAN;
     }
-    diffs.sort_by(f64::total_cmp);
-    let median = diffs[diffs.len() / 2];
-    let mut deviations: Vec<f64> = diffs.iter().map(|d| (d - median).abs()).collect();
-    deviations.sort_by(f64::total_cmp);
-    1.4826 * deviations[deviations.len() / 2] / std::f64::consts::SQRT_2
+    let (_, sigma) = crate::robust_stats::median_and_sigma_upper(&mut diffs);
+    sigma / std::f64::consts::SQRT_2
 }
 
 pub fn suggest_floor(
@@ -804,13 +783,13 @@ pub fn suggest_floor(
     let flat_pixels = master_pixels(flat)?;
     let light_pixels = light_pixels(light)?;
     let dark_noise = neighbour_noise(&dark_pixels, width);
-    let flat_level = super::median(&flat_pixels);
+    let flat_level = crate::robust_stats::median_of(&flat_pixels);
     if !flat_level.is_finite() || flat_level <= 0.0 {
         return Err("Flat master has no positive response".into());
     }
     let flat_relative_noise = neighbour_noise(&flat_pixels, width) / flat_level;
     let (light_level, _) = robust_level_and_noise(&light_pixels);
-    let dark_level = super::median(&dark_pixels);
+    let dark_level = crate::robust_stats::median_of(&dark_pixels);
     let sky = (light_level - dark_level).max(0.0);
     if ![dark_noise, flat_relative_noise, sky]
         .iter()

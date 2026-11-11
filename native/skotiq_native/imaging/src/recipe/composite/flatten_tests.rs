@@ -2,8 +2,8 @@ use serde_json::json;
 
 use super::*;
 use crate::background_extraction::normalise_xy;
-use crate::color_composite::align::Affine2;
-use crate::color_composite::test_scene::{mono, render_master, stars, Lcg};
+use crate::recipe::composite::align::Affine2;
+use crate::recipe::composite::test_scene::{mono, render_master, stars, Lcg};
 
 const W: u32 = 768;
 const H: u32 = 576;

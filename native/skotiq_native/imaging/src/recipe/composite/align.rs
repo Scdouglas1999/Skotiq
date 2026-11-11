@@ -19,10 +19,13 @@
 
 use rayon::prelude::*;
 
-use crate::recipe::ops::star_detect::detection_frame;
+use crate::detection_plane::DetectionPlane;
+use crate::numeric::lanczos3;
+use crate::recipe::ops::star_detect::detection_plane;
 use crate::recipe::{OpContext, OpError, OpImage, CANCEL_POLL_PIXELS};
-use crate::registration::{solve_registration, RegistrationConfig, TransformKind};
-use crate::{detect_stars, StarDetectionConfig};
+use crate::registration::{solve_registration_from_stars, RegistrationConfig, TransformKind};
+use crate::robust_stats::{median_upper_in_place, MAD_TO_SIGMA};
+use crate::{detect_stars_in_plane, StarDetectionConfig};
 
 /// A 2-D affine map, `x' = m0·x + m1·y + m2`, `y' = m3·x + m4·y + m5`, taking a
 /// master's pixel coordinates to the reference's.
@@ -144,12 +147,20 @@ pub fn register_onto(
     frame: &OpImage,
     ctx: &OpContext,
 ) -> Result<Alignment, String> {
-    let reference_plane = detection_frame(reference, ctx)
+    let reference_plane = detection_plane(reference, ctx)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "the reference master carries no measurable range".to_string())?;
-    let frame_plane = detection_frame(frame, ctx)
+    let frame_plane = detection_plane(frame, ctx)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "this master carries no measurable range".to_string())?;
+
+    // Both transform families match and refine the same stars, so each list
+    // is detected once.
+    let matching = RegistrationConfig::default().star_detection;
+    let reference_matching = detect_stars_in_plane(reference_plane.clone(), &matching);
+    let frame_matching = detect_stars_in_plane(frame_plane.clone(), &matching);
+    let mut refining = None;
+    let mut planes = Some((reference_plane, frame_plane));
 
     let mut last_error = String::new();
     for (kind, model) in [
@@ -160,7 +171,7 @@ pub fn register_onto(
             transform_kind: kind,
             ..RegistrationConfig::default()
         };
-        match solve_registration(&reference_plane, &frame_plane, &config) {
+        match solve_registration_from_stars(&reference_matching, &frame_matching, &config) {
             Ok((transform, _)) => {
                 let matrix = transform.matrix;
                 let Some(affine) = Affine2::from_slice(&[
@@ -176,11 +187,18 @@ pub fn register_onto(
                 };
                 // The triangle match fits the brightest few dozen stars; every
                 // isolated star the two frames share refines it.
-                let reference_stars = precise_stars(reference, &reference_plane, REFINE_MAX_STARS);
-                let frame_stars = precise_stars(frame, &frame_plane, REFINE_MAX_STARS);
+                if let Some((reference_plane, frame_plane)) = planes.take() {
+                    refining = Some((
+                        precise_stars(reference, reference_plane, REFINE_MAX_STARS),
+                        precise_stars(frame, frame_plane, REFINE_MAX_STARS),
+                    ));
+                }
+                let Some((reference_stars, frame_stars)) = refining.as_ref() else {
+                    continue;
+                };
                 let fit_affine = kind == TransformKind::Affine
                     || affine.m[0] * affine.m[4] - affine.m[1] * affine.m[3] < 0.0;
-                let Some(mut refined) = refine(affine, fit_affine, &reference_stars, &frame_stars)
+                let Some(mut refined) = refine(affine, fit_affine, reference_stars, frame_stars)
                 else {
                     last_error =
                         "too few stars are shared once the geometry is refined".to_string();
@@ -192,7 +210,7 @@ pub fn register_onto(
                 // so the six-parameter fit is kept when it earns its extra terms.
                 if !fit_affine {
                     if let Some(general) =
-                        refine(refined.transform, true, &reference_stars, &frame_stars)
+                        refine(refined.transform, true, reference_stars, frame_stars)
                     {
                         if general.rms_px < AFFINE_GAIN * refined.rms_px {
                             refined = general;
@@ -246,8 +264,8 @@ const REFINE_MAX_STARS: usize = 800;
 /// re-centred with SExtractor's windowed centroid (`XWIN`): a Gaussian-weighted
 /// first moment of the background-subtracted pixels, iterated to convergence,
 /// which reaches a few hundredths of a pixel on a well-exposed star.
-fn precise_stars(image: &OpImage, plane: &crate::ImageData, max: usize) -> Vec<(f64, f64)> {
-    let mut stars = detect_stars(plane, &StarDetectionConfig::default());
+fn precise_stars(image: &OpImage, plane: DetectionPlane, max: usize) -> Vec<(f64, f64)> {
+    let mut stars = detect_stars_in_plane(plane, &StarDetectionConfig::default());
     stars.sort_by(|a, b| b.flux.total_cmp(&a.flux));
     let index = StarIndex::new(stars.iter().map(|s| (s.x, s.y)).collect());
     let mean = channel_mean(image);
@@ -279,13 +297,13 @@ const HFR_PER_SIGMA: f64 = 1.177_410_022_515_474_6;
 /// out to a fixed radius, divided by `sqrt(2·ln 2)`. `None` when it holds too
 /// few.
 ///
-/// The detector's own HFR is read off a quantised plane and is only good for
+/// The detector's own HFR is read off a rescaled plane and is only good for
 /// ranking; comparing two masters' star sizes needs the flux profile itself.
 pub fn star_sigma(image: &OpImage, ctx: &OpContext) -> Result<Option<f64>, OpError> {
-    let Some(plane) = detection_frame(image, ctx)? else {
+    let Some(plane) = detection_plane(image, ctx)? else {
         return Ok(None);
     };
-    let stars = detect_stars(&plane, &StarDetectionConfig::default());
+    let stars = detect_stars_in_plane(plane, &StarDetectionConfig::default());
     let index = StarIndex::new(stars.iter().map(|s| (s.x, s.y)).collect());
     let mean = channel_mean(image);
     let (w, h) = (image.width() as usize, image.height() as usize);
@@ -525,9 +543,8 @@ fn refine(
                     ((mx - q.0).powi(2) + (my - q.1).powi(2)).sqrt()
                 })
                 .collect();
-            let mut sorted = residuals.clone();
-            sorted.sort_by(f64::total_cmp);
-            let limit = (3.0 * sorted[sorted.len() / 2] * 1.4826).max(0.05);
+            let median = median_upper_in_place(&mut residuals.clone());
+            let limit = (3.0 * median * MAD_TO_SIGMA).max(0.05);
             let mut kept = Vec::with_capacity(pairs.len());
             for (pair, r) in pairs.into_iter().zip(residuals.drain(..)) {
                 if r <= limit {
@@ -762,19 +779,6 @@ pub fn overlap_rect(
 /// Lanczos-3 kernel samples per unit of distance in the lookup table.
 const LANCZOS_LUT_RESOLUTION: usize = 1024;
 
-fn lanczos3(x: f64) -> f64 {
-    const A: f64 = 3.0;
-    let x = x.abs();
-    if x < 1e-12 {
-        1.0
-    } else if x < A {
-        let px = std::f64::consts::PI * x;
-        (A * px.sin() * (px / A).sin()) / (px * px)
-    } else {
-        0.0
-    }
-}
-
 fn lanczos_table() -> &'static [f32] {
     static TABLE: std::sync::OnceLock<Vec<f32>> = std::sync::OnceLock::new();
     TABLE.get_or_init(|| {
@@ -917,13 +921,13 @@ pub fn alignment_check(
     ctx: &OpContext,
 ) -> Result<Option<AlignmentCheck>, OpError> {
     let (Some(ref_plane), Some(aligned_plane)) = (
-        detection_frame(reference, ctx)?,
-        detection_frame(aligned, ctx)?,
+        detection_plane(reference, ctx)?,
+        detection_plane(aligned, ctx)?,
     ) else {
         return Ok(None);
     };
-    let ref_points = precise_stars(reference, &ref_plane, CHECK_MAX_STARS);
-    let index = StarIndex::new(precise_stars(aligned, &aligned_plane, CHECK_MAX_STARS * 4));
+    let ref_points = precise_stars(reference, ref_plane, CHECK_MAX_STARS);
+    let index = StarIndex::new(precise_stars(aligned, aligned_plane, CHECK_MAX_STARS * 4));
 
     let mut offsets: Vec<(f64, f64)> = Vec::new();
     for &(x, y) in &ref_points {

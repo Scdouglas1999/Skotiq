@@ -7,7 +7,7 @@
 
 use rayon::prelude::*;
 
-use crate::robust_stats::{median_in_place, MAD_TO_SIGMA};
+use crate::robust_stats::{median_and_sigma, median_in_place};
 
 /// `y ≈ scale · x + offset`: how one master's values map onto another's.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -50,9 +50,7 @@ pub fn background_and_noise(plane: &[f32]) -> (f64, f64) {
     if samples.is_empty() {
         return (0.0, 0.0);
     }
-    let median = median_in_place(&mut samples);
-    let mut deviations: Vec<f64> = samples.iter().map(|v| (v - median).abs()).collect();
-    (median, median_in_place(&mut deviations) * MAD_TO_SIGMA)
+    median_and_sigma(&mut samples)
 }
 
 /// Fit `y ≈ scale · x + offset` between two registered planes.

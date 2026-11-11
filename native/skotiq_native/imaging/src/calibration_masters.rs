@@ -48,7 +48,7 @@
 //!   where no defect map is available.
 
 use crate::defect_map::{correct_u16_slice, CorrectionMethod, DefectMap, KernelSize};
-use crate::robust_stats::{median_in_place, MAD_TO_SIGMA};
+use crate::robust_stats::{median_in_place, median_of, MAD_TO_SIGMA};
 use crate::stacking::{
     combine_master_frames, CombineMethod, MasterFrame, MasterFrameKind, MasterOutputType,
 };
@@ -210,7 +210,7 @@ pub fn normalize_raw_flat(
     };
     let corrected = crate::calibration::calibrate_frame_f32(flat, &cal)?;
     let channels = (corrected.channels as usize).max(1);
-    let mut samples = crate::calibration::samples_f64(&corrected);
+    let mut samples = corrected.samples_f64();
     let stride = (samples.len() / (2_000_000 * channels)).max(1) * channels;
     let medians: Vec<f64> = (0..channels)
         .map(|c| {
@@ -261,7 +261,7 @@ pub fn flat_bands(image: &ImageData) -> Option<String> {
     if w < 8 || h < 8 {
         return None;
     }
-    let samples = crate::calibration::samples_f64(image);
+    let samples = image.samples_f64();
     let at = |x: usize, y: usize| -> f64 {
         let base = (y * w + x) * c;
         samples[base..base + c].iter().sum::<f64>() / c as f64
@@ -376,8 +376,9 @@ pub fn build_defect_map_from_master_dark(
     }
 
     // Robust statistics: median and MAD over the whole frame.
-    let median = median_of(&pixels);
-    let mut abs_dev: Vec<f64> = pixels.iter().map(|&v| (v as f64 - median).abs()).collect();
+    let levels: Vec<f64> = pixels.iter().map(|&v| f64::from(v)).collect();
+    let median = median_of(&levels);
+    let mut abs_dev: Vec<f64> = levels.iter().map(|v| (v - median).abs()).collect();
     let mad = median_in_place(&mut abs_dev).max(1.0e-9);
     let sigma = (mad * MAD_TO_SIGMA).max(1.0e-9);
 
@@ -504,7 +505,7 @@ pub fn cosmetic_correct_transient(
     let height = frame.height;
     let channels = frame.channels;
     let expected = (width as usize) * (height as usize) * (channels as usize);
-    let values = crate::calibration::samples_f64(frame);
+    let values = frame.samples_f64();
     if values.len() != expected {
         return Err(MasterCalibrationError::BufferLengthMismatch {
             expected: expected * frame.pixel_type.byte_size(),
@@ -671,14 +672,6 @@ fn repair_float(
         }
     }
     out
-}
-
-// Small numeric helpers (local to keep the module self-contained)
-
-/// Median of a u16 slice as f64, without mutating the input.
-fn median_of(values: &[u16]) -> f64 {
-    let mut v: Vec<f64> = values.iter().map(|&x| x as f64).collect();
-    median_in_place(&mut v)
 }
 
 #[cfg(test)]
