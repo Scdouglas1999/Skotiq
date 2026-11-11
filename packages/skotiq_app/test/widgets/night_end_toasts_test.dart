@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/router/app_router.dart';
-import 'package:skotiq_app/screens/session_review/auto_integration_service.dart';
-import 'package:skotiq_app/widgets/auto_integration_launcher.dart';
+import 'package:skotiq_app/widgets/night_end_toasts.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 
 void main() {
-  testWidgets('outer-wrapper topology can show completion toast',
+  testWidgets('a night-end result toasts over the routed app',
       (tester) async {
     final router = GoRouter(
       initialLocation: '/',
@@ -24,9 +24,9 @@ void main() {
       ProviderScope(
         overrides: [
           appRouterProvider.overrideWithValue(router),
-          autoIntegrationCoordinatorProvider.overrideWith((ref) {}),
+          nightEndCoordinatorProvider.overrideWith((ref) {}),
         ],
-        child: AutoIntegrationLauncher(
+        child: NightEndToasts(
           child: MaterialApp.router(routerConfig: router),
         ),
       ),
@@ -34,19 +34,16 @@ void main() {
     await tester.pumpAndSettle();
 
     final container = ProviderScope.containerOf(
-      tester.element(find.byType(AutoIntegrationLauncher)),
+      tester.element(find.byType(NightEndToasts)),
     );
-    container.read(autoIntegrationCompletionProvider.notifier).state =
-        const AutoIntegrationCompletion(
+    container.read(nightEndCompletionProvider.notifier).state =
+        const NightEndCompletion(
       generation: 1,
-      result: AutoIntegrationResult(
-        ran: true,
-        message: 'Integrated 42 accepted frames.',
-      ),
+      toast: NightEndToast(message: 'NGC 891: masters ready from 2 nights.'),
     );
     await tester.pump();
 
-    expect(find.text('Integrated 42 accepted frames.'), findsOneWidget);
+    expect(find.text('NGC 891: masters ready from 2 nights.'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pump(const Duration(seconds: 5));
   });

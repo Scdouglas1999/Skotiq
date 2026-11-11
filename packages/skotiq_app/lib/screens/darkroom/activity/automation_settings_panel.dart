@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../session_review/auto_integration_service.dart';
 import '../../settings/delivery_settings.dart';
 import '../../settings/settings_sections.dart';
 import 'activity_panel.dart';
@@ -75,9 +74,6 @@ class _AutomationSettingsPanelState
     setState(() => _error = null);
     try {
       await write(ref.read(nightEndAutomationActionsProvider));
-      // The build switch is also read through the older provider by the
-      // pages that still show it.
-      ref.invalidate(autoIntegrationEnabledProvider);
     } catch (e) {
       if (mounted) {
         setState(

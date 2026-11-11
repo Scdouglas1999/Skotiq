@@ -1,13 +1,9 @@
-// The night-end coordinator and the host setting that decides whether the
-// night end builds masters.
 
-import 'dart:async';
 
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_app/screens/session_review/auto_integration_service.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 class _FixedBackendNotifier extends BackendNotifier {
@@ -72,28 +68,27 @@ void main() {
 
   group('building masters at night end', () {
     test('is on for an install that never set it', () async {
-      expect(await db.settingsDao.getSetting(kAutoIntegrateSettingKey), isNull);
       expect(
-          await container.read(autoIntegrationEnabledProvider.future), isTrue);
+        await db.settingsDao.getSetting(NightEndAutomationSettings.buildKey),
+        isNull,
+      );
       final settings = await NightEndAutomationSettings.load(db.settingsDao);
       expect(settings.build, isTrue);
       expect(settings.stepsOn, contains('build'));
     });
 
     test('stays off when the operator turned it off', () async {
-      await container
-          .read(autoIntegrationSettingsActionsProvider)
-          .setEnabled(false);
+      await container.read(nightEndAutomationActionsProvider).setBuild(false);
       expect(
-          await db.settingsDao.getSetting(kAutoIntegrateSettingKey), 'false');
-      expect(
-          await container.read(autoIntegrationEnabledProvider.future), isFalse);
+        await db.settingsDao.getSetting(NightEndAutomationSettings.buildKey),
+        'false',
+      );
       final settings = await NightEndAutomationSettings.load(db.settingsDao);
       expect(settings.build, isFalse);
     });
 
     test('an explicit on reads as on', () async {
-      await db.settingsDao.setSetting(kAutoIntegrateSettingKey, 'true');
+      await db.settingsDao.setSetting(NightEndAutomationSettings.buildKey, 'true');
       final settings = await NightEndAutomationSettings.load(db.settingsDao);
       expect(settings.build, isTrue);
     });
@@ -121,7 +116,7 @@ void main() {
     );
     addTearDown(coordinatorContainer.dispose);
 
-    coordinatorContainer.read(autoIntegrationCoordinatorProvider);
+    coordinatorContainer.read(nightEndCoordinatorProvider);
     coordinatorContainer
         .read(sequenceTerminalRunResultProvider.notifier)
         .state = const SequenceTerminalRunResult(
@@ -135,9 +130,9 @@ void main() {
 
     expect(recording.calls, [20]);
     expect(recording.reasons, ['the plan completed']);
-    final toast = coordinatorContainer.read(autoIntegrationCompletionProvider);
+    final toast = coordinatorContainer.read(nightEndCompletionProvider);
     expect(toast?.generation, 1);
-    expect(toast?.result.message, 'NGC891: masters ready from 3 nights.');
+    expect(toast?.toast.message, 'NGC891: masters ready from 3 nights.');
 
     coordinatorContainer
         .read(sequenceTerminalRunResultProvider.notifier)
@@ -150,10 +145,10 @@ void main() {
     );
     await settleCoordinator();
     expect(recording.calls, [20],
-        reason: 'Stopped runs must not auto-integrate');
+        reason: 'a stopped run does not end the night');
 
     // The dawn park files the run as aborted; it ended the night, so the
-    // night's subs are integrated.
+    // night is handled.
     coordinatorContainer.read(sequenceStopEvidenceProvider.notifier).state =
         const SequenceStopDecision(
       SequenceStopAuthor.system,
@@ -171,7 +166,7 @@ void main() {
     );
     await settleCoordinator();
     expect(recording.calls, [20, 22],
-        reason: 'a night ended by the dawn park must integrate');
+        reason: 'a night ended by the dawn park is handled');
     expect(recording.reasons.last, 'dawn ended imaging');
 
     // An obstruction park ends the night the same way.
@@ -192,10 +187,10 @@ void main() {
     );
     await settleCoordinator();
     expect(recording.calls, [20, 22, 24],
-        reason: 'a night ended by an obstruction must integrate');
+        reason: 'a night ended by an obstruction is handled');
 
     // The operator stopped a night and ended it with a manual end-of-night
-    // calibration: that night is integrated too.
+    // calibration: that night is handled too.
     coordinatorContainer.read(nightIntegrationRequestProvider.notifier).state =
         const NightIntegrationRequest(generation: 1, sessionId: 23);
     await settleCoordinator();
@@ -208,13 +203,8 @@ void main() {
     expect(recording.calls, [20, 22, 24, 23]);
   });
 
-  test('remote clients neither process local data nor store the host setting',
-      () async {
+  test('a linked client runs no night end over its own data', () async {
     final backend = _MockNetworkBackend();
-    when(backend.getAutoIntegrationEnabled).thenAnswer((_) async => true);
-    when(
-      () => backend.setAutoIntegrationEnabled(any()),
-    ).thenAnswer((_) async {});
 
     _RecordingRunner? recording;
     final remoteContainer = ProviderContainer(
@@ -229,20 +219,7 @@ void main() {
       ],
     );
     addTearDown(remoteContainer.dispose);
-    remoteContainer.read(autoIntegrationServiceProvider);
-
-    expect(await remoteContainer.read(autoIntegrationEnabledProvider.future),
-        isTrue);
-    await remoteContainer
-        .read(autoIntegrationSettingsActionsProvider)
-        .setEnabled(false);
-    verify(() => backend.setAutoIntegrationEnabled(false)).called(1);
-    expect(
-      await db.settingsDao.getSetting(kAutoIntegrateSettingKey),
-      isNull,
-    );
-
-    remoteContainer.read(autoIntegrationCoordinatorProvider);
+    remoteContainer.read(nightEndCoordinatorProvider);
     remoteContainer.read(sequenceTerminalRunResultProvider.notifier).state =
         const SequenceTerminalRunResult(
       generation: 1,

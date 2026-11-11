@@ -2299,8 +2299,8 @@ void main() {
         await headlessNight(container, executor, 'night two');
         final second = container.read(sequenceTerminalRunResultProvider)!;
 
-        // The terminal result is what auto-integration and the dawn Darkroom
-        // pass key off (autoIntegrationCoordinatorProvider reads dbSessionId).
+        // The terminal result is what the night-end automation keys off
+        // (nightEndCoordinatorProvider reads dbSessionId).
         // A missing or stale one is a night with masters nobody makes.
         expect(second.dbSessionId, isNot(first.dbSessionId));
         expect(second.dbSessionId, session.lastSessionId);

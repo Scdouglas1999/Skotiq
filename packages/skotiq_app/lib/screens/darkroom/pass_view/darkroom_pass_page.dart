@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../session_review/auto_integration_service.dart';
 import 'pass_view.dart';
 
 class DarkroomPassPage extends ConsumerStatefulWidget {
@@ -54,9 +53,7 @@ class _DarkroomPassPageState extends ConsumerState<DarkroomPassPage> {
         await ref.read(passRunCancellerProvider).cancel(widget.runId);
       }
       if (sessionId != null) {
-        await ref
-            .read(autoIntegrationServiceProvider)
-            .cancelDarkroomPassForSession(
+        await ref.read(dawnAutopilotServiceProvider).cancelLivePassesForSession(
               sessionId,
               reason: 'Stopped from the Darkroom pass view',
             );
