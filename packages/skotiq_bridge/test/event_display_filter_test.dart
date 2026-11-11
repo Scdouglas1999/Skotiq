@@ -16,6 +16,7 @@ void main() {
   test('a filter change names both filters', () {
     final event = _equipment(
       const EquipmentEvent.filterChanging(
+        deviceId: 'wheel',
         fromPosition: 0,
         toPosition: 1,
         filterName: 'R',
@@ -27,7 +28,11 @@ void main() {
     expect(
       skotiqEventDisplayDetail(
         _equipment(
-          const EquipmentEvent.filterChanged(position: 1, filterName: 'R'),
+          const EquipmentEvent.filterChanged(
+            deviceId: 'wheel',
+            position: 1,
+            filterName: 'R',
+          ),
         ),
       ),
       'R',
@@ -38,7 +43,11 @@ void main() {
     expect(
       skotiqEventDisplayDetail(
         _equipment(
-          const EquipmentEvent.filterChanging(fromPosition: 0, toPosition: 1),
+          const EquipmentEvent.filterChanging(
+            deviceId: 'wheel',
+            fromPosition: 0,
+            toPosition: 1,
+          ),
         ),
       ),
       'slot 1 → slot 2',
@@ -47,6 +56,7 @@ void main() {
       skotiqEventDisplayDetail(
         _equipment(
           const EquipmentEvent.filterChanging(
+            deviceId: 'wheel',
             fromPosition: -1,
             toPosition: 1,
             filterName: 'R',
@@ -57,7 +67,9 @@ void main() {
     );
     expect(
       skotiqEventDisplayDetail(
-        _equipment(const EquipmentEvent.filterChanged(position: 0)),
+        _equipment(
+          const EquipmentEvent.filterChanged(deviceId: 'wheel', position: 0),
+        ),
       ),
       'slot 1',
     );

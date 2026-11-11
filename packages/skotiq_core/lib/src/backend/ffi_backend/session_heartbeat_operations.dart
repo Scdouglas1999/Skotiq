@@ -217,7 +217,7 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
     required int intervalMs,
   }) async {
     final bridgeType = _toBridgeDeviceType(deviceType);
-    await bridge_api.apiStartDeviceHeartbeat(
+    await bridge.apiStartDeviceHeartbeat(
       deviceType: bridgeType,
       deviceId: deviceId,
       intervalMs: BigInt.from(intervalMs),
@@ -226,12 +226,12 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
 
   @override
   Future<void> stopDeviceHeartbeat(String deviceId) async {
-    await bridge_api.apiStopDeviceHeartbeat(deviceId: deviceId);
+    await bridge.apiStopDeviceHeartbeat(deviceId: deviceId);
   }
 
   @override
   Future<(int, bool)> getDeviceHealth(String deviceId) async {
-    final result = await bridge_api.apiGetDeviceHealth(deviceId: deviceId);
+    final result = await bridge.apiGetDeviceHealth(deviceId: deviceId);
     // Convert PlatformInt64 to int
     final timestamp = result.$1.toInt();
     final isHealthy = result.$2;

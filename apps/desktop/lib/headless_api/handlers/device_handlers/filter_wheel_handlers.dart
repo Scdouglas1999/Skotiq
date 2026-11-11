@@ -63,8 +63,8 @@ extension FilterWheelDeviceHandlers on DeviceHandlers {
       );
     }
 
-    // Call the names-only FFI directly. The stable NativeBridge facade's
-    // filterWheelGetNames currently enriches through full filter-wheel status,
+    // Call the names-only FFI directly. The backend's filterWheelGetNames
+    // reads the full filter-wheel status,
     // which makes an unrelated ASCOM Position failure discard valid Names.
     final names = await bridge_error.apiFilterwheelGetNames(deviceId: deviceId);
 

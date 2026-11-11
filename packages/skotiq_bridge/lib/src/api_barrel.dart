@@ -1,6 +1,6 @@
 /// Aggregate re-export of the split `api/` subdir. FRB regenerates the
 /// individual `api/*.dart` files; this barrel is the stable hand-written
-/// surface consumers such as `bridge_stub.dart` import from.
+/// surface the package exports.
 library;
 
 export 'api.dart';

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert' show jsonDecode;
+import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show visibleForTesting;
@@ -7,10 +8,6 @@ import 'package:logging/logging.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import '../models/settings/app_settings.dart' as models;
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
-import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
-import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_caps;
-import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_device;
-import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_error;
 
 // Import pure Dart types from backend_types for return types
 import '../models/backend/device_capabilities.dart' as dart_caps;
@@ -19,7 +16,9 @@ import '../models/backend/device_types.dart' as dart_types;
 import '../models/errors/skotiq_error.dart' as dart_error;
 import 'bridge_event_mapper.dart' show recoveryFieldsFromTyped;
 import '../services/ip_geolocation.dart';
+import '../utils/device_id.dart' show isPhd2WireToken, kPhd2CanonicalId;
 
+part 'ffi_backend/native_runtime.dart';
 part 'ffi_backend/event_mapping.dart';
 part 'ffi_backend/type_mappers.dart';
 part 'ffi_backend/discovery_camera_operations.dart';
@@ -92,7 +91,7 @@ abstract class _FfiBackendBase implements SkotiqBackend {
     // Return cached broadcast stream to allow multiple subscribers
     if (_cachedEventStream == null) {
       _logger.info('Creating event stream from native bridge');
-      _cachedEventStream = bridge.NativeBridge.eventStream().map((bridgeEvent) {
+      _cachedEventStream = _nativeEventStream().map((bridgeEvent) {
         // Extract eventType and data from the EventPayload
         final payloadInfo = _extractPayloadInfo(bridgeEvent.payload);
         final category = _fromBridgeCategory(bridgeEvent.category);
@@ -128,6 +127,19 @@ abstract class _FfiBackendBase implements SkotiqBackend {
 
   final _polarAlignController =
       StreamController<Map<String, dynamic>>.broadcast();
+
+  /// The Rust event stream, or a stream that never emits when the native
+  /// library is not loaded (nothing can produce an event then).
+  Stream<bridge.SkotiqEvent> _nativeEventStream() {
+    if (bridge.NativeBridge.isNativeAvailable) {
+      try {
+        return bridge.apiEventStream();
+      } catch (e) {
+        _logger.severe('Failed to get the native event stream: $e');
+      }
+    }
+    return StreamController<bridge.SkotiqEvent>().stream;
+  }
 }
 
 /// FFI backend implementation that wraps the native Rust bridge
