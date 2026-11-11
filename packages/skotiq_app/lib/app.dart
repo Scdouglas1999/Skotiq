@@ -9,7 +9,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_updater/skotiq_updater.dart';
 import 'package:skotiq_app/router/app_router.dart';
-import 'package:skotiq_app/services/location_sync_service.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/widgets/quick_start_checker.dart';
 import 'package:skotiq_app/widgets/your_sky_off_notice.dart';

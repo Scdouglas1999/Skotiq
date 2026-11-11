@@ -353,7 +353,7 @@ AlwaysOnServices startAlwaysOnServices(
   final running = <String>[];
 
   for (final service in [
-    ...?services ?? alwaysOnServices,
+    ...services ?? alwaysOnServices,
     ...platformServices
   ]) {
     if (!service.roles.contains(role)) continue;
