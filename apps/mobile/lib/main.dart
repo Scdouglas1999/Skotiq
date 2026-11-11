@@ -34,6 +34,7 @@ import 'services/voice_control_lifecycle_provider.dart';
 import 'services/voice_control_service.dart';
 import 'utils/error_snackbar.dart';
 import 'widgets/checkpoint_resume_dialog.dart';
+import 'widgets/phone_battery_indicator.dart';
 import 'widgets/tailscale_setup_sheet.dart';
 
 part 'main_parts/mobile_connection_state.dart';
@@ -112,11 +113,9 @@ void main() async {
     );
   }
 
-  // start the battery sampler so the dashboard
-  // indicator and any throttling consumer (live-preview poller,
-  // catalog sync, etc.) see a populated PhoneBatteryState on first
-  // build. Failures are non-fatal: the indicator gracefully renders
-  // SizedBox.shrink() while the level remains -1.
+  // Sampled before the first frame so the top-bar battery warning and the
+  // poll pace start from a real reading. Without one both act as if the
+  // battery were full.
   try {
     await BatteryService().start();
     developer.log('BatteryService started', name: 'Main');
@@ -202,7 +201,10 @@ void main() async {
 
   runApp(
     ProviderScope(
-      overrides: appProviderOverrides(appVersion),
+      overrides: [
+        ...appProviderOverrides(appVersion),
+        phoneBarStatusProvider.overrideWithValue(const PhoneBatteryIndicator()),
+      ],
       child: const SkotiqMobileApp(),
     ),
   );

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'poll_pace.dart';
+
 /// Repeatedly calls [fetch], emits the first successful value, and then emits
 /// only values for which [unchanged] returns false.
 ///
@@ -10,6 +12,8 @@ import 'dart:async';
 /// discarded. A controller is used instead of an `async*` loop because a
 /// distinct stream may go indefinitely without another `yield`, which prevents
 /// an `async*` subscription's cancellation future from completing.
+///
+/// The wait between fetches is [interval] at the device's [PollPace].
 ///
 /// An event on [refresh] fetches now instead of waiting out the interval; one
 /// that arrives during a fetch runs another fetch as soon as that one ends,
@@ -34,7 +38,7 @@ Stream<T> resilientDistinctPoll<T>({
 
   void scheduleNext() {
     if (stopped || paused || polling || (timer?.isActive ?? false)) return;
-    timer = Timer(interval, () {
+    timer = Timer(PollPace.stretch(interval), () {
       timer = null;
       unawaited(poll());
     });

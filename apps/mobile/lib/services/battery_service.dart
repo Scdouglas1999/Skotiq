@@ -1,55 +1,43 @@
-// Battery-aware mobile throttling.
+// The phone's battery as a typed snapshot for the app: the top-bar warning
+// and the poll pace read it.
 //
-// PowerService already exists for low-battery *warning* surfaces (notification
-// pop, wake-lock release at critical thresholds). BatteryService is the
-// *throttling* peer: it exposes a Riverpod-friendly stream of {level,
-// isCharging, isLowPower} samples that polling providers consume to decide
-// how often to hit the network.
-//
-// Two services rather than one because:
-//   * PowerService is a behaviour engine (acquires wake locks, posts
-//     notifications, gates imaging). Mixing display state into it would
-//     couple every consumer that just wants the percentage to the full
-//     wake-lock + notification pipeline.
-//   * BatteryService is purely a *projection* of the battery_plus stream
-//     into a typed snapshot. It is allowed to be a singleton because the
-//     OS only has one battery; we initialize once at app start and let
-//     every consumer subscribe to the broadcast stream.
-//
-// The stream is event-driven: battery_plus emits a [BatteryState] change
-// whenever the OS reports plug/unplug, and we additionally tick every 30 s
-// to recompute the percentage (battery_plus doesn't push level changes on
-// every percent). The 30 s cadence matches PowerService's own check
-// interval so both services see the same level reading; we don't share
-// the underlying [Battery] instance because that's a cheap object and
-// sharing would mean PowerService.dispose() could kill our subscriptions.
+// PowerService is the separate behavior engine for low battery (wake locks,
+// notifications, gating imaging); this service only projects battery_plus into
+// [PhoneBatteryState]. battery_plus pushes plug and unplug but not level
+// changes, so the level is also sampled every 30 s, the same cadence as
+// PowerService.
 
 import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:battery_plus/battery_plus.dart';
+import 'package:flutter/services.dart' show MissingPluginException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class PhoneBatteryState {
-  /// Battery percentage, 0–100. -1 when the platform reports unknown.
+  /// Battery percentage, 0–100. -1 when the platform reports none.
   final int level;
 
   /// True when the OS is currently feeding the battery (charging or full).
   final bool isCharging;
 
-  /// True when [level] is below the low-power threshold (20%) AND the
-  /// device is not charging. Consumers use this to throttle polling
-  /// rates without re-implementing the threshold check.
+  /// True when [level] is below [BatteryService.lowPowerThreshold] and the
+  /// phone is not charging.
   final bool isLowPower;
+
+  /// True while the OS battery saver (Android Battery Saver, iOS Low Power
+  /// Mode) is on.
+  final bool isSaverOn;
 
   const PhoneBatteryState({
     required this.level,
     required this.isCharging,
     required this.isLowPower,
+    this.isSaverOn = false,
   });
 
-  /// Snapshot the OS can't yet describe. Treated as full-power so the
-  /// app doesn't spuriously throttle before the first sample lands.
+  /// No reading yet, or no battery. Treated as full power so nothing slows
+  /// down before the first sample lands.
   static const PhoneBatteryState unknown = PhoneBatteryState(
     level: -1,
     isCharging: false,
@@ -59,18 +47,19 @@ class PhoneBatteryState {
   @override
   String toString() =>
       'PhoneBatteryState(level: $level, isCharging: $isCharging, '
-      'isLowPower: $isLowPower)';
+      'isLowPower: $isLowPower, isSaverOn: $isSaverOn)';
 
   @override
   bool operator ==(Object other) {
     return other is PhoneBatteryState &&
         other.level == level &&
         other.isCharging == isCharging &&
-        other.isLowPower == isLowPower;
+        other.isLowPower == isLowPower &&
+        other.isSaverOn == isSaverOn;
   }
 
   @override
-  int get hashCode => Object.hash(level, isCharging, isLowPower);
+  int get hashCode => Object.hash(level, isCharging, isLowPower, isSaverOn);
 }
 
 /// Streams [PhoneBatteryState] snapshots from the OS.
@@ -154,17 +143,49 @@ class BatteryService {
   Future<void> _sample() async {
     final level = await _battery.batteryLevel;
     final state = await _battery.batteryState;
-    final isCharging =
-        state == BatteryState.charging || state == BatteryState.full;
-    final isLowPower = !isCharging && level >= 0 && level < lowPowerThreshold;
-    final next = PhoneBatteryState(
-      level: level,
-      isCharging: isCharging,
-      isLowPower: isLowPower,
-    );
+    // A machine with no battery (a desktop running the phone build) reports
+    // state unknown at 0 %, which would otherwise read as nearly empty.
+    final next = state == BatteryState.unknown || level < 0
+        ? PhoneBatteryState.unknown
+        : _stateFor(level, state, isSaverOn: await _saverOn());
     if (next == _last) return;
     _last = next;
     _controller.add(next);
+  }
+
+  static PhoneBatteryState _stateFor(
+    int level,
+    BatteryState state, {
+    required bool isSaverOn,
+  }) {
+    final isCharging =
+        state == BatteryState.charging || state == BatteryState.full;
+    return PhoneBatteryState(
+      level: level,
+      isCharging: isCharging,
+      isLowPower: !isCharging && level < lowPowerThreshold,
+      isSaverOn: isSaverOn,
+    );
+  }
+
+  bool _saverUnsupported = false;
+
+  /// Whether battery saver is on, or false where the platform cannot say
+  /// (battery_plus has no saver query on Linux).
+  Future<bool> _saverOn() async {
+    if (_saverUnsupported) return false;
+    try {
+      return await _battery.isInBatterySaveMode;
+    } on UnimplementedError {
+      _saverUnsupported = true;
+    } on MissingPluginException {
+      _saverUnsupported = true;
+    }
+    developer.log(
+      'Battery saver state is not available on this platform',
+      name: 'BatteryService',
+    );
+    return false;
   }
 
   /// Stop sampling. Tests and the app-tear-down hook call this.
@@ -203,25 +224,3 @@ final batteryStateProvider = StreamProvider<PhoneBatteryState>((ref) {
   });
   return controller.stream;
 });
-
-/// Convenience boolean for "throttle aggressively". Composes battery
-/// state with the optional cellular flag so polling providers can do:
-///
-///     final slow = ref.watch(shouldThrottleMobileProvider(onCellular: x));
-///
-/// We expose the override as a parameter rather than wiring connectivity
-/// here so the provider stays single-purpose and battery-only — easier to
-/// stub in widget tests.
-bool shouldThrottlePolling({
-  required PhoneBatteryState battery,
-  required bool onCellular,
-}) {
-  if (battery.isLowPower) return true;
-  if (onCellular) return true;
-  return false;
-}
-
-/// Multiplier applied to base polling intervals when
-/// [shouldThrottlePolling] is true. Exposed for the unit test to assert
-/// against the same constant the producer uses.
-const int throttledPollMultiplier = 3;

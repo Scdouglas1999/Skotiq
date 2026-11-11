@@ -1,19 +1,27 @@
-// Tests for the battery-aware polling throttle.
-//
-// We don't instantiate the BatteryService singleton itself (that talks
-// to platform channels that aren't available in the unit-test
-// environment); we only exercise the pure functions and constants the
-// service exposes for consumers. The integration path
-// (battery_plus → BatteryService → batteryStateProvider) is covered
-// indirectly by the dashboard widget test.
+import 'dart:async';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_mobile/services/battery_service.dart';
 import 'package:skotiq_mobile/services/poll_rate_service.dart';
 
 void main() {
+  const full = PhoneBatteryState(
+    level: 80,
+    isCharging: true,
+    isLowPower: false,
+  );
+  const low = PhoneBatteryState(level: 15, isCharging: false, isLowPower: true);
+  const saver = PhoneBatteryState(
+    level: 60,
+    isCharging: false,
+    isLowPower: false,
+    isSaverOn: true,
+  );
+
   group('PhoneBatteryState', () {
-    test('equality compares all fields', () {
+    test('equality compares every field, battery saver included', () {
       const a = PhoneBatteryState(
         level: 50,
         isCharging: false,
@@ -31,111 +39,78 @@ void main() {
       );
       expect(a, equals(b));
       expect(a == c, isFalse);
-    });
-
-    test('unknown sentinel reads as non-throttling', () {
-      expect(PhoneBatteryState.unknown.level, -1);
-      expect(PhoneBatteryState.unknown.isLowPower, isFalse);
-    });
-  });
-
-  group('shouldThrottlePolling', () {
-    const fullCharged = PhoneBatteryState(
-      level: 80,
-      isCharging: true,
-      isLowPower: false,
-    );
-    const lowDischarging = PhoneBatteryState(
-      level: 15,
-      isCharging: false,
-      isLowPower: true,
-    );
-
-    test('full battery on WiFi does not throttle', () {
       expect(
-        shouldThrottlePolling(battery: fullCharged, onCellular: false),
+        a ==
+            const PhoneBatteryState(
+              level: 50,
+              isCharging: false,
+              isLowPower: false,
+              isSaverOn: true,
+            ),
         isFalse,
       );
     });
 
-    test('full battery on cellular throttles', () {
-      expect(
-        shouldThrottlePolling(battery: fullCharged, onCellular: true),
-        isTrue,
-      );
+    test('no reading counts as full power', () {
+      expect(PhoneBatteryState.unknown.level, -1);
+      expect(PhoneBatteryState.unknown.isLowPower, isFalse);
+      expect(PhoneBatteryState.unknown.isSaverOn, isFalse);
     });
 
-    test('low battery on WiFi throttles', () {
-      expect(
-        shouldThrottlePolling(battery: lowDischarging, onCellular: false),
-        isTrue,
-      );
-    });
-
-    test('low battery on cellular throttles', () {
-      expect(
-        shouldThrottlePolling(battery: lowDischarging, onCellular: true),
-        isTrue,
-      );
+    test('low battery starts below 20 %', () {
+      expect(BatteryService.lowPowerThreshold, 20);
     });
   });
 
-  group('pollIntervalFor', () {
-    const base = Duration(seconds: 10);
-
-    test('returns base interval when not throttled', () {
-      const battery = PhoneBatteryState(
-        level: 90,
-        isCharging: false,
-        isLowPower: false,
+  group('pollPaceFor', () {
+    test('full speed on Wi-Fi with a good battery', () {
+      expect(pollPaceFor(battery: full, onCellular: false), 1);
+      expect(
+        pollPaceFor(battery: PhoneBatteryState.unknown, onCellular: false),
+        1,
       );
-      final result = pollIntervalFor(
-        base: base,
-        battery: battery,
-        onCellular: false,
-      );
-      expect(result, base);
     });
 
-    test('multiplies base by 3 when battery is low', () {
-      const battery = PhoneBatteryState(
-        level: 15,
-        isCharging: false,
-        isLowPower: true,
-      );
-      final result = pollIntervalFor(
-        base: base,
-        battery: battery,
-        onCellular: false,
-      );
-      expect(result, base * throttledPollMultiplier);
-      expect(result, const Duration(seconds: 30));
+    test('a third as often on low battery, battery saver or cellular', () {
+      expect(pollPaceFor(battery: low, onCellular: false), throttledPollPace);
+      expect(pollPaceFor(battery: saver, onCellular: false), throttledPollPace);
+      expect(pollPaceFor(battery: full, onCellular: true), throttledPollPace);
+      expect(pollPaceFor(battery: low, onCellular: true), throttledPollPace);
+      expect(throttledPollPace, 3);
     });
+  });
 
-    test('multiplies base by 3 when on cellular', () {
-      const battery = PhoneBatteryState(
-        level: 80,
-        isCharging: true,
-        isLowPower: false,
-      );
-      final result = pollIntervalFor(
-        base: base,
-        battery: battery,
-        onCellular: true,
-      );
-      expect(result, const Duration(seconds: 30));
-    });
+  group('pollPaceProvider', () {
+    tearDown(() => PollPace.multiplier = 1);
 
-    test('throttledPollMultiplier is exactly 3', () {
-      // Locked-in by the design doc; if this changes the dashboard tests
-      // and operator-visible "Power saving on" tooltip need updating.
-      expect(throttledPollMultiplier, 3);
-    });
+    test(
+      'sets the app-wide poll pace from the battery and resets it',
+      () async {
+        final battery = StreamController<PhoneBatteryState>();
+        final container = ProviderContainer(
+          overrides: [
+            batteryStateProvider.overrideWith((ref) => battery.stream),
+          ],
+        );
+        final subscription = container.listen(pollPaceProvider, (_, __) {});
 
-    test('low-power threshold is 20%', () {
-      // Asserting the public constant so the dashboard tests can rely
-      // on it without grepping the implementation.
-      expect(BatteryService.lowPowerThreshold, 20);
-    });
+        battery.add(low);
+        await pumpEventQueue();
+        expect(PollPace.multiplier, throttledPollPace);
+        expect(subscription.read(), throttledPollPace);
+
+        battery.add(full);
+        await pumpEventQueue();
+        expect(PollPace.multiplier, 1);
+
+        battery.add(saver);
+        await pumpEventQueue();
+        expect(PollPace.multiplier, throttledPollPace);
+
+        container.dispose();
+        expect(PollPace.multiplier, 1);
+        await battery.close();
+      },
+    );
   });
 }

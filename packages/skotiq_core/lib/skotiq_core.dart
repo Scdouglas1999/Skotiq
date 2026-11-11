@@ -782,6 +782,7 @@ export 'src/services/safety_config_service.dart';
 export 'src/utils/coordinate_parser.dart';
 export 'package:skotiq_astro/format.dart';
 export 'src/utils/resilient_poll_stream.dart';
+export 'src/utils/poll_pace.dart';
 export 'src/utils/dither_settle_presets.dart';
 export 'src/utils/export_target.dart';
 export 'src/utils/utc_timestamp.dart';

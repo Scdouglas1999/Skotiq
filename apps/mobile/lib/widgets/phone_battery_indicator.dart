@@ -1,99 +1,95 @@
-// Phone battery indicator badge.
-//
-// Sits in the dashboard AppBar action row alongside NetworkStatusIndicator
-// so the operator can glance at their phone's battery without leaving the
-// app. When [PhoneBatteryState.isLowPower] is true, the badge flips to a
-// red tint so the operator can see at a glance that the phone is running
-// low on battery.
-//
-// The widget intentionally renders nothing on cold start (before the first
-// sample lands) to avoid a flash of "-1%" or a placeholder shimmer; the
-// AppBar layout reflows correctly once the badge appears. We use a
-// Lucide-icons battery glyph rather than the Material icons set so it
-// matches the visual weight of the network indicator next to it.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_app/utils/snackbar_helper.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../services/battery_service.dart';
 
-/// Compact battery percentage + charging-state badge.
-///
-/// Renders:
-///   * "75%" with a battery glyph at normal levels.
-///   * "75%" tinted red when [isLowPower] fires.
-///   * Same percentage with a small zap glyph overlaid when charging.
-///   * Nothing when the OS has not yet delivered a sample (level < 0).
+/// The phone's battery in the top bar, shown only when it changes what the
+/// app does: while the battery is low or battery saver is on, the app checks
+/// the rig less often. A tap says so. Nothing is drawn the rest of the time.
 class PhoneBatteryIndicator extends ConsumerWidget {
-  /// When true, render only the icon + percent in a 28 dp square. When
-  /// false, include a longer label suitable for a settings row.
-  final bool compact;
-
-  const PhoneBatteryIndicator({super.key, this.compact = true});
+  const PhoneBatteryIndicator({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final batteryAsync = ref.watch(batteryStateProvider);
-    final state = batteryAsync.valueOrNull;
-    if (state == null || state.level < 0) {
-      // No sample yet — render an empty zero-width box so the AppBar
-      // layout doesn't pop in. Once the first sample arrives the badge
-      // shows up alongside the network indicator without a layout jump.
+    final state = ref.watch(batteryStateProvider).valueOrNull;
+    if (state == null ||
+        state.level < 0 ||
+        !(state.isLowPower || state.isSaverOn)) {
       return const SizedBox.shrink();
     }
 
-    final colors = Theme.of(context).extension<SkotiqColors>()!;
-    final isLowPower = state.isLowPower;
-    final tint = isLowPower
-        ? (colors.error)
-        : (state.isCharging ? colors.success : colors.textSecondary);
-
-    final tooltip = StringBuffer('Battery: ${state.level}%');
-    if (state.isCharging) tooltip.write(' (charging)');
-
-    final icon = state.isCharging
-        ? LucideIcons.batteryCharging
-        : _iconForLevel(state.level);
-
-    return Tooltip(
-      message: tooltip.toString(),
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 28, minWidth: 28),
-        padding: EdgeInsets.symmetric(
-          horizontal: compact ? 6 : 10,
-          vertical: 4,
-        ),
-        decoration: isLowPower
-            ? BoxDecoration(
-                color: tint.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
-              )
-            : null,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: tint),
-            const SizedBox(width: 4),
-            Text(
-              '${state.level}%',
-              style: TextStyle(
-                fontSize: SkotiqTypography.fontSize11,
-                fontWeight: FontWeight.w600,
-                color: tint,
+    final colors = SkotiqColors.of(context);
+    final tone = state.isLowPower ? colors.error : colors.warning;
+    final explanation = _explanation(state);
+    return Padding(
+      padding: const EdgeInsets.only(right: SkotiqTokens.spaceXs),
+      child: Semantics(
+        container: true,
+        button: true,
+        enabled: true,
+        label: explanation,
+        excludeSemantics: true,
+        child: InkWell(
+          onTap: () => context.showWarningSnackBar(explanation),
+          borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minHeight: ShellChromeMetrics.titleBarHeight,
+            ),
+            child: Center(
+              widthFactor: 1,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: SkotiqTokens.spaceSm,
+                  vertical: SkotiqTokens.spaceXs,
+                ),
+                decoration: SkotiqDecorations.chip(
+                  colors,
+                  tone: tone,
+                  radius: SkotiqTokens.radiusSm,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      state.isCharging
+                          ? LucideIcons.batteryCharging
+                          : _iconForLevel(state.level),
+                      size: SkotiqTokens.iconXs,
+                      color: tone,
+                    ),
+                    const SizedBox(width: SkotiqTokens.spaceXs),
+                    Text(
+                      '${state.level}%',
+                      style: SkotiqTypography.labelStrongSm.copyWith(
+                        color: tone,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  IconData _iconForLevel(int pct) {
-    // Lucide ships four discrete battery glyphs (empty, low, medium, full)
-    // plus the charging variant. Mapping ranges to glyphs gives the
-    // operator a quick visual cue without leaning solely on the text.
+  static String _explanation(PhoneBatteryState state) {
+    final why = state.isLowPower
+        ? 'Phone battery at ${state.level}%.'
+        : 'Battery saver is on.';
+    final until = state.isLowPower
+        ? 'until the phone is charging'
+        : 'while battery saver is on';
+    return '$why Skotiq checks the rig a third as often $until. Alerts '
+        'still arrive at once.';
+  }
+
+  static IconData _iconForLevel(int pct) {
     if (pct < 20) return LucideIcons.batteryWarning;
     if (pct < 50) return LucideIcons.batteryLow;
     if (pct < 80) return LucideIcons.batteryMedium;
