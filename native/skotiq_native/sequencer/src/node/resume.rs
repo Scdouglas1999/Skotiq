@@ -129,3 +129,37 @@ fn collect_bursts(node: &dyn Node, out: &mut HashSet<NodeId>) {
         collect_bursts(child.as_ref(), out);
     }
 }
+
+/// The finished steps a resume does not run again: those that took frames
+/// (a burst, or a container whose subtree holds one). Every other finished
+/// step runs again, because what it did may not hold after the stop: the
+/// stop can park the mount and stop guiding, so unparking, slewing,
+/// centering and starting the guider are repeated before imaging continues.
+pub fn finished_imaging(root: &dyn Node, completed: &HashSet<NodeId>) -> Vec<NodeId> {
+    let mut out = Vec::new();
+    collect_finished_imaging(root, completed, &mut out);
+    out
+}
+
+fn collect_finished_imaging(node: &dyn Node, completed: &HashSet<NodeId>, out: &mut Vec<NodeId>) {
+    if completed.contains(node.id()) && takes_frames(node) {
+        out.push(node.id().clone());
+        return;
+    }
+    for child in node.children() {
+        collect_finished_imaging(child.as_ref(), completed, out);
+    }
+}
+
+fn takes_frames(node: &dyn Node) -> bool {
+    matches!(
+        node.node_type(),
+        NodeType::TakeExposure(_)
+            | NodeType::SmartExposure(_)
+            | NodeType::SciencePhotometry(_)
+            | NodeType::FlatWizard(_)
+    ) || node
+        .children()
+        .iter()
+        .any(|child| takes_frames(child.as_ref()))
+}

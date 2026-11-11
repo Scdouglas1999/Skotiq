@@ -224,7 +224,9 @@ impl SequenceExecutor {
         // resume idempotent — the executor still walks the full tree but
         // short-circuits already-Success nodes.
         if let Some(ref mut root) = self.root_node {
-            for node_id in checkpoint.get_completed_nodes() {
+            let completed: std::collections::HashSet<_> =
+                checkpoint.get_completed_nodes().into_iter().collect();
+            for node_id in crate::node::resume::finished_imaging(root.as_ref(), &completed) {
                 root.mark_completed(&node_id);
             }
             // restore each Loop node's current_iteration so a resumed

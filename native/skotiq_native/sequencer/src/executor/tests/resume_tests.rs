@@ -1,6 +1,7 @@
 //! A run stopped part-way and resumed from its checkpoint continues where it
-//! stopped: finished steps are not run again and an exposure burst takes only
-//! the frames it still owes.
+//! stopped: finished bursts are not taken again, a burst it stopped in takes
+//! only the frames it still owes, and the steps that prepare the rig (here a
+//! wait standing in for unpark and slew) run again.
 
 use super::*;
 use crate::device_ops::NullDeviceOps;
@@ -10,7 +11,7 @@ const FRAMES: u32 = 8;
 const SUB_SECS: f64 = 0.3;
 
 /// The shape the app builds: a Count loop at the root around the plan's
-/// steps, here a short wait and one burst of darks.
+/// steps, here a wait and one burst of darks.
 fn app_built_plan(loop_passes: u32) -> SequenceDefinition {
     let mut sequence = SequenceDefinition::new("Stop and recover".to_string());
     sequence.nodes.push(crate::NodeDefinition {
@@ -139,25 +140,25 @@ async fn stop_and_resume(loop_passes: u32, stop: StopAt) -> ((u32, u32), (u32, u
 }
 
 /// An 8-frame plan stopped after its third frame takes the other five on
-/// resume, and the wait that finished before the stop is not run again.
+/// resume; the step before the burst prepares the rig again.
 #[tokio::test]
 async fn a_resumed_run_takes_only_the_frames_it_still_owes() {
     let ((frames_before, waits_before), (frames_after, waits_after)) =
         stop_and_resume(1, StopAt::Frame(3)).await;
     assert_eq!((frames_before, waits_before), (3, 1));
     assert_eq!(frames_after, FRAMES - 3, "frames taken after the resume");
-    assert_eq!(waits_after, 0, "the finished wait is not run again");
+    assert_eq!(waits_after, 1, "the rig is prepared again before the burst");
 }
 
 /// Stopped in the second pass of a two-pass loop, the resume finishes that
-/// pass's burst and does not repeat its wait, then runs nothing more.
+/// pass's burst and runs no third pass.
 #[tokio::test]
 async fn a_resumed_loop_continues_the_pass_it_stopped_in() {
     let ((frames_before, waits_before), (frames_after, waits_after)) =
         stop_and_resume(2, StopAt::Frame(FRAMES + 2)).await;
     assert_eq!((frames_before, waits_before), (FRAMES + 2, 2));
     assert_eq!(frames_after, FRAMES - 2);
-    assert_eq!(waits_after, 0);
+    assert_eq!(waits_after, 1);
 }
 
 /// Stopped while the second pass's wait runs, the resume runs that wait again
