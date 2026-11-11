@@ -56,6 +56,8 @@ void main() {
       'Its',
       'One',
       'Planner',
+      // The enum type in a parameter list (`PlannerTab tab`).
+      'PlannerTab',
     };
 
     final offenders = <String>[];
