@@ -6,7 +6,9 @@
 # AI/Agent Tools
 # =============================================================================
 .agent/
-.claude/
+# Agent settings stay local; the project skills in .claude/skills/ are checked in.
+.claude/*
+!.claude/skills/
 .cursor/
 .aider*
 .continue/
