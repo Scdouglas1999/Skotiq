@@ -132,7 +132,6 @@ class StaticFragment extends SummaryFragment {
   /// muted inline text.
   final bool emphasized;
 
-  /// Optional leading icon for this fragment.
   final IconData? icon;
 
   const StaticFragment(
@@ -163,13 +162,10 @@ class StaticFragment extends SummaryFragment {
 /// layer which inline editor to present and which node property to write
 /// back via `currentSequenceProvider.notifier.updateNode(...)`.
 class EditableFragment extends SummaryFragment {
-  /// Which node property this chip edits.
   final InlineEditKind kind;
 
-  /// The current value rendered on the chip.
   final String displayValue;
 
-  /// Optional leading icon for this fragment.
   final IconData? icon;
 
   const EditableFragment(
@@ -611,9 +607,6 @@ List<SummaryFragment> nodeSummary(
 bool summaryHasInlineEdits(SequenceNode node) =>
     nodeSummary(node).any((f) => f is EditableFragment);
 
-// Private helpers — terse value formatting. No styling tokens here; these
-// produce the plain strings the widget layer paints.
-
 /// Build the Loop summary. Only the `count` condition yields an editable
 /// iteration count; every other condition is a static descriptor.
 List<SummaryFragment> _loopSummary(
@@ -662,7 +655,6 @@ List<SummaryFragment> _loopSummary(
   }
 }
 
-/// Human-readable descriptor for a [ConditionalNode] branch condition.
 String _conditionalDescriptor(ConditionalType cond, double? threshold) {
   final t = threshold;
   switch (cond) {
@@ -751,7 +743,6 @@ String _basename(String path) {
   return idx >= 0 ? trimmed.substring(idx + 1) : trimmed;
 }
 
-/// Zero-pad an integer to two digits.
 String _pad2(int value) => value.toString().padLeft(2, '0');
 
 /// The filters in [plans] whose rows are bound to a DepthLock goal, joined for

@@ -77,7 +77,6 @@ bool hasMeaningfulDuration(SequenceNode node) {
   };
 }
 
-/// Widget that displays timing information for a sequence node.
 class NodeTimingSection extends ConsumerWidget {
   final SkotiqColors colors;
   final SequenceNode node;
@@ -120,7 +119,6 @@ class NodeTimingSection extends ConsumerWidget {
     // and the timeline rather than a divergent hard-coded 2 s literal.
     final durationDetails = _getDurationDetails(ref, overhead);
 
-    // If we have no timing info and no details, don't show the section
     if (nodeTiming == null && durationDetails == null) {
       return const SizedBox.shrink();
     }
@@ -209,7 +207,6 @@ class NodeTimingSection extends ConsumerWidget {
     if (node is AutofocusNode) {
       final autofocus = node as AutofocusNode;
 
-      // Use global settings values when useSettingsDefaults is ON
       final int stepsOut;
       final int exposuresPerPoint;
       final double exposureDuration;
@@ -501,7 +498,6 @@ class NodeTimingSection extends ConsumerWidget {
   }
 }
 
-/// Helper class for duration detail display.
 class _DurationDetail {
   final String label;
   final String value;
