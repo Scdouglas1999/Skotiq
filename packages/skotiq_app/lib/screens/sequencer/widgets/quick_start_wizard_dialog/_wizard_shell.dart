@@ -2,8 +2,6 @@
 part of '../quick_start_wizard_dialog.dart';
 
 extension _WizardShell on _QuickStartWizardDialogState {
-  // BUILD
-
   Widget _buildDialog(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final mediaQuery = MediaQuery.of(context);
