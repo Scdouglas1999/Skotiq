@@ -765,8 +765,6 @@ fn fit_one_direction(
         exposure_duration: config.exposure_duration,
         backlash_compensation: 0,
         backlash_out_compensation: 0,
-        use_temperature_prediction: false,
-        max_star_count_change: None,
         outlier_rejection_sigma: config.outlier_rejection_sigma,
         max_duration_secs: config.max_duration_secs,
     });

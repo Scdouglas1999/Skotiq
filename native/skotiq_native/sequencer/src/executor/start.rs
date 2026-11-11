@@ -276,12 +276,6 @@ impl SequenceExecutor {
         // path needs its own handle to the *same* manager (shared info_cache).
         let completion_checkpoint_manager: Option<Arc<crate::checkpoint::CheckpointManager>> =
             self.checkpoint_manager.clone();
-        // Third Arc clone for the ExecutionContext, so wizards that own
-        // step-level resume state (mosaic panels) write their slots
-        // through the SAME manager as the streaming task instead of
-        // discarding them into a NullCheckpointSink.
-        let context_checkpoint_manager: Option<Arc<crate::checkpoint::CheckpointManager>> =
-            self.checkpoint_manager.clone();
         let depth_goal_ops = self.depth_goal_ops.clone();
         let streaming_sequence = self.sequence.clone();
         let streaming_camera_id = self.camera_id.clone();
@@ -422,10 +416,6 @@ impl SequenceExecutor {
                 let skip_to_node_for_recovery = context.skip_to_node.clone();
                 context.is_cancelled = is_cancelled.clone();
                 context.is_paused = is_paused_clone;
-                // Wizard step-level resume (mosaic panels) persists through
-                // this manager; `None` when no checkpoint dir was set, in
-                // which case the wizard falls back to a null sink.
-                context.checkpoint_manager = context_checkpoint_manager;
                 context.depth_goal_ops = depth_goal_ops;
                 context.recovery_generation = recovery_generation_clone;
                 // Dual-rig — pick up the process-wide dither barrier if a
@@ -663,9 +653,6 @@ impl SequenceExecutor {
                     NodeId,
                     u32,
                 >::new()));
-                let node_pending_exposure_completion = Arc::new(StdRwLock::new(
-                    std::collections::HashMap::<NodeId, u32>::new(),
-                ));
                 // Integration already credited per FRAME for each node, so the
                 // burst's closing one-shot can add only what is left over. Crediting
                 // per frame is what makes a run interrupted part-way through a node
@@ -692,7 +679,6 @@ impl SequenceExecutor {
                     node_frame_progress,
                     node_integration_credited,
                     node_names,
-                    node_pending_exposure_completion,
                     progress_clone,
                     start_time,
                     started_nodes,

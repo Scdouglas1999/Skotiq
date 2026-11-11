@@ -35,14 +35,6 @@ pub use resolver::{
     interpolate, interpolate_optional, resolve_variable, EvaluationFrame, VariableValue,
 };
 
-/// Convenience: convert a struct that carries the per-frame counters
-/// (current frame, exposure config snapshot) into an [`EvaluationFrame`].
-///
-/// Callers in `expose.rs` build a [`EvaluationFrame`] per-frame and pass it
-/// to [`interpolate`]; this keeps the call site free of bookkeeping for the
-/// "what is the current frame number" question.
-pub use resolver::EvaluationFrame as Frame;
-
 /// Convert a dotted catalog name (`target.alt`, `equipment.focal_length`,
 /// `frame`) into the UPPER_SNAKE_CASE form used for `SKOTIQ_*` env vars
 /// that RunScript exposes to child processes.

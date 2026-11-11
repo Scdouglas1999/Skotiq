@@ -784,7 +784,6 @@ impl DeviceManager {
             device.heartbeat_deferred_at = Some(chrono::Utc::now().timestamp_millis());
         }
     }
-
 }
 
 #[cfg(test)]

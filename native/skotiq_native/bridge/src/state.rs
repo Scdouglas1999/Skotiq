@@ -24,7 +24,6 @@ pub struct AppState {
     /// Connected devices by type and ID
     devices: RwLock<HashMap<(DeviceType, String), DeviceConnection>>,
 
-
     /// Equipment profile
     profile: RwLock<Option<EquipmentProfile>>,
 
@@ -507,7 +506,6 @@ impl AppState {
             _ => None,
         })
     }
-
 }
 
 /// Summary of a device's current state

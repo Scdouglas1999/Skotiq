@@ -8,7 +8,6 @@ fn reset_for_new_run_drops_the_previous_runs_target() {
     state.set_meridian_target("B".to_string());
     state.current_altitude = Some(10.5);
     state.current_hour_angle = Some(11.18);
-    state.next_meridian_flip_time = Some(1);
     state.tracking.set_limit_detected_at(Some(1));
     state.update_plate_solve(270.1, 60.1, 1.2);
 
@@ -19,7 +18,6 @@ fn reset_for_new_run_drops_the_previous_runs_target() {
     assert_eq!(state.current_target_name, None);
     assert_eq!(state.current_altitude, None);
     assert_eq!(state.current_hour_angle, None);
-    assert_eq!(state.next_meridian_flip_time, None);
     assert_eq!(state.tracking.limit_detected_at(), None);
     assert_eq!(state.last_plate_solve_ra, None);
     assert_eq!(state.last_plate_solve_dec, None);

@@ -2,12 +2,10 @@
 //!
 //! A *wizard* is a multi-step automation routine following the pattern "for
 //! each step in a plan: do work, emit progress, check cancellation, optionally
-//! record resumable state, repeat." The four production wizards today are:
+//! record resumable state, repeat." The three production wizards today are:
 //!
 //! * `FlatWizard` — iterates exposure trials in a binary search to converge
 //!   on a target ADU.
-//! * `Mosaic` — validates / computes a panel grid (today: a single
-//!   compute step; future: per-panel slew + center + expose).
 //! * `PolarAlignment` — measures three sky positions, then enters an
 //!   adjustment refinement loop.
 //! * `AllSkyPolar` — captures a baseline frame, then loops on drift-pair
@@ -17,7 +15,7 @@
 //!
 //! * The [`Wizard`] trait — wizards plug in by listing their steps and
 //!   describing how to execute one step. Wizards may run a fixed plan
-//!   (mosaic, polar alignment) or extend the plan dynamically based on
+//!   (polar alignment) or extend the plan dynamically based on
 //!   step results (flat wizard's binary search, all-sky polar's
 //!   adjustment loop).
 //! * The [`WizardExecutor`] — drives a `Wizard` through its plan,
@@ -50,8 +48,7 @@
 //! A future plugin that wants to author a new wizard implements [`Wizard`]
 //! for its config type and delegates to a [`WizardExecutor`]. It then gets
 //! progress, cancellation, and resume support "for free" without having
-//! to reimplement those concerns. See `wizard_test_support` in this
-//! module for an example.
+//! to reimplement those concerns.
 
 use crate::checkpoint::WizardCheckpoint;
 use crate::instructions::InstructionContext;
@@ -193,36 +190,6 @@ impl<'a> WizardProgressReporter for BorrowedProgressReporter<'a> {
         if let Some(cb) = self.callback {
             cb(fraction * 100.0, message);
         }
-    }
-}
-
-/// Adapter that wraps a closure-style progress callback (the legacy
-/// `Fn(f64, String)` shape used throughout `instructions.rs`).
-pub struct ClosureProgressReporter<F>
-where
-    F: Fn(f64, String) + Send + Sync,
-{
-    callback: F,
-}
-
-impl<F> ClosureProgressReporter<F>
-where
-    F: Fn(f64, String) + Send + Sync,
-{
-    pub fn new(callback: F) -> Self {
-        Self { callback }
-    }
-}
-
-impl<F> WizardProgressReporter for ClosureProgressReporter<F>
-where
-    F: Fn(f64, String) + Send + Sync,
-{
-    fn report(&self, fraction: f64, message: String) {
-        // Why: callers pass `fraction` as 0.0..=1.0 but legacy callbacks
-        // expect 0..=100 percentage. Scale here so wizard implementations
-        // can think in fractions while callers stay drop-in compatible.
-        (self.callback)(fraction * 100.0, message);
     }
 }
 

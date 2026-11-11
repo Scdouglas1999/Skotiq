@@ -84,7 +84,6 @@ impl PollerConfig {
         self.auto_reset_after = Some(after_ticks);
         self
     }
-
 }
 
 // Preset configurations
@@ -215,7 +214,6 @@ impl PollerMetrics {
             .checked_div(self.total_ticks)
             .map_or(Duration::ZERO, Duration::from_millis)
     }
-
 }
 
 // Adaptive poller (non-thread-safe version)

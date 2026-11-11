@@ -669,7 +669,6 @@ impl ParsedDeviceId {
             _ => None,
         }
     }
-
 }
 
 // Helper functions

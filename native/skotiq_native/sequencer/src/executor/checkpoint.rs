@@ -211,7 +211,6 @@ impl SequenceExecutor {
         if let Ok(Some(existing)) = manager.load() {
             checkpoint.budget_states = existing.budget_states;
             checkpoint.smart_exposure_states = existing.smart_exposure_states;
-            checkpoint.scheduler_states = existing.scheduler_states;
             checkpoint.wizard_states = existing.wizard_states;
         }
 

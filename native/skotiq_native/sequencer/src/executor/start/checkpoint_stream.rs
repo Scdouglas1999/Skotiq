@@ -144,16 +144,10 @@ pub(super) async fn run_checkpoint_stream(args: CheckpointStreamArgs) {
             guard.clone()
         };
 
-        // The wizard and scheduler slots live in no registry
-        // this task holds — their owners write them straight
-        // through the shared CheckpointManager (see
-        // `SessionWizardCheckpointSink`). Building a fresh
-        // SessionCheckpoint here would wipe a mosaic panel's
-        // resume slot every 30 seconds, so carry both maps
-        // forward from disk exactly as the public writer does.
+        // The wizard slots live in no registry this task holds;
+        // carry them forward from disk as the public writer does.
         if let Ok(Some(existing)) = checkpoint_mgr.load() {
             checkpoint.wizard_states = existing.wizard_states;
-            checkpoint.scheduler_states = existing.scheduler_states;
         }
 
         match checkpoint_mgr.save(&checkpoint) {

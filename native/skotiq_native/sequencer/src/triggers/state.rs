@@ -183,8 +183,6 @@ pub struct TriggerState {
     pub meridian: super::MeridianFlipState,
     /// Target name for the current meridian flip tracking
     pub current_target_name: Option<String>,
-    /// Legacy field - Unix timestamp for flip (deprecated, use current_hour_angle instead)
-    pub next_meridian_flip_time: Option<i64>,
     /// Threshold (minutes past meridian) of the active MinutesPastMeridian
     /// flip trigger, propagated by [`TriggerManager::sync_state_from_config`]
     /// on every evaluation tick. The exposure instruction's pre-frame
@@ -408,9 +406,6 @@ pub struct TriggerState {
     /// Live transparency reading (0.0..=1.0; 1.0 = clear). Consumed by
     /// `TransparencyDropped`.
     pub current_transparency: Option<f64>,
-    /// Most recent timestamp at which we received a transparency update.
-    /// Surfaced to the run dashboard for staleness checks.
-    pub transparency_last_update: Option<Instant>,
 
     /// Set by [`crate::checkpoint::TriggerStateSnapshot::restore_into`] and
     /// consumed by [`Self::reset_for_new_run`]. A resumed run re-enters its
@@ -457,7 +452,6 @@ impl Default for TriggerState {
             mount_tracking_limit_time: None,
             meridian: super::MeridianFlipState::default(),
             current_target_name: None,
-            next_meridian_flip_time: None,
             meridian_flip_minutes_past: None,
             meridian_pause_before_minutes: None,
             run: super::RunState::default(),
@@ -523,7 +517,6 @@ impl Default for TriggerState {
             // Science — transparency telemetry. Both None until the
             // Dart science pipeline pushes the first `UpdateTransparency`.
             current_transparency: None,
-            transparency_last_update: None,
             restored_from_checkpoint: false,
             autofocus_hold: None,
             autofocus_wanted_while_held: false,
@@ -783,7 +776,6 @@ impl TriggerState {
         self.guide_star_reference = None;
         self.current_altitude = None;
         self.current_hour_angle = None;
-        self.next_meridian_flip_time = None;
         self.tracking.forget_limit_detection();
         self.last_plate_solve_ra = None;
         self.last_plate_solve_dec = None;
@@ -817,14 +809,6 @@ impl TriggerState {
     /// Interval trigger must not dither on its own count.
     pub fn node_owns_dither_cadence(&self) -> bool {
         self.dither_cadence_owners > 0
-    }
-
-    /// Reset exposure counters (for new sequence)
-    pub fn reset_exposure_counters(&mut self) {
-        self.completed_exposures = 0;
-        self.last_autofocus_frame = 0;
-        self.autofocus_hfr_seq = None;
-        self.last_dither_frame = 0;
     }
 
     /// Update plate solve result for drift detection
@@ -1054,7 +1038,6 @@ impl TriggerState {
             }
         });
         self.current_transparency = sanitised;
-        self.transparency_last_update = Some(Instant::now());
     }
 
     /// Set mount tracking expected state
@@ -1070,11 +1053,6 @@ impl TriggerState {
     /// Set dome shutter open expected state
     pub fn set_dome_shutter_expected(&mut self, expected: bool) {
         self.dome_shutter_open_expected = expected;
-    }
-
-    /// Reset mount tracking lost state
-    pub fn reset_mount_tracking_state(&mut self) {
-        self.tracking.clear_lost();
     }
 
     /// Get the next grid dither offset (in pixels) for an NxN grid pattern.
@@ -1108,11 +1086,6 @@ impl TriggerState {
         self.grid_dither_index = (idx + 1) % total_positions;
 
         (ra_offset, dec_offset)
-    }
-
-    /// Reset grid dither position (call when sequence starts or target changes)
-    pub fn reset_grid_dither(&mut self) {
-        self.grid_dither_index = 0;
     }
 
     // Meridian Flip State Management
@@ -1232,13 +1205,6 @@ impl TriggerState {
         }
     }
 
-    /// explicit reset of the flip-performed bookkeeping. Called
-    /// at natural target-boundaries (sequence reset, target group entry)
-    /// where a double-flip on the new target is impossible by construction.
-    pub fn clear_flipped_state(&mut self) {
-        self.meridian.clear_flipped();
-    }
-
     /// Update mount tracking limit time (if mount reports it)
     pub fn update_tracking_limit_time(&mut self, limit_time: i64) {
         self.mount_tracking_limit_time = Some(limit_time);
@@ -1269,33 +1235,8 @@ impl TriggerState {
         );
     }
 
-    /// Clear meridian flip state (call when target changes or sequence resets)
-    pub fn clear_meridian_state(&mut self) {
-        self.current_hour_angle = None;
-        self.pier_side = None;
-        self.mount_tracking_limit_time = None;
-        self.meridian.clear();
-        self.current_target_name = None;
-        self.next_meridian_flip_time = None;
-        self.tracking.forget_limit_detection();
-    }
-
     /// Reset tracking limit detection state (call when tracking resumes or flip completes)
     pub fn reset_tracking_limit_detection(&mut self) {
         self.tracking.clear_limit_detection();
-    }
-
-    /// Check if a meridian flip might be needed based on current state
-    /// Returns (needs_flip, minutes_past_meridian) for diagnostic purposes
-    pub fn meridian_flip_status(&self) -> (bool, Option<f64>) {
-        if self.meridian.has_flipped() {
-            return (false, None);
-        }
-
-        if let Some(ha) = self.current_hour_angle {
-            (super::on_pre_flip_side(ha, self.pier_side), Some(ha * 60.0))
-        } else {
-            (false, None)
-        }
     }
 }

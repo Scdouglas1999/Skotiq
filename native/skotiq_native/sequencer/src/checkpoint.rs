@@ -43,32 +43,6 @@ pub struct WizardCheckpoint {
     pub timestamp: DateTime<Utc>,
 }
 
-/// Per-scheduler resume state.
-///
-/// Stored inside [`SessionCheckpoint::scheduler_states`] keyed by the
-/// scheduler node's id (sequences may contain more than one TargetScheduler).
-/// `current_target_id` is the last-picked target's child node id;
-/// `exposures_in_current_target` lets the in-target recompute cadence resume
-/// where it left off. Old checkpoints lacking this field deserialize to an
-/// empty map and resume with a fresh decision — backwards-compatible.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SchedulerCheckpoint {
-    /// Scheduler node id (matches `NodeDefinition::id` of the
-    /// `TargetScheduler` variant). Stored for cross-validation on resume.
-    pub scheduler_node_id: String,
-    /// Last picked target's child node id, or `None` if the last decision
-    /// produced no runnable target.
-    pub current_target_id: Option<String>,
-    /// Exposures completed inside the current target subtree since the last
-    /// decision; surfaces the `recompute_every_n_exposures` cadence on resume.
-    pub exposures_in_current_target: u32,
-    /// 1-based decision counter. Resumes from `decision_counter + 1` so the
-    /// Run Dashboard's row indices stay monotonic across resume.
-    pub decision_counter: u32,
-    /// When the checkpoint was written.
-    pub timestamp: DateTime<Utc>,
-}
-
 /// Serializable copy of trigger state needed to resume without repeating actions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TriggerStateSnapshot {
@@ -81,7 +55,6 @@ pub struct TriggerStateSnapshot {
     pub mount_tracking_limit_time: Option<i64>,
     pub has_flipped_this_target: bool,
     pub current_target_name: Option<String>,
-    pub next_meridian_flip_time: Option<i64>,
     pub guiding_enabled: bool,
     pub guide_star_lost: bool,
     pub current_humidity: Option<f64>,
@@ -141,7 +114,6 @@ impl TriggerStateSnapshot {
             mount_tracking_limit_time: state.mount_tracking_limit_time,
             has_flipped_this_target: state.meridian.has_flipped(),
             current_target_name: state.current_target_name.clone(),
-            next_meridian_flip_time: state.next_meridian_flip_time,
             guiding_enabled: state.guiding.is_enabled(),
             guide_star_lost: state.guiding.star_lost(),
             current_humidity: state.current_humidity,
@@ -192,7 +164,6 @@ impl TriggerStateSnapshot {
         state.mount_tracking_limit_time = self.mount_tracking_limit_time;
         state.meridian.restore_flipped(self.has_flipped_this_target);
         state.current_target_name = self.current_target_name.clone();
-        state.next_meridian_flip_time = self.next_meridian_flip_time;
         state
             .guiding
             .restore(self.guiding_enabled, self.guide_star_lost);
@@ -275,12 +246,6 @@ pub struct SessionCheckpoint {
     /// from disk — `#[serde(default)]` produces an empty map).
     #[serde(default)]
     pub wizard_states: HashMap<String, WizardCheckpoint>,
-    /// per-`TargetScheduler` resume state keyed by the
-    /// scheduler node's id. `#[serde(default)]` keeps v1/v2/v3 checkpoints
-    /// loading: old data sees an empty map and resumes with a fresh
-    /// decision, which is the documented backwards-compat behaviour.
-    #[serde(default)]
-    pub scheduler_states: HashMap<String, SchedulerCheckpoint>,
     /// per-target integration budget accounting snapshot.
     /// `#[serde(default)]` keeps older checkpoints loading: missing
     /// field deserializes to an empty snapshot, which the registry
@@ -289,7 +254,7 @@ pub struct SessionCheckpoint {
     #[serde(default)]
     pub budget_states: BudgetRegistrySnapshot,
     /// per-`SmartExposure` resume state keyed by the
-    /// SmartExposure node's id. Mirrors the `scheduler_states` pattern.
+    /// SmartExposure node's id. Keyed like `wizard_states`.
     /// `#[serde(default)]` keeps every older checkpoint loading: missing
     /// field deserializes to an empty map and the next run starts each
     /// SmartExposure from a fresh state (plan index 0, no per-filter
@@ -369,10 +334,6 @@ impl SessionCheckpoint {
             trigger_state: None,
             wizard_states: HashMap::new(),
             // empty by default; populated only when a
-            // TargetScheduler node writes a decision through
-            // `set_scheduler_state`.
-            scheduler_states: HashMap::new(),
-            // empty by default; populated only when a
             // TargetHeader's budget registry has produced state.
             budget_states: BudgetRegistrySnapshot::default(),
             // empty by default; populated only when a
@@ -404,27 +365,6 @@ impl SessionCheckpoint {
         self.timestamp = Utc::now();
     }
 
-    /// insert or replace a scheduler checkpoint slot.
-    /// Keyed by `state.scheduler_node_id` so a sequence may contain multiple
-    /// TargetScheduler nodes without collisions.
-    pub fn set_scheduler_state(&mut self, state: SchedulerCheckpoint) {
-        self.scheduler_states
-            .insert(state.scheduler_node_id.clone(), state);
-        self.timestamp = Utc::now();
-    }
-
-    /// look up a scheduler checkpoint slot by node id.
-    pub fn scheduler_state(&self, scheduler_node_id: &str) -> Option<&SchedulerCheckpoint> {
-        self.scheduler_states.get(scheduler_node_id)
-    }
-
-    /// clear a scheduler checkpoint slot (call when the
-    /// scheduler exhausts its child list so the next run starts fresh).
-    pub fn clear_scheduler_state(&mut self, scheduler_node_id: &str) {
-        self.scheduler_states.remove(scheduler_node_id);
-        self.timestamp = Utc::now();
-    }
-
     /// insert or replace a SmartExposure checkpoint slot.
     /// Keyed by the SmartExposure node id so a sequence with multiple
     /// SmartExposure nodes resumes each one to its own per-filter counts.
@@ -444,23 +384,6 @@ impl SessionCheckpoint {
     pub fn clear_smart_exposure_state(&mut self, node_id: &str) {
         self.smart_exposure_states.remove(node_id);
         self.timestamp = Utc::now();
-    }
-
-    /// Update the checkpoint with current progress
-    pub fn update_progress(
-        &mut self,
-        node_statuses: HashMap<NodeId, NodeStatus>,
-        current_node: Option<NodeId>,
-        last_completed: Option<NodeId>,
-        completed_exposures: u32,
-        completed_integration_secs: f64,
-    ) {
-        self.timestamp = Utc::now();
-        self.node_statuses = node_statuses;
-        self.current_node = current_node;
-        self.last_completed_node = last_completed;
-        self.completed_exposures = completed_exposures;
-        self.completed_integration_secs = completed_integration_secs;
     }
 
     /// Set device IDs
@@ -488,12 +411,6 @@ impl SessionCheckpoint {
     /// Set save path
     pub fn set_save_path(&mut self, path: Option<PathBuf>) {
         self.save_path = path;
-    }
-
-    /// Mark checkpoint as active session
-    pub fn set_active(&mut self, active: bool) {
-        self.is_active = active;
-        self.timestamp = Utc::now();
     }
 
     /// Store trigger state in the checkpoint.
@@ -906,7 +823,7 @@ impl CheckpointManager {
 
     /// save a single SmartExposure checkpoint slot into
     /// the session checkpoint on disk, leaving every other field
-    /// untouched. Mirrors `save_wizard_state` / `save_scheduler_state` so
+    /// untouched. Mirrors `save_wizard_state` so
     /// crashed runs resume mid-rotation on the right filter at the right
     /// frame index.
     ///
@@ -960,31 +877,6 @@ impl CheckpointManager {
                 e
             );
         }
-    }
-}
-
-/// Adapts a `CheckpointManager` to the wizard module's `WizardCheckpointSink`.
-/// Wizards running inside an active session use this to persist
-/// step-level resume state alongside the session-level checkpoint.
-pub struct SessionWizardCheckpointSink<'a> {
-    pub manager: &'a CheckpointManager,
-}
-
-impl<'a> SessionWizardCheckpointSink<'a> {
-    pub fn new(manager: &'a CheckpointManager) -> Self {
-        Self { manager }
-    }
-}
-
-impl<'a> crate::wizard::WizardCheckpointSink for SessionWizardCheckpointSink<'a> {
-    fn save(&self, checkpoint: &WizardCheckpoint) {
-        self.manager.save_wizard_state(checkpoint);
-    }
-    fn load(&self, checkpoint_key: &str) -> Option<WizardCheckpoint> {
-        self.manager.load_wizard_state(checkpoint_key)
-    }
-    fn clear(&self, checkpoint_key: &str) {
-        self.manager.clear_wizard_state(checkpoint_key);
     }
 }
 
@@ -1401,97 +1293,21 @@ mod tests {
         assert_eq!(slot.completed_steps, 7);
         assert_eq!(loaded.version, CHECKPOINT_VERSION);
 
-        // Sink adapter should also see the slot.
-        let sink = SessionWizardCheckpointSink::new(&manager);
-        let via_sink = crate::wizard::WizardCheckpointSink::load(&sink, "flat_wizard")
-            .expect("sink load slot");
-        assert_eq!(via_sink.completed_steps, 7);
+        assert_eq!(
+            manager
+                .load_wizard_state("flat_wizard")
+                .expect("manager load slot")
+                .completed_steps,
+            7
+        );
 
-        // Clear via sink and confirm it's gone.
-        crate::wizard::WizardCheckpointSink::clear(&sink, "flat_wizard");
+        manager.clear_wizard_state("flat_wizard");
         let after_clear = manager
             .load()
             .expect("load after clear")
             .expect("checkpoint still present");
         assert!(after_clear.wizard_state("flat_wizard").is_none());
 
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn scheduler_state_round_trips_through_session_checkpoint_serde() {
-        // scheduler_states map must round-trip + be keyed by
-        // scheduler node id (a sequence may contain multiple schedulers).
-        let mut checkpoint = SessionCheckpoint::new(SequenceDefinition::new("sch".to_string()));
-        checkpoint.set_scheduler_state(SchedulerCheckpoint {
-            scheduler_node_id: "sched_a".to_string(),
-            current_target_id: Some("m42".to_string()),
-            exposures_in_current_target: 3,
-            decision_counter: 1,
-            timestamp: Utc::now(),
-        });
-        checkpoint.set_scheduler_state(SchedulerCheckpoint {
-            scheduler_node_id: "sched_b".to_string(),
-            current_target_id: None,
-            exposures_in_current_target: 0,
-            decision_counter: 7,
-            timestamp: Utc::now(),
-        });
-        let json = serde_json::to_string(&checkpoint).expect("serialize");
-        let loaded: SessionCheckpoint = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(loaded.scheduler_states.len(), 2);
-        assert_eq!(
-            loaded
-                .scheduler_state("sched_a")
-                .unwrap()
-                .current_target_id
-                .as_deref(),
-            Some("m42")
-        );
-        assert_eq!(
-            loaded.scheduler_state("sched_b").unwrap().decision_counter,
-            7
-        );
-    }
-
-    #[test]
-    fn legacy_v3_checkpoint_without_scheduler_states_loads_with_empty_map() {
-        // backwards-compat — checkpoints written before the
-        // scheduler_states field existed must still load (serde(default)).
-        let dir = test_dir("legacy_v3_no_scheduler");
-        let manager = CheckpointManager::new(&dir);
-
-        let pre_scheduler_json = serde_json::json!({
-            "version": 3,
-            "timestamp": Utc::now(),
-            "sequence": SequenceDefinition::new("v3pre".to_string()),
-            "node_statuses": {},
-            "last_completed_node": null,
-            "current_node": null,
-            "executor_state": "Running",
-            "camera_id": null,
-            "mount_id": null,
-            "focuser_id": null,
-            "filterwheel_id": null,
-            "rotator_id": null,
-            "save_path": null,
-            "latitude": null,
-            "longitude": null,
-            "completed_exposures": 0,
-            "completed_integration_secs": 0.0,
-            "is_active": true,
-            "trigger_state": null,
-            "wizard_states": {},
-        });
-        let primary = manager.checkpoint_path();
-        fs::create_dir_all(&dir).unwrap();
-        fs::write(&primary, pre_scheduler_json.to_string()).unwrap();
-
-        let loaded = manager
-            .load()
-            .expect("legacy v3 must load")
-            .expect("checkpoint exists");
-        assert!(loaded.scheduler_states.is_empty());
         let _ = fs::remove_dir_all(&dir);
     }
 

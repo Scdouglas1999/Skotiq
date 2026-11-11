@@ -32,12 +32,10 @@
 //!
 //! ## Checkpointing
 //!
-//! On every decision the scheduler writes a `SchedulerCheckpoint`
-//! (`current_target_id`, `exposures_in_current_target`, `decision_counter`)
-//! into the surrounding `SessionCheckpoint` via the trigger-state observer
-//! pattern. Old checkpoints lacking the field deserialize to `None` and
-//! resume with a fresh decision — backwards-compatible by construction
-//! (`#[serde(default)]` on the new field; see `checkpoint.rs`).
+//! On every decision the scheduler mirrors the picked target into the
+//! trigger state's already-checkpointed `current_target_name` slot (see
+//! `write_checkpoint`). There is no dedicated scheduler slot in
+//! `SessionCheckpoint`.
 
 use crate::node::context::ExecutionContext;
 use crate::node::progress::{ProgressDetail, ProgressUpdate};
@@ -565,11 +563,8 @@ pub struct SchedulerScoreSummary {
 /// Write a scheduler checkpoint via the existing trigger-state mechanism.
 ///
 /// We piggy-back on the TriggerState's already-checkpointed
-/// `current_target_name` slot so old checkpoint readers see the picked target
-/// when they resume. The dedicated `SchedulerCheckpoint` field on
-/// `SessionCheckpoint` is populated by the executor's regular checkpoint
-/// pass; here we just keep the trigger-state's mirror up to date so the
-/// resume path can read the last-picked target without re-running scoring.
+/// `current_target_name` slot so the resume path can read the last-picked
+/// target without re-running scoring.
 async fn write_checkpoint(
     context: &ExecutionContext,
     picked_target_id: Option<String>,

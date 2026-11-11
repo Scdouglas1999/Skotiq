@@ -25,7 +25,6 @@ mod executor;
 // paths. See `expressions/mod.rs` for syntax + variable catalog.
 pub mod expressions;
 pub mod flat_wizard;
-pub mod focus_prediction;
 // Measuring a focuser's mechanical backlash instead of asking the operator
 // for a figure the app has never been able to work out for itself.
 pub mod focuser_calibration;
@@ -35,7 +34,6 @@ pub mod instructions;
 pub mod meridian;
 pub mod meridian_events;
 pub mod meridian_flip_executor;
-pub mod mosaic;
 mod node;
 mod polar_align;
 // Image Grading: per-frame Pass/Reject grading + reject-folder routing.
@@ -92,7 +90,6 @@ pub use guiding_stop::GuidingStopReason;
 pub use instructions::*;
 pub use meridian_events::*;
 pub use meridian_flip_executor::*;
-pub use mosaic::*;
 pub use node::*;
 pub use polar_align::*;
 // hoist the recovery types so the bridge can use them without
@@ -102,12 +99,6 @@ pub use recovery::{
     RecoveryPhase, RecoveryRuntimeConfig, RecoverySignals,
 };
 pub use triggers::*;
-
-// Re-export focus prediction types
-pub use focus_prediction::{
-    DriftStatus, FilterOffset, FocusModel, FocusPredictionEngine, FocusTrainingSample,
-    PersistedFocusModel, PredictionResult, PredictiveAfConfig, PredictiveAfDecision,
-};
 
 // Re-export autofocus types (with alias to avoid conflict)
 pub use autofocus::{
@@ -247,7 +238,6 @@ pub enum NodeType {
     OpenDome(DomeConfig),
     CloseDome(DomeConfig),
     ParkDome(DomeConfig),
-    Mosaic(MosaicConfig),
     FlatWizard(FlatWizardConfig),
     // Cover Calibrator / Flat Panel instructions
     OpenCover(CoverCalibratorConfig),
@@ -960,10 +950,9 @@ impl Default for FilterPlan {
 }
 
 /// Per-filter progress record persisted in
-/// [`crate::checkpoint::SessionCheckpoint::wizard_states`] under the key
-/// [`smart_exposure_checkpoint_key`]. Old sequences without this entry
-/// resume from a fresh state (all counts zero, plan index 0) — the
-/// `#[serde(default)]` on `wizard_states` already guarantees this.
+/// [`crate::checkpoint::SessionCheckpoint::smart_exposure_states`], keyed
+/// by node id. Checkpoints without an entry resume from a fresh state
+/// (all counts zero, plan index 0).
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SmartExposureCheckpoint {
     /// completed_count keyed by filter name. We key by name (not index)
@@ -988,15 +977,6 @@ pub struct SmartExposureCheckpoint {
     /// Absent in pre-feature checkpoints.
     #[serde(default)]
     pub depth_completed: HashMap<String, u64>,
-}
-
-/// Stable checkpoint key for SmartExposure resume state. Re-uses the
-/// `wizard_states` slot on `SessionCheckpoint` so a single map covers
-/// every kind of step-level resume state — but the key namespace is
-/// distinct (`smart_exposure:<node_id>`) so two SmartExposure nodes in the
-/// same sequence don't clobber each other's state.
-pub fn smart_exposure_checkpoint_key(node_id: &NodeId) -> String {
-    format!("smart_exposure:{}", node_id)
 }
 
 // TargetScheduler ----------------------------------------------
@@ -1597,40 +1577,6 @@ pub type TargetGroupConfig = TargetHeaderConfig;
 // Priority 2: Advanced Features Configuration
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MosaicConfig {
-    pub center_ra: f64,
-    pub center_dec: f64,
-    pub panel_width_arcmin: f64,
-    pub panel_height_arcmin: f64,
-    pub overlap_percent: f64,
-    pub rotation: f64,
-    pub panels_horizontal: u32,
-    pub panels_vertical: u32,
-    #[serde(default = "default_mosaic_panel_overhead_secs")]
-    pub panel_overhead_secs: f64,
-}
-
-impl Default for MosaicConfig {
-    fn default() -> Self {
-        Self {
-            center_ra: 0.0,
-            center_dec: 0.0,
-            panel_width_arcmin: 60.0,
-            panel_height_arcmin: 40.0,
-            overlap_percent: 10.0,
-            rotation: 0.0,
-            panels_horizontal: 3,
-            panels_vertical: 3,
-            panel_overhead_secs: default_mosaic_panel_overhead_secs(),
-        }
-    }
-}
-
-fn default_mosaic_panel_overhead_secs() -> f64 {
-    60.0
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlatWizardConfig {
     /// Target ADU value for flats
     pub target_adu: u16,
@@ -2044,12 +1990,6 @@ pub struct AutofocusConfig {
     /// case this exists for.
     #[serde(default)]
     pub measured_backlash_in: Option<i32>,
-    /// Whether the autofocus engine may use temperature prediction.
-    #[serde(default = "default_af_use_temperature_prediction")]
-    pub use_temperature_prediction: bool,
-    /// Reject autofocus points when star count changes beyond this fraction.
-    #[serde(default = "default_af_max_star_count_change")]
-    pub max_star_count_change: Option<f64>,
     /// Sigma threshold for autofocus outlier rejection. Use 0 to disable.
     #[serde(default = "default_af_outlier_rejection_sigma")]
     pub outlier_rejection_sigma: f64,
@@ -2144,14 +2084,6 @@ fn default_af_backlash_compensation() -> i32 {
     0
 }
 
-fn default_af_use_temperature_prediction() -> bool {
-    true
-}
-
-fn default_af_max_star_count_change() -> Option<f64> {
-    Some(0.5)
-}
-
 fn default_af_outlier_rejection_sigma() -> f64 {
     3.0
 }
@@ -2208,8 +2140,6 @@ impl Default for AutofocusConfig {
             binning: Binning::One,
             backlash_compensation: default_af_backlash_compensation(),
             measured_backlash_in: None,
-            use_temperature_prediction: default_af_use_temperature_prediction(),
-            max_star_count_change: default_af_max_star_count_change(),
             outlier_rejection_sigma: default_af_outlier_rejection_sigma(),
             max_duration_secs: default_af_max_duration(),
             min_star_count: default_af_min_star_count(),
@@ -2236,8 +2166,6 @@ impl From<&AutofocusConfig> for crate::autofocus::AutofocusConfig {
             exposure_duration: config.exposure_duration,
             backlash_compensation: config.backlash_compensation,
             backlash_out_compensation: config.backlash_out_compensation,
-            use_temperature_prediction: config.use_temperature_prediction,
-            max_star_count_change: config.max_star_count_change,
             outlier_rejection_sigma: config.outlier_rejection_sigma,
             max_duration_secs: config.max_duration_secs,
         }

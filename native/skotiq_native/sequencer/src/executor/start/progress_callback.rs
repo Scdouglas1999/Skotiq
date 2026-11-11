@@ -9,7 +9,6 @@ pub(super) struct ProgressCallbackArgs {
     pub node_frame_progress: Arc<StdRwLock<HashMap<NodeId, u32>>>,
     pub node_integration_credited: Arc<StdRwLock<HashMap<NodeId, f64>>>,
     pub node_names: Arc<StdRwLock<HashMap<NodeId, String>>>,
-    pub node_pending_exposure_completion: Arc<StdRwLock<HashMap<NodeId, u32>>>,
     pub progress_clone: Arc<StdRwLock<SequenceProgress>>,
     pub start_time: std::time::Instant,
     pub started_nodes: Arc<StdRwLock<std::collections::HashSet<NodeId>>>,
@@ -25,7 +24,6 @@ pub(super) fn build_progress_callback(
         node_frame_progress,
         node_integration_credited,
         node_names,
-        node_pending_exposure_completion,
         progress_clone,
         start_time,
         started_nodes,
@@ -199,7 +197,6 @@ pub(super) fn build_progress_callback(
             let metadata = exposure_node_metadata.get(&update.node_id).cloned();
 
             let mut frame_progress = node_frame_progress.write();
-            let mut pending_completion = node_pending_exposure_completion.write();
             let last = frame_progress.entry(update.node_id.clone()).or_insert(0);
             if current > *last {
                 let previous = *last;
@@ -265,12 +262,8 @@ pub(super) fn build_progress_callback(
                         });
                     }
                 }
-                // No pending marker is recorded any more, so the
-                // duplicate final sighting cannot double-count.
-                pending_completion.remove(&update.node_id);
             }
 
-            drop(pending_completion);
             drop(frame_progress);
 
             if let Some(event) = exposure_started_event {
@@ -288,9 +281,6 @@ pub(super) fn build_progress_callback(
         // counter, which is what the reset is for.
         if node_reached_terminal_status {
             node_frame_progress.write().remove(&update.node_id);
-            node_pending_exposure_completion
-                .write()
-                .remove(&update.node_id);
         }
 
         if let Some(exposure_secs) = update.completed_exposure_secs {
@@ -403,7 +393,6 @@ mod tests {
             node_frame_progress: Arc::new(StdRwLock::new(HashMap::new())),
             node_integration_credited: Arc::new(StdRwLock::new(HashMap::new())),
             node_names: Arc::new(StdRwLock::new(HashMap::new())),
-            node_pending_exposure_completion: Arc::new(StdRwLock::new(HashMap::new())),
             progress_clone: Arc::new(StdRwLock::new(SequenceProgress::default())),
             start_time: std::time::Instant::now(),
             started_nodes: started_nodes.clone(),

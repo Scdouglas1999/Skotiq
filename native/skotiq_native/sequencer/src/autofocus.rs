@@ -226,9 +226,7 @@ pub struct AutofocusConfig {
     pub exposure_duration: f64,
     pub backlash_compensation: i32,
     pub backlash_out_compensation: i32,
-    pub use_temperature_prediction: bool,
-    pub max_star_count_change: Option<f64>, // Reject points with >X% star count change
-    pub outlier_rejection_sigma: f64,       // Sigma for outlier rejection (0 = disabled)
+    pub outlier_rejection_sigma: f64, // Sigma for outlier rejection (0 = disabled)
     /// Maximum duration in seconds before the autofocus run is aborted.
     /// Default 600s (10 minutes).
     pub max_duration_secs: f64,
@@ -243,8 +241,6 @@ impl Default for AutofocusConfig {
             exposure_duration: 3.0,
             backlash_compensation: 0,
             backlash_out_compensation: 0,
-            use_temperature_prediction: true,
-            max_star_count_change: Some(0.5), // 50% change threshold
             outlier_rejection_sigma: 3.0,
             max_duration_secs: 600.0,
         }
