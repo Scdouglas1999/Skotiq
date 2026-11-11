@@ -225,29 +225,29 @@ class _AppShellState extends ConsumerState<AppShell> {
     return _checkpointCheck ??= _performCheckpointCheck().whenComplete(() {
       _startupQueue.pass(StartupSurface.checkpointRecovery);
     }).then((outcome) async {
-      if (outcome == AppStartupCheckpointOutcome.noRecovery) {
-        await _restoreEditorDraft();
-      }
+      // After the checkpoint prompt: a run it restored has loaded its own
+      // plan, and the open plan only fills an empty editor.
+      await _restoreOpenPlan();
       return outcome;
     });
   }
 
-  /// Put back the plan the Builder held, unsaved, when Skotiq last stopped
-  /// (a crash or a killed process), and say so.
-  Future<void> _restoreEditorDraft() async {
+  /// Put back the plan that was open in the editor when Skotiq last stopped,
+  /// and say so when it carries edits that were never saved.
+  Future<void> _restoreOpenPlan() async {
     if (!mounted) return;
     // The container outlives this shell; the restore can finish after it.
     final container = ProviderScope.containerOf(context, listen: false);
     try {
-      final restored = await restoreEditorDraft(container.read);
-      if (restored == null || !mounted) return;
+      final restored = await restoreOpenPlan(container.read);
+      if (restored == null || !restored.unsaved || !mounted) return;
       context.showInfoSnackBar(
-        'Restored "${restored.name}", the plan you were editing when Skotiq '
-        'last closed. It is not saved yet.',
+        'Restored "${restored.sequence.name}", the plan you were editing '
+        'when Skotiq last closed. It is not saved yet.',
       );
     } catch (e) {
       container.read(loggingServiceProvider).warning(
-            'Could not restore the unsaved plan: $e',
+            'Could not restore the open plan: $e',
             source: 'AppShell',
           );
     }

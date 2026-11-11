@@ -86,6 +86,7 @@ void main() {
 
       expect(daemon.difference(gui), {
         'sequencer checkpoints',
+        'open plan',
         'always-on services',
         'disk-space watchdog',
       });

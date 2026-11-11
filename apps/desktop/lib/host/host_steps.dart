@@ -93,6 +93,25 @@ final List<HostStartupStep> hostStartupSteps = [
   ),
 
   HostStartupStep(
+    name: 'open plan',
+    phase: _core,
+    only: _daemon,
+    because:
+        "the GUI's shell puts the plan back after its checkpoint prompt, "
+        'which may load the interrupted run instead; a daemon raises no prompt',
+    needs: ['database', 'sequencer checkpoints'],
+    run: (host) async {
+      final restored = await restoreOpenPlan(host.container.read);
+      if (restored != null) {
+        host.logger.info(
+          'Reopened the plan that was open at the last stop',
+          source: host.logSource,
+          fields: {'plan': restored.sequence.name, 'unsaved': restored.unsaved},
+        );
+      }
+    },
+  ),
+  HostStartupStep(
     name: 'automatic backups',
     phase: _services,
     needs: ['database'],
