@@ -30,7 +30,7 @@ if [[ "$PLATFORM" == "Linux" ]]; then
         echo "Detected ARM64 architecture (Raspberry Pi)"
         # Install cross-compilation target if needed
         rustup target add aarch64-unknown-linux-gnu 2>/dev/null || true
-        cargo build --release --target aarch64-unknown-linux-gnu --manifest-path bridge/Cargo.toml
+        dart "$SCRIPT_DIR/build.dart" bridge --target aarch64-unknown-linux-gnu
         LIB_NAME="libskotiq_bridge.so"
         TARGET_DIR="$PROJECT_ROOT/apps/desktop/build/linux/arm64/release/bundle/lib"
         mkdir -p "$TARGET_DIR"
@@ -40,7 +40,7 @@ if [[ "$PLATFORM" == "Linux" ]]; then
         echo "Detected ARMv7 architecture (Raspberry Pi)"
         # Install cross-compilation target if needed
         rustup target add armv7-unknown-linux-gnueabihf 2>/dev/null || true
-        cargo build --release --target armv7-unknown-linux-gnueabihf --manifest-path bridge/Cargo.toml
+        dart "$SCRIPT_DIR/build.dart" bridge --target armv7-unknown-linux-gnueabihf
         LIB_NAME="libskotiq_bridge.so"
         TARGET_DIR="$PROJECT_ROOT/apps/desktop/build/linux/arm64/release/bundle/lib"
         mkdir -p "$TARGET_DIR"
@@ -48,7 +48,7 @@ if [[ "$PLATFORM" == "Linux" ]]; then
         echo "Copied $LIB_NAME to $TARGET_DIR"
     else
         # x86_64 or other
-        cargo build --release --manifest-path bridge/Cargo.toml
+        dart "$SCRIPT_DIR/build.dart" bridge
         LIB_NAME="libskotiq_bridge.so"
         TARGET_DIR="$PROJECT_ROOT/apps/desktop/build/linux/x64/release/bundle/lib"
         mkdir -p "$TARGET_DIR"
@@ -61,7 +61,7 @@ elif [[ "$PLATFORM" == "Darwin" ]]; then
     
     # Build for Intel Mac
     if [[ "$ARCH" == "x86_64" ]]; then
-        cargo build --release --target x86_64-apple-darwin --manifest-path bridge/Cargo.toml
+        dart "$SCRIPT_DIR/build.dart" bridge --target x86_64-apple-darwin
         LIB_NAME="libskotiq_bridge.dylib"
         TARGET_DIR="$PROJECT_ROOT/apps/desktop/build/macos/Build/Products/Release/skotiq.app/Contents/Frameworks"
         mkdir -p "$TARGET_DIR"
@@ -71,7 +71,7 @@ elif [[ "$PLATFORM" == "Darwin" ]]; then
     
     # Build for Apple Silicon
     if [[ "$ARCH" == "arm64" ]] || [[ "$ARCH" == "aarch64" ]]; then
-        cargo build --release --target aarch64-apple-darwin --manifest-path bridge/Cargo.toml
+        dart "$SCRIPT_DIR/build.dart" bridge --target aarch64-apple-darwin
         LIB_NAME="libskotiq_bridge.dylib"
         TARGET_DIR="$PROJECT_ROOT/apps/desktop/build/macos/Build/Products/Release/skotiq.app/Contents/Frameworks"
         mkdir -p "$TARGET_DIR"
@@ -81,7 +81,7 @@ elif [[ "$PLATFORM" == "Darwin" ]]; then
     
 elif [[ "$PLATFORM" == MINGW* ]] || [[ "$PLATFORM" == MSYS* ]] || [[ "$PLATFORM" == CYGWIN* ]]; then
     echo "Building for Windows..."
-    cargo build --release --manifest-path bridge/Cargo.toml
+    dart "$SCRIPT_DIR/build.dart" bridge
     
     # Copy to Flutter app directory
     LIB_NAME="skotiq_bridge.dll"

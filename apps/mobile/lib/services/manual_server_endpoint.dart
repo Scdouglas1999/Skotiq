@@ -1,5 +1,8 @@
 import 'dart:io';
 
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show kDefaultHeadlessPort;
+
 class ManualServerEndpoint {
   final String host;
   final int port;
@@ -22,7 +25,7 @@ class ManualServerEndpoint {
 /// Remote Access panel presents the server address as a URL.
 ManualServerEndpoint parseManualServerEndpoint(
   String input, {
-  int defaultPort = 8080,
+  int defaultPort = kDefaultHeadlessPort,
 }) {
   final value = input.trim();
   if (value.isEmpty) {

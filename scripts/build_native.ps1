@@ -15,7 +15,7 @@ Write-Host "Native dir: $NativeDir"
 
 # Build for Windows
 Write-Host "Building for Windows..."
-cargo build --release --manifest-path bridge\Cargo.toml
+dart (Join-Path $ScriptDir "build.dart") bridge
 
 # Stage bridge + libraw + MSVC runtime into Flutter Release output
 & (Join-Path $ScriptDir "stage_windows_release.ps1") -Profile Release

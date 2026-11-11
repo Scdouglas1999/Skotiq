@@ -1,5 +1,8 @@
 import 'dart:io';
 
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show kDefaultHeadlessPort;
+
 import '../headless_api/auth_policy.dart';
 import '../headless_api/handlers/pairing_handlers.dart' show PairingMode;
 import 'headless_env.dart';
@@ -40,7 +43,7 @@ class HeadlessAuthConfig {
     this.requireAuth = false,
     this.allowUnauthenticated = false,
     this.bindLocalOnly = true,
-    this.port = 8080,
+    this.port = kDefaultHeadlessPort,
     this.scopedTokens = const {},
     this.fineGrainedTokens = const {},
     this.corsAllowedOrigins = const [],
@@ -63,7 +66,7 @@ HeadlessAuthConfig parseHeadlessAuthConfig(List<String> args) {
   // below (network exposure). Default off => FAIL CLOSED.
   var allowUnauthenticated = envFlag('SKOTIQ_ALLOW_UNAUTHENTICATED');
   var allowUnauthenticatedLan = envFlag('SKOTIQ_ALLOW_UNAUTHENTICATED_LAN');
-  var port = 8080;
+  var port = kDefaultHeadlessPort;
   final scopedTokens = <String, HeadlessTokenScope>{};
   final fineGrainedTokens = <String, HeadlessAuthGrant>{};
   final corsAllowedOrigins = <String>[];
@@ -97,7 +100,9 @@ HeadlessAuthConfig parseHeadlessAuthConfig(List<String> args) {
     }
   }
   if (Platform.environment['SKOTIQ_PORT'] != null) {
-    port = int.tryParse(Platform.environment['SKOTIQ_PORT']!) ?? 8080;
+    port =
+        int.tryParse(Platform.environment['SKOTIQ_PORT']!) ??
+        kDefaultHeadlessPort;
   }
 
   // Why env-first: SKOTIQ_CORS_ORIGINS is the systemd/docker idiom; CLI

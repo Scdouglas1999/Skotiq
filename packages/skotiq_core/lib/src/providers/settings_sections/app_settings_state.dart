@@ -568,7 +568,7 @@ class AppSettingsState {
 
     // Remote Access / Web Server
     this.webServerEnabled = false,
-    this.webServerPort = 8080,
+    this.webServerPort = kDefaultHeadlessPort,
 
     // Equipment Settings - Camera
     this.defaultGain = 100,

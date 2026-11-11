@@ -1,9 +1,7 @@
 # Skotiq - Single Source of Truth for Version Info
-# This file is read by build scripts to update pubspec.yaml, installer.iss, etc.
+# The two app pubspecs and apps/desktop/installer/installer.iss repeat it by
+# hand; tools/production/version_consistency_audit.dart fails CI when they differ.
 
 version: "8.2.1"
 build_number: 36
 channel: "stable"  # stable, beta, alpha
-
-# Minimum version required to apply updates (for breaking changes)
-min_update_version: "2.0.0"

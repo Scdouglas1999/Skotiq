@@ -293,7 +293,7 @@ pub async fn api_phd2_connect(host: Option<String>, port: Option<u16>) -> Result
     // Skotiq PHD2-settings UI placeholder values.
     let host =
         skotiq_imaging::normalize_phd2_tcp_host(&host.unwrap_or_else(|| "127.0.0.1".to_string()));
-    let port = port.unwrap_or(4400);
+    let port = port.unwrap_or(skotiq_imaging::PHD2_DEFAULT_PORT);
 
     tracing::info!("Connecting to PHD2 at {}:{}", host, port);
 

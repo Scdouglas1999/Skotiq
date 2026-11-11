@@ -131,10 +131,9 @@ Write-Step "Building Rust native library..."
 
 Set-Location $NativeDir
 
-$cargoArgs = @("build", "--package", "skotiq_bridge", "--release")
 $BuildProfile = "release"
 
-cargo @cargoArgs
+dart (Join-Path $PSScriptRoot "build.dart") bridge
 
 if ($LASTEXITCODE -ne 0) {
     Write-Err "Cargo build failed"
@@ -223,12 +222,11 @@ if ($FujiSourcePath) {
 }
 
 # Copy 64-bit libraw.dll (required dependency)
-# Use the known 64-bit source from windows/runner/Release
-$LibRawDll = Join-Path $ProjectRoot "apps/desktop/windows/runner/Release/libraw.dll"
+$LibRawDll = Join-Path $ProjectRoot "lib/libraw/libraw.dll"
 if (-not (Test-Path $LibRawDll)) {
     # Fallback sources
     $fallbacks = @(
-        (Join-Path $ProjectRoot "lib/libraw/libraw.dll"),
+        (Join-Path $ProjectRoot "apps/desktop/windows/runner/Release/libraw.dll"),
         (Join-Path $ProjectRoot "apps/desktop/windows/runner/Debug/libraw.dll"),
         (Join-Path $ProjectRoot "libraw.dll")
     )
@@ -248,7 +246,7 @@ if (Test-Path $LibRawDll) {
     $machine = [BitConverter]::ToUInt16($bytes, $peOffset + 4)
     if ($machine -ne 0x8664) {
         Write-Error "libraw.dll is NOT 64-bit! Found machine type: $machine (expected 0x8664 for AMD64)"
-        Write-Error "Please ensure you have a 64-bit libraw.dll in apps/desktop/windows/runner/Release/"
+        Write-Error "Please ensure you have a 64-bit libraw.dll in lib/libraw/"
         exit 1
     }
 

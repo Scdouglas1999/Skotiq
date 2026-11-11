@@ -74,13 +74,13 @@ if [[ $SKIP_FRB -eq 0 ]]; then
 fi
 
 step "Building Rust native library (release)..."
-( cd "$NATIVE_DIR" && cargo build --release --package skotiq_bridge )
+dart "$SCRIPT_DIR/build.dart" bridge
 ok "libskotiq_bridge.so built"
 
 cd "$DESKTOP_DIR"
 if [[ $NO_RUN -eq 1 ]]; then
   step "Building Flutter Linux bundle..."
-  if [[ $RELEASE -eq 1 ]]; then flutter build linux --release; else flutter build linux --debug; fi
+  if [[ $RELEASE -eq 1 ]]; then dart "$SCRIPT_DIR/build.dart" flutter linux; else dart "$SCRIPT_DIR/build.dart" flutter linux --debug; fi
   ok "Build complete — bundle in build/linux/${FLUTTER_LINUX_ARCH}/$([[ $RELEASE -eq 1 ]] && echo release || echo debug)/bundle"
 else
   step "Running Flutter app on Linux..."

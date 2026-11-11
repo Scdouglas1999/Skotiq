@@ -16,7 +16,7 @@ echo Native dir: %NATIVE_DIR%
 
 REM Build for Windows
 echo Building for Windows...
-cargo build --release --manifest-path bridge\Cargo.toml
+call dart "%SCRIPT_DIR%build.dart" bridge
 
 REM Copy to Flutter app directory
 set LIB_NAME=skotiq_bridge.dll

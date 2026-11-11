@@ -136,12 +136,9 @@ dart pub global activate melos
 export PATH="$PATH:$HOME/.pub-cache/bin"
 dart run melos bootstrap
 
-echo "== [6/7] rust bridge (release) =="
-cargo build --release --manifest-path native/skotiq_native/bridge/Cargo.toml
-
-echo "== [7/7] flutter build linux (release) =="
+echo "== [6/7] rust bridge (release), [7/7] flutter build linux (release) =="
+dart scripts/build.dart desktop linux
 cd apps/desktop
-flutter build linux --release
 
 echo "== bundle contents =="
 ls -lah "$BUNDLE"

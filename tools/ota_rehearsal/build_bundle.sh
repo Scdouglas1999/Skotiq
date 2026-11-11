@@ -26,9 +26,8 @@ PUBKEY="$(tr -d '[:space:]' < "$PUBKEY_FILE")"
 
 cd "$REPO"
 if [ "${SKIP_RUST:-0}" != "1" ]; then
-  cargo build --locked --release --manifest-path native/skotiq_native/bridge/Cargo.toml
-  cargo build --locked --release --package skotiq_updater \
-    --manifest-path native/skotiq_native/Cargo.toml
+  dart scripts/build.dart bridge
+  dart scripts/build.dart updater
 fi
 
 # apps/desktop/linux/CMakeLists.txt installs the bridge from
@@ -50,8 +49,8 @@ cp "$PUBSPEC" "$PUBSPEC.ota-rehearsal.bak"
 trap 'mv -f "$REPO/$PUBSPEC.ota-rehearsal.bak" "$REPO/$PUBSPEC"' EXIT
 sed -i -E "s/^version: .*/version: ${VERSION}+${BUILD}/" "$PUBSPEC"
 
-(cd apps/desktop && flutter build linux --release \
-  "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=$PUBKEY")
+dart scripts/build.dart flutter linux -- \
+  "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=$PUBKEY"
 grep -q "\"version\":\"$VERSION\",\"build_number\":\"$BUILD\"" \
   apps/desktop/build/linux/x64/release/bundle/data/flutter_assets/version.json \
   || { echo "bundle does not report $VERSION+$BUILD" >&2; exit 1; }

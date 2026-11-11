@@ -657,7 +657,7 @@ class DiscoveredUpdateTarget {
 
 /// Discovery service for finding Skotiq instances to push updates to
 class UpdatePushDiscovery {
-  static const int _discoveryPort = 45679;
+  static const int _discoveryPort = SkotiqDiscovery.discoveryPort;
   static const int _pushPort = 45680;
   static const String _updatePushMessage = 'SKOTIQ_UPDATE_PUSH';
   static const String _updateResponsePrefix = 'SKOTIQ_UPDATE_TARGET:';

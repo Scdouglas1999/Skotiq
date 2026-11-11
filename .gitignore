@@ -77,7 +77,7 @@ __pycache__/
 /docs/driver-agnostic-audit-followup.md
 /docs/consolidation-implementation-plan.md
 /docs/consolidation-workflow.md
-/docs/releases/v2.6.0-inventory.md
+/docs/release/v2.6.0-inventory.md
 /docs/frb_warnings_*.txt
 
 # Build-output DLLs that get re-emitted by cargo + the packaging script.

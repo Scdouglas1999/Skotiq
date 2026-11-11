@@ -14,6 +14,9 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
+/// The port PHD2's event server listens on unless the user changed it.
+pub const PHD2_DEFAULT_PORT: u16 = 4400;
+
 /// Normalize a PHD2 TCP host for reliable local connections.
 ///
 /// On Windows, `localhost` often resolves to `::1` while PHD2 listens on IPv4
@@ -638,7 +641,7 @@ impl Phd2Client {
 
     /// Connect to PHD2 on localhost with default port
     pub fn localhost() -> Self {
-        Self::new("127.0.0.1", 4400)
+        Self::new("127.0.0.1", PHD2_DEFAULT_PORT)
     }
 
     /// Get rolling guide statistics
@@ -2121,7 +2124,7 @@ fn base64_decode(input: &str) -> Result<Vec<u8>, String> {
 
 /// Check if PHD2's event server is listening on the default port.
 pub fn is_phd2_running() -> bool {
-    is_phd2_server_listening("127.0.0.1", 4400)
+    is_phd2_server_listening("127.0.0.1", PHD2_DEFAULT_PORT)
 }
 
 /// Check if PHD2 is installed

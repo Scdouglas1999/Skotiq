@@ -94,10 +94,10 @@ foreach ($mirror in $bridgeMirrorDirs) {
 # ---------------------------------------------------------------------------
 # libraw.dll (required to load skotiq_bridge.dll on Windows)
 # ---------------------------------------------------------------------------
-$librawSource = Join-Path $DesktopDir 'windows\runner\Release\libraw.dll'
+$librawSource = Join-Path $ProjectRoot 'lib\libraw\libraw.dll'
 if (-not (Test-Path $librawSource)) {
     $librawFallbacks = @(
-        (Join-Path $ProjectRoot 'lib\libraw\libraw.dll'),
+        (Join-Path $DesktopDir 'windows\runner\Release\libraw.dll'),
         (Join-Path $ProjectRoot 'libraw.dll')
     )
     foreach ($fb in $librawFallbacks) {
@@ -113,7 +113,7 @@ if (-not (Test-Path $librawSource)) {
 libraw.dll not found. skotiq_bridge.dll depends on it and will not load.
 
 Place a 64-bit RELEASE libraw.dll at:
-  apps\desktop\windows\runner\Release\libraw.dll
+  lib\libraw\libraw.dll
 
 Or run: .\scripts\copy_libraw.ps1
 "@
