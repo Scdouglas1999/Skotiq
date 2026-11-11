@@ -124,7 +124,6 @@ enum WeatherDecisionSource {
   noData,
 }
 
-/// Source of safety data
 enum SafetyDataSource {
   /// Data from external weather API (Open-Meteo, radar, etc.)
   weatherApi,
@@ -243,7 +242,6 @@ class WeatherSafetyState {
     safetyMonitorReading: SafetySourceReading.unknown,
   );
 
-  /// Check if conditions are safe for imaging
   bool get isSafe => status == WeatherSafetyStatus.safe;
 
   /// The unsafe verdict rests only on a forecast: it warns, or holds the run

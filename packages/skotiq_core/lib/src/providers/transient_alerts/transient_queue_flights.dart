@@ -42,10 +42,8 @@ Future<CelestialTarget?> _performQueueTransientForTonight(
   final statesNotifier = ref.read(transientAlertStatesProvider.notifier);
   final notificationNotifier = ref.read(uiNotificationProvider.notifier);
   try {
-    // Map TransientType to TargetType
     final targetType = _mapTransientTypeToTargetType(alert.type);
 
-    // Build notes combining all transient info
     final alertNotes = StringBuffer();
     alertNotes.writeln(
       'Transient alert from ${alert.source.name.toUpperCase()}',
@@ -80,7 +78,6 @@ Future<CelestialTarget?> _performQueueTransientForTonight(
           notes: alertNotes.toString(),
         );
 
-    // Create the target object to return
     final target = CelestialTarget(
       id: targetId,
       name: alert.name,
@@ -108,7 +105,6 @@ Future<CelestialTarget?> _performQueueTransientForTonight(
       );
     }
 
-    // Show notification
     notificationNotifier.showSuccess(
       'Added ${alert.name} to your target library',
       title: 'Added to Library',
@@ -139,7 +135,6 @@ Future<CelestialTarget?> _performQueueTransientForTonight(
   }
 }
 
-/// Maps a TransientType to a TargetType for target creation.
 TargetType _mapTransientTypeToTargetType(TransientType type) {
   switch (type) {
     case TransientType.nova:
@@ -157,8 +152,6 @@ TargetType _mapTransientTypeToTargetType(TransientType type) {
   }
 }
 
-// Refresh action
-
 /// Force refresh the transient alerts by clearing the service cache.
 ///
 /// This clears the internal cache and triggers a new fetch.
@@ -166,7 +159,6 @@ void refreshTransientAlerts(WidgetRef ref) {
   final service = ref.read(transientAlertServiceProvider);
   service.clearCache();
 
-  // Invalidate the provider to trigger a fresh fetch
   ref.invalidate(activeTransientAlertsProvider);
 
   final logger = ref.read(loggingServiceProvider);

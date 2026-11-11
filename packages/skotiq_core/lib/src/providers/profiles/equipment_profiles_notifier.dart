@@ -1,6 +1,5 @@
 part of '../profiles_provider.dart';
 
-/// State class for equipment profiles
 class EquipmentProfilesState {
   final List<EquipmentProfileModel> profiles;
   final EquipmentProfileModel? activeProfile;
@@ -39,7 +38,6 @@ typedef _LinkedProfiles = ({
   BackendNotifier owner,
 });
 
-/// Notifier for managing equipment profiles
 class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
   /// The linked host's profiles, or null when the profiles are in this
   /// process's database.
@@ -135,7 +133,6 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
     return EquipmentProfilesState(profiles: profiles, activeProfile: active);
   }
 
-  /// Create a new profile
   Future<int> createProfile({required String name, String? description}) async {
     final remote = _remote;
     if (remote != null) {
@@ -177,7 +174,6 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
       ),
     );
 
-    // Refresh state
     ref.invalidateSelf();
 
     return id;
@@ -227,7 +223,6 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
       throw Exception('Profile not found');
     }
 
-    // Create updated profile
     final updated = dbProfile.copyWith(
       name: profile.name,
       description: Value(profile.description),
@@ -305,7 +300,6 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
     }..removeAll(const {'id', 'createdAt', 'updatedAt'});
   }
 
-  /// Delete a profile
   Future<void> deleteProfile(int profileId) async {
     final remote = _remote;
     if (remote != null) {
@@ -473,7 +467,6 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
     ref.invalidateSelf();
   }
 
-  /// Duplicate a profile
   Future<int> duplicateProfile(int sourceId, String newName) async {
     final remote = _remote;
     if (remote != null) {
@@ -524,7 +517,6 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
     return id;
   }
 
-  /// Import profiles from JSON
   Future<List<int>> importProfiles(String json) async {
     final service = ref.read(profileServiceProvider);
     final ids = await service.importAllProfilesFromJson(json);
@@ -532,14 +524,12 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
     return ids;
   }
 
-  /// Export a single profile to JSON
   Future<String> exportProfile(int profileId) async {
     final service = ref.read(profileServiceProvider);
     return await service.exportProfileToJson(profileId);
   }
 }
 
-/// Main provider for equipment profiles
 final equipmentProfilesProvider =
     AsyncNotifierProvider<EquipmentProfilesNotifier, EquipmentProfilesState>(
       () {

@@ -89,7 +89,6 @@ void _applyEquipmentTelemetry(
       applyDeviceStateEvent(reader, eventType, data);
       break;
 
-    // Mount position / motion
     case 'MountSlewStarted':
       _read(reader, mountStateProvider.notifier).setSlewing(true);
       break;
@@ -115,7 +114,6 @@ void _applyEquipmentTelemetry(
       _read(reader, mountStateProvider.notifier).setParked(false);
       break;
 
-    // Focuser
     case 'FocuserTemperatureChanged':
       final temperature = (data['temperature'] as num?)?.toDouble();
       if (temperature != null) {

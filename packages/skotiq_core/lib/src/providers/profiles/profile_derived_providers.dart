@@ -84,8 +84,6 @@ final equipmentProfileListProvider = Provider<List<EquipmentProfileModel>>((
   return state.valueOrNull?.profiles ?? [];
 });
 
-// Optical configuration provider
-
 /// Provider that computes optical configuration from the active profile and
 /// connected camera capabilities.
 ///
@@ -114,7 +112,6 @@ final opticalConfigProvider = Provider<OpticalConfig?>((ref) {
 
   if (cameraState.deviceId != null &&
       cameraState.connectionState == DeviceConnectionState.connected) {
-    // Watch camera capabilities for the connected camera
     final capabilitiesAsync = ref.watch(
       cameraCapabilitiesProvider(cameraState.deviceId!),
     );
@@ -149,8 +146,6 @@ final opticalConfigProvider = Provider<OpticalConfig?>((ref) {
   );
 });
 
-// Profile filters provider
-
 /// Provider that returns the filter names from the active profile.
 ///
 /// Returns an empty list if no profile is active or no filters are configured.
@@ -159,8 +154,6 @@ final profileFiltersProvider = Provider<List<String>>((ref) {
   if (profile == null) return [];
   return profile.filterNames;
 });
-
-// Sorted profiles provider
 
 /// Provider that returns all profiles sorted by sortOrder field.
 ///
