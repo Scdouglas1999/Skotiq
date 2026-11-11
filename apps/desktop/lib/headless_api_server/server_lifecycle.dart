@@ -180,7 +180,6 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
     // every mode that owns the journal — including this daemon, which runs that
     // seam too — and `start()` is idempotent, so there is one timer either way.
 
-    // Subscribe to backend events and broadcast to WebSocket clients
     _subscribeToBackendEvents();
     _subscribeToSequenceCatalogUpdates();
     _subscribeToHostMutationEvents();
@@ -617,7 +616,6 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
     final tokenSweep = _tokenSweepFuture;
     if (tokenSweep != null) await tokenSweep;
     _tokenSweepFuture = null;
-    // stop the correlator eviction sweep.
     _commandCorrelatorSweepTimer?.cancel();
     _commandCorrelatorSweepTimer = null;
     _commandCorrelator.clear();
@@ -635,7 +633,6 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
     // access off is not a decision to stop delivering the night's files. It is
     // closed with the provider container when the process ends.
     await _jobManager.dispose();
-    // tear down ownership state and broadcast controller.
     await _sessionOwnership.dispose();
     final pairingForListener = _pairingService;
     if (pairingForListener != null) {
