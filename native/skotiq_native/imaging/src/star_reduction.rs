@@ -69,7 +69,10 @@
 //! chrominance. That is out of scope for this preview and noted here rather than
 //! silently assumed.
 
-use crate::{detect_stars, DetectedStar, ImageData, PixelType, StarDetectionConfig};
+use crate::detection_plane::{
+    collapse_channels, finite_range, ChannelCollapse, DetectionPlane, Quantize, ADU_SCALE_MIN_PEAK,
+};
+use crate::{detect_stars_in_plane, DetectedStar, ImageData, PixelType, StarDetectionConfig};
 use rayon::prelude::*;
 
 /// Core radius of a star's mask disk as a multiple of its measured HFR.
@@ -227,23 +230,11 @@ pub fn reduce_stars(
         return Ok(image.clone());
     }
 
-    // Detection runs on a single luminance-like plane shared across channels
-    // (stars are at the same *place* in every channel). For mono that is the image
-    // itself; for multi-channel we synthesise a per-pixel **max across channels**
-    // rather than using channel 0. Detecting on channel 0 (R for interleaved RGB)
-    // would miss a star that is bright in green/blue but faint in red — it would
-    // fall below the detector's SNR/area gate and never enter the mask, leaving it
-    // at FULL size in every channel — the worst-case visible failure this
-    // module otherwise works hard to avoid. The max keeps a star that is
-    // bright in any single channel, which is the detectability-preserving choice.
-    let detect_plane = luminance_plane_for_detection(image).ok_or(StarReduceError::EmptyImage)?;
-
-    // Run detection on a U16 view of the luminance plane (the detector consumes
-    // U16). We build that view directly from the plane so the detector sees the
-    // same geometry regardless of the source pixel type.
-    let detect_image = plane_to_u16_image(&detect_plane, image.width, image.height);
-    let det_cfg = mask_detection_config();
-    let stars = detect_stars(&detect_image, &det_cfg);
+    if !matches!(image.pixel_type, PixelType::U16 | PixelType::F32) || !image.holds_all_samples()
+    {
+        return Err(StarReduceError::EmptyImage);
+    }
+    let stars = detect_mask_stars(image);
 
     // Build the soft star mask once (shared across channels).
     let mask = build_star_mask(&stars, width, height, cfg.mask_dilate);
@@ -251,7 +242,7 @@ pub fn reduce_stars(
     // Process each channel into its own f64 plane, then re-interleave.
     let mut out_planes: Vec<Vec<f64>> = Vec::with_capacity(channels);
     for c in 0..channels {
-        let plane = extract_plane_f64(image, c).ok_or(StarReduceError::EmptyImage)?;
+        let plane = image.plane_f64(c).ok_or(StarReduceError::EmptyImage)?;
         let reduced = match cfg.method {
             StarReduceMethod::MorphologicalErosion => {
                 erode_plane(&plane, width, height, EROSION_RADIUS_PX)
@@ -299,136 +290,40 @@ fn mask_detection_config() -> StarDetectionConfig {
     }
 }
 
-/// Build the single-plane luminance proxy the star detector runs on.
+/// The stars the mask is built from, detected on the brightest channel at
+/// each pixel.
 ///
-/// For a mono frame this is just the one channel. For a multi-channel frame it is
-/// the **per-pixel maximum over channels**, not channel 0: a star can be bright in
-/// one channel (a blue or Hα-bright star) yet faint in another, and detecting on a
-/// single channel would drop it below the detector's gate and leave it at full
-/// size everywhere. The max keeps any star that is bright in *any*
-/// channel, which is exactly the detectability the mask needs (star *positions*
-/// coincide across channels, so a max-plane detection masks them in all channels).
-/// Returns `None` only if even channel 0 cannot be extracted (empty/unsupported).
-fn luminance_plane_for_detection(image: &ImageData) -> Option<Vec<f64>> {
-    let channels = image.channels.max(1) as usize;
-    let mut lum = extract_plane_f64(image, 0)?;
-    for c in 1..channels {
-        let Some(plane) = extract_plane_f64(image, c) else {
-            // A channel we cannot read is skipped rather than failing the whole
-            // detection: the channels we do have still give a valid max proxy.
-            continue;
-        };
-        for (l, &v) in lum.iter_mut().zip(plane.iter()) {
-            if v > *l {
-                *l = v;
-            }
-        }
-    }
-    Some(lum)
-}
-
-/// Extract channel `c` of `image` as an `f64` plane (`width × height`),
-/// row-major. Returns `None` if the buffer is too small or the pixel type is
-/// unsupported for reduction.
-fn extract_plane_f64(image: &ImageData, c: usize) -> Option<Vec<f64>> {
-    let width = image.width as usize;
-    let height = image.height as usize;
-    let channels = image.channels.max(1) as usize;
-    let n = width.checked_mul(height)?;
-    if c >= channels {
-        return None;
-    }
-    match image.pixel_type {
-        PixelType::U16 => {
-            let bpp = 2;
-            let stride = channels * bpp;
-            if image.data.len() < n * stride {
-                return None;
-            }
-            let mut plane = vec![0.0f64; n];
-            plane.par_iter_mut().enumerate().for_each(|(i, out)| {
-                let base = i * stride + c * bpp;
-                *out = u16::from_le_bytes([image.data[base], image.data[base + 1]]) as f64;
-            });
-            Some(plane)
-        }
-        PixelType::F32 => {
-            let bpp = 4;
-            let stride = channels * bpp;
-            if image.data.len() < n * stride {
-                return None;
-            }
-            let mut plane = vec![0.0f64; n];
-            plane.par_iter_mut().enumerate().for_each(|(i, out)| {
-                let base = i * stride + c * bpp;
-                *out = f32::from_le_bytes([
-                    image.data[base],
-                    image.data[base + 1],
-                    image.data[base + 2],
-                    image.data[base + 3],
-                ]) as f64;
-            });
-            Some(plane)
-        }
-        _ => None,
+/// Stars sit at the same place in every channel, so one detection serves all
+/// of them, and the channel maximum keeps a star that is bright in only one
+/// (a blue or Hα-bright star): detected on a single channel it would fall
+/// under the detector's gate, never enter the mask, and be left at full size
+/// everywhere.
+fn detect_mask_stars(image: &ImageData) -> Vec<DetectedStar> {
+    let peak = collapse_channels(
+        &image.samples_f64(),
+        image.channels.max(1) as usize,
+        ChannelCollapse::Max,
+    );
+    match mask_detection_plane(&peak, image.width as usize, image.height as usize) {
+        Some(plane) => detect_stars_in_plane(plane, &mask_detection_config()),
+        None => Vec::new(),
     }
 }
 
-/// Build a `U16` mono [`ImageData`] from an `f64` plane (for the detector,
-/// which consumes `U16`).
+/// `levels` as a detector plane.
 ///
-/// Integer/U16-scale planes (the common case, and what the U16 detector
-/// thresholds are calibrated for) are passed through with a plain clamp so the
-/// detector sees the native ADU values unchanged — zero behaviour change from
-/// the original passthrough.
-///
-/// A **low-amplitude** plane (peak `< 256`), which is what a normalized F32
-/// frame looks like — star structure lives in values like `[0.02, 0.82]` — is
-/// instead **rescaled by its own [min, max]** to span the 16-bit range before
-/// quantizing. Without this, the bare clamp would crush those values to 0/1 and
-/// hide every star from the detector, so no stars would ever be reduced in an
-/// F32 frame. Rescaling preserves the relative star/background contrast the
-/// detector keys on regardless of the source's absolute scale (the same
-/// luminance-synthesis idiom used by [`crate::background_extraction`]). The
-/// `256` cutoff cleanly separates normalized-float frames (peak ≤ ~1) from any
-/// real integer-ADU frame (whose stars are in the thousands), so genuine U16
-/// data never takes the rescale path. A flat plane (`max == min`) maps to
-/// all-zero, which correctly yields no detections.
-fn plane_to_u16_image(plane: &[f64], width: u32, height: u32) -> ImageData {
-    let (mut lo, mut hi) = (f64::INFINITY, f64::NEG_INFINITY);
-    for &v in plane {
-        if v.is_finite() {
-            lo = lo.min(v);
-            hi = hi.max(v);
+/// Levels on the ADU scale are used as they are. Levels whose peak is below
+/// [`ADU_SCALE_MIN_PEAK`] are a normalized float frame (star structure in
+/// values like `[0.02, 0.82]`) and are rescaled from their own range, or the
+/// detector's 1 ADU floors would hide every star. `None` for a flat
+/// normalized plane: nothing to detect.
+fn mask_detection_plane(levels: &[f64], width: usize, height: usize) -> Option<DetectionPlane> {
+    match finite_range(levels) {
+        Some((low, high)) if high < ADU_SCALE_MIN_PEAK => {
+            DetectionPlane::from_range(width, height, levels, low, high, Quantize::Round)
         }
+        _ => DetectionPlane::from_adu(width, height, levels, Quantize::Round),
     }
-    // U16-scale (or unknown but already wide-range) data: native passthrough.
-    if !hi.is_finite() || hi >= 256.0 {
-        let data: Vec<u16> = plane
-            .par_iter()
-            .map(|&v| v.clamp(0.0, 65535.0).round() as u16)
-            .collect();
-        return ImageData::from_u16(width, height, 1, &data);
-    }
-    // Degenerate / flat low-amplitude plane: nothing to detect.
-    if !lo.is_finite() || hi <= lo {
-        return ImageData::from_u16(width, height, 1, &vec![0u16; plane.len()]);
-    }
-    // Normalized-float plane: rescale [min, max] → [0, 60000]. The 60000 ceiling
-    // (not 65535) keeps the brightest pixel at or below the detector's default
-    // `saturation_limit` (60000), so a bright star core is NOT discarded as
-    // saturated — matching the rescale target used by
-    // [`crate::background_extraction`]'s luminance synthesis for the same reason.
-    let inv_range = 1.0 / (hi - lo);
-    let data: Vec<u16> = plane
-        .par_iter()
-        .map(|&v| {
-            (((v - lo) * inv_range) * 60000.0)
-                .clamp(0.0, 65535.0)
-                .round() as u16
-        })
-        .collect();
-    ImageData::from_u16(width, height, 1, &data)
 }
 
 /// Build a soft, feathered star mask in `[0, 1]` from detected stars.
@@ -1095,9 +990,7 @@ mod tests {
         let width = input.width as usize;
         let height = input.height as usize;
         // Re-derive the mask exactly as reduce_stars does.
-        let plane = luminance_plane_for_detection(input).unwrap();
-        let det_img = plane_to_u16_image(&plane, input.width, input.height);
-        let stars = detect_stars(&det_img, &mask_detection_config());
+        let stars = detect_mask_stars(input);
         let mask = build_star_mask(&stars, width, height, cfg.mask_dilate);
 
         let bpp = input.pixel_type.byte_size();
@@ -1174,16 +1067,12 @@ mod tests {
         // Sanity: detecting on channel 0 (red) alone finds NO star here (the red
         // amplitude is below the gate), which is precisely the bug. Detecting on the
         // max-across-channels plane DOES find it.
-        let red_only = extract_plane_f64(&input, 0).unwrap();
-        let red_stars = detect_stars(
-            &plane_to_u16_image(&red_only, w as u32, h as u32),
+        let red_only = input.plane_f64(0).unwrap();
+        let red_stars = detect_stars_in_plane(
+            mask_detection_plane(&red_only, w, h).unwrap(),
             &mask_detection_config(),
         );
-        let lum = luminance_plane_for_detection(&input).unwrap();
-        let lum_stars = detect_stars(
-            &plane_to_u16_image(&lum, w as u32, h as u32),
-            &mask_detection_config(),
-        );
+        let lum_stars = detect_mask_stars(&input);
         assert!(
             red_stars.is_empty(),
             "precondition: the star must be invisible in red alone (got {} red detections)",

@@ -56,7 +56,8 @@ use crate::background_extraction::{
 };
 use crate::recipe::{DarkroomOp, OpApplied, OpContext, OpError, OpImage, OpStage, Params};
 use crate::robust_stats::{median_in_place, percentile_nearest_rank, MAD_TO_SIGMA};
-use crate::{detect_stars, ImageData, StarDetectionConfig};
+use crate::detection_plane::{collapse_channels, ChannelCollapse, DetectionPlane, Quantize};
+use crate::{detect_stars_in_plane, StarDetectionConfig};
 
 /// Tightest sample spacing the fit accepts, in pixels.
 const SAMPLE_SPACING_MIN: f64 = 8.0;
@@ -114,12 +115,10 @@ const STAR_MASK_RADIUS_MIN: f64 = 3.0;
 /// detection cannot mask out the frame.
 const STAR_MASK_RADIUS_FRACTION: f64 = 0.1;
 
-/// Value the luminance plane's high quantile maps to before star detection,
-/// leaving headroom below the detector's saturation limit.
-const LUMINANCE_FULL_SCALE: f64 = 60_000.0;
 /// Quantile of the luminance plane mapped to zero.
 const LUMINANCE_LOW_QUANTILE: f64 = 0.001;
-/// Quantile of the luminance plane mapped to [`LUMINANCE_FULL_SCALE`].
+/// Quantile of the luminance plane mapped to the detector's saturation limit
+/// ([`crate::detection_plane::RESCALED_FULL_SCALE`]).
 const LUMINANCE_HIGH_QUANTILE: f64 = 0.999;
 
 /// Pixels sampled when estimating the luminance quantiles. The stride follows
@@ -278,38 +277,21 @@ impl BackgroundExtractV1 {
 
 /// Detected stars in `image` as masked disks, in pixels at the render level.
 ///
-/// Detection runs over a peak-across-channels luminance plane quantised to
-/// 16 bits between the plane's own [`LUMINANCE_LOW_QUANTILE`] and
-/// [`LUMINANCE_HIGH_QUANTILE`] levels, because the detector reads `U16` and
-/// a linear master's ADU scale is not known in advance.
+/// Detection runs over a peak-across-channels luminance plane rescaled
+/// between the plane's own [`LUMINANCE_LOW_QUANTILE`] and
+/// [`LUMINANCE_HIGH_QUANTILE`] levels, because a linear master's ADU scale is
+/// not known in advance.
 pub(crate) fn star_disks(image: &OpImage, ctx: &OpContext) -> Result<Vec<StarDisk>, OpError> {
     let width = image.width() as usize;
     let height = image.height() as usize;
-    let channels = image.channels() as usize;
     let pixels = width * height;
 
-    let source = image.data();
-    let mut luminance = vec![0.0_f64; pixels];
-    luminance
-        .par_chunks_exact_mut(width)
-        .enumerate()
-        .for_each(|(y, row)| {
-            if ctx.cancel_requested() {
-                return;
-            }
-            let base = y * width * channels;
-            for (x, slot) in row.iter_mut().enumerate() {
-                let pixel = base + x * channels;
-                let mut peak = f64::NEG_INFINITY;
-                for channel in 0..channels {
-                    let value = source[pixel + channel] as f64;
-                    if value > peak {
-                        peak = value;
-                    }
-                }
-                *slot = peak;
-            }
-        });
+    ctx.check_cancel()?;
+    let luminance = collapse_channels(
+        image.data(),
+        image.channels() as usize,
+        ChannelCollapse::Max,
+    );
     ctx.check_cancel()?;
 
     let stride = (pixels / LUMINANCE_SAMPLE_BUDGET).max(1);
@@ -317,22 +299,15 @@ pub(crate) fn star_disks(image: &OpImage, ctx: &OpContext) -> Result<Vec<StarDis
     quantile_samples.sort_unstable_by(f64::total_cmp);
     let low = percentile_nearest_rank(&quantile_samples, LUMINANCE_LOW_QUANTILE);
     let high = percentile_nearest_rank(&quantile_samples, LUMINANCE_HIGH_QUANTILE);
-    if !low.is_finite() || !high.is_finite() || high <= low {
+    let Some(plane) =
+        DetectionPlane::from_range(width, height, &luminance, low, high, Quantize::Truncate)
+    else {
         // A luminance plane with no measurable range carries no detectable
         // star, so nothing is masked and every box stays in the fit.
         return Ok(Vec::new());
-    }
-
-    let span = high - low;
-    let quantised: Vec<u16> = luminance
-        .iter()
-        .map(|&value| {
-            (((value - low) / span) * LUMINANCE_FULL_SCALE).clamp(0.0, u16::MAX as f64) as u16
-        })
-        .collect();
+    };
     ctx.check_cancel()?;
 
-    let frame = ImageData::from_u16(width as u32, height as u32, 1, &quantised);
     // Masking, not photometry: a compact star must still be masked, so the
     // sharpness ceiling is open and the area/HFR floors are low; the SNR
     // floor stays high enough that faint nebulosity is not called a star,
@@ -345,7 +320,7 @@ pub(crate) fn star_disks(image: &OpImage, ctx: &OpContext) -> Result<Vec<StarDis
         ..StarDetectionConfig::default()
     };
     let radius_ceiling = width.min(height) as f64 * STAR_MASK_RADIUS_FRACTION;
-    Ok(detect_stars(&frame, &config)
+    Ok(detect_stars_in_plane(plane, &config)
         .into_iter()
         .map(|star| StarDisk {
             x: star.x,

@@ -220,22 +220,10 @@ pub fn combine_channels(
     ))
 }
 
-/// Decode a single-channel master into a flat `f64` plane of exactly
-/// `expected` samples.
-///
-/// Accepts the linear master types the integration pipeline emits (`F32` and
-/// `U16`). Any other pixel type, or a buffer whose decoded length does not match
-/// `expected`, yields [`CombineError::DimMismatch`] rather than guessing at an
-/// unrecognised layout and fabricating a plane.
+/// A single-channel master as a flat `f64` plane of exactly `expected`
+/// samples; a buffer of any other length is [`CombineError::DimMismatch`].
 fn decode_plane_f64(img: &ImageData, expected: usize) -> Result<Vec<f64>, CombineError> {
-    let plane: Vec<f64> = if let Some(f) = img.as_f32() {
-        f.into_iter().map(|v| v as f64).collect()
-    } else if let Some(u) = img.as_u16() {
-        u.into_iter().map(|v| v as f64).collect()
-    } else {
-        return Err(CombineError::DimMismatch);
-    };
-
+    let plane = img.samples_f64();
     if plane.len() != expected {
         return Err(CombineError::DimMismatch);
     }

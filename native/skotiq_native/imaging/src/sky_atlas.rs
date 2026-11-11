@@ -140,7 +140,7 @@ impl PreparedFrame {
         if !wcs.is_invertible() {
             return Err(AtlasError::DegenerateWcs);
         }
-        let src = decode_to_f64(frame);
+        let src = frame.samples_f64();
         let ch = frame.channels as usize;
         let decodable = src.len() == (frame.width as usize) * (frame.height as usize) * ch;
         let norm = if decodable {
@@ -1954,19 +1954,6 @@ pub fn eroded_coverage(
 fn tile_buffer_bytes(channels: u32) -> u64 {
     let slots = (TILE_PIXELS as u64) * (TILE_PIXELS as u64) * (channels as u64);
     slots * (8 * 4 + 4 * 2)
-}
-
-/// Decode an [`ImageData`] to channel-interleaved f64 (the resampler's layout).
-/// U16 and F32 are supported (the linear types the pipeline emits); other types
-/// decode to an empty buffer, which the caller treats as no contribution.
-fn decode_to_f64(image: &ImageData) -> Vec<f64> {
-    if let Some(f) = image.as_f32() {
-        f.into_iter().map(|v| v as f64).collect()
-    } else if let Some(u) = image.as_u16() {
-        u.into_iter().map(|v| v as f64).collect()
-    } else {
-        Vec::new()
-    }
 }
 
 /// Estimate a frame's per-channel robust photometric baseline: the sky

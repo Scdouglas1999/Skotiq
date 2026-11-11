@@ -210,7 +210,7 @@ pub fn normalize_raw_flat(
     };
     let corrected = crate::calibration::calibrate_frame_f32(flat, &cal)?;
     let channels = (corrected.channels as usize).max(1);
-    let mut samples = crate::calibration::samples_f64(&corrected);
+    let mut samples = corrected.samples_f64();
     let stride = (samples.len() / (2_000_000 * channels)).max(1) * channels;
     let medians: Vec<f64> = (0..channels)
         .map(|c| {
@@ -261,7 +261,7 @@ pub fn flat_bands(image: &ImageData) -> Option<String> {
     if w < 8 || h < 8 {
         return None;
     }
-    let samples = crate::calibration::samples_f64(image);
+    let samples = image.samples_f64();
     let at = |x: usize, y: usize| -> f64 {
         let base = (y * w + x) * c;
         samples[base..base + c].iter().sum::<f64>() / c as f64
@@ -504,7 +504,7 @@ pub fn cosmetic_correct_transient(
     let height = frame.height;
     let channels = frame.channels;
     let expected = (width as usize) * (height as usize) * (channels as usize);
-    let values = crate::calibration::samples_f64(frame);
+    let values = frame.samples_f64();
     if values.len() != expected {
         return Err(MasterCalibrationError::BufferLengthMismatch {
             expected: expected * frame.pixel_type.byte_size(),

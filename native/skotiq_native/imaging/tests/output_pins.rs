@@ -418,7 +418,7 @@ fn pin_calibration(pins: &mut Pins) {
     );
     pins.add(
         "calibration/samples_f64",
-        f64_digest(&samples_f64(&calibrated)),
+        f64_digest(&calibrated.samples_f64()),
     );
 
     let flats: Vec<ImageData> = (0..7)
@@ -563,7 +563,7 @@ fn stack_of_subs(base: &ImageData, count: u64) -> Vec<Vec<f64>> {
                 20.0 * i as f64,
                 14.0 + i as f64,
             );
-            let mut px = samples_f64(&sub);
+            let mut px = sub.samples_f64();
             if i == 3 {
                 // A satellite trail on one sub.
                 let w = base.width as usize;
@@ -1085,7 +1085,7 @@ fn outputs_match_the_pinned_digests() {
     let pinned = std::fs::read_to_string(&path).expect("tests/pins/output_pins.txt");
     let pinned: BTreeMap<&str, &str> = pinned
         .lines()
-        .filter_map(|line| line.split_once(' '))
+        .filter_map(|line| line.rsplit_once(' '))
         .collect();
     let mut moved = Vec::new();
     for (name, digest) in &pins.0 {

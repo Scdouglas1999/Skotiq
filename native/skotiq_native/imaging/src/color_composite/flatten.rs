@@ -42,7 +42,7 @@ use crate::background_extraction::{eval_poly, normalise_xy, poly_terms};
 use crate::recipe::ops::background_extract::{fit_plane, star_disks, Settings, StarDisk};
 use crate::recipe::{OpContext, OpError, OpImage};
 use crate::robust_stats::{median_in_place, MAD_TO_SIGMA};
-use crate::{detect_stars, StarDetectionConfig};
+use crate::{detect_stars_in_plane, StarDetectionConfig};
 
 /// Highest polynomial degree a pinned surface may carry.
 pub const SURFACE_DEGREE_MAX: usize = 6;
@@ -218,8 +218,10 @@ impl FieldStars {
     /// Detect the field's stars in `reference`, a single-plane image.
     pub fn detect(reference: &OpImage, ctx: &OpContext) -> Result<Self, OpError> {
         let disks = star_disks(reference, ctx)?;
-        let photometry = match crate::recipe::ops::star_detect::detection_frame(reference, ctx)? {
-            Some(frame) => select_photometry(detect_stars(&frame, &StarDetectionConfig::default())),
+        let photometry = match crate::recipe::ops::star_detect::detection_plane(reference, ctx)? {
+            Some(plane) => {
+                select_photometry(detect_stars_in_plane(plane, &StarDetectionConfig::default()))
+            }
             None => Vec::new(),
         };
         Ok(Self { photometry, disks })

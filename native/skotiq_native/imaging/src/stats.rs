@@ -15,6 +15,7 @@
 //!
 //! Sites with a specific invariant comment override the module-level reasoning.
 
+use crate::detection_plane::DetectionPlane;
 use crate::ImageData;
 use rayon::prelude::*;
 
@@ -249,7 +250,7 @@ impl Default for StarDetectionConfig {
     }
 }
 
-/// Detect stars in a 16-bit image.
+/// Detect stars in an image whose samples are in 16-bit ADU.
 ///
 /// This is the **measurement** entry point: it returns every source that
 /// survives `config`'s detection filters, including trailed stars up to
@@ -265,7 +266,26 @@ impl Default for StarDetectionConfig {
 /// The method (background mesh, matched filter, prominence deblending,
 /// whole-footprint apertures) is described in the `star_detect` module.
 pub fn detect_stars(image: &ImageData, config: &StarDetectionConfig) -> Vec<DetectedStar> {
-    crate::star_detect::detect(image, config).stars
+    detect_in_image(image, config).stars
+}
+
+/// [`detect_stars`] on a plane the caller built: a float master, a channel
+/// maximum, a rescaled plane. See [`DetectionPlane`] for the scale it must be
+/// in.
+pub fn detect_stars_in_plane(
+    plane: DetectionPlane,
+    config: &StarDetectionConfig,
+) -> Vec<DetectedStar> {
+    crate::star_detect::detect(plane, config).stars
+}
+
+/// Detect on the image's own plane ([`DetectionPlane::from_image`]). An image
+/// with no such plane (two channels, a truncated buffer) has no stars.
+fn detect_in_image(image: &ImageData, config: &StarDetectionConfig) -> crate::star_detect::Detection {
+    match DetectionPlane::from_image(image) {
+        Some(plane) => crate::star_detect::detect(plane, config),
+        None => crate::star_detect::Detection::empty(),
+    }
 }
 
 /// The eccentricity a star must beat to be *usable* under `config`.
@@ -632,7 +652,7 @@ pub fn detect_stars_with_stats(
         stars: detected,
         background,
         noise,
-    } = crate::star_detect::detect(image, &measurement_config);
+    } = detect_in_image(image, &measurement_config);
     let detected_star_count = detected.len() as u32;
     tracing::info!(
         "[STAR_DETECT] Image {}x{}, background {:.1}, noise {:.1}, threshold {} sigma of the filtered frame",

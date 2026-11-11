@@ -436,15 +436,15 @@ pub fn calibrate_frame_f32(
         });
     }
     let channels = (light.channels as usize).max(1);
-    let mut out = samples_f64(light);
-    let bias = cal.bias.map(samples_f64);
+    let mut out = light.samples_f64();
+    let bias = cal.bias.map(ImageData::samples_f64);
     if let Some(bias) = &bias {
         out.par_iter_mut()
             .zip(bias.par_iter())
             .for_each(|(v, b)| *v -= b);
     }
     if let Some(dark) = cal.dark {
-        let dark = samples_f64(dark);
+        let dark = dark.samples_f64();
         let k = cal.dark_scale;
         match &bias {
             Some(bias) => out
@@ -458,7 +458,7 @@ pub fn calibrate_frame_f32(
         }
     }
     if let Some(flat) = cal.flat {
-        let mut response = samples_f64(flat);
+        let mut response = flat.samples_f64();
         if let (FlatPedestal::Included, Some(bias)) = (cal.flat_pedestal, &bias) {
             response
                 .par_iter_mut()
@@ -486,70 +486,13 @@ pub fn calibrate_frame_f32(
     ))
 }
 
-/// Every sample of `image` as `f64`, in buffer order.
-pub fn samples_f64(image: &ImageData) -> Vec<f64> {
-    match image.pixel_type {
-        PixelType::U8 => image.data.par_iter().map(|&v| f64::from(v)).collect(),
-        PixelType::U16 => image
-            .data
-            .par_chunks_exact(2)
-            .map(|c| f64::from(u16::from_le_bytes([c[0], c[1]])))
-            .collect(),
-        PixelType::U32 => image
-            .data
-            .par_chunks_exact(4)
-            .map(|c| f64::from(u32::from_le_bytes([c[0], c[1], c[2], c[3]])))
-            .collect(),
-        PixelType::F32 => image
-            .data
-            .par_chunks_exact(4)
-            .map(|c| f64::from(f32::from_le_bytes([c[0], c[1], c[2], c[3]])))
-            .collect(),
-        PixelType::F64 => image
-            .data
-            .par_chunks_exact(8)
-            .map(|c| f64::from_le_bytes(c.try_into().expect("8-byte chunk")))
-            .collect(),
-    }
-}
-
 /// `master` re-encoded as `target` samples, or borrowed unchanged when it
 /// already is. Integer targets round and clamp to their range; NaN becomes 0.
 fn convert_sample_type(master: &ImageData, target: PixelType) -> std::borrow::Cow<'_, ImageData> {
     if master.pixel_type == target || master.is_empty() {
         return std::borrow::Cow::Borrowed(master);
     }
-    let values: Vec<f64> = match master.pixel_type {
-        PixelType::U8 => master.data.iter().map(|&v| f64::from(v)).collect(),
-        PixelType::U16 => master
-            .data
-            .as_chunks::<2>()
-            .0
-            .iter()
-            .map(|c| f64::from(u16::from_le_bytes(*c)))
-            .collect(),
-        PixelType::U32 => master
-            .data
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .map(|c| f64::from(u32::from_le_bytes(*c)))
-            .collect(),
-        PixelType::F32 => master
-            .data
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .map(|c| f64::from(f32::from_le_bytes(*c)))
-            .collect(),
-        PixelType::F64 => master
-            .data
-            .as_chunks::<8>()
-            .0
-            .iter()
-            .map(|c| f64::from_le_bytes(*c))
-            .collect(),
-    };
+    let values = master.samples_f64();
     let clean = |v: f64| if v.is_nan() { 0.0 } else { v };
     let data: Vec<u8> = match target {
         PixelType::U8 => values

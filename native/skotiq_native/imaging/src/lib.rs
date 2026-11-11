@@ -23,6 +23,7 @@ pub mod color_composite;
 pub mod deconvolution; // NEW: PSF estimation + Richardson-Lucy deconvolution
 pub mod defect_map;
 pub mod depthlock;
+pub mod detection_plane;
 pub mod difference_image; // NEW: Difference imaging (Pillar B — First Light) transient detection
 pub mod drizzle; // NEW: Drizzle (variable-pixel linear reconstruction) integration
 
@@ -43,6 +44,7 @@ mod raw; // NEW: RAW file support
 pub mod recipe; // Darkroom recipe engine: non-destructive, replayable op stack
 pub mod registration; // NEW: High-quality star-based registration
 mod robust_stats; // The crate's one set of order statistics (median / percentile conventions)
+pub mod samples;
 pub mod sky_atlas; // NEW: HEALPix-tiled additive all-sky accumulator (the 5.0 keystone)
 pub mod stack_master; // NEW: the live stack's FITS master (synthesized EXPTIME/DATE-OBS)
 pub mod stacking;
@@ -62,6 +64,7 @@ pub use channel_combine::*; // NEW: Export channel-combination types
 pub use color_calibration::*; // NEW: Export color-calibration types
 pub use debayer::*;
 pub use deconvolution::*; // NEW: Export deconvolution types
+pub use detection_plane::{ChannelCollapse, DetectionPlane, Quantize};
 pub use difference_image::*; // NEW: Export difference-imaging (First Light) types
 pub use drizzle::*; // NEW: Export drizzle types
 pub use fits::*;

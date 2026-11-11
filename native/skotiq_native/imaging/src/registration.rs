@@ -269,7 +269,7 @@ pub fn registrable_star_count(image: &ImageData, config: &RegistrationConfig) ->
     if image.pixel_type != PixelType::U16 || !matches!(image.channels, 1 | 3) {
         return 0;
     }
-    detect_stars(&detection_plane(image), &config.star_detection).len()
+    detect_stars(image, &config.star_detection).len()
 }
 
 /// Register `frame` (source) onto `reference`, returning the fitted transform,
@@ -334,7 +334,7 @@ impl ReferenceStars {
             return Err(RegistrationError::UnsupportedChannels(reference.channels));
         }
         Ok(Self {
-            stars: detect_stars(&detection_plane(reference), &config.star_detection),
+            stars: detect_stars(reference, &config.star_detection),
             width: reference.width,
             height: reference.height,
             channels: reference.channels,
@@ -381,9 +381,18 @@ pub fn solve_registration_against(
     if !matches!(frame.channels, 1 | 3) {
         return Err(RegistrationError::UnsupportedChannels(frame.channels));
     }
-    let ref_stars = &reference.stars;
-    let frame_stars = detect_stars(&detection_plane(frame), &config.star_detection);
+    let frame_stars = detect_stars(frame, &config.star_detection);
+    solve_registration_from_stars(&reference.stars, &frame_stars, config)
+}
 
+/// The geometry fit between two star lists the caller already holds, in the
+/// detector's order (brightest first): the source→reference transform and its
+/// residual statistics.
+pub fn solve_registration_from_stars(
+    ref_stars: &[DetectedStar],
+    frame_stars: &[DetectedStar],
+    config: &RegistrationConfig,
+) -> Result<(TransformModel, RegistrationStats), RegistrationError> {
     // We need at least enough stars to form triangles and a minimal fit.
     let min_stars = min_registration_stars(config.transform_kind);
     if ref_stars.len() < min_stars || frame_stars.len() < min_stars {
@@ -394,7 +403,7 @@ pub fn solve_registration_against(
         });
     }
 
-    let transform = solve_transform_from_stars(ref_stars, &frame_stars, config).ok_or(
+    let transform = solve_transform_from_stars(ref_stars, frame_stars, config).ok_or(
         RegistrationError::NoConsistentGeometry {
             found: 0,
             needed: config.min_inliers,
@@ -402,7 +411,7 @@ pub fn solve_registration_against(
     )?;
 
     // Recompute the correspondence/inlier statistics for the returned model.
-    let correspondences = correspondences_from_stars(ref_stars, &frame_stars, config);
+    let correspondences = correspondences_from_stars(ref_stars, frame_stars, config);
     let residuals: Vec<f64> = correspondences
         .iter()
         .map(|c| {
@@ -480,7 +489,7 @@ pub fn warp_to_grid(
             covered: vec![false; out_w * out_h],
         };
     };
-    let src = crate::calibration::samples_f64(frame);
+    let src = frame.samples_f64();
     let stride = src_w * channels;
     let rows: Vec<(Vec<f32>, Vec<bool>)> = (0..out_h)
         .into_par_iter()
@@ -548,41 +557,6 @@ fn validate_pair(reference: &ImageData, frame: &ImageData) -> Result<(), Registr
         return Err(RegistrationError::UnsupportedChannels(reference.channels));
     }
     Ok(())
-}
-
-/// Single-channel plane that star detection runs on. Mono frames are borrowed
-/// unchanged; RGB frames are collapsed to a Rec. 601 luminance proxy so star
-/// centroids come from a coherent plane (mirrors `stacking::detection_plane`).
-fn detection_plane(frame: &ImageData) -> std::borrow::Cow<'_, ImageData> {
-    match frame.channels {
-        1 => std::borrow::Cow::Borrowed(frame),
-        3 => std::borrow::Cow::Owned(luminance_proxy(frame)),
-        other => unreachable!("validate_pair rejects channel count {other}"),
-    }
-}
-
-fn luminance_proxy(rgb: &ImageData) -> ImageData {
-    let width = rgb.width;
-    let height = rgb.height;
-    let pixel_count = (width as usize) * (height as usize);
-    let interleaved = rgb
-        .as_u16()
-        .expect("luminance_proxy requires a U16 RGB image");
-
-    let luma: Vec<u16> = (0..pixel_count)
-        .into_par_iter()
-        .map(|i| {
-            let base = i * 3;
-            let r = interleaved[base] as f64;
-            let g = interleaved[base + 1] as f64;
-            let b = interleaved[base + 2] as f64;
-            (0.299 * r + 0.587 * g + 0.114 * b)
-                .round()
-                .clamp(0.0, 65535.0) as u16
-        })
-        .collect();
-
-    ImageData::from_u16(width, height, 1, &luma)
 }
 
 // Geometric matching (triangle descriptors -> star correspondences)

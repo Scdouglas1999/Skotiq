@@ -285,7 +285,7 @@ impl DecodedFrame {
     /// nothing).
     pub fn new(frame: &ImageData) -> Self {
         Self {
-            src: decode_to_f64(frame),
+            src: frame.samples_f64(),
             width: frame.width,
             height: frame.height,
             channels: frame.channels,
@@ -1616,19 +1616,6 @@ fn blur_channel_gaussian(
             }
             plane[(y * width + x) * channels + channel] = acc;
         }
-    }
-}
-
-/// Decode an [`ImageData`] to channel-interleaved f64 (the resampler's layout).
-/// U16 and F32 are supported (the linear types the pipeline emits); other types
-/// decode to an empty buffer, which the caller treats as no frame contribution.
-fn decode_to_f64(image: &ImageData) -> Vec<f64> {
-    if let Some(f) = image.as_f32() {
-        f.into_iter().map(|v| v as f64).collect()
-    } else if let Some(u) = image.as_u16() {
-        u.into_iter().map(|v| v as f64).collect()
-    } else {
-        Vec::new()
     }
 }
 

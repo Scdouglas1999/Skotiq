@@ -801,22 +801,11 @@ struct SerializedHeader {
 
 // Helpers
 
-/// Read the reference frame into a flat f64 buffer (channel-interleaved). Only
-/// U16 and F32 references are supported; everything else is a caller error.
+/// The reference frame as a flat f64 buffer (channel-interleaved). Only U16
+/// and F32 references are supported; everything else is a caller error.
 fn reference_to_f64(reference: &ImageData) -> Result<Vec<f64>, MasterError> {
     match reference.pixel_type {
-        PixelType::U16 => Ok(reference
-            .as_u16()
-            .expect("U16 image yields u16 data")
-            .into_iter()
-            .map(|v| v as f64)
-            .collect()),
-        PixelType::F32 => Ok(reference
-            .as_f32()
-            .expect("F32 image yields f32 data")
-            .into_iter()
-            .map(|v| v as f64)
-            .collect()),
+        PixelType::U16 | PixelType::F32 => Ok(reference.samples_f64()),
         other => Err(MasterError::UnsupportedReferenceType(other)),
     }
 }

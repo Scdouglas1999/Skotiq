@@ -445,7 +445,7 @@ pub(crate) struct CalibratedLight {
 
 /// The calibrated samples rounded into 16 bits for star detection.
 fn detection_copy(image: &ImageData) -> ImageData {
-    let samples = skotiq_imaging::calibration::samples_f64(image);
+    let samples = image.samples_f64();
     let data: Vec<u16> = samples
         .iter()
         .map(|v| {
