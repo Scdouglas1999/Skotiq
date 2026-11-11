@@ -13,9 +13,6 @@
 use super::types::*;
 use skotiq_device::Vendor;
 
-// ZWO quirks
-
-/// Get quirks for ZWO devices
 fn zwo_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     vec![
         // REMOVED: `Temperature(ScaleFactor(10.0))` — the ZWO ASI camera driver already
@@ -75,9 +72,6 @@ fn zwo_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     ]
 }
 
-// QHY quirks
-
-/// Get quirks for QHY devices
 fn qhy_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     vec![
         // REMOVED: `Discovery(NotThreadSafe)` / `Discovery(RequiresSerializedDiscovery)` /
@@ -109,9 +103,6 @@ fn qhy_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     ]
 }
 
-// Player One quirks
-
-/// Get quirks for Player One devices
 fn player_one_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     vec![
         // REMOVED: `Discovery(NotThreadSafe)` / `Discovery(RequiresSerializedDiscovery)` —
@@ -130,9 +121,6 @@ fn player_one_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     ]
 }
 
-// SVBony quirks
-
-/// Get quirks for SVBony devices
 fn svbony_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     vec![
         // REMOVED: `Temperature(ScaleFactor(10.0))` — the SVBony driver divides the raw
@@ -156,9 +144,6 @@ fn svbony_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     ]
 }
 
-// Atik quirks
-
-/// Get quirks for Atik devices
 fn atik_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     vec![
         // REMOVED: `Temperature(ScaleFactor(100.0))` — the Atik driver divides the
@@ -184,8 +169,6 @@ fn atik_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
         ),
     ]
 }
-
-// ToupTek quirks
 
 /// Get quirks for Touptek/Ogma devices.
 ///
@@ -239,9 +222,6 @@ fn touptek_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     ]
 }
 
-// Moravian quirks
-
-/// Get quirks for Moravian devices
 fn moravian_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     vec![
         // REMOVED: NotThreadSafe/DarkFrameRequiresShutter/ActualBitDepth/timeout entries.
@@ -251,9 +231,6 @@ fn moravian_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     ]
 }
 
-// FLI quirks
-
-/// Get quirks for FLI devices
 fn fli_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     vec![
         // REMOVED: NotThreadSafe/DarkFrameRequiresShutter/ExtendedDownloadTimeout entries.
@@ -262,9 +239,6 @@ fn fli_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     ]
 }
 
-// Sky-Watcher mount quirks
-
-/// Get quirks for Sky-Watcher mounts
 fn skywatcher_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     vec![
         // REMOVED: `Communication(RequiredBaudRate(9600))` — `vendor/skywatcher.rs`
@@ -284,9 +258,6 @@ fn skywatcher_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     ]
 }
 
-// iOptron mount quirks
-
-/// Get quirks for iOptron mounts
 fn ioptron_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     vec![
         // REMOVED: `Communication(RequiredBaudRate(115200))` and
@@ -306,9 +277,6 @@ fn ioptron_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     ]
 }
 
-// LX200 mount quirks
-
-/// Get quirks for LX200-compatible mounts
 fn lx200_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     vec![
         // REMOVED: `Communication(RequiredBaudRate(9600))` and
@@ -326,8 +294,6 @@ fn lx200_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
         // policy / goto-precision UI) has no quirk-aware path yet.
     ]
 }
-
-// Quirk matcher
 
 /// How to match quirks to devices
 #[derive(Debug, Clone, PartialEq)]
@@ -353,8 +319,6 @@ impl QuirkMatcher {
         }
     }
 }
-
-// Public API
 
 /// Get all quirks for a device based on its ID.
 ///
@@ -384,7 +348,6 @@ impl QuirkMatcher {
 pub fn get_device_quirks(device_id: &str) -> Vec<Quirk> {
     let mut quirks = Vec::new();
 
-    // Parse the device ID to extract vendor and model
     let parts: Vec<&str> = device_id.split(':').collect();
     if parts.len() < 2 {
         tracing::warn!(
@@ -424,7 +387,6 @@ pub fn get_device_quirks(device_id: &str) -> Vec<Quirk> {
         String::new()
     };
 
-    // Get vendor quirks based on protocol and vendor name
     let vendor_quirk_list = match protocol {
         "native" => match vendor_or_model.to_lowercase().as_str() {
             "zwo" => zwo_quirks(),
@@ -443,7 +405,6 @@ pub fn get_device_quirks(device_id: &str) -> Vec<Quirk> {
         _ => Vec::new(),
     };
 
-    // Apply matching quirks
     for (matcher, vendor_quirks) in vendor_quirk_list {
         if matcher.matches(device_id, &model) {
             quirks.extend(vendor_quirks);
@@ -462,13 +423,6 @@ pub fn get_device_quirks(device_id: &str) -> Vec<Quirk> {
     quirks
 }
 
-/// Get all quirks that apply vendor-wide.
-///
-/// # Arguments
-/// * `vendor` - The vendor enum
-///
-/// # Returns
-/// A vector of vendor-wide quirks
 pub fn get_vendor_quirks(vendor: &Vendor) -> Vec<Quirk> {
     let vendor_quirk_list = match vendor {
         Vendor::Zwo => zwo_quirks(),
@@ -545,7 +499,6 @@ mod tests {
         let quirks = get_vendor_quirks(&Vendor::Qhy);
         assert!(!quirks.is_empty());
 
-        // Should have discovery quirks
         let has_discovery = quirks.iter().any(|q| matches!(q, Quirk::Discovery(_)));
         assert!(has_discovery);
     }
