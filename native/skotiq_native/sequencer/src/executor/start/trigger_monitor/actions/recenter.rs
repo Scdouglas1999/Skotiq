@@ -72,7 +72,8 @@ pub(in super::super) async fn run(request: RecenterRequest<'_>) -> ActionFlow {
     let result = crate::instructions::execute_center(&center_config, &recenter_ctx, None).await;
     // The solve exposures are done; the capture loop may go on.
     camera_claim.release().await;
-    let stop_on_quality_problems = rig.trigger_state.read().await.stop_on_quality_problems;
+    let stop_on_quality_problems =
+        crate::triggers::stops_on_quality_problems(Some(&rig.trigger_state)).await;
     if result.status == NodeStatus::Success {
         *failure_told = false;
     } else if crate::instructions::center_did_not_converge(&result) && !stop_on_quality_problems {

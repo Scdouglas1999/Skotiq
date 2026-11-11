@@ -450,14 +450,9 @@ impl InstructionContext {
         let _ = tx.send(event);
     }
 
-    /// Whether the operator asked for quality problems to stop the run. Off by
-    /// default, and off with no run state at all (a one-shot instruction).
-    /// See [`crate::triggers::TriggerState::stop_on_quality_problems`].
+    /// See [`crate::triggers::stops_on_quality_problems`].
     pub async fn stops_on_quality_problems(&self) -> bool {
-        match &self.trigger_state {
-            Some(state) => state.read().await.stop_on_quality_problems,
-            None => false,
-        }
+        crate::triggers::stops_on_quality_problems(self.trigger_state.as_ref()).await
     }
 
     /// Whether the run is imaging unguided because the guide-star recovery ran
@@ -570,9 +565,9 @@ impl ImagingTrainClaimGuard {
             }
             let (token, hold) = {
                 let mut state = trigger_state.write().await;
-                match state.try_claim_imaging_train(holder, expected_secs) {
+                match state.imaging_train.try_claim(holder, expected_secs) {
                     Some(token) => (Some(token), None),
-                    None => (None, state.imaging_train_hold()),
+                    None => (None, state.imaging_train.hold()),
                 }
             };
             if let Some(token) = token {
@@ -606,6 +601,6 @@ impl ImagingTrainClaimGuard {
         let (Some(token), Some(trigger_state)) = (self.token, &ctx.trigger_state) else {
             return;
         };
-        trigger_state.write().await.release_imaging_train(token);
+        trigger_state.write().await.imaging_train.release(token);
     }
 }

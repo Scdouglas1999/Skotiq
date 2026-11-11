@@ -826,7 +826,7 @@ fn a_new_run_does_not_inherit_the_last_runs_tracking_baseline() {
     assert!(!super::monitoring::apply_mount_tracking_poll(
         &mut state, true
     ));
-    state.mount_is_tracking = Some(true);
+    state.telemetry.mount_is_tracking = Some(true);
     state.reset_for_new_run();
     assert!(
         !super::monitoring::apply_mount_tracking_poll(&mut state, false),

@@ -102,7 +102,10 @@ fn the_fixture_sets_every_trigger_state_field_to_a_non_default_value() {
             serde_json::Value::Object(map) => map.is_empty(),
             serde_json::Value::Array(items) => items.is_empty(),
         };
-        assert!(!is_default, "fixture field '{name}' holds a default: {value}");
+        assert!(
+            !is_default,
+            "fixture field '{name}' holds a default: {value}"
+        );
     }
 }
 
@@ -113,7 +116,10 @@ fn a_base_checkpoint_loads_with_its_run_position() {
     assert_eq!(loaded.sequence.name, "Base fixture");
     assert_eq!(loaded.executor_state, ExecutorState::Running);
     assert!(loaded.is_active);
-    assert_eq!(loaded.node_statuses.get("node-1"), Some(&NodeStatus::Success));
+    assert_eq!(
+        loaded.node_statuses.get("node-1"),
+        Some(&NodeStatus::Success)
+    );
     assert_eq!(loaded.last_completed_node.as_deref(), Some("node-1"));
     assert_eq!(loaded.current_node.as_deref(), Some("node-2"));
     assert_eq!(loaded.camera_id.as_deref(), Some("sim:camera"));

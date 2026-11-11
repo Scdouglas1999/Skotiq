@@ -78,13 +78,13 @@ pub async fn execute_temperature_compensation(
     let mut trigger_state = trigger_state_lock.write().await;
 
     // Get or set baseline temperature
-    let baseline_temp = match trigger_state.baseline_temperature {
+    let baseline_temp = match trigger_state.latches.baseline_temperature {
         Some(temp) => temp,
         None => {
             // First time - establish baseline
             tracing::info!("Establishing temperature baseline: {:.2}°C", current_temp);
-            trigger_state.baseline_temperature = Some(current_temp);
-            trigger_state.current_temperature = Some(current_temp);
+            trigger_state.latches.baseline_temperature = Some(current_temp);
+            trigger_state.latches.current_temperature = Some(current_temp);
             drop(trigger_state);
 
             return InstructionResult::success_with_message(format!(
@@ -95,7 +95,7 @@ pub async fn execute_temperature_compensation(
     };
 
     // Update current temperature in trigger state
-    trigger_state.current_temperature = Some(current_temp);
+    trigger_state.latches.current_temperature = Some(current_temp);
 
     // Calculate temperature change
     let temp_delta = current_temp - baseline_temp;
@@ -159,7 +159,7 @@ pub async fn execute_temperature_compensation(
         config.thermal_coefficient
     );
 
-    let existing_baseline_position = trigger_state.baseline_focuser_position;
+    let existing_baseline_position = trigger_state.latches.baseline_focuser_position;
     drop(trigger_state);
 
     // Get current focuser position without holding the trigger-state write lock.
@@ -184,7 +184,7 @@ pub async fn execute_temperature_compensation(
                         current_position
                     );
                     let mut trigger_state = trigger_state_lock.write().await;
-                    trigger_state.baseline_focuser_position = Some(current_position);
+                    trigger_state.latches.baseline_focuser_position = Some(current_position);
                     current_position
                 }
             };

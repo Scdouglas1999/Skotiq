@@ -65,14 +65,14 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
         // must not steal the mount back from its flip controller.
         if cause.policy().yields_to_tracking_limit_flip()
             && recovery_driver_trigger_mgr
-            .read()
-            .await
-            .state()
-            .read()
-            .await
-            .run
-            .hold()
-            == Some(crate::triggers::RunHold::TrackingLimit)
+                .read()
+                .await
+                .state()
+                .read()
+                .await
+                .run
+                .hold()
+                == Some(crate::triggers::RunHold::TrackingLimit)
         {
             continue;
         }
@@ -557,7 +557,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 // poll's unresolved loss cannot fire the trigger again.
                 let lock = recovery_driver_trigger_mgr.read().await.state();
                 let mut state = lock.write().await;
-                state.mount_is_tracking = Some(true);
+                state.telemetry.mount_is_tracking = Some(true);
                 state.reset_tracking_limit_detection();
                 state.set_mount_tracking_expected(true);
                 let _ = recovery_driver_event_tx.send(ExecutorEvent::Warning {
@@ -616,7 +616,10 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             });
         } else if !aborted_by_user
             && policy.on_give_up == OnGiveUp::ContinueUnguided
-            && !stops_on_quality_problems(&recovery_driver_trigger_mgr).await
+            && !crate::triggers::stops_on_quality_problems(Some(
+                &recovery_driver_trigger_mgr.read().await.state(),
+            ))
+            .await
         {
             // The guide star did not come back within the budget. That costs
             // trailed frames, which grading marks, not the hardware, so the run
@@ -820,10 +823,10 @@ async fn prepare_imaging_after_weather_hold(exit: WeatherHoldExit<'_>) {
     let (target_name, target_ra_hours, target_dec, current_filter) = {
         let ts = state.read().await;
         (
-            ts.current_target_name.clone(),
-            ts.target_ra.map(|ra| ra / 15.0),
-            ts.target_dec,
-            ts.current_filter.clone(),
+            ts.target.current_target_name.clone(),
+            ts.target.target_ra.map(|ra| ra / 15.0),
+            ts.target.target_dec,
+            ts.latches.current_filter.clone(),
         )
     };
     let recenter = exit.held_secs >= WEATHER_HOLD_RECENTER_AFTER_SECS
@@ -902,13 +905,6 @@ async fn prepare_imaging_after_weather_hold(exit: WeatherHoldExit<'_>) {
     ts.guiding.set_resume_pending(true);
 }
 
-async fn stops_on_quality_problems(trigger_mgr: &Arc<RwLock<TriggerManager>>) -> bool {
-    let manager = trigger_mgr.read().await;
-    let state = manager.state();
-    let stop = state.read().await.stop_on_quality_problems;
-    stop
-}
-
 struct UnguidedContinuation<'a> {
     ctx: &'a crate::recovery::RecoveryContext,
     active_run_id: Option<i64>,
@@ -940,10 +936,10 @@ async fn continue_unguided(c: UnguidedContinuation<'_>) {
         state.guiding.give_up_guiding();
         // The failures stay for the obstruction check; the next recovery
         // measures how far guiding moves the mount from where it begins.
-        if let Some(stall) = state.guide_recovery.as_mut() {
+        if let Some(stall) = state.latches.guide_recovery.as_mut() {
             stall.origin = None;
         }
-        if let Some(history) = state.guiding_rms_history.as_mut() {
+        if let Some(history) = state.latches.guiding_rms_history.as_mut() {
             history.clear();
         }
     }
@@ -1292,17 +1288,17 @@ mod tests {
             let lock = manager.state();
             let mut state = lock.write().await;
             state.set_target(180.0, 45.0);
-            state.current_hour_angle = Some(-0.55);
+            state.target.current_hour_angle = Some(-0.55);
             // The driver must detect the stopped mount even before the
             // ordinary poll has consumed its falling edge.
-            state.mount_is_tracking = Some(true);
+            state.telemetry.mount_is_tracking = Some(true);
             state.set_mount_tracking_expected(true);
         }
         {
             let manager = trigger_mgr.read().await;
             let state_lock = manager.state();
             let mut state = state_lock.write().await;
-            state.stop_on_quality_problems = stop_on_quality;
+            state.settings.stop_on_quality_problems = stop_on_quality;
             state.set_guiding_enabled(true);
             state.set_guide_star_lost(true);
         }

@@ -309,25 +309,70 @@ mod tests {
             })
             .collect();
         let expected = [
-            ("GuideStarLost", "guide_star_lost", "Guide star lost", r#""GuideStarLost""#),
-            ("SlewFailed", "slew_failed", "Slew failed", r#""SlewFailed""#),
-            ("PlateSolveFailed", "plate_solve_failed", "Plate-solve failed", r#""PlateSolveFailed""#),
-            ("WeatherUnsafe", "weather_unsafe", "Weather unsafe", r#""WeatherUnsafe""#),
-            ("MountTrackingLost", "mount_tracking_lost", "Mount tracking lost", r#""MountTrackingLost""#),
-            ("FocusDriftCritical", "focus_drift_critical", "Critical focus drift", r#""FocusDriftCritical""#),
+            (
+                "GuideStarLost",
+                "guide_star_lost",
+                "Guide star lost",
+                r#""GuideStarLost""#,
+            ),
+            (
+                "SlewFailed",
+                "slew_failed",
+                "Slew failed",
+                r#""SlewFailed""#,
+            ),
+            (
+                "PlateSolveFailed",
+                "plate_solve_failed",
+                "Plate-solve failed",
+                r#""PlateSolveFailed""#,
+            ),
+            (
+                "WeatherUnsafe",
+                "weather_unsafe",
+                "Weather unsafe",
+                r#""WeatherUnsafe""#,
+            ),
+            (
+                "MountTrackingLost",
+                "mount_tracking_lost",
+                "Mount tracking lost",
+                r#""MountTrackingLost""#,
+            ),
+            (
+                "FocusDriftCritical",
+                "focus_drift_critical",
+                "Critical focus drift",
+                r#""FocusDriftCritical""#,
+            ),
             (
                 "ConsecutiveRejectsExceeded",
                 "consecutive_rejects_exceeded",
                 "Consecutive rejects",
                 r#""ConsecutiveRejectsExceeded""#,
             ),
-            ("DeviceDisconnected", "device_disconnected", "Device disconnected", r#""DeviceDisconnected""#),
-            ("Custom", "custom", "Roof sensor tripped", r#"{"Custom":"Roof sensor tripped"}"#),
+            (
+                "DeviceDisconnected",
+                "device_disconnected",
+                "Device disconnected",
+                r#""DeviceDisconnected""#,
+            ),
+            (
+                "Custom",
+                "custom",
+                "Roof sensor tripped",
+                r#"{"Custom":"Roof sensor tripped"}"#,
+            ),
         ];
         assert_eq!(rows.len(), expected.len());
         for (row, (kind, wire_key, label, json)) in rows.iter().zip(expected) {
             assert_eq!(
-                (row.0.as_str(), row.1.as_str(), row.2.as_str(), row.3.as_str()),
+                (
+                    row.0.as_str(),
+                    row.1.as_str(),
+                    row.2.as_str(),
+                    row.3.as_str()
+                ),
                 (kind, wire_key, label, json)
             );
         }
@@ -338,10 +383,8 @@ mod tests {
         for cause in all_causes() {
             let policy = cause.policy();
             assert_eq!(policy.may_stop_tracking, policy.hold.is_none(), "{cause:?}");
-            let expected_give_up = !matches!(
-                policy.hold,
-                Some(HoldKind::Weather | HoldKind::Tracking)
-            );
+            let expected_give_up =
+                !matches!(policy.hold, Some(HoldKind::Weather | HoldKind::Tracking));
             assert_eq!(policy.can_give_up, expected_give_up, "{cause:?}");
             assert_eq!(
                 policy.on_give_up == OnGiveUp::ContinueUnguided,

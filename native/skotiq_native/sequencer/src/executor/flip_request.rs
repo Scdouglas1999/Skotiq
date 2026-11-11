@@ -48,7 +48,8 @@ impl SequenceExecutor {
             let manager = self.trigger_manager.read().await;
             let Some(trigger) = manager
                 .standard(StandardTrigger::MeridianFlip)
-                .filter(|t| t.enabled) else {
+                .filter(|t| t.enabled)
+            else {
                 return Err("The run's meridian flip trigger is turned off.".to_string());
             };
             if trigger.is_in_cooldown() {
@@ -92,7 +93,10 @@ impl SequenceExecutor {
                 return Err(reason);
             }
             state.meridian.request();
-            (state.current_target_name.clone(), state.current_hour_angle)
+            (
+                state.target.current_target_name.clone(),
+                state.target.current_hour_angle,
+            )
         };
         tracing::info!(
             "[MERIDIAN] Operator requested a flip now for {:?} (hour angle {:?}h)",

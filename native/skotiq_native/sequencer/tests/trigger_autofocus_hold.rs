@@ -468,8 +468,8 @@ async fn a_dead_guider_after_trigger_autofocus_holds_the_run_even_when_focus_is_
         // firing has: frames 1.2x soft, well inside the 1.6x keep-imaging
         // tolerance. (Invalidation clears the baseline, so it goes first.)
         ts.invalidate_autofocus("test: force a refocus");
-        ts.baseline_hfr = Some(2.0);
-        ts.current_hfr = Some(2.4);
+        ts.latches.baseline_hfr = Some(2.0);
+        ts.latches.current_hfr = Some(2.4);
     })
     .await;
     let Outcome {

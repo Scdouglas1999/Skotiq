@@ -118,6 +118,7 @@ async fn recovery_displacement_arcmin(
     .ok()?;
     let mut state = state.write().await;
     let origin = *state
+        .latches
         .guide_recovery
         .get_or_insert_with(Default::default)
         .origin
@@ -146,11 +147,15 @@ async fn record_guide_recovery_failure(
     };
     let now = chrono::Utc::now();
     let mut state = state.write().await;
-    let site = state.observer_latitude.zip(state.observer_longitude);
+    let site = state
+        .settings
+        .observer_latitude
+        .zip(state.settings.observer_longitude);
     let alt_az_deg = position
         .zip(site)
         .map(|((ra, dec), (lat, lon))| crate::meridian::calculate_alt_az(ra, dec, lat, lon, now));
     state
+        .latches
         .guide_recovery
         .get_or_insert_with(Default::default)
         .failures
@@ -204,7 +209,9 @@ pub(crate) async fn recover_guide_star(
     let trigger_state = trigger_state.as_ref();
     let outcome = reacquire_guide_star(device_ops, mount_id, trigger_state).await;
     match (&outcome, trigger_state) {
-        (AttemptOutcome::Succeeded, Some(state)) => state.write().await.guide_recovery = None,
+        (AttemptOutcome::Succeeded, Some(state)) => {
+            state.write().await.latches.guide_recovery = None
+        }
         (AttemptOutcome::Failed { .. }, _) => {
             record_guide_recovery_failure(device_ops, mount_id, trigger_state).await;
         }
@@ -250,7 +257,7 @@ async fn reacquire_guide_star(
     }
 
     let reference = match trigger_state {
-        Some(state) => state.read().await.guide_star_reference,
+        Some(state) => state.read().await.target.guide_star_reference,
         None => None,
     };
     let floor = crate::GuideStarFloor::for_recovery(reference);
@@ -387,9 +394,9 @@ pub(crate) async fn weather_sky_check(
         let guard = state.read().await;
         (
             guard.weather_verdict_counts_unsafe(),
-            guard.weather_verdict_advisory,
-            guard.weather_safe,
-            guard.safety_fail_mode,
+            guard.telemetry.weather_verdict_advisory,
+            guard.telemetry.weather_safe,
+            guard.settings.safety_fail_mode,
         )
     };
     if verdict_unsafe {
@@ -491,12 +498,10 @@ pub(crate) async fn run_recovery_attempt(
                 message: "No mount is configured; cannot recover tracking".to_string(),
             },
         },
-        AttemptKind::CheckSky => {
-            match weather_sky_check(device_ops, trigger_manager).await {
-                Ok(()) => AttemptOutcome::Succeeded,
-                Err(message) => AttemptOutcome::Failed { message },
-            }
-        }
+        AttemptKind::CheckSky => match weather_sky_check(device_ops, trigger_manager).await {
+            Ok(()) => AttemptOutcome::Succeeded,
+            Err(message) => AttemptOutcome::Failed { message },
+        },
         // The driver releases the node tree when it sees `Recovered`, and
         // the tree resumes where it stopped: a failed slew or center runs
         // again under its own retry logic, and the autofocus triggers stay
@@ -609,11 +614,11 @@ pub(crate) async fn hand_off_tracking_limit(
         return false;
     }
     let mut candidate = state.clone();
-    candidate.mount_is_tracking = Some(false);
-    candidate.mount_slewing = Some(false);
-    candidate.mount_parked = Some(false);
-    candidate.pier_side = Some(crate::PierSide::West);
-    candidate.mount_status_query_failed = false;
+    candidate.telemetry.mount_is_tracking = Some(false);
+    candidate.telemetry.mount_slewing = Some(false);
+    candidate.telemetry.mount_parked = Some(false);
+    candidate.telemetry.pier_side = Some(crate::PierSide::West);
+    candidate.telemetry.mount_status_query_failed = false;
     candidate
         .tracking
         .record_loss(chrono::Utc::now().timestamp());

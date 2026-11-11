@@ -23,7 +23,7 @@ pub(in super::super) async fn switch_target_or_filter(
     // run.
     if let Some(problem) = problem {
         tracing::warn!("[SCIENCE] SwitchTargetOrFilter fired but {problem}");
-        if rig.trigger_state.read().await.stop_on_quality_problems {
+        if crate::triggers::stops_on_quality_problems(Some(&rig.trigger_state)).await {
             run.error(format!(
                 "{trigger_name}: {problem}, so the run is paused because Stop the run for \
                  quality problems is on. Set a backup filter or target in the science \

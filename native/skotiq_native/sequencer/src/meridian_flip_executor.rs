@@ -608,7 +608,7 @@ impl MeridianFlipExecutor {
                     if let Some(ts) = ctx.trigger_state.as_ref() {
                         let mut state = ts.write().await;
                         if !matches!(new_pier_side, PierSide::Unknown) {
-                            state.pier_side = Some(new_pier_side);
+                            state.telemetry.pier_side = Some(new_pier_side);
                         }
                         state.mark_flip_performed();
                     }
@@ -662,7 +662,8 @@ impl MeridianFlipExecutor {
                     if attempt >= max_attempts
                         && pier_verified
                         && failed_step.after_the_mount_tracks()
-                        && !self.stops_on_quality_problems(ctx).await
+                        && !crate::triggers::stops_on_quality_problems(ctx.trigger_state.as_ref())
+                            .await
                     {
                         // The mount is on its new side and tracks: a recenter
                         // that never solved or a guider that did not restart
@@ -1025,13 +1026,13 @@ impl MeridianFlipExecutor {
         if let Some(ts) = ctx.trigger_state.as_ref() {
             let mut state = ts.write().await;
             if !matches!(new_pier_side, PierSide::Unknown) {
-                state.pier_side = Some(new_pier_side);
+                state.telemetry.pier_side = Some(new_pier_side);
             }
             state.mark_flip_performed();
             // The guide camera sees other stars on this side, so the star the
             // run guided on before is no measure for the ones it picks now,
             // as with a new target.
-            state.guide_star_reference = None;
+            state.target.guide_star_reference = None;
         }
         *self.reached_pier_side.lock() = Some(new_pier_side);
         // Guiding is stopped for the flip now, not for a tracking-limit hold
@@ -1053,13 +1054,6 @@ impl MeridianFlipExecutor {
                 error: None,
                 action_taken: None,
             });
-        }
-    }
-
-    async fn stops_on_quality_problems(&self, ctx: &FlipContext) -> bool {
-        match &ctx.trigger_state {
-            Some(state) => state.read().await.stop_on_quality_problems,
-            None => false,
         }
     }
 
@@ -1863,7 +1857,7 @@ impl MeridianFlipExecutor {
         // pre-flip star's mass floor refused every star the flipped field had
         // (SNR 38-61) and the flip failed over guiding.
         let reference = match &ctx.trigger_state {
-            Some(state) => state.read().await.guide_star_reference,
+            Some(state) => state.read().await.target.guide_star_reference,
             None => None,
         };
         match crate::instructions::start_guiding_holding_on_settle_timeout(
@@ -1986,7 +1980,7 @@ impl MeridianFlipExecutor {
         // The star guided on from here is the measure for later recoveries.
         if let Some(state) = &ctx.trigger_state {
             if let Ok(Some(star)) = self.device_ops.guider_star_quality().await {
-                state.write().await.guide_star_reference = Some(star);
+                state.write().await.target.guide_star_reference = Some(star);
             }
         }
         Ok(())
@@ -3116,7 +3110,7 @@ mod tests {
     /// flip's retry ladder and failure action take it from there.
     fn make_ctx_stopping_on_quality_problems(state: &Arc<MockDeviceOpsState>) -> FlipContext {
         let mut trigger_state = TriggerState::new();
-        trigger_state.stop_on_quality_problems = true;
+        trigger_state.settings.stop_on_quality_problems = true;
         FlipContext {
             trigger_state: Some(Arc::new(RwLock::new(trigger_state))),
             ..make_ctx(state)
@@ -3366,7 +3360,7 @@ mod tests {
             star_mass: 15_000.0,
         };
         let mut trigger_state = TriggerState::new();
-        trigger_state.guide_star_reference = Some(reference);
+        trigger_state.target.guide_star_reference = Some(reference);
         let ctx = FlipContext {
             trigger_state: Some(Arc::new(RwLock::new(trigger_state))),
             ..make_ctx(&state)
@@ -3410,7 +3404,7 @@ mod tests {
             ..Default::default()
         };
         let mut trigger_state = TriggerState::new();
-        trigger_state.pier_side = Some(PierSide::West);
+        trigger_state.telemetry.pier_side = Some(PierSide::West);
         let trigger_state = Arc::new(RwLock::new(trigger_state));
         let ctx = FlipContext {
             trigger_state: Some(trigger_state.clone()),
@@ -4726,7 +4720,7 @@ mod tests {
             let (tx, _rx) = broadcast::channel(64);
             let mut executor = MeridianFlipExecutor::new(config, ops).with_executor_event_tx(tx);
             let mut quality_stops = TriggerState::new();
-            quality_stops.stop_on_quality_problems = true;
+            quality_stops.settings.stop_on_quality_problems = true;
             let ts = Arc::new(RwLock::new(quality_stops));
             let ctx = FlipContext {
                 trigger_state: Some(ts.clone()),
@@ -4783,12 +4777,12 @@ mod tests {
         // Both settle settings below the rig's 0.64 px: the restart bar is
         // the looser of the two, and still below the measured RMS.
         let mut trigger_state = TriggerState::new();
-        trigger_state.dither_settle = crate::GuiderSettle {
+        trigger_state.settings.dither_settle = crate::GuiderSettle {
             pixels: 0.5,
             time_secs: 30.0,
             timeout_secs: 30.0,
         };
-        trigger_state.guiding_settle = Some(crate::GuiderSettle {
+        trigger_state.settings.guiding_settle = Some(crate::GuiderSettle {
             pixels: 0.4,
             time_secs: 10.0,
             timeout_secs: 20.0,
@@ -4896,7 +4890,7 @@ mod tests {
         let mut executor = MeridianFlipExecutor::new(config, ops);
         let mut guiding_run = TriggerState::new();
         guiding_run.set_guiding_enabled(true);
-        guiding_run.stop_on_quality_problems = true;
+        guiding_run.settings.stop_on_quality_problems = true;
         let ts = Arc::new(RwLock::new(guiding_run));
         let ctx = FlipContext {
             trigger_state: Some(ts.clone()),
@@ -5069,7 +5063,7 @@ mod tests {
         };
         let mut executor = MeridianFlipExecutor::new(config, ops);
         let mut quality_stops = TriggerState::new();
-        quality_stops.stop_on_quality_problems = true;
+        quality_stops.settings.stop_on_quality_problems = true;
         let ts = Arc::new(RwLock::new(quality_stops));
         let ctx = FlipContext {
             trigger_state: Some(ts.clone()),

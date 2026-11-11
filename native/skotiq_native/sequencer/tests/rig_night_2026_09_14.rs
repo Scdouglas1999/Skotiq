@@ -493,8 +493,8 @@ async fn replay(
     executor
         .update_trigger_state(move |ts| {
             ts.invalidate_autofocus("replay: filter changed");
-            ts.baseline_hfr = Some(first_light_hfr);
-            ts.current_hfr = Some(first_light_hfr);
+            ts.latches.baseline_hfr = Some(first_light_hfr);
+            ts.latches.current_hfr = Some(first_light_hfr);
         })
         .await;
 

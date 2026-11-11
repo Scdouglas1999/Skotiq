@@ -59,7 +59,7 @@ pub async fn execute_dither(
                     let offset = state.next_grid_dither_offset(config.grid_size, config.pixels);
                     tracing::info!(
                         "Grid dither: position {}/{} -> RA={:.1}px, Dec={:.1}px",
-                        state.grid_dither_index,
+                        state.latches.grid_dither_index,
                         config.grid_size * config.grid_size,
                         offset.0,
                         offset.1
@@ -191,7 +191,11 @@ pub async fn execute_dither(
             // A success ends the streak, so "3 in a row" in the warning above
             // means three in a row and not three all night.
             if let Some(trigger_state) = &ctx.trigger_state {
-                trigger_state.write().await.consecutive_dither_failures = 0;
+                trigger_state
+                    .write()
+                    .await
+                    .latches
+                    .consecutive_dither_failures = 0;
             }
             let pattern_name = match config.pattern {
                 crate::DitherPattern::Random => "random",
@@ -220,9 +224,9 @@ pub async fn execute_dither(
             // an operator's attention even though it is not worth the night.
             let consecutive = if let Some(trigger_state) = &ctx.trigger_state {
                 let mut state = trigger_state.write().await;
-                state.consecutive_dither_failures =
-                    state.consecutive_dither_failures.saturating_add(1);
-                state.consecutive_dither_failures
+                state.latches.consecutive_dither_failures =
+                    state.latches.consecutive_dither_failures.saturating_add(1);
+                state.latches.consecutive_dither_failures
             } else {
                 1
             };

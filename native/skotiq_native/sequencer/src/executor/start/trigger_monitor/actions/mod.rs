@@ -74,11 +74,11 @@ impl Rig {
     pub(super) async fn target(&self) -> TargetSnapshot {
         let state = self.trigger_state.read().await;
         TargetSnapshot {
-            name: state.current_target_name.clone(),
+            name: state.target.current_target_name.clone(),
             // Trigger state keeps RA in degrees; instructions take hours.
-            ra_hours: state.target_ra.map(|ra| ra / 15.0),
-            dec_degrees: state.target_dec,
-            filter: state.current_filter.clone(),
+            ra_hours: state.target.target_ra.map(|ra| ra / 15.0),
+            dec_degrees: state.target.target_dec,
+            filter: state.latches.current_filter.clone(),
         }
     }
 }

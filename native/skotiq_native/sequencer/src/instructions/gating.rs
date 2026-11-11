@@ -249,7 +249,7 @@ pub(crate) async fn wait_for_darkness(
 /// instruction sites / tests) or the value has not been seeded.
 pub(crate) async fn resolve_max_sun_altitude(ctx: &InstructionContext) -> f64 {
     if let Some(lock) = &ctx.trigger_state {
-        if let Some(v) = lock.read().await.max_sun_altitude_degrees {
+        if let Some(v) = lock.read().await.settings.max_sun_altitude_degrees {
             return v;
         }
     }

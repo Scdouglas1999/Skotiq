@@ -41,11 +41,11 @@ pub(super) fn select_dispatches(
         // the night as for any plan.
         if policy.explicit_end
             && origin == TriggerOrigin::Standard(StandardTrigger::DawnApproaching)
-            && !mode.executor_held() {
+            && !mode.executor_held()
+        {
             continue;
         }
-        if policy.calibration_run
-            && !super::super::calibration_run::acts_in_calibration_run(origin)
+        if policy.calibration_run && !super::super::calibration_run::acts_in_calibration_run(origin)
         {
             continue;
         }
@@ -145,7 +145,13 @@ mod tests {
     }
 
     fn notifies(trigger_type: TriggerType, action: RecoveryAction, stop: bool) -> bool {
-        apply_quality_policy(TriggerOrigin::Other, Some(&trigger_type), fired(action), stop).notify_only
+        apply_quality_policy(
+            TriggerOrigin::Other,
+            Some(&trigger_type),
+            fired(action),
+            stop,
+        )
+        .notify_only
     }
 
     /// Saved configurations carry Pause or Retry for quality triggers (the rig

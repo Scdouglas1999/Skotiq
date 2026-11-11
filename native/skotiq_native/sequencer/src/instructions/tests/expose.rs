@@ -162,7 +162,8 @@ async fn the_capture_loop_does_not_move_the_wheel_under_a_trigger_claim() {
     let af_token = trigger_state
         .write()
         .await
-        .try_claim_imaging_train("autofocus", 600.0)
+        .imaging_train
+        .try_claim("autofocus", 600.0)
         .expect("an idle imaging train must be claimable");
 
     let config = ExposureConfig {
@@ -188,7 +189,7 @@ async fn the_capture_loop_does_not_move_the_wheel_under_a_trigger_claim() {
     );
 
     // Hand it back; the burst proceeds and takes the wheel.
-    trigger_state.write().await.release_imaging_train(af_token);
+    trigger_state.write().await.imaging_train.release(af_token);
     let _ = burst.await.expect("the burst task must not panic");
     assert_eq!(
         *ops.filter_moves.lock().unwrap(),
@@ -207,16 +208,18 @@ async fn a_trigger_action_cannot_take_the_train_mid_frame() {
     let mut state = crate::triggers::TriggerState::new();
     // A 180 s light, as on the owner's rig.
     let frame_token = state
-        .try_claim_imaging_train("the next exposure", 180.0)
+        .imaging_train
+        .try_claim("the next exposure", 180.0)
         .expect("an idle imaging train must be claimable");
 
     // The drift-recenter trigger wants a 5 s plate-solve frame.
     assert!(
-        state.try_claim_imaging_train("recenter", 5.0).is_none(),
+        state.imaging_train.try_claim("recenter", 5.0).is_none(),
         "a recenter must not start a 5 s exposure on a camera mid-180 s frame"
     );
     let hold = state
-        .imaging_train_hold()
+        .imaging_train
+        .hold()
         .expect("the capture loop still holds it");
     assert_eq!(hold.holder, "the next exposure");
     assert!(
@@ -226,9 +229,9 @@ async fn a_trigger_action_cannot_take_the_train_mid_frame() {
         hold.expected_remaining_secs
     );
 
-    state.release_imaging_train(frame_token);
+    state.imaging_train.release(frame_token);
     assert!(
-        state.try_claim_imaging_train("recenter", 5.0).is_some(),
+        state.imaging_train.try_claim("recenter", 5.0).is_some(),
         "and the recenter runs the moment the frame is downloaded"
     );
 }
@@ -466,7 +469,7 @@ mod in_burst_dither_failure {
         );
         let ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
         if let Some(state) = &ctx.trigger_state {
-            state.write().await.stop_on_quality_problems = stop_on_quality_problems;
+            state.write().await.settings.stop_on_quality_problems = stop_on_quality_problems;
         }
         let (event_tx, mut events) = tokio::sync::broadcast::channel(64);
         let (decision_tx, mut decision_rx) = tokio::sync::broadcast::channel(64);
@@ -748,7 +751,7 @@ async fn a_pending_guide_restart_waits_for_the_mount_to_track() {
     ec.save_path = Some(dir.clone());
     let mut state = crate::triggers::TriggerState::new();
     state.guiding.set_resume_pending(true);
-    state.mount_is_tracking = Some(false);
+    state.telemetry.mount_is_tracking = Some(false);
     let state = Arc::new(tokio::sync::RwLock::new(state));
     ec.trigger_state = Some(state.clone());
     let ctx = ec.to_instruction_context("guide-wait").await;
@@ -774,7 +777,7 @@ async fn a_pending_guide_restart_waits_for_the_mount_to_track() {
     assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 0);
     assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 0);
 
-    state.write().await.mount_is_tracking = Some(true);
+    state.write().await.telemetry.mount_is_tracking = Some(true);
     let result = tokio::time::timeout(Duration::from_secs(600), burst)
         .await
         .expect("the frame runs once the mount tracks");

@@ -211,7 +211,7 @@ impl TriggerManager {
         for trigger in &mut self.triggers {
             let mut firing = trigger.check(&state).await;
             if firing
-                && state.autofocus_hold.is_some()
+                && state.latches.autofocus_hold.is_some()
                 && matches!(trigger.recovery_action, RecoveryAction::Autofocus)
             {
                 autofocus_held = true;
@@ -252,7 +252,7 @@ impl TriggerManager {
             self.state.write().await.clear_filter_changed();
         }
         if autofocus_held {
-            self.state.write().await.autofocus_wanted_while_held = true;
+            self.state.write().await.latches.autofocus_wanted_while_held = true;
         }
 
         fired
@@ -299,7 +299,7 @@ impl TriggerManager {
         }
         let retention_changed = if let Some(secs) = retention {
             let state = self.state.read().await;
-            state.guiding_rms_retention_secs != secs
+            state.trigger_config.guiding_rms_retention_secs != secs
         } else {
             false
         };
@@ -310,14 +310,14 @@ impl TriggerManager {
                     state.set_guiding_rms_retention_secs(secs);
                 }
             }
-            if state.meridian_trigger_method != meridian_method {
-                state.meridian_trigger_method = meridian_method;
+            if state.trigger_config.meridian_trigger_method != meridian_method {
+                state.trigger_config.meridian_trigger_method = meridian_method;
             }
-            if state.meridian_flip_minutes_past != meridian_minutes {
-                state.meridian_flip_minutes_past = meridian_minutes;
+            if state.trigger_config.meridian_flip_minutes_past != meridian_minutes {
+                state.trigger_config.meridian_flip_minutes_past = meridian_minutes;
             }
-            if state.meridian_pause_before_minutes != meridian_pause_before {
-                state.meridian_pause_before_minutes = meridian_pause_before;
+            if state.trigger_config.meridian_pause_before_minutes != meridian_pause_before {
+                state.trigger_config.meridian_pause_before_minutes = meridian_pause_before;
             }
         }
     }

@@ -66,8 +66,8 @@ impl Harness {
             let lock = manager.state();
             let mut s = lock.write().await;
             s.set_target(TARGET_RA_DEG, TARGET_DEC_DEG);
-            s.current_target_name = Some("NGC0891".to_string());
-            s.weather_safe = true;
+            s.target.current_target_name = Some("NGC0891".to_string());
+            s.telemetry.weather_safe = true;
         }
         let (events, seen) = broadcast::channel(4096);
         let (decisions, _) = broadcast::channel(4096);
@@ -314,6 +314,7 @@ async fn the_night_replayed_recenters_without_learning_an_unverified_obstruction
                 .trigger_state
                 .read()
                 .await
+                .latches
                 .autofocus_hold
                 .is_some()
         {
@@ -462,6 +463,7 @@ async fn the_last_frame_of_a_target_holds_autofocus_after_the_run_moves_on() {
         .trigger_state
         .read()
         .await
+        .latches
         .autofocus_hold
         .is_none());
 
@@ -469,7 +471,7 @@ async fn the_last_frame_of_a_target_holds_autofocus_after_the_run_moves_on() {
     {
         let mut state = h.dispatcher.rig.trigger_state.write().await;
         state.set_target(8.8567 * 15.0, 11.8);
-        state.current_target_name = Some("M67".to_string());
+        state.target.current_target_name = Some("M67".to_string());
     }
     let mut last = row(706);
     assert_eq!(last.stars, Some(1));
@@ -483,6 +485,7 @@ async fn the_last_frame_of_a_target_holds_autofocus_after_the_run_moves_on() {
         .trigger_state
         .read()
         .await
+        .latches
         .autofocus_hold
         .clone();
     assert_eq!(
@@ -528,9 +531,9 @@ async fn drift_from_first_frame_runs_centering_to_that_reference() {
     // Center's final solve is reported to trigger state, proving the actual
     // instruction received the measured reference rather than catalog Dec.
     let state = h.dispatcher.rig.trigger_state.read().await;
-    assert_eq!(state.last_plate_solve_dec, Some(reference_dec));
+    assert_eq!(state.target.last_plate_solve_dec, Some(reference_dec));
     assert_eq!(
-        state.target_dec,
+        state.target.target_dec,
         Some(TARGET_DEC_DEG),
         "the planned target stays unchanged"
     );
@@ -642,7 +645,7 @@ async fn probe_return_does_not_release_capture_before_recentering() {
         tokio::select! {
             _ = &mut recovery => {},
             _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {
-                assert!(state.write().await.try_claim_imaging_train("next light", 120.0).is_none());
+                assert!(state.write().await.imaging_train.try_claim("next light", 120.0).is_none());
                 recovery.await;
             }
         }
@@ -655,7 +658,8 @@ async fn probe_return_does_not_release_capture_before_recentering() {
     assert!(state
         .write()
         .await
-        .try_claim_imaging_train("next light", 120.0)
+        .imaging_train
+        .try_claim("next light", 120.0)
         .is_some());
 }
 
@@ -747,6 +751,6 @@ async fn refused_probe_return_honors_failure_policy_without_exposing() {
             "{:?}",
             h.ops.calls()
         );
-        assert!(state.read().await.imaging_train_hold().is_some());
+        assert!(state.read().await.imaging_train.hold().is_some());
     }
 }

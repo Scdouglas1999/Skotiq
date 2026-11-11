@@ -379,7 +379,7 @@ impl Dispatcher {
         }
         let mut state = self.rig.trigger_state.write().await;
         state.guiding.lose_star_and_continue_unguided();
-        if let Some(history) = state.guiding_rms_history.as_mut() {
+        if let Some(history) = state.latches.guiding_rms_history.as_mut() {
             history.clear();
         }
     }

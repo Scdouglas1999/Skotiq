@@ -31,8 +31,11 @@ use crate::node::instructions::autofocus::parse_autofocus_detail;
 use crate::node::{
     CloudMotionSnapshot, ExecutionContext, Node, ProgressDetail, ProgressUpdate, RuntimeNode,
 };
+#[cfg(test)]
+use crate::triggers::{camera_driving_trigger_action, claim_camera_for_trigger_action};
 use crate::triggers::{
-    ParkSetting, StandardTrigger, Trigger, TriggerManager, TriggerOrigin, TriggerState,
+    ParkSetting, StandardTrigger, Trigger, TriggerCameraClaim, TriggerManager, TriggerOrigin,
+    TriggerState,
 };
 use crate::{
     NodeDefinition, NodeId, NodeStatus, NodeType, RecoveryAction, SafetyFailMode,
@@ -542,7 +545,7 @@ pub(crate) fn autofocus_failure_continuation(
 pub const QUALITY_PROBLEM_CONTINUED_SUMMARY: &str = "Problem noticed — the run continues";
 
 /// The continuation record for a quality problem the run carries on through
-/// (see [`crate::triggers::TriggerState::stop_on_quality_problems`]). `source`
+/// (see [`crate::triggers::TriggerState::stops_on_quality_problems`]). `source`
 /// names what noticed it ("Center 'M31'", "Post-flip recenter"), `problem`
 /// says what it found, and the fields of `context` are added to the decision
 /// row's details.

@@ -839,7 +839,7 @@ async fn scenario2_weather_unsafe_trigger_fires_from_hardware_and_from_verdict()
 
     // (a) hardware safety monitor unsafe, no Dart verdict.
     let mut state = TriggerState::new();
-    state.weather_safe = false;
+    state.telemetry.weather_safe = false;
     assert!(
         trigger.check(&state).await,
         "hardware-unsafe must fire WeatherUnsafe"
@@ -847,7 +847,7 @@ async fn scenario2_weather_unsafe_trigger_fires_from_hardware_and_from_verdict()
 
     // (b) hardware safe, Dart verdict unsafe (rig with no safety device).
     let mut state = TriggerState::new();
-    state.weather_safe = true;
+    state.telemetry.weather_safe = true;
     state.update_weather_verdict(Some(true));
     assert!(
         trigger.check(&state).await,
@@ -856,7 +856,7 @@ async fn scenario2_weather_unsafe_trigger_fires_from_hardware_and_from_verdict()
 
     // (c) both clear -> must NOT fire (no false safe-state at the worst time).
     let mut state = TriggerState::new();
-    state.weather_safe = true;
+    state.telemetry.weather_safe = true;
     state.update_weather_verdict(Some(false));
     assert!(
         !trigger.check(&state).await,
@@ -991,7 +991,7 @@ async fn scenario3_stale_unsafe_verdict_stays_paused_and_warns_never_resumes() {
     // 600s old yet ("overflow when subtracting duration from instant"), so
     // saturate to the oldest representable instant — runner uptime is always
     // well past the 60s staleness window asserted below.
-    state.write().await.weather_verdict_last_update = Some({
+    state.write().await.telemetry.weather_verdict_last_update = Some({
         let now = std::time::Instant::now();
         now.checked_sub(std::time::Duration::from_secs(600))
             .unwrap_or_else(|| {
@@ -1014,7 +1014,7 @@ async fn scenario3_stale_unsafe_verdict_stays_paused_and_warns_never_resumes() {
             "a 600s-old unsafe verdict with a 60s window must read stale"
         );
         assert_eq!(
-            guard.weather_verdict_unsafe,
+            guard.telemetry.weather_verdict_unsafe,
             Some(true),
             "staleness must NOT clear the unsafe verdict"
         );
@@ -1073,7 +1073,7 @@ async fn scenario4_dawn_approaching_fires_and_parks() {
     let mut state = TriggerState::new();
 
     // Dawn 15 min out -> fire.
-    state.dawn_time = Some(now + 15 * 60);
+    state.telemetry.dawn_time = Some(now + 15 * 60);
     assert!(
         trigger.check(&state).await,
         "dawn 15 min away must fire DawnApproaching(30)"
@@ -1089,7 +1089,7 @@ async fn scenario4_dawn_approaching_fires_and_parks() {
         crate::RecoveryAction::ParkAndAbort,
     );
     let mut past = TriggerState::new();
-    past.dawn_time = Some(now - 5 * 60);
+    past.telemetry.dawn_time = Some(now - 5 * 60);
     assert!(
         !trigger2.check(&past).await,
         "after dawn has passed the trigger must not fire through the day"
@@ -1227,8 +1227,8 @@ async fn trigger_manager_with_site() -> Arc<RwLock<TriggerManager>> {
         let guard = manager.read().await;
         let lock = guard.state();
         let mut state = lock.write().await;
-        state.observer_latitude = Some(43.0);
-        state.observer_longitude = Some(-79.0);
+        state.settings.observer_latitude = Some(43.0);
+        state.settings.observer_longitude = Some(-79.0);
     }
     manager
 }
@@ -1302,7 +1302,7 @@ async fn scenario5h_recovery_refuses_a_star_far_fainter_than_the_runs() {
     let manager = trigger_manager_with_site().await;
     {
         let guard = manager.read().await;
-        guard.state().write().await.guide_star_reference = Some(crate::GuideStarQuality {
+        guard.state().write().await.target.guide_star_reference = Some(crate::GuideStarQuality {
             snr: 230.0,
             star_mass: 750_000.0,
         });
@@ -1323,6 +1323,7 @@ async fn scenario5h_recovery_refuses_a_star_far_fainter_than_the_runs() {
     );
     let stall = trigger_state_of(&manager)
         .await
+        .latches
         .guide_recovery
         .expect("the failures are recorded");
     assert_eq!(stall.failed_attempts(), 2);
@@ -1375,13 +1376,21 @@ async fn scenario5j_a_settled_recovery_clears_its_record() {
 
     let failed = super::recover_guide_star(&ops, Some("mount-1"), Some(&manager)).await;
     assert!(matches!(failed, AttemptOutcome::Failed { .. }));
-    assert!(trigger_state_of(&manager).await.guide_recovery.is_some());
+    assert!(trigger_state_of(&manager)
+        .await
+        .latches
+        .guide_recovery
+        .is_some());
 
     ops_concrete.no_guide_star.store(false, Ordering::SeqCst);
     ops_concrete.relock_after_starts.store(1, Ordering::SeqCst);
     let recovered = super::recover_guide_star(&ops, Some("mount-1"), Some(&manager)).await;
     assert_eq!(recovered, AttemptOutcome::Succeeded);
-    assert!(trigger_state_of(&manager).await.guide_recovery.is_none());
+    assert!(trigger_state_of(&manager)
+        .await
+        .latches
+        .guide_recovery
+        .is_none());
 }
 
 // =============================================================================
@@ -1900,14 +1909,14 @@ fn b19_not_yet_tracking_mount_never_self_cancels() {
         let (expected, just_lost) = super::mount_tracking_poll_verdict(
             state.tracking.is_expected(),
             is_tracking,
-            state.mount_is_tracking,
+            state.telemetry.mount_is_tracking,
             state.tracking.is_lost(),
         );
         state.set_mount_tracking_expected(expected);
         if just_lost {
             state.tracking.mark_lost();
         }
-        state.mount_is_tracking = Some(is_tracking);
+        state.telemetry.mount_is_tracking = Some(is_tracking);
         just_lost
     };
 
@@ -2403,7 +2412,7 @@ async fn a_transparency_drop_with_no_backup_plan_notifies_and_keeps_imaging() {
     wait_for_monitor(&ops).await;
 
     executor
-        .update_trigger_state(|ts| ts.current_transparency = Some(0.3))
+        .update_trigger_state(|ts| ts.telemetry.current_transparency = Some(0.3))
         .await;
     let mut warnings = Vec::new();
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
@@ -2790,7 +2799,7 @@ pub(crate) async fn bring_dawn_near(executor: &super::SequenceExecutor) {
     executor
         .update_trigger_state(|ts| {
             ts.set_observer_location(Some(45.0), Some(-75.0));
-            ts.dawn_time = Some(chrono::Utc::now().timestamp() + 600);
+            ts.telemetry.dawn_time = Some(chrono::Utc::now().timestamp() + 600);
         })
         .await;
 }
@@ -3464,7 +3473,7 @@ async fn a_calibration_run_is_not_parked_dithered_or_ended_by_the_standard_trigg
     executor.update_weather_verdict(Some(true)).await;
     executor
         .update_trigger_state(|ts| {
-            ts.completed_exposures = 50;
+            ts.latches.completed_exposures = 50;
             ts.set_guide_star_lost(true);
         })
         .await;

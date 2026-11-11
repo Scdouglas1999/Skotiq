@@ -214,13 +214,17 @@ impl DevicePoller {
         let trigger_state = manager.state();
         let mut state = trigger_state.write().await;
         if let Some(safe) = is_safe {
-            state.weather_safe = safe;
+            state.telemetry.weather_safe = safe;
         }
+<<<<<<< HEAD
+=======
+        state.settings.safety_fail_mode = fail_mode;
+>>>>>>> 9aab79a51 (Split TriggerState into parts; reset and checkpoint follow from the part)
         let stale = state.is_weather_verdict_stale_unsafe(verdict_staleness_secs);
         let stale_verdict_dropped = stale && !stale_unsafe_verdict_holds(fail_mode);
         if stale_verdict_dropped {
-            state.weather_verdict_unsafe = None;
-            state.weather_verdict_advisory = false;
+            state.telemetry.weather_verdict_unsafe = None;
+            state.telemetry.weather_verdict_advisory = false;
         }
         let verdict_stale_unsafe = stale && stale_unsafe_verdict_holds(fail_mode);
 
@@ -246,10 +250,10 @@ impl DevicePoller {
         }
 
         // Mobile rigs configure the site after the mount connects.
-        if state.observer_latitude.is_none() {
+        if state.settings.observer_latitude.is_none() {
             if let Some((lat, lon)) = self.device_ops.get_observer_location() {
-                state.observer_latitude = Some(lat);
-                state.observer_longitude = Some(lon);
+                state.settings.observer_latitude = Some(lat);
+                state.settings.observer_longitude = Some(lon);
                 tracing::debug!(
                     "Observer location set for dawn/altitude triggers: {}, {}",
                     lat,
@@ -260,15 +264,18 @@ impl DevicePoller {
 
         // Keep an upcoming dawn cached whenever a site is known, so a
         // multi-night run keeps its dawn protection.
-        if let (Some(lat), Some(lon)) = (state.observer_latitude, state.observer_longitude) {
+        if let (Some(lat), Some(lon)) = (
+            state.settings.observer_latitude,
+            state.settings.observer_longitude,
+        ) {
             let now = chrono::Utc::now().timestamp();
-            let needs_refresh = match state.dawn_time {
+            let needs_refresh = match state.telemetry.dawn_time {
                 None => true,
                 Some(t) => t <= now,
             };
             if needs_refresh {
                 let new_dawn = crate::triggers::calculate_dawn_time(lat, lon);
-                state.dawn_time = Some(new_dawn);
+                state.telemetry.dawn_time = Some(new_dawn);
                 tracing::debug!(
                     "dawn_time computed for ({}, {}): {} (next astronomical twilight)",
                     lat,
@@ -281,14 +288,14 @@ impl DevicePoller {
         // The altitude and meridian triggers evaluate the TARGET's position,
         // from its own coordinates, the site and the clock.
         match target_sky_state(
-            state.target_ra,
-            state.target_dec,
-            state.observer_latitude,
-            state.observer_longitude,
+            state.target.target_ra,
+            state.target.target_dec,
+            state.settings.observer_latitude,
+            state.settings.observer_longitude,
             chrono::Utc::now(),
         ) {
             Some(sky) => {
-                state.current_altitude = Some(sky.altitude_degrees);
+                state.target.current_altitude = Some(sky.altitude_degrees);
                 state.update_hour_angle(sky.hour_angle_hours);
                 tracing::trace!(
                     "Computed target sky state: altitude {:.2}°, hour angle {:+.4}h",
@@ -299,14 +306,14 @@ impl DevicePoller {
             None => {
                 // Nothing to compute from: drop values left by a checkpoint or
                 // another target rather than let the triggers judge them.
-                state.current_altitude = None;
-                state.current_hour_angle = None;
+                state.target.current_altitude = None;
+                state.target.current_hour_angle = None;
 
                 // A target without a site leaves altitude and meridian
                 // protection off. A Warning, not an Error (the run is fine;
                 // protection is missing), given once.
-                if state.target_ra.is_some()
-                    && state.target_dec.is_some()
+                if state.target.target_ra.is_some()
+                    && state.target.target_dec.is_some()
                     && !self.altitude_warned_no_location
                 {
                     let msg = "AltitudeLimit and meridian-flip triggers need \
@@ -368,10 +375,10 @@ impl DevicePoller {
                 if !RunMode::new(executor_state, state.run.hold())
                     .is_some_and(RunMode::reads_tracking_edge) =>
             {
-                state.mount_status_query_failed = false;
+                state.telemetry.mount_status_query_failed = false;
             }
             Ok(is_tracking) => {
-                state.mount_status_query_failed = false;
+                state.telemetry.mount_status_query_failed = false;
                 // `mount_is_tracking` still holds the previous reading here,
                 // which the loss edge is detected against.
                 if apply_mount_tracking_poll(&mut state, *is_tracking) {
@@ -388,21 +395,21 @@ impl DevicePoller {
                     tracing::info!("Mount tracking resumed, cancelling tracking limit wait");
                     state.reset_tracking_limit_detection();
                 }
-                state.mount_is_tracking = Some(*is_tracking);
+                state.telemetry.mount_is_tracking = Some(*is_tracking);
             }
             Err(e) => {
                 tracing::warn!(
                     "Mount status query failed: {} - possible connection loss",
                     e
                 );
-                state.mount_status_query_failed = true;
+                state.telemetry.mount_status_query_failed = true;
             }
         }
         if let Ok(slewing) = slewing_result {
-            state.mount_slewing = Some(slewing);
+            state.telemetry.mount_slewing = Some(slewing);
         }
         if let Ok(parked) = parked_result {
-            state.mount_parked = Some(parked);
+            state.telemetry.mount_parked = Some(parked);
         }
         if let Ok(pier_side) = pier_side_result {
             state.update_pier_side(wire_pier_side(pier_side));
@@ -462,7 +469,7 @@ impl DevicePoller {
             let trigger_state = manager.state();
             let mut state = trigger_state.write().await;
             state.update_dome_status(status.clone());
-            if status != "Open" && state.dome_shutter_open_expected {
+            if status != "Open" && state.telemetry.dome_shutter_open_expected {
                 tracing::warn!("Dome shutter not open during sequence: {}", status);
             }
         }
@@ -478,7 +485,7 @@ impl DevicePoller {
             .as_ref()
             .map(|status| status.is_guiding)
             .map_err(|_| ());
-        let mount_tracking = state.mount_is_tracking;
+        let mount_tracking = state.telemetry.mount_is_tracking;
         match state.guiding.observe_guider_on_mount(poll, mount_tracking) {
             GuiderObservation::GuidingAgain => tracing::info!(
                 "[GUIDING] The guider is guiding again; dithers and guiding checks resume"

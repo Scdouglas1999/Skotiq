@@ -42,7 +42,7 @@ async fn center_node_on_cloud(stop_on_quality_problems: bool) -> CenterNodeRun {
     context.target_ra = Some(0.712);
     context.target_dec = Some(41.27);
     let mut state = crate::triggers::TriggerState::new();
-    state.stop_on_quality_problems = stop_on_quality_problems;
+    state.settings.stop_on_quality_problems = stop_on_quality_problems;
     context.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
     let (event_tx, mut events) = tokio::sync::broadcast::channel(64);
     context.event_tx = Some(event_tx);

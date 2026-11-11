@@ -225,7 +225,7 @@ async fn homing_is_never_read_as_lost_tracking() {
     let mut ctx = home_ctx(ops.clone()).await;
     let mut state = crate::triggers::TriggerState::new();
     state.set_mount_tracking_expected(true);
-    state.mount_is_tracking = Some(true);
+    state.telemetry.mount_is_tracking = Some(true);
     let state = Arc::new(tokio::sync::RwLock::new(state));
     ctx.trigger_state = Some(state.clone());
 

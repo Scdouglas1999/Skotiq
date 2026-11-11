@@ -333,6 +333,7 @@ pub(crate) async fn build_environment_snapshot(
     let guide_rms_arcsec = if let Some(trigger_state_lock) = &ctx.trigger_state {
         let state = trigger_state_lock.read().await;
         state
+            .latches
             .guiding_rms_history
             .as_ref()
             .and_then(|h| h.last())

@@ -1872,7 +1872,7 @@ async fn a_site_change_after_a_run_reaches_the_dawn_trigger() {
     executor
         .update_trigger_state(|ts| {
             ts.set_observer_location(Some(37.97), Some(23.72));
-            ts.dawn_time = Some(chrono::Utc::now().timestamp() + 600);
+            ts.telemetry.dawn_time = Some(chrono::Utc::now().timestamp() + 600);
         })
         .await;
     let (tx, rx) = tokio::sync::mpsc::channel(1);
@@ -1884,9 +1884,9 @@ async fn a_site_change_after_a_run_reaches_the_dawn_trigger() {
     let manager = executor.trigger_manager.read().await;
     let state = manager.state();
     let state = state.read().await;
-    assert_eq!(state.observer_latitude, Some(39.97));
+    assert_eq!(state.settings.observer_latitude, Some(39.97));
     assert_eq!(
-        state.dawn_time, None,
+        state.telemetry.dawn_time, None,
         "the old site's dawn must not survive"
     );
 }

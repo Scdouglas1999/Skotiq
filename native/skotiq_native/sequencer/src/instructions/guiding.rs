@@ -189,7 +189,7 @@ pub(crate) async fn settle_bar_warning(
     }
     if let Some(state) = trigger_state {
         let mut state = state.write().await;
-        if std::mem::replace(&mut state.settle_bar_warning_given, true) {
+        if std::mem::replace(&mut state.latches.settle_bar_warning_given, true) {
             return None;
         }
     }
@@ -228,10 +228,10 @@ async fn record_settled_guiding(ctx: &InstructionContext, replace_reference: boo
     };
     let star = ctx.device_ops.guider_star_quality().await.ok().flatten();
     let mut state = trigger_state.write().await;
-    state.guide_recovery = None;
-    if replace_reference || state.guide_star_reference.is_none() {
+    state.latches.guide_recovery = None;
+    if replace_reference || state.target.guide_star_reference.is_none() {
         if let Some(star) = star {
-            state.guide_star_reference = Some(star);
+            state.target.guide_star_reference = Some(star);
         }
     }
 }
@@ -291,7 +291,7 @@ impl MountMotion {
         if start.outermost {
             if let Some(state) = &trigger_state {
                 // A move the run makes is not guiding dragging the mount.
-                if let Some(stall) = state.write().await.guide_recovery.as_mut() {
+                if let Some(stall) = state.write().await.latches.guide_recovery.as_mut() {
                     stall.origin = None;
                 }
             }
@@ -417,7 +417,7 @@ pub(crate) async fn resume_guiding_after_motion(
             return None;
         }
     }
-    let reference = trigger_state.read().await.guide_star_reference;
+    let reference = trigger_state.read().await.target.guide_star_reference;
     let defaults = StartGuidingConfig::default();
     tracing::info!(
         "[GUIDING] {} guiding on a fresh star",

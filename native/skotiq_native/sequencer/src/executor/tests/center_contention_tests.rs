@@ -405,7 +405,7 @@ async fn run_center(keep: &[&str]) -> CenterRun {
         }
         // The first solve is in flight (1.5 s) and no exposure is.
         if ops.solves.load(Ordering::SeqCst) == 1 && ops.in_flight.load(Ordering::SeqCst) == 0 {
-            train_held_mid_center |= trigger_state.read().await.imaging_train_hold().is_some();
+            train_held_mid_center |= trigger_state.read().await.imaging_train.hold().is_some();
         }
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     }

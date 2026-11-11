@@ -53,22 +53,22 @@ fn a_filter_change_restores_the_filters_focused_hfr() {
 
     // The focuser is knocked out of focus; the next L frame is blurred.
     state.set_filter("L".to_string());
-    assert_eq!(state.baseline_hfr, Some(1.96));
+    assert_eq!(state.latches.baseline_hfr, Some(1.96));
     state.update_hfr(4.43);
     assert_eq!(
-        state.baseline_hfr,
+        state.latches.baseline_hfr,
         Some(1.96),
         "the blurred frame must not become the baseline"
     );
 
     // A filter never focused keeps the old behavior: its first frame.
     state.set_filter("Ha".to_string());
-    assert_eq!(state.baseline_hfr, None);
+    assert_eq!(state.latches.baseline_hfr, None);
     state.update_hfr(2.6);
-    assert_eq!(state.baseline_hfr, Some(2.6));
+    assert_eq!(state.latches.baseline_hfr, Some(2.6));
 
     // A new run starts with nothing remembered.
     state.reset_for_new_run();
     state.set_filter("L".to_string());
-    assert_eq!(state.baseline_hfr, None);
+    assert_eq!(state.latches.baseline_hfr, None);
 }

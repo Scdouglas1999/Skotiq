@@ -242,7 +242,9 @@ impl StandardTrigger {
             | Self::TemperatureShift
             | Self::FocusDrift
             | Self::AutofocusInterval => RecoveryAction::Autofocus,
-            Self::MeridianFlip => RecoveryAction::MeridianFlip(crate::MeridianFlipConfig::default()),
+            Self::MeridianFlip => {
+                RecoveryAction::MeridianFlip(crate::MeridianFlipConfig::default())
+            }
             Self::GuidingFailed => RecoveryAction::Retry { max_attempts: 3 },
             Self::AltitudeLimit => RecoveryAction::NextTarget,
             Self::WeatherUnsafe | Self::DawnApproaching | Self::DomeShutterNotOpen => {
@@ -385,7 +387,10 @@ mod tests {
             assert_eq!(built.origin(), TriggerOrigin::Standard(trigger));
             assert_eq!(built.cooldown_secs, Some(trigger.spec().cooldown_secs));
         }
-        assert_eq!(StandardTrigger::from_id("recovery_node:meridian_flip"), None);
+        assert_eq!(
+            StandardTrigger::from_id("recovery_node:meridian_flip"),
+            None
+        );
     }
 
     #[test]

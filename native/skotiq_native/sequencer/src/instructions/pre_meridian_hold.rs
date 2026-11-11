@@ -49,8 +49,8 @@ pub(crate) async fn hold_before_meridian(
     let (pause_before, threshold_min) = {
         let state = lock.read().await;
         let (Some(pause_before), Some(threshold_min)) = (
-            state.meridian_pause_before_minutes,
-            state.meridian_flip_minutes_past,
+            state.trigger_config.meridian_pause_before_minutes,
+            state.trigger_config.meridian_flip_minutes_past,
         ) else {
             return Ok(None);
         };
@@ -59,7 +59,7 @@ pub(crate) async fn hold_before_meridian(
         if state
             .flip_blocked(crate::MeridianTriggerMethod::MinutesPastMeridian)
             .is_some()
-            || matches!(state.pier_side, Some(crate::PierSide::East))
+            || matches!(state.telemetry.pier_side, Some(crate::PierSide::East))
         {
             return Ok(None);
         }
@@ -103,7 +103,7 @@ pub(crate) async fn hold_before_meridian(
         control.report(&message);
         return Err(InstructionResult::failure(message));
     }
-    lock.write().await.mount_is_tracking = Some(false);
+    lock.write().await.telemetry.mount_is_tracking = Some(false);
 
     let minutes_to_flip = threshold_min - entry_ha_min;
     let flip_at = chrono::Local::now()
@@ -138,7 +138,7 @@ pub(crate) async fn hold_before_meridian(
                 let mut state = lock.write().await;
                 state.run.end_hold();
                 if restored.is_ok() {
-                    state.mount_is_tracking = Some(true);
+                    state.telemetry.mount_is_tracking = Some(true);
                 }
             }
             motion.end().await;
@@ -192,7 +192,7 @@ pub(crate) async fn hold_before_meridian(
     {
         let mut state = lock.write().await;
         state.run.end_hold();
-        state.mount_is_tracking = Some(true);
+        state.telemetry.mount_is_tracking = Some(true);
     }
     let message = format!(
         "{} is {threshold_min:.0} min past the meridian; tracking is back on and the flip \

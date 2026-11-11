@@ -19,7 +19,7 @@ fn safety_poll_error_condition_result(
 
 async fn previous_weather_safe(context: &ExecutionContext) -> Option<bool> {
     let trigger_state = context.trigger_state.as_ref()?;
-    Some(trigger_state.read().await.weather_safe)
+    Some(trigger_state.read().await.telemetry.weather_safe)
 }
 
 async fn evaluate_safety_condition(
@@ -115,7 +115,7 @@ pub async fn execute_conditional(
         ConditionalCheck::HfrBelow(threshold) => {
             let current_hfr = if let Some(trigger_state_lock) = &context.trigger_state {
                 let trigger_state = trigger_state_lock.read().await;
-                trigger_state.current_hfr
+                trigger_state.latches.current_hfr
             } else {
                 None
             };

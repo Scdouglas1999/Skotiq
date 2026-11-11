@@ -24,6 +24,7 @@ impl TriggerState {
     /// meridian on the pre-flip side, but how far past is the operator's call.
     pub fn manual_flip_refusal(&self) -> Option<String> {
         let target = self
+            .target
             .current_target_name
             .as_deref()
             .map(|name| format!("'{name}'"))
@@ -43,7 +44,7 @@ impl TriggerState {
             }
             None => {}
         }
-        let Some(hour_angle) = self.current_hour_angle.filter(|ha| ha.is_finite()) else {
+        let Some(hour_angle) = self.target.current_hour_angle.filter(|ha| ha.is_finite()) else {
             return Some(format!(
                 "The hour angle of {target} is not known yet (is the observing site set?)."
             ));
@@ -56,7 +57,7 @@ impl TriggerState {
                 -hour_angle * 60.0
             ));
         }
-        if matches!(self.pier_side, Some(PierSide::East)) {
+        if matches!(self.telemetry.pier_side, Some(PierSide::East)) {
             return Some(
                 "The mount already reports pier side East, the side a flip moves it to."
                     .to_string(),
@@ -80,13 +81,13 @@ mod tests {
 
     fn past_meridian_state() -> TriggerState {
         let mut state = TriggerState::new();
-        state.current_target_name = Some("M31".to_string());
-        state.target_ra = Some(10.68);
-        state.target_dec = Some(41.27);
-        state.current_hour_angle = Some(0.25);
-        state.pier_side = Some(PierSide::West);
-        state.mount_parked = Some(false);
-        state.mount_is_tracking = Some(true);
+        state.target.current_target_name = Some("M31".to_string());
+        state.target.target_ra = Some(10.68);
+        state.target.target_dec = Some(41.27);
+        state.target.current_hour_angle = Some(0.25);
+        state.telemetry.pier_side = Some(PierSide::West);
+        state.telemetry.mount_parked = Some(false);
+        state.telemetry.mount_is_tracking = Some(true);
         state
     }
 
@@ -99,7 +100,7 @@ mod tests {
     #[test]
     fn a_target_east_of_the_meridian_is_refused_with_its_transit_time() {
         let mut state = past_meridian_state();
-        state.current_hour_angle = Some(-0.5);
+        state.target.current_hour_angle = Some(-0.5);
         let reason = state
             .manual_flip_refusal()
             .expect("east target must be refused");
@@ -114,11 +115,15 @@ mod tests {
     fn every_trigger_precondition_is_a_refusal() {
         let cases: [(&str, Mutation); 6] = [
             ("already flipped", |s| s.meridian.mark_performed(None)),
-            ("parked", |s| s.mount_parked = Some(true)),
-            ("not tracking", |s| s.mount_is_tracking = Some(false)),
-            ("pier side East", |s| s.pier_side = Some(PierSide::East)),
-            ("not known", |s| s.current_hour_angle = None),
-            ("no target", |s| s.target_ra = None),
+            ("parked", |s| s.telemetry.mount_parked = Some(true)),
+            ("not tracking", |s| {
+                s.telemetry.mount_is_tracking = Some(false)
+            }),
+            ("pier side East", |s| {
+                s.telemetry.pier_side = Some(PierSide::East)
+            }),
+            ("not known", |s| s.target.current_hour_angle = None),
+            ("no target", |s| s.target.target_ra = None),
         ];
         for (expected, mutate) in cases {
             let mut state = past_meridian_state();
@@ -134,7 +139,7 @@ mod tests {
     #[test]
     fn an_unknown_pier_side_does_not_block_a_flip_past_the_meridian() {
         let mut state = past_meridian_state();
-        state.pier_side = Some(PierSide::Unknown);
+        state.telemetry.pier_side = Some(PierSide::Unknown);
         assert_eq!(state.manual_flip_refusal(), None);
     }
 
@@ -164,7 +169,7 @@ mod tests {
         assert!(trigger.check(&state).await, "a standing request fires it");
 
         let mut east = past_meridian_state();
-        east.current_hour_angle = Some(-0.1);
+        east.target.current_hour_angle = Some(-0.1);
         east.meridian.request();
         let mut fresh = super::super::Trigger::new(
             "meridian_flip",

@@ -635,9 +635,9 @@ async fn wait_for_flip(
         let (threshold_min, polled_ha, pier, blocked, flip_requested) = {
             let state = lock.read().await;
             (
-                state.meridian_flip_minutes_past,
-                state.current_hour_angle,
-                state.pier_side,
+                state.trigger_config.meridian_flip_minutes_past,
+                state.target.current_hour_angle,
+                state.telemetry.pier_side,
                 // The trigger's own preconditions, read through the same
                 // predicate the trigger uses.
                 state.flip_blocked(crate::MeridianTriggerMethod::MinutesPastMeridian),

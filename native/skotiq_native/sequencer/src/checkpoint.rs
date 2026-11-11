@@ -4,10 +4,9 @@
 //! for recovery after unexpected crashes or restarts.
 
 use crate::scheduling::BudgetRegistrySnapshot;
-use crate::triggers::TriggerState;
+use crate::triggers::{PersistedTriggerState, TriggerState};
 use crate::{
-    ExecutorState, MeridianTriggerMethod, NodeId, NodeStatus, PierSide, SafetyFailMode,
-    SequenceDefinition, SmartExposureCheckpoint,
+    ExecutorState, NodeId, NodeStatus, SafetyFailMode, SequenceDefinition, SmartExposureCheckpoint,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -43,58 +42,23 @@ pub struct WizardCheckpoint {
     pub timestamp: DateTime<Utc>,
 }
 
-/// Serializable copy of trigger state needed to resume without repeating actions.
+/// What a checkpoint keeps of the trigger state: the persisted fields of its
+/// parts, plus the three run settings the executor holds beside it. One flat
+/// JSON object, every field tolerant of being absent from an older file.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TriggerStateSnapshot {
-    pub baseline_hfr: Option<f64>,
-    pub current_hfr: Option<f64>,
-    pub autofocus_invalidated: bool,
-    pub autofocus_invalidation_reason: Option<String>,
-    pub current_hour_angle: Option<f64>,
-    pub pier_side: Option<PierSide>,
-    pub mount_tracking_limit_time: Option<i64>,
-    pub has_flipped_this_target: bool,
-    pub current_target_name: Option<String>,
-    pub guiding_enabled: bool,
-    pub guide_star_lost: bool,
-    pub current_humidity: Option<f64>,
-    pub current_altitude: Option<f64>,
-    pub weather_safe: bool,
-    pub baseline_temperature: Option<f64>,
-    pub current_temperature: Option<f64>,
-    pub baseline_focuser_position: Option<i32>,
-    pub filter_changed: bool,
-    pub current_filter: Option<String>,
-    pub dawn_time: Option<i64>,
-    pub observer_latitude: Option<f64>,
-    pub observer_longitude: Option<f64>,
-    pub completed_exposures: u32,
-    pub last_autofocus_frame: u32,
-    pub last_dither_frame: u32,
-    pub last_plate_solve_ra: Option<f64>,
-    pub last_plate_solve_dec: Option<f64>,
-    pub last_plate_solve_pixel_scale: Option<f64>,
-    pub target_ra: Option<f64>,
-    pub target_dec: Option<f64>,
-    pub mount_is_tracking: Option<bool>,
-    pub mount_tracking_expected: bool,
-    pub mount_tracking_lost: bool,
-    pub mount_slewing: Option<bool>,
-    pub mount_parked: Option<bool>,
-    pub mount_status_query_failed: bool,
-    pub tracking_limit_detected_at: Option<i64>,
-    pub meridian_trigger_method: Option<MeridianTriggerMethod>,
-    pub dome_shutter_status: Option<String>,
-    pub dome_shutter_open_expected: bool,
-    pub grid_dither_index: u32,
-    pub safety_fail_mode: SafetyFailMode,
-    pub triggers_enabled: bool,
-    pub filter_focus_offsets: HashMap<String, i32>,
-    /// Filter focus offset currently embodied in the focuser position so a
-    /// resumed sequence applies the next filter change as a delta rather than
-    /// re-stacking. `#[serde(default)]` keeps legacy checkpoints loadable.
+    #[serde(flatten)]
+    pub state: PersistedTriggerState,
     #[serde(default)]
-    pub last_applied_filter_offset: i32,
+    pub safety_fail_mode: SafetyFailMode,
+    #[serde(default = "default_triggers_enabled")]
+    pub triggers_enabled: bool,
+    #[serde(default)]
+    pub filter_focus_offsets: HashMap<String, i32>,
+}
+
+fn default_triggers_enabled() -> bool {
+    true
 }
 
 impl TriggerStateSnapshot {
@@ -105,101 +69,15 @@ impl TriggerStateSnapshot {
         filter_focus_offsets: HashMap<String, i32>,
     ) -> Self {
         Self {
-            baseline_hfr: state.baseline_hfr,
-            current_hfr: state.current_hfr,
-            autofocus_invalidated: state.autofocus_invalidated,
-            autofocus_invalidation_reason: state.autofocus_invalidation_reason.clone(),
-            current_hour_angle: state.current_hour_angle,
-            pier_side: state.pier_side,
-            mount_tracking_limit_time: state.mount_tracking_limit_time,
-            has_flipped_this_target: state.meridian.has_flipped(),
-            current_target_name: state.current_target_name.clone(),
-            guiding_enabled: state.guiding.is_enabled(),
-            guide_star_lost: state.guiding.star_lost(),
-            current_humidity: state.current_humidity,
-            current_altitude: state.current_altitude,
-            weather_safe: state.weather_safe,
-            baseline_temperature: state.baseline_temperature,
-            current_temperature: state.current_temperature,
-            baseline_focuser_position: state.baseline_focuser_position,
-            filter_changed: state.filter_changed,
-            current_filter: state.current_filter.clone(),
-            dawn_time: state.dawn_time,
-            observer_latitude: state.observer_latitude,
-            observer_longitude: state.observer_longitude,
-            completed_exposures: state.completed_exposures,
-            last_autofocus_frame: state.last_autofocus_frame,
-            last_dither_frame: state.last_dither_frame,
-            last_plate_solve_ra: state.last_plate_solve_ra,
-            last_plate_solve_dec: state.last_plate_solve_dec,
-            last_plate_solve_pixel_scale: state.last_plate_solve_pixel_scale,
-            target_ra: state.target_ra,
-            target_dec: state.target_dec,
-            mount_is_tracking: state.mount_is_tracking,
-            mount_tracking_expected: state.tracking.is_expected(),
-            mount_tracking_lost: state.tracking.is_lost(),
-            mount_slewing: state.mount_slewing,
-            mount_parked: state.mount_parked,
-            mount_status_query_failed: state.mount_status_query_failed,
-            tracking_limit_detected_at: state.tracking.limit_detected_at(),
-            meridian_trigger_method: state.meridian_trigger_method,
-            dome_shutter_status: state.dome_shutter_status.clone(),
-            dome_shutter_open_expected: state.dome_shutter_open_expected,
-            grid_dither_index: state.grid_dither_index,
+            state: state.persisted(),
             safety_fail_mode,
             triggers_enabled,
             filter_focus_offsets,
-            last_applied_filter_offset: state.last_applied_filter_offset,
         }
     }
 
     pub fn restore_into(&self, state: &mut TriggerState) {
-        state.restored_from_checkpoint = true;
-        state.baseline_hfr = self.baseline_hfr;
-        state.current_hfr = self.current_hfr;
-        state.autofocus_invalidated = self.autofocus_invalidated;
-        state.autofocus_invalidation_reason = self.autofocus_invalidation_reason.clone();
-        state.current_hour_angle = self.current_hour_angle;
-        state.pier_side = self.pier_side;
-        state.mount_tracking_limit_time = self.mount_tracking_limit_time;
-        state.meridian.restore_flipped(self.has_flipped_this_target);
-        state.current_target_name = self.current_target_name.clone();
-        state
-            .guiding
-            .restore(self.guiding_enabled, self.guide_star_lost);
-        state.current_humidity = self.current_humidity;
-        state.current_altitude = self.current_altitude;
-        state.weather_safe = self.weather_safe;
-        state.baseline_temperature = self.baseline_temperature;
-        state.current_temperature = self.current_temperature;
-        state.baseline_focuser_position = self.baseline_focuser_position;
-        state.filter_changed = self.filter_changed;
-        state.current_filter = self.current_filter.clone();
-        state.dawn_time = self.dawn_time;
-        state.observer_latitude = self.observer_latitude;
-        state.observer_longitude = self.observer_longitude;
-        state.completed_exposures = self.completed_exposures;
-        state.last_autofocus_frame = self.last_autofocus_frame;
-        state.last_dither_frame = self.last_dither_frame;
-        state.last_plate_solve_ra = self.last_plate_solve_ra;
-        state.last_plate_solve_dec = self.last_plate_solve_dec;
-        state.last_plate_solve_pixel_scale = self.last_plate_solve_pixel_scale;
-        state.target_ra = self.target_ra;
-        state.target_dec = self.target_dec;
-        state.mount_is_tracking = self.mount_is_tracking;
-        state.tracking.restore(
-            self.mount_tracking_expected,
-            self.mount_tracking_lost,
-            self.tracking_limit_detected_at,
-        );
-        state.mount_slewing = self.mount_slewing;
-        state.mount_parked = self.mount_parked;
-        state.mount_status_query_failed = self.mount_status_query_failed;
-        state.meridian_trigger_method = self.meridian_trigger_method;
-        state.dome_shutter_status = self.dome_shutter_status.clone();
-        state.dome_shutter_open_expected = self.dome_shutter_open_expected;
-        state.grid_dither_index = self.grid_dither_index;
-        state.last_applied_filter_offset = self.last_applied_filter_offset;
+        state.restore(&self.state);
     }
 }
 
@@ -906,6 +784,7 @@ pub struct CheckpointInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::PierSide;
     use std::fs;
     use std::path::PathBuf;
 
@@ -1090,33 +969,33 @@ mod tests {
     #[test]
     fn test_trigger_state_snapshot_round_trip_preserves_every_field() {
         let mut original = TriggerState::new();
-        original.baseline_hfr = Some(2.5);
-        original.current_hfr = Some(2.7);
-        original.autofocus_invalidated = true;
-        original.autofocus_invalidation_reason = Some("filter changed".into());
-        original.current_hour_angle = Some(0.75);
-        original.pier_side = Some(PierSide::West);
-        original.mount_tracking_limit_time = Some(1_700_000_000);
+        original.latches.baseline_hfr = Some(2.5);
+        original.latches.current_hfr = Some(2.7);
+        original.latches.autofocus_invalidated = true;
+        original.latches.autofocus_invalidation_reason = Some("filter changed".into());
+        original.target.current_hour_angle = Some(0.75);
+        original.telemetry.pier_side = Some(PierSide::West);
+        original.telemetry.mount_tracking_limit_time = Some(1_700_000_000);
         original.meridian.mark_performed(None);
-        original.current_target_name = Some("M31".into());
+        original.target.current_target_name = Some("M31".into());
         original.guiding.restore(true, false);
-        original.current_humidity = Some(63.0);
-        original.current_altitude = Some(58.4);
-        original.weather_safe = true;
-        original.baseline_temperature = Some(-3.5);
-        original.current_temperature = Some(-2.0);
-        original.baseline_focuser_position = Some(28000);
-        original.filter_changed = true;
-        original.current_filter = Some("Ha".into());
-        original.dawn_time = Some(1_700_010_000);
-        original.observer_latitude = Some(45.5);
-        original.observer_longitude = Some(-122.6);
-        original.completed_exposures = 42;
-        original.last_autofocus_frame = 30;
-        original.last_dither_frame = 41;
+        original.telemetry.current_humidity = Some(63.0);
+        original.target.current_altitude = Some(58.4);
+        original.telemetry.weather_safe = true;
+        original.latches.baseline_temperature = Some(-3.5);
+        original.latches.current_temperature = Some(-2.0);
+        original.latches.baseline_focuser_position = Some(28000);
+        original.latches.filter_changed = true;
+        original.latches.current_filter = Some("Ha".into());
+        original.telemetry.dawn_time = Some(1_700_010_000);
+        original.settings.observer_latitude = Some(45.5);
+        original.settings.observer_longitude = Some(-122.6);
+        original.latches.completed_exposures = 42;
+        original.latches.last_autofocus_frame = 30;
+        original.latches.last_dither_frame = 41;
         original.tracking.set_limit_detected_at(Some(1_700_005_000));
-        original.grid_dither_index = 7;
-        original.last_applied_filter_offset = 42;
+        original.latches.grid_dither_index = 7;
+        original.latches.last_applied_filter_offset = 42;
 
         let mut offsets = HashMap::new();
         offsets.insert("Ha".to_string(), 42);
@@ -1142,55 +1021,120 @@ mod tests {
 
         let mut restored = TriggerState::new();
         restored_snapshot.restore_into(&mut restored);
-        assert_eq!(restored.baseline_hfr, original.baseline_hfr);
-        assert_eq!(restored.current_hfr, original.current_hfr);
+        assert_eq!(restored.latches.baseline_hfr, original.latches.baseline_hfr);
+        assert_eq!(restored.latches.current_hfr, original.latches.current_hfr);
         assert_eq!(
-            restored.autofocus_invalidated,
-            original.autofocus_invalidated
+            restored.latches.autofocus_invalidated,
+            original.latches.autofocus_invalidated
         );
         assert_eq!(
-            restored.autofocus_invalidation_reason,
-            original.autofocus_invalidation_reason
+            restored.latches.autofocus_invalidation_reason,
+            original.latches.autofocus_invalidation_reason
         );
-        assert_eq!(restored.current_hour_angle, original.current_hour_angle);
-        assert_eq!(restored.pier_side, original.pier_side);
         assert_eq!(
-            restored.mount_tracking_limit_time,
-            original.mount_tracking_limit_time
+            restored.target.current_hour_angle,
+            original.target.current_hour_angle
+        );
+        assert_eq!(restored.telemetry.pier_side, original.telemetry.pier_side);
+        assert_eq!(
+            restored.telemetry.mount_tracking_limit_time,
+            original.telemetry.mount_tracking_limit_time
         );
         assert_eq!(
             restored.meridian.has_flipped(),
             original.meridian.has_flipped()
         );
-        assert_eq!(restored.current_target_name, original.current_target_name);
+        assert_eq!(
+            restored.target.current_target_name,
+            original.target.current_target_name
+        );
         assert_eq!(restored.guiding.is_enabled(), original.guiding.is_enabled());
         assert_eq!(restored.guiding.star_lost(), original.guiding.star_lost());
-        assert_eq!(restored.current_humidity, original.current_humidity);
-        assert_eq!(restored.current_altitude, original.current_altitude);
-        assert_eq!(restored.weather_safe, original.weather_safe);
-        assert_eq!(restored.baseline_temperature, original.baseline_temperature);
-        assert_eq!(restored.current_temperature, original.current_temperature);
         assert_eq!(
-            restored.baseline_focuser_position,
-            original.baseline_focuser_position
+            restored.telemetry.current_humidity,
+            original.telemetry.current_humidity
         );
-        assert_eq!(restored.filter_changed, original.filter_changed);
-        assert_eq!(restored.current_filter, original.current_filter);
         assert_eq!(
-            restored.last_applied_filter_offset,
-            original.last_applied_filter_offset
+            restored.target.current_altitude,
+            original.target.current_altitude
         );
-        assert_eq!(restored.dawn_time, original.dawn_time);
-        assert_eq!(restored.observer_latitude, original.observer_latitude);
-        assert_eq!(restored.observer_longitude, original.observer_longitude);
-        assert_eq!(restored.completed_exposures, original.completed_exposures);
-        assert_eq!(restored.last_autofocus_frame, original.last_autofocus_frame);
-        assert_eq!(restored.last_dither_frame, original.last_dither_frame);
+        assert_eq!(
+            restored.telemetry.weather_safe,
+            original.telemetry.weather_safe
+        );
+        assert_eq!(
+            restored.latches.baseline_temperature,
+            original.latches.baseline_temperature
+        );
+        assert_eq!(
+            restored.latches.current_temperature,
+            original.latches.current_temperature
+        );
+        assert_eq!(
+            restored.latches.baseline_focuser_position,
+            original.latches.baseline_focuser_position
+        );
+        assert_eq!(
+            restored.latches.filter_changed,
+            original.latches.filter_changed
+        );
+        assert_eq!(
+            restored.latches.current_filter,
+            original.latches.current_filter
+        );
+        assert_eq!(
+            restored.latches.last_applied_filter_offset,
+            original.latches.last_applied_filter_offset
+        );
+        assert_eq!(restored.telemetry.dawn_time, original.telemetry.dawn_time);
+        assert_eq!(
+            restored.settings.observer_latitude,
+            original.settings.observer_latitude
+        );
+        assert_eq!(
+            restored.settings.observer_longitude,
+            original.settings.observer_longitude
+        );
+        assert_eq!(
+            restored.latches.completed_exposures,
+            original.latches.completed_exposures
+        );
+        assert_eq!(
+            restored.latches.last_autofocus_frame,
+            original.latches.last_autofocus_frame
+        );
+        assert_eq!(
+            restored.latches.last_dither_frame,
+            original.latches.last_dither_frame
+        );
         assert_eq!(
             restored.tracking.limit_detected_at(),
             original.tracking.limit_detected_at()
         );
-        assert_eq!(restored.grid_dither_index, original.grid_dither_index);
+        assert_eq!(
+            restored.latches.grid_dither_index,
+            original.latches.grid_dither_index
+        );
+    }
+
+    #[test]
+    fn a_trigger_state_snapshot_tolerates_missing_and_unknown_fields() {
+        let snapshot: TriggerStateSnapshot = serde_json::from_str(
+            r#"{
+                "completed_exposures": 3,
+                "has_flipped_this_target": true,
+                "next_meridian_flip_time": 1700000000,
+                "a_field_from_a_newer_version": {"anything": [1, 2]}
+            }"#,
+        )
+        .expect("a sparse snapshot with unknown fields must load");
+        assert_eq!(snapshot.state.latches.completed_exposures, 3);
+        assert!(snapshot.state.meridian.has_flipped_this_target);
+        assert_eq!(snapshot.state.target.current_target_name, None);
+        assert!(!snapshot.state.telemetry.weather_safe);
+        assert_eq!(snapshot.safety_fail_mode, SafetyFailMode::FailClosed);
+        assert!(snapshot.triggers_enabled, "triggers default to on");
+        assert!(snapshot.filter_focus_offsets.is_empty());
     }
 
     #[test]
@@ -1200,12 +1144,12 @@ mod tests {
 
         let mut state = TriggerState::new();
         state.meridian.mark_performed(None);
-        state.current_target_name = Some("NGC7000".into());
-        state.completed_exposures = 17;
-        state.last_autofocus_frame = 10;
-        state.last_dither_frame = 16;
-        state.grid_dither_index = 4;
-        state.baseline_hfr = Some(2.1);
+        state.target.current_target_name = Some("NGC7000".into());
+        state.latches.completed_exposures = 17;
+        state.latches.last_autofocus_frame = 10;
+        state.latches.last_dither_frame = 16;
+        state.latches.grid_dither_index = 4;
+        state.latches.baseline_hfr = Some(2.1);
 
         let snapshot = TriggerStateSnapshot::from_state(
             &state,
@@ -1230,16 +1174,20 @@ mod tests {
             .trigger_state
             .as_ref()
             .expect("trigger_state must round-trip via JSON");
-        assert!(restored_snapshot.has_flipped_this_target);
+        assert!(restored_snapshot.state.meridian.has_flipped_this_target);
         assert_eq!(
-            restored_snapshot.current_target_name.as_deref(),
+            restored_snapshot
+                .state
+                .target
+                .current_target_name
+                .as_deref(),
             Some("NGC7000")
         );
-        assert_eq!(restored_snapshot.completed_exposures, 17);
-        assert_eq!(restored_snapshot.last_autofocus_frame, 10);
-        assert_eq!(restored_snapshot.last_dither_frame, 16);
-        assert_eq!(restored_snapshot.grid_dither_index, 4);
-        assert_eq!(restored_snapshot.baseline_hfr, Some(2.1));
+        assert_eq!(restored_snapshot.state.latches.completed_exposures, 17);
+        assert_eq!(restored_snapshot.state.latches.last_autofocus_frame, 10);
+        assert_eq!(restored_snapshot.state.latches.last_dither_frame, 16);
+        assert_eq!(restored_snapshot.state.latches.grid_dither_index, 4);
+        assert_eq!(restored_snapshot.state.latches.baseline_hfr, Some(2.1));
         assert_eq!(loaded.version, CHECKPOINT_VERSION);
 
         let _ = fs::remove_dir_all(&dir);

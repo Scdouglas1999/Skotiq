@@ -254,7 +254,7 @@ pub(crate) fn apply_mount_tracking_poll(
     let (mut expected, just_lost) = mount_tracking_poll_verdict(
         state.tracking.is_expected(),
         currently_tracking,
-        state.mount_is_tracking,
+        state.telemetry.mount_is_tracking,
         state.tracking.is_lost(),
     );
     // A reading taken while the run moves the mount does not arm the
@@ -403,7 +403,9 @@ pub(crate) fn apply_park_policy(
     weather_advisory_only: bool,
 ) -> FiredTriggerAction {
     let parks = matches!(action, RecoveryAction::ParkAndAbort);
-    let park_setting = origin.standard().and_then(|trigger| trigger.spec().park_setting);
+    let park_setting = origin
+        .standard()
+        .and_then(|trigger| trigger.spec().park_setting);
     match park_setting {
         Some(ParkSetting::OnUnsafeWeather)
             if parks && (weather_advisory_only || !policy.park_on_unsafe_weather) =>
@@ -493,6 +495,7 @@ pub(crate) fn quality_trigger_notice(
             ..
         }) => {
             let latest = state
+                .latches
                 .guiding_rms_history
                 .as_ref()
                 .and_then(|history| history.last())
@@ -504,7 +507,7 @@ pub(crate) fn quality_trigger_notice(
             )
         }
         Some(TriggerType::HfrDegraded { .. } | TriggerType::FocusDrift { .. }) => {
-            match (state.current_hfr, state.baseline_hfr) {
+            match (state.latches.current_hfr, state.latches.baseline_hfr) {
                 (Some(hfr), Some(baseline)) => {
                     format!("HFR is {hfr:.2} px against a baseline of {baseline:.2} px")
                 }
@@ -527,7 +530,7 @@ pub(crate) fn quality_trigger_notice(
         },
         Some(TriggerType::TransparencyDropped {
             below_threshold, ..
-        }) => match state.current_transparency {
+        }) => match state.telemetry.current_transparency {
             Some(t) => format!("transparency is {t:.2} (limit {below_threshold:.2})"),
             None => "its condition holds".to_string(),
         },

@@ -413,8 +413,8 @@ mod tests {
             while !monitor_stop.load(AtomicOrdering::Relaxed) {
                 {
                     let guard = monitor_state.read().await;
-                    let _ = guard.current_target_name.clone();
-                    let _ = guard.completed_exposures;
+                    let _ = guard.target.current_target_name.clone();
+                    let _ = guard.latches.completed_exposures;
                 }
                 monitor_count.fetch_add(1, AtomicOrdering::Relaxed);
                 sleep(Duration::from_millis(10)).await;
@@ -449,12 +449,13 @@ mod tests {
         let final_state = trigger_state.read().await;
         let writers_u32 = u32::try_from(WRITERS).expect("WRITERS fits in u32");
         assert_eq!(
-            final_state.completed_exposures,
+            final_state.latches.completed_exposures,
             writers_u32,
             "every concurrent writer's increment must be observed; missing {} writes",
-            writers_u32 - final_state.completed_exposures
+            writers_u32 - final_state.latches.completed_exposures
         );
         let name = final_state
+            .target
             .current_target_name
             .as_ref()
             .expect("current_target_name must be set by at least one writer");

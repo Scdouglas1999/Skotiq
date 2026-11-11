@@ -270,24 +270,24 @@ impl Trigger {
                 absolute_threshold,
                 consecutive_frames,
             } => {
-                if state.autofocus_invalidated {
+                if state.latches.autofocus_invalidated {
                     tracing::info!(
                         "HFR trigger forcing autofocus because autofocus state was invalidated: {:?}",
-                        state.autofocus_invalidation_reason
+                        state.latches.autofocus_invalidation_reason
                     );
                     self.hfr_bad_frame_count = (*consecutive_frames).max(1);
                     true
                 } else {
-                    if let Some(evaluated) = state.autofocus_hfr_seq {
+                    if let Some(evaluated) = state.latches.autofocus_hfr_seq {
                         if self.last_hfr_seq.is_none_or(|seq| seq <= evaluated) {
                             self.hfr_bad_frame_count = 0;
                         }
-                        if state.hfr_sample_seq == evaluated {
+                        if state.latches.hfr_sample_seq == evaluated {
                             self.last_hfr_seq = Some(evaluated);
                             return false;
                         }
                     }
-                    let current = match state.current_hfr {
+                    let current = match state.latches.current_hfr {
                         Some(v) => v,
                         None => return false,
                     };
@@ -299,10 +299,10 @@ impl Trigger {
                     // mean "seconds" — the trigger fired partway through a SINGLE
                     // bad sub. Gate on the per-frame HFR sample sequence; on a
                     // stale tick return the latched decision unchanged.
-                    if self.last_hfr_seq == Some(state.hfr_sample_seq) {
+                    if self.last_hfr_seq == Some(state.latches.hfr_sample_seq) {
                         return self.hfr_bad_frame_count >= required;
                     }
-                    self.last_hfr_seq = Some(state.hfr_sample_seq);
+                    self.last_hfr_seq = Some(state.latches.hfr_sample_seq);
 
                     // A threshold of 0.0 means "this branch is disabled" — both
                     // modes share the trigger and either alone can fire. Users
@@ -312,7 +312,7 @@ impl Trigger {
                         *absolute_threshold > 0.0 && current > *absolute_threshold;
 
                     let exceeds_relative = if *threshold_percent > 0.0 {
-                        if let Some(baseline) = state.baseline_hfr {
+                        if let Some(baseline) = state.latches.baseline_hfr {
                             if baseline > 0.0 {
                                 let increase = (current - baseline) / baseline * 100.0;
                                 increase > *threshold_percent
@@ -369,11 +369,11 @@ impl Trigger {
                     {
                         return false;
                     }
-                    return state.current_hour_angle.is_some_and(|ha| {
+                    return state.target.current_hour_angle.is_some_and(|ha| {
                         super::tracking_limit_flip_due(
                             config,
                             ha,
-                            state.pier_side,
+                            state.telemetry.pier_side,
                             state.run.early_flip_refused(),
                         )
                     });
@@ -386,10 +386,10 @@ impl Trigger {
                         // window test below is asking about the object the
                         // sequence is imaging, not about wherever the mount
                         // happens to be parked or slewing through.
-                        match state.current_hour_angle {
+                        match state.target.current_hour_angle {
                             Some(ha) => super::flip_window_open(
                                 ha,
-                                state.pier_side,
+                                state.telemetry.pier_side,
                                 config.minutes_past_meridian / 60.0,
                             ),
                             None => false,
@@ -401,7 +401,7 @@ impl Trigger {
                         // from HA: that estimate would be the user's previous
                         // mode (HourAngleThreshold), and silently switching
                         // modes hides misconfiguration.
-                        if let Some(limit_time) = state.mount_tracking_limit_time {
+                        if let Some(limit_time) = state.telemetry.mount_tracking_limit_time {
                             let now = chrono::Utc::now().timestamp();
                             // Why: i64 timestamp difference -> f64; durations under
                             // ~285k years fit in f64 mantissa.
@@ -414,10 +414,10 @@ impl Trigger {
                     }
                     crate::MeridianTriggerMethod::HourAngleThreshold => {
                         // Same window, threshold already expressed in hours.
-                        match state.current_hour_angle {
+                        match state.target.current_hour_angle {
                             Some(ha) => super::flip_window_open(
                                 ha,
-                                state.pier_side,
+                                state.telemetry.pier_side,
                                 config.hour_angle_threshold,
                             ),
                             None => false,
@@ -447,6 +447,7 @@ impl Trigger {
                                         elapsed_secs,
                                         wait_secs,
                                         state
+                                            .target
                                             .current_hour_angle
                                             .map(|v| format!("{:.2}", v))
                                             // Why: hour-angle is
@@ -464,7 +465,7 @@ impl Trigger {
                                     "Tracking limit wait elapsed ({:.1} min), triggering meridian flip (HA={}h)",
                                     config.tracking_limit_wait_minutes,
                                     state
-                                        .current_hour_angle
+                                        .target.current_hour_angle
                                         .map(|v| format!("{:.2}", v))
                                         // Why: see equivalent above.
                                         .unwrap_or_else(|| "n/a".into())
@@ -480,11 +481,11 @@ impl Trigger {
                             tracing::info!(
                                 "Tracking limit hit detected, triggering immediate meridian flip (HA={}h, pier={:?})",
                                 state
-                                    .current_hour_angle
+                                    .target.current_hour_angle
                                     .map(|v| format!("{:.2}", v))
                                     // Why: see equivalent above.
                                     .unwrap_or_else(|| "n/a".into()),
-                                state.pier_side
+                                state.telemetry.pier_side
                             );
                         }
 
@@ -503,7 +504,7 @@ impl Trigger {
                 // construction). Reading state here is sufficient — the
                 // history has already been trimmed by `update_guiding_rms`
                 // using the propagated retention.
-                if let Some(rms_history) = &state.guiding_rms_history {
+                if let Some(rms_history) = &state.latches.guiding_rms_history {
                     // Work backward over the uninterrupted tail of bad samples.
                     // The oldest sample in that run must cover the full debounce
                     // interval; merely having every sample currently inside the
@@ -543,7 +544,9 @@ impl Trigger {
                 // and blocks; `None` means the mount never reported and
                 // behaves exactly as before, so a driver that publishes
                 // neither does not lose altitude protection.
-                if state.mount_parked == Some(true) || state.mount_is_tracking == Some(false) {
+                if state.telemetry.mount_parked == Some(true)
+                    || state.telemetry.mount_is_tracking == Some(false)
+                {
                     return false;
                 }
                 // `current_altitude` is the TARGET's altitude, computed by the
@@ -552,7 +555,7 @@ impl Trigger {
                 // — never the mount's own pointing, which is a different
                 // question with a different answer whenever the mount is not
                 // on the target.
-                if let Some(alt) = state.current_altitude {
+                if let Some(alt) = state.target.current_altitude {
                     alt < *min_altitude
                 } else {
                     false
@@ -569,7 +572,7 @@ impl Trigger {
                 // is OR-of-unsafe (never less safe than the hardware verdict) — an
                 // abstaining verdict (`None`) or a `Some(false)` SAFE verdict never
                 // suppresses a hardware-unsafe reading.
-                let hardware_unsafe = !state.weather_safe;
+                let hardware_unsafe = !state.telemetry.weather_safe;
                 let verdict_unsafe = state.weather_verdict_counts_unsafe();
                 if hardware_unsafe || verdict_unsafe {
                     // Name the deciding input: this trigger's action is ParkAndAbort, so
@@ -584,13 +587,13 @@ impl Trigger {
                         } else {
                             "reports safe"
                         },
-                        match state.weather_verdict_unsafe {
+                        match state.telemetry.weather_verdict_unsafe {
                             Some(true) => "reports UNSAFE",
                             Some(false) => "reports safe",
                             None => "has not been pushed (abstaining)",
                         },
-                        state.weather_safe,
-                        state.weather_verdict_unsafe,
+                        state.telemetry.weather_safe,
+                        state.telemetry.weather_verdict_unsafe,
                     );
                     true
                 } else {
@@ -598,20 +601,21 @@ impl Trigger {
                 }
             }
             TriggerType::TemperatureShift { degrees } => {
-                if let (Some(baseline), Some(current)) =
-                    (state.baseline_temperature, state.current_temperature)
-                {
+                if let (Some(baseline), Some(current)) = (
+                    state.latches.baseline_temperature,
+                    state.latches.current_temperature,
+                ) {
                     (current - baseline).abs() > *degrees
                 } else {
                     false
                 }
             }
-            TriggerType::FilterChange => state.filter_changed,
+            TriggerType::FilterChange => state.latches.filter_changed,
             TriggerType::DawnApproaching { minutes_before } => {
                 // `dawn_time` is seeded by the executor when observer location
                 // becomes available; absent it we cannot evaluate without
                 // forcing a recompute on every poll.
-                if let Some(dawn_time) = state.dawn_time {
+                if let Some(dawn_time) = state.telemetry.dawn_time {
                     let now = chrono::Utc::now().timestamp();
                     // Why: i64 timestamp difference -> f64 lossless for any
                     // single-night duration.
@@ -625,25 +629,27 @@ impl Trigger {
                 }
             }
             TriggerType::AutofocusInterval { every_n_frames } => {
-                if state.completed_exposures == 0 || *every_n_frames == 0 {
+                if state.latches.completed_exposures == 0 || *every_n_frames == 0 {
                     false
                 } else {
                     let frames_since_af = state
+                        .latches
                         .completed_exposures
-                        .saturating_sub(state.last_autofocus_frame);
+                        .saturating_sub(state.latches.last_autofocus_frame);
                     frames_since_af >= *every_n_frames
                 }
             }
             TriggerType::DitherInterval { every_n_frames } => {
-                if state.completed_exposures == 0
+                if state.latches.completed_exposures == 0
                     || *every_n_frames == 0
                     || state.node_owns_dither_cadence()
                 {
                     false
                 } else {
                     let frames_since_dither = state
+                        .latches
                         .completed_exposures
-                        .saturating_sub(state.last_dither_frame);
+                        .saturating_sub(state.latches.last_dither_frame);
                     frames_since_dither >= *every_n_frames
                 }
             }
@@ -657,7 +663,7 @@ impl Trigger {
                 // suppress MountTrackingLost when the limit-hit heuristic
                 // matches so MeridianFlip(OnTrackingLimitHit) wins the dispatch.
                 if matches!(
-                    state.meridian_trigger_method,
+                    state.trigger_config.meridian_trigger_method,
                     Some(crate::MeridianTriggerMethod::OnTrackingLimitHit)
                 ) {
                     let looks_like_limit_hit = looks_like_tracking_limit_hit(state);
@@ -673,8 +679,8 @@ impl Trigger {
                 true
             }
             TriggerType::DomeShutterNotOpen => {
-                state.dome_shutter_open_expected
-                    && match state.dome_shutter_status.as_deref() {
+                state.telemetry.dome_shutter_open_expected
+                    && match state.telemetry.dome_shutter_status.as_deref() {
                         Some("Open") => false,
                         Some(_) => true,
                         None => true, // Unknown shutter state is treated unsafe (fail-closed).
@@ -690,7 +696,7 @@ impl Trigger {
                 min_increasing_count,
                 min_total_increase,
             } => {
-                let current = match state.current_hfr {
+                let current = match state.latches.current_hfr {
                     Some(v) => v,
                     None => return false,
                 };
@@ -746,7 +752,7 @@ impl Trigger {
                 total_increase >= *min_total_increase
             }
             TriggerType::HumidityThreshold { max_percent } => {
-                match state.current_humidity {
+                match state.telemetry.current_humidity {
                     Some(humidity) => humidity > *max_percent,
                     None => false, // No humidity data - can't trigger
                 }
@@ -781,10 +787,10 @@ impl Trigger {
                 // does not yet model that; treating the current value as
                 // the prediction is the documented behaviour until the
                 // analyzer exposes a forecast curve.
-                let Some(arrival) = state.predicted_cloud_arrival_minutes else {
+                let Some(arrival) = state.telemetry.predicted_cloud_arrival_minutes else {
                     return false;
                 };
-                let Some(coverage) = state.current_cloud_coverage_percent else {
+                let Some(coverage) = state.telemetry.current_cloud_coverage_percent else {
                     return false;
                 };
                 arrival <= *minutes_before && coverage > *coverage_threshold
@@ -797,7 +803,7 @@ impl Trigger {
                 // opening within `minutes_before` minutes AND the opening's
                 // duration is at least `minimum_duration_secs`. Used by
                 // `RecoveryAction::PauseAndWaitForClear` to auto-resume.
-                let Some(opening) = state.predicted_cloud_opening_minutes else {
+                let Some(opening) = state.telemetry.predicted_cloud_opening_minutes else {
                     return false;
                 };
                 if opening > *minutes_before {
@@ -807,7 +813,7 @@ impl Trigger {
                 // "any": firing on an unknown-length opening would lead
                 // the recovery layer to slew into a hole that closes
                 // before settle.
-                let Some(duration) = state.predicted_cloud_opening_duration_secs else {
+                let Some(duration) = state.telemetry.predicted_cloud_opening_duration_secs else {
                     return false;
                 };
                 duration >= *minimum_duration_secs
@@ -822,7 +828,7 @@ impl Trigger {
                 // `cloud_cover_above_threshold_since` timestamp so multiple
                 // CloudCoverThreshold triggers with different thresholds
                 // (e.g. 50% warn / 80% park) debounce independently.
-                let Some(coverage) = state.current_cloud_coverage_percent else {
+                let Some(coverage) = state.telemetry.current_cloud_coverage_percent else {
                     // No data => reset our debounce timer so a stale arming
                     // from a previous reading does not fire.
                     self.cloud_cover_above_threshold_since = None;
@@ -848,7 +854,7 @@ impl Trigger {
                 // `duration_secs` consecutive seconds. Same debounce
                 // pattern as `CloudCoverThreshold` so multiple triggers
                 // (e.g. 0.7 warn / 0.4 swap) debounce independently.
-                let Some(transparency) = state.current_transparency else {
+                let Some(transparency) = state.telemetry.current_transparency else {
                     // No data => reset our debounce timer so a stale
                     // arming from a previous reading does not fire.
                     self.transparency_below_threshold_since = None;

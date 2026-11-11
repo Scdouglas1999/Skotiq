@@ -226,7 +226,7 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
                 let wait = {
                     let mut state = rig.trigger_state.write().await;
                     state.run.refuse_early_flip();
-                    state.current_hour_angle.map(|ha| {
+                    state.target.current_hour_angle.map(|ha| {
                         (crate::triggers::tracking_limit_flip_threshold(config) - ha).max(0.0)
                             * 60.0
                     })
@@ -271,9 +271,9 @@ async fn still_due(config: &crate::MeridianFlipConfig, requested: bool, rig: &Ri
         if let Some(pier) = fresh_pier {
             ts.update_pier_side(pier);
         }
-        ts.current_hour_angle
+        ts.target.current_hour_angle
     };
-    let pier_now = fresh_pier.or(rig.trigger_state.read().await.pier_side);
+    let pier_now = fresh_pier.or(rig.trigger_state.read().await.telemetry.pier_side);
     let (tracking_limit_hold, early_refused) = {
         let state = rig.trigger_state.read().await;
         (

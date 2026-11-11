@@ -149,7 +149,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                 let state = manager.state();
                 let state = state.read().await;
                 (
-                    state.stop_on_quality_problems,
+                    state.stops_on_quality_problems(),
                     state.weather_unsafe_is_advisory_only(),
                 )
             };

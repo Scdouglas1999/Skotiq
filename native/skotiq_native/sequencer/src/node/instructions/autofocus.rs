@@ -81,7 +81,7 @@ impl InstructionNode for AutofocusInstruction {
                 trigger_state.mark_autofocus_performed();
                 tracing::debug!(
                     "Marked autofocus performed at exposure {}",
-                    trigger_state.completed_exposures
+                    trigger_state.latches.completed_exposures
                 );
             }
         }

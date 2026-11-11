@@ -29,8 +29,8 @@ impl SequenceExecutor {
         let trigger_state = self.trigger_manager.read().await.state();
         let run_guiding = {
             let mut ts = trigger_state.write().await;
-            ts.mount_fault_at = Some(chrono::Utc::now().timestamp());
-            ts.mount_fault_recenter_pending = true;
+            ts.latches.mount_fault_at = Some(chrono::Utc::now().timestamp());
+            ts.latches.mount_fault_recenter_pending = true;
             ts.guiding.is_enabled()
         };
         if let Some(tx) = &self.command_tx {

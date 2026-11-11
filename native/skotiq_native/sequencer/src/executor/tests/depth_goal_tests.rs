@@ -959,8 +959,8 @@ fn interrupted_checkpoint(sequence: &SequenceDefinition) -> crate::checkpoint::S
         },
     );
     let mut trigger_state = crate::triggers::TriggerState::new();
-    trigger_state.baseline_temperature = Some(5.0);
-    trigger_state.current_temperature = Some(5.0);
+    trigger_state.latches.baseline_temperature = Some(5.0);
+    trigger_state.latches.current_temperature = Some(5.0);
     checkpoint.set_trigger_state(crate::checkpoint::TriggerStateSnapshot::from_state(
         &trigger_state,
         crate::SafetyFailMode::default(),
@@ -1021,6 +1021,7 @@ async fn resume_or_fresh(
         .state()
         .read()
         .await
+        .latches
         .baseline_temperature;
     executor.stop().await.ok();
     let _ = std::fs::remove_dir_all(&dir);

@@ -829,7 +829,7 @@ pub(crate) async fn resume_guiding_after_autofocus(
     // A fresh star: the autofocus run may have moved the field under the
     // guider's old lock position. It must measure up to the run's guide star.
     let reference = match &ctx.trigger_state {
-        Some(state) => state.read().await.guide_star_reference,
+        Some(state) => state.read().await.target.guide_star_reference,
         None => None,
     };
     // The run's restart bar, the same a flip restarts guiding at.
