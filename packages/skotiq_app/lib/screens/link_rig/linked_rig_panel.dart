@@ -13,7 +13,7 @@ import 'link_rig_dialog.dart';
 /// rig, and the controls to change that.
 ///
 /// * On a linked desktop: the imaging computer's name, the link's state and
-///   access, and Pair again / Allow settings changes / Use this computer
+///   access, and Pair again / Link with admin access / Use this computer
 ///   instead.
 /// * On a desktop that owns its own equipment: Connect to an imaging computer,
 ///   plus the rig it linked to before, when there is one.
@@ -185,11 +185,12 @@ class _LinkedCard extends ConsumerWidget {
       access = 'Linked by launch settings (--remote-host or '
           'SKOTIQ_REMOTE_HOST).';
     } else if (rig.hasFullAccess) {
-      access = 'Full access: this computer runs the rig and can change '
-          "$name's settings.";
+      access = "Admin access: this computer runs the rig and manages $name's "
+          'stored passwords, backups, plugins and updates too.';
     } else {
-      access = "This computer runs the rig. $name's settings can be viewed "
-          'here but not changed; pair with a code to allow that.';
+      access = "This computer runs the rig and changes $name's settings. "
+          'Stored passwords, backups, plugins and updates are managed on '
+          '$name; pair with a code to manage them from here.';
     }
 
     return _Card(
@@ -203,7 +204,7 @@ class _LinkedCard extends ConsumerWidget {
         if (rig != null && !rig.hasFullAccess)
           SkotiqButton(
             key: const ValueKey('linkRig.fullAccess'),
-            label: 'Allow settings changes',
+            label: 'Link with admin access',
             icon: LucideIcons.keyRound,
             variant: ButtonVariant.secondary,
             size: ButtonSize.small,

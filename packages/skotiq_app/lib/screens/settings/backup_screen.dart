@@ -14,6 +14,7 @@ import '../../utils/confirm_dialog.dart';
 import '../../utils/exported_file_reveal.dart';
 import '../../utils/snackbar_helper.dart';
 import 'backup_list_entry.dart';
+import 'widgets/admin_only.dart';
 import 'widgets/cloud_sync_settings.dart';
 
 typedef BackupDownloadSavePicker = Future<ExportTarget?> Function(
@@ -502,31 +503,38 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                     _AutoSaveStatusCard(statusAsync: autoSaveStatus!),
                     const SizedBox(height: 24),
                   ],
-                  _QuickActionsCard(
-                    isCreatingBackup: _isCreatingBackup,
-                    isRestoring: _isRestoring,
-                    isImportingBackup: _isImportingBackup,
-                    onCreateBackup: _isBusy ? null : _createBackup,
-                    onImportBackup: _isBusy ? null : _importBackup,
-                  ),
-                  const SizedBox(height: 24),
-                  if (isRemoteMode)
-                    RemoteCloudSyncCard(
-                      key: ValueKey(backendBackupToken(backend)),
+                  if (hostRefusesAdminOnly(ref))
+                    const AdminOnlyBanner(
+                      title: 'Backups and cloud sync of the imaging host are '
+                          'managed there',
                     )
-                  else
-                    const CloudSyncCard(),
-                  const SizedBox(height: 24),
-                  _RecentBackupsCard(
-                    isRemoteMode: isRemoteMode,
-                    isLoading: _isLoadingBackups,
-                    errorMessage: _loadError,
-                    backups: _availableBackups,
-                    onRefresh: _loadAvailableBackups,
-                    onRestore: _restoreBackup,
-                    onDelete: _deleteBackup,
-                    onDownload: _downloadBackup,
-                  ),
+                  else ...[
+                    _QuickActionsCard(
+                      isCreatingBackup: _isCreatingBackup,
+                      isRestoring: _isRestoring,
+                      isImportingBackup: _isImportingBackup,
+                      onCreateBackup: _isBusy ? null : _createBackup,
+                      onImportBackup: _isBusy ? null : _importBackup,
+                    ),
+                    const SizedBox(height: 24),
+                    if (isRemoteMode)
+                      RemoteCloudSyncCard(
+                        key: ValueKey(backendBackupToken(backend)),
+                      )
+                    else
+                      const CloudSyncCard(),
+                    const SizedBox(height: 24),
+                    _RecentBackupsCard(
+                      isRemoteMode: isRemoteMode,
+                      isLoading: _isLoadingBackups,
+                      errorMessage: _loadError,
+                      backups: _availableBackups,
+                      onRefresh: _loadAvailableBackups,
+                      onRestore: _restoreBackup,
+                      onDelete: _deleteBackup,
+                      onDownload: _downloadBackup,
+                    ),
+                  ],
                 ],
               ),
             ),

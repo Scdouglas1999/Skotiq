@@ -9,6 +9,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/confirm_dialog.dart';
 import '../../../utils/snackbar_helper.dart';
+import 'admin_only.dart';
 import 'settings_widgets.dart';
 import '../settings_sections.dart';
 import '../../../router/app_routes.dart';
@@ -320,6 +321,10 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
     return label.toLowerCase().contains('catalog') ? label : '$label catalog';
   }
 
+  /// The host installs, verifies and removes catalogs only for a link with
+  /// admin access; this link can still see what is installed.
+  bool get _adminOnlyRefused => hostRefusesAdminOnly(ref);
+
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
@@ -335,6 +340,13 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
           // Give the disconnected state a direct path to connection setup.
           _NotConnected(colors: colors, isMobile: widget.isMobile)
         else ...[
+          if (_adminOnlyRefused) ...[
+            const AdminOnlyBanner(
+              title: 'Catalogs are installed and removed on the imaging '
+                  'computer',
+            ),
+            const SizedBox(height: SkotiqTokens.spaceMd),
+          ],
           Row(
             children: [
               Text('Installed on appliance',
@@ -350,21 +362,24 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
                 variant: ButtonVariant.ghost,
                 size: ButtonSize.small,
               ),
-              const SizedBox(width: 8),
-              SkotiqButton(
-                onPressed: (!_busy && _isInstalled)
-                    ? () => _run(
-                          actionLabel: 'Reload',
-                          successMessage: 'Catalog loaders reloaded',
-                          action: (backend) => backend.catalogs.reloadCatalogs(),
-                        )
-                    : null,
-                label: 'Reload',
-                icon: LucideIcons.refreshCw,
-                variant: ButtonVariant.ghost,
-                size: ButtonSize.small,
-                isLoading: _busyAction == 'Reload',
-              ),
+              if (!_adminOnlyRefused) ...[
+                const SizedBox(width: 8),
+                SkotiqButton(
+                  onPressed: (!_busy && _isInstalled)
+                      ? () => _run(
+                            actionLabel: 'Reload',
+                            successMessage: 'Catalog loaders reloaded',
+                            action: (backend) =>
+                                backend.catalogs.reloadCatalogs(),
+                          )
+                      : null,
+                  label: 'Reload',
+                  icon: LucideIcons.refreshCw,
+                  variant: ButtonVariant.ghost,
+                  size: ButtonSize.small,
+                  isLoading: _busyAction == 'Reload',
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 8),
@@ -426,24 +441,26 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
                       color: colors.textPrimary,
                     )),
               ),
-              SkotiqButton(
-                onPressed: (_busy || _confirmationOpen)
-                    ? null
-                    : () => _verifyCatalog(c),
-                label: 'Verify',
-                variant: ButtonVariant.ghost,
-                size: ButtonSize.small,
-                isLoading: _busyAction == 'Verify' && _busyCatalog == c.name,
-              ),
-              SkotiqButton(
-                onPressed: (_busy || _confirmationOpen)
-                    ? null
-                    : () => _confirmUninstall(c),
-                label: 'Remove',
-                variant: ButtonVariant.ghost,
-                size: ButtonSize.small,
-                isLoading: _busyAction == 'Remove' && _busyCatalog == c.name,
-              ),
+              if (!_adminOnlyRefused) ...[
+                SkotiqButton(
+                  onPressed: (_busy || _confirmationOpen)
+                      ? null
+                      : () => _verifyCatalog(c),
+                  label: 'Verify',
+                  variant: ButtonVariant.ghost,
+                  size: ButtonSize.small,
+                  isLoading: _busyAction == 'Verify' && _busyCatalog == c.name,
+                ),
+                SkotiqButton(
+                  onPressed: (_busy || _confirmationOpen)
+                      ? null
+                      : () => _confirmUninstall(c),
+                  label: 'Remove',
+                  variant: ButtonVariant.ghost,
+                  size: ButtonSize.small,
+                  isLoading: _busyAction == 'Remove' && _busyCatalog == c.name,
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 4),
@@ -499,15 +516,18 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          SkotiqButton(
-            onPressed: (_busy || installed) ? null : () => _downloadCatalog(a),
-            label: installed ? 'Installed' : 'Download',
-            icon: installed ? LucideIcons.check : LucideIcons.download,
-            variant: installed ? ButtonVariant.ghost : ButtonVariant.primary,
-            size: ButtonSize.small,
-            isLoading: _busyAction == 'Download' && _busyCatalog == a.name,
-          ),
+          if (!_adminOnlyRefused || installed) ...[
+            const SizedBox(width: 8),
+            SkotiqButton(
+              onPressed:
+                  (_busy || installed) ? null : () => _downloadCatalog(a),
+              label: installed ? 'Installed' : 'Download',
+              icon: installed ? LucideIcons.check : LucideIcons.download,
+              variant: installed ? ButtonVariant.ghost : ButtonVariant.primary,
+              size: ButtonSize.small,
+              isLoading: _busyAction == 'Download' && _busyCatalog == a.name,
+            ),
+          ],
         ],
       ),
     );

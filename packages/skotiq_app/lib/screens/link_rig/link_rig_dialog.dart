@@ -344,7 +344,7 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
     final canGoBack = _phase == _Phase.pair && widget.request.host == null;
     return SkotiqDialog(
       title: widget.request.fullAccess
-          ? 'Allow settings changes from here'
+          ? 'Link with admin access'
           : 'Connect to an imaging computer',
       icon: LucideIcons.monitorSmartphone,
       width: SkotiqDialog.widthForm,
@@ -560,8 +560,9 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
                 const SizedBox(height: SkotiqTokens.spaceXs),
                 Text(
                   'Runs the rig from here: camera, mount, focuser, filter '
-                  "wheel, guiding, sequences and profiles. $name's settings "
-                  'can be viewed but not changed from this computer.',
+                  "wheel, guiding, sequences, profiles and $name's settings. "
+                  'Stored passwords, backups, plugins and updates stay with '
+                  '$name.',
                   style: SkotiqTypography.caption.copyWith(
                     color: colors.textSecondary,
                     height: 1.4,
@@ -653,8 +654,8 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
                             ? null
                             : () => setState(() => _fullAccess = !_fullAccess),
                         child: Text(
-                          "Also allow changing $name's settings, backups and "
-                          'plugins from here',
+                          'Also allow stored passwords, backups, plugins and '
+                          "updates of $name from here",
                           style: SkotiqTypography.bodySm.copyWith(
                             color: colors.textSecondary,
                           ),

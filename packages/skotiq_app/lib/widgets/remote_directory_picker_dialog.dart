@@ -35,6 +35,12 @@ class RemoteDirectoryPickerDialog extends ConsumerStatefulWidget {
 
 class _RemoteDirectoryPickerDialogState
     extends ConsumerState<RemoteDirectoryPickerDialog> {
+  /// The imaging host shows its folders only to a link with admin access.
+  static const String _needsAdminAccess =
+      'Only a link with admin access can browse the imaging host\'s folders. '
+      'Type the folder path instead, choose it on the imaging computer, or '
+      'link with admin access.';
+
   RemoteDirectoryListing? _listing;
   String? _selectedPath;
 
@@ -110,12 +116,14 @@ class _RemoteDirectoryPickerDialogState
         _selectedPath = listing.currentPath ?? path;
         _loading = false;
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _loading = false;
-        _loadError = 'Could not browse host directories. '
-            'Check the connection to the imaging host and try again.';
+        _loadError = isAccessLevelRefusal(error)
+            ? _needsAdminAccess
+            : 'Could not browse host directories. '
+                'Check the connection to the imaging host and try again.';
       });
     }
   }
@@ -148,12 +156,14 @@ class _RemoteDirectoryPickerDialogState
         mustExist: true,
         mustBeWritable: true,
       );
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
         _validating = false;
-        _validationError = 'Could not verify the host directory. '
-            'Check the connection to the imaging host and try again.';
+        _validationError = isAccessLevelRefusal(error)
+            ? _needsAdminAccess
+            : 'Could not verify the host directory. '
+                'Check the connection to the imaging host and try again.';
       });
       return;
     }

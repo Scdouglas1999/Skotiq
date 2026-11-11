@@ -23,6 +23,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../accessible_dropdown.dart';
+import 'admin_only.dart';
 import 'settings_widgets.dart';
 
 part 'notification_routing_settings/category_editor_dialog.dart';

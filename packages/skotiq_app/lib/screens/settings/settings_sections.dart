@@ -80,10 +80,10 @@ enum SettingsSectionId {
 
   logs('logs', SettingsGroupId.advanced),
   backup('backup', SettingsGroupId.advanced),
-  updates('updates', SettingsGroupId.advanced, onThisDevice: true),
+  updates('updates', SettingsGroupId.advanced),
   rigCatalogs('rig-catalogs', SettingsGroupId.advanced),
   capturedImages('captured-images', SettingsGroupId.advanced),
-  replayDebug('replay-debug', SettingsGroupId.advanced, onThisDevice: true);
+  replayDebug('replay-debug', SettingsGroupId.advanced);
 
   const SettingsSectionId(this.key, this.group, {this.onThisDevice = false});
 
