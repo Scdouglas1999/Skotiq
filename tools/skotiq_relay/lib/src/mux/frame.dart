@@ -33,7 +33,6 @@ enum MuxFrameType {
   /// phone side in v1). Payload is reserved (empty today).
   open(1),
 
-  /// Stream payload bytes.
   data(2),
 
   /// Half-close: the sender will emit no more data on this stream, but can
@@ -63,7 +62,6 @@ const int kMuxHeaderLength = 9;
 /// (defends the relay against memory-exhaustion from one bad appliance).
 const int kMuxMaxPayloadLength = 1 << 20; // 1 MiB
 
-/// The reserved session-control stream id.
 const int kMuxControlStreamId = 0;
 
 /// Thrown on any wire-format violation. The connection carrying the bad
@@ -76,7 +74,6 @@ class MuxProtocolException implements Exception {
   String toString() => 'MuxProtocolException: $message';
 }
 
-/// A single decoded frame.
 class MuxFrame {
   final int streamId;
   final MuxFrameType type;
