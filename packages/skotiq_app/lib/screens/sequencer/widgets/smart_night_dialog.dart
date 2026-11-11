@@ -549,6 +549,14 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
             siteHorizon.isFlat ? null : siteHorizon.toSchedulerProfile(),
       );
 
+      final goalService = ref.read(integrationGoalServiceProvider);
+      final integrationGoals = {
+        for (final suggestion in selected)
+          suggestion.targetId:
+              await goalService.progressForTarget(suggestion.targetId),
+      };
+      if (host.isStale) return false;
+
       await ref.read(hardwarePresetsServiceProvider.notifier).loaded;
       if (!mounted) return false;
       final plan = _buildService().build(
@@ -560,6 +568,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
         strategy: _strategy,
         settings: effectiveSettings,
         exposureContext: exposureContext,
+        integrationGoals: integrationGoals,
       );
       final draft = await ref.read(smartNightDraftServiceProvider).savePending(
             profileId: activeProfile.id.toString(),

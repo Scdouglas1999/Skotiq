@@ -74,6 +74,12 @@ class SmartNightService {
   /// don't over-stuff the dark window.
   static const double _transitionOverheadSecs = 20 * 60; // 20 minutes
 
+  /// Dark time after the last planned target that could still hold one more:
+  /// the move to it plus its minimum slice.
+  static const Duration _unplannedDarkWorthNaming = Duration(
+    seconds: (_transitionOverheadSecs + _minTargetWindowSecs) ~/ 1,
+  );
+
   /// Cloud/rain forecast probability above which the night plan prepends a
   /// weather-unsafe [RecoveryNode] watchdog. Single source of truth shared
   /// by [build] and [willInjectWeatherRecovery] so the plan preview can
@@ -259,6 +265,11 @@ class SmartNightService {
   /// [rankCandidates]. The service does NOT re-rank; the wizard
   /// composes that pipeline.
   ///
+  /// A target with saved integration goals ([integrationGoals], by target
+  /// id) is planned to the frames those goals still need, the same way
+  /// [buildSingleTargetSequence] plans one, so the night moves on to the next
+  /// target once they are met.
+  ///
   /// Validates required inputs and throws [SmartNightBuildException] when an
   /// essential field is missing, rather than planning a night around a
   /// substituted value.
@@ -272,6 +283,7 @@ class SmartNightService {
     required SmartNightSettings settings,
     SmartNightExposureContext? exposureContext,
     SmartNightFlatPlan? flatPlan,
+    Map<int, List<IntegrationGoalProgress>> integrationGoals = const {},
   }) {
     _validateInputs(
       profile: profile,
@@ -418,6 +430,8 @@ class SmartNightService {
         recentGuideRmsArcsec: recentGuideRmsArcsec,
         recentGuideSamples: recentGuideSamples,
         settings: settings,
+        integrationGoalProgress: integrationGoals[suggestion.targetId],
+        availableFiltersForGoals: profile.filterNames,
       );
       if (filterPlans.isEmpty) continue;
 
@@ -475,6 +489,14 @@ class SmartNightService {
     }
 
     final warnings = <String>[];
+    final unplannedDark = effectiveWindowEnd.difference(cursor);
+    if (unplannedDark >= _unplannedDarkWorthNaming) {
+      warnings.add(
+        'The plan ends at ${ClockFormat.hm(cursor)}, leaving '
+        '${DurationFormat.of(unplannedDark, style: DurationStyle.coarse, roundToMinute: true)} '
+        'of dark time unplanned. Add targets to use it.',
+      );
+    }
     final autoDarksActive =
         settings.autoScheduleMissingDarks &&
         context.missingDarkRequirements.isNotEmpty;

@@ -496,17 +496,25 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
               if (suggestions.isEmpty) {
                 return _EmptyTargetsCard(colors: colors);
               }
+              // A project's targets lead the list so what was picked for the
+              // operator is in view, not somewhere below the top of tonight.
+              final seed = widget.seedTargetIds?.toSet() ?? const <int>{};
+              final ordered = [
+                ...suggestions.where((s) => seed.contains(s.targetId)),
+                ...suggestions.where((s) => !seed.contains(s.targetId)),
+              ];
               return ListView.builder(
-                itemCount: suggestions.length,
+                itemCount: ordered.length,
                 itemBuilder: (context, index) {
-                  final s = suggestions[index];
+                  final s = ordered[index];
+                  final rank = suggestions.indexOf(s);
                   return _TargetTile(
                     suggestion: s,
                     isSelected:
                         _autoSelect || _selectedTargetIds.contains(s.targetId),
                     isAutoMode: _autoSelect,
-                    rank: index + 1,
-                    autoPickedTop: _autoSelect && index < _autoSelectCount,
+                    rank: rank + 1,
+                    autoPickedTop: _autoSelect && rank < _autoSelectCount,
                     onToggle: () {
                       if (_autoSelect) return;
                       _update(() {
