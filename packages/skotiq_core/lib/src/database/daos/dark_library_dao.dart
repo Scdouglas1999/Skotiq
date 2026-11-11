@@ -14,7 +14,6 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
     with _$DarkLibraryDaoMixin {
   DarkLibraryDao(super.db);
 
-  /// Insert a new dark frame entry and return its ID.
   Future<int> addEntry(DarkLibraryCompanion entry) {
     return transaction(() async {
       final filePath = entry.filePath.present ? entry.filePath.value : null;
@@ -58,7 +57,6 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
         .get();
   }
 
-  /// Watch entries by frame type.
   Stream<List<DarkLibraryEntry>> watchEntriesByFrameType(String type) {
     return (select(darkLibrary)
           ..where((t) => t.frameType.equals(type))
@@ -106,7 +104,6 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
     final candidates = await query.get();
     if (candidates.isEmpty) return null;
 
-    // Filter by temperature tolerance if temperature is available
     List<DarkLibraryEntry> filtered;
     if (temperature != null) {
       filtered = candidates.where((c) {
@@ -131,7 +128,6 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
       return pool.first;
     }
 
-    // Sort by closest temperature match
     pool.sort((a, b) {
       final aDelta = a.temperature != null
           ? (a.temperature! - temperature).abs()
@@ -203,24 +199,20 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
         .get();
   }
 
-  /// Get a single entry by ID.
   Future<DarkLibraryEntry?> getEntryById(int id) {
     return (select(
       darkLibrary,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
-  /// Delete an entry by ID.
   Future<int> deleteEntry(int id) {
     return (delete(darkLibrary)..where((t) => t.id.equals(id))).go();
   }
 
-  /// Delete multiple entries by IDs.
   Future<int> deleteEntries(List<int> ids) {
     return (delete(darkLibrary)..where((t) => t.id.isIn(ids))).go();
   }
 
-  /// Delete all entries.
   Future<int> deleteAll() {
     return delete(darkLibrary).go();
   }
@@ -236,14 +228,12 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
   Future<DarkLibraryStats> getStats() async {
     final totalExp = darkLibrary.id.count();
 
-    // Count master darks (masterDarkPath IS NOT NULL)
     final masterQuery = selectOnly(darkLibrary)
       ..addColumns([totalExp])
       ..where(darkLibrary.masterDarkPath.isNotNull());
     final masterResult = await masterQuery.getSingle();
     final masterCount = masterResult.read(totalExp) ?? 0;
 
-    // Count bias frames (non-master)
     final biasQuery = selectOnly(darkLibrary)
       ..addColumns([totalExp])
       ..where(
@@ -253,7 +243,6 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
     final biasResult = await biasQuery.getSingle();
     final biasCount = biasResult.read(totalExp) ?? 0;
 
-    // Count dark frames (non-master, non-bias)
     final darkQuery = selectOnly(darkLibrary)
       ..addColumns([totalExp])
       ..where(
@@ -263,7 +252,6 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
     final darkResult = await darkQuery.getSingle();
     final darkCount = darkResult.read(totalExp) ?? 0;
 
-    // Total entries
     final totalQuery = selectOnly(darkLibrary)..addColumns([totalExp]);
     final totalResult = await totalQuery.getSingle();
     final totalEntries = totalResult.read(totalExp) ?? 0;
@@ -502,7 +490,6 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
   }
 }
 
-/// Summary statistics for the dark library.
 class DarkLibraryStats {
   final int totalEntries;
   final int darkCount;

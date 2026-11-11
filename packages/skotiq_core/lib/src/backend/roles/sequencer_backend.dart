@@ -32,9 +32,7 @@ import '../../services/adaptive_swap_service.dart' show AdaptiveSwapBackend;
 /// are sequencer-runtime mutations and the adaptive-swap composer depends
 /// on exactly that pair.
 abstract class SequencerBackend implements AdaptiveSwapBackend {
-  // Sequencer control
 
-  /// Start the sequencer
   Future<void> sequencerStart();
 
   /// Stop the sequencer
@@ -42,13 +40,10 @@ abstract class SequencerBackend implements AdaptiveSwapBackend {
   /// `'scheduler'` for the autopilot.
   Future<void> sequencerStop({String? origin});
 
-  /// Pause the sequencer
   Future<void> sequencerPause();
 
-  /// Resume the sequencer
   Future<void> sequencerResume();
 
-  /// Skip the current node in the sequencer
   Future<void> sequencerSkip();
 
   /// Jump execution to a specific node id, skipping siblings
@@ -76,13 +71,11 @@ abstract class SequencerBackend implements AdaptiveSwapBackend {
     String? structuredDetailJson,
   });
 
-  /// Reset the sequencer to its initial state
   Future<void> sequencerReset();
 
   /// Load a sequence definition (JSON) into the sequencer
   Future<void> sequencerLoadJson(String json);
 
-  /// Get sequencer status
   Future<SequencerStatus> sequencerGetStatus();
 
   /// Set simulation mode (use mock devices instead of real hardware)
@@ -96,7 +89,6 @@ abstract class SequencerBackend implements AdaptiveSwapBackend {
   /// simulated hardware while real mounts and cameras are under the run.
   Future<bool> sequencerIsSimulationMode();
 
-  /// Set connected devices for the sequencer
   Future<void> sequencerSetDevices({
     String? cameraId,
     String? mountId,
@@ -350,8 +342,6 @@ abstract class SequencerBackend implements AdaptiveSwapBackend {
   @override
   Future<AdaptiveSwapSnapshot?> sequencerGetAdaptiveSwapSnapshot();
 
-  // Recovery mode
-
   /// Operator pressed "Try Now" on the Run Dashboard banner — fires the
   /// next recovery attempt immediately (skipping the wait timer). No-op
   /// when the executor is not currently in `Recovering`.
@@ -385,24 +375,16 @@ abstract class SequencerBackend implements AdaptiveSwapBackend {
   /// records.
   Future<String> getRecoveryHistoryJson();
 
-  // Checkpoint / Crash Recovery
-
-  /// Set the directory for checkpoint files
   Future<void> sequencerSetCheckpointDir(String path);
 
-  /// Check if a recoverable checkpoint exists
   Future<bool> hasCheckpoint();
 
-  /// Get information about the current checkpoint
   Future<CheckpointInfo?> getCheckpointInfo();
 
-  /// Resume sequence from checkpoint
   Future<void> resumeFromCheckpoint();
 
-  /// Discard the current checkpoint
   Future<void> discardCheckpoint();
 
-  /// Save a checkpoint of current execution state
   Future<void> saveCheckpoint();
 
   /// Ask the RUNNING sequence to flip at its next safe point, through its own

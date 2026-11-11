@@ -68,7 +68,6 @@ class DarkroomJobsDao {
     );
   }
 
-  /// Fetch a job by id, or null when absent.
   Future<DarkroomJob?> getById(int id) async {
     final rows = await _db
         .customSelect(
@@ -351,7 +350,6 @@ class DarkroomJobsDao {
   }
 }
 
-/// Riverpod provider for [DarkroomJobsDao].
 final darkroomJobsDaoProvider = Provider<DarkroomJobsDao>((ref) {
   return DarkroomJobsDao(ref.watch(databaseProvider));
 });

@@ -21,24 +21,17 @@ import '../../models/settings/app_settings.dart' as models;
 ///     [DiagnosticsBackend.getLocationFromInternet], which is a network
 ///     fetch, not a persistence operation.
 abstract class ProfileSettingsBackend {
-  // Equipment profiles
 
-  /// Get all profiles
   Future<List<EquipmentProfile>> getProfiles();
 
-  /// Save profile
   Future<void> saveProfile(EquipmentProfile profile);
 
-  /// Delete profile
   Future<void> deleteProfile(String profileId);
 
   /// Load profile and set as active
   Future<void> loadProfile(String profileId);
 
-  /// Get active profile
   Future<EquipmentProfile?> getActiveProfile();
-
-  // Settings & Location
 
   Future<models.AppSettings> getSettings();
   Future<void> updateSettings(models.AppSettings settings);

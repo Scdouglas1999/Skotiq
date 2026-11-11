@@ -162,7 +162,6 @@ class CampaignsDao {
   }
 }
 
-/// Riverpod provider for [CampaignsDao].
 final campaignsDaoProvider = Provider<CampaignsDao>((ref) {
   return CampaignsDao(ref.watch(databaseProvider));
 });

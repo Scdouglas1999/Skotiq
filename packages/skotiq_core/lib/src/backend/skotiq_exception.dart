@@ -30,7 +30,6 @@ class SkotiqException implements Exception {
   /// Whether reconnection should be attempted before retry
   final bool shouldReconnect;
 
-  /// Whether this was a timeout error
   final bool isTimeout;
 
   /// Device ID if this is a device-related error
@@ -153,7 +152,6 @@ class SkotiqException implements Exception {
   static SkotiqException _classifyFromMessage(String message) {
     final lower = message.toLowerCase();
 
-    // Timeout detection
     if (lower.contains('timeout') || lower.contains('timed out')) {
       return TimeoutException(
         message: message,
@@ -161,7 +159,6 @@ class SkotiqException implements Exception {
       );
     }
 
-    // Connection errors
     if (lower.contains('not connected') ||
         lower.contains('disconnected') ||
         lower.contains('connection failed')) {
@@ -171,7 +168,6 @@ class SkotiqException implements Exception {
       );
     }
 
-    // Device not found
     if (lower.contains('device not found') || lower.contains('not found')) {
       return ConnectionException(
         message: message,
@@ -180,7 +176,6 @@ class SkotiqException implements Exception {
       );
     }
 
-    // Validation errors
     if (lower.contains('invalid') ||
         lower.contains('out of range') ||
         lower.contains('parameter')) {
@@ -190,7 +185,6 @@ class SkotiqException implements Exception {
       );
     }
 
-    // Not supported
     if (lower.contains('not supported') || lower.contains('unsupported')) {
       return UnsupportedOperationException(
         message: message,
@@ -198,14 +192,12 @@ class SkotiqException implements Exception {
       );
     }
 
-    // Imaging errors
     if (lower.contains('exposure') ||
         lower.contains('image') ||
         lower.contains('camera')) {
       return ImagingException(message: message, userMessage: 'Imaging error');
     }
 
-    // Default to generic exception
     return SkotiqException(
       category: 'system',
       message: message,
@@ -226,7 +218,6 @@ class SkotiqException implements Exception {
   /// Check if this is a hardware error requiring user attention
   bool get isHardwareError => category == 'hardware' || category == 'driver';
 
-  /// Check if this is an input validation error
   bool get isValidationError => category == 'validation';
 }
 
@@ -250,7 +241,6 @@ class ConnectionException extends SkotiqException {
     );
   }
 
-  /// Device not found
   factory ConnectionException.notFound(String deviceId) {
     return ConnectionException(
       message: 'Device not found: $deviceId',
@@ -261,7 +251,6 @@ class ConnectionException extends SkotiqException {
     );
   }
 
-  /// Device disconnected
   factory ConnectionException.disconnected(String deviceId, [String? reason]) {
     return ConnectionException(
       message:
@@ -272,7 +261,6 @@ class ConnectionException extends SkotiqException {
   }
 }
 
-/// Hardware-related exceptions
 class HardwareException extends SkotiqException {
   const HardwareException({
     required super.message,
@@ -293,7 +281,6 @@ class HardwareException extends SkotiqException {
   }
 }
 
-/// Timeout exceptions
 class TimeoutException extends SkotiqException {
   const TimeoutException({
     required super.message,
@@ -314,7 +301,6 @@ class TimeoutException extends SkotiqException {
     );
   }
 
-  /// Create a device timeout
   factory TimeoutException.device(String deviceId, String operation) {
     return TimeoutException(
       message: 'Device timeout: $deviceId operation "$operation"',
@@ -324,7 +310,6 @@ class TimeoutException extends SkotiqException {
   }
 }
 
-/// Input validation exceptions
 class ValidationException extends SkotiqException {
   const ValidationException({
     required super.message,
@@ -343,7 +328,6 @@ class ValidationException extends SkotiqException {
     );
   }
 
-  /// Parameter out of range
   factory ValidationException.outOfRange(
     String paramName,
     dynamic value,
@@ -358,7 +342,6 @@ class ValidationException extends SkotiqException {
   }
 }
 
-/// Unsupported operation exceptions
 class UnsupportedOperationException extends SkotiqException {
   const UnsupportedOperationException({
     required super.message,
@@ -380,7 +363,6 @@ class UnsupportedOperationException extends SkotiqException {
   }
 }
 
-/// Device busy exceptions
 class DeviceBusyException extends SkotiqException {
   /// Current operation the device is performing
   final String? currentOperation;
@@ -406,7 +388,6 @@ class DeviceBusyException extends SkotiqException {
   }
 }
 
-/// Imaging-related exceptions
 class ImagingException extends SkotiqException {
   const ImagingException({
     required super.message,
@@ -432,7 +413,6 @@ class ImagingException extends SkotiqException {
     );
   }
 
-  /// No image available
   factory ImagingException.noImage() {
     return const ImagingException(
       message: 'No image available',
@@ -459,7 +439,6 @@ class IoException extends SkotiqException {
   }
 }
 
-/// Sequence execution exceptions
 class SequenceException extends SkotiqException {
   const SequenceException({required super.message, required super.userMessage})
     : super(

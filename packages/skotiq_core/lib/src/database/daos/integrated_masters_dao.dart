@@ -35,8 +35,6 @@ class IntegratedMastersDao {
       'background_extracted_path, deconvolved_path, star_reduced_path, '
       'color_calibrated_path';
 
-  // integrated_masters
-
   /// Insert a new master row and return its id. [createdAt]/[updatedAt] default
   /// to "now" (UTC seconds) when omitted.
   Future<int> insertMaster({
@@ -97,7 +95,6 @@ class IntegratedMastersDao {
     );
   }
 
-  /// Fetch a master by id, or null when absent.
   Future<IntegratedMaster?> getById(int id) async {
     final rows = await _db
         .customSelect(
@@ -581,7 +578,6 @@ class IntegratedMastersDao {
   }
 }
 
-/// Riverpod provider for [IntegratedMastersDao].
 final integratedMastersDaoProvider = Provider<IntegratedMastersDao>((ref) {
   return IntegratedMastersDao(ref.watch(databaseProvider));
 });
