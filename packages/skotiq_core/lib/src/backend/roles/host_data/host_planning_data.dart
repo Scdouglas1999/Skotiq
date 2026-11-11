@@ -48,4 +48,19 @@ abstract interface class HostPlanningData {
   Future<List<IntegrationGoal>> getIntegrationGoals({int? targetId});
 
   Future<int> upsertIntegrationGoal(IntegrationGoal goal);
+
+  Future<Map<String, dynamic>> controlScheduler(
+    String action, {
+    bool confirmWarnings = false,
+  });
+
+  Future<List<HorizonProfile>> getHorizonProfiles();
+
+  Future<Map<String, String>> getSmartNightSettings();
+
+  Future<Map<String, dynamic>> updateSchedulerConfig(
+    Map<String, dynamic> config,
+  );
+
+  Future<void> updateSmartNightSettings(Map<String, String> settings);
 }

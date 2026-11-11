@@ -96,7 +96,7 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
   /// the local DB write would be lost). Gate the mutation affordances on a
   /// slave with a clear notice instead of letting ProjectService throw.
   bool _blockedOnRemote() {
-    if (ref.read(backendProvider) is! NetworkBackend) return false;
+    if (ref.read(backendProvider).remoteHost == null) return false;
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

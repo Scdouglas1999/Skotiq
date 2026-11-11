@@ -882,7 +882,7 @@ class PlateSolveService {
     // under its process-wide gate, so issue exactly one backend solve rather
     // than accidentally running ASTAP twice when the first attempt fails.
     final activeBackend = _backend;
-    if (!activeBackend.hasNoHost) {
+    if (activeBackend.ownsDeviceBridge || activeBackend.remoteHost != null) {
       final executable = switch (pref.choice) {
         ps_model.PlateSolverChoice.astrometry => detection.astrometryPath!,
         ps_model.PlateSolverChoice.astap => detection.astapPath!,

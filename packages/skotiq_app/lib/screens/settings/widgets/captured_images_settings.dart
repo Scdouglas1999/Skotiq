@@ -39,9 +39,8 @@ class _CapturedImagesSettingsState
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
   int _loadGeneration = 0;
 
-  NetworkBackend? get _backend {
-    final b = ref.read(backendProvider);
-    return b is NetworkBackend ? b : null;
+  RemoteHost? get _backend {
+    return ref.read(backendProvider).remoteHost;
   }
 
   @override
@@ -56,9 +55,9 @@ class _CapturedImagesSettingsState
           _rows = const [];
           _thumbCache.clear();
           _error = null;
-          _loading = next is NetworkBackend;
+          _loading = next.remoteHost != null;
         });
-        if (next is NetworkBackend) unawaited(_refresh());
+        if (next.remoteHost != null) unawaited(_refresh());
       },
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -90,10 +89,10 @@ class _CapturedImagesSettingsState
       _error = null;
     });
     try {
-      final rows = await backend.getAllImageRows();
+      final rows = await backend.imagingRecords.getAllImageRows();
       if (!mounted ||
           generation != _loadGeneration ||
-          !identical(ref.read(backendProvider), backend)) {
+          !identical(_backend, backend)) {
         return;
       }
       setState(() {
@@ -104,7 +103,7 @@ class _CapturedImagesSettingsState
     } catch (e) {
       if (!mounted ||
           generation != _loadGeneration ||
-          !identical(ref.read(backendProvider), backend)) {
+          !identical(_backend, backend)) {
         return;
       }
       setState(() {
@@ -149,8 +148,8 @@ class _CapturedImagesSettingsState
     if (backend == null) {
       throw StateError('No remote imaging host is connected');
     }
-    final bytes = await backend.getImageThumbnail(id);
-    if (!mounted || !identical(ref.read(backendProvider), backend)) {
+    final bytes = await backend.imagingRecords.getImageThumbnail(id);
+    if (!mounted || !identical(_backend, backend)) {
       throw StateError('The imaging host changed while loading the thumbnail');
     }
     _thumbCache[id] = bytes;

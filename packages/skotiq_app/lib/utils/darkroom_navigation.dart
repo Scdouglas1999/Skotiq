@@ -68,7 +68,7 @@ const String kDarkroomHostOnlyRefusal =
 ///
 /// Gated on the client ROLE ([isRemoteClientProvider]), not on the connection:
 /// a desktop launched with `--remote-host` that has not reached its rig is
-/// `Disconnected`, so `backend is NetworkBackend` reads false for the whole
+/// `Disconnected`, so `backend.remoteHost != null` reads false for the whole
 /// pre-handshake window and after every drop — and during exactly that window
 /// the client owns none of the host's masters.
 String? darkroomHostOnlyRefusal(WidgetRef ref) =>

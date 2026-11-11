@@ -398,9 +398,9 @@ class NightActionController extends Notifier<ManualActionState>
     // On a client the host holds the schedule and starts the run itself, so
     // it fires even if this computer sleeps or loses the link before dark.
     final backend = ref.read(backendProvider);
-    if (backend is NetworkBackend) {
+    if (backend.remoteHost case final linkedHost?) {
       try {
-        final at = await backend.armHostStartAtDark();
+        final at = await linkedHost.calibrationTools.armHostStartAtDark();
         ref.read(hostScheduledStartProvider.notifier).state = at;
         _log.info(
             'Start at dark armed on the imaging host for '
@@ -440,10 +440,10 @@ class NightActionController extends Notifier<ManualActionState>
   void cancelArmedStart() {
     if (ref.read(nightArmedStartProvider) == null) return;
     final backend = ref.read(backendProvider);
-    if (backend is NetworkBackend) {
+    if (backend.remoteHost case final linkedHost?) {
       unawaited(() async {
         try {
-          await backend.cancelHostScheduledStart();
+          await linkedHost.night.cancelHostScheduledStart();
           ref.read(hostScheduledStartProvider.notifier).state = null;
           _log.info('Start at dark canceled on the imaging host',
               source: _logSource);

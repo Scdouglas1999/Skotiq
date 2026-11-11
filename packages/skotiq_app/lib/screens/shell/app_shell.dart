@@ -269,7 +269,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       // application-support folder — see [resolveGuiCheckpointDirectory] for
       // why that distinction is the difference between "your interrupted run"
       // and someone else's.
-      final isLocalBackend = backend is! NetworkBackend;
+      final isLocalBackend = backend.remoteHost == null;
       if (isLocalBackend &&
           (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
         try {
@@ -344,7 +344,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                         info: info,
                         failure: lastFailure,
                         remoteHost:
-                            backend is NetworkBackend ? backend.serverHost : null,
+                            backend.remoteHost?.link.serverHost,
                       );
                     },
                   );

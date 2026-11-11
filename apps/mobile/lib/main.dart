@@ -363,7 +363,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
       ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
         if (!mounted) return;
         if (_connectedServer != null &&
-            next is DisconnectedBackend &&
+            next.hasNoHost &&
             !_skippedConnection) {
           // Audit drop the checkpoint-once latch alongside the
           // backend swap. Otherwise a Settings-driven disconnect then
@@ -382,7 +382,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
         // without routing through _connectToServer, so re-arm the WS monitor
         // on the new instance. Idempotent — it cancels any prior subscription
         // first.
-        if (next is NetworkBackend && !identical(previous, next)) {
+        if (next.remoteHost != null && !identical(previous, next)) {
           _startConnectionMonitor();
         }
       });

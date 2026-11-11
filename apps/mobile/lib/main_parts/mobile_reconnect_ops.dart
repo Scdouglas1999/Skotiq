@@ -132,7 +132,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
       // down so we don't leak a loopback listener or persist a bogus relay row.
       final swappedBackend = ref.read(backendProvider);
       if (!mounted ||
-          swappedBackend is! NetworkBackend ||
+          swappedBackend.remoteHost == null ||
           identical(swappedBackend, priorBackend)) {
         await _closeActiveRelayTunnel();
         return;
@@ -562,7 +562,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         // pushing this phone's documents path replaced the rig's checkpoint
         // directory with one that cannot exist there, so every checkpoint
         // write failed and a mid-night crash became unrecoverable.
-        if (ref.read(backendProvider) is! NetworkBackend) {
+        if (ref.read(backendProvider).remoteHost == null) {
           final docsDir = await resolveSkotiqDocumentsDirectory();
           await executor.initializeCheckpoints(docsDir.path);
         }

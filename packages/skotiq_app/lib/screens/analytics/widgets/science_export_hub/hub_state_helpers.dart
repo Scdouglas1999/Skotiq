@@ -343,8 +343,8 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
       }
 
       late final String filePath;
-      if (backend is NetworkBackend) {
-        final bytes = await backend.generateObservationReport(reportSessionId);
+      if (backend.remoteHost case final linkedHost?) {
+        final bytes = await linkedHost.science.generateObservationReport(reportSessionId);
         if (!_isCurrentAuthority(backend, generation)) return;
         final directory = await ref.read(scienceExportDirectoryProvider.future);
         if (!_isCurrentAuthority(backend, generation)) return;
@@ -404,7 +404,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
   Future<List<T>> _standaloneRows<T>(
     ProviderListenable<Future<List<T>>> export,
   ) {
-    if (ref.read(backendProvider) is NetworkBackend) {
+    if (ref.read(backendProvider).remoteHost != null) {
       _standaloneWindowed = true;
     }
     return ref.read(export);

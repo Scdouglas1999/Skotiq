@@ -23,11 +23,12 @@ class ConnectionSettings extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
     final backend = ref.watch(backendProvider);
-    final isNetwork = backend is NetworkBackend;
-    final isDisconnected = backend is DisconnectedBackend;
+    final linkedHost = backend.remoteHost;
+    final isNetwork = linkedHost != null;
+    final isDisconnected = backend.hasNoHost;
     // Live connection state — the authoritative signal for whether a network
     // backend is actually connected, mid-handshake, or errored. Relying on
-    // `backend is NetworkBackend` alone would render a still-connecting (or a
+    // `backend.remoteHost != null` alone would render a still-connecting (or a
     // rolled-back/errored) session as "Connected".
     final connState =
         ref.watch(networkBackendConnectionStateProvider).valueOrNull;
@@ -46,8 +47,8 @@ class ConnectionSettings extends ConsumerWidget {
     String connectionStatus = 'Disconnected';
     Color statusColor = colors.textMuted;
 
-    if (isNetwork) {
-      serverAddress = '${backend.serverHost}:${backend.serverPort}';
+    if (linkedHost != null) {
+      serverAddress = linkedHost.link.address;
       if (isConnected) {
         connectionStatus = 'Connected';
         statusColor = colors.success;
@@ -494,12 +495,9 @@ class _ConnectToServerDialogState
     final inputs = _validatedInputs();
     if (inputs == null) return;
 
-    // A local FfiBackend is the only backend that is neither remote nor an
-    // explicit "nothing installed" state. Remember whether we are about to
-    // displace one, because the failure path has to put it back.
-    final priorBackend = ref.read(backendProvider);
-    final hadLocalBackend =
-        priorBackend is! NetworkBackend && priorBackend is! DisconnectedBackend;
+    // Remember whether we are about to displace a backend that runs the rig
+    // on this machine, because the failure path has to put it back.
+    final hadLocalBackend = ref.read(backendProvider).runsRigHere;
 
     setState(() {
       _isConnecting = true;

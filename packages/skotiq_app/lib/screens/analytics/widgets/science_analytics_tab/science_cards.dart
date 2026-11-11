@@ -26,8 +26,8 @@ class _AavsoExportButtonState extends ConsumerState<_AavsoExportButton> {
     try {
       final backend = ref.read(backendProvider);
       late final String filePath;
-      if (backend is NetworkBackend) {
-        final bytes = await backend.exportSessionAavso(
+      if (backend.remoteHost case final linkedHost?) {
+        final bytes = await linkedHost.science.exportSessionAavso(
           widget.sessionId,
           targetStarName: targetName.trim(),
         );

@@ -106,10 +106,10 @@ class _TargetEditorOverlay extends ConsumerWidget {
                                         onChanged: () {
                                           final backend =
                                               ref.read(backendProvider);
-                                          if (backend is NetworkBackend) {
+                                          if (backend.remoteHost case final linkedHost?) {
                                             unawaited(() async {
                                               try {
-                                                await backend.controlScheduler(
+                                                await linkedHost.planning.controlScheduler(
                                                   'evaluate',
                                                 );
                                                 if (!context.mounted) return;

@@ -71,13 +71,13 @@ final pushDeliveryTargetsProvider = FutureProvider<PushDeliveryTargets>((
 ) async {
   final backend = ref.watch(backendProvider);
 
-  if (backend is DisconnectedBackend) {
+  if (backend.hasNoHost) {
     return PushDeliveryTargets.none;
   }
 
-  if (backend is NetworkBackend) {
+  if (backend.remoteHost case final linkedHost?) {
     try {
-      return await backend.getPushDeliveryTargets();
+      return await linkedHost.notifications.getPushDeliveryTargets();
     } catch (e) {
       // An unreachable/older host cannot be shown as "delivery works".
       // Logged because "host unreachable" and "host has no push targets"

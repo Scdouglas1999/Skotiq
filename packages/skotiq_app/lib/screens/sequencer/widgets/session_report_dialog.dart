@@ -104,7 +104,7 @@ class _ReportBody extends ConsumerWidget {
     final dateFormat = DateFormat('MMM d, yyyy HH:mm');
     // The client ROLE, not the connection: a desktop launched with
     // `--remote-host` that has not reached its rig is `Disconnected`, so
-    // `backend is NetworkBackend` read false for the whole pre-handshake
+    // `backend.remoteHost != null` read false for the whole pre-handshake
     // window — and this button then offered "Review & Integrate" on a machine
     // that owns none of the host's subs and pushed it onto the host-only wall.
     final isRemote = ref.watch(isRemoteClientProvider);

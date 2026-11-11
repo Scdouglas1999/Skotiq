@@ -152,9 +152,9 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
     try {
       final matches = <CatalogStarMatch>[];
       for (final imageId in imageIds) {
-        if (authority is NetworkBackend) {
+        if (authority.remoteHost case final linkedHost?) {
           matches.addAll(
-            await authority.matchPhotometricCalibrationStars(imageId),
+            await linkedHost.calibrationTools.matchPhotometricCalibrationStars(imageId),
           );
         } else {
           matches.addAll(
@@ -577,7 +577,8 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
     if (!_isCurrentOperation(generation, authority)) {
       throw StateError('Photometric calibration operation was retired.');
     }
-    if (authority is! NetworkBackend) {
+    final linkedHost = authority.remoteHost;
+    if (linkedHost == null) {
       final fits = await ref
           .read(imagingBackendProvider)
           .readFitsFile(filePath: filePath);
@@ -587,7 +588,7 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
     // Remote: ask the host for the TRUE dimensions (it reads the real FITS
     // header) rather than estimating from the star bounding box. The estimate
     // below remains only as a last resort if the host can't read the file.
-    final dims = await authority.getFitsDimensions(filePath);
+    final dims = await linkedHost.science.getFitsDimensions(filePath);
     if (dims != null) {
       return (width: dims.width.toDouble(), height: dims.height.toDouble());
     }

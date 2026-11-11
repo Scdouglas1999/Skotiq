@@ -185,9 +185,10 @@ class NightHistory {
 /// (the charts then start from the first live event, as before).
 final hostNightHistoryProvider = FutureProvider<NightHistory?>((ref) async {
   final backend = ref.watch(backendProvider);
-  if (backend is! NetworkBackend) return null;
+  final linkedHost = backend.remoteHost;
+  if (linkedHost == null) return null;
   try {
-    final json = await backend.getHostNightHistory();
+    final json = await linkedHost.night.getHostNightHistory();
     if (json == null) return null;
     final history = NightHistory.fromJson(json);
     // The cooler history lives in the camera poller, which every screen

@@ -177,7 +177,7 @@ class _LinkedCard extends ConsumerWidget {
     final rig = ref.watch(launchLinkedRigProvider);
     final status = ref.watch(remoteLaunchStatusProvider);
     final name = rig?.name ?? target.name ?? target.host;
-    final live = ref.watch(backendProvider) is NetworkBackend &&
+    final live = ref.watch(backendProvider).remoteHost != null &&
         status.phase != RemoteLaunchPhase.failed;
 
     final String access;

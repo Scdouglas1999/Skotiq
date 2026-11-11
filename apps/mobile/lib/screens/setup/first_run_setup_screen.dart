@@ -83,7 +83,8 @@ final shouldRunFirstRunSetupProvider = FutureProvider<FirstRunSetupNeeds>((
   if (prefs.firstRunCompleted) return FirstRunSetupNeeds.none;
 
   final backend = ref.watch(backendProvider);
-  if (backend is! NetworkBackend) {
+  final linkedHost = backend.remoteHost;
+  if (linkedHost == null) {
     // The wizard is companion-mode-only: a local FfiBackend always has
     // its profiles/catalogs/path managed through the desktop UI.
     return FirstRunSetupNeeds.none;
@@ -130,7 +131,7 @@ final shouldRunFirstRunSetupProvider = FutureProvider<FirstRunSetupNeeds>((
   }
 
   try {
-    final status = await backend.getCatalogStatus();
+    final status = await linkedHost.catalogs.getCatalogStatus();
     missingCatalogs = !status.catalogs.any((c) => c.isInstalled);
   } catch (e, st) {
     missingCatalogs = true;
@@ -231,7 +232,8 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
     if (_loadingBootstrapData) return;
     _loadingBootstrapData = true;
     final backend = ref.read(backendProvider);
-    if (backend is! NetworkBackend) {
+    final linkedHost = backend.remoteHost;
+    if (linkedHost == null) {
       if (mounted) {
         setState(() {
           _loadingBootstrapData = false;
@@ -250,7 +252,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
     await Future.wait<void>([
       () async {
         try {
-          catalogs = await backend.listAvailableCatalogs();
+          catalogs = await linkedHost.catalogs.listAvailableCatalogs();
         } catch (e, st) {
           catalogError = e is ServerError ? e.message : e.toString();
           developer.log(
@@ -322,7 +324,8 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
   Future<void> _commitImageOutputPath() async {
     if (_busy) return;
     final backend = ref.read(backendProvider);
-    if (backend is! NetworkBackend) return;
+    final linkedHost = backend.remoteHost;
+    if (linkedHost == null) return;
     final path = _resolveSelectedPath();
     if (path == null) {
       if (mounted) {
@@ -338,7 +341,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
     }
     setState(() => _busy = true);
     try {
-      final validation = await backend.validateRemoteDirectory(
+      final validation = await linkedHost.files.validateRemoteDirectory(
         path,
         mustExist: true,
         mustBeWritable: true,
@@ -378,7 +381,8 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
   Future<void> _commitCatalogs() async {
     if (_busy) return;
     final backend = ref.read(backendProvider);
-    if (backend is! NetworkBackend) return;
+    final linkedHost = backend.remoteHost;
+    if (linkedHost == null) return;
     if (_catalogsToInstall.isEmpty) {
       // Operator deliberately picked none — that's allowed (they may
       // have a custom catalog they upload via the desktop). Advance to
@@ -391,7 +395,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
     var firedAny = false;
     for (final name in pending) {
       try {
-        await backend.downloadCatalog(name);
+        await linkedHost.catalogs.downloadCatalog(name);
         firedAny = true;
         if (!mounted) return;
         setState(() {

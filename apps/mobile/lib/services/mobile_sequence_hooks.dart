@@ -146,7 +146,7 @@ class MobileSequenceHooks {
   Future<void> _setupEventNotifier() async {
     await _eventNotifier?.stop();
     final backend = _ref.read(backendProvider);
-    if (backend is DisconnectedBackend) {
+    if (backend.hasNoHost) {
       _eventNotifier = null;
       return;
     }
@@ -168,8 +168,8 @@ class MobileSequenceHooks {
     _pushNotificationSubscription?.cancel();
     _pushNotificationSubscription = null;
     final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
-      _pushNotificationSubscription = backend.pushNotificationStream.listen(
+    if (backend.remoteHost case final linkedHost?) {
+      _pushNotificationSubscription = linkedHost.notifications.pushNotificationStream.listen(
         (data) {
           developer.log(
             'Received push notification: ${data['title']}',
@@ -228,7 +228,7 @@ class MobileSequenceHooks {
     }
 
     final backend = _ref.read(backendProvider);
-    if (backend is! NetworkBackend) {
+    if (backend.remoteHost == null) {
       // Local backend (FfiBackend) or DisconnectedBackend — no remote
       // server to listen to. Receiver stays null until the user pairs.
       return;

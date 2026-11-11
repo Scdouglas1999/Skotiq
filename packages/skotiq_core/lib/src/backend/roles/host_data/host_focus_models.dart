@@ -1,4 +1,5 @@
 
+
 /// The predictive autofocus settings and per-filter focus models of a linked
 /// imaging host.
 ///
@@ -12,4 +13,19 @@ abstract interface class HostFocusModels {
   Future<void> clearPredictiveAfSamples(String filterName);
 
   Future<String?> exportPredictiveAfModel(String filterName);
+
+  Future<void> clearFocusModelData();
+
+  Future<Map<String, dynamic>> getFocusModel();
+
+  Future<void> addFocusDataPoint({
+    required double temperature,
+    required int position,
+    double? hfr,
+    String? filter,
+  });
+
+  Future<Map<String, dynamic>> exportFocusModel();
+
+  Future<void> importFocusModel(Map<String, dynamic> data);
 }

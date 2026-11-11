@@ -678,7 +678,7 @@ class _ExportToSequenceButtonState
     setState(() => _exporting = true);
     final backend = ref.read(backendProvider);
     final sequencesDao =
-        backend is NetworkBackend ? null : ref.read(sequencesDaoProvider);
+        backend.remoteHost != null ? null : ref.read(sequencesDaoProvider);
     int? sequenceId;
     try {
       // Read items through the remote-aware provider so a slave exports the
@@ -695,8 +695,8 @@ class _ExportToSequenceButtonState
         return;
       }
 
-      if (backend is NetworkBackend) {
-        sequenceId = await backend.createSequence({
+      if (backend.remoteHost case final linkedHost?) {
+        sequenceId = await linkedHost.sequences.createSequence({
           'name': widget.listName,
           'isTemplate': false,
         });
@@ -718,8 +718,8 @@ class _ExportToSequenceButtonState
           'dec': item.dec,
           if (item.catalogId != null) 'catalogId': item.catalogId,
         });
-        if (backend is NetworkBackend) {
-          await backend.createSequenceNode(sequenceId, {
+        if (backend.remoteHost case final linkedHost?) {
+          await linkedHost.sequences.createSequenceNode(sequenceId, {
             'nodeId': nodeId,
             'nodeType': 'target',
             'specificType': 'target',
@@ -756,8 +756,8 @@ class _ExportToSequenceButtonState
       Object? rollbackError;
       if (sequenceId != null) {
         try {
-          if (backend is NetworkBackend) {
-            await backend.deleteSequence(sequenceId);
+          if (backend.remoteHost case final linkedHost?) {
+            await linkedHost.sequences.deleteSequence(sequenceId);
           } else {
             await sequencesDao!.deleteSequence(sequenceId);
           }

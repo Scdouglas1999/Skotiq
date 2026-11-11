@@ -107,7 +107,7 @@ class ManualCaptureController extends Notifier<ManualCaptureState> {
   Completer<void>? _remoteLoopEnded;
   bool _remoteLoopSeen = false;
 
-  bool get _remote => ref.read(backendProvider) is NetworkBackend;
+  bool get _remote => ref.read(backendProvider).remoteHost != null;
 
   @override
   ManualCaptureState build() {
@@ -299,10 +299,10 @@ class ManualCaptureController extends Notifier<ManualCaptureState> {
   /// On a client, Stop during the host's loop asks the host to stop it,
   /// whichever window started it.
   void stop() {
-    final backend = ref.read(backendProvider);
-    if (backend is NetworkBackend && state.isLooping) {
+    final hostNight = ref.read(backendProvider).remoteHost?.night;
+    if (hostNight != null && state.isLooping) {
       unawaited(
-        backend.stopHostManualLoop().catchError((Object e) {
+        hostNight.stopHostManualLoop().catchError((Object e) {
           state = state.copyWith(lastError: cleanError(e));
         }),
       );
@@ -317,7 +317,8 @@ class ManualCaptureController extends Notifier<ManualCaptureState> {
   /// A client's Loop: the host runs it. Completes when the host's loop ends,
   /// or at once when the host refused or never started it.
   Future<void> _loopOnHost({void Function(String error)? onError}) async {
-    final backend = ref.read(backendProvider) as NetworkBackend;
+    final hostNight = ref.read(backendProvider).remoteHost?.night;
+    if (hostNight == null) return;
     final ended = _remoteLoopEnded = Completer<void>();
     _remoteLoopSeen = ref.read(manualLoopStatusProvider).looping;
     final errors = ref.listen<ManualLoopStatus>(manualLoopStatusProvider, (
@@ -330,7 +331,7 @@ class ManualCaptureController extends Notifier<ManualCaptureState> {
       }
     });
     try {
-      await backend.startHostManualLoop(
+      await hostNight.startHostManualLoop(
         manualLoopRequestJson(
           settings: ref.read(exposureSettingsProvider),
           saveFrames: ref.read(loopSavesFramesProvider),

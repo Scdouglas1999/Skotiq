@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:skotiq_core/skotiq_core.dart';
 
 
@@ -46,4 +48,35 @@ abstract interface class HostImagingRecords {
   });
 
   Future<List<Map<String, dynamic>>> getAllImages();
+
+  Future<List<Map<String, dynamic>>> getAllImageRows();
+
+  Future<Uint8List> getImageThumbnail(int imageId);
+
+  Future<int> countUntrackedTargets();
+
+  Future<int> removeUntrackedTargets();
+
+  Future<List<Map<String, dynamic>>> searchTargets(String query);
+
+  Future<void> updateTarget(int id, Map<String, dynamic> target);
+
+  Future<List<Map<String, dynamic>>> getStandaloneImageRows();
+
+  Future<RemoteSequenceRunDetail> fetchSequenceRunById(int runId);
+
+  Future<RemoteReplayEventsPage> fetchSequenceRunEvents(
+    int runId, {
+    int? sinceMs,
+    int? untilMs,
+    String? severityMin,
+    int limit = 200,
+    int offset = 0,
+  });
+
+  Future<RemotePage<RemoteReplayFrame>> fetchSequenceRunFrames(
+    int runId, {
+    int limit = 200,
+    int offset = 0,
+  });
 }

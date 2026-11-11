@@ -11,6 +11,18 @@ import 'roles/host_data/host_device_control.dart';
 import 'roles/host_data/host_files.dart';
 import 'roles/host_data/host_focus_models.dart';
 import 'roles/host_data/host_profiles.dart';
+import 'roles/host_data/host_backups.dart';
+import 'roles/host_data/host_catalogs.dart';
+import 'roles/host_data/host_cloud_sync.dart';
+import 'roles/host_data/host_logs.dart';
+import 'roles/host_data/host_notifications.dart';
+import 'roles/host_data/host_jobs.dart';
+import 'roles/host_data/host_updates.dart';
+import 'roles/host_data/host_science.dart';
+import 'roles/host_data/host_transients.dart';
+import 'roles/host_data/host_sky_atlas.dart';
+import 'roles/host_data/host_control_session.dart';
+import 'roles/host_data/host_night_control.dart';
 import 'roles/host_data/host_link.dart';
 import 'roles/host_data/host_live_stack.dart';
 import 'roles/host_data/host_planning_data.dart';
@@ -26,6 +38,18 @@ export 'roles/host_data/host_device_control.dart';
 export 'roles/host_data/host_files.dart';
 export 'roles/host_data/host_focus_models.dart';
 export 'roles/host_data/host_profiles.dart';
+export 'roles/host_data/host_backups.dart';
+export 'roles/host_data/host_catalogs.dart';
+export 'roles/host_data/host_cloud_sync.dart';
+export 'roles/host_data/host_logs.dart';
+export 'roles/host_data/host_notifications.dart';
+export 'roles/host_data/host_jobs.dart';
+export 'roles/host_data/host_updates.dart';
+export 'roles/host_data/host_science.dart';
+export 'roles/host_data/host_transients.dart';
+export 'roles/host_data/host_sky_atlas.dart';
+export 'roles/host_data/host_control_session.dart';
+export 'roles/host_data/host_night_control.dart';
 export 'roles/host_data/host_link.dart';
 export 'roles/host_data/host_live_stack.dart';
 export 'roles/host_data/host_planning_data.dart';
@@ -85,6 +109,30 @@ final class RemoteHost {
 
   HostProfiles get profiles => _backend;
 
+  HostBackups get backups => _backend;
+
+  HostCatalogs get catalogs => _backend;
+
+  HostCloudSync get cloudSync => _backend;
+
+  HostLogs get logs => _backend;
+
+  HostNotifications get notifications => _backend;
+
+  HostJobs get jobs => _backend;
+
+  HostUpdates get updates => _backend;
+
+  HostScience get science => _backend;
+
+  HostTransients get transients => _backend;
+
+  HostSkyAtlas get skyAtlas => _backend;
+
+  HostControlSession get control => _backend;
+
+  HostNightControl get night => _backend;
+
   HostLiveStack get liveStack => _backend;
 
   HostPlanningData get planning => _backend;
@@ -101,11 +149,7 @@ extension HostDataDispatch on SkotiqBackend {
   /// One [RemoteHost] per backend instance, so the roles it hands out are
   /// stable for as long as that backend is current and can be compared by
   /// identity.
-  RemoteHost? get remoteHost {
-    final self = this;
-    if (self is! NetworkBackend) return null;
-    return RemoteHost._hosts[self] ??= RemoteHost._(self);
-  }
+  RemoteHost? get remoteHost => _remoteHostOf(this);
 
   /// True when this process has no imaging host at all: it was launched as a
   /// client and is not linked, or its link was given up. Every host call
@@ -120,4 +164,17 @@ extension HostDataDispatch on SkotiqBackend {
   /// True when the device drivers are loaded in this process, so device calls
   /// that have no backend method yet may go straight to the bridge.
   bool get ownsDeviceBridge => this is FfiBackend;
+}
+
+/// The same questions for a backend held as its sequencer role, which is how
+/// the shell and the run screens receive it.
+extension SequencerRoleHostDispatch on SequencerBackend {
+  RemoteHost? get remoteHost => _remoteHostOf(this);
+
+  bool get hasNoHost => this is DisconnectedBackend;
+}
+
+RemoteHost? _remoteHostOf(Object backend) {
+  if (backend is! NetworkBackend) return null;
+  return RemoteHost._hosts[backend] ??= RemoteHost._(backend);
 }

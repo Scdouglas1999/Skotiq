@@ -42,4 +42,11 @@ abstract interface class HostSequenceLibrary {
   });
 
   Future<bool> toggleSequenceFavorite(int sequenceId);
+
+  Future<int> createSequence(Map<String, dynamic> sequence);
+
+  Future<void> createSequenceNode(
+    int sequenceId,
+    Map<String, dynamic> node,
+  );
 }

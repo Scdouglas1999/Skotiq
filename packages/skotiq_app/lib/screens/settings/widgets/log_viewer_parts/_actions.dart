@@ -155,12 +155,12 @@ extension _LogViewerActions on _LogViewerState {
 
   String _renderVisibleEntries(SkotiqBackend backend, List<LogEntry> logs) {
     final output = StringBuffer();
-    output.writeln(backend is NetworkBackend
+    output.writeln(backend.remoteHost != null
         ? '=== Skotiq Log Export (remote) ==='
         : '=== Skotiq Log Export (entries on screen) ===');
     output.writeln('Exported: ${DateTime.now().toIso8601String()}');
-    if (backend is NetworkBackend) {
-      output.writeln('Host: ${backend.serverHost}:${backend.serverPort}');
+    if (backend.remoteHost case final linkedHost?) {
+      output.writeln('Host: ${linkedHost.link.address}');
     }
     output.writeln('Entries: ${logs.length}');
     output.writeln('');
@@ -178,7 +178,7 @@ extension _LogViewerActions on _LogViewerState {
     final backend = ref.read(backendProvider);
     final logs = List<LogEntry>.unmodifiable(_filteredLogs);
     final loggingService =
-        backend is NetworkBackend ? null : ref.read(loggingServiceProvider);
+        backend.remoteHost != null ? null : ref.read(loggingServiceProvider);
 
     // A remote session has no local history to offer, so there is nothing to
     // choose between; locally the two scopes differ by three orders of
@@ -258,14 +258,15 @@ extension _LogViewerActions on _LogViewerState {
   Future<void> _downloadLogFile() async {
     if (_isActionBusy) return;
     final backend = ref.read(backendProvider);
-    if (backend is! NetworkBackend) return;
+    final linkedHost = backend.remoteHost;
+    if (linkedHost == null) return;
     final token = Object();
     _actionToken = token;
     setState(() => _isDownloadingFile = true);
     try {
       final List<RemoteLogFileInfo> files;
       try {
-        files = await backend.listServerLogFiles();
+        files = await linkedHost.logs.listServerLogFiles();
       } catch (e) {
         if (mounted && _isCurrentAction(token, backend)) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -291,7 +292,7 @@ extension _LogViewerActions on _LogViewerState {
       final outcome = await downloadFileToDevice(
         fileName: selected.name,
         tempKey: 'log',
-        fetch: (localPath, onProgress) => backend.downloadServerLogFile(
+        fetch: (localPath, onProgress) => linkedHost.logs.downloadServerLogFile(
           selected.name,
           localPath,
           onProgress: onProgress,
@@ -408,7 +409,7 @@ extension _LogViewerActions on _LogViewerState {
     final token = Object();
     _actionToken = token;
     setState(() => _isClearing = true);
-    final message = backend is NetworkBackend
+    final message = backend.remoteHost != null
         ? 'This permanently deletes the remote host’s server log files. '
             'This action cannot be undone.'
         : 'This permanently deletes old local log files. This action cannot '
@@ -490,14 +491,14 @@ extension _LogViewerActions on _LogViewerState {
     // server's log files; otherwise the operator presses Clear and sees
     // no change because we're clearing the local (already-empty) buffer.
     try {
-      if (backend is NetworkBackend) {
-        await backend.clearServerLogs();
+      if (backend.remoteHost case final linkedHost?) {
+        await linkedHost.logs.clearServerLogs();
       } else {
         await ref.read(loggingServiceProvider).clearLogs();
       }
       if (!mounted || !_isCurrentAction(token, backend)) return;
       _refreshLogs();
-      if (backend is NetworkBackend) {
+      if (backend.remoteHost != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Server log files cleared'),

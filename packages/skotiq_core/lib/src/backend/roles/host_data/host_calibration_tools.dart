@@ -68,4 +68,10 @@ abstract interface class HostCalibrationTools {
     required int height,
     required double sensorTemperatureCelsius,
   });
+
+  Future<DateTime?> armHostStartAtDark();
+
+  Future<List<CatalogStarMatch>> matchPhotometricCalibrationStars(
+    int imageId,
+  );
 }

@@ -121,8 +121,8 @@ extension _PhotometricWizardSaveNavigation
     });
 
     try {
-      if (authority is NetworkBackend) {
-        await authority.savePhotometricTransform(coeff);
+      if (authority.remoteHost case final linkedHost?) {
+        await linkedHost.science.savePhotometricTransform(coeff);
       } else {
         await ref
             .read(photometricTransformServiceProvider)

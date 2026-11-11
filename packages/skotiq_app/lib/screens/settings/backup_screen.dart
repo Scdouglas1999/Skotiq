@@ -180,8 +180,9 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       _loadError = null;
     });
     try {
-      final entries = backend is NetworkBackend
-          ? parseRemoteBackupList(await backend.listBackups())
+      final hostBackups = backend.remoteHost?.backups;
+      final entries = hostBackups != null
+          ? parseRemoteBackupList(await hostBackups.listBackups())
           : await Future.wait(
               (await ref.read(backupServiceProvider).listBackups())
                   .map(BackupListEntry.fromLocalFile),
@@ -211,8 +212,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     setState(() => _isCreatingBackup = true);
     try {
       String? createdPath;
-      if (backend is NetworkBackend) {
-        final result = await backend.createBackup();
+      if (backend.remoteHost case final linkedHost?) {
+        final result = await linkedHost.backups.createBackup();
         if ((result['status'] as String?) != 'created') {
           throw Exception(result['error'] ?? 'Backup failed');
         }
@@ -273,11 +274,11 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
 
     setState(() => _isRestoring = true);
     try {
-      if (backend is NetworkBackend) {
+      if (backend.remoteHost case final linkedHost?) {
         // Address the backup by its stable id — the host resolves it to a file
         // inside its backup directory, so no absolute server path crosses the
         // wire and the host can't be pointed at an arbitrary file.
-        final result = await backend.restoreBackupById(backup.id);
+        final result = await linkedHost.backups.restoreBackupById(backup.id);
         if ((result['status'] as String?) != 'restored') {
           throw Exception(result['error'] ?? 'Restore failed');
         }
@@ -329,10 +330,10 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       if (_rejectRestoreDuringActiveRun()) return;
 
       int restored;
-      if (backend is NetworkBackend) {
+      if (backend.remoteHost case final linkedHost?) {
         final bytes = await ref.read(backupImportReaderProvider)(file);
         if (!_isCurrentImport(generation, token)) return;
-        final result = await backend.uploadBackupAndRestore(
+        final result = await linkedHost.backups.uploadBackupAndRestore(
           Uint8List.fromList(bytes),
           path.basename(file.path),
         );
@@ -353,7 +354,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
 
       if (!mounted || !_isCurrentImport(generation, token)) return;
       _refreshAfterRestore();
-      _announceRestore(restored, remote: backend is NetworkBackend);
+      _announceRestore(restored, remote: backend.remoteHost != null);
       await _loadAvailableBackups();
     } catch (e) {
       if (!mounted || !_isCurrentImport(generation, token)) return;
@@ -389,8 +390,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
 
     setState(() => _isManagingBackup = true);
     try {
-      if (backend is NetworkBackend) {
-        await backend.deleteBackup(backup.id);
+      if (backend.remoteHost case final linkedHost?) {
+        await linkedHost.backups.deleteBackup(backup.id);
       } else {
         await File(backup.filePath).delete();
       }
@@ -413,7 +414,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   Future<void> _downloadBackup(BackupListEntry backup) async {
     if (_rejectIfBusy() || _rejectIfBackendChanged()) return;
     final backend = ref.read(backendProvider);
-    if (backend is! NetworkBackend) return;
+    final linkedHost = backend.remoteHost;
+    if (linkedHost == null) return;
     final token = backendBackupToken(backend);
     setState(() => _isManagingBackup = true);
     try {
@@ -430,7 +432,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         return;
       }
 
-      final bytes = await backend.downloadBackup(backup.id);
+      final bytes = await linkedHost.backups.downloadBackup(backup.id);
       await File(target.path).writeAsBytes(bytes, flush: true);
       if (!mounted || !_backendStillMatches(token)) return;
       await revealExportedFile(

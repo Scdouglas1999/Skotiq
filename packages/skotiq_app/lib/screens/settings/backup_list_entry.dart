@@ -87,7 +87,9 @@ List<BackupListEntry> parseRemoteBackupList(List<Map<String, dynamic>> rows) {
 /// every non-network backend shares the `local` token. A row loaded against
 /// one token must never dispatch its action against a different one — that is
 /// how an old row would otherwise target the current host.
-String backendBackupToken(SkotiqBackend backend) => backend is NetworkBackend
-    ? 'remote:${identityHashCode(backend)}:'
-        '${backend.serverHost}:${backend.serverPort}'
-    : 'local:${identityHashCode(backend)}';
+String backendBackupToken(SkotiqBackend backend) {
+  final linkedHost = backend.remoteHost;
+  return linkedHost != null
+      ? 'remote:${identityHashCode(backend)}:${linkedHost.link.address}'
+      : 'local:${identityHashCode(backend)}';
+}

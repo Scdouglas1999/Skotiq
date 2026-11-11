@@ -247,8 +247,8 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
       // (targets only arrive over the wire), so the search goes to the host's
       // `/api/targets/search`; the host searches its own DAO.
       final backend = ref.read(backendProvider);
-      if (backend is NetworkBackend) {
-        final rows = await backend.searchTargets(query);
+      if (backend.remoteHost case final linkedHost?) {
+        final rows = await linkedHost.imagingRecords.searchTargets(query);
         library = rows.map(DbTarget.fromJson).toList();
       } else {
         library = await ref.read(targetsDaoProvider).searchTargets(query);

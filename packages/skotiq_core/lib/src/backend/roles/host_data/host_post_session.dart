@@ -1,4 +1,5 @@
 
+
 /// Post-session processing passes run by a linked imaging host on its own
 /// files.
 ///
@@ -38,4 +39,8 @@ abstract interface class HostPostSession {
   Future<Map<String, dynamic>> postSessionMasterAccumulate(
     Map<String, dynamic> args,
   );
+
+  Future<bool> getAutoIntegrationEnabled();
+
+  Future<void> setAutoIntegrationEnabled(bool enabled);
 }

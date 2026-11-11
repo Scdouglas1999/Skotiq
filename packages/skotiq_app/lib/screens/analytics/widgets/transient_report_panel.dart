@@ -527,9 +527,9 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
     final backend = ref.read(backendProvider);
     try {
       String? path;
-      if (backend is NetworkBackend) {
+      if (backend.remoteHost case final linkedHost?) {
         if (_format == TransientReportFormat.aavso) {
-          final bytes = await backend.exportFirstLightAavso(
+          final bytes = await linkedHost.transients.exportFirstLightAavso(
             d.id,
             magZeroPoint: _magZeroPoint ?? 0.0,
           );
@@ -538,7 +538,7 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
             fileName: 'aavso_transient_${d.id}.txt',
           );
         } else {
-          final bytes = await backend.exportFirstLightMpc(d.id);
+          final bytes = await linkedHost.transients.exportFirstLightMpc(d.id);
           path = await _reportService.writeReport(
             content: String.fromCharCodes(bytes),
             fileName: 'mpc_ades_transient_${d.id}.psv',
@@ -584,9 +584,9 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
     setState(() => _submitting = true);
     final backend = ref.read(backendProvider);
     try {
-      if (backend is NetworkBackend) {
+      if (backend.remoteHost case final linkedHost?) {
         // Slave: the host holds the credentials + api key.
-        final result = await backend.submitFirstLightToTns(d.id);
+        final result = await linkedHost.transients.submitFirstLightToTns(d.id);
         final success = result['success'] == true;
         final atName = result['atName'] as String?;
         final message = result['message']?.toString() ?? 'TNS submission done';

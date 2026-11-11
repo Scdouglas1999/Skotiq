@@ -60,7 +60,8 @@ class _SessionPickerScreenState extends ConsumerState<SessionPickerScreen> {
   Future<void> _loadMore() async {
     if (!mounted || _loading || _exhausted) return;
     final backend = ref.read(backendProvider);
-    if (backend is! NetworkBackend) {
+    final linkedHost = backend.remoteHost;
+    if (linkedHost == null) {
       // Replay is phone-only. Local FFI backend cannot list runs over
       // this endpoint. Surface a clear message rather than throwing.
       setState(() {
@@ -81,7 +82,7 @@ class _SessionPickerScreenState extends ConsumerState<SessionPickerScreen> {
       _error = null;
     });
     try {
-      final page = await backend.fetchSequenceRuns(
+      final page = await linkedHost.imagingRecords.fetchSequenceRuns(
         limit: _pageSize,
         offset: requestOffset,
       );

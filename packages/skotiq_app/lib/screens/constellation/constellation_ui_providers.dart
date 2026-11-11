@@ -84,7 +84,7 @@ enum ConstellationPrivacy {
 /// contribute sheet all agree on slave detection.
 final isConstellationHostActionEnabledProvider = Provider<bool>((ref) {
   final backend = ref.watch(backendProvider);
-  return backend is! NetworkBackend && backend is! DisconnectedBackend;
+  return backend.runsRigHere;
 });
 
 /// The hub identity once connectivity + tiling have been verified, or null when

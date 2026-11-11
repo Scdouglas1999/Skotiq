@@ -360,8 +360,8 @@ class _SolveStats {
 final scienceSessionTargetIdProvider =
     FutureProvider.family<int?, int>((ref, sessionId) async {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    final session = await backend.getSessionById(sessionId);
+  if (backend.remoteHost case final linkedHost?) {
+    final session = await linkedHost.imagingRecords.getSessionById(sessionId);
     final targetId = session?['targetId'] ?? session?['target_id'];
     return (targetId as num?)?.toInt();
   }

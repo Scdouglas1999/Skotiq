@@ -41,9 +41,8 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
 
   bool get _busy => _actionToken != null;
 
-  NetworkBackend? get _backend {
-    final b = ref.read(backendProvider);
-    return b is NetworkBackend ? b : null;
+  RemoteHost? get _backend {
+    return ref.read(backendProvider).remoteHost;
   }
 
   @override
@@ -58,13 +57,13 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
           _installed = const [];
           _available = const [];
           _error = null;
-          _loading = next is NetworkBackend;
+          _loading = next.remoteHost != null;
           _actionToken = null;
           _busyAction = null;
           _busyCatalog = null;
           _confirmationOpen = false;
         });
-        if (next is NetworkBackend) unawaited(_refresh());
+        if (next.remoteHost != null) unawaited(_refresh());
       },
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -97,8 +96,8 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
     });
     try {
       final responses = await Future.wait<Object>([
-        backend.getCatalogStatus(),
-        backend.listAvailableCatalogs(),
+        backend.catalogs.getCatalogStatus(),
+        backend.catalogs.listAvailableCatalogs(),
       ]);
       if (!_isCurrentLoad(backend, generation)) return;
       final status = responses[0] as RemoteCatalogStatusResponse;
@@ -121,22 +120,22 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
     }
   }
 
-  bool _isCurrentLoad(NetworkBackend backend, int generation) =>
+  bool _isCurrentLoad(RemoteHost backend, int generation) =>
       mounted &&
       generation == _loadGeneration &&
-      identical(ref.read(backendProvider), backend);
+      identical(_backend, backend);
 
-  bool _isCurrentAction(NetworkBackend backend, Object token) =>
+  bool _isCurrentAction(RemoteHost backend, Object token) =>
       mounted &&
       identical(_actionToken, token) &&
-      identical(ref.read(backendProvider), backend);
+      identical(_backend, backend);
 
   Future<void> _run({
     required String actionLabel,
     required String successMessage,
     String? catalogName,
     String? Function()? successMessageOverride,
-    required Future<void> Function(NetworkBackend backend) action,
+    required Future<void> Function(RemoteHost backend) action,
   }) async {
     if (_busy || _confirmationOpen) return;
     final backend = _backend;
@@ -194,10 +193,10 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
       successMessage: '${catalog.displayName} installed',
       catalogName: catalog.name,
       action: (backend) async {
-        final accepted = await backend.downloadCatalog(catalog.name);
+        final accepted = await backend.catalogs.downloadCatalog(catalog.name);
         final completed = accepted.isTerminal
             ? accepted
-            : await backend.awaitJobCompletion(
+            : await backend.jobs.awaitJobCompletion(
                 accepted.jobId,
                 timeout: const Duration(minutes: 30),
               );
@@ -221,7 +220,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
       successMessageOverride: () => note,
       action: (backend) async {
         note = null;
-        final results = await backend.verifyCatalog(name: catalog.name);
+        final results = await backend.catalogs.verifyCatalog(name: catalog.name);
         final result = results[catalog.name];
         if (result == null) {
           throw StateError('the appliance returned no verification result');
@@ -280,7 +279,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
       if (mounted) setState(() => _confirmationOpen = false);
     }
     if (!mounted || !confirmed) return;
-    if (!identical(ref.read(backendProvider), backend)) {
+    if (!identical(_backend, backend)) {
       context.showInfoSnackBar('Rig changed; catalog removal canceled');
       return;
     }
@@ -288,7 +287,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
       actionLabel: 'Remove',
       successMessage: '${_catalogPhrase(_displayNameFor(catalog))} removed',
       catalogName: catalog.name,
-      action: (authority) => authority.uninstallCatalog(catalog.name),
+      action: (authority) => authority.catalogs.uninstallCatalog(catalog.name),
     );
   }
 
@@ -368,7 +367,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
                     ? () => _run(
                           actionLabel: 'Reload',
                           successMessage: 'Catalog loaders reloaded',
-                          action: (backend) => backend.reloadCatalogs(),
+                          action: (backend) => backend.catalogs.reloadCatalogs(),
                         )
                     : null,
                 label: 'Reload',

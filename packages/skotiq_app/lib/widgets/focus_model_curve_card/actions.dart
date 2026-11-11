@@ -119,8 +119,8 @@ class _ActionRowState extends ConsumerState<_ActionRow> {
     );
     if (draft == null || !_ensureCurrent(backend, generation)) return;
 
-    if (backend is NetworkBackend) {
-      await backend.addFocusDataPoint(
+    if (backend.remoteHost case final linkedHost?) {
+      await linkedHost.focusModels.addFocusDataPoint(
         temperature: draft.temperature,
         position: draft.position,
         hfr: draft.hfr,
@@ -143,9 +143,10 @@ class _ActionRowState extends ConsumerState<_ActionRow> {
     SkotiqBackend backend,
     int generation,
   ) async {
-    final exported = backend is NetworkBackend
+    final hostFocus = backend.remoteHost?.focusModels;
+    final exported = hostFocus != null
         ? const JsonEncoder.withIndent('  ')
-            .convert(await backend.exportFocusModel())
+            .convert(await hostFocus.exportFocusModel())
         : ref.read(focusModelServiceProvider).exportData(widget.profileId);
     if (!_ensureCurrent(backend, generation)) return;
     if (!mounted) return;
@@ -174,8 +175,8 @@ class _ActionRowState extends ConsumerState<_ActionRow> {
     );
     if (data == null || !_ensureCurrent(backend, generation)) return;
 
-    if (backend is NetworkBackend) {
-      await backend.importFocusModel(data);
+    if (backend.remoteHost case final linkedHost?) {
+      await linkedHost.focusModels.importFocusModel(data);
     } else {
       await ref
           .read(focusModelServiceProvider)
@@ -211,8 +212,8 @@ class _ActionRowState extends ConsumerState<_ActionRow> {
     );
     if (confirm != true || !_ensureCurrent(backend, generation)) return;
 
-    if (backend is NetworkBackend) {
-      await backend.clearFocusModelData();
+    if (backend.remoteHost case final linkedHost?) {
+      await linkedHost.focusModels.clearFocusModelData();
     } else {
       await ref
           .read(focusModelServiceProvider)
@@ -228,7 +229,7 @@ class _ActionRowState extends ConsumerState<_ActionRow> {
   ) async {
     if (!_isCurrent(backend, generation)) return;
     ref.invalidate(focusProfileDataProvider(widget.profileId));
-    if (backend is! NetworkBackend) widget.onChanged();
+    if (backend.remoteHost == null) widget.onChanged();
     await ref.read(filterOffsetProvider.notifier).reload();
   }
 

@@ -48,7 +48,7 @@ class _SessionReviewScreenState extends ConsumerState<SessionReviewScreen> {
       // boundary explicit until the whole aggregate (including artifact
       // streaming) has a host-authoritative API.
       //
-      // The client ROLE, not the connection. `backend is NetworkBackend` is a
+      // The client ROLE, not the connection. `backend.remoteHost != null` is a
       // CONNECTION fact, and a desktop launched with `--remote-host` that has
       // not reached its rig is `Disconnected` — so that test read false for the
       // whole pre-handshake window and this whole screen opened over the

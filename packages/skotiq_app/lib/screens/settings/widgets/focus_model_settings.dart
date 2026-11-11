@@ -42,9 +42,8 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
   int _loadGeneration = 0;
 
-  NetworkBackend? get _backend {
-    final b = ref.read(backendProvider);
-    return b is NetworkBackend ? b : null;
+  RemoteHost? get _backend {
+    return ref.read(backendProvider).remoteHost;
   }
 
   @override
@@ -58,11 +57,11 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
         setState(() {
           _model = null;
           _error = null;
-          _loading = next is NetworkBackend;
+          _loading = next.remoteHost != null;
           _clearToken = null;
           _clearConfirmationOpen = false;
         });
-        if (next is NetworkBackend) unawaited(_refresh());
+        if (next.remoteHost != null) unawaited(_refresh());
       },
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -93,7 +92,7 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
       _error = null;
     });
     try {
-      final model = await backend.getFocusModel();
+      final model = await backend.focusModels.getFocusModel();
       if (!_isCurrentLoad(backend, generation)) return;
       setState(() {
         _model = model;
@@ -108,15 +107,15 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
     }
   }
 
-  bool _isCurrentLoad(NetworkBackend backend, int generation) =>
+  bool _isCurrentLoad(RemoteHost backend, int generation) =>
       mounted &&
       generation == _loadGeneration &&
-      identical(ref.read(backendProvider), backend);
+      identical(_backend, backend);
 
-  bool _isCurrentClear(NetworkBackend backend, Object token) =>
+  bool _isCurrentClear(RemoteHost backend, Object token) =>
       mounted &&
       identical(_clearToken, token) &&
-      identical(ref.read(backendProvider), backend);
+      identical(_backend, backend);
 
   Future<void> _clear() async {
     if (_loading || _clearToken != null || _clearConfirmationOpen) return;
@@ -139,7 +138,7 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
     }
     if (!mounted) return;
     if (!confirmed) return;
-    if (!identical(ref.read(backendProvider), backend)) {
+    if (!identical(_backend, backend)) {
       context.showErrorSnackBar(
         'Connected rig changed; focus model data was not cleared',
       );
@@ -148,7 +147,7 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
     final token = Object();
     setState(() => _clearToken = token);
     try {
-      await backend.clearFocusModelData();
+      await backend.focusModels.clearFocusModelData();
       if (mounted && _isCurrentClear(backend, token)) {
         context.showSuccessSnackBar('Focus model data cleared');
       }

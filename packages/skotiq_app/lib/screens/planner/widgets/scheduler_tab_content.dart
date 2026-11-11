@@ -66,7 +66,7 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
       if (!mounted) return;
       _remotePollTicks++;
       if (_remotePollTicks % 3 == 0 &&
-          ref.read(backendProvider) is NetworkBackend) {
+          ref.read(backendProvider).remoteHost != null) {
         ref.invalidate(schedulerRemoteSnapshotProvider);
       }
       setState(() {});
@@ -125,7 +125,7 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
     setState(() => _schedulerActionBusy = true);
     try {
       if (action == 'start') {
-        final readiness = backend is NetworkBackend
+        final readiness = backend.remoteHost != null
             ? (await ref.read(schedulerRemoteSnapshotProvider.future)).readiness
             : ref.read(schedulerStartReadinessProvider);
         if (readiness.blocked ||
@@ -137,11 +137,11 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
           );
         }
       }
-      if (backend is NetworkBackend) {
+      if (backend.remoteHost case final linkedHost?) {
         if (action == 'start' && allowWarnings) {
-          await backend.controlScheduler(action, confirmWarnings: true);
+          await linkedHost.planning.controlScheduler(action, confirmWarnings: true);
         } else {
-          await backend.controlScheduler(action);
+          await linkedHost.planning.controlScheduler(action);
         }
       } else {
         // Pause and Stop must remain available for an already-running engine
@@ -211,17 +211,17 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
 
   void _applySchedulerConfig(SchedulerConfig config) {
     final backend = ref.read(backendProvider);
-    final localStore = backend is NetworkBackend
+    final localStore = backend.remoteHost != null
         ? null
         : ref.read(schedulerConfigStoreProvider);
     final localEngine =
-        backend is NetworkBackend ? null : ref.read(schedulerEngineProvider);
+        backend.remoteHost != null ? null : ref.read(schedulerEngineProvider);
     setState(() => _requestedConfig = config);
 
     // Local changes are reflected immediately while their durable writes are
     // serialized. Remote changes remain optimistic in this widget until the
     // host confirms the same full config.
-    if (backend is! NetworkBackend) {
+    if (backend.remoteHost == null) {
       ref.read(schedulerConfigUserDirtyProvider.notifier).state = true;
       localEngine!.updateConfig(config);
     }
@@ -229,8 +229,8 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
     _configSaveTail = _configSaveTail.then((_) async {
       try {
         SchedulerConfig confirmed;
-        if (backend is NetworkBackend) {
-          final response = await backend.updateSchedulerConfig(
+        if (backend.remoteHost case final linkedHost?) {
+          final response = await linkedHost.planning.updateSchedulerConfig(
             config.toStorageJson().cast<String, dynamic>(),
           );
           confirmed = SchedulerRemoteSnapshot.fromJson(response).config;
@@ -252,7 +252,7 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
           _confirmedConfig = confirmed;
           if (_requestedConfig == config) _requestedConfig = null;
         });
-        if (backend is NetworkBackend) {
+        if (backend.remoteHost != null) {
           ref.invalidate(schedulerRemoteSnapshotProvider);
         }
         _configSaveErrorVisible = false;
@@ -260,12 +260,12 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
         if (mounted && identical(ref.read(backendProvider), backend)) {
           if (_requestedConfig == config) {
             final rollback = _confirmedConfig ?? SchedulerConfig.defaults;
-            if (backend is! NetworkBackend) {
+            if (backend.remoteHost == null) {
               localEngine!.updateConfig(rollback);
             }
             setState(() => _requestedConfig = null);
           }
-          if (backend is NetworkBackend) {
+          if (backend.remoteHost != null) {
             ref.invalidate(schedulerRemoteSnapshotProvider);
           }
         }
@@ -299,7 +299,7 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
     late final SchedulerConfig authoritativeConfig;
     late final SchedulerStartReadiness? remoteReadiness;
 
-    if (backend is NetworkBackend) {
+    if (backend.remoteHost != null) {
       final remoteAsync = ref.watch(schedulerRemoteSnapshotProvider);
       final remote = remoteAsync.valueOrNull;
       if (remote == null) {

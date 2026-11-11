@@ -42,9 +42,8 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
   int _lastAppliedStatusRequest = 0;
   int? _statusRefreshInFlightGeneration;
 
-  NetworkBackend? get _backend {
-    final b = ref.read(backendProvider);
-    return b is NetworkBackend ? b : null;
+  RemoteHost? get _backend {
+    return ref.read(backendProvider).remoteHost;
   }
 
   @override
@@ -64,10 +63,10 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
           _status = null;
           _loadError = null;
           _pollError = null;
-          _loading = next is NetworkBackend;
+          _loading = next.remoteHost != null;
           _busy = false;
         });
-        if (next is NetworkBackend) unawaited(_refresh());
+        if (next.remoteHost != null) unawaited(_refresh());
       },
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -118,8 +117,8 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
       // poll that completes while this full refresh is in flight may render
       // briefly, but can never overwrite the final snapshot.
       final statusRequest = ++_nextStatusRequest;
-      final version = await backend.getSystemVersion();
-      final status = await backend.getUpdateStatus();
+      final version = await backend.updates.getSystemVersion();
+      final status = await backend.updates.getUpdateStatus();
       if (!_isCurrentLoad(backend, generation)) return;
       if (statusRequest < _lastAppliedStatusRequest) return;
       _lastAppliedStatusRequest = statusRequest;
@@ -159,10 +158,10 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
     }
   }
 
-  bool _isCurrentLoad(NetworkBackend backend, int generation) =>
+  bool _isCurrentLoad(RemoteHost backend, int generation) =>
       mounted &&
       generation == _loadGeneration &&
-      identical(ref.read(backendProvider), backend);
+      identical(_backend, backend);
 
   Future<void> _refreshStatusOnly() async {
     final backend = _backend;
@@ -177,11 +176,11 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
     _statusRefreshInFlightGeneration = backendGeneration;
     final request = ++_nextStatusRequest;
     try {
-      final status = await backend.getUpdateStatus();
+      final status = await backend.updates.getUpdateStatus();
       if (!mounted ||
           backendGeneration != _backendGeneration ||
           request < _lastAppliedStatusRequest ||
-          !identical(ref.read(backendProvider), backend)) {
+          !identical(_backend, backend)) {
         return;
       }
       _lastAppliedStatusRequest = request;
@@ -196,7 +195,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
     } catch (e) {
       if (!mounted ||
           backendGeneration != _backendGeneration ||
-          !identical(ref.read(backendProvider), backend)) {
+          !identical(_backend, backend)) {
         return;
       }
       // Keep the last valid snapshot, but never hide a broken monitoring
@@ -220,8 +219,8 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
 
   Future<void> _run(
     String label,
-    Future<Object?> Function(NetworkBackend backend) action, {
-    NetworkBackend? expectedBackend,
+    Future<Object?> Function(RemoteHost backend) action, {
+    RemoteHost? expectedBackend,
     String? acceptedMessage,
     String Function(Object? result)? describeResult,
   }) async {
@@ -241,7 +240,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
       // switch between tap and dispatch must never update the newly-selected
       // rig.
       final result = await action(backend);
-      if (mounted && identical(ref.read(backendProvider), backend)) {
+      if (mounted && identical(_backend, backend)) {
         context.showSuccessSnackBar(
           describeResult?.call(result) ??
               acceptedMessage ??
@@ -254,11 +253,11 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
         unawaited(_refreshStatusOnly());
       }
     } catch (e) {
-      if (mounted && identical(ref.read(backendProvider), backend)) {
+      if (mounted && identical(_backend, backend)) {
         context.showErrorSnackBar('$label failed: $e');
       }
     } finally {
-      if (mounted && identical(ref.read(backendProvider), backend)) {
+      if (mounted && identical(_backend, backend)) {
         setState(() => _busy = false);
       }
     }
@@ -342,7 +341,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
   }
 
   Future<RemoteUpdateStatus?> _revalidateCommand(
-    NetworkBackend backend,
+    RemoteHost backend,
     String label,
     bool Function(RemoteUpdateStatus status) isStillValid, {
     required String invalidMessage,
@@ -350,10 +349,10 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
     final backendGeneration = _backendGeneration;
     final request = ++_nextStatusRequest;
     try {
-      final status = await backend.getUpdateStatus();
+      final status = await backend.updates.getUpdateStatus();
       if (!mounted ||
           backendGeneration != _backendGeneration ||
-          !identical(ref.read(backendProvider), backend)) {
+          !identical(_backend, backend)) {
         if (mounted) {
           context.showErrorSnackBar(
             '$label canceled because the connected rig changed.',
@@ -374,7 +373,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
       }
       return status;
     } catch (e) {
-      if (mounted && identical(ref.read(backendProvider), backend)) {
+      if (mounted && identical(_backend, backend)) {
         context.showErrorSnackBar(
           '$label canceled because the rig state could not be verified: $e',
         );
@@ -735,29 +734,29 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
     };
   }
 
-  Future<RemoteJob> _doCheck(NetworkBackend backend) {
-    return backend.checkForUpdate();
+  Future<RemoteJob> _doCheck(RemoteHost backend) {
+    return backend.updates.checkForUpdate();
   }
 
-  Future<RemoteJob> _doDownload(NetworkBackend backend) {
-    return backend.downloadUpdate();
+  Future<RemoteJob> _doDownload(RemoteHost backend) {
+    return backend.updates.downloadUpdate();
   }
 
-  Future<RemoteJob> _doApply(NetworkBackend backend) {
-    return backend.applyUpdate();
+  Future<RemoteJob> _doApply(RemoteHost backend) {
+    return backend.updates.applyUpdate();
   }
 
-  Future<RemoteJob> _doRollback(NetworkBackend backend) {
-    return backend.rollbackUpdate();
+  Future<RemoteJob> _doRollback(RemoteHost backend) {
+    return backend.updates.rollbackUpdate();
   }
 
   /// The ids of the jobs the host cancelled; empty when nothing was in flight.
-  Future<List<String>> _doAbort(NetworkBackend backend) {
-    return backend.abortUpdate();
+  Future<List<String>> _doAbort(RemoteHost backend) {
+    return backend.updates.abortUpdate();
   }
 
-  Future<void> _doDiscard(NetworkBackend backend) {
-    return backend.discardStagedUpdate();
+  Future<void> _doDiscard(RemoteHost backend) {
+    return backend.updates.discardStagedUpdate();
   }
 }
 

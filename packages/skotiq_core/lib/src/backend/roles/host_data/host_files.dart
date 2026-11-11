@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:skotiq_core/skotiq_core.dart';
 
 /// The file system of a linked imaging host: the folders it will write to and
@@ -7,4 +9,12 @@ import 'package:skotiq_core/skotiq_core.dart';
 /// process; reached through `backend.remoteHost`, which is null locally.
 abstract interface class HostFiles {
   Future<RemoteDirectoryListing> browseRemoteDirectories({String? path});
+
+  Future<Map<String, dynamic>> validateRemoteDirectory(
+    String path, {
+    bool mustExist = false,
+    bool mustBeWritable = false,
+  });
+
+  Future<Uint8List> downloadSessionExport(int sessionId, String format);
 }

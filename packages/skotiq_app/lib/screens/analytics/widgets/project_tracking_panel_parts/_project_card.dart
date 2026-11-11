@@ -79,8 +79,8 @@ class _EnhancedProjectCard extends ConsumerWidget {
     }
 
     try {
-      if (authority is NetworkBackend) {
-        await authority.updateTarget(progress.target.id, {
+      if (authority.remoteHost case final linkedHost?) {
+        await linkedHost.imagingRecords.updateTarget(progress.target.id, {
           'goalIntegrationSecs': submitted * 3600.0,
         });
       } else {

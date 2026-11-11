@@ -68,8 +68,8 @@ final untrackedTargetsCountProvider = FutureProvider<int?>((ref) async {
   final backend = ref.watch(backendProvider);
   ref.watch(allDbTargetsProvider);
   ref.watch(allSessionsProvider);
-  if (backend is NetworkBackend) {
-    return backend.countUntrackedTargets();
+  if (backend.remoteHost case final linkedHost?) {
+    return linkedHost.imagingRecords.countUntrackedTargets();
   }
   return ref.read(targetsDaoProvider).countUntrackedTargets();
 });

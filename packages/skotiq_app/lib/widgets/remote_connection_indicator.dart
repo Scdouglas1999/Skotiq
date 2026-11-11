@@ -77,7 +77,7 @@ class _RemoteConnectionIndicatorState
     extends ConsumerState<RemoteConnectionIndicator> {
   Duration? _latency;
   StreamSubscription<Duration>? _latencySubscription;
-  NetworkBackend? _trackedBackend;
+  RemoteHost? _trackedBackend;
   int _backendGeneration = 0;
   Timer? _answerTimer;
   int? _unansweredSeconds;
@@ -100,31 +100,31 @@ class _RemoteConnectionIndicatorState
   /// [NetworkBackend]. Resubscribes when a backend swap happens
   /// (connect / disconnect / reconnect creates a new instance).
   void _attachToBackend(SkotiqBackend backend) {
-    if (identical(backend, _trackedBackend)) return;
+    if (identical(backend.remoteHost, _trackedBackend)) return;
     final generation = ++_backendGeneration;
     _latencySubscription?.cancel();
     _latencySubscription = null;
     _answerTimer?.cancel();
     _answerTimer = null;
     _unansweredSeconds = null;
-    if (backend is NetworkBackend) {
-      _trackedBackend = backend;
-      _latency = backend.lastLatency;
+    if (backend.remoteHost case final linkedHost?) {
+      _trackedBackend = linkedHost;
+      _latency = linkedHost.link.lastLatency;
       // The socket state alone said "Live" through a two-minute stall on a
       // failing Wi-Fi link: the connection stayed open while answers took
       // seconds to tens of seconds. Look at the heartbeat every second.
-      _unansweredSeconds = unansweredSecondsFor(backend);
+      _unansweredSeconds = unansweredSecondsFor(linkedHost.link);
       _answerTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (!mounted || !identical(_trackedBackend, backend)) return;
-        final seconds = unansweredSecondsFor(backend);
+        if (!mounted || !identical(_trackedBackend, linkedHost)) return;
+        final seconds = unansweredSecondsFor(linkedHost.link);
         if (seconds != _unansweredSeconds) {
           setState(() => _unansweredSeconds = seconds);
         }
       });
-      _latencySubscription = backend.latencyStream.listen((value) {
+      _latencySubscription = linkedHost.link.latencyStream.listen((value) {
         if (!mounted ||
             generation != _backendGeneration ||
-            !identical(_trackedBackend, backend)) {
+            !identical(_trackedBackend, linkedHost)) {
           return;
         }
         setState(() => _latency = value);
@@ -144,18 +144,18 @@ class _RemoteConnectionIndicatorState
     });
     final backend = ref.watch(backendProvider);
 
-    if (backend is NetworkBackend) {
+    if (backend.remoteHost case final linkedHost?) {
       return StreamBuilder<BackendConnectionState>(
-        stream: backend.connectionStateStream,
-        initialData: backend.connectionState,
+        stream: linkedHost.link.connectionStateStream,
+        initialData: linkedHost.link.connectionState,
         builder: (context, snap) {
-          final wsState = snap.data ?? backend.connectionState;
+          final wsState = snap.data ?? linkedHost.link.connectionState;
           var status = _statusForBackendState(wsState);
           if (status == RemoteConnectionStatus.connected &&
               _unansweredSeconds != null) {
             status = RemoteConnectionStatus.notAnswering;
           }
-          return _build(context, status, backend: backend);
+          return _build(context, status, backend: linkedHost);
         },
       );
     }
@@ -180,14 +180,14 @@ class _RemoteConnectionIndicatorState
   Widget _build(
     BuildContext context,
     RemoteConnectionStatus status, {
-    required NetworkBackend? backend,
+    required RemoteHost? backend,
   }) {
     // The tap lived on a bare gesture wrapper, which publishes an action
     // and no role, so assistive tech read a live control as an inert
     // disabled panel. The flags are only published when given.
     final description = backend == null
         ? 'Not linked to a remote imaging host'
-        : '${_textFor(status, _unansweredSeconds)} · ${backend.serverHost}';
+        : '${_textFor(status, _unansweredSeconds)} · ${backend.link.serverHost}';
     return Tooltip(
       message: description,
       child: Semantics(
@@ -257,7 +257,7 @@ class _RemoteConnectionIndicatorState
   Widget _buildFull(
     BuildContext context,
     RemoteConnectionStatus status,
-    NetworkBackend? backend,
+    RemoteHost? backend,
   ) {
     final color = _colorFor(context, status);
     final theme = Theme.of(context);
@@ -281,7 +281,7 @@ class _RemoteConnectionIndicatorState
           ),
           if (backend != null) ...[
             Text(
-              ' · ${backend.serverHost}',
+              ' · ${backend.link.serverHost}',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: color.withValues(alpha: 0.75),
               ),
@@ -447,8 +447,9 @@ class _RemoteConnectionSheetState
 
   Future<void> _handleReconnect() async {
     if (_reconnecting) return;
-    final activeBackend = ref.read(backendProvider);
-    if (activeBackend is! NetworkBackend) {
+    final backend = ref.read(backendProvider);
+    final linkedHost = backend.remoteHost;
+    if (linkedHost == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -458,11 +459,10 @@ class _RemoteConnectionSheetState
       }
       return;
     }
-    final backend = activeBackend;
     final generation = ++_reconnectGeneration;
     setState(() => _reconnecting = true);
     try {
-      await backend.reconnectNow();
+      await linkedHost.link.reconnectNow();
     } catch (e) {
       if (mounted && _isCurrentReconnect(generation, backend)) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -476,7 +476,7 @@ class _RemoteConnectionSheetState
     }
   }
 
-  bool _isCurrentReconnect(int generation, NetworkBackend backend) =>
+  bool _isCurrentReconnect(int generation, SkotiqBackend backend) =>
       mounted &&
       generation == _reconnectGeneration &&
       identical(ref.read(backendProvider), backend);
@@ -501,17 +501,17 @@ class _RemoteConnectionSheetState
     final theme = Theme.of(context);
     final colors = SkotiqColors.of(context);
     final activeBackend = ref.watch(backendProvider);
-    final backend = activeBackend is NetworkBackend ? activeBackend : null;
+    final backend = activeBackend.remoteHost;
     final unansweredSeconds =
-        backend == null ? null : unansweredSecondsFor(backend);
+        backend == null ? null : unansweredSecondsFor(backend.link);
     var status = backend == null
         ? RemoteConnectionStatus.notConnected
-        : _statusForConnectionState(backend.connectionState);
+        : _statusForConnectionState(backend.link.connectionState);
     if (status == RemoteConnectionStatus.connected &&
         unansweredSeconds != null) {
       status = RemoteConnectionStatus.notAnswering;
     }
-    final latency = backend?.lastLatency;
+    final latency = backend?.link.lastLatency;
     final linkedLaunch = ref.watch(remoteLaunchTargetProvider);
     final canSwitch = canSwitchRole(ref);
 
@@ -553,10 +553,10 @@ class _RemoteConnectionSheetState
           const SizedBox(height: 24),
           if (backend != null) ...[
             if (linkedLaunch?.name != null &&
-                linkedLaunch!.name != backend.serverHost)
+                linkedLaunch!.name != backend.link.serverHost)
               _row(theme, colors, 'Computer', linkedLaunch.name!),
-            _row(theme, colors, 'Host', backend.serverHost),
-            _row(theme, colors, 'Port', backend.serverPort.toString()),
+            _row(theme, colors, 'Host', backend.link.serverHost),
+            _row(theme, colors, 'Port', backend.link.serverPort.toString()),
           ],
           if (latency != null && status == RemoteConnectionStatus.connected)
             _row(
@@ -615,7 +615,7 @@ class _RemoteConnectionSheetState
               ),
             ),
           ] else if (backend == null &&
-              activeBackend is! DisconnectedBackend &&
+              !activeBackend.hasNoHost &&
               canSwitch)
             Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -675,7 +675,7 @@ class _RemoteConnectionSheetState
           // Gated on the backend TYPE, not on `status`: a local FFI desktop is
           // also "notConnected" to a server, and offering it a way to local
           // mode it is already in would be a control that does nothing.
-          if (activeBackend is DisconnectedBackend && canWorkLocally)
+          if (activeBackend.hasNoHost && canWorkLocally)
             const Padding(
               padding: EdgeInsets.only(top: 8),
               child: WorkLocallyButton(
@@ -790,18 +790,18 @@ class _RemoteConnectionSheetState
 
   String _description(
     RemoteConnectionStatus status,
-    NetworkBackend? backend,
+    RemoteHost? backend,
     int? unansweredSeconds,
   ) {
     switch (status) {
       case RemoteConnectionStatus.connected:
-        return 'Connected to ${backend?.serverHost ?? "server"}';
+        return 'Connected to ${backend?.link.serverHost ?? "server"}';
       case RemoteConnectionStatus.notAnswering:
-        return '${backend?.serverHost ?? "The host"} has not answered for '
+        return '${backend?.link.serverHost ?? "The host"} has not answered for '
             '${unansweredSeconds ?? 0} s. What this screen shows may be out '
             'of date until it answers again.';
       case RemoteConnectionStatus.connecting:
-        return 'Connecting to ${backend?.serverHost ?? "server"}...';
+        return 'Connecting to ${backend?.link.serverHost ?? "server"}...';
       case RemoteConnectionStatus.reconnecting:
         return 'Attempting to reconnect...';
       case RemoteConnectionStatus.serverOffline:

@@ -40,11 +40,11 @@ Future<Map<int, ImageGraderPsfMetric>> loadImageGraderPsfMetrics({
   final frameIds = frames.map((frame) => frame.id).toSet();
   final tiles = <PsfFieldTileRow>[];
 
-  if (backend is NetworkBackend) {
+  if (backend.remoteHost case final linkedHost?) {
     if (sessionId != null) {
-      tiles.addAll(await backend.getSessionPsfTiles(sessionId));
+      tiles.addAll(await linkedHost.science.getSessionPsfTiles(sessionId));
     } else {
-      tiles.addAll((await backend.getSessionlessScienceBundle()).psfTiles);
+      tiles.addAll((await linkedHost.science.getSessionlessScienceBundle()).psfTiles);
     }
   } else {
     final dao = localScienceDao;
@@ -215,7 +215,7 @@ class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog> {
       final result = await loadImageGraderPsfMetrics(
         backend: backend,
         localScienceDao:
-            backend is NetworkBackend ? null : ref.read(scienceDaoProvider),
+            backend.remoteHost != null ? null : ref.read(scienceDaoProvider),
         frames: widget.frames,
         sessionId: widget.sessionId,
       );

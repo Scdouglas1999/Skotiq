@@ -57,8 +57,8 @@ final targetCoordinateLookupProvider = FutureProvider.autoDispose
   final backend = ref.read(backendProvider);
   try {
     final List<DbTarget> rows;
-    if (backend is NetworkBackend) {
-      final json = await backend.searchTargets(trimmed);
+    if (backend.remoteHost case final linkedHost?) {
+      final json = await linkedHost.imagingRecords.searchTargets(trimmed);
       rows = json.map(DbTarget.fromJson).toList();
     } else {
       rows = await ref.read(targetsDaoProvider).searchTargets(trimmed);

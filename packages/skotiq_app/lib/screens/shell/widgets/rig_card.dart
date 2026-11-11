@@ -159,8 +159,8 @@ Future<bool> configuredSavePathExists(
   SkotiqBackend backend,
   String savePath,
 ) async {
-  if (backend is NetworkBackend) {
-    final validation = await backend.validateRemoteDirectory(
+  if (backend.remoteHost case final linkedHost?) {
+    final validation = await linkedHost.files.validateRemoteDirectory(
       savePath,
       mustExist: true,
       mustBeWritable: false,

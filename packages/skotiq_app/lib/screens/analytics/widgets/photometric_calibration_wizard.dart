@@ -145,8 +145,8 @@ class _PhotometricCalibrationWizardState
 final calibrationSessionImagesProvider =
     FutureProvider.family<List<DbCapturedImage>, int>((ref, sessionId) {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return backend.getSessionImageRows(sessionId).then(
+  if (backend.remoteHost case final linkedHost?) {
+    return linkedHost.imagingRecords.getSessionImageRows(sessionId).then(
           (rows) => rows
               .map((row) => DbCapturedImage.fromJson(row))
               .toList(growable: false),

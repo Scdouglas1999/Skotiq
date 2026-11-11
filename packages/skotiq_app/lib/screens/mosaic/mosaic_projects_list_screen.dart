@@ -34,7 +34,7 @@ class MosaicProjectsListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
-    if (ref.watch(backendProvider) is NetworkBackend) {
+    if (ref.watch(backendProvider).remoteHost != null) {
       return Scaffold(
         backgroundColor: colors.background,
         body: SafeArea(
