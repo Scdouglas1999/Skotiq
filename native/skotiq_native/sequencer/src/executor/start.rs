@@ -16,7 +16,7 @@ mod run_setup;
 mod stale_end_times;
 mod trigger_monitor;
 
-use checkpoint_stream::{run_checkpoint_stream, CheckpointStreamArgs};
+use checkpoint_stream::run_checkpoint_stream;
 use command_handler::{run_command_handler, CommandHandlerArgs};
 use preflight::PreflightOutcome;
 use progress_callback::{build_progress_callback, ProgressCallbackArgs};
@@ -253,28 +253,22 @@ impl SequenceExecutor {
         // one" via the counter.
         self.recovery_signals.arm();
 
-        // share the *same* CheckpointManager Arc between the
-        // executor and the streaming-checkpoint task so they cannot diverge
-        // (info_cache must be consistent for `has_recoverable_checkpoint`).
-        let streaming_checkpoint_manager: Option<Arc<crate::checkpoint::CheckpointManager>> =
-            self.checkpoint_manager.clone();
-        // Separate Arc clone for the terminal completion handler. On normal
-        // completion we mark the checkpoint inactive so the next launch does
-        // NOT show a stale "resume?" banner. `streaming_checkpoint_manager`
-        // above is moved into the streaming-checkpoint task, so the completion
-        // path needs its own handle to the *same* manager (shared info_cache).
-        let completion_checkpoint_manager: Option<Arc<crate::checkpoint::CheckpointManager>> =
-            self.checkpoint_manager.clone();
+        let checkpoint_manager = self.checkpoint_manager.clone();
+        let checkpoint_slot = self.run_checkpoint.clone();
+        *checkpoint_slot.write() = None;
         let depth_goal_ops = self.depth_goal_ops.clone();
-        let streaming_sequence = self.sequence.clone();
-        let streaming_camera_id = self.camera_id.clone();
-        let streaming_mount_id = self.mount_id.clone();
-        let streaming_focuser_id = self.focuser_id.clone();
-        let streaming_filterwheel_id = self.filterwheel_id.clone();
-        let streaming_rotator_id = self.rotator_id.clone();
-        let streaming_save_path = self.save_path.clone();
-        let streaming_latitude = config.latitude;
-        let streaming_longitude = config.longitude;
+        let checkpoint_plan = self.sequence.clone().map(|sequence| {
+            let execution_order = self.build_execution_order(&sequence);
+            (sequence, execution_order)
+        });
+        let checkpoint_rig = CheckpointRig {
+            camera_id: self.camera_id.clone(),
+            mount_id: self.mount_id.clone(),
+            focuser_id: self.focuser_id.clone(),
+            filterwheel_id: self.filterwheel_id.clone(),
+            rotator_id: self.rotator_id.clone(),
+            save_path: self.save_path.clone(),
+        };
 
         let is_paused = Arc::new(AtomicBool::new(false));
         // Shared with the recovery driver (incremented when a cycle completes)
@@ -571,19 +565,30 @@ impl SequenceExecutor {
                     plugin_node_pending: context.plugin_node_pending.clone(),
                 });
 
-                let streaming_filter_focus_offsets = context.filter_focus_offsets.clone();
-                let streaming_runtime_config = runtime_config.clone();
-                // clone the budget registry handle for the
-                // streaming checkpoint task. The registry is `Arc<RwLock<...>>`
-                // internally so the clone shares the same allocation as the
-                // executor's main context.
-                let streaming_budget_registry = context.budget_registry.clone();
-                // clone the SmartExposure state map handle
-                // for the streaming checkpoint task. Same pattern as the
-                // budget registry: the inner Arc is shared so the streaming
-                // task sees the up-to-date per-filter counts the
-                // SmartExposure instruction writes between batches.
-                let streaming_smart_exposure_states = context.smart_exposure_states.clone();
+                // A resumed run's loops start from the passes its checkpoint
+                // recorded.
+                root_node.snapshot_loop_iterations(&mut *context.loop_passes_finished.write());
+                let checkpoint_writer = match (checkpoint_manager, checkpoint_plan) {
+                    (Some(manager), Some((sequence, execution_order))) => {
+                        Some(Arc::new(CheckpointWriter::new(
+                            manager,
+                            CheckpointSources {
+                                run_state: run_state.clone(),
+                                sequence,
+                                execution_order,
+                                rig: checkpoint_rig,
+                                settings: runtime_config.clone(),
+                                trigger_manager: trigger_manager.clone(),
+                                triggers_enabled,
+                                budget_registry: context.budget_registry.clone(),
+                                smart_exposure_states: context.smart_exposure_states.clone(),
+                                loop_passes_finished: context.loop_passes_finished.clone(),
+                            },
+                        )))
+                    }
+                    _ => None,
+                };
+                *checkpoint_slot.write() = checkpoint_writer.clone();
 
                 let custom_recovery_context = context.clone();
                 // ParkAndAbort is driven by the trigger-monitor future while
@@ -649,32 +654,13 @@ impl SequenceExecutor {
                 let meridian_flip_failure: Arc<StdRwLock<Option<String>>> =
                     Arc::new(StdRwLock::new(None));
                 let meridian_flip_failure_for_triggers = meridian_flip_failure.clone();
-                let is_cancelled_for_checkpoint = is_cancelled.clone();
-                let trigger_manager_for_checkpoint = trigger_manager.clone();
-                let streaming_triggers_enabled = triggers_enabled;
-                let park_and_abort_for_checkpoint = park_and_abort_in_progress.clone();
-                let streaming_checkpoint_task = run_checkpoint_stream(CheckpointStreamArgs {
-                    is_cancelled_for_checkpoint,
+                let streaming_checkpoint_task = run_checkpoint_stream(
+                    checkpoint_writer.clone(),
+                    run_state.clone(),
+                    is_cancelled.clone(),
+                    park_and_abort_in_progress.clone(),
                     park_and_abort_done_for_checkpoint,
-                    park_and_abort_for_checkpoint,
-                    run_state: run_state.clone(),
-                    streaming_budget_registry,
-                    streaming_camera_id,
-                    streaming_checkpoint_manager,
-                    streaming_filter_focus_offsets,
-                    streaming_filterwheel_id,
-                    streaming_focuser_id,
-                    streaming_latitude,
-                    streaming_longitude,
-                    streaming_mount_id,
-                    streaming_rotator_id,
-                    streaming_runtime_config,
-                    streaming_save_path,
-                    streaming_sequence,
-                    streaming_smart_exposure_states,
-                    streaming_triggers_enabled,
-                    trigger_manager_for_checkpoint,
-                });
+                );
 
                 // ============================================================
                 // Recovery Mode — driver task
@@ -1073,14 +1059,14 @@ impl SequenceExecutor {
                     NodeStatus::Cancelled => Some(crate::checkpoint::RunEnd::Stopped),
                     _ => None,
                 };
-                if let (Some(end), Some(mgr)) = (run_end, &completion_checkpoint_manager) {
+                if let (Some(end), Some(writer)) = (run_end, &checkpoint_writer) {
                     let (exposures, integration_secs) = run_state.read_progress(|progress| {
                         (
                             progress.completed_exposures,
                             progress.completed_integration_secs,
                         )
                     });
-                    match mgr.record_run_end(end, exposures, integration_secs) {
+                    match writer.record_run_end(end, exposures, integration_secs) {
                         Ok(()) => tracing::info!(
                             "Checkpoint records the run as {} after {} exposures",
                             end.as_str(),
@@ -1106,8 +1092,8 @@ impl SequenceExecutor {
                         // the next `start()` overwrites it. A failure to write is
                         // logged loudly (it would silently reintroduce the stale
                         // banner) but does not change the run's Success outcome.
-                        if let Some(mgr) = &completion_checkpoint_manager {
-                            if let Err(e) = mgr.mark_completed() {
+                        if let Some(writer) = &checkpoint_writer {
+                            if let Err(e) = writer.mark_completed() {
                                 tracing::error!(
                                     "Failed to mark checkpoint completed after a normal \
                                      sequence finish: {} — a stale 'resume?' banner may \

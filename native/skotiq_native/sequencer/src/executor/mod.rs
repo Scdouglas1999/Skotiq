@@ -17,6 +17,7 @@
 //!   * [`start`]        — the run supervisor and its tasks.
 
 mod checkpoint;
+mod checkpoint_writer;
 mod decision;
 mod lifecycle;
 mod loading;
@@ -98,6 +99,7 @@ mod start;
 mod trigger_context;
 mod types;
 
+use checkpoint_writer::{CheckpointRig, CheckpointSources, CheckpointWriter};
 pub use lifecycle::StopOrigin;
 pub use monitoring::*;
 pub(crate) use preflight::*;
@@ -145,6 +147,8 @@ pub struct SequenceExecutor {
     /// `CheckpointManager::new(checkpoint_dir)` that bypasses the cache and
     /// causes UI staleness on `has_recoverable_checkpoint`.
     checkpoint_manager: Option<Arc<crate::checkpoint::CheckpointManager>>,
+    /// The checkpoint writer of the run in flight, or of the last run.
+    run_checkpoint: Arc<StdRwLock<Option<Arc<CheckpointWriter>>>>,
     /// DepthLock verdict source handed to every run's `ExecutionContext`.
     /// Installed by the host via [`Self::set_depth_goal_ops`]; `None` keeps
     /// bound plans count-bounded.
@@ -230,6 +234,7 @@ impl SequenceExecutor {
             trigger_manager: Arc::new(RwLock::new(trigger_manager)),
             triggers_enabled: true,
             checkpoint_manager: None,
+            run_checkpoint: Arc::new(StdRwLock::new(None)),
             depth_goal_ops: None,
             current_checkpoint: None,
             resume_prepared: false,

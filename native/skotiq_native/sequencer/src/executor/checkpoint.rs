@@ -10,12 +10,9 @@
 //!   * [`SequenceExecutor::load_checkpoint`] /
 //!     [`SequenceExecutor::resume_from_checkpoint`] — rehydrate the
 //!     executor from the latest on-disk snapshot.
-//!   * [`SequenceExecutor::save_checkpoint`] — write the current
-//!     in-memory state to disk; called by the streaming-checkpoint
-//!     task on every milestone (frame completed, node finished).
-//!   * [`SequenceExecutor::clear_checkpoint`] /
-//!     [`SequenceExecutor::mark_checkpoint_completed`] — terminal
-//!     hygiene.
+//!   * [`SequenceExecutor::save_checkpoint`] — write the executor as it
+//!     stands, through the run's one checkpoint writer.
+//!   * [`SequenceExecutor::clear_checkpoint`] — remove the file.
 //!
 //! Why these belong together: every method is gated on
 //! `self.checkpoint_manager`, treats `None` as "checkpoint feature
@@ -38,8 +35,7 @@
 //!     that lives in [`crate::checkpoint`]. This file is only the
 //!     executor-side bridge.
 
-use super::SequenceExecutor;
-use crate::NodeStatus;
+use super::{CheckpointRig, CheckpointSources, CheckpointWriter, SequenceExecutor};
 use std::sync::Arc;
 
 impl SequenceExecutor {
@@ -116,130 +112,73 @@ impl SequenceExecutor {
         Ok(checkpoint)
     }
 
-    /// Snapshot the current execution state and write it to disk.
+    /// Write a checkpoint of the executor as it stands now.
     ///
-    /// Called by the streaming-checkpoint task in `start()` after every
-    /// milestone (frame completed, node finished). The "last completed"
-    /// node id is computed via [`Self::build_execution_order`] — tree-
-    /// walk order, NOT lexical id ordering, because NodeIds are user-
-    /// set strings and an earlier user-named "z_setup" would sort after
-    /// a later "a_target".
-    ///
-    /// `Recovering` is treated as an active state alongside `Running` /
-    /// `Paused` so a crash mid-recovery survives the reload; the
-    /// operator decides whether to retry the recovery or give up.
+    /// With a run in flight (or just ended) this is the run's own writer,
+    /// the one the 30 s stream uses. Before any run it records the loaded
+    /// sequence, with the node states of the checkpoint a resume was
+    /// prepared from, if there is one.
     pub async fn save_checkpoint(&self) -> Result<(), String> {
         let manager = self
             .checkpoint_manager
             .as_ref()
             .ok_or("No checkpoint manager configured")?;
-
         let sequence = self.sequence.as_ref().ok_or("No sequence loaded")?;
 
-        let progress = self.run_state.progress();
-        let state = self.get_state().await;
+        let run_writer = self.run_checkpoint.read().clone();
+        if let Some(writer) = run_writer {
+            return writer.save().await;
+        }
 
-        let mut checkpoint = crate::checkpoint::SessionCheckpoint::new(sequence.clone());
-        checkpoint.node_statuses = progress.node_statuses.clone();
-        checkpoint.current_node = progress.current_node_id.clone();
-        checkpoint.executor_state = state;
-        checkpoint.completed_exposures = progress.completed_exposures;
-        checkpoint.completed_integration_secs = progress.completed_integration_secs;
-        // recovery is an active in-flight state too — preserve it
-        // through checkpoints so a resumed session knows it crashed mid
-        // recovery and the operator can decide whether to retry.
-        checkpoint.is_active = matches!(
-            state,
-            super::ExecutorState::Running
-                | super::ExecutorState::Paused
-                | super::ExecutorState::Recovering
-        );
-
-        // Track "last completed" by the tree-walk order, not lexical NodeId
-        // ordering — the latter would falsely pick an earlier node whose id
-        // happens to sort after a later one (NodeIds are user-set strings).
-        let execution_order = self.build_execution_order(sequence);
-        checkpoint.last_completed_node = progress
-            .node_statuses
-            .iter()
-            .filter(|(_, status)| matches!(status, NodeStatus::Success))
-            .filter_map(|(id, _)| execution_order.get(id).map(|order| (id, *order)))
-            .max_by_key(|(_, order)| *order)
-            .map(|(id, _)| (*id).clone());
-
-        checkpoint.set_devices(
-            self.camera_id.clone(),
-            self.mount_id.clone(),
-            self.focuser_id.clone(),
-            self.filterwheel_id.clone(),
-            self.rotator_id.clone(),
-        );
-        let config = self.settings.snapshot();
-        checkpoint.set_location(config.latitude, config.longitude);
-        checkpoint.set_save_path(self.save_path.clone());
-        let trigger_state = {
-            let manager = self.trigger_manager.read().await;
-            manager.state()
+        let loop_passes_finished = {
+            let mut passes = std::collections::HashMap::new();
+            if let Some(ref root) = self.root_node {
+                root.snapshot_loop_iterations(&mut passes);
+            }
+            passes
         };
-        let trigger_state = trigger_state.read().await;
-        checkpoint.set_trigger_state(crate::checkpoint::TriggerStateSnapshot::from_state(
-            &trigger_state,
-            config.safety_fail_mode,
-            self.triggers_enabled,
-            config.filter_focus_offsets,
-        ));
-
-        // snapshot every Loop node's live current_iteration so a resumed
-        // Count loop continues from where it stopped instead of restarting at
-        // iteration 1 and re-imaging completed iterations.
-        if let Some(ref root) = self.root_node {
-            let mut loop_iterations = std::collections::HashMap::new();
-            root.snapshot_loop_iterations(&mut loop_iterations);
-            checkpoint.loop_iterations = loop_iterations;
+        let budget_registry = crate::scheduling::integration_budget::BudgetRegistry::new();
+        let mut smart_exposure_states = std::collections::HashMap::new();
+        if let Some(prepared) = &self.current_checkpoint {
+            budget_registry
+                .restore_snapshot(prepared.budget_states.clone())
+                .await;
+            smart_exposure_states = prepared.smart_exposure_states.clone();
         }
-
-        // this public writer (driven by the Dart ~30s checkpoint
-        // watchdog) does NOT hold the live budget / smart-exposure / scheduler
-        // / wizard registries — those belong to the running ExecutionContext
-        // and are persisted by the streaming-checkpoint task. Writing them
-        // EMPTY here would overwrite the full-fidelity streaming checkpoint, so
-        // a crash-resume would read zeroed budgets and re-image already-completed
-        // targets. Carry the rich state forward from the existing on-disk
-        // checkpoint so this writer only updates the fields it actually owns
-        // (node statuses, current node, progress, trigger state, loop
-        // iterations) and never wipes the rest.
-        if let Ok(Some(existing)) = manager.load() {
-            checkpoint.budget_states = existing.budget_states;
-            checkpoint.smart_exposure_states = existing.smart_exposure_states;
-            checkpoint.wizard_states = existing.wizard_states;
-        }
-
-        manager.save(&checkpoint)?;
-
-        Ok(())
+        CheckpointWriter::new(
+            manager.clone(),
+            CheckpointSources {
+                run_state: self.run_state.clone(),
+                execution_order: self.build_execution_order(sequence),
+                sequence: sequence.clone(),
+                rig: CheckpointRig {
+                    camera_id: self.camera_id.clone(),
+                    mount_id: self.mount_id.clone(),
+                    focuser_id: self.focuser_id.clone(),
+                    filterwheel_id: self.filterwheel_id.clone(),
+                    rotator_id: self.rotator_id.clone(),
+                    save_path: self.save_path.clone(),
+                },
+                settings: self.settings.clone(),
+                trigger_manager: self.trigger_manager.clone(),
+                triggers_enabled: self.triggers_enabled,
+                budget_registry,
+                smart_exposure_states: Arc::new(tokio::sync::RwLock::new(smart_exposure_states)),
+                loop_passes_finished: Arc::new(parking_lot::RwLock::new(loop_passes_finished)),
+            },
+        )
+        .save()
+        .await
     }
 
-    /// Clear the on-disk checkpoint. Called by the bridge when a
-    /// sequence completes normally so a subsequent start of an
-    /// unrelated sequence does not see a stale "recoverable" banner.
-    ///
-    /// No-op when no checkpoint manager is configured.
+    /// Remove the on-disk checkpoint. No-op when no checkpoint manager is
+    /// configured.
     pub fn clear_checkpoint(&self) -> Result<(), String> {
         if let Some(ref manager) = self.checkpoint_manager {
             manager.clear()?;
         }
-        Ok(())
-    }
-
-    /// Mark the checkpoint as completed (sequence finished gracefully).
-    ///
-    /// Distinct from [`Self::clear_checkpoint`] in that the on-disk
-    /// file is preserved with a "completed" flag, letting the post-
-    /// session report read totals without depending on transient
-    /// in-memory state. The next start auto-clears it.
-    pub fn mark_checkpoint_completed(&self) -> Result<(), String> {
-        if let Some(ref manager) = self.checkpoint_manager {
-            manager.mark_completed()?;
+        if let Some(writer) = self.run_checkpoint.read().as_ref() {
+            writer.forget();
         }
         Ok(())
     }

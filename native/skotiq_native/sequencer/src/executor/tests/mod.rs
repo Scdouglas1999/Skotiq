@@ -3,6 +3,7 @@ use crate::device_ops::{GuiderOps, MountOps};
 use crate::SequenceDefinition;
 
 mod carry_over_tests;
+mod checkpoint_writer_tests;
 mod center_contention_tests;
 mod depth_goal_tests;
 mod recovery_tests;
