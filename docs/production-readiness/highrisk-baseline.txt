@@ -158,6 +158,7 @@ native/skotiq_native/native/src/vendor/zwo/camera_ops.rs	download_image	highrisk
 native/skotiq_native/native/src/vendor/zwo/camera_ops.rs	get_status	highrisk	1	baseline	let temp = self.read_temperature_celsius_sync(&sdk).ok();
 native/skotiq_native/sequencer/src/device_ops/safe_state.rs	try_park_with_retry	highrisk	1	baseline	let start = device_ops.mount_get_coordinates(mount_id).await.ok();
 native/skotiq_native/sequencer/src/executor/monitoring.rs	quality_trigger_notice	highrisk	1	baseline	.unwrap_or_default();
+native/skotiq_native/sequencer/src/executor/start.rs	start	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/sequencer/src/executor/start/recovery_driver.rs	continue_unguided	highrisk	1	baseline	.unwrap_or_default(),
 native/skotiq_native/sequencer/src/executor/start/run.rs	new	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/sequencer/src/executor/start/trigger_monitor/actions/cloud.rs	slew_to_gap	highrisk	1	baseline	result.message.unwrap_or_default()
