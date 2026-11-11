@@ -12,8 +12,8 @@ use crate::camera::{
     BayerPattern, CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData,
     ImageMetadata, ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
 };
-use crate::sync::touptek_mutex;
 use crate::traits::{NativeCamera, NativeDevice, NativeError};
+use crate::vendor::sdk_loader::{SdkLock, SdkLockHeld, SdkUnavailable};
 use crate::NativeVendor;
 use async_trait::async_trait;
 use libloading::Library;

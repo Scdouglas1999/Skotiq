@@ -170,7 +170,7 @@ fn touptek_event_callback_sets_flags_by_event_and_guards_null() {
 
 #[test]
 fn touptek_no_sdk_loaded_error_names_each_attempted_brand() {
-    let err = touptek_no_sdk_loaded_error(&[
+    let attempts = [
         (
             "OGMA".to_string(),
             "ogmacam.dll".to_string(),
@@ -181,7 +181,8 @@ fn touptek_no_sdk_loaded_error_names_each_attempted_brand() {
             "toupcam.dll".to_string(),
             "bad image".to_string(),
         ),
-    ]);
+    ];
+    let err = touptek_no_sdk_loaded_error(&attempts, false);
 
     match err {
         NativeError::SdkError(message) => {
@@ -190,6 +191,15 @@ fn touptek_no_sdk_loaded_error_names_each_attempted_brand() {
             assert!(message.contains("Touptek (toupcam.dll): bad image"));
         }
         other => panic!("expected SDK error, got {other:?}"),
+    }
+
+    // When every brand library is simply absent the same text is reported as
+    // "not installed", which discovery treats as the quiet, ordinary case.
+    match touptek_no_sdk_loaded_error(&attempts, true) {
+        NativeError::SdkNotInstalled(message) => {
+            assert!(message.contains("No Touptek-family SDK libraries"));
+        }
+        other => panic!("expected SDK not installed, got {other:?}"),
     }
 }
 
