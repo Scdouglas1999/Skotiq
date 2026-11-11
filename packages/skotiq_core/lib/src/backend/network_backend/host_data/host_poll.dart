@@ -43,3 +43,56 @@ final class HostPoll {
   /// Re-fetches every live [watch] now.
   void refresh() => _refresh.add(null);
 }
+
+/// One stream shared by every listener, with the last value replayed to
+/// listeners that arrive later.
+///
+/// The source is opened by the first listener and cancelled when the last one
+/// leaves; the last value is kept, so a listener that returns sees it at once
+/// and then whatever the reopened source says differs from it.
+final class SharedLatest<T> {
+  SharedLatest(this._open, this._unchanged);
+
+  final Stream<T> Function() _open;
+  final bool Function(T previous, T next) _unchanged;
+
+  final _listeners = <MultiStreamController<T>>{};
+  StreamSubscription<T>? _source;
+  late T _last;
+  var _hasLast = false;
+  (Object, StackTrace)? _pendingError;
+
+  late final Stream<T> stream = Stream<T>.multi((listener) {
+    if (_hasLast) {
+      listener.addSync(_last);
+    } else if (_pendingError case (final error, final stackTrace)) {
+      listener.addErrorSync(error, stackTrace);
+    }
+    _listeners.add(listener);
+    listener.onCancel = () {
+      _listeners.remove(listener);
+      if (_listeners.isNotEmpty) return null;
+      final source = _source;
+      _source = null;
+      return source?.cancel();
+    };
+    _source ??= _open().listen(_onValue, onError: _onError);
+  });
+
+  void _onValue(T value) {
+    if (_hasLast && _unchanged(_last, value)) return;
+    _last = value;
+    _hasLast = true;
+    _pendingError = null;
+    for (final listener in _listeners.toList()) {
+      listener.add(value);
+    }
+  }
+
+  void _onError(Object error, StackTrace stackTrace) {
+    if (!_hasLast) _pendingError = (error, stackTrace);
+    for (final listener in _listeners.toList()) {
+      listener.addError(error, stackTrace);
+    }
+  }
+}

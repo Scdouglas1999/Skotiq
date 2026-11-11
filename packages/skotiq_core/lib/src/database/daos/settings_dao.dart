@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
+import '../../backend/roles/host_data/science_products.dart' show SettingRows;
 import '../../models/focuser_backlash_calibration.dart';
 import '../database.dart';
 import '../tables/settings.dart';
@@ -218,7 +219,8 @@ class FocuserBacklashCalibrationRecord {
 
 @DriftAccessor(tables: [AppSettings])
 class SettingsDao extends DatabaseAccessor<SkotiqDatabase>
-    with _$SettingsDaoMixin {
+    with _$SettingsDaoMixin
+    implements SettingRows {
   SettingsDao(super.db);
 
   /// Get a setting by key
@@ -237,6 +239,7 @@ class SettingsDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Get all settings
+  @override
   Future<Map<String, String>> getAllSettings() async {
     final settings = await select(appSettings).get();
     return {for (var s in settings) s.key: s.value};
@@ -300,6 +303,7 @@ class SettingsDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Set multiple settings at once
+  @override
   Future<void> setSettings(Map<String, String> settings) async {
     await batch((batch) {
       for (final entry in settings.entries) {
