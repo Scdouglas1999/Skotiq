@@ -94,7 +94,6 @@ extension OperationTypeLabel on OperationType {
 
 /// Represents the progress of an active operation.
 class OperationProgress {
-  /// The type of operation being performed.
   final OperationType type;
 
   /// Human-readable description of what's happening.
@@ -103,16 +102,13 @@ class OperationProgress {
   /// Progress from 0.0 to 1.0, or null for indeterminate.
   final double? progress;
 
-  /// When the operation started.
   final DateTime startedAt;
 
   /// Current step description (e.g., "Measuring HFR" for autofocus).
   final String? currentStep;
 
-  /// Whether this operation can be cancelled by the user.
   final bool canCancel;
 
-  /// A unique ID for this operation instance.
   final String id;
 
   const OperationProgress({
@@ -125,7 +121,6 @@ class OperationProgress {
     this.canCancel = false,
   });
 
-  /// Create a copy with updated fields.
   OperationProgress copyWith({
     OperationType? type,
     String? description,
@@ -145,7 +140,6 @@ class OperationProgress {
     );
   }
 
-  /// Get the elapsed time since the operation started.
   Duration get elapsed => DateTime.now().difference(startedAt);
 
   /// Format elapsed time as MM:SS.
@@ -161,7 +155,6 @@ class OperationProgress {
       'OperationProgress($type, $description, progress: $progress)';
 }
 
-/// State for the active operations provider.
 class ActiveOperationsState {
   /// Currently active operations, keyed by type.
   /// Only one operation of each type can be active at a time.
@@ -171,38 +164,30 @@ class ActiveOperationsState {
     Map<OperationType, OperationProgress>? operations,
   ]) : _operations = operations ?? const {};
 
-  /// Get all active operations.
   List<OperationProgress> get all => _operations.values.toList();
 
-  /// Check if any operations are active.
   bool get isEmpty => _operations.isEmpty;
   bool get isNotEmpty => _operations.isNotEmpty;
 
-  /// Get a specific operation by type.
   OperationProgress? operator [](OperationType type) => _operations[type];
 
-  /// Check if a specific operation type is active.
   bool isActive(OperationType type) => _operations.containsKey(type);
 
   /// Get the primary operation (first one, or null if none).
   OperationProgress? get primary => _operations.values.firstOrNull;
 
-  /// Get count of active operations.
   int get count => _operations.length;
 
-  /// Create a copy with an operation added.
   ActiveOperationsState withOperation(OperationProgress op) {
     return ActiveOperationsState({..._operations, op.type: op});
   }
 
-  /// Create a copy with an operation removed.
   ActiveOperationsState withoutOperation(OperationType type) {
     final newOps = Map<OperationType, OperationProgress>.from(_operations);
     newOps.remove(type);
     return ActiveOperationsState(newOps);
   }
 
-  /// Create a copy with an operation updated.
   ActiveOperationsState withUpdatedOperation(
     OperationType type,
     OperationProgress Function(OperationProgress) update,
@@ -213,13 +198,11 @@ class ActiveOperationsState {
   }
 }
 
-/// Notifier for managing active operations.
 class ActiveOperationsNotifier extends StateNotifier<ActiveOperationsState> {
   ActiveOperationsNotifier() : super(const ActiveOperationsState());
 
   int _operationCounter = 0;
 
-  /// Start tracking a new operation.
   String startOperation({
     required OperationType type,
     required String description,
@@ -241,7 +224,6 @@ class ActiveOperationsNotifier extends StateNotifier<ActiveOperationsState> {
     return id;
   }
 
-  /// Update the progress of an operation.
   void updateProgress(
     OperationType type, {
     double? progress,
@@ -274,7 +256,6 @@ class ActiveOperationsNotifier extends StateNotifier<ActiveOperationsState> {
     state = const ActiveOperationsState();
   }
 
-  /// Check if a specific operation is active.
   bool isOperationActive(OperationType type) {
     return state.isActive(type);
   }

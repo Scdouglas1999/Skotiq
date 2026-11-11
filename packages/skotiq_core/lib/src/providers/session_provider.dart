@@ -16,18 +16,12 @@ import '../services/session_service.dart';
 import '../services/logging_service.dart';
 import '../database/daos/sequence_checkpoints_dao.dart';
 
-// Session state model
-
-/// Current imaging session state
-/// Tracks the active imaging session with all relevant details
 class SessionState extends Equatable {
-  /// Whether a session is currently active
   final bool isActive;
 
   /// Session start time (Unix timestamp ms)
   final DateTime? startTime;
 
-  /// Current target being imaged
   final String? targetName;
   final double? targetRa;
   final double? targetDec;
@@ -129,7 +123,6 @@ class SessionState extends Equatable {
     );
   }
 
-  /// Session duration
   Duration? get duration {
     if (startTime == null) return null;
     return DateTime.now().difference(startTime!);
@@ -174,9 +167,6 @@ class SessionState extends Equatable {
   ];
 }
 
-// Session state notifier
-
-/// Notifier for managing session state
 class SessionStateNotifier extends StateNotifier<SessionState> {
   final Ref _ref;
   int _autofocusCount = 0;
@@ -205,7 +195,6 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     int? profileId,
     int? sequenceId,
   }) async {
-    // Use SessionService to create and manage the session
     final sessionService = _ref.read(sessionServiceProvider);
     final dbId = await sessionService.startSession(
       name: targetName,
@@ -278,11 +267,9 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     }
   }
 
-  /// End the current session
   Future<void> endSession({String status = 'completed'}) async {
     if (!state.isActive || state.dbSessionId == null) return;
 
-    // Use SessionService to finalize the session with latest stats
     final sessionService = _ref.read(sessionServiceProvider);
 
     // Update session service with final statistics before ending
@@ -296,12 +283,10 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     state = const SessionState();
   }
 
-  /// Abort the current session
   Future<void> abortSession() async {
     await endSession(status: 'aborted');
   }
 
-  /// Recover a previously interrupted session
   Future<void> recoverSession(SessionRecoveryInfo recoveryInfo) async {
     if (recoveryInfo.sessionId <= 0) {
       throw StateError(
@@ -336,7 +321,6 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     }
   }
 
-  /// Set the current target
   void setTarget({required String name, double? ra, double? dec}) {
     state = state.copyWith(targetName: name, targetRa: ra, targetDec: dec);
   }
@@ -422,7 +406,6 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     _updateSessionServiceStats();
   }
 
-  /// Record a failed exposure
   void recordExposureFailed() {
     state = state.copyWith(failedExposures: state.failedExposures + 1);
 
@@ -430,7 +413,6 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     _updateSessionServiceStats();
   }
 
-  /// Increment autofocus count
   void incrementAutofocusCount() {
     _autofocusCount++;
     _updateSessionServiceStats();
@@ -441,17 +423,14 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     state = state.copyWith(targetRa: ra, targetDec: dec);
   }
 
-  /// Update the expected total exposures
   void setTotalExposures(int total) {
     state = state.copyWith(totalExposures: total);
   }
 
-  /// Set capturing state
   void setCapturing(bool isCapturing) {
     state = state.copyWith(isCapturing: isCapturing);
   }
 
-  /// Set guiding state with optional RMS values
   void setGuiding(bool isGuiding, {double? rmsRa, double? rmsDec}) {
     state = state.copyWith(
       isGuiding: isGuiding,
@@ -460,27 +439,22 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     );
   }
 
-  /// Set dithering state
   void setDithering(bool isDithering) {
     state = state.copyWith(isDithering: isDithering);
   }
 
-  /// Set autofocusing state
   void setAutofocusing(bool isAutofocusing) {
     state = state.copyWith(isAutofocusing: isAutofocusing);
   }
 
-  /// Set current filter
   void setFilter(String? filter) {
     state = state.copyWith(currentFilter: filter);
   }
 
-  /// Update guiding RMS values
   void updateGuidingRms(double rmsRa, double rmsDec) {
     state = state.copyWith(avgGuidingRmsRa: rmsRa, avgGuidingRmsDec: rmsDec);
   }
 
-  /// Helper to update session service with current stats
   Future<void> _updateSessionServiceStats() async {
     final snapshot = state;
     if (!snapshot.isActive || snapshot.dbSessionId == null) return;
@@ -517,14 +491,11 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
   }
 }
 
-// Providers
-
 /// DAO provider for sequence checkpoints (optional, for sequence integration)
 final sequenceCheckpointsDaoProvider = Provider<SequenceCheckpointsDao>((ref) {
   return SequenceCheckpointsDao(ref.watch(databaseProvider));
 });
 
-/// SessionService provider
 final sessionServiceProvider = Provider<SessionService>((ref) {
   // Why: inject the active clock so session-start/end timestamps stamped
   // by SessionService honor the user's TZ override

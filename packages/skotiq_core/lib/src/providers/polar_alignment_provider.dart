@@ -62,8 +62,6 @@ class PolarAlignmentBackendChangedException implements Exception {
   String toString() => 'PolarAlignmentBackendChangedException: $message';
 }
 
-// Polar alignment state provider
-
 /// Main provider for polar alignment runtime state
 final polarAlignmentStateProvider =
     StateNotifierProvider<PolarAlignmentStateNotifier, PolarAlignmentState>((
@@ -237,7 +235,6 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
       state = state.copyWith(currentError: error);
     }
 
-    // Notify error history provider
     ref.read(polarAlignmentErrorHistoryProvider.notifier).addError(error);
   }
 
@@ -829,7 +826,6 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
       return;
     }
 
-    // Get current equipment profile ID
     final profileId = ref.read(activeEquipmentProfileProvider)?.id;
 
     final result = PolarAlignmentResult(

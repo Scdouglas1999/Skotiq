@@ -58,7 +58,6 @@ class OpticalTrainBaseline {
     required this.capturedAt,
   });
 
-  /// Construct from a diagnostics reading.
   factory OpticalTrainBaseline.fromDiagnostics(
     OpticalTrainDiagnostics diagnostics, {
     DateTime? capturedAt,
