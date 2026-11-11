@@ -43,7 +43,6 @@ LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final file = await resolveDefaultDatabaseFile();
 
-    // Ensure directory exists
     await file.parent.create(recursive: true);
 
     // The GUI and the headless service resolve the same default database

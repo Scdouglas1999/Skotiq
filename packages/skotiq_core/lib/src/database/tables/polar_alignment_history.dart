@@ -8,7 +8,6 @@ import 'equipment_profiles.dart';
 @TableIndex(name: 'idx_polar_history_started', columns: {#startedAt})
 @TableIndex(name: 'idx_polar_history_completed', columns: {#completedAt})
 class PolarAlignmentHistory extends Table {
-  /// Primary key
   IntColumn get id => integer().autoIncrement()();
 
   /// Reference to equipment profile used (nullable for unassociated sessions)
@@ -17,8 +16,6 @@ class PolarAlignmentHistory extends Table {
     #id,
     onDelete: KeyAction.cascade,
   )();
-
-  // Initial error values
 
   /// Initial azimuth error in arcseconds
   RealColumn get initialAzimuthError => real()();
@@ -29,8 +26,6 @@ class PolarAlignmentHistory extends Table {
   /// Initial total error in arcseconds
   RealColumn get initialTotalError => real()();
 
-  // Final error values
-
   /// Final azimuth error in arcseconds
   RealColumn get finalAzimuthError => real()();
 
@@ -40,15 +35,9 @@ class PolarAlignmentHistory extends Table {
   /// Final total error in arcseconds
   RealColumn get finalTotalError => real()();
 
-  // Timestamps
-
-  /// When alignment started
   DateTimeColumn get startedAt => dateTime()();
 
-  /// When alignment completed
   DateTimeColumn get completedAt => dateTime()();
-
-  // Metadata
 
   /// Whether alignment was auto-completed (reached threshold)
   BoolColumn get autoCompleted =>

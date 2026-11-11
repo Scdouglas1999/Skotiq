@@ -28,16 +28,12 @@ class DarkLibrary extends Table {
   /// Sensor temperature in degrees Celsius at time of capture
   RealColumn get temperature => real().nullable()();
 
-  /// Camera gain setting
   IntColumn get gain => integer().withDefault(const Constant(0))();
 
-  /// Camera offset setting
   IntColumn get offset => integer().withDefault(const Constant(0))();
 
-  /// Horizontal binning
   IntColumn get binX => integer().withDefault(const Constant(1))();
 
-  /// Vertical binning
   IntColumn get binY => integer().withDefault(const Constant(1))();
 
   /// Frame type: 'dark' or 'bias'

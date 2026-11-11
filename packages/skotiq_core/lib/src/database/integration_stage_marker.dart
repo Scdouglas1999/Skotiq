@@ -195,7 +195,6 @@ class InterruptedIntegration {
 
 /// One intended master file as it is on disk, measured rather than assumed.
 class IntendedMasterFile {
-  /// Where the file is.
   final String path;
 
   /// True when the file holds a whole FITS: its length is a whole number of

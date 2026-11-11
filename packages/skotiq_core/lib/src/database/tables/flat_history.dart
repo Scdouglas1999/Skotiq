@@ -10,7 +10,6 @@ import 'equipment_profiles.dart';
 class FlatHistory extends Table {
   IntColumn get id => integer().autoIncrement()();
 
-  /// Reference to equipment profile used
   IntColumn get equipmentProfileId => integer().nullable().references(
     EquipmentProfiles,
     #id,
@@ -38,12 +37,9 @@ class FlatHistory extends Table {
   /// Twilight phase: 'dawn', 'dusk', or null for panel
   TextColumn get twilightPhase => text().nullable()();
 
-  /// Gain setting used
   IntColumn get gain => integer().withDefault(const Constant(0))();
 
-  /// Binning used
   IntColumn get binning => integer().withDefault(const Constant(1))();
 
-  /// When this calibration was performed
   DateTimeColumn get timestamp => dateTime().withDefault(currentDateAndTime)();
 }

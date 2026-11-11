@@ -11,10 +11,8 @@ import 'package:drift/drift.dart';
   'ON guide_rms_history (mount_id, recorded_at DESC)',
 )
 class GuideRmsHistory extends Table {
-  /// Auto-incrementing primary key.
   IntColumn get id => integer().autoIncrement()();
 
-  /// Session identifier this sample belongs to.
   TextColumn get sessionId => text()();
 
   /// Mount identifier (driver-reported), used to scope per-mount averages.
@@ -37,6 +35,5 @@ class GuideRmsHistory extends Table {
   /// the Smart Night planner derives from this column).
   RealColumn get exposureSeconds => real().nullable()();
 
-  /// When the sample was recorded.
   DateTimeColumn get recordedAt => dateTime()();
 }

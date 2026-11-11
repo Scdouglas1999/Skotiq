@@ -4,7 +4,6 @@ extension _SkotiqDatabaseMigrationV2ToV17 on SkotiqDatabase {
   Future<void> _upgradeSchemaV2ToV17(Migrator m, int from) async {
     // Version 2: Add indexes for better query performance
     if (from < 2) {
-      // Create indexes for targets
       await m.createIndex(
         Index(
           'idx_targets_name',
@@ -36,7 +35,6 @@ extension _SkotiqDatabaseMigrationV2ToV17 on SkotiqDatabase {
         ),
       );
 
-      // Create indexes for captured_images
       await m.createIndex(
         Index(
           'idx_images_session',
@@ -80,7 +78,6 @@ extension _SkotiqDatabaseMigrationV2ToV17 on SkotiqDatabase {
         ),
       );
 
-      // Create indexes for imaging_sessions
       await m.createIndex(
         Index(
           'idx_sessions_target',
@@ -106,7 +103,6 @@ extension _SkotiqDatabaseMigrationV2ToV17 on SkotiqDatabase {
         ),
       );
 
-      // Create indexes for sequences
       await m.createIndex(
         Index(
           'idx_sequences_name',
@@ -126,7 +122,6 @@ extension _SkotiqDatabaseMigrationV2ToV17 on SkotiqDatabase {
         ),
       );
 
-      // Create indexes for sequence_nodes
       await m.createIndex(
         Index(
           'idx_nodes_sequence',
@@ -158,7 +153,6 @@ extension _SkotiqDatabaseMigrationV2ToV17 on SkotiqDatabase {
         ),
       );
 
-      // Create indexes for image_metadata
       await m.createIndex(
         Index(
           'idx_metadata_image',
@@ -172,7 +166,6 @@ extension _SkotiqDatabaseMigrationV2ToV17 on SkotiqDatabase {
         ),
       );
 
-      // Create indexes for equipment_profiles
       await m.createIndex(
         Index(
           'idx_profiles_name',
@@ -648,7 +641,6 @@ extension _SkotiqDatabaseMigrationV2ToV17 on SkotiqDatabase {
       await customStatement(
         'ALTER TABLE imaging_sessions_new RENAME TO imaging_sessions',
       );
-      // Recreate indexes
       await customStatement(
         'CREATE INDEX IF NOT EXISTS idx_sessions_target ON imaging_sessions (target_id)',
       );
@@ -687,7 +679,6 @@ extension _SkotiqDatabaseMigrationV2ToV17 on SkotiqDatabase {
       await customStatement(
         'ALTER TABLE flat_history_new RENAME TO flat_history',
       );
-      // Recreate indexes
       await customStatement(
         'CREATE INDEX IF NOT EXISTS idx_flat_history_profile ON flat_history (equipment_profile_id)',
       );
@@ -741,7 +732,6 @@ extension _SkotiqDatabaseMigrationV2ToV17 on SkotiqDatabase {
       await customStatement(
         'ALTER TABLE polar_alignment_history_new RENAME TO polar_alignment_history',
       );
-      // Recreate indexes
       await customStatement(
         'CREATE INDEX IF NOT EXISTS idx_polar_history_profile ON polar_alignment_history (equipment_profile_id)',
       );
