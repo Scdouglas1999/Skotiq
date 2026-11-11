@@ -56,6 +56,22 @@ scripts:
     run: dart run tools/production/placeholder_audit.dart --fail-on-new-highrisk --compare-highrisk-baseline docs/production-readiness/highrisk-baseline.txt
     description: Scan placeholder/stub markers and fail on new high-risk markers
 
+  audit:behavioral:
+    run: dart run tools/production/behavioral_audit.dart --register docs/production-readiness/behavioral-audit-register.md --fail-on-unregistered --fail-on-open
+    description: Fail on silent-fallback shapes in runtime code that have no reviewed, closed verdict in the behavioral register
+
+  audit:behavioral:sync:
+    run: dart run tools/production/behavioral_audit.dart --register docs/production-readiness/behavioral-audit-register.md --sync --fail-on-unregistered --fail-on-open
+    description: After moving, renaming or deleting code - refresh the behavioral sites file (path hints, rows for deleted code, verdicts carried to renamed declarations), then run the gate
+
+  audit:placeholders:sync:
+    run: dart run tools/production/placeholder_audit.dart --fail-on-new-highrisk --compare-highrisk-baseline docs/production-readiness/highrisk-baseline.txt --sync-baseline
+    description: After moving, renaming or deleting code - refresh the high-risk baseline, then run the gate
+
+  audit:gates:self-test:
+    run: dart run tools/production/behavioral_audit_self_test.dart && dart run tools/production/placeholder_audit_self_test.dart && dart run tools/production/fail_closed_check_self_test.dart
+    description: Self-test the behavioral, placeholder and fail-closed gates against temporary fixtures (moved, shifted, deleted and new code)
+
   audit:design-tokens:
     run: dart run tools/production/design_tokens_audit.dart
     description: Track design-system token adoption in app screens (hardcoded radii, inline TextStyle fontSize, raw Colors.*). Informational by default; pass --max-*=N or --strict to enforce.
