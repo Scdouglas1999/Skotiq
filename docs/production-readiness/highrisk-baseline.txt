@@ -159,10 +159,10 @@ native/skotiq_native/native/src/vendor/skywatcher.rs	tests	highrisk	1	baseline	/
 native/skotiq_native/native/src/vendor/touptek/camera.rs	-	highrisk	1	baseline	// SAFETY: HOgmacam is a `*mut c_void` opaque camera handle returned by Ogmacam_Open. The struct is always wrapped in `Mutex<HandleWrapper>` in TouptekCamera; the pointer is never dereferenced or modified outside `TOUPTEK_SDK_LOCK.lock().await` + `handle.lock().unwrap()` sections (see all call sites in this module — every SDK call captures the handle value while both locks are held). Marking Send is therefore equivalent to a hand-serialized capability. Sync is intentionally NOT implemented (see comment block below).
 native/skotiq_native/native/src/vendor/zwo/camera_ops.rs	download_image	highrisk	1	baseline	.ok();
 native/skotiq_native/native/src/vendor/zwo/camera_ops.rs	get_status	highrisk	1	baseline	let temp = self.read_temperature_celsius_sync(&sdk).ok();
-native/skotiq_native/sequencer/src/device_ops.rs	try_park_with_retry	highrisk	1	baseline	let start = device_ops.mount_get_coordinates(mount_id).await.ok();
+native/skotiq_native/sequencer/src/device_ops/safe_state.rs	try_park_with_retry	highrisk	1	baseline	let start = device_ops.mount_get_coordinates(mount_id).await.ok();
 native/skotiq_native/sequencer/src/executor/monitoring.rs	quality_trigger_notice	highrisk	1	baseline	.unwrap_or_default();
-native/skotiq_native/sequencer/src/executor/start.rs	start	highrisk	3	baseline	.unwrap_or_default();
 native/skotiq_native/sequencer/src/executor/start/recovery_driver.rs	continue_unguided	highrisk	1	baseline	.unwrap_or_default(),
+native/skotiq_native/sequencer/src/executor/start/run.rs	new	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/sequencer/src/executor/start/trigger_monitor/actions/cloud.rs	slew_to_gap	highrisk	1	baseline	result.message.unwrap_or_default()
 native/skotiq_native/sequencer/src/executor/start/trigger_monitor/actions/meridian_flip.rs	run	highrisk	1	baseline	.unwrap_or_default(),
 native/skotiq_native/sequencer/src/executor/start/trigger_monitor/actions/recenter.rs	run	highrisk	1	baseline	result.message.unwrap_or_default()
@@ -191,6 +191,7 @@ native/skotiq_native/sequencer/src/node/logic/target_scheduler.rs	first_pick_mat
 native/skotiq_native/sequencer/src/node/progress.rs	detail_text	highrisk	2	baseline	.unwrap_or_default();
 native/skotiq_native/sequencer/src/node/progress.rs	legacy_message	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/sequencer/src/scheduling/adaptive_swap.rs	saturating_duration_since	highrisk	1	baseline	self.checked_duration_since(other).unwrap_or_default()
+native/skotiq_native/sequencer/src/triggers/trigger.rs	new	highrisk	1	baseline	.unwrap_or_default();
 packages/skotiq_app/lib/screens/diagnostics/diagnostic_dump_screen.dart	_createDump	highrisk	1	baseline	// Android/iOS, so asking for one there threw UnimplementedError and this
 packages/skotiq_app/lib/screens/imaging/tabs/mount_tab.dart	build	highrisk	1	baseline	// `canPark` no longer ships a button that hits a "Not implemented"
 packages/skotiq_app/lib/screens/imaging/widgets/annotation_panel.dart	-	highrisk	1	baseline	/// UnimplementedError), which made both annotation exports dead on a phone. On
@@ -199,7 +200,6 @@ packages/skotiq_app/lib/screens/planetarium/planetarium_screen/actions.dart	_exp
 packages/skotiq_app/lib/screens/sequencer/tabs/sequence_library_tab/sequence_card.dart	_exportSequence	highrisk	1	baseline	// UnimplementedError: getSavePath() has not been implemented."
 packages/skotiq_app/lib/screens/sequencer/widgets/node_summary_inline_editors.dart	build	highrisk	1	baseline	// '+' re-applies 4+1 and is a silent no-op, while the popup keeps
 packages/skotiq_app/lib/screens/settings/backup_screen.dart	_BackupScreenState	highrisk	1	baseline	/// UnimplementedError — so on those platforms the file goes to a sandbox path
-packages/skotiq_app/lib/screens/settings/equipment_profiles_screen_parts/screen_shell.dart	-	highrisk	1	baseline	/// save dialog (`getSavePath` throws UnimplementedError), so exporting a
 packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/discord_transport_section.dart	saveConfig	highrisk	1	baseline	return const _PrepResult.ok();
 packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/email_transport_section.dart	saveConfig	highrisk	1	baseline	return const _PrepResult.ok();
 packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/mqtt_transport_section.dart	saveConfig	highrisk	1	baseline	return const _PrepResult.ok();
@@ -214,7 +214,7 @@ packages/skotiq_bridge/lib/src/api.dart	-	highrisk	1	baseline	/// silent no-op �
 packages/skotiq_core/lib/src/backend/network_backend/device_operations.dart	cameraGetRecommendedSettings	highrisk	1	baseline	'cameraGetRecommendedSettings not implemented on remote '
 packages/skotiq_core/lib/src/models/sequence/instruction_progress_detail.dart	-	highrisk	1	baseline	/// newer native emitters do not become silent no-ops on older Dart clients.
 packages/skotiq_core/lib/src/providers/remote_sync/equipment_mirror.dart	_fetchConnectedFocuserCaps	highrisk	1	baseline	} catch (_) {}
-packages/skotiq_core/lib/src/services/device_service/connections/imaging_chain.dart	_disconnectCamera	highrisk	1	baseline	// instead of a silent no-op so the equipment screen's bulk-disconnect
+packages/skotiq_core/lib/src/services/device_service/connections/device_connections.dart	_disconnect	highrisk	1	baseline	// "Nothing connected" is a typed precondition, not a silent no-op, so a
 packages/skotiq_core/lib/src/services/notification/transports/email_transport.dart	_runSmtpSession	highrisk	1	baseline	return NotificationResult.ok();
 packages/skotiq_core/lib/src/services/notification/transports/in_app_transport.dart	send	highrisk	1	baseline	return NotificationResult.ok();
 packages/skotiq_core/lib/src/services/notification/transports/mqtt_transport.dart	-	highrisk	1	baseline	// QoS 2 is intentionally not implemented; a user choice of 2 downgrades to 1
