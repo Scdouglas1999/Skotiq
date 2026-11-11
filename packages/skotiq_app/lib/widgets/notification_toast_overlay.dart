@@ -200,7 +200,6 @@ class _NotificationToastOverlayState
     final notifications = ref.watch(uiNotificationProvider);
     final groups = groupIdenticalNotifications(notifications);
 
-    // Take only the most recent groups up to max
     final visibleGroups = groups.length > _maxVisibleToasts
         ? groups.sublist(groups.length - _maxVisibleToasts)
         : groups;
@@ -411,13 +410,11 @@ class _NotificationToastState extends State<_NotificationToast>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Accent bar
                         Container(
                           width: 4,
                           constraints: const BoxConstraints(minHeight: 48),
                           color: accentColor,
                         ),
-                        // Content
                         Flexible(
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
@@ -485,7 +482,6 @@ class _NotificationToastState extends State<_NotificationToast>
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                // Dismiss button
                                 MouseRegion(
                                   cursor: SystemMouseCursors.click,
                                   // The tap lived on a bare gesture wrapper, which publishes an action
