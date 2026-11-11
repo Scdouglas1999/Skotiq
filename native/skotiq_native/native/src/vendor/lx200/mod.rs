@@ -8,11 +8,14 @@
 //! - 10Micron mounts
 //! - Many other compatible mounts
 
+use super::serial_link::{
+    self, OnOpenFailure, Probe, ProbedPort, ReplyRule, ScanPlan, SerialLink, REPLY_DEADLINE,
+};
+use super::sexagesimal::{from_parts, sign_char, split_sign, split_units, to_units};
 use crate::traits::*;
 use crate::NativeVendor;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;

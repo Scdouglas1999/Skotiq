@@ -6,6 +6,48 @@ use super::*;
 pub(crate) const LX200_BAUD_RATE: u32 = 9600;
 pub(crate) const RESPONSE_TERM: u8 = b'#';
 
+/// OnStep controllers such as the Pegasus NYX terminate a response with `#`
+/// and then emit CRLF. The byte-oriented reader stops at `#`, so those trailing
+/// bytes become the prefix of the next response unless they are discarded.
+pub(crate) const INTER_RESPONSE_FRAMING: &[u8] = b"\r\n\0";
+
+/// A `#`-terminated reply.
+pub(crate) const REPLY: ReplyRule = ReplyRule {
+    terminator: RESPONSE_TERM,
+    leading_framing: INTER_RESPONSE_FRAMING,
+    deadline: REPLY_DEADLINE,
+    timeout_message: "LX200 command response timed out",
+};
+
+/// A one-character `1`/`0` answer with no terminator.
+pub(crate) const BOOL_REPLY: ReplyRule = ReplyRule {
+    timeout_message: "LX200 command bool response timed out",
+    ..REPLY
+};
+
+/// The status character that answers `:MS#`.
+pub(crate) const SLEW_ACK_REPLY: ReplyRule = ReplyRule {
+    timeout_message: "LX200 slew acknowledgement timed out",
+    ..REPLY
+};
+
+pub(crate) const SCAN_PLAN: ScanPlan = ScanPlan {
+    protocol: "LX200",
+    baud_rates: DISCOVERY_BAUD_RATES,
+    on_open_failure: OnOpenFailure::NextPort,
+};
+
+/// Time a mount gets to answer a discovery probe.
+pub(crate) const PROBE_SETTLE: Duration = Duration::from_millis(200);
+
+pub(crate) const fn probe(command: &'static str, reply_capacity: usize) -> Probe<'static> {
+    Probe {
+        command: command.as_bytes(),
+        settle: PROBE_SETTLE,
+        reply_capacity,
+    }
+}
+
 /// How long to wait for the trailing strings Meade firmware sends after `:SC#`.
 pub(crate) const CALENDAR_CHATTER_WINDOW: Duration = Duration::from_millis(750);
 
@@ -99,18 +141,10 @@ pub(crate) mod commands {
 }
 
 pub(crate) fn optional_discovery_response(
-    port: &mut dyn serialport::SerialPort,
-    command: &str,
+    port: &mut ProbedPort<'_>,
+    command: &'static str,
 ) -> Option<String> {
-    if port.write_all(command.as_bytes()).is_err() {
-        return None;
-    }
-    let _ = port.flush();
-
-    let mut buf = [0u8; 64];
-    std::thread::sleep(Duration::from_millis(200));
-    let n = port.read(&mut buf).ok()?;
-    let response = String::from_utf8_lossy(&buf[..n]);
+    let response = port.ask(&probe(command, 64))?;
     let trimmed = response.trim().trim_end_matches('#').trim().to_string();
     if trimmed.is_empty() || trimmed == "\0" {
         None
@@ -257,7 +291,7 @@ pub(crate) fn parse_ra(response: &str) -> Result<f64, NativeError> {
             let seconds: f64 = sec
                 .parse()
                 .map_err(|_| NativeError::SdkError("Invalid RA seconds".into()))?;
-            return Ok(hours + minutes / 60.0 + seconds / 3600.0);
+            return Ok(from_parts(hours, minutes, seconds));
         } else if let Some((m, t)) = rest.split_once('.') {
             let minutes: f64 = m
                 .parse()
@@ -265,7 +299,7 @@ pub(crate) fn parse_ra(response: &str) -> Result<f64, NativeError> {
             let tenths: f64 = t
                 .parse()
                 .map_err(|_| NativeError::SdkError("Invalid RA tenths".into()))?;
-            return Ok(hours + (minutes + tenths / 10.0) / 60.0);
+            return Ok(from_parts(hours, minutes + tenths / 10.0, 0.0));
         }
     }
 
@@ -275,13 +309,7 @@ pub(crate) fn parse_ra(response: &str) -> Result<f64, NativeError> {
 pub(crate) fn parse_dec(response: &str) -> Result<f64, NativeError> {
     let s = response.trim_end_matches('#');
 
-    let (sign, rest) = if s.starts_with('-') {
-        (-1.0, &s[1..])
-    } else if s.starts_with('+') {
-        (1.0, &s[1..])
-    } else {
-        (1.0, s)
-    };
+    let (sign, rest) = split_sign(s);
 
     let parts: Vec<&str> = rest.split(['*', '°', ':']).collect();
 
@@ -301,34 +329,30 @@ pub(crate) fn parse_dec(response: &str) -> Result<f64, NativeError> {
             0.0
         };
 
-        return Ok(sign * (degrees + arcmin / 60.0 + arcsec / 3600.0));
+        return Ok(sign * from_parts(degrees, arcmin, arcsec));
     }
 
     Err(NativeError::SdkError(format!("Invalid Dec format: {}", s)))
 }
 
-// Both goto formatters round at the resolution they print and THEN split, as
-// `format_dms` does: splitting first and rounding the seconds carried 59.6 s up
-// to "60" for about one target in sixty per axis, and firmware that validates
-// the field refuses the target.
-
 pub(crate) fn format_ra(ra_hours: f64) -> String {
-    let total_seconds = ((ra_hours * 3600.0).round() as i64).rem_euclid(24 * 3600);
-    let hours = total_seconds / 3600;
-    let minutes = (total_seconds % 3600) / 60;
-    let seconds = total_seconds % 60;
+    let total_seconds = to_units(ra_hours, 3600).rem_euclid(24 * 3600);
+    let (hours, minutes, seconds) = split_units(total_seconds, 3600);
 
     format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
 }
 
 pub(crate) fn format_dec(dec_degrees: f64) -> String {
-    let sign = if dec_degrees < 0.0 { "-" } else { "+" };
-    let total_arcsec = (dec_degrees.abs() * 3600.0).round() as i64;
-    let degrees = total_arcsec / 3600;
-    let arcmin = (total_arcsec % 3600) / 60;
-    let arcsec = total_arcsec % 60;
+    let total_arcsec = to_units(dec_degrees.abs(), 3600);
+    let (degrees, arcmin, arcsec) = split_units(total_arcsec, 3600);
 
-    format!("{}{}*{:02}:{:02}", sign, degrees, arcmin, arcsec)
+    format!(
+        "{}{}*{:02}:{:02}",
+        sign_char(dec_degrees),
+        degrees,
+        arcmin,
+        arcsec
+    )
 }
 
 // Park-state persistence
@@ -615,11 +639,7 @@ pub(crate) fn parse_dms(response: &str) -> Result<f64, NativeError> {
         return Err(NativeError::SdkError("Empty DMS response".into()));
     }
 
-    let (sign, rest) = match cleaned.as_bytes()[0] {
-        b'-' => (-1.0, &cleaned[1..]),
-        b'+' => (1.0, &cleaned[1..]),
-        _ => (1.0, cleaned),
-    };
+    let (sign, rest) = split_sign(cleaned);
 
     // Degrees are separated from minutes by `*` (or `\xdf`, the degree sign
     // some firmware emits in high-precision mode).
@@ -663,27 +683,22 @@ pub(crate) fn parse_dms(response: &str) -> Result<f64, NativeError> {
         )));
     }
 
-    Ok(sign * (degrees + minutes / 60.0 + seconds / 3600.0))
+    Ok(sign * from_parts(degrees, minutes, seconds))
 }
 
 /// Format signed degrees as `sDD*MM:SS` (high precision) or `sDD*MM`.
 /// `degree_width` is 2 for latitude, 3 for longitude, per the LX200 spec.
 pub(crate) fn format_dms(value: f64, degree_width: usize, with_seconds: bool) -> String {
-    let sign = if value < 0.0 { '-' } else { '+' };
+    let sign = sign_char(value);
     let magnitude = value.abs();
 
-    // Round at the resolution we are about to print, THEN split. Splitting
-    // first and rounding the seconds can carry 59.6" up to 60" and emit an
-    // out-of-range field the mount rejects.
+    // Without seconds the value is rounded to the minute it prints.
     let total_arcsec = if with_seconds {
-        (magnitude * 3600.0).round()
+        to_units(magnitude, 3600)
     } else {
-        (magnitude * 60.0).round() * 60.0
+        to_units(magnitude, 60) * 60
     };
-
-    let degrees = (total_arcsec / 3600.0).floor() as i64;
-    let minutes = ((total_arcsec - degrees as f64 * 3600.0) / 60.0).floor() as i64;
-    let seconds = (total_arcsec - degrees as f64 * 3600.0 - minutes as f64 * 60.0).round() as i64;
+    let (degrees, minutes, seconds) = split_units(total_arcsec, 3600);
 
     if with_seconds {
         format!(
@@ -718,11 +733,7 @@ pub(crate) fn parse_utc_offset(response: &str) -> Result<f64, NativeError> {
     // NYX-101 answers `+05:00`, and half-hour zones show up as either `+05:30`
     // or `+05.5`. Parsing only the spec form made a real mount's clock
     // unreadable, so all three are accepted here.
-    let (sign, magnitude) = match cleaned.as_bytes()[0] {
-        b'-' => (-1.0, &cleaned[1..]),
-        b'+' => (1.0, &cleaned[1..]),
-        _ => (1.0, cleaned),
-    };
+    let (sign, magnitude) = split_sign(cleaned);
 
     let value = if let Some((hours_text, minutes_text)) = magnitude.split_once(':') {
         let hours: f64 = hours_text

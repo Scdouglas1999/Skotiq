@@ -5,10 +5,13 @@
 //!
 //! Communication: Serial 9600 or 115200 baud, terminated with #
 
+use super::serial_link::{
+    self, OnOpenFailure, Probe, ProbedPort, ReplyRule, ScanPlan, SerialLink, REPLY_DEADLINE,
+};
+use super::sexagesimal::{from_parts, sign_char, split_sign, split_units, to_units};
 use crate::traits::*;
 use crate::NativeVendor;
 use async_trait::async_trait;
-use std::io::{Read, Write};
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -16,7 +19,29 @@ use std::time::Duration;
 
 const IOPTRON_BAUD_RATE: u32 = 9600;
 const IOPTRON_BAUD_RATE_FAST: u32 = 115200;
-const RESPONSE_TERM: u8 = b'#';
+
+/// Replies end in `#`; the mount sends nothing between them.
+const IOPTRON_REPLY: ReplyRule = ReplyRule {
+    terminator: b'#',
+    leading_framing: &[],
+    deadline: REPLY_DEADLINE,
+    timeout_message: "iOptron command response timed out",
+};
+
+/// Unlike the other serial scans this one tries the second baud rate on a
+/// port it could not open at the first.
+const SCAN_PLAN: ScanPlan = ScanPlan {
+    protocol: "iOptron",
+    baud_rates: &[IOPTRON_BAUD_RATE, IOPTRON_BAUD_RATE_FAST],
+    on_open_failure: OnOpenFailure::NextBaudRate,
+};
+
+/// Time the mount gets to answer a discovery probe.
+const PROBE_SETTLE: Duration = Duration::from_millis(100);
+const PROBE_REPLY_CAPACITY: usize = 32;
+
+/// Positions are printed to a hundredth of a second (of time or of arc).
+const HUNDREDTHS_PER_WHOLE: i64 = 360_000;
 
 // iOptron commands
 
@@ -197,16 +222,16 @@ fn format_firmware_versions(fw1: Option<&str>, fw2: Option<&str>) -> Option<Stri
     }
 }
 
-fn query_hash_command(port: &mut dyn serialport::SerialPort, command: &str) -> Option<String> {
-    if port.write_all(command.as_bytes()).is_err() {
-        return None;
+fn probe(command: &str) -> Probe<'_> {
+    Probe {
+        command: command.as_bytes(),
+        settle: PROBE_SETTLE,
+        reply_capacity: PROBE_REPLY_CAPACITY,
     }
-    let _ = port.flush();
+}
 
-    let mut buf = [0u8; 32];
-    std::thread::sleep(Duration::from_millis(100));
-    let n = port.read(&mut buf).ok()?;
-    let response = String::from_utf8_lossy(&buf[..n]);
+fn query_hash_command(port: &mut ProbedPort<'_>, command: &str) -> Option<String> {
+    let response = port.ask(&probe(command))?;
     let trimmed = response.trim().trim_end_matches('#').trim().to_string();
     if trimmed.is_empty() {
         None
@@ -235,8 +260,7 @@ fn parse_ra(response: &str) -> Result<f64, NativeError> {
         .parse()
         .map_err(|_| NativeError::SdkError("Invalid RA seconds".into()))?;
 
-    let seconds = centisecs / 100.0;
-    Ok(hours + minutes / 60.0 + seconds / 3600.0)
+    Ok(from_parts(hours, minutes, centisecs / 100.0))
 }
 
 fn parse_dec(response: &str) -> Result<f64, NativeError> {
@@ -247,50 +271,39 @@ fn parse_dec(response: &str) -> Result<f64, NativeError> {
         )));
     }
 
-    let sign = if response.starts_with('-') { -1.0 } else { 1.0 };
-    let start = if response.starts_with('-') || response.starts_with('+') {
-        1
-    } else {
-        0
-    };
+    let (sign, digits) = split_sign(response);
 
-    let degrees: f64 = response[start..start + 2]
+    let degrees: f64 = digits[0..2]
         .parse()
         .map_err(|_| NativeError::SdkError("Invalid Dec degrees".into()))?;
-    let arcmin: f64 = response[start + 2..start + 4]
+    let arcmin: f64 = digits[2..4]
         .parse()
         .map_err(|_| NativeError::SdkError("Invalid Dec arcmin".into()))?;
-    let centiarcsec: f64 = response[start + 4..start + 8]
+    let centiarcsec: f64 = digits[4..8]
         .parse()
         .map_err(|_| NativeError::SdkError("Invalid Dec arcsec".into()))?;
 
-    let arcsec = centiarcsec / 100.0;
-    Ok(sign * (degrees + arcmin / 60.0 + arcsec / 3600.0))
+    Ok(sign * from_parts(degrees, arcmin, centiarcsec / 100.0))
 }
 
-// Both goto formatters round at the hundredth they print and THEN split:
-// splitting first and rounding the hundredths carried 59.996 s up to "6000"
-// (sixty seconds), which the mount refuses as a target.
-
 fn format_ra(ra_hours: f64) -> String {
-    const CENTISECS_PER_HOUR: i64 = 360_000;
-    let total =
-        ((ra_hours * CENTISECS_PER_HOUR as f64).round() as i64).rem_euclid(24 * CENTISECS_PER_HOUR);
-    let hours = total / CENTISECS_PER_HOUR;
-    let minutes = (total % CENTISECS_PER_HOUR) / 6000;
-    let centisecs = total % 6000;
+    let total = to_units(ra_hours, HUNDREDTHS_PER_WHOLE).rem_euclid(24 * HUNDREDTHS_PER_WHOLE);
+    let (hours, minutes, centisecs) = split_units(total, HUNDREDTHS_PER_WHOLE);
 
     format!("{:02}{:02}{:04}", hours, minutes, centisecs)
 }
 
 fn format_dec(dec_degrees: f64) -> String {
-    let sign = if dec_degrees < 0.0 { "-" } else { "+" };
-    let total = (dec_degrees.abs() * 360_000.0).round() as i64;
-    let degrees = total / 360_000;
-    let arcmin = (total % 360_000) / 6000;
-    let centiarcsec = total % 6000;
+    let total = to_units(dec_degrees.abs(), HUNDREDTHS_PER_WHOLE);
+    let (degrees, arcmin, centiarcsec) = split_units(total, HUNDREDTHS_PER_WHOLE);
 
-    format!("{}{:02}{:02}{:04}", sign, degrees, arcmin, centiarcsec)
+    format!(
+        "{}{:02}{:02}{:04}",
+        sign_char(dec_degrees),
+        degrees,
+        arcmin,
+        centiarcsec
+    )
 }
 
 // iOptron mount implementation
@@ -300,7 +313,7 @@ pub struct IOptronMount {
     name: String,
     port_name: String,
     baud_rate: u32,
-    serial_port: Mutex<Option<Box<dyn serialport::SerialPort + Send>>>,
+    link: SerialLink,
     connected: Mutex<bool>,
     status: Mutex<IOptronStatus>,
     mount_model: Mutex<String>,
@@ -317,16 +330,13 @@ impl std::fmt::Debug for IOptronMount {
 
 impl IOptronMount {
     pub fn new(port: String, baud_rate: Option<u32>) -> Self {
-        let device_id = format!(
-            "native:ioptron:{}",
-            port.replace("/", "_").replace("\\", "_")
-        );
+        let device_id = format!("native:ioptron:{}", serial_link::sanitize_port_name(&port));
         Self {
             device_id,
             name: format!("iOptron ({})", port),
             port_name: port,
             baud_rate: baud_rate.unwrap_or(IOPTRON_BAUD_RATE),
-            serial_port: Mutex::new(None),
+            link: SerialLink::new(),
             connected: Mutex::new(false),
             status: Mutex::new(IOptronStatus::default()),
             mount_model: Mutex::new(String::new()),
@@ -334,55 +344,17 @@ impl IOptronMount {
     }
 
     fn send_command(&self, command: &str) -> Result<String, NativeError> {
-        let mut port_guard = self
-            .serial_port
-            .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))?;
-        let port = port_guard.as_mut().ok_or(NativeError::NotConnected)?;
-
-        port.write_all(command.as_bytes())
-            .map_err(NativeError::Io)?;
-        port.flush().map_err(NativeError::Io)?;
-
-        let mut response = Vec::new();
-        let mut buf = [0u8; 1];
-        let timeout = std::time::Instant::now();
-
-        loop {
-            if timeout.elapsed() > Duration::from_secs(5) {
-                return Err(NativeError::Timeout(
-                    "iOptron command response timed out".to_string(),
-                ));
-            }
-
-            match port.read(&mut buf) {
-                Ok(1) => {
-                    if buf[0] == RESPONSE_TERM {
-                        break;
-                    }
-                    response.push(buf[0]);
-                }
-                Ok(_) => continue,
-                Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => continue,
-                Err(e) => return Err(NativeError::Io(e)),
-            }
-        }
-
-        Ok(String::from_utf8_lossy(&response).to_string())
+        self.link.command(command.as_bytes(), &IOPTRON_REPLY)
     }
 
     fn send_command_no_response(&self, command: &str) -> Result<(), NativeError> {
-        let mut port_guard = self
-            .serial_port
-            .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))?;
-        let port = port_guard.as_mut().ok_or(NativeError::NotConnected)?;
+        self.link.command_no_reply(command.as_bytes())
+    }
 
-        port.write_all(command.as_bytes())
-            .map_err(NativeError::Io)?;
-        port.flush().map_err(NativeError::Io)?;
-
-        Ok(())
+    fn open(&self, baud_rate: u32) -> Result<(), NativeError> {
+        let serial = serial_link::open_port(&self.port_name, baud_rate)
+            .map_err(|e| NativeError::SdkError(format!("Failed to open serial port: {}", e)))?;
+        self.link.attach(serial)
     }
 
     fn update_status(&self) -> Result<(), NativeError> {
@@ -429,17 +401,9 @@ impl NativeDevice for IOptronMount {
             return Ok(());
         }
 
-        let _serial_access = crate::vendor::serial_mount_access().await;
+        let _serial_access = serial_link::serial_mount_access().await;
 
-        let serial = serialport::new(&self.port_name, self.baud_rate)
-            .timeout(Duration::from_millis(500))
-            .open()
-            .map_err(|e| NativeError::SdkError(format!("Failed to open serial port: {}", e)))?;
-
-        *self
-            .serial_port
-            .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = Some(serial);
+        self.open(self.baud_rate)?;
 
         match self.send_command(commands::GET_MOUNT_VERSION) {
             Ok(response) => {
@@ -450,21 +414,10 @@ impl NativeDevice for IOptronMount {
                 self.name = format!("iOptron {} ({})", response, self.port_name);
             }
             Err(_) => {
-                *self
-                    .serial_port
-                    .lock()
-                    .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = None;
-                let serial = serialport::new(&self.port_name, IOPTRON_BAUD_RATE_FAST)
-                    .timeout(Duration::from_millis(500))
-                    .open()
-                    .map_err(|e| {
-                        NativeError::SdkError(format!("Failed to open serial port: {}", e))
-                    })?;
-
-                *self
-                    .serial_port
-                    .lock()
-                    .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = Some(serial);
+                // The mount did not answer at the configured rate. Close the
+                // port and ask once more at the fast rate.
+                self.link.detach()?;
+                self.open(IOPTRON_BAUD_RATE_FAST)?;
                 self.baud_rate = IOPTRON_BAUD_RATE_FAST;
 
                 match self.send_command(commands::GET_MOUNT_VERSION) {
@@ -477,10 +430,7 @@ impl NativeDevice for IOptronMount {
                         self.name = format!("iOptron {} ({})", response, self.port_name);
                     }
                     Err(e) => {
-                        *self
-                            .serial_port
-                            .lock()
-                            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = None;
+                        self.link.detach()?;
                         return Err(e);
                     }
                 }
@@ -516,10 +466,7 @@ impl NativeDevice for IOptronMount {
             );
         }
 
-        *self
-            .serial_port
-            .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = None;
+        self.link.detach()?;
         *self
             .connected
             .lock()
@@ -787,7 +734,7 @@ impl NativeMount for IOptronMount {
             .parse()
             .map_err(|_| NativeError::SdkError("Invalid azimuth".into()))?;
 
-        let az = az_deg + az_min / 60.0 + (az_sec / 100.0) / 3600.0;
+        let az = from_parts(az_deg, az_min, az_sec / 100.0);
 
         Ok((alt, az))
     }
@@ -878,98 +825,54 @@ pub struct IOptronMountInfo {
 }
 
 pub async fn discover_mounts() -> Result<Vec<IOptronMountInfo>, NativeError> {
-    crate::vendor::run_serial_scan("iOptron", scan_serial_ports).await
+    serial_link::run_serial_scan("iOptron", scan_serial_ports).await
 }
 
 fn scan_serial_ports() -> Result<Vec<IOptronMountInfo>, NativeError> {
-    let ports = serialport::available_ports()
-        .map_err(|e| NativeError::SdkError(format!("Failed to enumerate ports: {}", e)))?;
-
-    tracing::info!(
-        "iOptron discovery: found {} serial ports to scan",
-        ports.len()
-    );
-
-    let mounts = scan_port_list(ports);
-
-    tracing::debug!("iOptron discovery complete: found {} mounts", mounts.len());
-    Ok(mounts)
+    serial_link::scan_ports(&SCAN_PLAN, identify_mount)
 }
 
+/// The same scan over ports a test supplies.
+#[cfg(all(test, target_os = "linux"))]
 pub(crate) fn scan_port_list(ports: Vec<serialport::SerialPortInfo>) -> Vec<IOptronMountInfo> {
-    let mut mounts = Vec::new();
+    serial_link::scan_port_list(&SCAN_PLAN, ports, identify_mount)
+}
 
-    for port_info in ports {
-        let port_name = port_info.port_name.clone();
-        let mut found_mount = false;
-
-        for baud_rate in [IOPTRON_BAUD_RATE, IOPTRON_BAUD_RATE_FAST] {
-            if found_mount {
-                break;
-            }
-
-            tracing::debug!("Trying {} at {} baud for iOptron", port_name, baud_rate);
-
-            let result = serialport::new(&port_name, baud_rate)
-                .timeout(Duration::from_millis(500))
-                .open();
-
-            if let Ok(mut port) = result {
-                if port
-                    .write_all(commands::GET_MOUNT_VERSION.as_bytes())
-                    .is_ok()
-                {
-                    let _ = port.flush();
-
-                    let mut buf = [0u8; 32];
-                    std::thread::sleep(Duration::from_millis(100));
-
-                    if let Ok(n) = port.read(&mut buf) {
-                        let response = String::from_utf8_lossy(&buf[..n]);
-                        tracing::debug!(
-                            "iOptron response from {} at {} baud: {:?}",
-                            port_name,
-                            baud_rate,
-                            response
-                        );
-                        if response.contains("iEQ")
-                            || response.contains("CEM")
-                            || response.contains("GEM")
-                            || response.contains("AZ")
-                        {
-                            let model = response.trim_end_matches('#').to_string();
-                            let display_name = format!("iOptron {} ({})", model, port_name);
-                            let fw1 =
-                                query_hash_command(&mut *port, commands::GET_MAIN_AND_HC_FIRMWARE);
-                            let fw2 =
-                                query_hash_command(&mut *port, commands::GET_MOTOR_BOARD_FIRMWARE);
-                            let firmware_version =
-                                format_firmware_versions(fw1.as_deref(), fw2.as_deref());
-                            mounts.push(IOptronMountInfo {
-                                port: port_name.clone(),
-                                name: display_name.clone(),
-                                model,
-                                firmware_version,
-                                baud_rate,
-                            });
-                            tracing::info!(
-                                "Found iOptron mount on {} at {} baud: {}",
-                                port_name,
-                                baud_rate,
-                                display_name
-                            );
-                            found_mount = true;
-                        }
-                    }
-                }
-                // Explicit drop + sleep for Windows to fully release the COM port handle
-                drop(port);
-                std::thread::sleep(Duration::from_millis(50));
-            }
-        }
+/// An iOptron mount answers the model query with its series name.
+fn identify_mount(port: &mut ProbedPort<'_>) -> Option<IOptronMountInfo> {
+    let response = port.ask(&probe(commands::GET_MOUNT_VERSION))?;
+    tracing::debug!(
+        "iOptron response from {} at {} baud: {:?}",
+        port.name,
+        port.baud_rate,
+        response
+    );
+    if !(response.contains("iEQ")
+        || response.contains("CEM")
+        || response.contains("GEM")
+        || response.contains("AZ"))
+    {
+        return None;
     }
 
-    mounts
+    let model = response.trim_end_matches('#').to_string();
+    let display_name = format!("iOptron {} ({})", model, port.name);
+    let fw1 = query_hash_command(port, commands::GET_MAIN_AND_HC_FIRMWARE);
+    let fw2 = query_hash_command(port, commands::GET_MOTOR_BOARD_FIRMWARE);
+    let firmware_version = format_firmware_versions(fw1.as_deref(), fw2.as_deref());
+    tracing::info!(
+        "Found iOptron mount on {} at {} baud: {}",
+        port.name,
+        port.baud_rate,
+        display_name
+    );
+    Some(IOptronMountInfo {
+        port: port.name.to_string(),
+        name: display_name,
+        model,
+        firmware_version,
+        baud_rate: port.baud_rate,
+    })
 }
 
 #[cfg(test)]

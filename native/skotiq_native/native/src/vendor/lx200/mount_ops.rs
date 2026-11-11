@@ -301,7 +301,11 @@ impl NativeMount for Lx200Mount {
         };
         self.send_command_no_response(start_cmd)?;
 
-        let cancelled = self.pulse_guide_wait(duration_ms).await;
+        let cancelled = serial_link::pulse_guide_wait(
+            Duration::from_millis(duration_ms as u64),
+            &self.pulse_guide_cancel,
+        )
+        .await;
 
         let stop_result = self.send_command_no_response(stop_cmd);
 

@@ -8,7 +8,7 @@ pub struct Lx200Mount {
     pub(crate) port_name: String,
     pub(crate) baud_rate: u32,
     pub(crate) mount_type: Lx200MountType,
-    pub(crate) serial_port: Mutex<Option<Box<dyn serialport::SerialPort + Send>>>,
+    pub(crate) link: SerialLink,
     pub(crate) connected: Mutex<bool>,
     pub(crate) is_tracking: Mutex<bool>,
     pub(crate) is_slewing: Mutex<bool>,
@@ -47,7 +47,7 @@ impl Lx200Mount {
         let device_id = format!(
             "native:{}:{}",
             type_prefix,
-            port.replace("/", "_").replace("\\", "_")
+            serial_link::sanitize_port_name(&port)
         );
         let display_name = match &mount_type {
             Lx200MountType::Meade => "Meade LX200",
@@ -80,7 +80,7 @@ impl Lx200Mount {
             port_name: port,
             baud_rate: baud_rate.unwrap_or(LX200_BAUD_RATE),
             mount_type,
-            serial_port: Mutex::new(None),
+            link: SerialLink::new(),
             connected: Mutex::new(false),
             is_tracking: Mutex::new(true),
             is_slewing: Mutex::new(false),
@@ -107,85 +107,12 @@ impl Lx200Mount {
     }
 
     pub(crate) fn send_command(&self, command: &str) -> Result<String, NativeError> {
-        let mut port_guard = self
-            .serial_port
-            .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))?;
-        let port = port_guard.as_mut().ok_or(NativeError::NotConnected)?;
-
-        port.write_all(command.as_bytes())
-            .map_err(NativeError::Io)?;
-        port.flush().map_err(NativeError::Io)?;
-
-        let mut response = Vec::new();
-        let mut buf = [0u8; 1];
-        let timeout = std::time::Instant::now();
-
-        loop {
-            if timeout.elapsed() > Duration::from_secs(5) {
-                return Err(NativeError::Timeout(
-                    "LX200 command response timed out".to_string(),
-                ));
-            }
-
-            match port.read(&mut buf) {
-                Ok(1) => {
-                    if response.is_empty() && is_inter_response_framing(buf[0]) {
-                        continue;
-                    }
-                    if buf[0] == RESPONSE_TERM {
-                        break;
-                    }
-                    response.push(buf[0]);
-                }
-                Ok(_) => {
-                    std::thread::sleep(Duration::from_millis(10));
-                    continue;
-                }
-                Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => continue,
-                Err(e) => return Err(NativeError::Io(e)),
-            }
-        }
-
-        Ok(String::from_utf8_lossy(&response).to_string())
+        self.link.command(command.as_bytes(), &REPLY)
     }
 
     pub(crate) fn send_command_bool(&self, command: &str) -> Result<bool, NativeError> {
-        let mut port_guard = self
-            .serial_port
-            .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))?;
-        let port = port_guard.as_mut().ok_or(NativeError::NotConnected)?;
-
-        port.write_all(command.as_bytes())
-            .map_err(NativeError::Io)?;
-        port.flush().map_err(NativeError::Io)?;
-
-        let mut buf = [0u8; 1];
-        let timeout = std::time::Instant::now();
-
-        loop {
-            if timeout.elapsed() > Duration::from_secs(5) {
-                return Err(NativeError::Timeout(
-                    "LX200 command bool response timed out".to_string(),
-                ));
-            }
-
-            match port.read(&mut buf) {
-                Ok(1) => {
-                    if is_inter_response_framing(buf[0]) {
-                        continue;
-                    }
-                    return Ok(buf[0] == b'1');
-                }
-                Ok(_) => {
-                    std::thread::sleep(Duration::from_millis(10));
-                    continue;
-                }
-                Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => continue,
-                Err(e) => return Err(NativeError::Io(e)),
-            }
-        }
+        let answer = self.link.command_byte(command.as_bytes(), &BOOL_REPLY)?;
+        Ok(answer == b'1')
     }
 
     /// Issue `:MS#` and read the goto acknowledgement.
@@ -196,83 +123,22 @@ impl Lx200Mount {
     /// as `Timeout` while the mount was already moving — which is what the
     /// polar-alignment run reported as "failed to rotate to point 2".
     pub(crate) fn send_slew_command(&self) -> Result<SlewAck, NativeError> {
-        let mut port_guard = self
-            .serial_port
-            .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))?;
-        let port = port_guard.as_mut().ok_or(NativeError::NotConnected)?;
+        self.link.exchange(|io| {
+            io.send(commands::SLEW_TO_TARGET.as_bytes())?;
+            let code = io.read_reply_byte(&SLEW_ACK_REPLY)?;
 
-        port.write_all(commands::SLEW_TO_TARGET.as_bytes())
-            .map_err(NativeError::Io)?;
-        port.flush().map_err(NativeError::Io)?;
-
-        let mut buf = [0u8; 1];
-        let deadline = std::time::Instant::now();
-
-        let code = loop {
-            if deadline.elapsed() > Duration::from_secs(5) {
-                return Err(NativeError::Timeout(
-                    "LX200 slew acknowledgement timed out".to_string(),
-                ));
+            if code == b'0' {
+                return Ok(SlewAck::Accepted);
             }
 
-            match port.read(&mut buf) {
-                Ok(1) => {
-                    if is_inter_response_framing(buf[0]) {
-                        continue;
-                    }
-                    break buf[0];
-                }
-                Ok(_) => {
-                    std::thread::sleep(Duration::from_millis(10));
-                    continue;
-                }
-                Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => continue,
-                Err(e) => return Err(NativeError::Io(e)),
-            }
-        };
+            // Refused. The reason text arrives back-to-back with the code and
+            // ends in `#`; firmwares that send the bare code instead stop the
+            // read at the port's own timeout rather than at the goto deadline.
+            let mut tail = io.read_trailing(RESPONSE_TERM, 1, SLEW_REFUSAL_TAIL)?;
+            tail.retain(|byte| !is_inter_response_framing(*byte));
 
-        if code == b'0' {
-            return Ok(SlewAck::Accepted);
-        }
-
-        // Refused. The reason text arrives back-to-back with the code and ends
-        // in `#`; firmwares that send the bare code instead stop the read at
-        // the port's own timeout rather than at the goto deadline.
-        let mut tail = Vec::new();
-        let tail_deadline = std::time::Instant::now();
-        while tail_deadline.elapsed() < SLEW_REFUSAL_TAIL {
-            match port.read(&mut buf) {
-                Ok(1) => {
-                    if buf[0] == RESPONSE_TERM {
-                        break;
-                    }
-                    if is_inter_response_framing(buf[0]) {
-                        continue;
-                    }
-                    tail.push(buf[0]);
-                }
-                Ok(_) => break,
-                Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => break,
-                Err(e) => return Err(NativeError::Io(e)),
-            }
-        }
-
-        Ok(parse_slew_ack(code, &tail))
-    }
-
-    /// Wait up to `duration_ms` or until the pulse-guide cancel is
-    /// notified, whichever comes first. Returns `true` if cancelled.
-    ///
-    /// Separate from `pulse_guide` so the cancellation behaviour is
-    /// unit-testable without a serial port.
-    pub(crate) async fn pulse_guide_wait(&self, duration_ms: u32) -> bool {
-        let cancel = Arc::clone(&self.pulse_guide_cancel);
-        let sleep = tokio::time::sleep(Duration::from_millis(duration_ms as u64));
-        tokio::select! {
-            _ = sleep => false,
-            _ = cancel.notified() => true,
-        }
+            Ok(parse_slew_ack(code, &tail))
+        })
     }
 
     /// Discard whatever the mount volunteers after `:SC#`.
@@ -283,62 +149,27 @@ impl Lx200Mount {
     /// damage from skipping this lands somewhere else entirely. OnStep sends
     /// nothing extra, and the short read timeout makes that case cheap.
     pub(crate) fn drain_calendar_chatter(&self) {
-        let Ok(mut port_guard) = self.serial_port.lock() else {
-            return;
-        };
-        let Some(port) = port_guard.as_mut() else {
-            return;
-        };
-
-        let deadline = std::time::Instant::now();
-        let mut buf = [0u8; 1];
-        let mut terminators = 0;
-        while deadline.elapsed() < CALENDAR_CHATTER_WINDOW && terminators < 2 {
-            match port.read(&mut buf) {
-                Ok(1) => {
-                    if buf[0] == RESPONSE_TERM {
-                        terminators += 1;
-                    }
-                }
-                Ok(_) => break,
-                Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => break,
-                Err(_) => break,
-            }
-        }
+        // Best effort: a port that fails here fails the next command, which
+        // reports it.
+        let _ = self
+            .link
+            .exchange(|io| io.read_trailing(RESPONSE_TERM, 2, CALENDAR_CHATTER_WINDOW));
     }
 
     pub(crate) fn send_command_no_response(&self, command: &str) -> Result<(), NativeError> {
-        let mut port_guard = self
-            .serial_port
-            .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))?;
-        let port = port_guard.as_mut().ok_or(NativeError::NotConnected)?;
-
-        port.write_all(command.as_bytes())
-            .map_err(NativeError::Io)?;
-        port.flush().map_err(NativeError::Io)?;
-
-        Ok(())
+        self.link.command_no_reply(command.as_bytes())
     }
 }
 
-/// OnStep controllers such as the Pegasus NYX terminate a response with `#`
-/// and then emit CRLF. The byte-oriented reader stops at `#`, so those trailing
-/// bytes become the prefix of the next response unless they are discarded.
 fn is_inter_response_framing(byte: u8) -> bool {
-    matches!(byte, b'\r' | b'\n' | b'\0')
+    INTER_RESPONSE_FRAMING.contains(&byte)
 }
 
 /// Windows reports an exclusively-held serial port as "Access is denied",
 /// which reads like a permissions problem. Spell out the likely culprit —
-/// Pegasus Unity or an ASCOM driver already holding the port (same detection
-/// as the discovery scans in lx200/discovery.rs and skywatcher.rs).
+/// Pegasus Unity or an ASCOM driver already holding the port.
 fn serial_open_error_message(port_name: &str, error_message: &str) -> String {
-    let is_access_denied = error_message.contains("Access is denied")
-        || error_message.contains("access is denied")
-        || error_message.contains("Permission denied")
-        || error_message.contains("permission denied");
-    if is_access_denied {
+    if serial_link::is_busy_message(error_message) {
         format!(
             "Serial port {} is already open in another application (Pegasus Unity or an ASCOM driver?). Close it there, or connect this mount through ASCOM instead.",
             port_name
@@ -371,19 +202,13 @@ impl NativeDevice for Lx200Mount {
             return Ok(());
         }
 
-        let _serial_access = crate::vendor::serial_mount_access().await;
+        let _serial_access = serial_link::serial_mount_access().await;
 
-        let serial = serialport::new(&self.port_name, self.baud_rate)
-            .timeout(Duration::from_millis(500))
-            .open()
-            .map_err(|e| {
-                NativeError::SdkError(serial_open_error_message(&self.port_name, &e.to_string()))
-            })?;
+        let serial = serial_link::open_port(&self.port_name, self.baud_rate).map_err(|e| {
+            NativeError::SdkError(serial_open_error_message(&self.port_name, &e.to_string()))
+        })?;
 
-        *self
-            .serial_port
-            .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = Some(serial);
+        self.link.attach(serial)?;
 
         match self.send_command(commands::GET_PRODUCT_NAME) {
             Ok(name) => {
@@ -402,9 +227,7 @@ impl NativeDevice for Lx200Mount {
                 // leaking the COM port and locking out every subsequent connect
                 // attempt (native OR ASCOM) until the process restarts.
                 if let Err(e) = self.send_command(commands::GET_RA) {
-                    if let Ok(mut guard) = self.serial_port.lock() {
-                        *guard = None;
-                    }
+                    let _ = self.link.detach();
                     return Err(e);
                 }
             }
@@ -442,10 +265,7 @@ impl NativeDevice for Lx200Mount {
             );
         }
 
-        *self
-            .serial_port
-            .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = None;
+        self.link.detach()?;
         *self
             .connected
             .lock()
