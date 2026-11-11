@@ -79,6 +79,12 @@ class OneTapTonightState {
   }
 }
 
+/// Why the night cannot run as planned on this rig, in words for the
+/// operator, or null when nothing stands in the way. Checked before anything
+/// is picked or planned, so a missing prerequisite is said up front instead of
+/// after a minute of planning.
+typedef OneTapPreflight = Future<String?> Function();
+
 /// Resolves tonight's single opinionated target.
 typedef OneTapTargetPicker = Future<TargetSuggestion?> Function();
 
@@ -127,6 +133,7 @@ class NoTonightTargetException implements Exception {
 /// produces an ordinary editable sequence and starts it the same way the
 /// Smart Night launcher does, so "Advanced" stays one tap away.
 class OneTapTonightController extends ValueNotifier<OneTapTonightState> {
+  final OneTapPreflight _preflight;
   final OneTapTargetPicker _pick;
   final OneTapFramer _frame;
   final OneTapPlanner _plan;
@@ -138,17 +145,21 @@ class OneTapTonightController extends ValueNotifier<OneTapTonightState> {
   final Duration _planTimeout;
 
   OneTapTonightController({
+    OneTapPreflight? preflight,
     required OneTapTargetPicker pick,
     required OneTapFramer frame,
     required OneTapPlanner plan,
     required OneTapRunner run,
     Duration planTimeout = const Duration(seconds: 60),
-  })  : _pick = pick,
+  })  : _preflight = preflight ?? _nothingInTheWay,
+        _pick = pick,
         _frame = frame,
         _plan = plan,
         _run = run,
         _planTimeout = planTimeout,
         super(const OneTapTonightState());
+
+  static Future<String?> _nothingInTheWay() async => null;
 
   /// Counts the chains started; a chain whose number is no longer current
   /// was canceled and publishes nothing more.
@@ -178,6 +189,12 @@ class OneTapTonightController extends ValueNotifier<OneTapTonightState> {
     bool current() => chain == _chain;
     _publish(const OneTapTonightState(phase: OneTapPhase.picking));
     try {
+      final blocked = await _preflight();
+      if (!current()) return;
+      if (blocked != null) {
+        _fail(blocked);
+        return;
+      }
       final target = await _pick();
       if (!current()) return;
       if (target == null) {

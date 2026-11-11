@@ -38,6 +38,32 @@ class _TonightScreenState extends ConsumerState<TonightScreen> {
   /// wired to the real providers/helpers here, where a [WidgetRef] is in hand.
   OneTapTonightController _liveController() {
     return _controller ??= OneTapTonightController(
+      // The plan centers every target by plate solving; the sequencer refuses
+      // to start it on a rig without a solver.
+      preflight: () async {
+        // Both are auto-disposed: held open until read, or the reads can
+        // outlive them and never resolve.
+        final held = [
+          ref.listenManual(plateSolverDetectionProvider, (_, __) {}),
+          ref.listenManual(plateSolverPreferenceProvider, (_, __) {}),
+        ];
+        try {
+          final detection =
+              await ref.read(plateSolverDetectionProvider.future);
+          final preference =
+              await ref.read(plateSolverPreferenceProvider.future);
+          if (detection.supports(preference.choice)) return null;
+        } finally {
+          for (final subscription in held) {
+            subscription.close();
+          }
+        }
+        final rig = ref.read(remoteLaunchTargetProvider)?.name;
+        return 'Image tonight centers the target by plate solving, and no '
+            'plate solver is set up ${rig == null ? 'on this computer' : 'on $rig'}. '
+            'Set one up in Settings > Plate solving'
+            '${rig == null ? '' : ' on $rig'}, then try again.';
+      },
       pick: () async {
         final target = await ref.read(oneTapTargetProvider.future);
         if (target != null) return target;
