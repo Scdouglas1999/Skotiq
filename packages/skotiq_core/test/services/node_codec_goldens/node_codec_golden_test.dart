@@ -34,7 +34,13 @@ void _expectGolden(String name, Object? actual) {
     isTrue,
     reason: '${file.path} is missing; run with UPDATE_NODE_GOLDENS=1',
   );
-  expect(text, file.readAsStringSync(), reason: 'golden ${file.path}');
+  final expected = file.readAsStringSync();
+  if (text != expected) {
+    final actual = File('${Directory.systemTemp.path}/node_goldens_actual/$name.json')
+      ..createSync(recursive: true)
+      ..writeAsStringSync(text);
+    fail('${file.path} differs; the new output is in ${actual.path}');
+  }
 }
 
 Map<String, Object?> _dumpById(Iterable<SequenceNode> nodes) {

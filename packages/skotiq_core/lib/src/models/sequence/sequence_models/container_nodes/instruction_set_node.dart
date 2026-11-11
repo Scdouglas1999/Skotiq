@@ -15,13 +15,7 @@ class InstructionSetNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'InstructionSet';
-
-  @override
-  String get iconName => 'list';
-
-  @override
-  NodeCategory get category => NodeCategory.logic;
+  NodeKind<InstructionSetNode> get kind => NodeKinds.instructionSet;
 
   @override
   InstructionSetNode copyWith({

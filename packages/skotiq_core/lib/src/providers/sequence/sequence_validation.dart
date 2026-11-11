@@ -645,7 +645,7 @@ class TargetCoordinatesUnsetRule implements SequenceValidator {
       final child = sequence.nodes[id];
       if (child == null || !child.isEnabled) continue;
       if (!visited.add(child.id)) continue;
-      if (!isContainerNode(child)) return true;
+      if (!child.kind.isContainer) return true;
       if (_hasEnabledInstruction(sequence, child, visited)) return true;
     }
     return false;
@@ -691,62 +691,4 @@ class TargetCoordinatesUnsetRule implements SequenceValidator {
     final targets = sequence.targetHeaders;
     return targets.isEmpty ? null : targets.first;
   }
-}
-
-/// True for node types that own a child list (Target/Loop/Parallel/Conditional/
-/// Recovery/InstructionSet). Used by validation rules to flag empty
-/// containers and by editor logic that decides where to attach new nodes.
-///
-/// `SequenceNode` is sealed, so every concrete subtype must be classified
-/// below. Adding a new node type will produce a compile-time error here
-/// instead of silently defaulting to "not a container".
-bool isContainerNode(SequenceNode node) {
-  return switch (node) {
-    TargetHeaderNode _ ||
-    LoopNode _ ||
-    ParallelNode _ ||
-    ConditionalNode _ ||
-    RecoveryNode _ ||
-    InstructionSetNode _ ||
-    // TargetScheduler holds child target headers and picks
-    // among them at runtime.
-    TargetSchedulerNode _ => true,
-    // Leaf nodes (instructions / triggers) do not own children
-    ExposureNode _ ||
-    SlewNode _ ||
-    CenterNode _ ||
-    AutofocusNode _ ||
-    DitherNode _ ||
-    StartGuidingNode _ ||
-    StopGuidingNode _ ||
-    FilterChangeNode _ ||
-    CoolCameraNode _ ||
-    WarmCameraNode _ ||
-    RotatorNode _ ||
-    ParkNode _ ||
-    UnparkNode _ ||
-    HomeMountNode _ ||
-    WaitTimeNode _ ||
-    DelayNode _ ||
-    NotificationNode _ ||
-    ScriptNode _ ||
-    MeridianFlipNode _ ||
-    OpenDomeNode _ ||
-    CloseDomeNode _ ||
-    ParkDomeNode _ ||
-    PolarAlignmentNode _ ||
-    OpenCoverNode _ ||
-    CloseCoverNode _ ||
-    CalibratorOnNode _ ||
-    CalibratorOffNode _ ||
-    // SmartExposure — leaf instruction (per-filter
-    // behaviour is encoded in `plans`, no children).
-    SmartExposureNode _ ||
-    // LiveStacking — leaf side-effect instruction.
-    LiveStackingNode _ ||
-    // Science: SciencePhotometry — leaf instruction.
-    SciencePhotometryNode _ ||
-    // Plugin-contributed instruction. Leaf.
-    PluginInstructionNode _ => false,
-  };
 }

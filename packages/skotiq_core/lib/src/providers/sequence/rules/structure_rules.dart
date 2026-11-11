@@ -12,7 +12,7 @@ class EmptySequenceRule implements SequenceValidator {
   List<ValidationIssue> validate(Sequence sequence) {
     final root = sequence.rootNode;
     final hasEmptyRootContainer =
-        root != null && isContainerNode(root) && root.childIds.isEmpty;
+        root != null && root.kind.isContainer && root.childIds.isEmpty;
     if (sequence.nodes.isEmpty || hasEmptyRootContainer) {
       return const [
         ValidationIssue(
@@ -122,7 +122,7 @@ class EmptyContainerRule implements SequenceValidator {
       // EmptySequenceRule owns an empty root because it blocks execution;
       // avoid also presenting the same condition as a weaker warning.
       if (node.id == sequence.rootNodeId && node.childIds.isEmpty) continue;
-      if (isContainerNode(node) && node.childIds.isEmpty) {
+      if (node.kind.isContainer && node.childIds.isEmpty) {
         issues.add(
           ValidationIssue(
             severity: ValidationSeverity.warning,

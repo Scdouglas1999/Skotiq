@@ -1,24 +1,8 @@
-/// One vocabulary for the sequence enum wire tokens.
-///
-/// A sequence is serialized by two independent codecs: the DB blob in
-/// `sequence_nodes.properties` (`sequence_repository/node_encoder` +
-/// `node_decoder`) and the sequence FILE format (`sequence_file_service/`,
-/// which is also what version snapshots, import/export and the remote
-/// `saveFullSequence`/`getFullSequence` carry). Both hand-rolled a converter
-/// per enum, and the two sets had already drifted in the fail-silent
-/// direction — the same field written with two different tokens, and an
-/// unrecognised token decoding to opposite recovery actions.
-///
-/// Encoding still emits each format's CURRENT bytes: changing them would
-/// strand every sequence already on disk. Decoding is one tolerant reader that
-/// accepts every historical spelling, so a document written by either side
-/// reads back the same on both.
-library;
+part of '../sequence_models.dart';
 
-import '../models/notification/notification_categories.dart'
-    show NotificationTransportKind;
-import '../models/sequence/sequence_models.dart'
-    show AutofocusMethod, RecoveryActionType;
+// Enum tokens shared by both node stores ([NodeStore]). Encoding emits each
+// store's historical bytes, since changing them would strand every sequence
+// already saved; decoding accepts every historical spelling.
 
 /// Resolve [raw] against the `name` of one of [values], case-insensitively.
 ///

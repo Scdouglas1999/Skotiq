@@ -1,6 +1,5 @@
 import '../models/sequence/sequence_models.dart';
 part 'sequence_diff_service/node_field_diff.dart';
-part 'sequence_diff_service/node_describe.dart';
 
 /// Structural diff between two [Sequence] snapshots.
 ///

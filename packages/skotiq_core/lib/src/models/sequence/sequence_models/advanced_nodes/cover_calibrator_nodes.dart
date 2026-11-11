@@ -18,16 +18,7 @@ class OpenCoverNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'OpenCover';
-
-  @override
-  String get iconName => 'door-open';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.coverCalibrator};
+  NodeKind<OpenCoverNode> get kind => NodeKinds.openCover;
 
   @override
   OpenCoverNode copyWith({
@@ -72,16 +63,7 @@ class CloseCoverNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'CloseCover';
-
-  @override
-  String get iconName => 'door-closed';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.coverCalibrator};
+  NodeKind<CloseCoverNode> get kind => NodeKinds.closeCover;
 
   @override
   CloseCoverNode copyWith({
@@ -128,16 +110,7 @@ class CalibratorOnNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'CalibratorOn';
-
-  @override
-  String get iconName => 'lightbulb';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.coverCalibrator};
+  NodeKind<CalibratorOnNode> get kind => NodeKinds.calibratorOn;
 
   @override
   CalibratorOnNode copyWith({
@@ -184,16 +157,7 @@ class CalibratorOffNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'CalibratorOff';
-
-  @override
-  String get iconName => 'lightbulb-off';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.coverCalibrator};
+  NodeKind<CalibratorOffNode> get kind => NodeKinds.calibratorOff;
 
   @override
   CalibratorOffNode copyWith({

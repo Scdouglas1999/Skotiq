@@ -7,27 +7,20 @@ import '../database/database.dart' as db;
 import '../database/daos/sequence_runs_dao.dart';
 import '../database/daos/sequence_versions_dao.dart';
 import '../database/daos/sequences_dao.dart';
-import '../models/imaging/imaging_models.dart' show FrameType;
 import '../providers/sequence/node_duration_provider.dart'
     show sequenceRollupSecs;
-import '../models/notification/notification_categories.dart'
-    show NotificationTransportKind;
 import '../models/sequence/sequence_models.dart';
 import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart';
 import '../providers/sequence_stats_provider.dart'
     show sequenceRunsDaoProvider, sequenceVersionsDaoProvider;
 import '../utils/json_validation.dart';
-import 'scheduler/horizon_profile.dart';
 import 'sequence_file_service.dart';
-import 'sequence_wire_codec.dart';
 import 'sequence_summary.dart';
 import '../backend/remote_host.dart';
 
 export 'sequence_summary.dart';
 
-part 'sequence_repository/node_decoder.dart';
-part 'sequence_repository/node_encoder.dart';
 
 /// Exact persisted sequence documents surrounding a recorded run.
 ///
@@ -786,106 +779,33 @@ class SequenceRepository {
     return loadSequence(newDbId);
   }
 
-  // Enum wire conversion for the DB `sequence_nodes.properties` blob.
-  //
-  // The tokens themselves live in `sequence_wire_codec.dart`, shared with the
-  // sequence FILE codec: these are the DB codec's bindings to that vocabulary,
-  // kept as members because the encoder/decoder parts call them unqualified.
-
-  String _binningToString(BinningMode mode) => mode.name;
-
-  BinningMode _stringToBinning(String? s) =>
-      enumFromWireOr(BinningMode.values, s, BinningMode.one);
-
-  FrameType _stringToFrameType(String? value) =>
-      enumFromWireOr(FrameType.values, value, FrameType.light);
-
-  String _autofocusMethodToString(AutofocusMethod method) => method.name;
-
-  AutofocusMethod _stringToAutofocusMethod(String? s) =>
-      autofocusMethodFromWire(s);
-
-  String _twilightToString(TwilightType type) => type.name;
-
-  TwilightType? _stringToTwilight(String? s) =>
-      enumFromWire(TwilightType.values, s);
-
-  String _notificationLevelToString(NotificationLevel level) => level.name;
-
-  NotificationLevel _stringToNotificationLevel(String? s) =>
-      enumFromWireOr(NotificationLevel.values, s, NotificationLevel.info);
-
-  List<NotificationTransportKind>? _parseExplicitTransports(dynamic raw) =>
-      explicitTransportsFromWire(raw);
-
-  String _loopConditionToString(LoopConditionType type) => type.name;
-
-  LoopConditionType _stringToLoopCondition(String? s) =>
-      enumFromWireOr(LoopConditionType.values, s, LoopConditionType.count);
-
-  String _conditionalTypeToString(ConditionalType type) => type.name;
-
-  ConditionalType _stringToConditionalType(String? s) =>
-      enumFromWireOr(ConditionalType.values, s, ConditionalType.always);
-
-  String _recoveryActionToString(RecoveryActionType action) =>
-      recoveryActionToDbWire(action);
-
-  RecoveryActionType _stringToRecoveryAction(String? s) =>
-      recoveryActionFromWire(s, fallback: RecoveryActionType.continueExecution);
-
-  MeridianTriggerMethod _stringToMeridianTriggerMethod(String? s) =>
-      enumFromWireOr(
-        MeridianTriggerMethod.values,
-        s,
-        MeridianTriggerMethod.minutesPastMeridian,
-      );
-
-  FlipFailureAction _stringToFlipFailureAction(String? s) => enumFromWireOr(
-    FlipFailureAction.values,
-    s,
-    FlipFailureAction.pauseAndAlert,
-  );
-
-  TriggerType? _stringToTriggerType(String? s) =>
-      enumFromWire(TriggerType.values, s);
-
-  DitherPattern _parseDitherPattern(Object? raw) =>
-      enumFromWireOr(DitherPattern.values, raw, DitherPattern.random);
-}
-
-BrightnessTierPreferences _parseBrightnessTierPreferences(Object? value) {
-  if (value is Map) {
-    return BrightnessTierPreferences.fromJson(value.cast<String, dynamic>());
-  }
-  return const BrightnessTierPreferences();
-}
-
-/// Persist a [TargetSchedulerNode]'s azimuth horizon mask as
-/// `{id?, name, samples:[{az,alt}]}`. `null` profile encodes to `null`.
-Map<String, dynamic>? _schedulerHorizonToJson(HorizonProfile? profile) {
-  if (profile == null) return null;
-  return {
-    if (profile.id != null) 'id': profile.id,
-    'name': profile.name,
-    'samples': profile.samples.map((s) => s.toJson()).toList(),
+  /// The persisted `sequence_nodes.properties` blob of [node]: its fields,
+  /// plus its comment when it has one.
+  Map<String, dynamic> _nodeToPropertiesWithComment(SequenceNode node) => {
+    ...node.kind.encodeFields(node, NodeStore.database),
+    if (node.comment != null && node.comment!.isNotEmpty)
+      'comment': node.comment,
   };
-}
 
-/// Inverse of [_schedulerHorizonToJson]. Tolerates a missing/empty samples
-/// list (returns `null` — flat altitude floor) so legacy saved nodes load.
-HorizonProfile? _schedulerHorizonFromJson(Object? raw) {
-  if (raw is! Map) return null;
-  final map = raw.cast<String, dynamic>();
-  final samplesRaw = map['samples'] as List<dynamic>? ?? const [];
-  if (samplesRaw.isEmpty) return null;
-  return HorizonProfile(
-    id: (map['id'] as num?)?.toInt(),
-    name: map['name'] as String? ?? 'Site horizon',
-    samples: samplesRaw
-        .map((e) => HorizonSample.fromJson((e as Map).cast<String, dynamic>()))
-        .toList(),
-  );
+  SequenceNode? _dbNodeToModel(db.SequenceNode dbNode) {
+    final kind = NodeKind.forDatabaseName(dbNode.specificType);
+    if (kind == null) return null;
+    final props = decodeJsonObjectString(
+      dbNode.properties,
+      context:
+          'sequence_nodes.properties for node ${dbNode.nodeId} (${dbNode.specificType})',
+    );
+    return kind
+        .decodeFields(props, NodeStore.database)
+        .copyWith(
+          id: dbNode.nodeId,
+          name: dbNode.name,
+          parentId: dbNode.parentNodeId,
+          orderIndex: dbNode.orderIndex,
+          isEnabled: dbNode.isEnabled,
+          comment: props['comment'] as String?,
+        );
+  }
 }
 
 /// Provider for the sequence repository

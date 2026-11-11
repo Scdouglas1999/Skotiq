@@ -3,7 +3,6 @@ import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../models/imaging/imaging_models.dart';
 import '../../models/sequence/active_plan_owner.dart';
 import '../../models/sequence/sequence_models.dart';
 import '../../models/sequence/template_snippet.dart';
@@ -12,7 +11,6 @@ import '../sequence_provider.dart' show sequenceExecutionStateProvider;
 import 'sequence_editor_exceptions.dart';
 import 'target_catalog_coordinate_sync.dart';
 import 'sequence_undo_batch.dart';
-import 'sequence_validation.dart' show isContainerNode;
 
 export 'sequence_editor_exceptions.dart';
 
