@@ -221,7 +221,7 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
     final rows = await query.get();
     final list = <Map<String, dynamic>>[];
     for (final row in rows) {
-      list.add(await _defectMapMetadataToJson(row));
+      list.add((await _defectMapToWire(row)).toJson());
     }
     return jsonOk({'defectMaps': list, 'count': list.length});
   }
@@ -251,7 +251,7 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
     }
 
     if (format == 'json') {
-      final meta = await _defectMapMetadataToJson(row);
+      final meta = (await _defectMapToWire(row)).toJson();
       return jsonOk({
         'defectMap': {...meta, 'bitmapBase64': base64Encode(row.bitmap)},
       });
@@ -349,7 +349,7 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
       action: HostMutationAction.created,
       extra: const {'namespace': 'defect-map'},
     );
-    return jsonCreated({'defectMap': await _defectMapMetadataToJson(row)});
+    return jsonCreated({'defectMap': (await _defectMapToWire(row)).toJson()});
   }
 
   /// POST /api/calibration/defect-maps/build
@@ -613,7 +613,7 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
         'storedOnDisk': status.storedOnDisk,
       },
       if (refreshed != null)
-        'defectMap': await _defectMapMetadataToJson(refreshed),
+        'defectMap': (await _defectMapToWire(refreshed)).toJson(),
     });
   }
 }

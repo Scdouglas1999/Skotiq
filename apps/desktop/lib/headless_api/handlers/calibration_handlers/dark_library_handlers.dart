@@ -315,7 +315,7 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
 
     final json = <Map<String, dynamic>>[];
     for (final entry in entries) {
-      json.add(await _darkEntryToWire(entry));
+      json.add((await _darkEntryToWire(entry)).toJson());
     }
     return jsonOk({'darks': json, 'count': json.length});
   }
@@ -330,7 +330,7 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
         'message': 'No dark library entry with id $iid',
       });
     }
-    return jsonOk({'dark': await _darkEntryToWire(entry)});
+    return jsonOk({'dark': (await _darkEntryToWire(entry)).toJson()});
   }
 
   /// POST /api/calibration/darks  — register an existing file by path.
@@ -393,7 +393,7 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
         message: 'Failed to read back newly-created dark library entry',
       );
     }
-    return jsonCreated({'dark': await _darkEntryToWire(entry)});
+    return jsonCreated({'dark': (await _darkEntryToWire(entry)).toJson()});
   }
 
   /// POST /api/calibration/darks/upload — multipart-ish (FITS body + JSON
@@ -555,7 +555,7 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
       );
     }
     return jsonCreated({
-      'dark': await _darkEntryToWire(entry),
+      'dark': (await _darkEntryToWire(entry)).toJson(),
       'bytesWritten': bytesWritten,
     });
   }
@@ -679,7 +679,7 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
             'No dark library entry matches the requested capture parameters',
       });
     }
-    return jsonOk({'dark': await _darkEntryToWire(match)});
+    return jsonOk({'dark': (await _darkEntryToWire(match)).toJson()});
   }
 
   /// POST /api/calibration/match-dark

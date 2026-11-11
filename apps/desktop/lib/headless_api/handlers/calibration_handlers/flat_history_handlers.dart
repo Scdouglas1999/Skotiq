@@ -19,7 +19,9 @@ extension CalibrationFlatHistoryHandlers on CalibrationHandlers {
       limit: limit,
     );
 
-    final json = entries.map(_flatEntryToJson).toList(growable: false);
+    final json = entries
+        .map((entry) => _flatEntryToWire(entry).toJson())
+        .toList(growable: false);
     return jsonOk({'flats': json, 'count': json.length});
   }
 
@@ -33,7 +35,7 @@ extension CalibrationFlatHistoryHandlers on CalibrationHandlers {
         'message': 'No flat history entry with id $iid',
       });
     }
-    return jsonOk({'flat': _flatEntryToJson(entry)});
+    return jsonOk({'flat': _flatEntryToWire(entry).toJson()});
   }
 
   /// POST /api/calibration/flats
@@ -78,7 +80,7 @@ extension CalibrationFlatHistoryHandlers on CalibrationHandlers {
         message: 'Failed to read back newly-recorded flat history entry',
       );
     }
-    return jsonCreated({'flat': _flatEntryToJson(entry)});
+    return jsonCreated({'flat': _flatEntryToWire(entry).toJson()});
   }
 
   /// DELETE /api/calibration/flats/{id}
@@ -125,14 +127,12 @@ extension CalibrationFlatHistoryHandlers on CalibrationHandlers {
         ? 'high'
         : (ageDays <= 30 ? 'medium' : 'low');
     return jsonOk({
-      'recommended': {
-        'exposureDuration': entry.exposureTime,
-        'basedOn': {
-          'flatId': entry.id,
-          'ageDays': ageDays,
-          'confidence': confidence,
-        },
-      },
+      'recommended': RemoteFlatRecommendation(
+        exposureDuration: entry.exposureTime,
+        basedOnFlatId: entry.id,
+        ageDays: ageDays,
+        confidence: confidence,
+      ).toJson(),
     });
   }
 }

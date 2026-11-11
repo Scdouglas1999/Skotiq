@@ -4,7 +4,7 @@ import 'package:skotiq_astro/format.dart';
 
 import '../../../database/database.dart' show DarkLibraryEntry, Target;
 import '../../../models/backend/device_types.dart';
-import '../../../models/calibration/remote_calibration_models.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart';
 import '../../../models/equipment/equipment_models.dart';
 import '../../../models/imaging/imaging_models.dart' show FrameType;
 import '../../../models/sequence/sequence_models.dart';

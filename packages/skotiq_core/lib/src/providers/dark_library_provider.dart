@@ -9,7 +9,7 @@ import '../database/daos/dark_library_dao.dart';
 import '../database/daos/settings_dao.dart';
 import '../database/database.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
-import '../models/calibration/remote_calibration_models.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart';
 import '../services/calibration_master_builder.dart';
 import '../services/calibration_service.dart';
 import '../services/dark_library_service.dart';
@@ -479,7 +479,9 @@ class DarkLibraryNotifier extends StateNotifier<DarkLibraryUiState> {
             : 'Master dark created.',
       );
     } catch (e) {
-      _finishMutation(error: 'Failed to create master dark: ${userFacingError(e)}');
+      _finishMutation(
+        error: 'Failed to create master dark: ${userFacingError(e)}',
+      );
     }
   }
 
@@ -592,7 +594,9 @@ class DarkLibraryNotifier extends StateNotifier<DarkLibraryUiState> {
       return removed;
     } catch (error) {
       if (!mounted) rethrow;
-      _finishMutation(error: 'Failed to delete group: ${userFacingError(error)}');
+      _finishMutation(
+        error: 'Failed to delete group: ${userFacingError(error)}',
+      );
       rethrow;
     }
   }
