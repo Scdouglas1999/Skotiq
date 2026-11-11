@@ -10,7 +10,6 @@
 
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_updater/skotiq_updater.dart';
@@ -169,12 +168,3 @@ Future<String> getOrCreatePushSecret(
   return secret;
 }
 
-/// Random 32-byte hex string. Used by the GUI bootstrap for the
-/// persistent bearer token (kept here so future refactors that need a
-/// matching helper for, say, an update-side signing key have one place
-/// to add it).
-String generateRandomHex(int byteCount) {
-  final rng = Random.secure();
-  final bytes = List<int>.generate(byteCount, (_) => rng.nextInt(256));
-  return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-}
