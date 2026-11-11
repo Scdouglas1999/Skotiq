@@ -37,4 +37,9 @@ pub enum DriverError {
 
     #[error("Unknown error: {0}")]
     Unknown(String),
+
+    /// A failure in the words of the protocol client or layer that produced
+    /// it. Callers that know that layer's error type can downcast it.
+    #[error(transparent)]
+    Backend(Box<dyn std::error::Error + Send + Sync>),
 }

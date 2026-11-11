@@ -212,3 +212,96 @@ fn is_internal_switch_property(name: &str) -> bool {
         || name.starts_with("ROTATOR_")
     // These prefixes belong to other device type interfaces, not switch-specific functionality
 }
+
+indi_accessory!(IndiSwitchDevice);
+
+impl IndiSwitchDevice {
+    /// The `index`th switch element, counting every switch property in order.
+    async fn switch_at(&self, index: i32) -> Result<IndiSwitchInfo, skotiq_device::DriverError> {
+        let switches = self.get_all_switches().await;
+        let count = switches.len();
+        usize::try_from(index)
+            .ok()
+            .and_then(|i| switches.into_iter().nth(i))
+            .ok_or_else(|| {
+                skotiq_device::DriverError::Backend(
+                    format!(
+                        "Switch index {} out of range (device has {} switches)",
+                        index, count
+                    )
+                    .into(),
+                )
+            })
+    }
+
+    async fn writable_switch_at(
+        &self,
+        index: i32,
+    ) -> Result<IndiSwitchInfo, skotiq_device::DriverError> {
+        let switch = self.switch_at(index).await?;
+        if !switch.writable {
+            return Err(crate::IndiError::PermissionDenied(format!(
+                "INDI switch '{}' / '{}' is read-only",
+                switch.property_name, switch.element_name
+            ))
+            .into());
+        }
+        Ok(switch)
+    }
+}
+
+#[async_trait::async_trait]
+impl skotiq_device::SwitchDriver for IndiSwitchDevice {
+    async fn count(&self) -> Result<i32, skotiq_device::DriverError> {
+        Ok(i32::try_from(self.get_all_switches().await.len()).unwrap_or(i32::MAX))
+    }
+
+    async fn switch_name(&self, index: i32) -> Result<String, skotiq_device::DriverError> {
+        Ok(self.switch_at(index).await?.element_name)
+    }
+
+    async fn switch_description(&self, index: i32) -> Result<String, skotiq_device::DriverError> {
+        let switch = self.switch_at(index).await?;
+        Ok(format!("{} / {}", switch.property_name, switch.label))
+    }
+
+    async fn can_write(&self, index: i32) -> Result<bool, skotiq_device::DriverError> {
+        Ok(self.switch_at(index).await?.writable)
+    }
+
+    async fn state(&self, index: i32) -> Result<bool, skotiq_device::DriverError> {
+        Ok(self.switch_at(index).await?.state)
+    }
+
+    async fn set_state(&self, index: i32, on: bool) -> Result<(), skotiq_device::DriverError> {
+        let switch = self.writable_switch_at(index).await?;
+        Ok(self
+            .set_switch_state(&switch.property_name, &switch.element_name, on)
+            .await?)
+    }
+
+    /// A switch without a numeric value reads 1.0 when on and 0.0 when off.
+    async fn value(&self, index: i32) -> Result<f64, skotiq_device::DriverError> {
+        let switch = self.switch_at(index).await?;
+        Ok(self
+            .get_switch_value(&switch.property_name, &switch.element_name)
+            .await
+            .unwrap_or(if switch.state { 1.0 } else { 0.0 }))
+    }
+
+    async fn set_value(&self, index: i32, value: f64) -> Result<(), skotiq_device::DriverError> {
+        let switch = self.writable_switch_at(index).await?;
+        Ok(self
+            .set_switch_value(&switch.property_name, &switch.element_name, value)
+            .await?)
+    }
+
+    /// INDI switches are on/off, so their range is 0 to 1.
+    async fn min_value(&self, _index: i32) -> Result<f64, skotiq_device::DriverError> {
+        Ok(0.0)
+    }
+
+    async fn max_value(&self, _index: i32) -> Result<f64, skotiq_device::DriverError> {
+        Ok(1.0)
+    }
+}

@@ -39,6 +39,38 @@
 //! - Protocol version negotiation support (1.7, 1.8, 1.9)
 //! - Exponential backoff with jitter for reconnection
 
+/// The accessory lifecycle for an INDI device wrapper with `client` and
+/// `device_name` fields. The bridge checks INDI devices through the shared
+/// server connection rather than this heartbeat, because that check also
+/// recovers the connection.
+macro_rules! indi_accessory {
+    ($device:ty) => {
+        #[async_trait::async_trait]
+        impl skotiq_device::AccessoryDriver for $device {
+            async fn disconnect(&self) -> Result<(), skotiq_device::DriverError> {
+                let mut client = self.client.write().await;
+                client.disconnect_device(&self.device_name).await?;
+                client
+                    .wait_until_device_disconnected(
+                        &self.device_name,
+                        std::time::Duration::from_secs(5),
+                    )
+                    .await?;
+                Ok(())
+            }
+
+            async fn heartbeat(&self) -> Result<(), skotiq_device::DriverError> {
+                let client = self.client.read().await;
+                if client.is_device_connected(&self.device_name).await {
+                    Ok(())
+                } else {
+                    Err(skotiq_device::DriverError::NotConnected)
+                }
+            }
+        }
+    };
+}
+
 mod camera;
 mod client;
 mod covercalibrator;

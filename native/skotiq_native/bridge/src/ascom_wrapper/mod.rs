@@ -5,6 +5,7 @@
 //! the per-file module-level docs for the as-cast / unwrap_or policy
 //! that applies to that interface.
 
+mod accessory;
 pub mod camera;
 pub mod covercalibrator;
 pub mod dome;

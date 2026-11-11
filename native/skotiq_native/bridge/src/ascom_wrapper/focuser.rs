@@ -34,10 +34,6 @@ enum AscomFocuserCommand {
     /// STA round-trip on the live COM object.
     GetCapabilityReadings(oneshot::Sender<Result<AscomFocuserReadings, String>>),
     // Version query commands
-    GetInterfaceVersion(oneshot::Sender<Result<i32, String>>),
-    GetDriverVersion(oneshot::Sender<Result<String, String>>),
-    GetDriverInfo(oneshot::Sender<Result<String, String>>),
-    GetSupportedActions(oneshot::Sender<Result<Vec<String>, String>>),
 }
 
 pub struct AscomFocuserWrapper {
@@ -199,18 +195,6 @@ impl AscomFocuserWrapper {
                             position: live.position,
                             is_moving: live.is_moving,
                         }));
-                    }
-                    AscomFocuserCommand::GetInterfaceVersion(reply) => {
-                        let _ = reply.send(focuser.interface_version().map_err(|e| e.to_string()));
-                    }
-                    AscomFocuserCommand::GetDriverVersion(reply) => {
-                        let _ = reply.send(focuser.driver_version().map_err(|e| e.to_string()));
-                    }
-                    AscomFocuserCommand::GetDriverInfo(reply) => {
-                        let _ = reply.send(focuser.driver_info().map_err(|e| e.to_string()));
-                    }
-                    AscomFocuserCommand::GetSupportedActions(reply) => {
-                        let _ = reply.send(focuser.supported_actions().map_err(|e| e.to_string()));
                     }
                 }
                 PumpOutcome::DidWork
@@ -447,46 +431,6 @@ impl AscomFocuserWrapper {
             .await
             .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "is_absolute").await
-    }
-
-    /// Get the ASCOM interface version number
-    pub async fn interface_version(&self) -> Result<i32, DriverError> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomFocuserCommand::GetInterfaceVersion(tx))
-            .await
-            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "interface_version").await
-    }
-
-    /// Get the driver version string
-    pub async fn driver_version(&self) -> Result<String, DriverError> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomFocuserCommand::GetDriverVersion(tx))
-            .await
-            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_version").await
-    }
-
-    /// Get the driver info/description
-    pub async fn driver_info(&self) -> Result<String, DriverError> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomFocuserCommand::GetDriverInfo(tx))
-            .await
-            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_info").await
-    }
-
-    /// Get the list of supported actions
-    pub async fn supported_actions(&self) -> Result<Vec<String>, DriverError> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomFocuserCommand::GetSupportedActions(tx))
-            .await
-            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "supported_actions").await
     }
 }
 

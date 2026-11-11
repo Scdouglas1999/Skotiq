@@ -392,6 +392,175 @@ impl IndiDome {
     }
 }
 
+indi_accessory!(IndiDome);
+
+/// The shutter as the driver's `DOME_SHUTTER` switches and their busy state
+/// show it; `None` when they do not say.
+async fn shutter_from_switches(
+    client: &IndiClient,
+    device_name: &str,
+) -> (
+    Option<skotiq_device::ascom::ShutterStatus>,
+    Option<bool>,
+    Option<bool>,
+    bool,
+) {
+    use skotiq_device::ascom::ShutterStatus;
+    let open = client
+        .get_switch(device_name, "DOME_SHUTTER", "SHUTTER_OPEN")
+        .await;
+    let close = client
+        .get_switch(device_name, "DOME_SHUTTER", "SHUTTER_CLOSE")
+        .await;
+    let busy = client.is_property_busy(device_name, "DOME_SHUTTER").await;
+    let status = match (open, close, busy) {
+        (Some(true), Some(false), true) => Some(ShutterStatus::Opening),
+        (Some(false), Some(true), true) => Some(ShutterStatus::Closing),
+        (Some(true), Some(false), false) => Some(ShutterStatus::Open),
+        (Some(false), Some(true), false) => Some(ShutterStatus::Closed),
+        _ => None,
+    };
+    (status, open, close, busy)
+}
+
+#[async_trait::async_trait]
+impl skotiq_device::DomeDriver for IndiDome {
+    async fn open_shutter(&self) -> Result<(), skotiq_device::DriverError> {
+        let mut client = self.client.write().await;
+        Ok(client
+            .set_switch(&self.device_name, "DOME_SHUTTER", "SHUTTER_OPEN", true)
+            .await?)
+    }
+
+    async fn close_shutter(&self) -> Result<(), skotiq_device::DriverError> {
+        let mut client = self.client.write().await;
+        Ok(client
+            .set_switch(&self.device_name, "DOME_SHUTTER", "SHUTTER_CLOSE", true)
+            .await?)
+    }
+
+    /// A shutter whose switches do not say is reported as `Error`.
+    async fn shutter_status(
+        &self,
+    ) -> Result<skotiq_device::ascom::ShutterStatus, skotiq_device::DriverError> {
+        let client = self.client.read().await;
+        let (status, ..) = shutter_from_switches(&client, &self.device_name).await;
+        Ok(status.unwrap_or(skotiq_device::ascom::ShutterStatus::Error))
+    }
+
+    /// INDI domes boot parked and ignore a slew until unparked, so a parked
+    /// dome is unparked first.
+    async fn slew_to_azimuth(&self, azimuth_deg: f64) -> Result<(), skotiq_device::DriverError> {
+        let mut client = self.client.write().await;
+        let parked = client
+            .get_switch(&self.device_name, "DOME_PARK", "PARK")
+            .await
+            .unwrap_or(false);
+        if parked {
+            let _ = client
+                .set_switch(&self.device_name, "DOME_PARK", "UNPARK", true)
+                .await;
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
+        client
+            .set_number(
+                &self.device_name,
+                "ABS_DOME_POSITION",
+                "DOME_ABSOLUTE_POSITION",
+                azimuth_deg,
+            )
+            .await
+            .map_err(|e| {
+                skotiq_device::DriverError::Backend(
+                    format!(
+                        "Failed to slew INDI dome {} to azimuth {:.2}: {}",
+                        self.device_name, azimuth_deg, e
+                    )
+                    .into(),
+                )
+            })
+    }
+
+    async fn abort_slew(&self) -> Result<(), skotiq_device::DriverError> {
+        let mut client = self.client.write().await;
+        Ok(client
+            .set_switch(&self.device_name, "DOME_ABORT_MOTION", "ABORT", true)
+            .await?)
+    }
+
+    async fn park(&self) -> Result<(), skotiq_device::DriverError> {
+        let mut client = self.client.write().await;
+        Ok(client
+            .set_switch(&self.device_name, "DOME_PARK", "PARK", true)
+            .await?)
+    }
+
+    async fn find_home(&self) -> Result<(), skotiq_device::DriverError> {
+        let mut client = self.client.write().await;
+        Ok(client
+            .set_switch(&self.device_name, "DOME_GOTO", "DOME_HOME", true)
+            .await?)
+    }
+
+    async fn set_slaved(&self, slaved: bool) -> Result<(), skotiq_device::DriverError> {
+        let element = if slaved {
+            "DOME_AUTOSYNC_ENABLE"
+        } else {
+            "DOME_AUTOSYNC_DISABLE"
+        };
+        let mut client = self.client.write().await;
+        Ok(client
+            .set_switch(&self.device_name, "DOME_AUTOSYNC", element, true)
+            .await?)
+    }
+
+    async fn status(&self) -> Result<skotiq_device::DomeState, skotiq_device::DriverError> {
+        let client = self.client.read().await;
+        let name = &self.device_name;
+        let azimuth = client
+            .get_number(name, "ABS_DOME_POSITION", "DOME_ABSOLUTE_POSITION")
+            .await
+            .ok_or_else(|| {
+                skotiq_device::DriverError::Backend(
+                    format!("Failed to read INDI dome azimuth for {}", name).into(),
+                )
+            })?;
+        let (shutter, open, close, shutter_busy) = shutter_from_switches(&client, name).await;
+        let azimuth_busy = client.is_property_busy(name, "ABS_DOME_POSITION").await;
+        let at_home = client
+            .get_switch(name, "DOME_GOTO", "DOME_HOME")
+            .await
+            .unwrap_or(false);
+        let at_park = client
+            .get_switch(name, "DOME_PARK", "PARK")
+            .await
+            .unwrap_or(false)
+            || client
+                .get_switch(name, "DOME_GOTO", "DOME_PARK")
+                .await
+                .unwrap_or(false);
+        let autosync_enable = client
+            .get_switch(name, "DOME_AUTOSYNC", "DOME_AUTOSYNC_ENABLE")
+            .await;
+        let autosync_disable = client
+            .get_switch(name, "DOME_AUTOSYNC", "DOME_AUTOSYNC_DISABLE")
+            .await;
+        Ok(skotiq_device::DomeState {
+            azimuth,
+            altitude: None,
+            shutter,
+            slewing: azimuth_busy || shutter_busy,
+            at_home,
+            at_park,
+            can_set_altitude: false,
+            can_set_azimuth: true,
+            can_set_shutter: open.is_some() || close.is_some(),
+            can_slave: autosync_enable.is_some() || autosync_disable.is_some(),
+            slaved: autosync_enable.unwrap_or(false),
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

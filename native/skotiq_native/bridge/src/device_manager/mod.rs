@@ -1,36 +1,24 @@
-//! Device Manager with connection state management and auto-reconnection
+//! The device registry and the per-device state that goes with it.
 //!
-//! Provides a unified interface for managing device connections across
-//! different driver backends (ASCOM, Alpaca, INDI, Native vendor SDKs).
-//!
-//! This module is the residual shell: it holds the `DeviceManager` and
-//! `ManagedDevice` struct definitions, configuration types, constructors, and
-//! lightweight query helpers (`get_all_devices`, `get_devices_by_type`,
-//! `get_device`, `is_connected`). Heavier method groups live in sibling
-//! submodules using Rust's split-impl-block feature:
-//!
-//! - `connection` — `register_device`, `connect_device`, `disconnect_device`,
-//!   `reconnection_loop`, `set_auto_reconnect`, `report_error`, `shutdown`,
-//!   `unregister_device`.
-//! - `api_version` — cached `DeviceApiVersion` access + `query_*` dispatch +
-//!   `device_supports_*` predicates.
-//! - Per-driver `connect_*` and `query_*_api_version` helpers live in
-//!   `crate::dispatch::{ascom,alpaca,indi,native}`.
+//! `DeviceManager` is split over sibling modules: `connection` (register,
+//! connect, disconnect, reconnect), `heartbeat`, and `ops/*` (one module per
+//! device type). The per-protocol connect and health-check helpers live in
+//! `crate::dispatch`.
 
-pub(crate) mod api_version;
 pub(crate) mod connection;
 pub(crate) mod epoch;
+pub(crate) mod handle;
 pub(crate) mod heartbeat;
 pub mod identity;
 pub(crate) mod motion_guard;
 pub(crate) mod ops;
+pub(crate) mod policy;
 pub(crate) mod read_health;
+pub(crate) mod simulated;
 
 use crate::device::*;
 use crate::state::SharedAppState;
 use skotiq_device::{CameraDriver, DeviceDriver, FilterWheelDriver, FocuserDriver, MountDriver};
-// Vendor SDK imports moved to crate::dispatch::native (the only consumer of
-// the camera/mount/filter wheel/focuser constructors).
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -50,290 +38,24 @@ pub struct ReconnectConfig {
     pub backoff_multiplier: f64,
 }
 
-/// Configuration for heartbeat monitoring (per device type)
+/// How a device's heartbeat is run; one value per device type in
+/// [`policy::policy`].
 #[derive(Debug, Clone, Copy)]
-#[flutter_rust_bridge::frb]
 pub struct HeartbeatConfig {
-    /// Base interval between heartbeats in seconds (default: 10)
+    /// Seconds between heartbeats while the device answers.
     pub base_interval_secs: u64,
-    /// Maximum interval (after backoff) in seconds (default: 60)
+    /// Longest interval the backoff grows to, in seconds.
     pub max_interval_secs: u64,
-    /// Number of consecutive failures before marking device disconnected (default: 3)
+    /// Consecutive failed heartbeats before the device counts as lost.
     pub failure_threshold: u32,
-    /// Backoff multiplier when failures occur (default: 2.0)
+    /// Interval growth per failed heartbeat; 1.0 keeps a fixed cadence.
     pub backoff_multiplier: f64,
-    /// Whether to attempt automatic reconnection after disconnect (default: false)
+    /// Whether a lost device is handed to the reconnection loop.
     pub auto_reconnect: bool,
-    /// Maximum number of reconnection attempts (0 = unlimited, default: 3)
-    pub max_reconnect_attempts: u32,
-    /// Delay before first reconnection attempt in seconds (default: 5)
-    pub reconnect_delay_secs: u64,
     /// Whether crossing `failure_threshold` tears the device down (disconnect
-    /// + reconnection loop) or merely latches a `Degraded` "stale" status while
-    /// keeping the device connected and monitored.
-    ///
-    /// `true` where liveness is itself a signal the run depends on: a dead
-    /// camera stalls every frame, a dead mount drifts off target or slews into
-    /// the pier, and a dead accessory left registered as Connected is worse than
-    /// one being reconnected — escalating hands the device to the auto-reconnect
-    /// and recovery machinery. Slow, USB-contention-prone auxiliaries reach that
-    /// point later, through higher failure thresholds, a per-poll retry and
-    /// suppression during camera USB contention.
-    ///
-    /// `false` only where another path already carries the real signal: safety
-    /// monitors read `IsSafe` on their own fail-closed paths, so a missed
-    /// liveness ping earns a stale badge and nothing more.
-    ///
-    /// Defaults to `true`, so a device type that does not explicitly opt out
-    /// escalates rather than staying registered as Connected while dead.
+    /// and reconnection loop) or only latches a `Degraded` "stale" status
+    /// while the device stays connected and monitored.
     pub escalate_to_disconnect: bool,
-}
-
-impl Default for HeartbeatConfig {
-    fn default() -> Self {
-        Self {
-            base_interval_secs: 10,
-            max_interval_secs: 60,
-            failure_threshold: 3,
-            // Default to fixed cadence; device-specific constructors may
-            // select exponential backoff when that better fits the hardware.
-            backoff_multiplier: 1.0,
-            auto_reconnect: false,
-            max_reconnect_attempts: 3,
-            reconnect_delay_secs: 5,
-            escalate_to_disconnect: true,
-        }
-    }
-}
-
-impl HeartbeatConfig {
-    /// Camera liveness checks keep a fixed cadence after failures.
-    pub fn for_camera() -> Self {
-        Self {
-            base_interval_secs: 10,
-            max_interval_secs: 60,
-            failure_threshold: 3,
-            // Three failed polls already debounce transient errors; backing off
-            // adds another 40 seconds before confirming a lost camera.
-            backoff_multiplier: 1.0,
-            auto_reconnect: false,
-            max_reconnect_attempts: 3,
-            reconnect_delay_secs: 10,
-            // Liveness genuinely matters: a dead camera stalls every frame, so
-            // a sustained heartbeat loss should escalate to disconnect/recovery.
-            escalate_to_disconnect: true,
-        }
-    }
-
-    /// Create config optimized for mounts (frequent for tracking status)
-    pub fn for_mount() -> Self {
-        Self {
-            base_interval_secs: 5,
-            max_interval_secs: 30,
-            // One transient timeout pair must not drop a tracking mount: the
-            // ASCOM probe shares a process-wide STA worker thread, so a slow
-            // driver call can starve a single get_tracking() round-trip. The
-            // sequencer's own slew/sync calls surface a genuinely dead mount
-            // sooner than the heartbeat anyway.
-            failure_threshold: 3,
-            backoff_multiplier: 1.5,
-            auto_reconnect: true, // Mounts should auto-reconnect to maintain tracking
-            max_reconnect_attempts: 5,
-            reconnect_delay_secs: 3,
-            // Liveness genuinely matters: a dead mount drifts off target and can
-            // slew into the pier, so escalate to disconnect/recovery on loss.
-            escalate_to_disconnect: true,
-        }
-    }
-
-    /// Create config optimized for focusers (relatively stable)
-    pub fn for_focuser() -> Self {
-        Self {
-            base_interval_secs: 15,
-            max_interval_secs: 60,
-            // Why: tolerate transient single-client USB contention (e.g. NINA
-            // briefly holding the focuser). Each poll is also retried once.
-            failure_threshold: 5,
-            // Five consecutive, double-probed misses already provide strong
-            // debounce. Keep polling at a fixed cadence so a genuinely dead
-            // focuser is recovered in ~75s instead of several minutes.
-            backoff_multiplier: 1.0,
-            auto_reconnect: false,
-            max_reconnect_attempts: 2,
-            reconnect_delay_secs: 5,
-            // Per-poll retry + camera-contention suppression handle transient
-            // misses. Five sustained failures mean the registry must demote
-            // the device so the Dart reconnect owner can recover it.
-            escalate_to_disconnect: true,
-        }
-    }
-
-    /// Create config optimized for filter wheels (rarely polled)
-    pub fn for_filter_wheel() -> Self {
-        Self {
-            base_interval_secs: 20,
-            max_interval_secs: 120,
-            // Why: tolerate transient single-client USB contention (e.g. NINA
-            // briefly holding the filter wheel). Each poll is retried once.
-            failure_threshold: 5,
-            // Fixed cadence recovers a genuinely lost wheel in ~100s while
-            // retaining five consecutive double-probed misses as debounce.
-            backoff_multiplier: 1.0,
-            auto_reconnect: false,
-            max_reconnect_attempts: 2,
-            reconnect_delay_secs: 5,
-            // Do not leave an unresponsive wheel in the connected inventory
-            // indefinitely; sustained failures trigger Dart-owned reconnect.
-            escalate_to_disconnect: true,
-        }
-    }
-
-    /// Create config optimized for domes (slow operations, need patience)
-    pub fn for_dome() -> Self {
-        Self {
-            base_interval_secs: 15,
-            max_interval_secs: 90,
-            failure_threshold: 4,
-            backoff_multiplier: 2.0,
-            auto_reconnect: true, // Domes should auto-reconnect for safety
-            max_reconnect_attempts: 5,
-            reconnect_delay_secs: 10,
-            // Domes are a safety-relevant enclosure (rain/roof): keep today's
-            // escalate-on-loss behavior so recovery runs.
-            escalate_to_disconnect: true,
-        }
-    }
-
-    /// Create config optimized for rotators
-    pub fn for_rotator() -> Self {
-        Self {
-            base_interval_secs: 15,
-            max_interval_secs: 60,
-            // Why: tolerate transient single-client USB contention (e.g. NINA
-            // briefly holding the rotator). Each poll is retried once.
-            failure_threshold: 5,
-            backoff_multiplier: 1.0,
-            auto_reconnect: false,
-            max_reconnect_attempts: 2,
-            reconnect_delay_secs: 5,
-            // Sustained failures must demote stale registry state so the Dart
-            // reconnect owner can restore the rotator.
-            escalate_to_disconnect: true,
-        }
-    }
-
-    /// Create config optimized for weather stations (infrequent updates acceptable)
-    pub fn for_weather() -> Self {
-        Self {
-            base_interval_secs: 30,
-            max_interval_secs: 180,
-            failure_threshold: 5,
-            backoff_multiplier: 2.0,
-            auto_reconnect: true, // Weather monitoring should auto-reconnect
-            max_reconnect_attempts: 10,
-            reconnect_delay_secs: 15,
-            // Safety-relevant (clouds/rain): keep escalate-on-loss so recovery
-            // runs and the session can react.
-            escalate_to_disconnect: true,
-        }
-    }
-
-    /// Create config for safety monitors.
-    ///
-    /// IMPORTANT: this heartbeat is only a LIVENESS ping. A SafetyMonitor's
-    /// actual safety signal (`IsSafe`) is read on its OWN paths — the Dart
-    /// environment poll and, during a run, the sequencer's fail-closed safety
-    /// check — NOT via this heartbeat.
-    ///
-    /// So liveness is treated like the focuser/filter-wheel/rotator: latch a
-    /// Degraded "stale" badge and KEEP monitoring, never tear the device down
-    /// on a missed ping. On an aggressive escalate-to-disconnect config a flaky
-    /// network hub missing the occasional ping drives an endless
-    /// disconnect -> error -> reconnect cycle, each iteration emitting fresh
-    /// error toasts. Genuine loss of safety is still caught by the real
-    /// `IsSafe` read, which fails closed during a run.
-    pub fn for_safety_monitor() -> Self {
-        Self {
-            base_interval_secs: 15,
-            max_interval_secs: 60,
-            failure_threshold: 4,
-            backoff_multiplier: 2.0,
-            auto_reconnect: false,
-            max_reconnect_attempts: 2,
-            reconnect_delay_secs: 10,
-            escalate_to_disconnect: false,
-        }
-    }
-
-    /// Create config optimized for guiders (critical during active guiding)
-    pub fn for_guider() -> Self {
-        Self {
-            base_interval_secs: 5,
-            max_interval_secs: 30,
-            failure_threshold: 2,
-            backoff_multiplier: 1.5,
-            auto_reconnect: true,
-            max_reconnect_attempts: 5,
-            reconnect_delay_secs: 3,
-            // Guiding liveness is critical during an exposure: escalate on loss
-            // so recovery runs rather than silently letting guiding lapse.
-            escalate_to_disconnect: true,
-        }
-    }
-
-    /// Create config optimized for switch devices (slow-changing power/relay state)
-    pub fn for_switch() -> Self {
-        Self {
-            base_interval_secs: 20,
-            max_interval_secs: 120,
-            // Why: tolerate transient single-client USB contention (e.g. NINA
-            // briefly holding the switch); with 2.0 backoff + 20s base, 5
-            // failures is well over a minute of genuine unresponsiveness.
-            failure_threshold: 5,
-            backoff_multiplier: 2.0,
-            auto_reconnect: false,
-            max_reconnect_attempts: 2,
-            reconnect_delay_secs: 5,
-            // A switch often controls rig power (dew heaters, the mount's own
-            // supply). Keep escalate-on-loss so a genuinely-gone power controller
-            // surfaces loudly rather than silently latching "stale". The raised
-            // failure_threshold already absorbs transient USB contention.
-            escalate_to_disconnect: true,
-        }
-    }
-
-    /// Create config optimized for cover calibrators (session-safety accessory)
-    pub fn for_cover_calibrator() -> Self {
-        Self {
-            base_interval_secs: 10,
-            max_interval_secs: 60,
-            failure_threshold: 3,
-            backoff_multiplier: 2.0,
-            auto_reconnect: true,
-            max_reconnect_attempts: 5,
-            reconnect_delay_secs: 5,
-            // Session-safety accessory (flat panel / dust cover): keep
-            // escalate-on-loss so recovery runs.
-            escalate_to_disconnect: true,
-        }
-    }
-
-    /// Get configuration for a specific device type
-    pub fn for_device_type(device_type: &DeviceType) -> Self {
-        match device_type {
-            DeviceType::Camera => Self::for_camera(),
-            DeviceType::Mount => Self::for_mount(),
-            DeviceType::Focuser => Self::for_focuser(),
-            DeviceType::FilterWheel => Self::for_filter_wheel(),
-            DeviceType::Dome => Self::for_dome(),
-            DeviceType::Rotator => Self::for_rotator(),
-            DeviceType::Weather => Self::for_weather(),
-            DeviceType::SafetyMonitor => Self::for_safety_monitor(),
-            DeviceType::Guider => Self::for_guider(),
-            DeviceType::Switch => Self::for_switch(),
-            DeviceType::CoverCalibrator => Self::for_cover_calibrator(),
-        }
-    }
 }
 
 impl Default for ReconnectConfig {
@@ -347,8 +69,6 @@ impl Default for ReconnectConfig {
         }
     }
 }
-
-// INDI device-type inference helpers were moved to `crate::dispatch::indi`.
 
 /// State of a managed device
 #[derive(Debug, Clone)]
@@ -367,8 +87,6 @@ pub struct ManagedDevice {
     pub heartbeat_deferred_at: Option<i64>,
     /// Whether heartbeat monitoring is active
     pub heartbeat_active: bool,
-    /// Cached API version information for the device
-    pub api_version: Option<DeviceApiVersion>,
     /// Last commanded camera cooler state `(enabled, target_temp_c)`, recorded
     /// whenever `camera_set_cooler` succeeds. Re-applied after an unplanned
     /// reconnect so a USB yank mid-run does not silently leave the sensor
@@ -414,16 +132,13 @@ pub struct DeviceManager {
     /// Flag to stop the reconnection task
     stop_reconnect: Arc<RwLock<bool>>,
 
+    /// The connected devices that have a handle (the accessory types).
+    pub(crate) handles: handle::Handles,
+
     /// Active native device instances
-    // Visibility bumped to pub(crate) so dispatch/native.rs can insert connected
-    // generic DeviceDriver handles without an extra accessor layer.
     pub(crate) native_devices: RwLock<HashMap<String, Box<dyn DeviceDriver>>>,
 
-    /// Active ASCOM camera wrappers (for typed access, wrapped in RwLock for interior mutability)
-    #[cfg(windows)]
-    /// Active ASCOM camera wrappers (for typed access, wrapped in RwLock for interior mutability)
-    // Visibility bumped to pub(crate) so dispatch/ascom.rs can manage the typed
-    // wrappers directly during connect / query / health-check paths.
+    /// Active ASCOM camera wrappers
     #[cfg(windows)]
     pub(crate) ascom_cameras:
         RwLock<HashMap<String, Arc<RwLock<crate::ascom_wrapper::camera::AscomCameraWrapper>>>>,
@@ -444,56 +159,10 @@ pub struct DeviceManager {
         HashMap<String, Arc<RwLock<crate::ascom_wrapper::filterwheel::AscomFilterWheelWrapper>>>,
     >,
 
-    /// Active ASCOM rotator wrappers
-    #[cfg(windows)]
-    pub(crate) ascom_rotators:
-        RwLock<HashMap<String, Arc<RwLock<crate::ascom_wrapper::rotator::AscomRotatorWrapper>>>>,
-
-    /// Active ASCOM dome wrappers
-    #[cfg(windows)]
-    pub(crate) ascom_domes:
-        RwLock<HashMap<String, Arc<RwLock<crate::ascom_wrapper::dome::AscomDomeWrapper>>>>,
-
-    /// Active ASCOM weather wrappers
-    #[cfg(windows)]
-    pub(crate) ascom_weather: RwLock<
-        HashMap<
-            String,
-            Arc<RwLock<crate::ascom_wrapper::weather::AscomObservingConditionsWrapper>>,
-        >,
-    >,
-
-    /// Active ASCOM safety monitor wrappers
-    #[cfg(windows)]
-    pub(crate) ascom_safety_monitors: RwLock<
-        HashMap<
-            String,
-            Arc<RwLock<crate::ascom_wrapper::safetymonitor::AscomSafetyMonitorWrapper>>,
-        >,
-    >,
-
-    /// Active ASCOM switch wrappers
-    #[cfg(windows)]
-    pub(crate) ascom_switches:
-        RwLock<HashMap<String, Arc<RwLock<crate::ascom_wrapper::switch::AscomSwitchWrapper>>>>,
-
-    /// Active ASCOM cover calibrator wrappers
-    #[cfg(windows)]
-    pub(crate) ascom_cover_calibrators: RwLock<
-        HashMap<
-            String,
-            Arc<RwLock<crate::ascom_wrapper::covercalibrator::AscomCoverCalibratorWrapper>>,
-        >,
-    >,
-
     /// Active INDI clients (key: "host:port")
-    // Visibility bumped to pub(crate) so dispatch/indi.rs can manage the client
-    // pool directly during connect / discover / health-check paths.
     pub(crate) indi_clients: RwLock<HashMap<String, Arc<RwLock<skotiq_indi::IndiClient>>>>,
 
     /// Active Alpaca camera clients
-    // Visibility bumped to pub(crate) so dispatch/alpaca.rs can manage the typed
-    // wrappers directly during connect / query / health-check paths.
     pub(crate) alpaca_cameras: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaCamera>>>,
 
     /// Active Alpaca mount clients
@@ -504,27 +173,6 @@ pub struct DeviceManager {
 
     /// Active Alpaca filter wheel clients
     pub(crate) alpaca_filter_wheels: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaFilterWheel>>>,
-
-    /// Active Alpaca rotator clients
-    pub(crate) alpaca_rotators: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaRotator>>>,
-
-    /// Active Alpaca dome clients
-    pub(crate) alpaca_domes: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaDome>>>,
-
-    /// Active Alpaca observing conditions (weather) clients
-    pub(crate) alpaca_weather:
-        RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaObservingConditions>>>,
-
-    /// Active Alpaca safety monitor clients
-    pub(crate) alpaca_safety_monitors:
-        RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaSafetyMonitor>>>,
-
-    /// Active Alpaca switch clients
-    pub(crate) alpaca_switches: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaSwitch>>>,
-
-    /// Active Alpaca cover calibrator clients
-    pub(crate) alpaca_cover_calibrators:
-        RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaCoverCalibrator>>>,
 
     /// Active Native SDK cameras (stored separately for typed access)
     pub(crate) native_cameras: RwLock<HashMap<String, Box<dyn CameraDriver + Send + Sync>>>,
@@ -584,8 +232,8 @@ pub struct DeviceManager {
     /// On shared-USB rigs (a ZWO EAF/EFW behind an ASI camera) the real cause
     /// of transient auxiliary read failures is the camera saturating the USB
     /// bus during frame download. While this counter is non-zero the heartbeat
-    /// loop SKIPS polls for the USB-contention-prone auxiliary device types
-    /// (focuser, filter wheel, rotator) — the same skip path as a per-device
+    /// loop SKIPS polls for the device types that yield to camera USB
+    /// ([`policy::DevicePolicy::yields_to_camera_usb`]) — the same skip path as a per-device
     /// active operation — so a status read that merely lost a race with the
     /// download is never miscounted as a heartbeat failure.
     ///
@@ -660,8 +308,8 @@ impl Drop for UsbContentionGuard {
 impl DeviceManager {
     /// Mark the rig as being in a camera exposure/download window until the
     /// returned [`UsbContentionGuard`] is dropped. While the window is open the
-    /// heartbeat loop skips polls for the USB-contention-prone auxiliary device
-    /// types (focuser, filter wheel, rotator) — see [`Self::is_usb_contended`]
+    /// heartbeat loop skips polls for the device types that yield to camera USB
+    /// ([`policy::DevicePolicy::yields_to_camera_usb`]) — see [`Self::is_usb_contended`]
     /// and `run_heartbeat_loop` — so a status read that merely lost a race with
     /// the frame download on a shared USB bus is not miscounted as a heartbeat
     /// failure. Hold the guard for the full exposure+download window via
@@ -682,21 +330,6 @@ impl DeviceManager {
         self.usb_contention
             .load(std::sync::atomic::Ordering::Relaxed)
             > 0
-    }
-
-    /// Whether the given device type is one whose heartbeat we suppress during
-    /// a camera USB-contention window. These are the slow auxiliary devices
-    /// that typically share the camera's USB path (ZWO EAF/EFW behind an ASI
-    /// camera, a Pegasus focuser on the same hub, …) and whose liveness polls
-    /// lose races with frame downloads. The camera and mount are deliberately
-    /// excluded: the camera is the one driving the contention (and we never
-    /// want to stop watching it), and the mount is on its own link / matters
-    /// for tracking safety.
-    pub(crate) fn device_type_suppressed_by_usb_contention(device_type: &DeviceType) -> bool {
-        matches!(
-            device_type,
-            DeviceType::Focuser | DeviceType::FilterWheel | DeviceType::Rotator
-        )
     }
 
     /// Mark `device_id` as having a blocking operation in flight until the
@@ -740,6 +373,7 @@ impl DeviceManager {
             expected_models: Default::default(),
             reconnect_config: ReconnectConfig::default(),
             stop_reconnect: Arc::new(RwLock::new(false)),
+            handles: Default::default(),
             native_devices: RwLock::new(HashMap::new()),
             #[cfg(windows)]
             ascom_cameras: RwLock::new(HashMap::new()),
@@ -749,29 +383,11 @@ impl DeviceManager {
             ascom_focusers: RwLock::new(HashMap::new()),
             #[cfg(windows)]
             ascom_filter_wheels: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_rotators: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_domes: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_weather: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_safety_monitors: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_switches: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_cover_calibrators: RwLock::new(HashMap::new()),
             indi_clients: RwLock::new(HashMap::new()),
             alpaca_cameras: RwLock::new(HashMap::new()),
             alpaca_mounts: RwLock::new(HashMap::new()),
             alpaca_focusers: RwLock::new(HashMap::new()),
             alpaca_filter_wheels: RwLock::new(HashMap::new()),
-            alpaca_rotators: RwLock::new(HashMap::new()),
-            alpaca_domes: RwLock::new(HashMap::new()),
-            alpaca_weather: RwLock::new(HashMap::new()),
-            alpaca_safety_monitors: RwLock::new(HashMap::new()),
-            alpaca_switches: RwLock::new(HashMap::new()),
-            alpaca_cover_calibrators: RwLock::new(HashMap::new()),
             native_cameras: RwLock::new(HashMap::new()),
             native_focusers: RwLock::new(HashMap::new()),
             native_filter_wheels: RwLock::new(HashMap::new()),
@@ -800,20 +416,6 @@ impl DeviceManager {
 
         manager
     }
-
-    // `parse_indi_device_id` and `indi_mount_tracking_rate` moved to
-    // `crate::dispatch::indi` (split-impl-block); call sites use `Self::...`
-    // unchanged.
-    //
-    // Connection lifecycle (reconnection_loop, calculate_backoff_delay,
-    // register_device, is_device_registered, get_device_display_name,
-    // connect_device, connect_device_internal, connect_simulator,
-    // disconnect_device, set_auto_reconnect, report_error, shutdown,
-    // unregister_device) moved to `crate::device_manager::connection`.
-    //
-    // API version helpers (get/set/query_device_api_version,
-    // device_supports_version, device_supports_action) moved to
-    // `crate::device_manager::api_version`.
 
     /// Get all managed devices, in [`listing_order`].
     pub async fn get_all_devices(&self) -> Vec<ManagedDevice> {
@@ -894,72 +496,6 @@ impl DeviceManager {
             .collect();
         connected.sort_by(listing_order);
         connected
-    }
-
-    /// Clone the shared Alpaca HTTP client for a connected device, if present.
-    ///
-    /// Reads the typed Alpaca maps owned by `DeviceManager` (not the legacy
-    /// `ALPACA_CLIENTS` static in `api/connection.rs`).
-    pub async fn alpaca_client_for_device(
-        &self,
-        device_id: &str,
-    ) -> Option<Arc<skotiq_alpaca::AlpacaClient>> {
-        let registered = self.alpaca_cameras.read().await.contains_key(device_id)
-            || self.alpaca_mounts.read().await.contains_key(device_id)
-            || self.alpaca_focusers.read().await.contains_key(device_id)
-            || self
-                .alpaca_filter_wheels
-                .read()
-                .await
-                .contains_key(device_id)
-            || self.alpaca_rotators.read().await.contains_key(device_id)
-            || self.alpaca_domes.read().await.contains_key(device_id)
-            || self.alpaca_weather.read().await.contains_key(device_id)
-            || self
-                .alpaca_safety_monitors
-                .read()
-                .await
-                .contains_key(device_id)
-            || self.alpaca_switches.read().await.contains_key(device_id)
-            || self
-                .alpaca_cover_calibrators
-                .read()
-                .await
-                .contains_key(device_id);
-
-        if registered {
-            Self::alpaca_client_from_device_id(device_id)
-        } else {
-            None
-        }
-    }
-
-    /// Construct an Alpaca HTTP client from a canonical device id (legacy API helper).
-    fn alpaca_client_from_device_id(device_id: &str) -> Option<Arc<skotiq_alpaca::AlpacaClient>> {
-        use crate::device_id::{parse_device_id_cached, ConnectionInfo};
-        use skotiq_alpaca::{AlpacaClient, AlpacaDevice, AlpacaDeviceType};
-
-        let parsed = parse_device_id_cached(device_id).ok()?;
-        let ConnectionInfo::Alpaca {
-            base_url,
-            device_type,
-            device_num,
-            ..
-        } = parsed.connection_info
-        else {
-            return None;
-        };
-        let alpaca_type = AlpacaDeviceType::from_str(&device_type)?;
-        let device = AlpacaDevice {
-            device_type: alpaca_type,
-            device_number: device_num,
-            server_name: base_url.clone(),
-            manufacturer: String::new(),
-            device_name: String::new(),
-            unique_id: device_id.to_string(),
-            base_url,
-        };
-        Some(Arc::new(AlpacaClient::new(&device)))
     }
 }
 

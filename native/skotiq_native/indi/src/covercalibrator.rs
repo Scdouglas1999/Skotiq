@@ -717,3 +717,77 @@ async fn set_number_when_defined(
         .await
         .map(|_| true)
 }
+
+indi_accessory!(IndiCoverCalibrator);
+
+#[async_trait::async_trait]
+impl skotiq_device::CoverCalibratorDriver for IndiCoverCalibrator {
+    async fn open_cover(&self) -> Result<(), skotiq_device::DriverError> {
+        Ok(IndiCoverCalibrator::open_cover(self).await?)
+    }
+
+    async fn close_cover(&self) -> Result<(), skotiq_device::DriverError> {
+        Ok(IndiCoverCalibrator::close_cover(self).await?)
+    }
+
+    async fn halt_cover(&self) -> Result<(), skotiq_device::DriverError> {
+        Ok(IndiCoverCalibrator::halt_cover(self).await?)
+    }
+
+    async fn cover_status(
+        &self,
+    ) -> Result<skotiq_device::ascom::CoverStatus, skotiq_device::DriverError> {
+        Ok(self.get_cover_state().await.to_i32().into())
+    }
+
+    async fn calibrator_on(&self, brightness: i32) -> Result<(), skotiq_device::DriverError> {
+        Ok(IndiCoverCalibrator::calibrator_on(self, brightness).await?)
+    }
+
+    async fn calibrator_off(&self) -> Result<(), skotiq_device::DriverError> {
+        Ok(IndiCoverCalibrator::calibrator_off(self).await?)
+    }
+
+    async fn calibrator_status(
+        &self,
+    ) -> Result<skotiq_device::ascom::CalibratorStatus, skotiq_device::DriverError> {
+        Ok(self.get_calibrator_state().await.to_i32().into())
+    }
+
+    async fn brightness(&self) -> Result<i32, skotiq_device::DriverError> {
+        Ok(self.get_brightness().await?)
+    }
+
+    async fn max_brightness(&self) -> Result<i32, skotiq_device::DriverError> {
+        Ok(self.get_max_brightness().await?)
+    }
+
+    /// A brightness that cannot be read is 0, a maximum that cannot be read
+    /// is 255, each with a warning.
+    async fn status(
+        &self,
+    ) -> Result<skotiq_device::CoverCalibratorState, skotiq_device::DriverError> {
+        let brightness = self.get_brightness().await.unwrap_or_else(|e| {
+            tracing::warn!(
+                "Failed to read cover calibrator brightness for {}: {}. Using default 0.",
+                self.device_name,
+                e
+            );
+            0
+        });
+        let max_brightness = self.get_max_brightness().await.unwrap_or_else(|e| {
+            tracing::warn!(
+                "Failed to read cover calibrator max_brightness for {}: {}. Using default 255.",
+                self.device_name,
+                e
+            );
+            255
+        });
+        Ok(skotiq_device::CoverCalibratorState {
+            cover: self.get_cover_state().await.to_i32().into(),
+            calibrator: self.get_calibrator_state().await.to_i32().into(),
+            brightness,
+            max_brightness,
+        })
+    }
+}

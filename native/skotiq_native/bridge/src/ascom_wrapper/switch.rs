@@ -21,9 +21,6 @@ enum AscomSwitchCommand {
     CanWrite(i32, oneshot::Sender<Result<bool, String>>),
     // Version query commands
     GetInterfaceVersion(oneshot::Sender<Result<i32, String>>),
-    GetDriverVersion(oneshot::Sender<Result<String, String>>),
-    GetDriverInfo(oneshot::Sender<Result<String, String>>),
-    GetSupportedActions(oneshot::Sender<Result<Vec<String>, String>>),
 }
 
 pub struct AscomSwitchWrapper {
@@ -137,15 +134,6 @@ impl AscomSwitchWrapper {
                     AscomSwitchCommand::GetInterfaceVersion(reply) => {
                         let _ = reply.send(switch.interface_version().map_err(|e| e.to_string()));
                     }
-                    AscomSwitchCommand::GetDriverVersion(reply) => {
-                        let _ = reply.send(switch.driver_version().map_err(|e| e.to_string()));
-                    }
-                    AscomSwitchCommand::GetDriverInfo(reply) => {
-                        let _ = reply.send(switch.driver_info().map_err(|e| e.to_string()));
-                    }
-                    AscomSwitchCommand::GetSupportedActions(reply) => {
-                        let _ = reply.send(switch.supported_actions().map_err(|e| e.to_string()));
-                    }
                 }
                 PumpOutcome::DidWork
             })
@@ -183,7 +171,7 @@ impl AscomSwitchWrapper {
         }
     }
 
-    pub async fn connect(&mut self) -> Result<(), String> {
+    pub async fn connect(&self) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomSwitchCommand::Connect(tx))
@@ -192,7 +180,7 @@ impl AscomSwitchWrapper {
         Self::recv_with_timeout(rx, Timeouts::connection(), "connect").await
     }
 
-    pub async fn disconnect(&mut self) -> Result<(), String> {
+    pub async fn disconnect(&self) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomSwitchCommand::Disconnect(tx))
@@ -219,7 +207,7 @@ impl AscomSwitchWrapper {
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_switch").await
     }
 
-    pub async fn set_switch(&mut self, id: i32, state: bool) -> Result<(), String> {
+    pub async fn set_switch(&self, id: i32, state: bool) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomSwitchCommand::SetSwitch(id, state, tx))
@@ -255,7 +243,7 @@ impl AscomSwitchWrapper {
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_switch_value").await
     }
 
-    pub async fn set_switch_value(&mut self, id: i32, value: f64) -> Result<(), String> {
+    pub async fn set_switch_value(&self, id: i32, value: f64) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomSwitchCommand::SetSwitchValue(id, value, tx))
@@ -299,35 +287,5 @@ impl AscomSwitchWrapper {
             .await
             .map_err(|e| format!("Send error: {}", e))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "interface_version").await
-    }
-
-    /// Get the driver version string
-    pub async fn driver_version(&self) -> Result<String, String> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomSwitchCommand::GetDriverVersion(tx))
-            .await
-            .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_version").await
-    }
-
-    /// Get the driver info/description
-    pub async fn driver_info(&self) -> Result<String, String> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomSwitchCommand::GetDriverInfo(tx))
-            .await
-            .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_info").await
-    }
-
-    /// Get the list of supported actions
-    pub async fn supported_actions(&self) -> Result<Vec<String>, String> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomSwitchCommand::GetSupportedActions(tx))
-            .await
-            .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "supported_actions").await
     }
 }

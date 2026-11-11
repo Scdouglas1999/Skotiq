@@ -69,6 +69,7 @@ fn build_device_manager() -> DeviceManager {
         expected_models: Default::default(),
         reconnect_config: ReconnectConfig::default(),
         stop_reconnect: Arc::new(RwLock::new(false)),
+        handles: Default::default(),
         native_devices: RwLock::new(HashMap::new()),
         #[cfg(windows)]
         ascom_cameras: RwLock::new(HashMap::new()),
@@ -78,29 +79,11 @@ fn build_device_manager() -> DeviceManager {
         ascom_focusers: RwLock::new(HashMap::new()),
         #[cfg(windows)]
         ascom_filter_wheels: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_rotators: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_domes: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_weather: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_safety_monitors: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_switches: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_cover_calibrators: RwLock::new(HashMap::new()),
         indi_clients: RwLock::new(HashMap::new()),
         alpaca_cameras: RwLock::new(HashMap::new()),
         alpaca_mounts: RwLock::new(HashMap::new()),
         alpaca_focusers: RwLock::new(HashMap::new()),
         alpaca_filter_wheels: RwLock::new(HashMap::new()),
-        alpaca_rotators: RwLock::new(HashMap::new()),
-        alpaca_domes: RwLock::new(HashMap::new()),
-        alpaca_weather: RwLock::new(HashMap::new()),
-        alpaca_safety_monitors: RwLock::new(HashMap::new()),
-        alpaca_switches: RwLock::new(HashMap::new()),
-        alpaca_cover_calibrators: RwLock::new(HashMap::new()),
         native_cameras: RwLock::new(HashMap::new()),
         native_focusers: RwLock::new(HashMap::new()),
         native_filter_wheels: RwLock::new(HashMap::new()),

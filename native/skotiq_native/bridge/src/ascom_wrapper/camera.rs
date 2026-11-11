@@ -266,13 +266,9 @@ enum AscomCommand {
     /// Heartbeat check to verify device is still responding
     Heartbeat(oneshot::Sender<Result<CameraConnectionHealth, String>>),
     /// Get interface version number
-    GetInterfaceVersion(oneshot::Sender<Result<i32, String>>),
     /// Get driver version string
-    GetDriverVersion(oneshot::Sender<Result<String, String>>),
     /// Get driver info string
-    GetDriverInfo(oneshot::Sender<Result<String, String>>),
     /// Get list of supported actions
-    GetSupportedActions(oneshot::Sender<Result<Vec<String>, String>>),
     Stop(oneshot::Sender<Result<(), String>>),
 }
 
@@ -946,36 +942,6 @@ impl AscomCameraWrapper {
                             let _ = reply.send(Err("Camera not created".to_string()));
                         }
                     }
-                    AscomCommand::GetInterfaceVersion(reply) => {
-                        if let Some(ref camera) = camera {
-                            let _ =
-                                reply.send(camera.interface_version().map_err(|e| e.to_string()));
-                        } else {
-                            let _ = reply.send(Err("Camera not created".to_string()));
-                        }
-                    }
-                    AscomCommand::GetDriverVersion(reply) => {
-                        if let Some(ref camera) = camera {
-                            let _ = reply.send(camera.driver_version().map_err(|e| e.to_string()));
-                        } else {
-                            let _ = reply.send(Err("Camera not created".to_string()));
-                        }
-                    }
-                    AscomCommand::GetDriverInfo(reply) => {
-                        if let Some(ref camera) = camera {
-                            let _ = reply.send(camera.driver_info().map_err(|e| e.to_string()));
-                        } else {
-                            let _ = reply.send(Err("Camera not created".to_string()));
-                        }
-                    }
-                    AscomCommand::GetSupportedActions(reply) => {
-                        if let Some(ref camera) = camera {
-                            let _ =
-                                reply.send(camera.supported_actions().map_err(|e| e.to_string()));
-                        } else {
-                            let _ = reply.send(Err("Camera not created".to_string()));
-                        }
-                    }
                     AscomCommand::Stop(reply) => {
                         if let Some(cam) = &mut camera {
                             let result = cam
@@ -1149,46 +1115,6 @@ impl AscomCameraWrapper {
             .await
             .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::heartbeat(), "heartbeat").await
-    }
-
-    /// Get the ASCOM interface version number
-    pub async fn interface_version(&self) -> Result<i32, DriverError> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomCommand::GetInterfaceVersion(tx))
-            .await
-            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "interface_version").await
-    }
-
-    /// Get the driver version string
-    pub async fn driver_version(&self) -> Result<String, DriverError> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomCommand::GetDriverVersion(tx))
-            .await
-            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_version").await
-    }
-
-    /// Get the driver info/description
-    pub async fn driver_info(&self) -> Result<String, DriverError> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomCommand::GetDriverInfo(tx))
-            .await
-            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_info").await
-    }
-
-    /// Get the list of supported actions
-    pub async fn supported_actions(&self) -> Result<Vec<String>, DriverError> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomCommand::GetSupportedActions(tx))
-            .await
-            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "supported_actions").await
     }
 
     pub async fn stop_exposure(&mut self) -> Result<(), DriverError> {

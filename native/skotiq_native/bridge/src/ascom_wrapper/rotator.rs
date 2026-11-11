@@ -14,14 +14,6 @@ enum AscomRotatorCommand {
     IsMoving(oneshot::Sender<Result<bool, String>>),
     Sync(f64, oneshot::Sender<Result<(), String>>),
     SetReverse(bool, oneshot::Sender<Result<(), String>>),
-    // ASCOM-Common metadata query commands. Mirrors the four
-    // `InterfaceVersion` / `DriverVersion` / `DriverInfo` /
-    // `SupportedActions` properties common to every ASCOM driver and is
-    // consumed by `DeviceCommonMetadata` via `dispatch::ascom_device_common`.
-    GetInterfaceVersion(oneshot::Sender<Result<i32, String>>),
-    GetDriverVersion(oneshot::Sender<Result<String, String>>),
-    GetDriverInfo(oneshot::Sender<Result<String, String>>),
-    GetSupportedActions(oneshot::Sender<Result<Vec<String>, String>>),
 }
 
 pub struct AscomRotatorWrapper {
@@ -85,18 +77,6 @@ impl AscomRotatorWrapper {
                     AscomRotatorCommand::SetReverse(reverse, reply) => {
                         let _ = reply.send(rotator.set_reverse(reverse).map_err(|e| e.to_string()));
                     }
-                    AscomRotatorCommand::GetInterfaceVersion(reply) => {
-                        let _ = reply.send(rotator.interface_version().map_err(|e| e.to_string()));
-                    }
-                    AscomRotatorCommand::GetDriverVersion(reply) => {
-                        let _ = reply.send(rotator.driver_version().map_err(|e| e.to_string()));
-                    }
-                    AscomRotatorCommand::GetDriverInfo(reply) => {
-                        let _ = reply.send(rotator.driver_info().map_err(|e| e.to_string()));
-                    }
-                    AscomRotatorCommand::GetSupportedActions(reply) => {
-                        let _ = reply.send(rotator.supported_actions().map_err(|e| e.to_string()));
-                    }
                 }
                 PumpOutcome::DidWork
             })
@@ -124,7 +104,7 @@ impl AscomRotatorWrapper {
         }
     }
 
-    pub async fn connect(&mut self) -> Result<(), String> {
+    pub async fn connect(&self) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomRotatorCommand::Connect(tx))
@@ -137,7 +117,7 @@ impl AscomRotatorWrapper {
         result
     }
 
-    pub async fn disconnect(&mut self) -> Result<(), String> {
+    pub async fn disconnect(&self) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomRotatorCommand::Disconnect(tx))
@@ -208,133 +188,5 @@ impl AscomRotatorWrapper {
             .await
             .map_err(|error| format!("Send error: {}", error))?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "set_reverse").await
-    }
-
-    /// Returns the ASCOM `InterfaceVersion` integer (ASCOM-Common §IAscomDriverV1).
-    pub async fn interface_version(&self) -> Result<i32, String> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomRotatorCommand::GetInterfaceVersion(tx))
-            .await
-            .map_err(|error| format!("Send error: {}", error))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "interface_version").await
-    }
-
-    /// Returns the ASCOM `DriverVersion` free-form vendor version string (ASCOM-Common §IAscomDriverV1).
-    pub async fn driver_version(&self) -> Result<String, String> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomRotatorCommand::GetDriverVersion(tx))
-            .await
-            .map_err(|error| format!("Send error: {}", error))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_version").await
-    }
-
-    /// Returns the ASCOM `DriverInfo` vendor description string (ASCOM-Common §IAscomDriverV1).
-    pub async fn driver_info(&self) -> Result<String, String> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomRotatorCommand::GetDriverInfo(tx))
-            .await
-            .map_err(|error| format!("Send error: {}", error))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_info").await
-    }
-
-    /// Returns the list of custom action names from ASCOM `SupportedActions` (ASCOM-Common §ISupportedActions, V2+ optional).
-    pub async fn supported_actions(&self) -> Result<Vec<String>, String> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomRotatorCommand::GetSupportedActions(tx))
-            .await
-            .map_err(|error| format!("Send error: {}", error))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "supported_actions").await
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::thread;
-
-    fn build_test_wrapper<F>(handler: F) -> AscomRotatorWrapper
-    where
-        F: FnMut(AscomRotatorCommand) -> bool + Send + 'static,
-    {
-        let (tx, mut rx) = mpsc::channel(8);
-        let _handle = thread::spawn(move || {
-            let mut handler = handler;
-            while let Some(cmd) = crate::ascom_wrapper::pump_blocking_recv(&mut rx) {
-                if handler(cmd) {
-                    break;
-                }
-            }
-        });
-        AscomRotatorWrapper {
-            sender: tx,
-            connected: AtomicBool::new(false),
-        }
-    }
-
-    #[tokio::test]
-    async fn interface_version_returns_worker_value() {
-        let wrapper = build_test_wrapper(|cmd| {
-            if let AscomRotatorCommand::GetInterfaceVersion(reply) = cmd {
-                let _ = reply.send(Ok(3));
-            }
-            false
-        });
-        assert_eq!(wrapper.interface_version().await.expect("ok"), 3);
-    }
-
-    #[tokio::test]
-    async fn driver_version_returns_worker_value() {
-        let wrapper = build_test_wrapper(|cmd| {
-            if let AscomRotatorCommand::GetDriverVersion(reply) = cmd {
-                let _ = reply.send(Ok("1.2.3".to_string()));
-            }
-            false
-        });
-        assert_eq!(wrapper.driver_version().await.expect("ok"), "1.2.3");
-    }
-
-    #[tokio::test]
-    async fn driver_info_returns_worker_value() {
-        let wrapper = build_test_wrapper(|cmd| {
-            if let AscomRotatorCommand::GetDriverInfo(reply) = cmd {
-                let _ = reply.send(Ok("Acme Rotator Driver".to_string()));
-            }
-            false
-        });
-        assert_eq!(
-            wrapper.driver_info().await.expect("ok"),
-            "Acme Rotator Driver"
-        );
-    }
-
-    #[tokio::test]
-    async fn supported_actions_returns_worker_value() {
-        let wrapper = build_test_wrapper(|cmd| {
-            if let AscomRotatorCommand::GetSupportedActions(reply) = cmd {
-                let _ = reply.send(Ok(vec!["Reverse".to_string(), "Sync".to_string()]));
-            }
-            false
-        });
-        let actions = wrapper.supported_actions().await.expect("ok");
-        assert_eq!(actions, vec!["Reverse".to_string(), "Sync".to_string()]);
-    }
-
-    #[tokio::test]
-    async fn supported_actions_propagates_property_not_implemented_error() {
-        // ASCOM 1.x drivers that lack `ISupportedActions` raise
-        // `PropertyNotImplementedException`. The wrapper passes the error
-        // through unchanged; `fetch_api_version` is responsible for the
-        // documented silent-fallback-to-empty-Vec policy at the dispatch layer.
-        let wrapper = build_test_wrapper(|cmd| {
-            if let AscomRotatorCommand::GetSupportedActions(reply) = cmd {
-                let _ = reply.send(Err("PropertyNotImplemented".to_string()));
-            }
-            false
-        });
-        assert!(wrapper.supported_actions().await.is_err());
     }
 }

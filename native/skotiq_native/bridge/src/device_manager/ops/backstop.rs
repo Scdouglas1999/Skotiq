@@ -24,6 +24,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crate::device::{ConnectionState, DeviceType};
+use crate::device_manager::policy::policy;
 use crate::device_manager::DeviceManager;
 use crate::event::EquipmentEvent;
 
@@ -185,12 +186,7 @@ impl DeviceManager {
             devices
                 .iter()
                 .filter(|(_, d)| d.connection_state == ConnectionState::Connected)
-                .filter(|(_, d)| {
-                    matches!(
-                        d.info.device_type,
-                        DeviceType::Focuser | DeviceType::FilterWheel | DeviceType::Rotator
-                    )
-                })
+                .filter(|(_, d)| policy(d.info.device_type).backstop_polled)
                 .map(|(id, d)| (id.clone(), d.info.device_type))
                 .collect()
         };

@@ -5,6 +5,7 @@
 //! previous monolithic `devices.rs`.
 
 use crate::device::*;
+use crate::device_manager::policy::policy;
 use crate::device_manager::{DeviceManager, HeartbeatConfig};
 use crate::event::*;
 use crate::state::SharedAppState;
@@ -104,28 +105,8 @@ pub(crate) fn heartbeat_events_for_poll(
 }
 
 impl DeviceManager {
-    // Heartbeat monitoring
-
-    /// Configuration for heartbeat monitoring per device type
-    /// Uses optimized presets for each device type based on operational characteristics
-    pub(crate) fn get_heartbeat_config(device_type: &DeviceType) -> HeartbeatConfig {
-        match device_type {
-            DeviceType::Camera => HeartbeatConfig::for_camera(),
-            DeviceType::Mount => HeartbeatConfig::for_mount(),
-            DeviceType::Focuser => HeartbeatConfig::for_focuser(),
-            DeviceType::FilterWheel => HeartbeatConfig::for_filter_wheel(),
-            DeviceType::Dome => HeartbeatConfig::for_dome(),
-            DeviceType::Rotator => HeartbeatConfig::for_rotator(),
-            DeviceType::Weather => HeartbeatConfig::for_weather(),
-            DeviceType::SafetyMonitor => HeartbeatConfig::for_safety_monitor(),
-            DeviceType::Guider => HeartbeatConfig::for_guider(),
-            DeviceType::Switch => HeartbeatConfig::for_switch(),
-            DeviceType::CoverCalibrator => HeartbeatConfig::for_cover_calibrator(),
-        }
-    }
-
     /// Perform a health check for a specific device, with a single retry for
-    /// the slow, contention-prone device types (mount, focuser, filter wheel).
+    /// the device types whose policy asks for one (`retry_heartbeat`).
     ///
     /// Returns Ok(true) if healthy, Ok(false) if not responding, Err for
     /// connection errors.
@@ -162,12 +143,7 @@ impl DeviceManager {
             .await;
 
         // Healthy first try, or a device type we don't retry → done.
-        if matches!(first, Ok(true))
-            || !matches!(
-                device_type,
-                DeviceType::Mount | DeviceType::Focuser | DeviceType::FilterWheel
-            )
-        {
+        if matches!(first, Ok(true)) || !policy(*device_type).retry_heartbeat {
             return first;
         }
 
@@ -204,6 +180,22 @@ impl DeviceManager {
         device_type: &DeviceType,
         driver_type: &DriverType,
     ) -> Result<bool, String> {
+        // INDI devices are checked through the shared server connection,
+        // which that check also recovers.
+        if *driver_type != DriverType::Indi {
+            if let Some(handle) = self.handles.get(device_id) {
+                return Ok(match handle.accessory().heartbeat().await {
+                    Ok(()) => {
+                        tracing::trace!("{} heartbeat: healthy", device_id);
+                        true
+                    }
+                    Err(e) => {
+                        tracing::debug!("{} heartbeat failed: {}", device_id, e);
+                        false
+                    }
+                });
+            }
+        }
         match driver_type {
             DriverType::Alpaca => {
                 self.perform_alpaca_health_check(device_id, device_type)
@@ -305,7 +297,7 @@ impl DeviceManager {
         };
 
         // Get device-type specific heartbeat configuration
-        let mut config = Self::get_heartbeat_config(&device_type);
+        let mut config = policy(device_type).heartbeat;
 
         // Allow interval override if provided (non-zero)
         if !interval.is_zero() {
@@ -484,7 +476,7 @@ impl DeviceManager {
             // operation: just wait for the next poll at the base cadence. The
             // camera's and mount's own heartbeats are deliberately NOT
             // suppressed (the camera is the one we most need to keep watching).
-            if DeviceManager::device_type_suppressed_by_usb_contention(&device_type)
+            if policy(device_type).yields_to_camera_usb
                 && manager.is_usb_contended()
             {
                 current_interval = Duration::from_secs(config.base_interval_secs);
