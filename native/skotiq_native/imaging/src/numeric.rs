@@ -1,4 +1,7 @@
-//! Small numeric building blocks shared by the fitters.
+//! Small numeric building blocks shared across the crate: the dense linear
+//! solver and the separable Gaussian blur.
+
+use rayon::prelude::*;
 
 /// Solve the dense `n × n` system `a · x = b` by Gaussian elimination with
 /// partial pivoting. `a` is row-major. `None` when a pivot's magnitude is
@@ -54,6 +57,93 @@ pub(crate) fn solve_dense(
     Some(x)
 }
 
+/// A plane sample type the blur reads and writes; every pass accumulates in
+/// `f64` whatever the storage.
+pub(crate) trait PlaneSample: Copy + Send + Sync {
+    fn to_f64(self) -> f64;
+    fn from_f64(value: f64) -> Self;
+}
+
+impl PlaneSample for f32 {
+    #[inline]
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
+    #[inline]
+    fn from_f64(value: f64) -> Self {
+        value as f32
+    }
+}
+
+impl PlaneSample for f64 {
+    #[inline]
+    fn to_f64(self) -> f64 {
+        self
+    }
+    #[inline]
+    fn from_f64(value: f64) -> Self {
+        value
+    }
+}
+
+/// Gaussian taps of standard deviation `sigma` (pixels) over `±⌈3σ⌉`,
+/// normalized to sum to one so a blur keeps flux.
+pub(crate) fn gaussian_taps(sigma: f64) -> Vec<f64> {
+    let radius = (3.0 * sigma).ceil() as i64;
+    let taps: Vec<f64> = (-radius..=radius)
+        .map(|i| (-(i * i) as f64 / (2.0 * sigma * sigma)).exp())
+        .collect();
+    let sum: f64 = taps.iter().sum();
+    taps.iter().map(|t| t / sum).collect()
+}
+
+/// Convolve a row-major `width` × `height` plane with the odd-length `taps`
+/// along x, then along y, repeating the edge pixels. Each pass sums in `f64`
+/// and stores in `T`.
+pub(crate) fn convolve_separable<T: PlaneSample>(
+    plane: &[T],
+    width: usize,
+    height: usize,
+    taps: &[f64],
+) -> Vec<T> {
+    if width == 0 || height == 0 {
+        return plane.to_vec();
+    }
+    let radius = (taps.len() / 2) as i64;
+    let (w, h) = (width as i64, height as i64);
+    let mut horizontal = vec![T::from_f64(0.0); plane.len()];
+    horizontal
+        .par_chunks_exact_mut(width)
+        .zip(plane.par_chunks_exact(width))
+        .for_each(|(row, src)| {
+            for (x, slot) in row.iter_mut().enumerate() {
+                let mut acc = 0.0;
+                for (k, t) in taps.iter().enumerate() {
+                    let sx = (x as i64 + k as i64 - radius).clamp(0, w - 1) as usize;
+                    acc += t * src[sx].to_f64();
+                }
+                *slot = T::from_f64(acc);
+            }
+        });
+    let mut out = vec![T::from_f64(0.0); plane.len()];
+    out.par_chunks_exact_mut(width)
+        .enumerate()
+        .for_each(|(y, row)| {
+            let mut acc = vec![0.0f64; width];
+            for (k, t) in taps.iter().enumerate() {
+                let sy = (y as i64 + k as i64 - radius).clamp(0, h - 1) as usize;
+                let src = &horizontal[sy * width..(sy + 1) * width];
+                for (a, v) in acc.iter_mut().zip(src) {
+                    *a += t * v.to_f64();
+                }
+            }
+            for (slot, a) in row.iter_mut().zip(acc) {
+                *slot = T::from_f64(a);
+            }
+        });
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -69,5 +159,32 @@ mod tests {
         assert!(solve_dense(vec![1.0, 2.0, 2.0, 4.0], vec![1.0, 2.0], 1e-12).is_none());
         assert!(solve_dense(vec![1.0; 3], vec![1.0, 2.0], 1e-12).is_none());
         assert_eq!(solve_dense(Vec::new(), Vec::new(), 1e-12), Some(Vec::new()));
+    }
+
+    #[test]
+    fn gaussian_taps_are_symmetric_normalized_and_three_sigma_wide() {
+        let taps = gaussian_taps(1.4);
+        assert_eq!(taps.len(), 2 * 5 + 1);
+        assert!((taps.iter().sum::<f64>() - 1.0).abs() < 1e-12);
+        for k in 0..5 {
+            assert_eq!(taps[k], taps[10 - k]);
+            assert!(taps[k] < taps[k + 1]);
+        }
+    }
+
+    #[test]
+    fn a_blur_keeps_a_flat_plane_and_the_flux_of_a_point() {
+        let taps = gaussian_taps(1.5);
+        let flat = vec![3.0f32; 12 * 9];
+        for v in convolve_separable(&flat, 12, 9, &taps) {
+            assert!((v - 3.0).abs() < 1e-6);
+        }
+        let mut point = vec![0.0f64; 21 * 21];
+        point[10 * 21 + 10] = 1.0;
+        let out = convolve_separable(&point, 21, 21, &taps);
+        assert!((out.iter().sum::<f64>() - 1.0).abs() < 1e-12);
+        assert_eq!(out[10 * 21 + 9], out[10 * 21 + 11]);
+        assert_eq!(out[9 * 21 + 10], out[10 * 21 + 9]);
+        assert!(convolve_separable::<f64>(&[], 0, 0, &taps).is_empty());
     }
 }

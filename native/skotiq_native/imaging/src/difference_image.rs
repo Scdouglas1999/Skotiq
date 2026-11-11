@@ -45,6 +45,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::numeric::{convolve_separable, gaussian_taps};
 use crate::resample::Interpolator;
 use crate::robust_stats::{
     mad_sigma, mad_sigma_upper, median_and_sigma, median_in_place, median_of,
@@ -1570,44 +1571,20 @@ fn blur_channel_gaussian(
     if !(sigma.is_finite() && sigma > 0.0) {
         return;
     }
-    let radius = (3.0 * sigma).ceil() as i64;
-    if radius < 1 {
-        return;
-    }
-    let mut kernel = vec![0.0f64; (2 * radius + 1) as usize];
-    let two_s2 = 2.0 * sigma * sigma;
-    let mut ksum = 0.0;
-    for (i, k) in kernel.iter_mut().enumerate() {
-        let d = i as i64 - radius;
-        *k = (-(d * d) as f64 / two_s2).exp();
-        ksum += *k;
-    }
-    for k in kernel.iter_mut() {
-        *k /= ksum;
-    }
-
-    // Horizontal pass into a scratch single-channel plane, then vertical pass.
-    let npix = width * height;
-    let mut tmp = vec![0.0f64; npix];
-    for y in 0..height {
-        for x in 0..width {
-            let mut acc = 0.0;
-            for (i, &k) in kernel.iter().enumerate() {
-                let sx = (x as i64 + i as i64 - radius).clamp(0, width as i64 - 1) as usize;
-                acc += k * plane[(y * width + sx) * channels + channel];
-            }
-            tmp[y * width + x] = acc;
-        }
-    }
-    for y in 0..height {
-        for x in 0..width {
-            let mut acc = 0.0;
-            for (i, &k) in kernel.iter().enumerate() {
-                let sy = (y as i64 + i as i64 - radius).clamp(0, height as i64 - 1) as usize;
-                acc += k * tmp[sy * width + x];
-            }
-            plane[(y * width + x) * channels + channel] = acc;
-        }
+    let single: Vec<f64> = plane
+        .iter()
+        .skip(channel)
+        .step_by(channels)
+        .copied()
+        .collect();
+    let blurred = convolve_separable(&single, width, height, &gaussian_taps(sigma));
+    for (slot, v) in plane
+        .iter_mut()
+        .skip(channel)
+        .step_by(channels)
+        .zip(blurred)
+    {
+        *slot = v;
     }
 }
 
