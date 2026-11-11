@@ -34,6 +34,7 @@ import 'widgets/window_chrome.dart';
 import 'widgets/side_navigation.dart';
 import 'shell_chrome.dart';
 import 'shell_navigation.dart';
+import 'phone_bar_status.dart';
 import 'widgets/skotiq_bottom_navigation.dart';
 
 // Conditional import for window_manager (desktop only)

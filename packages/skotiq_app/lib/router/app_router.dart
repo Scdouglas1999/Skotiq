@@ -14,6 +14,8 @@ import '../screens/darkroom/darkroom_screen.dart';
 import '../screens/stack_result/stack_result_screen.dart';
 import '../screens/session_review/session_review_controller.dart';
 import '../screens/session_review/session_review_screen.dart';
+import '../screens/session_replay/session_picker_screen.dart';
+import '../screens/session_replay/session_replay_screen.dart';
 import '../screens/flat_wizard/flat_wizard_screen.dart';
 import '../screens/mosaic/mosaic_project_screen.dart';
 import '../screens/mosaic/mosaic_projects_list_screen.dart';
@@ -325,6 +327,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 transitionDuration: const Duration(milliseconds: 300),
               );
             },
+          ),
+          GoRoute(
+            path: kSessionReplayRoutePath,
+            name: 'session-replay',
+            pageBuilder: (context, state) => const CustomTransitionPage(
+              child: SessionPickerScreen(),
+              transitionsBuilder: PageTransitions.slideFadeTransition,
+              transitionDuration: Duration(milliseconds: 300),
+            ),
+            routes: [
+              GoRoute(
+                path: ':runId',
+                name: 'session-replay-run',
+                pageBuilder: (context, state) {
+                  final runId =
+                      int.tryParse(state.pathParameters['runId'] ?? '') ?? -1;
+                  return CustomTransitionPage(
+                    child: SessionReplayScreen(runId: runId),
+                    transitionsBuilder: PageTransitions.slideFadeTransition,
+                    transitionDuration: const Duration(milliseconds: 300),
+                  );
+                },
+              ),
+            ],
           ),
           GoRoute(
             path: '/flat-wizard',

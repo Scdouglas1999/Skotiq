@@ -2,6 +2,7 @@ import 'package:skotiq_app/startup/always_on_services.dart';
 
 import 'live_activity_lifecycle_provider.dart';
 import 'mobile_sequence_hooks.dart';
+import 'poll_rate_service.dart';
 import 'voice_control_lifecycle_provider.dart';
 import 'watch_complication_lifecycle_provider.dart';
 
@@ -29,6 +30,13 @@ final List<AlwaysOnService> mobilePlatformServices = [
     watchComplicationLifecycleProvider,
     _mobile,
     'the watch complication following the run and the weather',
+  ),
+  AlwaysOnService(
+    'battery-aware polling',
+    pollPaceProvider,
+    _mobile,
+    'polling the rig a third as often on low battery, battery saver or '
+        'cellular data',
   ),
   AlwaysOnService(
     'voice control',

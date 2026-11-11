@@ -8,6 +8,7 @@ import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import '../services/live_stacking_service.dart';
 import '../services/logging_service.dart';
+import '../utils/poll_pace.dart';
 import 'backend_provider.dart';
 
 /// Current state of the live stacking session.
@@ -296,9 +297,9 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     // 2.5s cadence: brisk enough that the preview tracks a typical sub-minute
     // EAA exposure within a frame or two, cheap enough not to flood the LAN
     // with full-frame u16 downloads. Each tick pulls the latest host result.
-    _remotePollTimer = Timer.periodic(
+    _remotePollTimer = pacedPeriodicTimer(
       const Duration(milliseconds: 2500),
-      (_) => _pollRemoteResult(generation, backend),
+      () => _pollRemoteResult(generation, backend),
     );
     unawaited(_pollRemoteResult(generation, backend));
   }
@@ -706,7 +707,9 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         'Failed to reset stacker: $e',
         source: 'LiveStackingNotifier',
       );
-      state = state.copyWith(errorMessage: 'Failed to reset stack: ${userFacingError(e)}');
+      state = state.copyWith(
+        errorMessage: 'Failed to reset stack: ${userFacingError(e)}',
+      );
       final remote = _remoteSessionBackend;
       if (remote != null) _startRemotePolling(generation, authority);
     }
@@ -753,7 +756,9 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       if (mounted &&
           generation == _sessionGeneration &&
           identical(authority, _sessionAuthority)) {
-        state = state.copyWith(errorMessage: 'Failed to stop stack: ${userFacingError(e)}');
+        state = state.copyWith(
+          errorMessage: 'Failed to stop stack: ${userFacingError(e)}',
+        );
       }
       return;
     }

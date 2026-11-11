@@ -64,6 +64,18 @@ String userFacingError(Object? error) {
   return rendered.isEmpty ? 'Unknown error' : rendered;
 }
 
+/// True when the host refused a request because this client's token holds
+/// too low an access level for the route, for example a phone paired without
+/// full admin access asking to choose a folder on the rig.
+///
+/// The host's refusal body (`HeadlessAuthPolicy.scopeDenialBody`) carries no
+/// machine code, so the transport surfaces it as plain text and that text is
+/// the only mark it leaves.
+bool isAccessLevelRefusal(Object? error) {
+  final text = error is SkotiqError ? error.message : userFacingError(error);
+  return text.contains('Token scope is not permitted');
+}
+
 /// `Could not save the profile: <what happened>`.
 ///
 /// [action] is the whole lead-in, written by the caller in the words of its

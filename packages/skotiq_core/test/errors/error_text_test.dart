@@ -189,6 +189,30 @@ void main() {
     });
   });
 
+  test('isAccessLevelRefusal recognizes the host refusing a low scope', () {
+    expect(
+      isAccessLevelRefusal(
+        SkotiqError.fromString(
+          'Access denied: Token scope is not permitted for this endpoint: '
+          'this credential holds control on filesystem, and admin is '
+          'required.',
+        ),
+      ),
+      isTrue,
+    );
+    expect(
+      isAccessLevelRefusal(
+        const ServerError(
+          code: 'invalid_auth_token',
+          message: 'Access denied: Invalid authentication token',
+          httpStatus: 403,
+        ),
+      ),
+      isFalse,
+    );
+    expect(isAccessLevelRefusal(StateError('folder missing')), isFalse);
+  });
+
   test('failureText puts the sentence after the action', () {
     expect(
       failureText('Could not save the profile', Exception('disk full')),

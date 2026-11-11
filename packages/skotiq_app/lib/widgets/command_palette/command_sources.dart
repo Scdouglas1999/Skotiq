@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart' show loadedDsosProvider, loadedStarsProvider;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show loadedDsosProvider, loadedStarsProvider;
 import 'package:skotiq_astro/skotiq_astro.dart' show CelestialObject;
 
 import '../../localization/skotiq_localizations.dart';
@@ -104,6 +105,13 @@ List<CommandEntry> buildScreenEntries(BuildContext context) {
     label: "Image tonight's best target",
     route: kOneTapTonightRoutePath,
     keywords: const ['one tap', 'best', 'tonight', 'automatic', 'start'],
+  );
+  screen(
+    id: 'screen:${ShellNavigation.sessionReplay.route}',
+    icon: ShellNavigation.sessionReplay.icon,
+    label: ShellNavigation.sessionReplay.label(l10n),
+    route: ShellNavigation.sessionReplay.route,
+    keywords: const ['replay', 'history', 'past', 'night', 'run', 'timeline'],
   );
   screen(
     id: 'screen:/session-review',

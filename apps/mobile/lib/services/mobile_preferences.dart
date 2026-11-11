@@ -21,12 +21,10 @@ class MobilePreferences {
   // some Android skins has buggy ICE state machines).
   static const _kPreferWebRtcLiveView = 'mobile.preferWebRtcLiveView';
 
-  // sticky first-run-setup completion flag. When set, the
-  // app skips the first-run wizard even if the server later loses its
-  // profiles/catalogs/imageOutputPath (e.g. the operator manually wipes
-  // the data dir on the desktop). Without this latch, the wizard would
-  // re-appear every time a freshly-installed server is reconnected, which
-  // is jarring once the user has completed setup on a different rig.
+  // First-run setup is done on this phone. The wizard then never shows again,
+  // even for a host that later loses its profiles, catalogs or capture folder
+  // (a wiped data dir): it is a one-time introduction, and every step is also
+  // in Settings.
   static const _kFirstRunCompleted = 'mobile.firstRunCompleted';
 
   // Per-category notification mute toggles. All default to true (enabled)
@@ -124,11 +122,9 @@ class MobilePreferences {
 
   // First-run setup latch
   //
-  // Set to true once the user finishes (or explicitly skips) the first-run
-  // setup wizard. Read once during dashboard bootstrap; never read by any
-  // other surface. The flag is intentionally per-device (not synced to the
-  // server) because the wizard exists to bridge new-mobile→fresh-server,
-  // not new-mobile→already-configured-server.
+  // Set when the user finishes or skips first-run setup, or when the first
+  // host this phone links to needs nothing. Per device, not synced to the host:
+  // it records that this phone has been through setup.
 
   bool get firstRunCompleted => _prefs.getBool(_kFirstRunCompleted) ?? false;
   Future<void> setFirstRunCompleted(bool value) =>

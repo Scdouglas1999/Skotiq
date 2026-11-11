@@ -94,42 +94,46 @@ class SkotiqBottomNavigation extends StatelessWidget {
       backgroundColor: colors.surface,
       showDragHandle: true,
       builder: (sheetContext) {
+        // Scrolls rather than overflows: a modal sheet gets at most 9/16 of
+        // the screen, which a landscape phone fills before the list ends.
         return SafeArea(
           top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final dest in ShellNavigation.overflowDestinations)
-                Builder(
-                  builder: (context) {
-                    final isCurrent = ShellNavigation.locationIsUnder(
-                      currentPath,
-                      dest.route,
-                    );
-                    return ListTile(
-                      leading: Icon(
-                        dest.icon,
-                        color:
-                            isCurrent ? colors.primary : colors.textSecondary,
-                      ),
-                      title: Text(
-                        dest.label(l10n),
-                        style: SkotiqTypography.body.copyWith(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final dest in ShellNavigation.overflowDestinations)
+                  Builder(
+                    builder: (context) {
+                      final isCurrent = ShellNavigation.locationIsUnder(
+                        currentPath,
+                        dest.route,
+                      );
+                      return ListTile(
+                        leading: Icon(
+                          dest.icon,
                           color:
-                              isCurrent ? colors.primary : colors.textPrimary,
-                          fontWeight:
-                              isCurrent ? FontWeight.w600 : FontWeight.w500,
+                              isCurrent ? colors.primary : colors.textSecondary,
                         ),
-                      ),
-                      selected: isCurrent,
-                      onTap: () {
-                        Navigator.of(sheetContext).pop();
-                        onRouteSelected(dest.route);
-                      },
-                    );
-                  },
-                ),
-            ],
+                        title: Text(
+                          dest.label(l10n),
+                          style: SkotiqTypography.body.copyWith(
+                            color:
+                                isCurrent ? colors.primary : colors.textPrimary,
+                            fontWeight:
+                                isCurrent ? FontWeight.w600 : FontWeight.w500,
+                          ),
+                        ),
+                        selected: isCurrent,
+                        onTap: () {
+                          Navigator.of(sheetContext).pop();
+                          onRouteSelected(dest.route);
+                        },
+                      );
+                    },
+                  ),
+              ],
+            ),
           ),
         );
       },

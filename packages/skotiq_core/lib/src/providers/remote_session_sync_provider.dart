@@ -7,6 +7,7 @@ import '../backend/remote_host.dart';
 import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../services/logging_service.dart';
+import '../utils/poll_pace.dart';
 import 'backend_provider.dart';
 import 'remote_sync_handler.dart';
 
@@ -87,7 +88,7 @@ final remoteSessionSyncProvider = Provider<void>((ref) {
       }
     });
 
-    pollTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    pollTimer = pacedPeriodicTimer(const Duration(seconds: 30), () {
       requestHydration(next, periodic: true);
     });
   }, fireImmediately: true);
