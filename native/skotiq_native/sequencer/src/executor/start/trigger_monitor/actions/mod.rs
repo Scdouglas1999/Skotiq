@@ -27,23 +27,10 @@ pub(super) enum ActionFlow {
     },
 }
 
-/// The run's decision log; every row is stamped with the run id.
-pub(super) struct DecisionLog {
-    pub tx: crate::decision::DecisionSender,
-    pub run_id: Arc<StdRwLock<Option<i64>>>,
-}
-
-impl DecisionLog {
-    pub(super) fn send(&self, mut decision: crate::decision::DecisionEvent) {
-        decision.sequence_run_id = *self.run_id.read();
-        let _ = self.tx.send(decision);
-    }
-}
-
 /// The rig an action drives and the shared state it reads and updates.
 pub(super) struct Rig {
     pub device_ops: SharedDeviceOps,
-    pub context: TriggerActionContext,
+    pub context: RunRig,
     pub trigger_state: Arc<RwLock<TriggerState>>,
     pub runtime_config: RunConfigStore,
 }
@@ -90,30 +77,4 @@ pub(super) struct TargetSnapshot {
     pub ra_hours: Option<f64>,
     pub dec_degrees: Option<f64>,
     pub filter: Option<String>,
-}
-
-/// The handshake with the run supervisor for an action that ends the run by
-/// parking.
-pub(super) struct ParkSignals {
-    /// Set before the node tree is cancelled, so the supervisor reports the
-    /// run as parked and aborted.
-    pub park_and_abort: Arc<AtomicBool>,
-    pub done: watch::Sender<bool>,
-    pub execution_quiesced: watch::Receiver<bool>,
-}
-
-impl ParkSignals {
-    /// Cancel the node tree and wait until its exposure has been aborted, so
-    /// nothing moves or closes under a live integration.
-    pub(super) async fn stop_node_tree(&mut self, is_cancelled: &Arc<AtomicBool>) {
-        cancel_and_wait_for_execution(is_cancelled, &mut self.execution_quiesced).await;
-    }
-
-    pub(super) fn parking_begins(&self) {
-        self.park_and_abort.store(true, Ordering::Release);
-    }
-
-    pub(super) fn parked(&self) {
-        let _ = self.done.send(true);
-    }
 }

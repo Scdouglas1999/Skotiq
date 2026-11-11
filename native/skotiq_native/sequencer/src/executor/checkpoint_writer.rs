@@ -4,26 +4,14 @@
 //! the whole document from them each time it saves, so no save has to read
 //! the file back to keep a part somebody else wrote.
 
-use super::{ExecutorState, RunCell, RunConfigStore};
+use super::{ExecutorState, RunCell, RunConfigStore, RunRig};
 use crate::checkpoint::{CheckpointManager, RunEnd, SessionCheckpoint, TriggerStateSnapshot};
 use crate::scheduling::integration_budget::BudgetRegistry;
 use crate::triggers::TriggerManager;
 use crate::{NodeId, NodeStatus, SequenceDefinition, SmartExposureCheckpoint};
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-
-/// The devices and save path a run was started with.
-#[derive(Debug, Clone, Default)]
-pub(crate) struct CheckpointRig {
-    pub camera_id: Option<String>,
-    pub mount_id: Option<String>,
-    pub focuser_id: Option<String>,
-    pub filterwheel_id: Option<String>,
-    pub rotator_id: Option<String>,
-    pub save_path: Option<PathBuf>,
-}
 
 /// Where a checkpoint's contents come from.
 pub(crate) struct CheckpointSources {
@@ -32,7 +20,7 @@ pub(crate) struct CheckpointSources {
     /// Tree-walk position of every node. Node ids are operator-chosen
     /// strings, so their own ordering says nothing about run order.
     pub execution_order: HashMap<NodeId, usize>,
-    pub rig: CheckpointRig,
+    pub rig: RunRig,
     pub settings: RunConfigStore,
     pub trigger_manager: Arc<RwLock<TriggerManager>>,
     pub triggers_enabled: bool,

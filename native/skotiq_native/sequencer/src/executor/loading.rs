@@ -71,7 +71,7 @@ impl SequenceExecutor {
         // load).
         self.resume_prepared = false;
         self.current_checkpoint = None;
-        *self.run_checkpoint.write() = None;
+        self.run = None;
 
         Ok(())
     }

@@ -349,44 +349,23 @@ mod tests {
             let (events, _) = broadcast::channel(128);
             let (decisions, _) = broadcast::channel(128);
             let (requests, recovery) = mpsc::channel(4);
-            let (done, _) = watch::channel(false);
-            let (_, quiesced) = watch::channel(true);
-            let (heartbeat, _) = watch::channel(0);
-            let dispatcher = Dispatcher::new(TriggerMonitorArgs {
-                active_run_id_for_decisions: Arc::new(StdRwLock::new(None)),
-                cloud_motion_for_recovery: Arc::new(RwLock::new(CloudMotionSnapshot::default())),
-                custom_recovery_branches_for_triggers: Arc::new(HashMap::new()),
-                custom_recovery_context_for_triggers: ExecutionContext::new(
-                    "root".into(),
-                    ops.clone(),
-                ),
-                decision_tx_for_lifecycle: decisions,
-                device_ops_for_triggers: ops.clone(),
-                execution_quiesced_for_triggers: quiesced,
-                heartbeat_tx: heartbeat,
-                is_cancelled_clone: Arc::new(AtomicBool::new(false)),
-                is_paused_for_triggers: Arc::new(AtomicBool::new(false)),
-                meridian_flip_failed_for_triggers: Arc::new(AtomicBool::new(false)),
-                meridian_flip_failure_for_triggers: Arc::new(StdRwLock::new(None)),
-                park_and_abort_done_for_triggers: done,
-                park_and_abort_for_triggers: Arc::new(AtomicBool::new(false)),
-                recovery_request_tx: requests,
-                runtime_config: RunConfigStore::default(),
-                sequence_for_custom_recovery_triggers: None,
-                skip_to_next_target_for_triggers: Arc::new(AtomicBool::new(false)),
-                skip_to_node_for_recovery: Arc::new(StdRwLock::new(None)),
-                run_state: RunCell::starting_in(events, ExecutorState::Running),
-                transparency_backup_for_recovery: Arc::new(RwLock::new(None)),
-                trigger_action_context: TriggerActionContext {
-                    mount_id: Some("mount".into()),
-                    camera_id: Some("camera".into()),
-                    ..Default::default()
-                },
-                trigger_action_in_flight_for_triggers: Arc::new(AtomicBool::new(false)),
-                trigger_manager: Arc::new(RwLock::new(manager)),
-                triggers_enabled: true,
-                finish_frames: watch::channel(false).1,
-            })
+            let mut run = Run::detached(
+                ops.clone(),
+                RunCell::starting_in(events, ExecutorState::Running),
+            );
+            run.decisions.tx = decisions;
+            run.triggers = Arc::new(RwLock::new(manager));
+            run.rig = RunRig {
+                mount_id: Some("mount".into()),
+                camera_id: Some("camera".into()),
+                ..Default::default()
+            };
+            run.teardown.node_tree_has_ended();
+            let dispatcher = Dispatcher::new(
+                &run,
+                ExecutionContext::new("root".into(), ops.clone()),
+                requests,
+            )
             .await;
             Self {
                 dispatcher,
@@ -931,7 +910,7 @@ mod tests {
             Some("guider_stop_reason:meridian_flip"),
             "{reasons:?}"
         );
-        assert!(!h.dispatcher.flip_failure.failed.load(Ordering::Acquire));
+        assert!(!h.dispatcher.flip_failure.is_latched());
         assert_eq!(h.slews(), 1, "the mount does not flip again");
     }
 
@@ -952,8 +931,8 @@ mod tests {
             .current_hour_angle = Some(0.4);
         h.tick().await;
         assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Paused);
-        assert!(h.dispatcher.flip_failure.failed.load(Ordering::Acquire));
-        let first = h.dispatcher.flip_failure.failure.read().clone();
+        assert!(h.dispatcher.flip_failure.is_latched());
+        let first = h.dispatcher.flip_failure.message();
         assert!(
             first.as_deref().is_some_and(|f| f.contains("Pier side")),
             "{first:?}"
@@ -978,8 +957,8 @@ mod tests {
             .await
             .meridian
             .has_flipped());
-        assert!(!h.dispatcher.flip_failure.failed.load(Ordering::Acquire));
-        assert_eq!(*h.dispatcher.flip_failure.failure.read(), None);
+        assert!(!h.dispatcher.flip_failure.is_latched());
+        assert_eq!(h.dispatcher.flip_failure.message(), None);
         assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Running);
     }
 

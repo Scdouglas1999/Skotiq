@@ -516,7 +516,8 @@ impl GuiderOps for ScriptedDeviceOps {
             Some(star) if !floor.accepts(&star) => Err(format!(
                 "the star measures SNR {:.1}, mass {:.0}, below the floor",
                 star.snr, star.star_mass
-            ).into()),
+            )
+            .into()),
             _ => Ok(()),
         }
     }
@@ -3116,11 +3117,15 @@ async fn start_weather_run(
 ) -> super::SequenceExecutor {
     ops.safety_absent.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
-    executor.set_safety_fail_mode(crate::SafetyFailMode::FailOpen).await;
+    executor
+        .set_safety_fail_mode(crate::SafetyFailMode::FailOpen)
+        .await;
     if let Some(policy) = policy {
         executor.set_park_policy(policy).await;
     }
-    executor.set_weather_resume_after_safe_secs(resume_after_secs).await;
+    executor
+        .set_weather_resume_after_safe_secs(resume_after_secs)
+        .await;
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     executor.set_dome(Some("dome-1".to_string()));
     executor.set_cover_calibrator(Some("cover-1".to_string()));
@@ -3227,7 +3232,9 @@ async fn a_weather_hold_never_runs_out_and_fails_the_run() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     ops.safety_absent.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
-    executor.set_safety_fail_mode(crate::SafetyFailMode::FailOpen).await;
+    executor
+        .set_safety_fail_mode(crate::SafetyFailMode::FailOpen)
+        .await;
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     executor
         .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {

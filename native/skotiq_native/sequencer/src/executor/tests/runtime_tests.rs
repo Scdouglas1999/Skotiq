@@ -135,9 +135,14 @@ async fn update_location_also_rejects_null_island() {
 async fn safety_fail_mode_updates_runtime_config() {
     let mut executor = SequenceExecutor::new();
 
-    executor.set_safety_fail_mode(crate::SafetyFailMode::WarnOnly).await;
+    executor
+        .set_safety_fail_mode(crate::SafetyFailMode::WarnOnly)
+        .await;
 
-    assert_eq!(executor.run_config().safety_fail_mode, crate::SafetyFailMode::WarnOnly);
+    assert_eq!(
+        executor.run_config().safety_fail_mode,
+        crate::SafetyFailMode::WarnOnly
+    );
     assert_eq!(
         executor.settings.read().safety_fail_mode,
         crate::SafetyFailMode::WarnOnly
@@ -290,10 +295,7 @@ async fn safety_check_interval_updates_runtime_config() {
 
     executor.set_safety_check_interval_secs(45).await;
 
-    assert_eq!(
-        executor.settings.read().safety_check_interval_secs,
-        45
-    );
+    assert_eq!(executor.settings.read().safety_check_interval_secs, 45);
 
     executor.set_safety_check_interval_secs(3).await;
 
@@ -377,7 +379,7 @@ fn test_executor_state_for_result_keeps_cancelled_distinct() {
 
 #[test]
 fn test_trigger_autofocus_context_preserves_runtime_metadata() {
-    let trigger_context = TriggerActionContext {
+    let trigger_context = RunRig {
         camera_id: Some("camera".to_string()),
         mount_id: Some("mount".to_string()),
         focuser_id: Some("focuser".to_string()),
@@ -416,11 +418,11 @@ fn test_trigger_autofocus_context_preserves_runtime_metadata() {
 
 #[test]
 fn test_trigger_flip_context_keeps_focuser_id() {
-    let trigger_context = TriggerActionContext {
+    let trigger_context = RunRig {
         mount_id: Some("mount".to_string()),
         camera_id: Some("camera".to_string()),
         focuser_id: Some("focuser".to_string()),
-        ..TriggerActionContext::default()
+        ..RunRig::default()
     };
 
     let flip_ctx = build_trigger_flip_context(
@@ -443,11 +445,11 @@ fn test_trigger_flip_context_keeps_focuser_id() {
 
 #[test]
 fn trigger_flip_context_preserves_real_autofocus_config() {
-    let trigger_context = TriggerActionContext {
+    let trigger_context = RunRig {
         mount_id: Some("mount".to_string()),
         filterwheel_id: Some("wheel".to_string()),
         filter_focus_offsets: HashMap::from([("L".to_string(), 0), ("Ha".to_string(), 180)]),
-        ..TriggerActionContext::default()
+        ..RunRig::default()
     };
     let autofocus_config = crate::AutofocusConfig {
         filter: Some("Ha".to_string()),
@@ -3511,7 +3513,8 @@ async fn push_dither_settle(executor: &mut SequenceExecutor) -> (crate::GuiderSe
         .state()
         .read()
         .await
-        .settings.dither_settle;
+        .settings
+        .dither_settle;
     let mut announced = Vec::new();
     while let Ok(event) = events.try_recv() {
         if let ExecutorEvent::RuntimeConfigUpdated { what } = event {
@@ -3569,7 +3572,10 @@ async fn settings_pushed_while_idle_are_what_the_next_run_starts_with() {
         let state = manager.state();
         let state = state.read().await;
         (
-            (state.settings.observer_latitude, state.settings.observer_longitude),
+            (
+                state.settings.observer_latitude,
+                state.settings.observer_longitude,
+            ),
             state.settings.max_sun_altitude_degrees,
             state.settings.stop_on_quality_problems,
         )

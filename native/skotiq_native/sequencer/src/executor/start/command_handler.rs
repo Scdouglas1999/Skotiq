@@ -3,32 +3,14 @@
 
 use super::*;
 
-pub(super) struct CommandHandlerArgs {
-    pub run: RunControl,
-    pub rx: mpsc::Receiver<ExecutorCommand>,
-    pub current_recovery: Arc<StdRwLock<Option<crate::recovery::RecoveryContext>>>,
-    pub recovery_signals: Arc<crate::recovery::RecoverySignals>,
-    pub resume_notify: Arc<tokio::sync::Notify>,
-    pub skip_step: Arc<AtomicBool>,
-    pub skip_to_node: Arc<StdRwLock<Option<NodeId>>>,
-    pub plugin_node_pending: Arc<
-        RwLock<
-            HashMap<NodeId, tokio::sync::oneshot::Sender<crate::node::context::PluginNodeReply>>,
-        >,
-    >,
-}
-
-pub(super) async fn run_command_handler(args: CommandHandlerArgs) {
-    let CommandHandlerArgs {
-        run,
-        mut rx,
-        current_recovery,
-        recovery_signals,
-        resume_notify,
-        skip_step,
-        skip_to_node,
-        plugin_node_pending,
-    } = args;
+pub(super) async fn run_command_handler(run: Arc<Run>, mut rx: mpsc::Receiver<ExecutorCommand>) {
+    let current_recovery = &run.recovery.current;
+    let recovery_signals = &run.recovery.signals;
+    let resume_notify = &run.resume_notify;
+    let skip_step = &run.skip_current_step;
+    let skip_to_node = &run.skip_to_node;
+    let plugin_node_pending = &run.plugin_node_pending;
+    let run = &run.control;
     while let Some(cmd) = rx.recv().await {
         match cmd {
             ExecutorCommand::Pause => run.pause(None),
@@ -210,21 +192,12 @@ mod tests {
     fn running_handler() -> Handler {
         let (events_tx, events) = broadcast::channel(16);
         let (commands, rx) = mpsc::channel(8);
-        let run = RunControl {
-            state: RunCell::starting_in(events_tx, ExecutorState::Running),
-            is_cancelled: Arc::new(AtomicBool::new(false)),
-            is_paused: Arc::new(AtomicBool::new(false)),
-        };
-        let task = tokio::spawn(run_command_handler(CommandHandlerArgs {
-            run: run.clone(),
-            rx,
-            current_recovery: Arc::new(StdRwLock::new(None)),
-            recovery_signals: Arc::new(crate::recovery::RecoverySignals::new()),
-            resume_notify: Arc::new(tokio::sync::Notify::new()),
-            skip_step: Arc::new(AtomicBool::new(false)),
-            skip_to_node: Arc::new(StdRwLock::new(None)),
-            plugin_node_pending: Arc::new(RwLock::new(HashMap::new())),
-        }));
+        let run = Arc::new(Run::detached(
+            Arc::new(crate::device_ops::NullDeviceOps),
+            RunCell::starting_in(events_tx, ExecutorState::Running),
+        ));
+        let task = tokio::spawn(run_command_handler(run.clone(), rx));
+        let run = run.control.clone();
         Handler {
             run,
             commands,

@@ -3,32 +3,6 @@
 
 use super::*;
 
-/// Where a flip that left the mount on its old side is latched, so the run's
-/// verdict cannot read `completed` while the mount is not where the run
-/// thinks it is.
-pub(in super::super) struct FlipFailureLatch {
-    pub failed: Arc<AtomicBool>,
-    pub failure: Arc<StdRwLock<Option<String>>>,
-}
-
-impl FlipFailureLatch {
-    /// Latch a failure. The newest one is the run's cause: an older one has
-    /// either been retried or describes a mount that has moved since.
-    pub(in super::super) fn latch(&self, message: impl FnOnce() -> String) {
-        self.failed.store(true, Ordering::Release);
-        *self.failure.write() = Some(message());
-    }
-
-    /// A later flip reached the new pier side, so no earlier failure says
-    /// where the mount is. On 2026-11-03 the window flip failed with the mount
-    /// still west, the flip after the resume reached the east side, and the
-    /// run that then finished its plan was filed failed with "still West".
-    pub(in super::super) fn clear(&self) {
-        self.failed.store(false, Ordering::Release);
-        *self.failure.write() = None;
-    }
-}
-
 /// What a trigger-fired flip needs.
 pub(in super::super) struct FlipRequest<'a> {
     pub config: &'a crate::MeridianFlipConfig,

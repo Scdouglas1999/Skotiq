@@ -27,75 +27,40 @@ use dispatch::{Dispatcher, Flow};
 use policy::{select_dispatches, DispatchPolicy};
 use polling::DevicePoller;
 
-/// Everything the poll loop reads from the run it belongs to.
-pub(super) struct TriggerMonitorArgs {
-    pub active_run_id_for_decisions: Arc<StdRwLock<Option<i64>>>,
-    pub cloud_motion_for_recovery: Arc<RwLock<CloudMotionSnapshot>>,
-    pub custom_recovery_branches_for_triggers: Arc<HashMap<String, String>>,
-    pub custom_recovery_context_for_triggers: ExecutionContext,
-    pub decision_tx_for_lifecycle: crate::decision::DecisionSender,
-    pub device_ops_for_triggers: SharedDeviceOps,
-    pub execution_quiesced_for_triggers: watch::Receiver<bool>,
-    pub heartbeat_tx: watch::Sender<u64>,
-    pub is_cancelled_clone: Arc<AtomicBool>,
-    pub is_paused_for_triggers: Arc<AtomicBool>,
-    pub meridian_flip_failed_for_triggers: Arc<AtomicBool>,
-    pub meridian_flip_failure_for_triggers: Arc<StdRwLock<Option<String>>>,
-    pub park_and_abort_done_for_triggers: watch::Sender<bool>,
-    pub park_and_abort_for_triggers: Arc<AtomicBool>,
-    pub recovery_request_tx: mpsc::Sender<crate::recovery::RecoveryCause>,
-    pub runtime_config: RunConfigStore,
-    pub sequence_for_custom_recovery_triggers: Option<SequenceDefinition>,
-    pub skip_to_next_target_for_triggers: Arc<AtomicBool>,
-    pub skip_to_node_for_recovery: Arc<StdRwLock<Option<NodeId>>>,
-    pub run_state: RunCell,
-    pub transparency_backup_for_recovery:
-        Arc<RwLock<Option<crate::node::context::TransparencyBackupPlan>>>,
-    pub trigger_action_context: TriggerActionContext,
-    pub trigger_action_in_flight_for_triggers: Arc<AtomicBool>,
-    pub trigger_manager: Arc<RwLock<TriggerManager>>,
-    pub triggers_enabled: bool,
-    pub finish_frames: watch::Receiver<bool>,
-}
-
 /// Run the monitor until a trigger ends the run or the run is cancelled.
-/// Returns every firing that was acted on.
+/// Returns every firing that was acted on. Never returns for a run with
+/// triggers disabled, so the run does not read it as a monitor that died.
 pub(super) async fn run_trigger_monitor_poll_loop(
-    args: TriggerMonitorArgs,
+    run: Arc<Run>,
+    custom_branch_context: ExecutionContext,
+    recovery_requests: mpsc::Sender<crate::recovery::RecoveryCause>,
+    heartbeat_tx: watch::Sender<u64>,
 ) -> Vec<(String, RecoveryAction)> {
-    if !args.triggers_enabled {
-        // Hold this task open so the `try_join!` below still waits on the
-        // other branches; an immediate return would short-circuit them.
+    if !run.triggers_enabled {
         std::future::pending::<()>().await;
         return Vec::new();
     }
-    let explicit_end = args
-        .sequence_for_custom_recovery_triggers
-        .as_ref()
-        .is_some_and(super::explicit_end::owns_dawn_end);
-    let calibration_run = args
-        .sequence_for_custom_recovery_triggers
-        .as_ref()
-        .is_some_and(super::calibration_run::is_calibration_only);
-    let finish_frames = args.finish_frames.clone();
-    let run_state = args.run_state.clone();
-    let is_cancelled = args.is_cancelled_clone.clone();
-    let heartbeat_tx = args.heartbeat_tx.clone();
-    let trigger_manager = args.trigger_manager.clone();
-    let runtime_config = args.runtime_config.clone();
+    let sequence = run.plan.sequence.as_ref();
+    let explicit_end = sequence.is_some_and(super::explicit_end::owns_dawn_end);
+    let calibration_run = sequence.is_some_and(super::calibration_run::is_calibration_only);
+    let finish_frames = run.teardown.finish_frames();
+    let run_state = run.control.state.clone();
+    let is_cancelled = run.control.is_cancelled.clone();
+    let trigger_manager = run.triggers.clone();
+    let runtime_config = run.config.clone();
     let mut poller = DevicePoller::new(
-        args.device_ops_for_triggers.clone(),
-        args.trigger_manager.clone(),
-        args.runtime_config.clone(),
-        args.run_state.events().clone(),
-        &args.trigger_action_context,
+        run.device_ops.clone(),
+        run.triggers.clone(),
+        run.config.clone(),
+        run_state.events().clone(),
+        &run.rig,
     );
     let mut frame_watch = frame_watch::FrameWatchStage::new(
-        args.run_state.subscribe(),
-        args.device_ops_for_triggers.clone(),
-        args.sequence_for_custom_recovery_triggers.clone(),
+        run_state.subscribe(),
+        run.device_ops.clone(),
+        run.plan.sequence.clone(),
     );
-    let mut dispatcher = Dispatcher::new(args).await;
+    let mut dispatcher = Dispatcher::new(&run, custom_branch_context, recovery_requests).await;
 
     let mut check_interval = monitor_interval();
     let mut heartbeat: u64 = 0;

@@ -36,7 +36,7 @@ impl DevicePoller {
         trigger_manager: Arc<RwLock<TriggerManager>>,
         runtime_config: RunConfigStore,
         events: broadcast::Sender<ExecutorEvent>,
-        rig: &TriggerActionContext,
+        rig: &RunRig,
     ) -> Self {
         Self {
             device_ops,
@@ -260,7 +260,10 @@ impl DevicePoller {
 
         // Keep an upcoming dawn cached whenever a site is known, so a
         // multi-night run keeps its dawn protection.
-        if let (Some(lat), Some(lon)) = (state.settings.observer_latitude, state.settings.observer_longitude) {
+        if let (Some(lat), Some(lon)) = (
+            state.settings.observer_latitude,
+            state.settings.observer_longitude,
+        ) {
             let now = chrono::Utc::now().timestamp();
             let needs_refresh = match state.telemetry.dawn_time {
                 None => true,

@@ -73,9 +73,6 @@ impl Harness {
         let (events, seen) = broadcast::channel(4096);
         let (decisions, _) = broadcast::channel(4096);
         let (requests, _recovery) = mpsc::channel(4);
-        let (done, _) = watch::channel(false);
-        let (_, quiesced) = watch::channel(true);
-        let (heartbeat, _) = watch::channel(0);
         let runtime_config = RunConfig {
             latitude: Some(SITE_LAT),
             longitude: Some(SITE_LON),
@@ -102,40 +99,27 @@ impl Harness {
         });
         let stage =
             FrameWatchStage::with_measurer(events.subscribe(), measurer, Some(plan.clone()));
-        let dispatcher = Dispatcher::new(TriggerMonitorArgs {
-            active_run_id_for_decisions: Arc::new(StdRwLock::new(None)),
-            cloud_motion_for_recovery: Arc::new(RwLock::new(CloudMotionSnapshot::default())),
-            custom_recovery_branches_for_triggers: Arc::new(HashMap::new()),
-            custom_recovery_context_for_triggers: ExecutionContext::new("root".into(), ops.clone()),
-            decision_tx_for_lifecycle: decisions,
-            device_ops_for_triggers: ops.clone(),
-            execution_quiesced_for_triggers: quiesced,
-            heartbeat_tx: heartbeat,
-            is_cancelled_clone: Arc::new(AtomicBool::new(false)),
-            is_paused_for_triggers: Arc::new(AtomicBool::new(false)),
-            meridian_flip_failed_for_triggers: Arc::new(AtomicBool::new(false)),
-            meridian_flip_failure_for_triggers: Arc::new(StdRwLock::new(None)),
-            park_and_abort_done_for_triggers: done,
-            park_and_abort_for_triggers: Arc::new(AtomicBool::new(false)),
-            recovery_request_tx: requests,
-            runtime_config: RunConfigStore::new(runtime_config),
-            sequence_for_custom_recovery_triggers: Some(plan),
-            skip_to_next_target_for_triggers: Arc::new(AtomicBool::new(false)),
-            skip_to_node_for_recovery: Arc::new(StdRwLock::new(None)),
-            run_state: RunCell::starting_in(events.clone(), ExecutorState::Running),
-            transparency_backup_for_recovery: Arc::new(RwLock::new(None)),
-            trigger_action_context: TriggerActionContext {
-                mount_id: Some("mount".into()),
-                camera_id: Some("camera".into()),
-                latitude: Some(SITE_LAT),
-                longitude: Some(SITE_LON),
-                ..Default::default()
-            },
-            trigger_action_in_flight_for_triggers: Arc::new(AtomicBool::new(false)),
-            trigger_manager: Arc::new(RwLock::new(manager)),
-            triggers_enabled: true,
-            finish_frames: watch::channel(false).1,
-        })
+        let mut run = Run::detached(
+            ops.clone(),
+            RunCell::starting_in(events.clone(), ExecutorState::Running),
+        );
+        run.decisions.tx = decisions;
+        run.config = RunConfigStore::new(runtime_config);
+        run.plan.sequence = Some(plan);
+        run.triggers = Arc::new(RwLock::new(manager));
+        run.rig = RunRig {
+            mount_id: Some("mount".into()),
+            camera_id: Some("camera".into()),
+            latitude: Some(SITE_LAT),
+            longitude: Some(SITE_LON),
+            ..Default::default()
+        };
+        run.teardown.node_tree_has_ended();
+        let dispatcher = Dispatcher::new(
+            &run,
+            ExecutionContext::new("root".into(), ops.clone()),
+            requests,
+        )
         .await;
         Self {
             dispatcher,

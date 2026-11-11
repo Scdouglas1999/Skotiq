@@ -35,7 +35,7 @@
 //!     that lives in [`crate::checkpoint`]. This file is only the
 //!     executor-side bridge.
 
-use super::{CheckpointRig, CheckpointSources, CheckpointWriter, SequenceExecutor};
+use super::{CheckpointSources, CheckpointWriter, RunRig, SequenceExecutor};
 use std::sync::Arc;
 
 impl SequenceExecutor {
@@ -125,8 +125,7 @@ impl SequenceExecutor {
             .ok_or("No checkpoint manager configured")?;
         let sequence = self.sequence.as_ref().ok_or("No sequence loaded")?;
 
-        let run_writer = self.run_checkpoint.read().clone();
-        if let Some(writer) = run_writer {
+        if let Some(writer) = self.run.as_ref().and_then(|run| run.checkpoint.as_ref()) {
             return writer.save().await;
         }
 
@@ -151,13 +150,14 @@ impl SequenceExecutor {
                 run_state: self.run_state.clone(),
                 execution_order: self.build_execution_order(sequence),
                 sequence: sequence.clone(),
-                rig: CheckpointRig {
+                rig: RunRig {
                     camera_id: self.camera_id.clone(),
                     mount_id: self.mount_id.clone(),
                     focuser_id: self.focuser_id.clone(),
                     filterwheel_id: self.filterwheel_id.clone(),
                     rotator_id: self.rotator_id.clone(),
                     save_path: self.save_path.clone(),
+                    ..RunRig::default()
                 },
                 settings: self.settings.clone(),
                 trigger_manager: self.trigger_manager.clone(),
@@ -177,7 +177,7 @@ impl SequenceExecutor {
         if let Some(ref manager) = self.checkpoint_manager {
             manager.clear()?;
         }
-        if let Some(writer) = self.run_checkpoint.read().as_ref() {
+        if let Some(writer) = self.run.as_ref().and_then(|run| run.checkpoint.as_ref()) {
             writer.forget();
         }
         Ok(())

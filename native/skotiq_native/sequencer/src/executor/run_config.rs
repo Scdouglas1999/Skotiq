@@ -501,7 +501,9 @@ async fn project_onto_triggers(
 ) {
     if sections.contains(&Section::AutofocusInterval) {
         if let Some(every_n_frames) = config.autofocus_interval_frames {
-            if let Some(trigger) = manager.standard_mut(crate::triggers::StandardTrigger::AutofocusInterval) {
+            if let Some(trigger) =
+                manager.standard_mut(crate::triggers::StandardTrigger::AutofocusInterval)
+            {
                 if let TriggerType::AutofocusInterval {
                     every_n_frames: live,
                 } = &mut trigger.trigger_type
@@ -526,7 +528,13 @@ async fn project_onto_triggers(
     let trigger_flip_settle = manager.meridian_flip_config().map(GuiderSettle::from);
     let state = manager.state();
     let mut state = state.write().await;
-    project_onto_trigger_state(&mut state, config, sections, projection, trigger_flip_settle);
+    project_onto_trigger_state(
+        &mut state,
+        config,
+        sections,
+        projection,
+        trigger_flip_settle,
+    );
 }
 
 /// The one writer of the operator settings that `TriggerState` carries for
@@ -811,8 +819,11 @@ mod tests {
             rig.store.project_at_start(&mut manager).await;
         }
         assert_eq!(
-            rig.trigger_state(|state| (state.settings.observer_latitude, state.settings.observer_longitude))
-                .await,
+            rig.trigger_state(|state| (
+                state.settings.observer_latitude,
+                state.settings.observer_longitude
+            ))
+            .await,
             (Some(45.5), Some(-122.6))
         );
 
@@ -828,8 +839,11 @@ mod tests {
         })
         .await;
         assert_eq!(
-            rig.trigger_state(|state| (state.settings.observer_latitude, state.settings.observer_longitude))
-                .await,
+            rig.trigger_state(|state| (
+                state.settings.observer_latitude,
+                state.settings.observer_longitude
+            ))
+            .await,
             (None, None)
         );
     }
@@ -862,9 +876,10 @@ mod tests {
 
     #[test]
     fn a_config_with_missing_fields_loads_with_defaults() {
-        let partial: RunConfig =
-            serde_json::from_str(r#"{"latitude": 41.5, "park_policy": {"park_before_dawn": false}}"#)
-                .expect("a partial config loads");
+        let partial: RunConfig = serde_json::from_str(
+            r#"{"latitude": 41.5, "park_policy": {"park_before_dawn": false}}"#,
+        )
+        .expect("a partial config loads");
         assert_eq!(partial.latitude, Some(41.5));
         assert!(!partial.park_policy.park_before_dawn);
         assert!(partial.park_policy.park_on_unsafe_weather);

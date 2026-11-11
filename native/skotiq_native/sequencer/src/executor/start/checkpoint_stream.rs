@@ -7,23 +7,20 @@ const CHECKPOINT_INTERVAL: std::time::Duration = std::time::Duration::from_secs(
 
 /// Runs until the run is cancelled. Never returns for a run that keeps no
 /// checkpoint, so the run's `select!` does not read it as a finished task.
-pub(super) async fn run_checkpoint_stream(
-    writer: Option<Arc<CheckpointWriter>>,
-    run_state: RunCell,
-    is_cancelled: Arc<AtomicBool>,
-    park_and_abort_in_progress: Arc<AtomicBool>,
-    mut park_and_abort_done: watch::Receiver<bool>,
-) {
-    let Some(writer) = writer else {
+pub(super) async fn run_checkpoint_stream(run: Arc<Run>) {
+    let Some(writer) = run.checkpoint.as_ref() else {
         return std::future::pending::<()>().await;
     };
+    let run_state = &run.control.state;
+    let is_cancelled = &run.control.is_cancelled;
+    let mut park_and_abort_done = run.teardown.park_done();
 
     let mut interval = tokio::time::interval(CHECKPOINT_INTERVAL);
     loop {
         interval.tick().await;
 
         if is_cancelled.load(Ordering::Acquire) {
-            if park_and_abort_in_progress.load(Ordering::Acquire) {
+            if run.teardown.parked_by_trigger() {
                 if let Err(error) = park_and_abort_done.wait_for(|done| *done).await {
                     tracing::warn!(
                         "Checkpoint stream: the park-and-abort completion signal was dropped \

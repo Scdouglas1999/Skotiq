@@ -5,8 +5,9 @@
 
 use super::*;
 
+/// The devices, save path and site a run was started with.
 #[derive(Debug, Clone, Default)]
-pub(super) struct TriggerActionContext {
+pub(crate) struct RunRig {
     pub(super) camera_id: Option<String>,
     pub(super) mount_id: Option<String>,
     pub(super) focuser_id: Option<String>,
@@ -20,7 +21,7 @@ pub(super) struct TriggerActionContext {
     pub(super) filter_focus_offsets: HashMap<String, i32>,
 }
 
-impl TriggerActionContext {
+impl RunRig {
     pub(super) fn connected_device_ids(&self) -> Vec<String> {
         [
             self.camera_id.as_ref(),
@@ -113,7 +114,7 @@ pub(super) fn build_runtime_node_from_map(
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn build_trigger_autofocus_context(
-    trigger_context: &TriggerActionContext,
+    trigger_context: &RunRig,
     target_name: Option<String>,
     target_ra: Option<f64>,
     target_dec: Option<f64>,
@@ -255,7 +256,7 @@ pub(super) struct TriggerFlipTarget {
 }
 
 pub(super) fn build_trigger_flip_context(
-    trigger_context: &TriggerActionContext,
+    trigger_context: &RunRig,
     target: TriggerFlipTarget,
     cancellation_token: Option<Arc<AtomicBool>>,
     trigger_state: Option<Arc<RwLock<TriggerState>>>,
@@ -317,6 +318,10 @@ pub(super) async fn cancel_and_wait_for_execution(
 /// we give up loudly rather than waiting silently.
 pub(super) const TRIGGER_ACTION_QUIESCE_MAX_SECS: u64 = 15 * 60;
 
+/// How long an in-flight trigger action is given to restore the rig after
+/// its end-of-run budget ran out and it was cancelled.
+pub(super) const TRIGGER_CLEANUP_BUDGET_SECS: u64 = 300;
+
 /// Cancel cooperatively so in-flight recovery can restore borrowed equipment.
 /// A wedged driver still has a finite cleanup budget.
 pub(super) async fn cancel_trigger_monitor_with_cleanup<F: std::future::Future>(
@@ -324,9 +329,12 @@ pub(super) async fn cancel_trigger_monitor_with_cleanup<F: std::future::Future>(
     monitor: F,
 ) -> bool {
     cancelled.store(true, Ordering::Release);
-    tokio::time::timeout(std::time::Duration::from_secs(300), monitor)
-        .await
-        .is_ok()
+    tokio::time::timeout(
+        std::time::Duration::from_secs(TRIGGER_CLEANUP_BUDGET_SECS),
+        monitor,
+    )
+    .await
+    .is_ok()
 }
 
 /// RAII latch marking that a trigger recovery action is executing.

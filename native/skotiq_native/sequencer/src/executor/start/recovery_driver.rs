@@ -5,55 +5,34 @@
 use super::*;
 use crate::recovery::{HoldKind, OnGiveUp};
 
-pub(super) struct RecoveryDriverArgs {
-    pub recovery_driver_active_run_id: Arc<StdRwLock<Option<i64>>>,
-    pub recovery_driver_cover_id: Option<String>,
-    pub recovery_driver_current: Arc<StdRwLock<Option<crate::recovery::RecoveryContext>>>,
-    pub recovery_driver_decision_tx: crate::decision::DecisionSender,
-    pub recovery_driver_device_ids: Vec<String>,
-    pub recovery_driver_device_ops: SharedDeviceOps,
-    pub recovery_driver_dome_id: Option<String>,
-    pub recovery_driver_gave_up: Arc<AtomicBool>,
-    pub recovery_driver_generation: Arc<std::sync::atomic::AtomicU64>,
-    pub recovery_driver_history: Arc<StdRwLock<Vec<crate::recovery::RecoveryHistoryEntry>>>,
-    pub recovery_driver_mount_id: Option<String>,
-    pub recovery_driver_runtime: RunConfigStore,
-    pub recovery_driver_signals: Arc<crate::recovery::RecoverySignals>,
-    pub run: RunControl,
-    pub recovery_driver_trigger_mgr: Arc<RwLock<TriggerManager>>,
-    pub recovery_driver_trigger_context: TriggerActionContext,
-    pub recovery_request_rx: mpsc::Receiver<crate::recovery::RecoveryCause>,
-}
-
-pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
-    let RecoveryDriverArgs {
-        recovery_driver_active_run_id,
-        recovery_driver_cover_id,
-        recovery_driver_current,
-        recovery_driver_decision_tx,
-        recovery_driver_device_ids,
-        recovery_driver_device_ops,
-        recovery_driver_dome_id,
-        recovery_driver_gave_up,
-        recovery_driver_generation,
-        recovery_driver_history,
-        recovery_driver_mount_id,
-        recovery_driver_runtime,
-        recovery_driver_signals,
-        run,
-        recovery_driver_trigger_mgr,
-        recovery_driver_trigger_context,
-        mut recovery_request_rx,
-    } = args;
-    let run_state = run.state;
-    let recovery_driver_event_tx = run_state.events().clone();
-    let recovery_driver_is_cancelled = run.is_cancelled;
-    let recovery_driver_is_paused = run.is_paused;
+pub(super) async fn run_recovery_driver(
+    run: Arc<Run>,
+    mut recovery_request_rx: mpsc::Receiver<crate::recovery::RecoveryCause>,
+) {
+    let run_state = run.control.state.clone();
+    let event_tx = run_state.events().clone();
+    let is_cancelled = run.control.is_cancelled.clone();
+    let is_paused = run.control.is_paused.clone();
+    let active_run_id = run.decisions.run_id.clone();
+    let decision_tx = run.decisions.tx.clone();
+    let current = run.recovery.current.clone();
+    let history = run.recovery.history.clone();
+    let signals = run.recovery.signals.clone();
+    let generation = run.recovery.generation.clone();
+    let gave_up = run.outside_failures.recovery_gave_up.clone();
+    let device_ops = run.device_ops.clone();
+    let runtime = run.config.clone();
+    let trigger_mgr = run.triggers.clone();
+    let trigger_context = run.rig.clone();
+    let device_ids = run.recovery.reconnect_device_ids.clone();
+    let mount_id = run.rig.mount_id.clone();
+    let dome_id = run.rig.dome_id.clone();
+    let cover_id = run.rig.cover_calibrator_id.clone();
     while let Some(cause) = recovery_request_rx.recv().await {
         // Don't enter recovery if the executor has already
         // been told to stop — the operator's Stop overrides
         // every other state machine.
-        if recovery_driver_is_cancelled.load(Ordering::Relaxed) {
+        if is_cancelled.load(Ordering::Relaxed) {
             tracing::info!(
                 "[RECOVERY] Ignoring recovery request ({:?}) — sequence is cancelling",
                 cause
@@ -64,14 +43,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
         // Requests already queued before the tracking-limit hold was adopted
         // must not steal the mount back from its flip controller.
         if cause.policy().yields_to_tracking_limit_flip()
-            && recovery_driver_trigger_mgr
-                .read()
-                .await
-                .state()
-                .read()
-                .await
-                .run
-                .hold()
+            && trigger_mgr.read().await.state().read().await.run.hold()
                 == Some(crate::triggers::RunHold::TrackingLimit)
         {
             continue;
@@ -83,7 +55,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
         // UpdateRecoveryConfig only affects the *next*
         // recovery (predictable behaviour for the operator).
         let (interval_secs, max_duration_secs, stop_tracking) = {
-            let rc = recovery_driver_runtime.read();
+            let rc = runtime.read();
             (
                 rc.recovery.retry_interval_secs,
                 rc.recovery.max_duration_secs,
@@ -106,15 +78,15 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
         // previous loop is cleared, and the entry counter
         // increments so the Dart side knows this is a
         // fresh recovery.
-        recovery_driver_signals.arm();
+        signals.arm();
 
         // 1. Flip state -> Recovering and publish.
         let recovering = run_state.store(ExecutorState::Recovering, |progress| {
             progress.message = Some(format!("Recovering: {}", cause.display_label()));
         });
-        *recovery_driver_current.write() = Some(ctx.clone());
+        *current.write() = Some(ctx.clone());
         recovering.announce();
-        let _ = recovery_driver_event_tx.send(ExecutorEvent::RecoveryStarted {
+        let _ = event_tx.send(ExecutorEvent::RecoveryStarted {
             context: Box::new(ctx.clone()),
         });
         // Replay Debug — promote recovery entry to
@@ -133,12 +105,12 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                     "max_duration_secs": ctx.max_duration_secs,
                 }),
             );
-            decision_event.sequence_run_id = *recovery_driver_active_run_id.read();
-            let _ = recovery_driver_decision_tx.send(decision_event);
+            decision_event.sequence_run_id = *active_run_id.read();
+            let _ = decision_tx.send(decision_event);
         }
 
         // 2. Freeze node tree.
-        recovery_driver_is_paused.store(true, Ordering::Relaxed);
+        is_paused.store(true, Ordering::Relaxed);
 
         // 3. Optionally stop tracking, but never under a moving mount. On the
         // rig (2026-10-07) a guide-star loss caused by the run's own slew
@@ -147,10 +119,10 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
         // Everything after this reads `stop_tracking` as "tracking was
         // stopped", so a moving mount clears it.
         let stop_tracking = stop_tracking
-            && match &recovery_driver_mount_id {
+            && match &mount_id {
                 Some(mount_id) => {
                     let run_is_moving_mount = {
-                        let manager = recovery_driver_trigger_mgr.read().await;
+                        let manager = trigger_mgr.read().await;
                         let depth = manager.state().read().await.guiding.motion_depth();
                         depth > 0
                     };
@@ -158,7 +130,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                         || matches!(
                             tokio::time::timeout(
                                 std::time::Duration::from_secs(5),
-                                recovery_driver_device_ops.mount_is_slewing(mount_id),
+                                device_ops.mount_is_slewing(mount_id),
                             )
                             .await,
                             Ok(Ok(true))
@@ -174,14 +146,14 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 None => true,
             };
         if stop_tracking {
-            if let Some(mount_id) = &recovery_driver_mount_id {
+            if let Some(mount_id) = &mount_id {
                 tracing::info!(
                     "[RECOVERY] Stopping mount tracking on '{}' for the recovery loop",
                     mount_id
                 );
                 // The run's own stop is not a lost-tracking event.
                 {
-                    let manager = recovery_driver_trigger_mgr.read().await;
+                    let manager = trigger_mgr.read().await;
                     manager
                         .state()
                         .write()
@@ -189,10 +161,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                         .run
                         .begin_hold(crate::triggers::RunHold::RecoveryTracking);
                 }
-                if let Err(e) = recovery_driver_device_ops
-                    .mount_set_tracking(mount_id, false)
-                    .await
-                {
+                if let Err(e) = device_ops.mount_set_tracking(mount_id, false).await {
                     tracing::warn!(
                         "[RECOVERY] Failed to stop tracking on '{}': {} \
                          (continuing — operator may want to park manually)",
@@ -217,7 +186,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
         let mut cancelled_under_recovery = false;
         let mut handed_to_flip = false;
         loop {
-            if recovery_driver_is_cancelled.load(Ordering::Relaxed) {
+            if is_cancelled.load(Ordering::Relaxed) {
                 tracing::info!("[RECOVERY] Sequence cancelled mid-recovery — exiting loop");
                 cancelled_under_recovery = true;
                 aborted_by_user = false;
@@ -225,7 +194,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 ctx.phase = crate::recovery::RecoveryPhase::GaveUp;
                 break;
             }
-            if recovery_driver_signals.take_abort() {
+            if signals.take_abort() {
                 tracing::warn!(
                     "[RECOVERY] Operator aborted recovery for cause {:?} after {} attempt{}",
                     ctx.cause,
@@ -238,12 +207,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 break;
             }
             if policy.yields_to_tracking_limit_flip()
-                && hand_off_tracking_limit(
-                    &recovery_driver_device_ops,
-                    recovery_driver_mount_id.as_deref(),
-                    &recovery_driver_trigger_mgr,
-                )
-                .await
+                && hand_off_tracking_limit(&device_ops, mount_id.as_deref(), &trigger_mgr).await
             {
                 handed_to_flip = true;
                 aborted_by_user = false;
@@ -277,8 +241,8 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             let wait_secs = ctx.next_attempt_in_secs(chrono::Utc::now());
             if wait_secs > 0.0 {
                 ctx.phase = crate::recovery::RecoveryPhase::Waiting;
-                *recovery_driver_current.write() = Some(ctx.clone());
-                let _ = recovery_driver_event_tx.send(ExecutorEvent::RecoveryProgress {
+                *current.write() = Some(ctx.clone());
+                let _ = event_tx.send(ExecutorEvent::RecoveryProgress {
                     context: Box::new(ctx.clone()),
                 });
 
@@ -287,25 +251,25 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 let poll_step = std::time::Duration::from_millis(500);
                 let mut interrupted = false;
                 while wait_start.elapsed() < wait_duration {
-                    if recovery_driver_signals.take_try_now() {
+                    if signals.take_try_now() {
                         tracing::info!("[RECOVERY] TryNow consumed — bypassing wait timer");
                         interrupted = true;
                         break;
                     }
-                    if recovery_driver_signals.take_abort() {
+                    if signals.take_abort() {
                         // Replant the abort flag so the
                         // top-of-loop check picks it up
                         // and exits with the right
                         // aborted_by_user value.
-                        recovery_driver_signals.request_abort();
+                        signals.request_abort();
                         break;
                     }
-                    if recovery_driver_is_cancelled.load(Ordering::Relaxed) {
+                    if is_cancelled.load(Ordering::Relaxed) {
                         break;
                     }
                     tokio::time::sleep(poll_step).await;
                 }
-                if !interrupted && !recovery_driver_is_cancelled.load(Ordering::Relaxed) {
+                if !interrupted && !is_cancelled.load(Ordering::Relaxed) {
                     // Wait elapsed without a fast-forward;
                     // fall through to attempt.
                 }
@@ -321,19 +285,19 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 ctx.max_attempts,
                 ctx.cause
             );
-            *recovery_driver_current.write() = Some(ctx.clone());
-            let _ = recovery_driver_event_tx.send(ExecutorEvent::RecoveryProgress {
+            *current.write() = Some(ctx.clone());
+            let _ = event_tx.send(ExecutorEvent::RecoveryProgress {
                 context: Box::new(ctx.clone()),
             });
 
             let outcome = if policy.hold == Some(HoldKind::Weather) {
-                let resume_after = recovery_driver_runtime
+                let resume_after = runtime
                     .read()
                     .weather_resume_after_safe_secs
                     .unwrap_or(DEFAULT_WEATHER_RESUME_AFTER_SAFE_SECS);
                 weather_hold_attempt(
-                    &recovery_driver_device_ops,
-                    &recovery_driver_trigger_mgr,
+                    &device_ops,
+                    &trigger_mgr,
                     &mut weather_safe_since,
                     resume_after,
                 )
@@ -341,10 +305,10 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             } else {
                 run_recovery_attempt(
                     &ctx.cause,
-                    &recovery_driver_device_ops,
-                    recovery_driver_mount_id.as_deref(),
-                    &recovery_driver_device_ids,
-                    &recovery_driver_trigger_mgr,
+                    &device_ops,
+                    mount_id.as_deref(),
+                    &device_ids,
+                    &trigger_mgr,
                 )
                 .await
             };
@@ -365,7 +329,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                     if policy.hold == Some(HoldKind::Tracking) {
                         ctx.retry_interval_secs =
                             policy.cadence.after_failure(ctx.retry_interval_secs);
-                        let _ = recovery_driver_event_tx.send(ExecutorEvent::Warning {
+                        let _ = event_tx.send(ExecutorEvent::Warning {
                             message: format!(
                                 "{message}. Trying again in {:.0} s; the run stays held until \
                                  the mount tracks.",
@@ -375,8 +339,8 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                     }
                     ctx.last_error = Some(message);
                     ctx.phase = crate::recovery::RecoveryPhase::Waiting;
-                    *recovery_driver_current.write() = Some(ctx.clone());
-                    let _ = recovery_driver_event_tx.send(ExecutorEvent::RecoveryProgress {
+                    *current.write() = Some(ctx.clone());
+                    let _ = event_tx.send(ExecutorEvent::RecoveryProgress {
                         context: Box::new(ctx.clone()),
                     });
                 }
@@ -396,8 +360,8 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                     recovered = false;
                     ctx.last_error = Some(message);
                     ctx.phase = crate::recovery::RecoveryPhase::GaveUp;
-                    *recovery_driver_current.write() = Some(ctx.clone());
-                    let _ = recovery_driver_event_tx.send(ExecutorEvent::RecoveryProgress {
+                    *current.write() = Some(ctx.clone());
+                    let _ = event_tx.send(ExecutorEvent::RecoveryProgress {
                         context: Box::new(ctx.clone()),
                     });
                     break;
@@ -418,7 +382,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                         if ctx.attempt_count == 1 { "" } else { "s" },
                         ctx.cause
                     );
-                    let _ = recovery_driver_event_tx.send(ExecutorEvent::Warning {
+                    let _ = event_tx.send(ExecutorEvent::Warning {
                         message: message.clone(),
                     });
                     // The new cause takes its own recovery: a stopped mount
@@ -428,8 +392,8 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                     let (interval, max_duration) = policy.cadence.resolve(interval, max_duration);
                     ctx = crate::recovery::RecoveryContext::new(cause, interval, max_duration);
                     ctx.last_error = Some(message);
-                    *recovery_driver_current.write() = Some(ctx.clone());
-                    let _ = recovery_driver_event_tx.send(ExecutorEvent::RecoveryProgress {
+                    *current.write() = Some(ctx.clone());
+                    let _ = event_tx.send(ExecutorEvent::RecoveryProgress {
                         context: Box::new(ctx.clone()),
                     });
                 }
@@ -456,7 +420,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
         // A handoff is still in progress, not a recovered or failed attempt.
         let ended_at = chrono::Utc::now();
         if !handed_to_flip {
-            let mut history = recovery_driver_history.write();
+            let mut history = history.write();
             history.push(crate::recovery::RecoveryHistoryEntry {
                 started_at: ctx.started_at,
                 ended_at,
@@ -472,19 +436,19 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             // End this retry ladder without claiming recovery or releasing
             // exposures. The monitor owns the newly latched hold and keeps
             // polling safety while it waits for the configured flip window.
-            *recovery_driver_current.write() = None;
+            *current.write() = None;
             let message = "Mount tracking stopped near the meridian; recovery is handing the mount to the meridian flip.";
             run_state.transition_from(
                 ExecutorState::Recovering,
                 ExecutorState::Running,
                 message,
-                || !recovery_driver_is_cancelled.load(Ordering::Relaxed),
+                || !is_cancelled.load(Ordering::Relaxed),
             );
             tracing::warn!("[RECOVERY] {}", message);
-            let _ = recovery_driver_event_tx.send(ExecutorEvent::Warning {
+            let _ = event_tx.send(ExecutorEvent::Warning {
                 message: message.into(),
             });
-            let _ = recovery_driver_event_tx.send(ExecutorEvent::RecoveryCompleted {
+            let _ = event_tx.send(ExecutorEvent::RecoveryCompleted {
                 context: Box::new(ctx.clone()),
             });
         } else if cancelled_under_recovery && !recovered && paused_for_operator.is_none() {
@@ -500,7 +464,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 ctx.attempt_count,
                 if ctx.attempt_count == 1 { "" } else { "s" }
             );
-            *recovery_driver_current.write() = None;
+            *current.write() = None;
         } else if let Some(pause_message) = paused_for_operator {
             // The PauseForOperator escalation handling lives in
             // `apply_recovery_escalation` so an integration test can drive the
@@ -508,15 +472,15 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             // tracking-restore-before-Paused ordering, against real device-ops
             // without spinning up this whole closure.
             let escalation_state = RecoveryEscalationState {
-                device_ops: &recovery_driver_device_ops,
+                device_ops: &device_ops,
                 run_state: &run_state,
-                runtime_config: &recovery_driver_runtime,
-                current_recovery: &recovery_driver_current,
-                is_cancelled: &recovery_driver_is_cancelled,
-                gave_up: &recovery_driver_gave_up,
-                mount_id: recovery_driver_mount_id.as_deref(),
-                cover_id: recovery_driver_cover_id.as_deref(),
-                dome_id: recovery_driver_dome_id.as_deref(),
+                runtime_config: &runtime,
+                current_recovery: &current,
+                is_cancelled: &is_cancelled,
+                gave_up: &gave_up,
+                mount_id: mount_id.as_deref(),
+                cover_id: cover_id.as_deref(),
+                dome_id: dome_id.as_deref(),
             };
             apply_recovery_escalation(&escalation_state, &ctx, pause_message, stop_tracking).await;
         } else if recovered {
@@ -543,24 +507,24 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             if policy.hold == Some(HoldKind::Weather) && !operator_paused {
                 prepare_imaging_after_weather_hold(WeatherHoldExit {
                     held_secs: ctx.elapsed_secs(chrono::Utc::now()),
-                    device_ops: &recovery_driver_device_ops,
-                    trigger_mgr: &recovery_driver_trigger_mgr,
-                    trigger_context: &recovery_driver_trigger_context,
-                    runtime: &recovery_driver_runtime,
-                    is_cancelled: &recovery_driver_is_cancelled,
-                    event_tx: &recovery_driver_event_tx,
+                    device_ops: &device_ops,
+                    trigger_mgr: &trigger_mgr,
+                    trigger_context: &trigger_context,
+                    runtime: &runtime,
+                    is_cancelled: &is_cancelled,
+                    event_tx: &event_tx,
                 })
                 .await;
             }
             if policy.hold == Some(HoldKind::Tracking) {
                 // The attempt confirmed the axes track. Record that, so the
                 // poll's unresolved loss cannot fire the trigger again.
-                let lock = recovery_driver_trigger_mgr.read().await.state();
+                let lock = trigger_mgr.read().await.state();
                 let mut state = lock.write().await;
                 state.telemetry.mount_is_tracking = Some(true);
                 state.reset_tracking_limit_detection();
                 state.set_mount_tracking_expected(true);
-                let _ = recovery_driver_event_tx.send(ExecutorEvent::Warning {
+                let _ = event_tx.send(ExecutorEvent::Warning {
                     message: format!(
                         "Mount tracking is restored and confirmed from the mount's pointing after \
                          {} attempt{}.",
@@ -576,7 +540,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                     "Recovered — resuming sequence".to_string()
                 });
             });
-            *recovery_driver_current.write() = None;
+            *current.write() = None;
 
             // Re-enable tracking if the recovery loop stopped it
             // (stop_tracking_during_recovery) — for ALL causes, not
@@ -585,11 +549,11 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             // the UI reports "Recovered". A restore that fails
             // raises a loud error rather than resuming untracked.
             let tracking_warning = restore_tracking_after_recovery(
-                &recovery_driver_device_ops,
-                recovery_driver_mount_id.as_deref(),
+                &device_ops,
+                mount_id.as_deref(),
                 stop_tracking,
                 "after recovery",
-                &recovery_driver_event_tx,
+                &event_tx,
             )
             .await;
             // `sequencer_get_status()` reports `progress.message`, and it was
@@ -606,40 +570,38 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             // instruction that observes the cleared pause can always
             // also observe the advanced generation (no window where
             // it sees "not paused" with a stale generation).
-            recovery_driver_generation.fetch_add(1, Ordering::AcqRel);
+            generation.fetch_add(1, Ordering::AcqRel);
             if !operator_paused {
-                recovery_driver_is_paused.store(false, Ordering::Relaxed);
+                is_paused.store(false, Ordering::Relaxed);
             }
             resumed.announce();
-            let _ = recovery_driver_event_tx.send(ExecutorEvent::RecoveryCompleted {
+            let _ = event_tx.send(ExecutorEvent::RecoveryCompleted {
                 context: Box::new(ctx.clone()),
             });
         } else if !aborted_by_user
             && policy.on_give_up == OnGiveUp::ContinueUnguided
-            && !crate::triggers::stops_on_quality_problems(Some(
-                &recovery_driver_trigger_mgr.read().await.state(),
-            ))
-            .await
+            && !crate::triggers::stops_on_quality_problems(Some(&trigger_mgr.read().await.state()))
+                .await
         {
             // The guide star did not come back within the budget. That costs
             // trailed frames, which grading marks, not the hardware, so the run
             // goes on unguided rather than ending the night (owner decision
             // 2026-10-06). "Stop the run for quality problems" brings back the
             // old ending below. Nothing is parked: the run is not ending.
-            let active_run_id = *recovery_driver_active_run_id.read();
+            let active_run_id = *active_run_id.read();
             continue_unguided(UnguidedContinuation {
                 ctx: &ctx,
                 active_run_id,
-                decision_tx: &recovery_driver_decision_tx,
-                device_ops: &recovery_driver_device_ops,
-                event_tx: &recovery_driver_event_tx,
-                generation: &recovery_driver_generation,
-                is_paused: &recovery_driver_is_paused,
-                mount_id: recovery_driver_mount_id.as_deref(),
+                decision_tx: &decision_tx,
+                device_ops: &device_ops,
+                event_tx: &event_tx,
+                generation: &generation,
+                is_paused: &is_paused,
+                mount_id: mount_id.as_deref(),
                 run_state: &run_state,
-                current: &recovery_driver_current,
+                current: &current,
                 stop_tracking,
-                trigger_mgr: &recovery_driver_trigger_mgr,
+                trigger_mgr: &trigger_mgr,
             })
             .await;
         } else {
@@ -649,7 +611,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 if ctx.attempt_count == 1 { "" } else { "s" },
                 aborted_by_user
             );
-            *recovery_driver_current.write() = None;
+            *current.write() = None;
 
             // Recovery exhausted on a real failure (NOT an operator abort).
             // Whether the run may now park the mount and close up is the
@@ -666,17 +628,16 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             // safety-class triggers (weather unsafe, dawn approaching, dome
             // shutter) keep their own configured ParkAndAbort behaviour either
             // way, so a rig in actual danger is still protected.
-            let end_policy =
-                UnattendedEndPolicy::from_recovery_config(&recovery_driver_runtime.read().recovery);
+            let end_policy = UnattendedEndPolicy::from_recovery_config(&runtime.read().recovery);
             if !aborted_by_user {
-                recovery_driver_gave_up.store(true, Ordering::Relaxed);
+                gave_up.store(true, Ordering::Relaxed);
             }
             if !aborted_by_user && !end_policy.may_safe_abandon() {
                 // The ladder switched tracking off before its first attempt
                 // (`stop_tracking_during_recovery`) and nothing restores it for
                 // a run that has ended. Say so: "nothing has been moved" read
                 // as "the mount is as you left it", and it was not.
-                let tracking_note = if stop_tracking && recovery_driver_mount_id.is_some() {
+                let tracking_note = if stop_tracking && mount_id.is_some() {
                     " Mount tracking was switched off for the recovery and is still off."
                 } else {
                     ""
@@ -690,7 +651,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                     end_policy.label(),
                     tracking_note
                 );
-                let _ = recovery_driver_event_tx.send(ExecutorEvent::Error {
+                let _ = event_tx.send(ExecutorEvent::Error {
                     message: format!(
                         "Recovery could not fix {} after {} attempt{}. The run has stopped. \
                          Nothing has been parked or closed.{} Check the rig when you can.",
@@ -711,16 +672,16 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 // events from the returned outcome.
                 // wording from the returned outcome.
                 let outcome = crate::device_ops::park_and_close_safe_state(
-                    &recovery_driver_device_ops,
-                    recovery_driver_mount_id.as_deref(),
-                    recovery_driver_cover_id.as_deref(),
-                    recovery_driver_dome_id.as_deref(),
+                    &device_ops,
+                    mount_id.as_deref(),
+                    cover_id.as_deref(),
+                    dome_id.as_deref(),
                     2,
                     2.0,
                 )
                 .await;
 
-                if let (Some(mount_id), Some(park)) = (&recovery_driver_mount_id, &outcome.park) {
+                if let (Some(mount_id), Some(park)) = (&mount_id, &outcome.park) {
                     if park.success {
                         tracing::info!(
                             "[RECOVERY] Parked mount '{}' on give-up ({} attempt{})",
@@ -737,30 +698,25 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                                 .unwrap_or_else(|| "unknown".to_string())
                         );
                         tracing::error!("[RECOVERY] {}", msg);
-                        let _ =
-                            recovery_driver_event_tx.send(ExecutorEvent::Error { message: msg });
+                        let _ = event_tx.send(ExecutorEvent::Error { message: msg });
                     }
                 }
 
-                if let (Some(cover_id), Some(e)) =
-                    (&recovery_driver_cover_id, &outcome.cover_close_error)
-                {
+                if let (Some(cover_id), Some(e)) = (&cover_id, &outcome.cover_close_error) {
                     let msg = format!(
                         "Recovery give-up: failed to close cover '{}': {}",
                         cover_id, e
                     );
                     tracing::error!("[RECOVERY] {}", msg);
-                    let _ = recovery_driver_event_tx.send(ExecutorEvent::Error { message: msg });
+                    let _ = event_tx.send(ExecutorEvent::Error { message: msg });
                 }
-                if let (Some(dome_id), Some(e)) =
-                    (&recovery_driver_dome_id, &outcome.dome_close_error)
-                {
+                if let (Some(dome_id), Some(e)) = (&dome_id, &outcome.dome_close_error) {
                     let msg = format!(
                         "Recovery give-up: failed to close dome '{}': {} — scope may be exposed.",
                         dome_id, e
                     );
                     tracing::error!("[RECOVERY] {}", msg);
-                    let _ = recovery_driver_event_tx.send(ExecutorEvent::Error { message: msg });
+                    let _ = event_tx.send(ExecutorEvent::Error { message: msg });
                 }
             }
 
@@ -770,7 +726,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             // anyway, but the explicit Cancelled signal
             // ensures any active instruction returns
             // promptly.
-            recovery_driver_is_cancelled.store(true, Ordering::Relaxed);
+            is_cancelled.store(true, Ordering::Relaxed);
             run_state.transition_with_message(
                 ExecutorState::Failed,
                 format!(
@@ -784,7 +740,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                     if ctx.attempt_count == 1 { "" } else { "s" }
                 ),
             );
-            let _ = recovery_driver_event_tx.send(ExecutorEvent::RecoveryGaveUp {
+            let _ = event_tx.send(ExecutorEvent::RecoveryGaveUp {
                 context: Box::new(ctx.clone()),
                 aborted_by_user,
             });
@@ -795,8 +751,8 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
 
         // Tracking is restored (or the run has ended); from here a tracking
         // change is the mount's own again.
-        if stop_tracking && recovery_driver_mount_id.is_some() {
-            let manager = recovery_driver_trigger_mgr.read().await;
+        if stop_tracking && mount_id.is_some() {
+            let manager = trigger_mgr.read().await;
             manager.state().write().await.run.end_hold();
         }
     }
@@ -807,7 +763,7 @@ struct WeatherHoldExit<'a> {
     held_secs: f64,
     device_ops: &'a SharedDeviceOps,
     trigger_mgr: &'a Arc<RwLock<TriggerManager>>,
-    trigger_context: &'a TriggerActionContext,
+    trigger_context: &'a RunRig,
     runtime: &'a RunConfigStore,
     is_cancelled: &'a Arc<AtomicBool>,
     event_tx: &'a broadcast::Sender<ExecutorEvent>,
@@ -1065,29 +1021,21 @@ mod tests {
         let is_cancelled = Arc::new(AtomicBool::new(false));
         let history = Arc::new(StdRwLock::new(Vec::new()));
 
-        let driver = tokio::spawn(run_recovery_driver(RecoveryDriverArgs {
-            recovery_driver_active_run_id: Arc::new(StdRwLock::new(None)),
-            recovery_driver_cover_id: Some("cover-1".to_string()),
-            recovery_driver_current: Arc::new(StdRwLock::new(None)),
-            recovery_driver_decision_tx: decision_tx,
-            recovery_driver_device_ids: device_ids,
-            recovery_driver_device_ops: ops.clone(),
-            recovery_driver_dome_id: Some("dome-1".to_string()),
-            recovery_driver_gave_up: gave_up.clone(),
-            recovery_driver_generation: Arc::new(std::sync::atomic::AtomicU64::new(0)),
-            recovery_driver_history: history.clone(),
-            recovery_driver_mount_id: Some("mount-1".to_string()),
-            recovery_driver_runtime: RunConfigStore::new(runtime),
-            recovery_driver_signals: signals.clone(),
-            run: RunControl {
-                state: state.clone(),
-                is_cancelled: is_cancelled.clone(),
-                is_paused: Arc::new(AtomicBool::new(false)),
-            },
-            recovery_driver_trigger_mgr: Arc::new(RwLock::new(TriggerManager::new())),
-            recovery_driver_trigger_context: TriggerActionContext::default(),
-            recovery_request_rx: request_rx,
-        }));
+        let mut run = Run::detached(ops.clone(), state.clone());
+        run.control.is_cancelled = is_cancelled.clone();
+        run.decisions.tx = decision_tx;
+        run.config = RunConfigStore::new(runtime);
+        run.recovery.signals = signals.clone();
+        run.recovery.history = history.clone();
+        run.recovery.reconnect_device_ids = device_ids;
+        run.outside_failures.recovery_gave_up = gave_up.clone();
+        run.rig = RunRig {
+            mount_id: Some("mount-1".to_string()),
+            dome_id: Some("dome-1".to_string()),
+            cover_calibrator_id: Some("cover-1".to_string()),
+            ..RunRig::default()
+        };
+        let driver = tokio::spawn(run_recovery_driver(Arc::new(run), request_rx));
 
         if abort_first {
             // `arm()` on recovery entry clears signals left from a previous
@@ -1309,29 +1257,20 @@ mod tests {
         let is_cancelled = Arc::new(AtomicBool::new(false));
         let is_paused = Arc::new(AtomicBool::new(false));
 
-        let driver = tokio::spawn(run_recovery_driver(RecoveryDriverArgs {
-            recovery_driver_active_run_id: Arc::new(StdRwLock::new(None)),
-            recovery_driver_cover_id: Some("cover-1".to_string()),
-            recovery_driver_current: Arc::new(StdRwLock::new(None)),
-            recovery_driver_decision_tx: decision_tx,
-            recovery_driver_device_ids: Vec::new(),
-            recovery_driver_device_ops: ops.clone(),
-            recovery_driver_dome_id: Some("dome-1".to_string()),
-            recovery_driver_gave_up: gave_up.clone(),
-            recovery_driver_generation: Arc::new(std::sync::atomic::AtomicU64::new(0)),
-            recovery_driver_history: Arc::new(StdRwLock::new(Vec::new())),
-            recovery_driver_mount_id: Some("mount-1".to_string()),
-            recovery_driver_runtime: RunConfigStore::new(runtime),
-            recovery_driver_signals: Arc::new(crate::recovery::RecoverySignals::new()),
-            run: RunControl {
-                state: state.clone(),
-                is_cancelled: is_cancelled.clone(),
-                is_paused: is_paused.clone(),
-            },
-            recovery_driver_trigger_mgr: trigger_mgr.clone(),
-            recovery_driver_trigger_context: TriggerActionContext::default(),
-            recovery_request_rx: request_rx,
-        }));
+        let mut run = Run::detached(ops.clone(), state.clone());
+        run.control.is_cancelled = is_cancelled.clone();
+        run.control.is_paused = is_paused.clone();
+        run.decisions.tx = decision_tx;
+        run.config = RunConfigStore::new(runtime);
+        run.outside_failures.recovery_gave_up = gave_up.clone();
+        run.triggers = trigger_mgr.clone();
+        run.rig = RunRig {
+            mount_id: Some("mount-1".to_string()),
+            dome_id: Some("dome-1".to_string()),
+            cover_calibrator_id: Some("cover-1".to_string()),
+            ..RunRig::default()
+        };
+        let driver = tokio::spawn(run_recovery_driver(Arc::new(run), request_rx));
         request_tx.send(RecoveryCause::GuideStarLost).await.unwrap();
 
         let mut errors = Vec::new();

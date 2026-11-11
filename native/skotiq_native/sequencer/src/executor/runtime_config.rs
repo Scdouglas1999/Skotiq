@@ -167,15 +167,20 @@ impl SequenceExecutor {
 
     /// Retry cadence and budget of the recovery ladder. A ladder already
     /// running keeps the cadence it entered with.
-    pub async fn update_recovery_config(&mut self, recovery: crate::recovery::RecoveryRuntimeConfig) {
-        self.update_config(|config| config.recovery = recovery).await;
+    pub async fn update_recovery_config(
+        &mut self,
+        recovery: crate::recovery::RecoveryRuntimeConfig,
+    ) {
+        self.update_config(|config| config.recovery = recovery)
+            .await;
     }
 
     /// Whether the standard weather and dawn triggers may park (the
     /// operator's "Park on unsafe weather" and "Park before dawn"). Read each
     /// time one of them fires.
     pub async fn set_park_policy(&mut self, policy: ParkPolicy) {
-        self.update_config(|config| config.park_policy = policy).await;
+        self.update_config(|config| config.park_policy = policy)
+            .await;
     }
 
     /// How many times a failed camera exposure or filter-wheel move is
@@ -207,8 +212,7 @@ impl SequenceExecutor {
     /// is the default cadence, so it cannot switch polling off.
     pub async fn set_safety_check_interval_secs(&mut self, seconds: u64) {
         self.update_config(|config| {
-            config.safety_check_interval_secs =
-                super::effective_safety_check_interval_secs(seconds)
+            config.safety_check_interval_secs = super::effective_safety_check_interval_secs(seconds)
         })
         .await;
     }
@@ -383,7 +387,11 @@ impl SequenceExecutor {
         {
             let manager = self.trigger_manager.read().await;
             let state_lock = manager.state();
-            state_lock.write().await.telemetry.weather_operator_clear_until = until;
+            state_lock
+                .write()
+                .await
+                .telemetry
+                .weather_operator_clear_until = until;
         }
         tracing::info!(
             "[SEQ] Operator weather override: clear for {} s ({})",
@@ -454,5 +462,4 @@ impl SequenceExecutor {
         });
         Some(payload.to_string())
     }
-
 }
