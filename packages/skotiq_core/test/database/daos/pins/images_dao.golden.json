@@ -1044,8 +1044,8 @@
     "(filePath: /frames/f3.fits, id: 4, thumbnailPath: null)",
     "(filePath: /frames/f4.fits, id: 5, thumbnailPath: null)",
     "(filePath: /frames/f5.fits, id: 6, thumbnailPath: null)",
-    "(filePath: /tmp/pin_images_OBOOCT/on_disk.fits, id: 7, thumbnailPath: null)",
-    "(filePath: /tmp/pin_images_OBOOCT/never_written.fits, id: 8, thumbnailPath: /tmp/pin_images_OBOOCT/never_written.fits.thumb.jpg)",
+    "(filePath: <tmp>/on_disk.fits, id: 7, thumbnailPath: null)",
+    "(filePath: <tmp>/never_written.fits, id: 8, thumbnailPath: <tmp>/never_written.fits.thumb.jpg)",
     "(filePath: , id: 9, thumbnailPath: null)",
     "(filePath: /frames/n2.fits, id: 10, thumbnailPath: /frames/n2.fits.thumb.jpg)"
   ],

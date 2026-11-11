@@ -89,21 +89,21 @@
       "start_time": 1740866400,
       "end_time": null,
       "status": "active",
-      "notes": "first night\nResumed at 2026-11-11T17:45:29.428654Z UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again.\nResumed at 2026-11-11T17:45:29.429803Z UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again."
+      "notes": "first night\nResumed at <now> UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again.\nResumed at <now> UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again."
     },
     {
       "id": 2,
       "start_time": 1740870000,
       "end_time": null,
       "status": "active",
-      "notes": "Resumed at 2026-11-11T17:45:29.429525Z UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again."
+      "notes": "Resumed at <now> UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again."
     },
     {
       "id": 3,
       "start_time": 1740870000,
       "end_time": null,
       "status": "active",
-      "notes": "Resumed at 2026-11-11T17:45:29.429671Z UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again."
+      "notes": "Resumed at <now> UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again."
     },
     {
       "id": 4,
@@ -123,21 +123,21 @@
       "start_time": 1740866400,
       "end_time": 1740866640,
       "status": "aborted",
-      "notes": "first night\nResumed at 2026-11-11T17:45:29.428654Z UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again.\nResumed at 2026-11-11T17:45:29.429803Z UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again."
+      "notes": "first night\nResumed at <now> UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again.\nResumed at <now> UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again."
     },
     {
       "id": 2,
       "start_time": 1740870000,
       "end_time": null,
       "status": "active",
-      "notes": "Resumed at 2026-11-11T17:45:29.429525Z UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again."
+      "notes": "Resumed at <now> UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again."
     },
     {
       "id": 3,
       "start_time": 1740870000,
       "end_time": 1740870000,
       "status": "aborted",
-      "notes": "Resumed at 2026-11-11T17:45:29.429671Z UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again."
+      "notes": "Resumed at <now> UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again."
     },
     {
       "id": 4,

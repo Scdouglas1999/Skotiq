@@ -27,9 +27,9 @@ class PinRecorder {
   /// null for falls through to the generic encoding.
   final Object? Function(Object value)? encode;
 
-  /// Text replaced before a string is pinned, for paths a test cannot fix in
-  /// advance (a temporary directory).
-  final Map<String, String> scrub = {};
+  /// Text replaced before a string is pinned, for values a test cannot fix
+  /// in advance (a temporary directory, a wall-clock time inside a note).
+  final Map<Pattern, String> scrub = {};
 
   final Map<String, Object?> _entries = {};
   final int _startSeconds =
@@ -132,7 +132,7 @@ class PinRecorder {
     if (value is Map) {
       return {for (final e in value.entries) '${e.key}': _canon(e.value)};
     }
-    if (value is Record) return value.toString();
+    if (value is Record) return _stamp(value.toString());
     throw ArgumentError('no pin encoding for ${value.runtimeType}');
   }
 
@@ -155,16 +155,15 @@ class PinRecorder {
     if (actual == expected) return;
     final want = const LineSplitter().convert(expected);
     final got = const LineSplitter().convert(actual);
+    final diffs = <String>[];
     for (var i = 0; i < want.length || i < got.length; i++) {
       final w = i < want.length ? want[i] : '<end>';
       final g = i < got.length ? got[i] : '<end>';
-      if (w != g) {
-        fail(
-          '$name differs from its golden at line ${i + 1}:\n'
-          '  golden: $w\n  actual: $g',
-        );
+      if (w != g && diffs.length < 40) {
+        diffs.add('line ${i + 1}:\n  golden: $w\n  actual: $g');
       }
     }
+    fail('$name differs from its golden at\n${diffs.join('\n')}');
   }
 }
 

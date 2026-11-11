@@ -22,7 +22,8 @@ void main() {
   tearDown(() => db.close());
 
   test('accessor SQL results are pinned', () async {
-    final pins = PinRecorder('accessor_sql');
+    final pins = PinRecorder('accessor_sql')
+      ..scrub[RegExp(r'Resumed at \S+ UTC')] = 'Resumed at <now> UTC';
 
     // Planning: scheduler queue removal selects from targets.
     final planning = db.planningDao;
