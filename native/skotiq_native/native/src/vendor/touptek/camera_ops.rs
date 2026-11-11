@@ -26,7 +26,6 @@ impl DeviceDriver for TouptekCamera {
             return Ok(());
         }
 
-        // Ensure the brand's SDK is loaded
         get_sdk_for_brand(&self.brand)?;
 
         let brand = self.brand.clone();
@@ -37,7 +36,6 @@ impl DeviceDriver for TouptekCamera {
         // discovery. The legacy index is used only when callers construct a camera directly
         // without first running discovery; even then it is resolved to an ID before Open().
         let (device_info, serial_number, bayer_pattern, raw_bit_depth, sdk_size, gain_range) = {
-            // Acquire global SDK mutex for thread safety
             let lock = TOUPTEK_SDK_LOCK.lock().await;
 
             let device_info = with_sdk(&lock, &brand, |sdk| {
@@ -76,7 +74,6 @@ impl DeviceDriver for TouptekCamera {
                 Ok(h)
             })?;
 
-            // Store handle
             {
                 let mut h = self.handle.lock().unwrap_or_else(|e| e.into_inner());
                 *h = HandleWrapper(handle);
@@ -200,7 +197,6 @@ impl DeviceDriver for TouptekCamera {
             None => device_info.name.clone(),
         };
 
-        // Set capabilities based on flags
         let can_cool = (self.model_flags & OGMACAM_FLAG_TEC) != 0;
         let can_set_temp = (self.model_flags & OGMACAM_FLAG_TEC_ONOFF) != 0;
         let has_st4 = (self.model_flags & OGMACAM_FLAG_ST4) != 0;
@@ -370,7 +366,6 @@ impl DeviceDriver for TouptekCamera {
 
         let brand = self.brand.clone();
 
-        // Acquire global SDK mutex for thread safety
         let lock = TOUPTEK_SDK_LOCK.lock().await;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -475,12 +470,10 @@ impl CameraDriver for TouptekCamera {
 
         let brand = self.brand.clone();
 
-        // Acquire global SDK mutex for thread safety
         let lock = TOUPTEK_SDK_LOCK.lock().await;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
-        // Get current temperature
         let current_temp = with_sdk(&lock, &brand, |sdk| {
             let mut temp: i16 = 0;
             // SAFETY: `handle` was just loaded from `self.handle` under its Mutex with `connected == true` guaranteeing a valid Ogmacam_Open handle; `&mut temp` is a valid stack out-pointer to i16. Ogmacam_get_Temperature writes temperature in 0.1°C units per the SDK header.
@@ -494,7 +487,6 @@ impl CameraDriver for TouptekCamera {
         // telemetry, not as a control hint.
         let cooler_power = None;
 
-        // Calculate exposure remaining
         let exposure_remaining = if self.state == CameraState::Exposing {
             self.exposure_started_at.map(|started_at| {
                 (self.exposure_duration - started_at.elapsed().as_secs_f64()).max(0.0)
@@ -523,21 +515,17 @@ impl CameraDriver for TouptekCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Set gain if provided
         if let Some(gain) = params.gain {
             self.set_gain(gain).await?;
         }
 
-        // Set binning
         self.set_binning(params.bin_x, params.bin_y).await?;
 
-        // Set subframe
         self.set_subframe(params.subframe.clone()).await?;
 
         // Now get SDK and handle after all awaits
         let brand = self.brand.clone();
 
-        // Acquire global SDK mutex for thread safety
         let lock = TOUPTEK_SDK_LOCK.lock().await;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -600,7 +588,6 @@ impl CameraDriver for TouptekCamera {
 
         let brand = self.brand.clone();
 
-        // Acquire global SDK mutex for thread safety
         let lock = TOUPTEK_SDK_LOCK.lock().await;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -685,7 +672,6 @@ impl CameraDriver for TouptekCamera {
 
         let brand = self.brand.clone();
 
-        // Acquire global SDK mutex for thread safety
         let lock = TOUPTEK_SDK_LOCK.lock().await;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -867,12 +853,10 @@ impl CameraDriver for TouptekCamera {
 
         let brand = self.brand.clone();
 
-        // Acquire global SDK mutex for thread safety
         let lock = TOUPTEK_SDK_LOCK.lock().await;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
-        // Enable/disable TEC
         let name = self.name.clone();
         with_sdk(&lock, &brand, |sdk| {
             // SAFETY: `handle` was loaded from `self.handle` under its Mutex with `connected == true` guaranteeing a valid handle. Ogmacam_put_Option takes (handle, c_uint option_id, c_int value) POD — OGMACAM_OPTION_TEC=0x08 with 0/1 toggles the thermoelectric cooler per the SDK header.
@@ -931,7 +915,6 @@ impl CameraDriver for TouptekCamera {
 
         let brand = self.brand.clone();
 
-        // Acquire global SDK mutex for thread safety
         let lock = TOUPTEK_SDK_LOCK.lock().await;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -969,7 +952,6 @@ impl CameraDriver for TouptekCamera {
 
         let brand = self.brand.clone();
 
-        // Acquire global SDK mutex for thread safety
         let lock = TOUPTEK_SDK_LOCK.lock().await;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -1012,7 +994,6 @@ impl CameraDriver for TouptekCamera {
 
         let brand = self.brand.clone();
 
-        // Acquire global SDK mutex for thread safety
         let lock = TOUPTEK_SDK_LOCK.lock().await;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -1050,7 +1031,6 @@ impl CameraDriver for TouptekCamera {
 
         let brand = self.brand.clone();
 
-        // Acquire global SDK mutex for thread safety
         let lock = TOUPTEK_SDK_LOCK.lock().await;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;

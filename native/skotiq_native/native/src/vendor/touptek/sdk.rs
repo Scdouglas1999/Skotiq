@@ -245,7 +245,6 @@ pub(crate) fn get_sdk_for_brand(brand: &str) -> Result<(), DriverError> {
             .map_err(SdkUnavailable::to_native_error);
     }
 
-    // Find the brand's DLL info
     let brand_info = TOUPTEK_BRANDS
         .iter()
         .find(|(_, _, name)| name.eq_ignore_ascii_case(brand))

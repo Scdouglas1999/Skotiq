@@ -2,7 +2,6 @@
 
 use super::*;
 
-/// Information about a discovered Touptek camera
 #[derive(Debug, Clone)]
 pub struct TouptekDeviceInfo {
     pub camera_id: String,
@@ -118,7 +117,6 @@ pub(crate) fn enumerate_brand_devices_from_sdk(
 /// Iterates over all known Touptek white-label SDKs, attempts to load each,
 /// and enumerates cameras from each successfully loaded SDK.
 pub async fn discover_devices() -> Result<Vec<TouptekDeviceInfo>, DriverError> {
-    // Acquire global SDK mutex for thread safety
     let lock = TOUPTEK_SDK_LOCK.lock().await;
 
     let mut devices = Vec::new();

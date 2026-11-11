@@ -11,7 +11,6 @@ unsafe impl Send for HandleWrapper {}
 // (*mut c_void) that is not safe to share via &-references across threads. The Mutex<HandleWrapper>
 // provides synchronized access, and Mutex<T> only requires T: Send (not Sync) to be Sync itself.
 
-/// Touptek camera instance
 pub struct TouptekCamera {
     pub(crate) device_index: usize,
     pub(crate) device_id: String,
