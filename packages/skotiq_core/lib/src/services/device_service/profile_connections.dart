@@ -363,13 +363,39 @@ extension _DeviceServiceProfileConnections on DeviceService {
     required String source,
   }) => _runSweep(source, connectAllFromProfile(profile));
 
-  /// Try the devices that failed in the last sweep again; the ones that
-  /// connected are left alone.
-  Future<ConnectSweepResult> _retryFailedConnects() {
+  /// A device the last sweep reports as failed is retried through the sweep,
+  /// so the sweep's record does not keep calling a connected device failed.
+  Future<void> _retryConnect(DeviceType type) async {
+    final deviceId = _ref.read(type.slot.state).retryDeviceId;
+    if (deviceId == null) throw DeviceNotConnectedException(type.slot.noun);
+    final label = type.slot.noun;
+    final recorded = _ref
+        .read(deviceConnectionProgressProvider)
+        .byDeviceType[label];
+    if (recorded == null ||
+        recorded.status != DeviceConnectProgressStatus.failed ||
+        recorded.deviceId != deviceId) {
+      return connect(type, deviceId);
+    }
+    await _retryFailedConnects(only: label);
+    final outcome = _ref
+        .read(deviceConnectionProgressProvider)
+        .byDeviceType[label];
+    if (outcome?.status == DeviceConnectProgressStatus.failed) {
+      throw outcome!.error ??
+          StateError(outcome.errorMessage ?? 'The $label did not connect.');
+    }
+  }
+
+  /// Try the devices that failed in the last sweep again, or only the one
+  /// recorded as [only]; the ones that connected are left alone.
+  Future<ConnectSweepResult> _retryFailedConnects({String? only}) {
     final last = _ref.read(deviceConnectionProgressProvider);
     final failed = [
       for (final event in last.byDeviceType.values)
-        if (event.status == DeviceConnectProgressStatus.failed) event,
+        if (event.status == DeviceConnectProgressStatus.failed &&
+            (only == null || event.deviceType == only))
+          event,
     ];
     // The guide camera first: the built-in guider takes its frames there.
     failed.sort(

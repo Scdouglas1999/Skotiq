@@ -105,7 +105,8 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
     if (errorMessage == null || errorMessage.isEmpty) {
       return const SizedBox.shrink();
     }
-    final deviceId = _getDeviceId();
+    final driverType =
+        driverTypeFromDeviceId(_slot.retryDeviceId) ?? DriverType.native;
     return Padding(
       padding: const EdgeInsets.only(top: SkotiqTokens.spaceSm),
       child: DeviceErrorSubtitle(
@@ -113,10 +114,10 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
         isError: true,
         errorMessage: errorMessage,
         deviceType: widget.type,
-        driverType: driverTypeFromDeviceId(deviceId) ?? DriverType.native,
+        driverType: driverType,
         colors: colors,
         onDiagnose: () => _openTroubleshooter(
-          deviceId: deviceId,
+          driverType: driverType,
           rawError: errorMessage,
         ),
       ),
@@ -126,39 +127,22 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
   /// Opens the guided [ConnectionTroubleshooterDialog] for this device,
   /// classifying the failure with the same knowledge base that powers the
   /// inline [DeviceErrorSubtitle] headline. The raw driver string is carried
-  /// through verbatim (errors-are-a-feature). If the user chooses "Retry
-  /// connection", the device's connect is re-attempted exactly once through the
-  /// device service.
+  /// through verbatim (errors-are-a-feature). Its "Retry connection" is the
+  /// card's Retry.
   Future<void> _openTroubleshooter({
-    required String? deviceId,
+    required DriverType driverType,
     required String rawError,
   }) async {
     final retry = await ConnectionTroubleshooterDialog.show(
       context,
       deviceType: widget.type,
-      driverType: driverTypeFromDeviceId(deviceId) ?? DriverType.native,
+      driverType: driverType,
       rawError: rawError,
     );
-    if (!retry || !mounted || deviceId == null) return;
-    // Single, bounded retry — no loop. A second failure simply updates the
-    // device state's lastError, which re-renders this subtitle and lets the
-    // user open the troubleshooter again deliberately.
-    final deviceService = ref.read(deviceServiceProvider);
-    try {
-      await _reconnect(deviceService, deviceId);
-    } catch (e) {
-      if (mounted) {
-        context.showErrorSnackBar('Failed to reconnect: ${userFacingError(e)}');
-      }
-    }
+    if (retry && mounted) await _retryConnect();
   }
 
-  Future<void> _reconnect(DeviceService deviceService, String deviceId) =>
-      deviceService.connect(widget.type, deviceId);
-
   DeviceError? _getDeviceError() => _slot.lastError;
-
-  String? _getDeviceId() => _slot.deviceId;
 
   /// Resolve the device's display name, preferring the live discovery model
   /// name (e.g. "ZWO ASI1600MM-Cool"). Watching discovery here means the card
