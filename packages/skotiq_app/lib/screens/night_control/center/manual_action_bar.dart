@@ -65,8 +65,12 @@ class ManualActionBar extends ConsumerWidget {
             '${l10n.text('nightActOtherWindow')}'
         : polar != null
             ? l10n.text('nightActPolarRunning', params: {'status': polar})
-            : l10n
-                .text(_runLoaded(phase) ? 'nightActHint' : 'nightCtrHintIdle');
+            // "Nothing is running" must not stand beside a running action.
+            : state.isBusy && state.active != null && !_runLoaded(phase)
+                ? l10n.text(manualActionKey('nightActBusy', state.active!))
+                : l10n.text(
+                    _runLoaded(phase) ? 'nightActHint' : 'nightCtrHintIdle',
+                  );
     final error = state.error?.resolve(l10n);
 
     return Semantics(

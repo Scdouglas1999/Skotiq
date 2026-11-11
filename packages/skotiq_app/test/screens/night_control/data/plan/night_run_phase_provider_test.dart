@@ -229,6 +229,31 @@ void main() {
   });
 
   test('an armed start reads as armed and carries its time', () {
+  test('an action under way with no run is named; during a run it is not', () {
+    const autofocus = ManualActionState(
+      phase: ManualActionPhase.running,
+      active: ManualActionId.autofocus,
+    );
+    final idle = planContainer(now: evening, action: autofocus);
+    addTearDown(idle.dispose);
+    expect(idle.read(nightRunPhaseProvider), NightRunPhase.notSetUp);
+    expect(idle.read(nightHeaderProvider).actionUnderWay,
+        ManualActionId.autofocus);
+
+    final running = planContainer(
+      now: evening,
+      sequence: TwoTargetPlan().sequence,
+      execution: SequenceExecutionState.running,
+      action: autofocus,
+    );
+    addTearDown(running.dispose);
+    expect(running.read(nightHeaderProvider).actionUnderWay, isNull);
+
+    final nothing = planContainer(now: evening);
+    addTearDown(nothing.dispose);
+    expect(nothing.read(nightHeaderProvider).actionUnderWay, isNull);
+  });
+
     final armedAt = DateTime(2026, 10, 19, 19, 48);
     final container = planContainer(
       now: evening,

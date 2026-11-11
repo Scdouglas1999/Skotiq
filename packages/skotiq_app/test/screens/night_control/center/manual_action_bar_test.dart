@@ -184,6 +184,25 @@ void main() {
 
   testWidgets('an action running in the linked window is named in the hint',
       (tester) async {
+  testWidgets(
+      'before a run, an action under way is named, not "Nothing is '
+      'running"', (tester) async {
+    await pumpCenter(
+      tester,
+      centerOverrides(
+        NightFixtures.ready(),
+        actionState: const ManualActionState(
+          phase: ManualActionPhase.running,
+          active: ManualActionId.autofocus,
+        ),
+      ),
+      child: const ManualActionBar(),
+      size: const Size(1000, ManualActionBar.height),
+    );
+    expect(find.text('Autofocus is running'), findsOneWidget);
+    expect(find.textContaining('Nothing is running'), findsNothing);
+  });
+
     await pumpCenter(
       tester,
       [

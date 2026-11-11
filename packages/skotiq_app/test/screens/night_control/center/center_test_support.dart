@@ -119,6 +119,7 @@ List<Override> centerOverrides(
   NightSeriesVm? guideSeries,
   NightLastSessionVm? lastSession,
   NightAutofocusCurveVm? lastAutofocus,
+  NightLiveAutofocusVm? liveAutofocus,
   NightGuiderIdleVm? guider,
   NightSeriesVm? coolerHistory,
 }) {
@@ -148,6 +149,7 @@ List<Override> centerOverrides(
     nightStageStretchProvider.overrideWithValue(false),
     nightLastSessionProvider.overrideWithValue(lastSession),
     nightLastAutofocusProvider.overrideWithValue(lastAutofocus),
+    nightLiveAutofocusProvider.overrideWithValue(liveAutofocus),
     nightGuiderIdleProvider.overrideWithValue(
       guider ??
           const NightGuiderIdleVm(

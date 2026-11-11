@@ -234,6 +234,24 @@ void main() {
       expect(_enabled(tester, 'Start at dark'), isFalse);
       expect(_enabled(tester, 'Edit plan'), isTrue);
       expect(find.textContaining('No plan loaded'), findsOneWidget);
+    testWidgets(
+        'an autofocus under way with no run reads in the pill, not "Not set '
+        'up"', (tester) async {
+      const off = NightControlVm.disabled(NightText('ncPlanNoPlan'));
+      await _pumpHeader(
+        tester,
+        NightRunPhase.notSetUp,
+        header: const NightHeaderVm(
+          phase: NightRunPhase.notSetUp,
+          actionUnderWay: ManualActionId.autofocus,
+          startNow: off,
+          startAtDark: off,
+        ),
+      );
+      expect(find.text('Autofocus is running'), findsOneWidget);
+      expect(find.text('Not set up'), findsNothing);
+    });
+
     });
   });
 

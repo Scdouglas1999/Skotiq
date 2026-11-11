@@ -108,6 +108,14 @@ final nightHeaderProvider = Provider<NightHeaderVm>((ref) {
   return NightHeaderVm(
     phase: phase,
     pausedFor: phase == NightRunPhase.pausedForAction ? action.active : null,
+    actionUnderWay: live || phase == NightRunPhase.armed
+        ? null
+        : action.isBusy
+            ? action.active
+            // An autofocus started elsewhere (the Imaging screen).
+            : ref.watch(autofocusOverlayProvider.select((a) => a.isRunning))
+                ? ManualActionId.autofocus
+                : null,
     runStartedAt: started == null ? null : clock.toNightClock(started),
     armedStartAt: phase == NightRunPhase.armed
         ? ref.watch(nightPlanArmedStartSeamProvider)

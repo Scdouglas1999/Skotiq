@@ -239,6 +239,60 @@ void main() {
     expect(find.text('Connect guider'), findsOneWidget);
     expect(find.text('Open PHD2'), findsNothing);
     expect(_allText(tester), isNot(contains('PHD2')));
+  testWidgets(
+      'before a run, an autofocus under way draws in the Focus card point '
+      'by point, over the last finished one', (tester) async {
+    await pumpCenter(
+      tester,
+      centerOverrides(
+        NightFixtures.ready(),
+        lastAutofocus: const NightAutofocusCurveVm(
+          points: <(int, double)>[(45184, 3.1), (45484, 1.98), (45784, 3.0)],
+          bestPosition: 45484,
+          bestHfr: 1.98,
+        ),
+        liveAutofocus: const NightLiveAutofocusVm(
+          points: <(int, double)>[
+            (24800, 3.84),
+            (24850, 3.49),
+            (24900, 3.13),
+            (24950, 2.80),
+          ],
+          point: 4,
+          totalPoints: 9,
+        ),
+      ),
+      child: const SessionChartsRow(),
+      size: const Size(744, 120),
+    );
+    expect(find.text('Running · point 4 of 9'), findsOneWidget);
+    expect(
+      _allText(tester),
+      contains(RegExp(r'latest 24\s950 steps · HFR 2\.80 px')),
+    );
+    expect(_allText(tester), isNot(contains('best 45')));
+    expect(find.text('No autofocus run since Skotiq started'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('an autofocus waiting for its first point says so',
+      (tester) async {
+    await pumpCenter(
+      tester,
+      centerOverrides(
+        NightFixtures.ready(),
+        liveAutofocus: const NightLiveAutofocusVm(
+          points: <(int, double)>[],
+        ),
+      ),
+      child: const SessionChartsRow(),
+      size: const Size(744, 120),
+    );
+    expect(find.text('Running'), findsOneWidget);
+    expect(find.text('Waiting for the first point'), findsOneWidget);
+    expect(find.text('No autofocus run since Skotiq started'), findsNothing);
+  });
+
   });
 
   testWidgets('before a run with PHD2 closed it offers Open PHD2',

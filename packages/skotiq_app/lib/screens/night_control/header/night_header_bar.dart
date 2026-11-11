@@ -21,6 +21,7 @@ import '../../../utils/snackbar_helper.dart';
 import '../../sequencer/sequencer_screen.dart' show kSequencerRoutePath;
 import '../../sequencer/widgets/preflight_validation_dialog.dart';
 import '../actions/armed_start_provider.dart';
+import '../actions/manual_action_gating.dart' show manualActionKey;
 import '../actions/night_action_controller.dart';
 import '../data/plan/night_header_provider.dart';
 import '../data/plan/night_plan_inputs.dart' show NightClockTimes;
@@ -594,7 +595,10 @@ class _RunPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = SkotiqLocalizations.of(context);
     final colors = context.skotiqColors;
-    final tone = _tone(header.phase, header.ending).resolve(colors);
+    final tone = (header.actionUnderWay != null
+            ? ChipTone.warning
+            : _tone(header.phase, header.ending))
+        .resolve(colors);
     final ink = tone ?? colors.textSecondary;
     final state = _label(l10n);
     final started = header.runStartedAt;
@@ -656,23 +660,28 @@ class _RunPill extends StatelessWidget {
     );
   }
 
-  String _label(SkotiqLocalizations l10n) => switch (header.phase) {
-        NightRunPhase.notSetUp => l10n.text('nightCtlPillNotSetUp'),
-        NightRunPhase.ready => l10n.text('nightCtlPillReady'),
-        NightRunPhase.armed => l10n.text('nightCtlPillArmed'),
-        NightRunPhase.running => l10n.text('nightCtlPillRunning'),
-        NightRunPhase.pausedByUser => l10n.text('nightCtlPillPaused'),
-        NightRunPhase.pausedForAction => switch (header.pausedFor) {
-            null => l10n.text('nightCtlPillPaused'),
-            final id => l10n.text(_pausedForKey(id)),
-          },
-        NightRunPhase.stopping => l10n.text('nightCtlPillStopping'),
-        NightRunPhase.finished => switch (header.ending) {
-            NightRunEnding.completed => l10n.text('nightCtlPillCompleted'),
-            NightRunEnding.failed => l10n.text('nightCtlPillFailed'),
-            NightRunEnding.ended || null => l10n.text('nightCtlPillFinished'),
-          },
-      };
+  String _label(SkotiqLocalizations l10n) {
+    if (header.actionUnderWay case final id?) {
+      return l10n.text(manualActionKey('nightActBusy', id));
+    }
+    return switch (header.phase) {
+      NightRunPhase.notSetUp => l10n.text('nightCtlPillNotSetUp'),
+      NightRunPhase.ready => l10n.text('nightCtlPillReady'),
+      NightRunPhase.armed => l10n.text('nightCtlPillArmed'),
+      NightRunPhase.running => l10n.text('nightCtlPillRunning'),
+      NightRunPhase.pausedByUser => l10n.text('nightCtlPillPaused'),
+      NightRunPhase.pausedForAction => switch (header.pausedFor) {
+          null => l10n.text('nightCtlPillPaused'),
+          final id => l10n.text(_pausedForKey(id)),
+        },
+      NightRunPhase.stopping => l10n.text('nightCtlPillStopping'),
+      NightRunPhase.finished => switch (header.ending) {
+          NightRunEnding.completed => l10n.text('nightCtlPillCompleted'),
+          NightRunEnding.failed => l10n.text('nightCtlPillFailed'),
+          NightRunEnding.ended || null => l10n.text('nightCtlPillFinished'),
+        },
+    };
+  }
 
   static String _pausedForKey(ManualActionId id) => switch (id) {
         ManualActionId.snapshot => 'nightCtlPausedForSnapshot',
