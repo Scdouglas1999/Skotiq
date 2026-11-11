@@ -80,8 +80,7 @@ void main() {
         0,
         reason: 'must not fetch from a manufactured default schedule/URL',
       );
-      expect(status.error, isNotNull);
-      expect(status.error, contains('configuration unavailable'));
+      expect(status.error, isA<ElementRefreshConfigUnavailable>());
     },
   );
 
@@ -130,7 +129,7 @@ void main() {
     final stub = _StubService(tempDir.path)
       ..stale = true
       ..refreshResult = const RefreshedElements(
-        asteroidRefreshError: 'HTTP 503',
+        failure: ElementRefreshFailure(asteroids: 'HTTP 503'),
       );
     final c = containerWith(stub);
 
@@ -140,7 +139,11 @@ void main() {
     expect(stub.refreshCalls, 1);
     expect(
       c.read(elementRefreshControllerProvider).error,
-      contains('Asteroids'),
+      isA<ElementRefreshFailure>().having(
+        (f) => f.asteroids,
+        'asteroids',
+        'HTTP 503',
+      ),
     );
   });
 

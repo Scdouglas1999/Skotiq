@@ -116,7 +116,7 @@ class _ElementRefreshCardState extends ConsumerState<ElementRefreshCard> {
           if (status.error != null) ...[
             const SizedBox(height: 8),
             Text(
-              'Last refresh failed: ${status.error}',
+              'Last refresh failed: ${_refreshFailureText(status.error!)}',
               style: SkotiqTypography.captionSm.copyWith(
                 color: colors.error,
               ),
@@ -143,7 +143,8 @@ class _ElementRefreshCardState extends ConsumerState<ElementRefreshCard> {
                       final result = ref.read(elementRefreshControllerProvider);
                       if (result.error case final failure?) {
                         context.showErrorSnackBar(
-                          'Element refresh failed: $failure',
+                          'Element refresh failed: '
+                          '${_refreshFailureText(failure)}',
                         );
                       } else {
                         context.showSuccessSnackBar(
@@ -267,7 +268,7 @@ class _ElementRefreshCardState extends ConsumerState<ElementRefreshCard> {
         ),
         const SizedBox(height: 6),
         Text(
-          '${error ?? 'Unknown error'}',
+          userFacingError(error),
           style: SkotiqTypography.captionSm.copyWith(
             color: colors.textSecondary,
           ),
@@ -347,5 +348,11 @@ class _ElementRefreshCardState extends ConsumerState<ElementRefreshCard> {
       });
     }
   }
-
 }
+
+String _refreshFailureText(Object failure) => switch (failure) {
+  ElementRefreshFailure() => failure.describe(userFacingError),
+  ElementRefreshConfigUnavailable(:final cause) =>
+    'Refresh configuration unavailable: ${userFacingError(cause)}',
+  _ => userFacingError(failure),
+};

@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 // The selector provider is not re-exported through the core barrel; the
@@ -14,6 +15,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 // ignore: implementation_imports
 import 'package:skotiq_core/src/services/stack_light_selector.dart'
     show stackLightSelectorProvider, NoLightsToStackException;
+import '../../accessible_dropdown.dart';
 import '../../stack_result/recent_stacks_panel.dart';
 import '../../stack_result/stack_and_share_dialog.dart';
 import 'osc_stacking_controls.dart';
@@ -404,6 +406,35 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
   bool _isOpeningStackAndShare = false;
   int _stackAndShareGeneration = 0;
 
+  /// The session the operator picked to stack when no run is imaging; null
+  /// for the newest one.
+  int? _pickedStackSessionId;
+
+  /// The sessions Stack & Share can pick from when no run is imaging: those
+  /// that took frames, newest first. A run's own session is the only choice
+  /// while it images, and a linked client cannot run Stack & Share at all.
+  List<ImagingSession> _pickableStackSessions() {
+    if (ref.read(isRemoteModeProvider)) return const [];
+    if (ref.read(sessionStateProvider).dbSessionId != null) return const [];
+    final sessions = ref.read(allSessionsProvider).valueOrNull ?? const [];
+    return [
+      for (final session in sessions)
+        if (session.totalExposures > 0) session,
+    ];
+  }
+
+  /// The session Stack & Share stacks now: the imaging run's, else the one
+  /// picked, else the newest that took frames.
+  int? _stackSessionId() {
+    final active = ref.read(sessionStateProvider).dbSessionId;
+    if (active != null) return active;
+    final pickable = _pickableStackSessions();
+    for (final session in pickable) {
+      if (session.id == _pickedStackSessionId) return session.id;
+    }
+    return pickable.isEmpty ? null : pickable.first.id;
+  }
+
   /// Entry point for the **Stack-and-Share Loop** (component C10).
   ///
   /// Resolves the selection summary for [sessionId] up front so the launcher
@@ -491,7 +522,7 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
     return mounted &&
         generation == _stackAndShareGeneration &&
         identical(ref.read(backendProvider), authority) &&
-        ref.read(sessionStateProvider).dbSessionId == sessionId;
+        _stackSessionId() == sessionId;
   }
 
   @override
@@ -547,11 +578,9 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
     // a descendant's build.
     _maybeSeedOscDefaultsFromCamera(config);
 
-    // Resolve the current imaging session from the same authoritative state the
-    // rest of the imaging screen uses. The Stack-and-Share entry point operates
-    // on this session; with no active/selected session the button is disabled.
-    final sessionState = ref.watch(sessionStateProvider);
-    final sessionId = sessionState.dbSessionId;
+    ref.watch(sessionStateProvider.select((state) => state.dbSessionId));
+    ref.watch(allSessionsProvider);
+    final stackSessionId = _stackSessionId();
 
     return SingleChildScrollView(
       padding: SkotiqTokens.paddingLg,
@@ -567,13 +596,16 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
                   style: SkotiqTypography.sectionTitle
                       .copyWith(color: widget.colors.textPrimary)),
               _StackAndShareEntry(
-                sessionId: sessionId,
+                sessionId: stackSessionId,
+                pickable: _pickableStackSessions(),
                 liveStackingActive: isRunning,
                 isBusy: _isOpeningStackAndShare,
                 isRemoteMode: isRemoteMode,
-                onPressed: sessionId == null || isRemoteMode
+                onSessionPicked: (id) =>
+                    setState(() => _pickedStackSessionId = id),
+                onPressed: stackSessionId == null || isRemoteMode
                     ? null
-                    : () => _openStackAndShare(sessionId),
+                    : () => _openStackAndShare(stackSessionId),
               ),
             ],
           ),

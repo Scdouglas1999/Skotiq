@@ -28,7 +28,7 @@ Future<void> _pump(WidgetTester tester, String key, SkotiqBackend? backend) {
       child: MaterialApp(
         theme: SkotiqTheme.dark,
         home: Scaffold(
-          body: SettingsScopeNotice(section: SettingsSectionId.resolve(key)!),
+          body: SettingsScopeNotice.forSection(SettingsSectionId.resolve(key)!),
         ),
       ),
     ),
@@ -70,6 +70,17 @@ void main() {
     ]) {
       expect(isDeviceLocalSettingKey(key), isTrue, reason: key);
     }
+  });
+
+  // Connection keeps its link here and its discovery switches on the host,
+  // so the page labels each group rather than the whole section.
+  testWidgets('a section stored in both places has no one label', (
+    tester,
+  ) async {
+    final backend = _MockNetworkBackend();
+    when(() => backend.serverHost).thenReturn('192.168.1.100');
+    await _pump(tester, 'connection', backend);
+    expect(find.textContaining('Saved on'), findsNothing);
   });
 
   testWidgets('the machine that owns the rig shows nothing', (tester) async {

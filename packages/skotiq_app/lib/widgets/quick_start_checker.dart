@@ -292,7 +292,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
           context: context,
           ref: ref,
           barrierDismissible: barrierDismissible,
-          builder: (routeContext) {
+          builder: (routeContext, _) {
             dialogContext = routeContext;
             return builder(routeContext);
           },

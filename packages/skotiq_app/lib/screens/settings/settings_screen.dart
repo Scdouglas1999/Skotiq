@@ -322,7 +322,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const HostSettingsNotice(),
-                SettingsScopeNotice(section: section.id),
+                SettingsScopeNotice.forSection(section.id),
                 Expanded(
                   child: SettingsFormScope(
                     isMobile: true,
@@ -394,7 +394,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const HostSettingsNotice(),
-                    SettingsScopeNotice(section: _selected),
+                    SettingsScopeNotice.forSection(_selected),
                     Expanded(
                       child: SettingsFormScope(
                         isMobile: false,

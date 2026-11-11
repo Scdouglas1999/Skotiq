@@ -681,8 +681,12 @@ class HeadlessApiServer {
   /// TXT record reads this so the advertised transport matches reality.
   bool get isTlsActive => tlsContext != null;
 
-  /// `true` when at least one bearer token is accepted by the server.
-  bool get isAuthRequired => _effectiveAuthTokensByValue.isNotEmpty;
+  /// `true` when a request needs a bearer token for anything beyond the
+  /// public pairing and discovery surface. Only an operator's
+  /// `--allow-unauthenticated` on a server with no configured token opens it;
+  /// a server with no token and no opt-in is closed until a device pairs.
+  bool get isAuthRequired =>
+      !allowUnauthenticated || _effectiveAuthTokensByValue.isNotEmpty;
 
   /// random UUID identifying this server instance. Returned by
   /// /api/info and stamped on every outbound event.

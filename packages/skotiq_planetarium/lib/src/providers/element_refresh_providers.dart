@@ -60,6 +60,17 @@ final effectiveMinorBodyElementsProvider = Provider<List<MinorBodyElements>>((
 
 String _normName(String s) => s.toLowerCase().trim();
 
+/// The refresh schedule and sources could not be read, so no refresh runs on
+/// a schedule until they can.
+class ElementRefreshConfigUnavailable implements Exception {
+  const ElementRefreshConfigUnavailable(this.cause);
+
+  final Object cause;
+
+  @override
+  String toString() => 'Refresh configuration unavailable: $cause';
+}
+
 /// "Last updated" indicator state for the refresh UI.
 class ElementRefreshStatus {
   final DateTime? asteroidsFetchedAt;
@@ -67,7 +78,12 @@ class ElementRefreshStatus {
   final int asteroidCount;
   final int cometCount;
   final bool isRefreshing;
-  final String? error;
+
+  /// Why the last refresh, or reading its configuration, failed: an
+  /// [ElementRefreshFailure], an [ElementRefreshConfigUnavailable] or the
+  /// exception itself. Kept as the failure so the screen showing it can word
+  /// it.
+  final Object? error;
 
   const ElementRefreshStatus({
     this.asteroidsFetchedAt,
@@ -97,7 +113,7 @@ class ElementRefreshStatus {
     int? asteroidCount,
     int? cometCount,
     bool? isRefreshing,
-    String? error,
+    Object? error,
     bool clearError = false,
   }) => ElementRefreshStatus(
     asteroidsFetchedAt: asteroidsFetchedAt ?? this.asteroidsFetchedAt,
@@ -145,7 +161,7 @@ class ElementRefreshController extends StateNotifier<ElementRefreshStatus> {
       // the failure so the settings UI can prompt a fix. A manual refresh or a
       // controller rebuild after the config recovers still works.
       if (!state.isRefreshing) {
-        state = state.copyWith(error: 'Refresh configuration unavailable: $e');
+        state = state.copyWith(error: ElementRefreshConfigUnavailable(e));
       }
       return;
     }
@@ -175,7 +191,9 @@ class ElementRefreshController extends StateNotifier<ElementRefreshStatus> {
       if (!identical(_ref.read(elementRefreshServiceProvider), service)) {
         state = state.copyWith(
           isRefreshing: false,
-          error: 'Element refresh authority changed while refreshing.',
+          error: StateError(
+            'Element refresh authority changed while refreshing.',
+          ),
         );
         return;
       }
@@ -190,7 +208,7 @@ class ElementRefreshController extends StateNotifier<ElementRefreshStatus> {
         error: e,
       );
       if (!mounted) return;
-      state = state.copyWith(isRefreshing: false, error: '$e');
+      state = state.copyWith(isRefreshing: false, error: e);
     }
   }
 
@@ -201,7 +219,7 @@ class ElementRefreshController extends StateNotifier<ElementRefreshStatus> {
       asteroidCount: r.asteroids.length,
       cometCount: r.comets.length,
       isRefreshing: false,
-      error: r.refreshFailureSummary,
+      error: r.failure,
     );
   }
 }

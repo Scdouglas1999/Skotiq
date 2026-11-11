@@ -65,6 +65,16 @@ bool isSequenceCancelledNotice(String message) {
       normalized == 'sequence canceled';
 }
 
+/// True when [message] is a failed run's reason that names no reason: the
+/// native executor's bare "Sequence failed" when it found no cause, or the
+/// "Unknown error" a reader puts in for a missing field.
+bool isUnexplainedRunFailure(String message) {
+  final normalized = message.trim().toLowerCase();
+  return normalized.isEmpty ||
+      normalized == 'sequence failed' ||
+      normalized == 'unknown error';
+}
+
 // Who ended the run.
 //
 // Every cancellation path publishes the same cancel-notice pair, so the notice

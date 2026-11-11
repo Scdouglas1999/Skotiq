@@ -54,21 +54,19 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
         // onboarded, while every privileged endpoint requires a bearer token
         // and returns 401 until a token is configured or a device pairs.
         //
-        // The override only opens a server that has NO configured tokens. A
-        // token being present is what every truth surface reads as
-        // "authentication is on": the startup banner (server_lifecycle),
-        // `authRequired`/`authScopes` on GET /api/info, the mDNS advertisement,
-        // and `bindLocalOnly` (a configured token is what moves the socket onto
-        // the LAN). If the override also beat configured tokens, all four would
-        // announce a locked server while it served every endpoint open on the
-        // network — so `--allow-unauthenticated` must never outrank a token.
+        // The override only opens a server that has NO configured tokens.
+        // [isAuthRequired] is this test, and it is also what `authRequired` on
+        // GET /api/info and the discovery advertisement publish, so a client
+        // is told to pair exactly when this check would refuse it. A
+        // configured token also moves the socket onto the LAN
+        // (`bindLocalOnly`); if the override beat configured tokens, a server
+        // announced as locked would serve every endpoint open on the network,
+        // so `--allow-unauthenticated` must never outrank a token.
         // Restored PAIRING sessions are a different matter and are deliberately
         // NOT part of this test: they must not silently re-enable auth after an
         // operator asked for an open server, which is why `_pairedSessionTokens`
         // is not consulted here.
-        if (allowUnauthenticated && _effectiveAuthTokensByValue.isEmpty) {
-          return innerHandler(request);
-        }
+        if (!isAuthRequired) return innerHandler(request);
 
         // Skip auth for the declared public surface (exact paths plus the two
         // SPA bundle roots) — the same declaration /api/info publishes.

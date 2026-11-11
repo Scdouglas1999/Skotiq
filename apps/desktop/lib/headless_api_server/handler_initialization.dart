@@ -51,7 +51,7 @@ extension _HeadlessApiServerHandlerInitialization on HeadlessApiServer {
           eventReplayBufferOldestSeq: () => _eventReplayBuffer.oldestSeq,
           port: () => port,
           bindLocalOnly: () => bindLocalOnly,
-          authRequired: () => _effectiveAuthTokensByValue.isNotEmpty,
+          authRequired: () => isAuthRequired,
           availableAuthScopes: _availableAuthScopes,
           pairingModeWire: () => pairingMode.wire,
           tailscaleHost: () => remoteAccessHints.tailscaleHost,

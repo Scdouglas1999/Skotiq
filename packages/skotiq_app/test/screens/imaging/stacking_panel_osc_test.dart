@@ -49,6 +49,8 @@ Future<void> _pumpPanel(
   final overrides = <Override>[
     isRemoteModeProvider.overrideWithValue(isRemote),
     connectedCameraIdProvider.overrideWithValue(cameraId),
+    // The Stack & Share picker lists the recorded sessions.
+    allSessionsProvider.overrideWith((ref) => Stream.value(const [])),
   ];
   if (cameraId != null && caps != null) {
     overrides.add(
@@ -119,6 +121,7 @@ void main() {
             inMemoryDatabaseOverride(),
             isRemoteModeProvider.overrideWithValue(false),
             connectedCameraIdProvider.overrideWithValue(null),
+            allSessionsProvider.overrideWith((ref) => Stream.value(const [])),
           ],
           child: Consumer(
             builder: (context, ref, _) {
@@ -202,6 +205,7 @@ void main() {
             connectedCameraIdProvider.overrideWithValue('native:zwo:0'),
             equipmentCameraCapabilitiesProvider('native:zwo:0')
                 .overrideWith((ref) async => _colorCaps(bayerPattern: 'RGGB')),
+            allSessionsProvider.overrideWith((ref) => Stream.value(const [])),
           ],
           child: Consumer(
             builder: (context, ref, _) {

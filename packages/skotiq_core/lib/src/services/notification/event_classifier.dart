@@ -33,6 +33,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 
 import '../../models/backend/event_types.dart';
+import '../../errors/error_text.dart';
 import '../../models/notification/notification_categories.dart';
 import '../../providers/sequence/run_stop_classification.dart';
 import '../../utils/device_id.dart';
@@ -178,6 +179,19 @@ class NotificationEventClassifier {
     }
   }
 
+  /// Context for a failure notification: why the run failed, as a sentence.
+  static Map<String, String> _failureContext(String reason) {
+    if (isUnexplainedRunFailure(reason)) {
+      return const {kFailureReasonContextKey: 'The log has the reason.'};
+    }
+    final text = userFacingError(reason.trim());
+    return {
+      kFailureReasonContextKey: RegExp(r'[.!?]$').hasMatch(text)
+          ? text
+          : '$text.',
+    };
+  }
+
   /// Context for a stop notification: the run it ended, when the wire carries
   /// it. Run identity is what keeps two runs' stops from folding into one
   /// episode (and one run's stop from splitting into two) in
@@ -231,7 +245,19 @@ class NotificationEventClassifier {
           );
           return (NotificationCategory.sequenceStopped, _stopContext(event));
         }
-        return (NotificationCategory.sequenceFailed, <String, String>{});
+        return (
+          NotificationCategory.sequenceFailed,
+          _failureContext(_sequencerErrorMessage(event)),
+        );
+      // The run's end. When an `Error` above already said the run failed,
+      // the router keeps this from saying it again (one notice per failed
+      // run); a run that failed on a refusal raised no `Error` and is told
+      // here.
+      case 'SequenceFailed':
+        return (
+          NotificationCategory.sequenceFailed,
+          _failureContext((event.data['error'] as String?) ?? ''),
+        );
       case 'DecisionLogged':
         // The AF-trigger continuation row is the only decision that maps to
         // its own push: the run continues on restored focus and the phone

@@ -7,10 +7,10 @@ import '../backend/bridge_event_mapper.dart';
 import '../models/backend/event_types.dart' as core;
 import '../models/backend/host_runtime_update.dart' show isHostSyncEnvelope;
 import '../services/device_service_lifecycle.dart';
+import '../services/notification/event_classifier.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'host_mutation_event_provider.dart';
-import 'sequence/run_stop_classification.dart';
 import 'ui_notification_provider.dart';
 
 /// Provider for the global event stream from the Rust native layer
@@ -222,12 +222,20 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
 
       if (event.severity == core.EventSeverity.info) return;
 
-      // Heartbeat status changes carry no human message — the toast would
-      // literally read "HeartbeatStatusChanged". The Rust heartbeat emits a
-      // companion equipment Error event (with the real message) on the same
-      // poll, so nothing is lost by dropping these.
-      if (event.category == core.EventCategory.equipment &&
-          event.eventType == 'HeartbeatStatusChanged') {
+      // An event that carries no sentence is not a notice: its toast would
+      // read the event's type name ("NodeCompleted" for a failed step,
+      // "HeartbeatStatusChanged"). Those events have a companion that says
+      // what happened (the step's error, the heartbeat's equipment Error).
+      final message = _eventMessage(event);
+      if (message == null) return;
+
+      // A sequencer event the notification router classifies is the router's
+      // to tell: a failed run (once per run, with its reason) and an
+      // operator's Stop arriving as the cancellation notice. A second toast
+      // here for the same happening is how one failed run raised three
+      // notices.
+      if (event.category == core.EventCategory.sequencer &&
+          NotificationEventClassifier.classify(event) != null) {
         return;
       }
 
@@ -247,21 +255,6 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
         return;
       }
 
-      // PRODUCER 4 of the stop pipeline, and the one the operator actually
-      // reads. Like every other producer it asks `isSequenceCancelledNotice`
-      // before calling a deliberate Stop a fault. It takes no part in the
-      // NotificationRouter, so neither the router's classification nor its
-      // content dedupe can reach it — the check has to live here.
-      if (_isOperatorStopNotice(event)) {
-        developer.log(
-          '[$kStopClassificationLogTag] error_notification_bridge: sequencer '
-          'Error carrying the cancellation notice -> no error toast',
-          name: 'ErrorNotificationBridge',
-        );
-        return;
-      }
-
-      final message = _extractEventMessage(event);
       final title = _eventTitle(event);
 
       final now = DateTime.now();
@@ -301,54 +294,13 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
   });
 });
 
-/// True when this backend event is the operator's Stop wearing an error's
-/// clothes.
-///
-/// The wire shape is fixed: the native executor's `NodeStatus::Cancelled` arm
-/// sends `ExecutorEvent::Error { message: "Sequence cancelled" }`
-/// (`sequencer/src/executor/start.rs`), the bridge stamps it
-/// `EventSeverity::Error` / `EventCategory::Sequencer`
-/// (`bridge/src/api/sequencer/event_bridge.rs`), and the FFI mapper delivers it
-/// as eventType `'Error'` with the notice under `message`
-/// (`backend/ffi_backend/event_mapping.dart`). The remote/WebSocket envelope has
-/// been seen using `error` for the same field, so both are read — the same pair
-/// `NotificationEventClassifier._sequencerErrorMessage` reads.
-///
-/// Only the exact notice is reclassified; a real fault whose text merely
-/// contains "cancelled" ("Temperature compensation cancelled") is still an
-/// error and still reaches the operator. See [isSequenceCancelledNotice].
-bool _isOperatorStopNotice(core.SkotiqEvent event) {
-  if (event.category != core.EventCategory.sequencer) return false;
-  if (event.eventType != 'Error') return false;
-  final message =
-      (event.data['message'] as String?) ??
-      (event.data['error'] as String?) ??
-      '';
-  return isSequenceCancelledNotice(message);
-}
-
-/// Extract a human-readable message from a SkotiqEvent's data map.
-String _extractEventMessage(core.SkotiqEvent event) {
-  final data = event.data;
-
-  // Try common message keys in order of specificity
-  if (data.containsKey('message') &&
-      data['message'] is String &&
-      (data['message'] as String).isNotEmpty) {
-    return data['message'] as String;
+/// The sentence a backend event carries, or null when it carries none.
+String? _eventMessage(core.SkotiqEvent event) {
+  for (final key in const ['message', 'error', 'reason']) {
+    final value = event.data[key];
+    if (value is String && value.trim().isNotEmpty) return value;
   }
-  if (data.containsKey('error') &&
-      data['error'] is String &&
-      (data['error'] as String).isNotEmpty) {
-    return data['error'] as String;
-  }
-  if (data.containsKey('reason') &&
-      data['reason'] is String &&
-      (data['reason'] as String).isNotEmpty) {
-    return data['reason'] as String;
-  }
-
-  return event.eventType;
+  return null;
 }
 
 /// Build a title string from the event's category and device type.
