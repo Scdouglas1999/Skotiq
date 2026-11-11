@@ -102,12 +102,10 @@ class TemplatesTab extends ConsumerWidget {
       padding: EdgeInsets.all(isMobile ? 12 : 24),
       child: Column(
         children: [
-          // Header
           _TemplatesHeader(colors: colors),
 
           const SizedBox(height: 24),
 
-          // Snippet summary card (shows count and quick access hint)
           if (!isMobile && snippets.isNotEmpty)
             _SnippetSummaryCard(colors: colors, snippetCount: snippets.length),
 
@@ -127,7 +125,6 @@ class TemplatesTab extends ConsumerWidget {
                   isMobile: isMobile,
                 ),
 
-                // Built-in and user templates
                 _TemplatesSectionHeader(
                   colors: colors,
                   icon: LucideIcons.fileStack,
@@ -140,7 +137,6 @@ class TemplatesTab extends ConsumerWidget {
                   data: (templates) {
                     var filtered = templates;
 
-                    // Apply search filter
                     if (searchQuery.isNotEmpty) {
                       filtered = filtered
                           .where((t) =>
@@ -153,7 +149,6 @@ class TemplatesTab extends ConsumerWidget {
                           .toList();
                     }
 
-                    // Apply category filter
                     if (category != null && category.isNotEmpty) {
                       filtered = filtered
                           .where((template) =>
@@ -180,7 +175,6 @@ class TemplatesTab extends ConsumerWidget {
                       );
                     }
 
-                    // Adapt grid for different screen sizes
                     final gridSpacing = isMobile ? 12.0 : 20.0;
                     final maxExtent = isMobile ? 320.0 : 400.0;
 
