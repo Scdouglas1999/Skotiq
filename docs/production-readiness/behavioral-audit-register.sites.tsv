@@ -3017,8 +3017,6 @@ packages/skotiq_core/lib/src/providers/remote_sync/session_hydration.dart	fetchF
 packages/skotiq_core/lib/src/providers/remote_sync/session_hydration.dart	fetchMount	empty_catch	1	V0400	} catch (_) {
 packages/skotiq_core/lib/src/providers/remote_sync/session_hydration.dart	fetchRotator	empty_catch	1	V0403	} catch (_) {
 packages/skotiq_core/lib/src/providers/remote_sync/session_hydration.dart	hydrateRemoteSessionState	empty_catch	1	V0405	} catch (_) {
-packages/skotiq_core/lib/src/providers/remote_sync/session_hydration.dart	hydrateRemoteSessionState	empty_catch	1	V0406	} catch (_) {
-packages/skotiq_core/lib/src/providers/remote_sync/session_hydration.dart	hydrateRemoteSessionState	empty_catch	1	V0404	} catch (_) {
 packages/skotiq_core/lib/src/providers/runtime_mirror/channels/live_broadcast_channel.dart	fromJson	literal_null_coalesce	1	U2-14	integrationSecs: jsonDouble(json['integrationSecs']) ?? 0,
 packages/skotiq_core/lib/src/providers/runtime_mirror/channels/live_broadcast_channel.dart	fromJson	literal_null_coalesce	1	U2-14	stackMethod: jsonString(json['stackMethod']) ?? '',
 packages/skotiq_core/lib/src/providers/runtime_mirror/channels/live_broadcast_channel.dart	fromJson	literal_null_coalesce	1	U2-14	watermark: jsonString(json['watermark']) ?? '',
