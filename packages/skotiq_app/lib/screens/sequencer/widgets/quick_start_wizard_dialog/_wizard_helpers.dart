@@ -315,7 +315,7 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
       }
     } on TargetNameLookupUnavailable catch (e) {
       message = '"$query" is not in the installed catalog or your library, '
-          'and SIMBAD could not be reached to look it up (${e.message}). '
+          'and the SIMBAD lookup failed. ${e.message} '
           'Enter RA/Dec below instead.';
     }
     if (revision != _searchRevision || host.isStale) return;

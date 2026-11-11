@@ -86,6 +86,26 @@ void main() {
       expect(asked.toString(), '${SesameNameResolver.endpoint}?M42');
     });
 
+    // ux walk-2 F12: the planner showed "TargetNameLookupUnavailable: could
+    // not reach SIMBAD (ClientException with SocketException: ... uri=...)".
+    test('an unreachable SIMBAD is one plain sentence', () async {
+      final closed = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final port = closed.port;
+      await closed.close();
+      final down = SesameNameResolver(
+        client: MockClient(
+          (_) => http.get(Uri.parse('http://127.0.0.1:$port/')),
+        ),
+      );
+
+      final error = await down
+          .resolve('M42')
+          .then<Object?>((_) => null, onError: (Object e) => e);
+
+      expect(error, isA<TargetNameLookupUnavailable>());
+      expect(userFacingError(error), 'Could not reach SIMBAD (Connection refused).');
+    });
+
     test(
       'an unreachable SIMBAD throws instead of reading as "not found"',
       () async {

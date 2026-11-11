@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:io' show SocketException;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:skotiq_astro/skotiq_astro.dart';
+
+import '../errors/error_text.dart';
 
 /// An object SIMBAD knows by the exact identifier that was asked for.
 class ResolvedTargetName {
@@ -24,11 +27,12 @@ class ResolvedTargetName {
 /// SIMBAD could not be asked: no network, a timeout, or a server error.
 /// Distinct from "SIMBAD has no object by that name", which is a null result.
 class TargetNameLookupUnavailable implements Exception {
+  /// Why, as a sentence an operator reads after "SIMBAD lookup failed".
   final String message;
   const TargetNameLookupUnavailable(this.message);
 
   @override
-  String toString() => 'TargetNameLookupUnavailable: $message';
+  String toString() => message;
 }
 
 /// Exact name resolution through the CDS Sesame service, SIMBAD only.
@@ -81,15 +85,25 @@ class SesameNameResolver {
     try {
       response = await client.get(uri).timeout(timeout);
     } on TimeoutException {
-      throw const TargetNameLookupUnavailable('SIMBAD did not answer in time');
+      throw TargetNameLookupUnavailable(
+        'SIMBAD did not answer within ${timeout.inSeconds} s.',
+      );
+    } on SocketException catch (error) {
+      final why = error.osError?.message;
+      throw TargetNameLookupUnavailable(
+        'Could not reach SIMBAD'
+        '${why == null || why.isEmpty ? '' : ' ($why)'}.',
+      );
     } on Exception catch (error) {
-      throw TargetNameLookupUnavailable('could not reach SIMBAD ($error)');
+      throw TargetNameLookupUnavailable(
+        'Could not reach SIMBAD: ${userFacingError(error)}.',
+      );
     } finally {
       if (_client == null) client.close();
     }
     if (response.statusCode != 200) {
       throw TargetNameLookupUnavailable(
-        'SIMBAD returned HTTP ${response.statusCode}',
+        'SIMBAD answered with HTTP ${response.statusCode}.',
       );
     }
     return parseSesameXml(response.body);
