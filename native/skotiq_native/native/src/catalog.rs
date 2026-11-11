@@ -93,6 +93,9 @@ pub struct Family {
     pub subtype_label: Option<&'static str>,
     /// What one device is called in a log line.
     pub noun: &'static str,
+    /// Whether the vendor SDK this family needs is installed. `None` for
+    /// families that need none (serial mounts).
+    pub sdk_present: Option<fn() -> bool>,
     pub discover: Discover,
     pub open: Open,
 }
@@ -308,6 +311,7 @@ pub static FAMILIES: &[Family] = &[
         label: "ZWO",
         subtype_label: None,
         noun: "ZWO camera",
+        sdk_present: Some(crate::vendor::zwo::is_sdk_available),
         // The ASI SDK reports a serial number only for an open camera, and
         // opening every camera during a scan would fight any other program
         // holding one. So the id is the SDK index, which re-orders across a
@@ -339,6 +343,7 @@ pub static FAMILIES: &[Family] = &[
         label: "QHY",
         subtype_label: None,
         noun: "QHY camera",
+        sdk_present: Some(crate::vendor::qhy::is_sdk_available),
         discover: Discover::Sdk(|| {
             Box::pin(async {
                 Ok(crate::vendor::qhy::discover_devices()
@@ -366,6 +371,7 @@ pub static FAMILIES: &[Family] = &[
         label: "Player One",
         subtype_label: None,
         noun: "Player One camera",
+        sdk_present: Some(crate::vendor::player_one::is_sdk_available),
         discover: Discover::Sdk(|| {
             Box::pin(async {
                 Ok(crate::vendor::player_one::discover_devices()
@@ -396,6 +402,7 @@ pub static FAMILIES: &[Family] = &[
         label: "playerone_pw",
         subtype_label: None,
         noun: "Player One Phoenix filter wheel",
+        sdk_present: Some(crate::vendor::player_one::is_pw_sdk_available),
         discover: Discover::Sdk(|| {
             Box::pin(async {
                 Ok(crate::vendor::player_one::discover_filter_wheels()
@@ -426,6 +433,7 @@ pub static FAMILIES: &[Family] = &[
         label: "ZWO",
         subtype_label: Some("EAF"),
         noun: "ZWO EAF focuser",
+        sdk_present: Some(crate::vendor::zwo::is_eaf_sdk_available),
         discover: Discover::Sdk(|| {
             Box::pin(async {
                 Ok(crate::vendor::zwo::discover_focusers()
@@ -463,6 +471,7 @@ pub static FAMILIES: &[Family] = &[
         label: "ZWO",
         subtype_label: Some("EFW"),
         noun: "ZWO EFW filter wheel",
+        sdk_present: Some(crate::vendor::zwo::is_efw_sdk_available),
         discover: Discover::Sdk(|| {
             Box::pin(async {
                 Ok(crate::vendor::zwo::discover_filter_wheels()
@@ -503,6 +512,7 @@ pub static FAMILIES: &[Family] = &[
         label: "QHY",
         subtype_label: Some("CFW"),
         noun: "QHY CFW",
+        sdk_present: Some(crate::vendor::qhy::is_sdk_available),
         // A CFW hangs off a camera and is addressed by that camera's id; it
         // has no serial number of its own.
         discover: Discover::Sdk(|| {
@@ -532,6 +542,7 @@ pub static FAMILIES: &[Family] = &[
         label: "SVBony",
         subtype_label: None,
         noun: "SVBony camera",
+        sdk_present: Some(crate::vendor::svbony::is_sdk_available),
         discover: Discover::Sdk(|| {
             Box::pin(async {
                 Ok(crate::vendor::svbony::discover_devices()
@@ -566,6 +577,7 @@ pub static FAMILIES: &[Family] = &[
         label: "Atik",
         subtype_label: None,
         noun: "Atik camera",
+        sdk_present: Some(crate::vendor::atik::is_sdk_available),
         discover: Discover::Sdk(|| {
             Box::pin(async {
                 Ok(crate::vendor::atik::discover_devices()
@@ -603,6 +615,7 @@ pub static FAMILIES: &[Family] = &[
         label: "atik_efw",
         subtype_label: None,
         noun: "Atik EFW filter wheel",
+        sdk_present: Some(crate::vendor::atik::is_sdk_available),
         discover: Discover::Sdk(|| {
             Box::pin(async {
                 Ok(crate::vendor::atik::discover_filter_wheels()
@@ -643,6 +656,7 @@ pub static FAMILIES: &[Family] = &[
         label: "FLI",
         subtype_label: None,
         noun: "FLI camera",
+        sdk_present: Some(crate::vendor::fli::is_sdk_available),
         discover: Discover::Sdk(|| {
             Box::pin(async { Ok(fli_found(crate::vendor::fli::discover_cameras().await?)) })
         }),
@@ -661,6 +675,7 @@ pub static FAMILIES: &[Family] = &[
         label: "FLI",
         subtype_label: Some("Focuser"),
         noun: "FLI focuser",
+        sdk_present: Some(crate::vendor::fli::is_sdk_available),
         discover: Discover::Sdk(|| {
             Box::pin(async { Ok(fli_found(crate::vendor::fli::discover_focusers().await?)) })
         }),
@@ -679,6 +694,7 @@ pub static FAMILIES: &[Family] = &[
         label: "FLI",
         subtype_label: Some("Filter Wheel"),
         noun: "FLI filter wheel",
+        sdk_present: Some(crate::vendor::fli::is_sdk_available),
         discover: Discover::Sdk(|| {
             Box::pin(async {
                 Ok(fli_found(
@@ -701,6 +717,7 @@ pub static FAMILIES: &[Family] = &[
         label: "Touptek",
         subtype_label: None,
         noun: "Touptek camera",
+        sdk_present: Some(crate::vendor::touptek::is_sdk_available),
         // Touptek sells one SDK under several brands; the address is
         // `<brand>:<index within that brand's SDK>`.
         discover: Discover::Sdk(|| {
@@ -747,6 +764,7 @@ pub static FAMILIES: &[Family] = &[
         label: "Moravian",
         subtype_label: None,
         noun: "Moravian camera",
+        sdk_present: Some(crate::vendor::moravian::is_sdk_available),
         discover: Discover::Sdk(|| {
             Box::pin(async {
                 Ok(crate::vendor::moravian::discover_devices()
@@ -781,6 +799,7 @@ pub static FAMILIES: &[Family] = &[
         label: "Fujifilm",
         subtype_label: None,
         noun: "Fujifilm camera",
+        sdk_present: FUJIFILM_SDK_PRESENT,
         discover: FUJIFILM_DISCOVER,
         open: FUJIFILM_OPEN,
     },
@@ -793,6 +812,7 @@ pub static FAMILIES: &[Family] = &[
         label: "gPhoto2",
         subtype_label: None,
         noun: "gPhoto2 camera",
+        sdk_present: Some(crate::vendor::gphoto2::is_sdk_available),
         discover: Discover::Sdk(|| {
             Box::pin(async {
                 Ok(crate::vendor::gphoto2::detect_gphoto2_cameras()
@@ -836,6 +856,7 @@ pub static FAMILIES: &[Family] = &[
         label: "Sky-Watcher",
         subtype_label: None,
         noun: "Sky-Watcher mount",
+        sdk_present: None,
         discover: Discover::SerialPorts(|| {
             Box::pin(async {
                 Ok(crate::vendor::skywatcher::discover_mounts()
@@ -861,6 +882,7 @@ pub static FAMILIES: &[Family] = &[
         label: "iOptron",
         subtype_label: None,
         noun: "iOptron mount",
+        sdk_present: None,
         discover: Discover::SerialPorts(|| {
             Box::pin(async {
                 Ok(crate::vendor::ioptron::discover_mounts()
@@ -886,6 +908,7 @@ pub static FAMILIES: &[Family] = &[
         label: "LX200",
         subtype_label: None,
         noun: "LX200 mount",
+        sdk_present: None,
         // One scan tells the LX200 dialects apart; each mount is reported
         // under its own family.
         discover: Discover::SerialPorts(|| {
@@ -912,6 +935,7 @@ pub static FAMILIES: &[Family] = &[
         label: "meade",
         subtype_label: None,
         noun: "Meade mount",
+        sdk_present: None,
         discover: Discover::ByAnotherFamily,
         open: Open::Now(|r| open_lx200(r, Lx200MountType::Meade)),
     },
@@ -924,6 +948,7 @@ pub static FAMILIES: &[Family] = &[
         label: "onstep",
         subtype_label: None,
         noun: "OnStep mount",
+        sdk_present: None,
         discover: Discover::ByAnotherFamily,
         open: Open::Now(|r| open_lx200(r, Lx200MountType::OnStep)),
     },
@@ -937,6 +962,7 @@ pub static FAMILIES: &[Family] = &[
         label: "pegasus",
         subtype_label: None,
         noun: "Pegasus mount",
+        sdk_present: None,
         discover: Discover::ByAnotherFamily,
         open: Open::Now(|r| open_lx200(r, Lx200MountType::OnStep)),
     },
@@ -949,6 +975,7 @@ pub static FAMILIES: &[Family] = &[
         label: "losmandy",
         subtype_label: None,
         noun: "Losmandy mount",
+        sdk_present: None,
         discover: Discover::ByAnotherFamily,
         open: Open::Now(|r| open_lx200(r, Lx200MountType::Losmandy)),
     },
@@ -961,6 +988,7 @@ pub static FAMILIES: &[Family] = &[
         label: "10Micron",
         subtype_label: None,
         noun: "10Micron mount",
+        sdk_present: None,
         discover: Discover::ByAnotherFamily,
         open: Open::Now(|r| open_lx200(r, Lx200MountType::TenMicron)),
     },
@@ -970,7 +998,12 @@ pub static FAMILIES: &[Family] = &[
 #[cfg(not(target_os = "windows"))]
 const FUJIFILM_DISCOVER: Discover = Discover::NotOnThisPlatform;
 #[cfg(not(target_os = "windows"))]
+const FUJIFILM_SDK_PRESENT: Option<fn() -> bool> = Some(|| false);
+#[cfg(not(target_os = "windows"))]
 const FUJIFILM_OPEN: Open = Open::NotOnThisPlatform("Fujifilm cameras need the Windows build");
+
+#[cfg(target_os = "windows")]
+const FUJIFILM_SDK_PRESENT: Option<fn() -> bool> = Some(crate::vendor::fujifilm::is_sdk_available);
 
 /// The address is the body's serial number. A body that reports none at
 /// enumeration is addressed by its product name.
@@ -1079,6 +1112,17 @@ mod tests {
             "native:10micron:0",
         ];
         assert_eq!(ids, expected);
+    }
+
+    #[test]
+    fn only_families_behind_a_vendor_sdk_have_a_presence_probe() {
+        for family in FAMILIES {
+            let needs_sdk = matches!(
+                family.discover,
+                Discover::Sdk(_) | Discover::NotOnThisPlatform
+            );
+            assert_eq!(family.sdk_present.is_some(), needs_sdk, "{}", family.noun);
+        }
     }
 
     #[test]

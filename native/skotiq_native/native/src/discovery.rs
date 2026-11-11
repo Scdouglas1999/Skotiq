@@ -47,7 +47,10 @@ const SERIAL_SCAN_GAP: Duration = Duration::from_millis(200);
 /// An absent SDK is the normal case for gear the user does not own and is
 /// not worth a warning on every scan. An SDK that is present and fails is.
 fn is_sdk_not_installed_error(e: &NativeError) -> bool {
-    matches!(e, NativeError::SdkNotLoaded)
+    matches!(
+        e,
+        NativeError::SdkNotInstalled(_) | NativeError::SdkNotLoaded
+    )
 }
 
 /// Information about a discovered native device

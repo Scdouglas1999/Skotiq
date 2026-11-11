@@ -8,8 +8,9 @@
 //!
 //! ## Thread Safety
 //!
-//! Vendor SDKs are NOT thread-safe. All SDK operations are protected by
-//! per-vendor mutexes in the `sync` module. See `sync.rs` for details.
+//! Vendor SDKs are not thread-safe. Each SDK's function table can only be
+//! reached through a guard that holds that SDK's lock; see
+//! `vendor::sdk_loader`.
 
 #![allow(
     clippy::doc_overindented_list_items,
