@@ -80,6 +80,12 @@ class NotificationRouter {
   /// Per-category rate-limit window state.
   final Map<NotificationCategory, _RateWindow> _rateWindows = {};
 
+  /// Whether the run in progress has already been told as failed. A failing
+  /// run reports its fault more than once (the instruction's own error, the
+  /// node's failure, the terminal `SequenceFailed` restating the first one),
+  /// and the operator is told once, with the first.
+  bool _runFailureTold = false;
+
   /// Per-category last fire time (for debouncing).
   final Map<NotificationCategory, DateTime> _lastFireTime = {};
 
@@ -589,11 +595,22 @@ class NotificationRouter {
       // run's stop episode.
       _stopPushArbiter.noteRunBoundary();
     }
+    if (event.category == EventCategory.sequencer &&
+        const {'Started', 'Completed', 'Stopped'}.contains(event.eventType)) {
+      _runFailureTold = false;
+    }
 
     // Single source of truth for event -> category classification, shared
     // with PushNotificationService (see event_classifier.dart).
     final classified = NotificationEventClassifier.classify(event);
     if (classified == null) return;
+    if (classified.category == NotificationCategory.sequenceFailed) {
+      final alreadyTold = _runFailureTold;
+      // The terminal event ends the run, so a failure after it (a flat
+      // wizard's, say) is told again.
+      _runFailureTold = event.eventType != 'SequenceFailed';
+      if (alreadyTold) return;
+    }
     final context = _buildContext(event, classified.context);
     route(classified.category, context, severity: classified.severity);
   }

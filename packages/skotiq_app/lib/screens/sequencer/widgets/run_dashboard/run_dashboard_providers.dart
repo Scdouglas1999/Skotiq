@@ -1109,6 +1109,8 @@ bool _routerClassifierAlreadyPushes(sk_events.SkotiqEvent event) {
       },
     sk_events.EventPayload_Sequencer(field0: final v) => switch (v) {
         sk_events.SequencerEvent_Error() => true,
+        // Told once per failed run by the router, with its reason.
+        sk_events.SequencerEvent_Failed() => true,
         sk_events.SequencerEvent_Stopped() => true,
         sk_events.SequencerEvent_RecoveryGaveUp() => true,
         _ => false,

@@ -24,6 +24,10 @@ import '../../models/sequence/interpolation_catalog.dart';
 /// stop decision on the wire.
 const String kStopCauseContextKey = 'stop.cause';
 
+/// Context key carrying why a run failed, as one or more sentences. The
+/// failure template interpolates it; the classifier fills it from the event.
+const String kFailureReasonContextKey = 'failure.reason';
+
 /// Context key carrying the run id a stop notification belongs to. Not for
 /// display — it is how the router tells one run's stop episode from the next.
 const String kStopRunIdContextKey = 'stop.run_id';

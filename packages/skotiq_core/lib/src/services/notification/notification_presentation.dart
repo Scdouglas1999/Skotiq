@@ -87,7 +87,7 @@ class NotificationPresentation {
     ),
     NotificationCategory.sequenceFailed => const NotificationPresentation(
       title: 'Sequence failed',
-      body: 'Sequence aborted at \${time.clock}.',
+      body: 'Sequence aborted at \${time.clock}. \${failure.reason}',
       eventCategory: EventCategory.sequencer,
       tone: NotificationTone.alert,
       push: PhonePush(_critical, PushToggle.sequenceFailed),

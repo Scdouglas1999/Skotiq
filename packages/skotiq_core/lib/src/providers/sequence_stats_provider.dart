@@ -14,6 +14,7 @@ import 'backend_provider.dart';
 import '../backend/remote_host.dart';
 import '../backend/roles/host_data/host_records.dart';
 import 'database_provider.dart';
+import 'sequence/run_stop_classification.dart';
 
 /// Statistics collected during a sequence execution run.
 class SequenceRunStats {
@@ -259,7 +260,7 @@ class SequenceRunStats {
   /// event handler substitutes for a missing field) are not causes, so they
   /// leave [terminalCause] unset rather than being headlined as one.
   void recordTerminalError(String message) {
-    if (!_terminalPlaceholders.contains(message.trim())) {
+    if (!isUnexplainedRunFailure(message)) {
       terminalCause = message;
     }
     if (errorMessages.contains(message)) {
@@ -267,11 +268,6 @@ class SequenceRunStats {
     }
     errorMessages.add(message);
   }
-
-  static const Set<String> _terminalPlaceholders = {
-    'Sequence failed',
-    'Unknown error',
-  };
 
   /// Record a non-fatal warning surfaced during execution. Idempotent on
   /// exact-duplicate consecutive messages so a per-frame warning (e.g.
