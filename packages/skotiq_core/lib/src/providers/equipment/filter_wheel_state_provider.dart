@@ -10,7 +10,6 @@ import '../profiles_provider.dart';
 // Note: All async callbacks and stream listeners check `mounted`
 // before updating state to prevent updates after disposal.
 
-/// Filter wheel state provider
 final filterWheelStateProvider =
     StateNotifierProvider<FilterWheelStateNotifier, FilterWheelState>((ref) {
       return FilterWheelStateNotifier(ref);
@@ -29,7 +28,6 @@ class FilterWheelStateNotifier extends DeviceSlotNotifier<FilterWheelState> {
       if (state.connectionState != DeviceConnectionState.connected) return;
       if (state.deviceId == null) return;
 
-      // Only re-sync if filter names actually changed
       final previousNames = previous?.filterNames ?? [];
       final nextNames = next?.filterNames ?? [];
       if (_filterNamesEqual(previousNames, nextNames)) return;
@@ -43,7 +41,6 @@ class FilterWheelStateNotifier extends DeviceSlotNotifier<FilterWheelState> {
     });
   }
 
-  /// Compare two filter name lists for equality
   static bool _filterNamesEqual(List<String> a, List<String> b) {
     if (a.length != b.length) return false;
     for (int i = 0; i < a.length; i++) {
@@ -189,10 +186,8 @@ class FilterWheelStateNotifier extends DeviceSlotNotifier<FilterWheelState> {
     List<String> names, {
     bool syncToDriver = true,
   }) async {
-    // Store in the session provider
     ref.read(sessionFilterNamesProvider.notifier).state = names;
 
-    // Optionally sync to driver if connected
     if (syncToDriver &&
         state.connectionState == DeviceConnectionState.connected &&
         state.deviceId != null) {
@@ -232,8 +227,6 @@ class FilterWheelStateNotifier extends DeviceSlotNotifier<FilterWheelState> {
     ref.read(sessionFilterNamesProvider.notifier).state = null;
   }
 }
-
-// Effective filters provider
 
 /// Matches generic ASCOM/INDI slot labels such as "Filter 1" or "filter2".
 final genericFilterSlotNamePattern = RegExp(
@@ -285,8 +278,6 @@ final effectiveFiltersProvider = Provider<List<String>>((ref) {
   }
   return profileFilters;
 });
-
-// Session filter names provider
 
 /// Session-only filter names (no profile required).
 ///

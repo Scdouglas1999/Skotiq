@@ -33,7 +33,6 @@ class ProfileDeviceConnection {
   /// whether it matches the profile assignment.
   final DeviceConnectionState connectedState;
 
-  /// Whether the profile assigns any device to this slot.
   bool get isAssigned => profileId != null;
 
   /// Whether the connected device is the one the profile assigned, using the

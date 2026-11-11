@@ -18,7 +18,6 @@ import '../../services/device_service.dart';
 // Note: All async callbacks and stream listeners check `mounted` before
 // updating state to prevent updates after disposal.
 
-/// Switch device state provider.
 final switchStateProvider =
     StateNotifierProvider<SwitchStateNotifier, SwitchState>((ref) {
       return SwitchStateNotifier(ref);

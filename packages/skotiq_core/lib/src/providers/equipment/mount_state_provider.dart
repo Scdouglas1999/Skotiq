@@ -12,7 +12,6 @@ import '../backend_provider.dart';
 // Note: All async callbacks and stream listeners check `mounted`
 // before updating state to prevent updates after disposal.
 
-/// Mount state provider
 final mountStateProvider =
     StateNotifierProvider<MountStateNotifier, MountState>((ref) {
       return MountStateNotifier(ref);
@@ -95,7 +94,6 @@ class MountStateNotifier extends DeviceSlotNotifier<MountState> {
   void setSlewing(bool slewing) {
     final wasSlewing = state.isSlewing;
     state = state.copyWith(isSlewing: slewing);
-    // Adjust poll rate when slewing state changes
     if (wasSlewing != slewing &&
         state.connectionState == DeviceConnectionState.connected) {
       _restartPollingWithCurrentRate();
@@ -128,8 +126,6 @@ class MountStateNotifier extends DeviceSlotNotifier<MountState> {
   void setCanSetTrackingRate(bool canSet) {
     state = state.copyWith(canSetTrackingRate: canSet);
   }
-
-  // Position polling
 
   void _startPositionPolling() {
     _stopPositionPolling();
@@ -238,7 +234,6 @@ class MountStateNotifier extends DeviceSlotNotifier<MountState> {
         clearSideOfPier: pierSide == null,
       );
 
-      // If slewing state changed, adjust poll rate
       if (wasSlewing != status.slewing) {
         _restartPollingWithCurrentRate();
       }
