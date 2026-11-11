@@ -316,6 +316,8 @@ class _AppShellState extends ConsumerState<AppShell> {
                   return AppCheckpointRecoveryChoice.later;
                 }
                 if (!mounted) return null;
+                final remoteHost =
+                    backend is NetworkBackend ? backend.serverHost : null;
                 BuildContext? dialogContext;
                 // The prompt describes the checkpoint at the moment it
                 // opened. Once a run starts (on a linked client: on the host)
@@ -343,9 +345,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                         context: routeContext,
                         info: info,
                         failure: lastFailure,
-                        remoteHost: backend is NetworkBackend
-                            ? backend.serverHost
-                            : null,
+                        remoteHost: remoteHost,
                       );
                     },
                   );
