@@ -182,30 +182,23 @@ pub(crate) async fn run_sequencer_event_loop(
                 std::mem::discriminant(&event)
             );
             let skotiq_event = match &event {
-                ExecutorEvent::StateChanged(s) => {
-                    let _state_str = match s {
-                        ExecutorState::Running => "running",
-                        ExecutorState::Paused => "paused",
-                        ExecutorState::Cancelled => "cancelled",
-                        ExecutorState::Completed => "completed",
+                // A finished run is announced by `SequenceCompleted` and a
+                // failed one by `SequenceFailed`, each sent just before the
+                // state turns, so those states announce nothing here.
+                ExecutorEvent::StateChanged(s) => Some(create_event_auto_id(
+                    EventSeverity::Info,
+                    EventCategory::Sequencer,
+                    EventPayload::Sequencer(match s {
+                        ExecutorState::Paused => SequencerEvent::Paused,
+                        ExecutorState::Cancelled => SequencerEvent::Stopped {
+                            sequence_run_id: get_sequence_executor()
+                                .read()
+                                .await
+                                .active_sequence_run_id(),
+                        },
                         _ => continue,
-                    };
-                    Some(create_event_auto_id(
-                        EventSeverity::Info,
-                        EventCategory::Sequencer,
-                        EventPayload::Sequencer(match s {
-                            ExecutorState::Paused => SequencerEvent::Paused,
-                            ExecutorState::Cancelled => SequencerEvent::Stopped {
-                                sequence_run_id: get_sequence_executor()
-                                    .read()
-                                    .await
-                                    .active_sequence_run_id(),
-                            },
-                            ExecutorState::Completed => SequencerEvent::Completed,
-                            _ => continue,
-                        }),
-                    ))
-                }
+                    }),
+                )),
                 ExecutorEvent::DepthGoalCompleted {
                     node_id,
                     filter_name,
@@ -823,6 +816,89 @@ mod event_bridge_idempotence_tests {
             1,
             "re-subscribing must not stand up another listener; a second one \
              duplicates every sequencer event on the way to the UI"
+        );
+    }
+}
+
+#[cfg(test)]
+mod terminal_announcement_tests {
+    use super::run_sequencer_event_loop;
+    use crate::api::get_state;
+    use crate::event::{EventPayload, SequencerEvent};
+    use skotiq_sequencer::{ExecutorEvent, ExecutorState};
+
+    /// Sequencer lifecycle events the bridge publishes for `sent`, in order.
+    async fn published_for(sent: Vec<ExecutorEvent>) -> Vec<SequencerEvent> {
+        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
+            .lock()
+            .await;
+        let mut published = get_state().event_bus.subscribe();
+        let (tx, mut rx) = tokio::sync::broadcast::channel(16);
+        for event in sent {
+            tx.send(event).expect("the bridge loop holds a receiver");
+        }
+        drop(tx);
+        run_sequencer_event_loop(&mut rx, get_state()).await;
+
+        let mut out = Vec::new();
+        while let Ok(event) = published.try_recv() {
+            if let EventPayload::Sequencer(
+                e @ (SequencerEvent::Completed
+                | SequencerEvent::Failed { .. }
+                | SequencerEvent::Paused
+                | SequencerEvent::Stopped { .. }),
+            ) = event.payload
+            {
+                out.push(e);
+            }
+        }
+        out
+    }
+
+    /// A run that finishes sends `SequenceCompleted` and then its state turns
+    /// Completed. The rig log showed `Completed` twice for one run.
+    #[tokio::test]
+    async fn a_finished_run_is_announced_once() {
+        let published = published_for(vec![
+            ExecutorEvent::SequenceCompleted,
+            ExecutorEvent::StateChanged(ExecutorState::Completed),
+        ])
+        .await;
+        assert!(
+            matches!(published.as_slice(), [SequencerEvent::Completed]),
+            "{published:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_failed_run_is_announced_once() {
+        let published = published_for(vec![
+            ExecutorEvent::SequenceFailed {
+                error: "slew refused".into(),
+            },
+            ExecutorEvent::StateChanged(ExecutorState::Failed),
+        ])
+        .await;
+        assert!(
+            matches!(published.as_slice(), [SequencerEvent::Failed { .. }]),
+            "{published:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_pause_and_a_cancel_are_announced_from_the_state() {
+        let published = published_for(vec![
+            ExecutorEvent::StateChanged(ExecutorState::Paused),
+            ExecutorEvent::StateChanged(ExecutorState::Running),
+            ExecutorEvent::StateChanged(ExecutorState::Cancelled),
+        ])
+        .await;
+        assert!(
+            matches!(
+                published.as_slice(),
+                [SequencerEvent::Paused, SequencerEvent::Stopped { .. }]
+            ),
+            "{published:?}"
         );
     }
 }
