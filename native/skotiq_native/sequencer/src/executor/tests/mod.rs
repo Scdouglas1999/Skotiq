@@ -1,4 +1,5 @@
 use super::*;
+use crate::device_ops::{GuiderOps, MountOps};
 use crate::SequenceDefinition;
 
 mod carry_over_tests;
@@ -1316,7 +1317,7 @@ fn custom_branch_recovery_node_registers_trigger_spec() {
     assert_eq!(specs[0].custom_branch_node_id.as_deref(), Some("recovery"));
 }
 
-use crate::device_ops::{DeviceOps, DeviceResult, ExposureRequest, GuidingStatus};
+use crate::device_ops::{DeviceResult, GuidingStatus};
 
 /// DeviceOps that simulates a guider which is NOT guiding until
 /// `guider_start` is called, after which `guider_get_status` reports
@@ -1375,36 +1376,12 @@ impl ReacquireGuiderOps {
 }
 
 #[async_trait::async_trait]
-impl DeviceOps for ReacquireGuiderOps {
+impl MountOps for ReacquireGuiderOps {
     async fn mount_set_tracking(&self, id: &str, enabled: bool) -> DeviceResult<()> {
         *self.last_tracking_set.lock().unwrap() = Some(enabled);
         if self.tracking_set_should_fail && enabled {
             return Err(format!("simulated tracking-enable failure for {}", id));
         }
-        Ok(())
-    }
-
-    async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
-        // Guiding only once a (successful) re-acquire has been issued.
-        let guiding = self.started.load(Ordering::Relaxed) && self.relock_after_start;
-        Ok(GuidingStatus {
-            is_guiding: guiding,
-            rms_ra: 0.5,
-            rms_dec: 0.4,
-            rms_total: 0.64,
-        })
-    }
-
-    async fn guider_start(
-        &self,
-        _settle_pixels: f64,
-        _settle_time: f64,
-        _settle_timeout: f64,
-    ) -> DeviceResult<()> {
-        if self.start_should_fail {
-            return Err("simulated guider_start failure".to_string());
-        }
-        self.started.store(true, Ordering::Relaxed);
         Ok(())
     }
 
@@ -1448,78 +1425,32 @@ impl DeviceOps for ReacquireGuiderOps {
         }
         self.inner.mount_is_tracking(id).await
     }
-    async fn camera_start_exposure(
+}
+
+#[async_trait::async_trait]
+impl GuiderOps for ReacquireGuiderOps {
+    async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
+        // Guiding only once a (successful) re-acquire has been issued.
+        let guiding = self.started.load(Ordering::Relaxed) && self.relock_after_start;
+        Ok(GuidingStatus {
+            is_guiding: guiding,
+            rms_ra: 0.5,
+            rms_dec: 0.4,
+            rms_total: 0.64,
+        })
+    }
+
+    async fn guider_start(
         &self,
-        request: ExposureRequest<'_>,
-    ) -> DeviceResult<crate::device_ops::ImageData> {
-        let ExposureRequest {
-            camera_id: id,
-            duration_secs: d,
-            gain: g,
-            offset: o,
-            bin_x: bx,
-            bin_y: by,
-            ..
-        } = request;
-        self.inner
-            .camera_start_exposure(
-                ExposureRequest::new(id, d)
-                    .gain(g)
-                    .offset(o)
-                    .binning(bx, by),
-            )
-            .await
-    }
-    async fn camera_abort_exposure(&self, id: &str) -> DeviceResult<()> {
-        self.inner.camera_abort_exposure(id).await
-    }
-    async fn camera_set_cooler(&self, id: &str, e: bool, t: f64) -> DeviceResult<()> {
-        self.inner.camera_set_cooler(id, e, t).await
-    }
-    async fn camera_get_temperature(&self, id: &str) -> DeviceResult<f64> {
-        self.inner.camera_get_temperature(id).await
-    }
-    async fn camera_get_cooler_power(&self, id: &str) -> DeviceResult<f64> {
-        self.inner.camera_get_cooler_power(id).await
-    }
-    async fn focuser_move_to(&self, id: &str, p: i32) -> DeviceResult<()> {
-        self.inner.focuser_move_to(id, p).await
-    }
-    async fn focuser_get_position(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.focuser_get_position(id).await
-    }
-    async fn focuser_is_moving(&self, id: &str) -> DeviceResult<bool> {
-        self.inner.focuser_is_moving(id).await
-    }
-    async fn focuser_get_temperature(&self, id: &str) -> DeviceResult<Option<f64>> {
-        self.inner.focuser_get_temperature(id).await
-    }
-    async fn focuser_halt(&self, id: &str) -> DeviceResult<()> {
-        self.inner.focuser_halt(id).await
-    }
-    async fn filterwheel_set_position(&self, id: &str, p: i32) -> DeviceResult<()> {
-        self.inner.filterwheel_set_position(id, p).await
-    }
-    async fn filterwheel_get_position(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.filterwheel_get_position(id).await
-    }
-    async fn filterwheel_get_names(&self, id: &str) -> DeviceResult<Vec<String>> {
-        self.inner.filterwheel_get_names(id).await
-    }
-    async fn filterwheel_set_filter_by_name(&self, id: &str, n: &str) -> DeviceResult<i32> {
-        self.inner.filterwheel_set_filter_by_name(id, n).await
-    }
-    async fn rotator_move_to(&self, id: &str, a: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_to(id, a).await
-    }
-    async fn rotator_move_relative(&self, id: &str, d: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_relative(id, d).await
-    }
-    async fn rotator_get_angle(&self, id: &str) -> DeviceResult<f64> {
-        self.inner.rotator_get_angle(id).await
-    }
-    async fn rotator_halt(&self, id: &str) -> DeviceResult<()> {
-        self.inner.rotator_halt(id).await
+        _settle_pixels: f64,
+        _settle_time: f64,
+        _settle_timeout: f64,
+    ) -> DeviceResult<()> {
+        if self.start_should_fail {
+            return Err("simulated guider_start failure".to_string());
+        }
+        self.started.store(true, Ordering::Relaxed);
+        Ok(())
     }
     async fn guider_dither(
         &self,
@@ -1534,96 +1465,9 @@ impl DeviceOps for ReacquireGuiderOps {
     async fn guider_stop(&self) -> DeviceResult<()> {
         self.inner.guider_stop().await
     }
-    async fn plate_solve(
-        &self,
-        d: &crate::device_ops::ImageData,
-        ra: Option<f64>,
-        dec: Option<f64>,
-        s: Option<f64>,
-    ) -> DeviceResult<crate::device_ops::PlateSolveResult> {
-        self.inner.plate_solve(d, ra, dec, s).await
-    }
-    async fn save_fits(
-        &self,
-        d: &crate::device_ops::ImageData,
-        f: &str,
-        fctx: &crate::scheduling::FrameContext,
-    ) -> DeviceResult<()> {
-        self.inner.save_fits(d, f, fctx).await
-    }
-    async fn send_notification(
-        &self,
-        l: &str,
-        t: &str,
-        m: &str,
-        x: Option<&[String]>,
-    ) -> DeviceResult<()> {
-        self.inner.send_notification(l, t, m, x).await
-    }
-    fn get_observer_location(&self) -> Option<(f64, f64)> {
-        self.inner.get_observer_location()
-    }
-    async fn polar_align_update(
-        &self,
-        r: &crate::polar_align::PolarAlignResult,
-    ) -> DeviceResult<()> {
-        self.inner.polar_align_update(r).await
-    }
-    async fn dome_open(&self, id: &str) -> DeviceResult<()> {
-        self.inner.dome_open(id).await
-    }
-    async fn dome_close(&self, id: &str) -> DeviceResult<()> {
-        self.inner.dome_close(id).await
-    }
-    async fn dome_park(&self, id: &str) -> DeviceResult<()> {
-        self.inner.dome_park(id).await
-    }
-    async fn dome_get_shutter_status(&self, id: &str) -> DeviceResult<String> {
-        self.inner.dome_get_shutter_status(id).await
-    }
-    async fn safety_is_safe(&self, id: Option<&str>) -> DeviceResult<bool> {
-        self.inner.safety_is_safe(id).await
-    }
-    async fn calculate_image_hfr(
-        &self,
-        d: &crate::device_ops::ImageData,
-    ) -> DeviceResult<Option<f64>> {
-        self.inner.calculate_image_hfr(d).await
-    }
-    async fn detect_stars_in_image(
-        &self,
-        d: &crate::device_ops::ImageData,
-    ) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        self.inner.detect_stars_in_image(d).await
-    }
-    async fn cover_calibrator_open_cover(&self, id: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_open_cover(id).await
-    }
-    async fn cover_calibrator_close_cover(&self, id: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_close_cover(id).await
-    }
-    async fn cover_calibrator_halt_cover(&self, id: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_halt_cover(id).await
-    }
-    async fn cover_calibrator_calibrator_on(&self, id: &str, b: i32) -> DeviceResult<()> {
-        self.inner.cover_calibrator_calibrator_on(id, b).await
-    }
-    async fn cover_calibrator_calibrator_off(&self, id: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_calibrator_off(id).await
-    }
-    async fn cover_calibrator_get_cover_state(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_cover_state(id).await
-    }
-    async fn cover_calibrator_get_calibrator_state(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_calibrator_state(id).await
-    }
-    async fn cover_calibrator_get_brightness(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_brightness(id).await
-    }
-    async fn cover_calibrator_get_max_brightness(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_max_brightness(id).await
-    }
 }
+
+crate::forward_device_ops!(ReacquireGuiderOps => inner: CameraOps, FocuserOps, FilterWheelOps, RotatorOps, DomeOps, CoverCalibratorOps, SafetyOps, PlateSolveOps, FrameStoreOps, OperatorNotifyOps, ConnectionOps, SiteOps);
 
 /// The terminal message a finished run publishes is the run's own verdict.
 ///

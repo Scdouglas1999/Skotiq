@@ -1019,6 +1019,7 @@ async fn continue_unguided(c: UnguidedContinuation<'_>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::device_ops::MountOps;
     use crate::executor::scenario_sim_tests::ScriptedDeviceOps;
     use crate::recovery::{RecoveryCause, RecoveryHistoryEntry, RecoveryRuntimeConfig};
 
@@ -1263,7 +1264,6 @@ mod tests {
         ops.guiding.store(false, Ordering::SeqCst);
         ops.guider_start_fails.store(true, Ordering::SeqCst);
         if mount_stopped {
-            use crate::device_ops::DeviceOps;
             ops.mount_set_tracking("mount-1", false).await.unwrap();
         }
         // A zero retry interval gives the ladder one attempt, so the budget is
@@ -1279,7 +1279,6 @@ mod tests {
         };
         let trigger_mgr = Arc::new(RwLock::new(TriggerManager::new()));
         if tracking_limit {
-            use crate::device_ops::DeviceOps;
             ops.flip_on_slew.store(true, Ordering::Relaxed);
             ops.mount_set_tracking("mount-1", false).await.unwrap();
             let mut manager = trigger_mgr.write().await;

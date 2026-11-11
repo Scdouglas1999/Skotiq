@@ -331,7 +331,7 @@ pub(in super::super) async fn abort_and_park(rig: &Rig, run: &RunControl, park: 
             mount_id
         );
         let park_outcome =
-            crate::device_ops::try_park_with_retry(&rig.device_ops, mount_id, 1, 2.0).await;
+            crate::device_ops::try_park_with_retry(&*rig.device_ops, mount_id, 1, 2.0).await;
         if !park_outcome.success {
             run.error(format!(
                 "FlipFailure AbortAndPark: mount park FAILED after {} attempt{}: {}. \

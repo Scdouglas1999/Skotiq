@@ -617,35 +617,7 @@ impl ScriptedDomeRotatorOps {
 }
 
 #[async_trait]
-impl DeviceOps for ScriptedDomeRotatorOps {
-    // Rotator (verified-move surface)
-    async fn rotator_move_to(&self, _id: &str, _angle: f64) -> DeviceResult<()> {
-        self.rotator_move_to_calls.fetch_add(1, Ordering::SeqCst);
-        Ok(())
-    }
-    async fn rotator_get_angle(&self, _id: &str) -> DeviceResult<f64> {
-        self.rotator_get_angle_calls.fetch_add(1, Ordering::SeqCst);
-        Ok(Self::next_scripted(&self.rotator_angles))
-    }
-
-    // Dome (verified-close surface)
-    async fn dome_close(&self, id: &str) -> DeviceResult<()> {
-        self.dome_close_calls.fetch_add(1, Ordering::SeqCst);
-        if let Some(err) = &self.dome_close_error {
-            return Err(err.clone());
-        }
-        self.inner.dome_close(id).await
-    }
-    async fn dome_park(&self, _id: &str) -> DeviceResult<()> {
-        self.dome_park_calls.fetch_add(1, Ordering::SeqCst);
-        Ok(())
-    }
-    async fn dome_get_shutter_status(&self, _id: &str) -> DeviceResult<String> {
-        self.dome_shutter_status_calls
-            .fetch_add(1, Ordering::SeqCst);
-        Ok(Self::next_scripted(&self.dome_shutter_states))
-    }
-
+impl MountOps for ScriptedDomeRotatorOps {
     // Delegating methods
     async fn mount_slew_to_coordinates(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
         self.mount_slew_calls.fetch_add(1, Ordering::SeqCst);
@@ -763,6 +735,10 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         }
         self.inner.mount_set_tracking(id, enabled).await
     }
+}
+
+#[async_trait]
+impl CameraOps for ScriptedDomeRotatorOps {
     async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
         let ExposureRequest {
             camera_id: id,
@@ -872,6 +848,10 @@ impl DeviceOps for ScriptedDomeRotatorOps {
     async fn camera_get_model(&self, _id: &str) -> DeviceResult<Option<String>> {
         Ok(Some("ZWO ASI1600MM-Cool (1600-A1B2)".to_string()))
     }
+}
+
+#[async_trait]
+impl FocuserOps for ScriptedDomeRotatorOps {
     async fn focuser_move_to(&self, _id: &str, p: i32) -> DeviceResult<()> {
         self.focuser_moves.lock().unwrap().push(p);
         if let Some((position, _)) = &self.focus_model {
@@ -901,6 +881,10 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         self.focuser_halt_calls.fetch_add(1, Ordering::SeqCst);
         Ok(())
     }
+}
+
+#[async_trait]
+impl FilterWheelOps for ScriptedDomeRotatorOps {
     async fn filterwheel_set_position(&self, _id: &str, p: i32) -> DeviceResult<()> {
         self.filter_moves.lock().unwrap().push(p);
         if let Some(error) = self.filter_set_failures.lock().unwrap().pop_front() {
@@ -924,12 +908,29 @@ impl DeviceOps for ScriptedDomeRotatorOps {
     async fn filterwheel_set_filter_by_name(&self, id: &str, n: &str) -> DeviceResult<i32> {
         self.inner.filterwheel_set_filter_by_name(id, n).await
     }
+}
+
+#[async_trait]
+impl RotatorOps for ScriptedDomeRotatorOps {
+    // Rotator (verified-move surface)
+    async fn rotator_move_to(&self, _id: &str, _angle: f64) -> DeviceResult<()> {
+        self.rotator_move_to_calls.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    }
+    async fn rotator_get_angle(&self, _id: &str) -> DeviceResult<f64> {
+        self.rotator_get_angle_calls.fetch_add(1, Ordering::SeqCst);
+        Ok(Self::next_scripted(&self.rotator_angles))
+    }
     async fn rotator_move_relative(&self, id: &str, d: f64) -> DeviceResult<()> {
         self.inner.rotator_move_relative(id, d).await
     }
     async fn rotator_halt(&self, id: &str) -> DeviceResult<()> {
         self.inner.rotator_halt(id).await
     }
+}
+
+#[async_trait]
+impl GuiderOps for ScriptedDomeRotatorOps {
     async fn guider_dither(
         &self,
         p: f64,
@@ -1014,58 +1015,26 @@ impl DeviceOps for ScriptedDomeRotatorOps {
     async fn guider_note_stop_reason(&self, reason: Option<crate::GuidingStopReason>) {
         self.guider_stop_reasons.lock().unwrap().push(reason);
     }
-    async fn plate_solve(
-        &self,
-        d: &ImageData,
-        ra: Option<f64>,
-        dec: Option<f64>,
-        s: Option<f64>,
-    ) -> DeviceResult<crate::device_ops::PlateSolveResult> {
-        self.plate_solve_hints.lock().unwrap().push((ra, dec));
-        if self.plate_solve_fails {
-            return Err("no solution: too few stars".to_string());
+}
+
+#[async_trait]
+impl DomeOps for ScriptedDomeRotatorOps {
+    // Dome (verified-close surface)
+    async fn dome_close(&self, id: &str) -> DeviceResult<()> {
+        self.dome_close_calls.fetch_add(1, Ordering::SeqCst);
+        if let Some(err) = &self.dome_close_error {
+            return Err(err.clone());
         }
-        let mut result = self.inner.plate_solve(d, ra, dec, s).await?;
-        if self
-            .off_target_solves
-            .try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
-            .is_ok()
-        {
-            result.dec_degrees += 0.01;
-        }
-        Ok(result)
+        self.inner.dome_close(id).await
     }
-    async fn save_fits(
-        &self,
-        d: &ImageData,
-        f: &str,
-        ctx: &crate::scheduling::FrameContext,
-    ) -> DeviceResult<()> {
-        self.saved_frame_contexts.lock().unwrap().push(ctx.clone());
-        self.saved_frame_paths.lock().unwrap().push(f.to_string());
-        self.inner.save_fits(d, f, ctx).await
+    async fn dome_park(&self, _id: &str) -> DeviceResult<()> {
+        self.dome_park_calls.fetch_add(1, Ordering::SeqCst);
+        Ok(())
     }
-    async fn send_notification(
-        &self,
-        l: &str,
-        t: &str,
-        m: &str,
-        x: Option<&[String]>,
-    ) -> DeviceResult<()> {
-        self.notifications
-            .lock()
-            .unwrap()
-            .push((l.to_string(), t.to_string(), m.to_string()));
-        self.inner.send_notification(l, t, m, x).await
-    }
-    fn get_observer_location(&self) -> Option<(f64, f64)> {
-        self.scripted_observer_location
-    }
-    async fn polar_align_update(
-        &self,
-        r: &crate::polar_align::PolarAlignResult,
-    ) -> DeviceResult<()> {
-        self.inner.polar_align_update(r).await
+    async fn dome_get_shutter_status(&self, _id: &str) -> DeviceResult<String> {
+        self.dome_shutter_status_calls
+            .fetch_add(1, Ordering::SeqCst);
+        Ok(Self::next_scripted(&self.dome_shutter_states))
     }
     async fn dome_open(&self, id: &str) -> DeviceResult<()> {
         self.dome_open_ids.lock().unwrap().push(id.to_string());
@@ -1075,29 +1044,12 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         self.active_dome_id_calls.fetch_add(1, Ordering::SeqCst);
         self.active_dome_id.clone()
     }
+}
+
+#[async_trait]
+impl CoverCalibratorOps for ScriptedDomeRotatorOps {
     async fn active_cover_calibrator_id(&self) -> Option<String> {
         self.active_cover_calibrator_id.clone()
-    }
-    async fn safety_is_safe(&self, id: Option<&str>) -> DeviceResult<bool> {
-        self.inner.safety_is_safe(id).await
-    }
-    async fn calculate_image_hfr(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        match self.scripted_frame_metrics {
-            Some((hfr, _, _)) => Ok(Some(hfr)),
-            None => self.inner.calculate_image_hfr(d).await,
-        }
-    }
-    async fn detect_stars_in_image(&self, d: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        match self.scripted_frame_metrics {
-            Some((hfr, stars, _)) => Ok((0..stars).map(|i| (i as f64, i as f64, hfr)).collect()),
-            None => self.inner.detect_stars_in_image(d).await,
-        }
-    }
-    async fn measure_frame_eccentricity(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        match self.scripted_frame_metrics {
-            Some((_, _, eccentricity)) => Ok(Some(eccentricity)),
-            None => self.inner.measure_frame_eccentricity(d).await,
-        }
     }
     async fn cover_calibrator_open_cover(&self, id: &str) -> DeviceResult<()> {
         self.cover_open_ids.lock().unwrap().push(id.to_string());
@@ -1128,6 +1080,94 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         self.inner.cover_calibrator_get_max_brightness(id).await
     }
 }
+
+#[async_trait]
+impl PlateSolveOps for ScriptedDomeRotatorOps {
+    async fn plate_solve(
+        &self,
+        d: &ImageData,
+        ra: Option<f64>,
+        dec: Option<f64>,
+        s: Option<f64>,
+    ) -> DeviceResult<crate::device_ops::PlateSolveResult> {
+        self.plate_solve_hints.lock().unwrap().push((ra, dec));
+        if self.plate_solve_fails {
+            return Err("no solution: too few stars".to_string());
+        }
+        let mut result = self.inner.plate_solve(d, ra, dec, s).await?;
+        if self
+            .off_target_solves
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
+            .is_ok()
+        {
+            result.dec_degrees += 0.01;
+        }
+        Ok(result)
+    }
+}
+
+#[async_trait]
+impl FrameStoreOps for ScriptedDomeRotatorOps {
+    async fn save_fits(
+        &self,
+        d: &ImageData,
+        f: &str,
+        ctx: &crate::scheduling::FrameContext,
+    ) -> DeviceResult<()> {
+        self.saved_frame_contexts.lock().unwrap().push(ctx.clone());
+        self.saved_frame_paths.lock().unwrap().push(f.to_string());
+        self.inner.save_fits(d, f, ctx).await
+    }
+    async fn calculate_image_hfr(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
+        match self.scripted_frame_metrics {
+            Some((hfr, _, _)) => Ok(Some(hfr)),
+            None => self.inner.calculate_image_hfr(d).await,
+        }
+    }
+    async fn detect_stars_in_image(&self, d: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
+        match self.scripted_frame_metrics {
+            Some((hfr, stars, _)) => Ok((0..stars).map(|i| (i as f64, i as f64, hfr)).collect()),
+            None => self.inner.detect_stars_in_image(d).await,
+        }
+    }
+    async fn measure_frame_eccentricity(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
+        match self.scripted_frame_metrics {
+            Some((_, _, eccentricity)) => Ok(Some(eccentricity)),
+            None => self.inner.measure_frame_eccentricity(d).await,
+        }
+    }
+}
+
+#[async_trait]
+impl OperatorNotifyOps for ScriptedDomeRotatorOps {
+    async fn send_notification(
+        &self,
+        l: &str,
+        t: &str,
+        m: &str,
+        x: Option<&[String]>,
+    ) -> DeviceResult<()> {
+        self.notifications
+            .lock()
+            .unwrap()
+            .push((l.to_string(), t.to_string(), m.to_string()));
+        self.inner.send_notification(l, t, m, x).await
+    }
+    async fn polar_align_update(
+        &self,
+        r: &crate::polar_align::PolarAlignResult,
+    ) -> DeviceResult<()> {
+        self.inner.polar_align_update(r).await
+    }
+}
+
+impl SiteOps for ScriptedDomeRotatorOps {
+    fn get_observer_location(&self) -> Option<(f64, f64)> {
+        self.scripted_observer_location
+    }
+}
+
+crate::forward_device_ops!(ScriptedDomeRotatorOps => inner: SafetyOps, ConnectionOps);
 
 /// Build an InstructionContext wired to the given scripted ops with a
 /// dome + rotator attached.

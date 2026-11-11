@@ -33,8 +33,12 @@
 
 use super::*;
 use crate::device_ops::{
-    park_and_close_safe_state, DeviceOps, DeviceResult, ExposureRequest, GuidingCalibration,
-    GuidingStatus, ImageData, NullDeviceOps, PlateSolveResult, SharedDeviceOps,
+    park_and_close_safe_state, DeviceResult, ExposureRequest, GuidingCalibration, GuidingStatus,
+    ImageData, NullDeviceOps, PlateSolveResult, SharedDeviceOps,
+};
+use crate::device_ops::{
+    CameraOps, ConnectionOps, CoverCalibratorOps, DomeOps, FrameStoreOps, GuiderOps, MountOps,
+    OperatorNotifyOps, PlateSolveOps, SafetyOps, SiteOps,
 };
 use crate::recovery::{AttemptOutcome, RecoveryCause};
 use crate::{Trigger, TriggerManager, TriggerState, TriggerType};
@@ -309,37 +313,148 @@ impl ScriptedDeviceOps {
 }
 
 #[async_trait]
-impl DeviceOps for ScriptedDeviceOps {
-    // Scripted, recorded methods
-
-    async fn device_is_connected(&self, device_id: &str) -> DeviceResult<bool> {
-        self.record(format!("device_is_connected:{device_id}"));
-        Ok(self.connected.lock().unwrap().contains(device_id))
-    }
-
-    async fn connect_device(&self, device_id: &str) -> DeviceResult<()> {
-        self.record(format!("connect_device:{device_id}"));
-        if self.connect_succeeds.load(Ordering::SeqCst) {
-            self.set_connected(device_id, true);
-            Ok(())
+impl MountOps for ScriptedDeviceOps {
+    async fn mount_park(&self, mount_id: &str) -> DeviceResult<()> {
+        self.record(format!("mount_park:{mount_id}"));
+        if self.stuck_at_limit.load(Ordering::SeqCst) {
+            return Ok(());
+        }
+        if self.park_fails.load(Ordering::SeqCst) {
+            Err(format!("simulated park failure for {mount_id}"))
         } else {
-            Err(format!("simulated reconnect failure for {device_id}"))
+            self.mount_parked.store(true, Ordering::SeqCst);
+            self.mount_tracking.store(false, Ordering::SeqCst);
+            if let Some(mount) = self.sim_mount.lock().unwrap().as_mut() {
+                mount.set_axes_tracking(false, tokio::time::Instant::now());
+            }
+            Ok(())
         }
     }
 
-    async fn safety_is_safe(&self, _safety_id: Option<&str>) -> DeviceResult<bool> {
-        if self.safety_absent.load(Ordering::SeqCst) {
-            self.record("safety_is_safe->absent");
-            return Err(
-                "No safety monitor or weather device configured for sequencer safety checks"
-                    .to_string(),
-            );
-        }
-        let safe = self.weather_safe.load(Ordering::SeqCst);
-        self.record(format!("safety_is_safe->{safe}"));
-        Ok(safe)
+    async fn mount_is_tracking(&self, mount_id: &str) -> DeviceResult<bool> {
+        self.record(format!("mount_is_tracking:{mount_id}"));
+        Ok(self.mount_tracking.load(Ordering::SeqCst))
     }
 
+    async fn mount_set_tracking(&self, mount_id: &str, enabled: bool) -> DeviceResult<()> {
+        self.record(format!("mount_set_tracking:{mount_id}:{enabled}"));
+        self.mount_tracking.store(enabled, Ordering::SeqCst);
+        if let Some(mount) = self.sim_mount.lock().unwrap().as_mut() {
+            let now = tokio::time::Instant::now();
+            if enabled && mount.ignore_tracking_on > 0 {
+                mount.ignore_tracking_on -= 1;
+            } else {
+                mount.set_axes_tracking(enabled, now);
+            }
+        }
+        Ok(())
+    }
+
+    // Delegating methods (kept minimal; only those a scenario might hit)
+
+    async fn mount_move_axis(&self, id: &str, axis: i32, rate: f64) -> DeviceResult<()> {
+        self.record(format!("mount_move_axis:{id}:{axis}:{rate}"));
+        if rate != 0.0 && !self.axis_frozen.load(Ordering::SeqCst) {
+            self.stuck_at_limit.store(false, Ordering::SeqCst);
+            // Three seconds at `rate` degrees per second; east raises RA.
+            self.mount_position.lock().unwrap().0 += rate * 3.0 / 15.0;
+        }
+        Ok(())
+    }
+
+    async fn mount_slew_to_coordinates(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
+        self.record(format!("mount_slew:{id}"));
+        if self.stuck_at_limit.load(Ordering::SeqCst) {
+            return Ok(());
+        }
+        if self.flip_on_slew.load(Ordering::SeqCst) && !self.flip_refused.load(Ordering::SeqCst) {
+            self.flipped.store(true, Ordering::SeqCst);
+        }
+        if let Some(mount) = self.sim_mount.lock().unwrap().as_mut() {
+            let now = tokio::time::Instant::now();
+            mount.ra_hours = ra;
+            mount.dec_deg = dec;
+            mount.since = now;
+            mount.settle_until = Some(now + std::time::Duration::from_secs_f64(mount.settle_secs));
+        }
+        let result = self.inner.mount_slew_to_coordinates(id, ra, dec).await;
+        let mut pointing = self.pointing.lock().unwrap();
+        if pointing.is_some() {
+            *pointing = Some((ra, dec));
+        }
+        result
+    }
+    async fn mount_abort_slew(&self, id: &str) -> DeviceResult<()> {
+        self.inner.mount_abort_slew(id).await
+    }
+    async fn mount_get_coordinates(&self, _id: &str) -> DeviceResult<(f64, f64)> {
+        if let Some(mount) = self.sim_mount.lock().unwrap().as_ref() {
+            return Ok(mount.pointing(tokio::time::Instant::now()));
+        }
+        if let Some(pointing) = *self.pointing.lock().unwrap() {
+            return Ok(pointing);
+        }
+        Ok(*self.mount_position.lock().unwrap())
+    }
+    async fn mount_sync(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
+        self.inner.mount_sync(id, ra, dec).await
+    }
+    async fn mount_unpark(&self, id: &str) -> DeviceResult<()> {
+        self.inner.mount_unpark(id).await
+    }
+    async fn mount_is_slewing(&self, _id: &str) -> DeviceResult<bool> {
+        Ok(self.mount_slewing.load(Ordering::SeqCst))
+    }
+    async fn mount_is_parked(&self, _id: &str) -> DeviceResult<bool> {
+        Ok(self.mount_parked.load(Ordering::SeqCst))
+    }
+    async fn mount_can_flip(&self, id: &str) -> DeviceResult<bool> {
+        self.inner.mount_can_flip(id).await
+    }
+    async fn mount_side_of_pier(&self, id: &str) -> DeviceResult<crate::meridian::PierSide> {
+        if self.flip_on_slew.load(Ordering::SeqCst) {
+            return Ok(if self.flipped.load(Ordering::SeqCst) {
+                crate::meridian::PierSide::East
+            } else {
+                crate::meridian::PierSide::West
+            });
+        }
+        self.inner.mount_side_of_pier(id).await
+    }
+}
+
+#[async_trait]
+impl CameraOps for ScriptedDeviceOps {
+    async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
+        self.exposure_calls.fetch_add(1, Ordering::SeqCst);
+        if let Some(mount) = self.sim_mount.lock().unwrap().as_mut() {
+            mount.exposure_while_moving = mount.moving(tokio::time::Instant::now());
+        }
+        if let Some(error) = self.camera_failures.lock().unwrap().pop_front() {
+            return Err(error);
+        }
+        self.inner.camera_start_exposure(request).await
+    }
+    async fn camera_abort_exposure(&self, id: &str) -> DeviceResult<()> {
+        self.inner.camera_abort_exposure(id).await
+    }
+    async fn camera_set_cooler(&self, id: &str, e: bool, t: f64) -> DeviceResult<()> {
+        self.record(format!("camera_set_cooler:{id}:{e}"));
+        self.inner.camera_set_cooler(id, e, t).await
+    }
+    async fn camera_get_temperature(&self, id: &str) -> DeviceResult<f64> {
+        self.inner.camera_get_temperature(id).await
+    }
+    async fn camera_get_cooler_power(&self, id: &str) -> DeviceResult<f64> {
+        if self.cooler_idle.load(Ordering::SeqCst) {
+            return Ok(0.0);
+        }
+        self.inner.camera_get_cooler_power(id).await
+    }
+}
+
+#[async_trait]
+impl GuiderOps for ScriptedDeviceOps {
     async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
         let guiding = self.guiding.load(Ordering::SeqCst);
         self.record(format!("guider_get_status->{guiding}"));
@@ -415,52 +530,20 @@ impl DeviceOps for ScriptedDeviceOps {
         self.guider_start_count.store(0, Ordering::SeqCst);
         Ok(())
     }
-
-    async fn mount_park(&self, mount_id: &str) -> DeviceResult<()> {
-        self.record(format!("mount_park:{mount_id}"));
-        if self.stuck_at_limit.load(Ordering::SeqCst) {
-            return Ok(());
-        }
-        if self.park_fails.load(Ordering::SeqCst) {
-            Err(format!("simulated park failure for {mount_id}"))
-        } else {
-            self.mount_parked.store(true, Ordering::SeqCst);
-            self.mount_tracking.store(false, Ordering::SeqCst);
-            if let Some(mount) = self.sim_mount.lock().unwrap().as_mut() {
-                mount.set_axes_tracking(false, tokio::time::Instant::now());
-            }
-            Ok(())
-        }
+    async fn guider_dither(
+        &self,
+        p: f64,
+        sp: f64,
+        st: f64,
+        sto: f64,
+        ra: bool,
+    ) -> DeviceResult<()> {
+        self.inner.guider_dither(p, sp, st, sto, ra).await
     }
+}
 
-    async fn mount_is_tracking(&self, mount_id: &str) -> DeviceResult<bool> {
-        self.record(format!("mount_is_tracking:{mount_id}"));
-        Ok(self.mount_tracking.load(Ordering::SeqCst))
-    }
-
-    async fn mount_set_tracking(&self, mount_id: &str, enabled: bool) -> DeviceResult<()> {
-        self.record(format!("mount_set_tracking:{mount_id}:{enabled}"));
-        self.mount_tracking.store(enabled, Ordering::SeqCst);
-        if let Some(mount) = self.sim_mount.lock().unwrap().as_mut() {
-            let now = tokio::time::Instant::now();
-            if enabled && mount.ignore_tracking_on > 0 {
-                mount.ignore_tracking_on -= 1;
-            } else {
-                mount.set_axes_tracking(enabled, now);
-            }
-        }
-        Ok(())
-    }
-
-    async fn cover_calibrator_close_cover(&self, device_id: &str) -> DeviceResult<()> {
-        self.record(format!("cover_close:{device_id}"));
-        if self.close_fails.load(Ordering::SeqCst) {
-            Err(format!("simulated cover-close failure for {device_id}"))
-        } else {
-            Ok(())
-        }
-    }
-
+#[async_trait]
+impl DomeOps for ScriptedDeviceOps {
     async fn dome_close(&self, dome_id: &str) -> DeviceResult<()> {
         self.record(format!("dome_close:{dome_id}"));
         if self.close_fails.load(Ordering::SeqCst) {
@@ -473,223 +556,6 @@ impl DeviceOps for ScriptedDeviceOps {
             Ok(())
         }
     }
-
-    // Delegating methods (kept minimal; only those a scenario might hit)
-
-    async fn mount_move_axis(&self, id: &str, axis: i32, rate: f64) -> DeviceResult<()> {
-        self.record(format!("mount_move_axis:{id}:{axis}:{rate}"));
-        if rate != 0.0 && !self.axis_frozen.load(Ordering::SeqCst) {
-            self.stuck_at_limit.store(false, Ordering::SeqCst);
-            // Three seconds at `rate` degrees per second; east raises RA.
-            self.mount_position.lock().unwrap().0 += rate * 3.0 / 15.0;
-        }
-        Ok(())
-    }
-
-    async fn mount_slew_to_coordinates(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
-        self.record(format!("mount_slew:{id}"));
-        if self.stuck_at_limit.load(Ordering::SeqCst) {
-            return Ok(());
-        }
-        if self.flip_on_slew.load(Ordering::SeqCst) && !self.flip_refused.load(Ordering::SeqCst) {
-            self.flipped.store(true, Ordering::SeqCst);
-        }
-        if let Some(mount) = self.sim_mount.lock().unwrap().as_mut() {
-            let now = tokio::time::Instant::now();
-            mount.ra_hours = ra;
-            mount.dec_deg = dec;
-            mount.since = now;
-            mount.settle_until = Some(now + std::time::Duration::from_secs_f64(mount.settle_secs));
-        }
-        let result = self.inner.mount_slew_to_coordinates(id, ra, dec).await;
-        let mut pointing = self.pointing.lock().unwrap();
-        if pointing.is_some() {
-            *pointing = Some((ra, dec));
-        }
-        result
-    }
-    async fn mount_abort_slew(&self, id: &str) -> DeviceResult<()> {
-        self.inner.mount_abort_slew(id).await
-    }
-    async fn mount_get_coordinates(&self, _id: &str) -> DeviceResult<(f64, f64)> {
-        if let Some(mount) = self.sim_mount.lock().unwrap().as_ref() {
-            return Ok(mount.pointing(tokio::time::Instant::now()));
-        }
-        if let Some(pointing) = *self.pointing.lock().unwrap() {
-            return Ok(pointing);
-        }
-        Ok(*self.mount_position.lock().unwrap())
-    }
-    async fn mount_sync(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
-        self.inner.mount_sync(id, ra, dec).await
-    }
-    async fn mount_unpark(&self, id: &str) -> DeviceResult<()> {
-        self.inner.mount_unpark(id).await
-    }
-    async fn mount_is_slewing(&self, _id: &str) -> DeviceResult<bool> {
-        Ok(self.mount_slewing.load(Ordering::SeqCst))
-    }
-    async fn mount_is_parked(&self, _id: &str) -> DeviceResult<bool> {
-        Ok(self.mount_parked.load(Ordering::SeqCst))
-    }
-    async fn mount_can_flip(&self, id: &str) -> DeviceResult<bool> {
-        self.inner.mount_can_flip(id).await
-    }
-    async fn mount_side_of_pier(&self, id: &str) -> DeviceResult<crate::meridian::PierSide> {
-        if self.flip_on_slew.load(Ordering::SeqCst) {
-            return Ok(if self.flipped.load(Ordering::SeqCst) {
-                crate::meridian::PierSide::East
-            } else {
-                crate::meridian::PierSide::West
-            });
-        }
-        self.inner.mount_side_of_pier(id).await
-    }
-    async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
-        let ExposureRequest {
-            camera_id: id,
-            duration_secs: d,
-            gain: g,
-            offset: o,
-            bin_x: bx,
-            bin_y: by,
-            ..
-        } = request;
-        self.exposure_calls.fetch_add(1, Ordering::SeqCst);
-        if let Some(mount) = self.sim_mount.lock().unwrap().as_mut() {
-            mount.exposure_while_moving = mount.moving(tokio::time::Instant::now());
-        }
-        if let Some(error) = self.camera_failures.lock().unwrap().pop_front() {
-            return Err(error);
-        }
-        self.inner
-            .camera_start_exposure(
-                ExposureRequest::new(id, d)
-                    .gain(g)
-                    .offset(o)
-                    .binning(bx, by),
-            )
-            .await
-    }
-    async fn camera_abort_exposure(&self, id: &str) -> DeviceResult<()> {
-        self.inner.camera_abort_exposure(id).await
-    }
-    async fn camera_set_cooler(&self, id: &str, e: bool, t: f64) -> DeviceResult<()> {
-        self.record(format!("camera_set_cooler:{id}:{e}"));
-        self.inner.camera_set_cooler(id, e, t).await
-    }
-    async fn camera_get_temperature(&self, id: &str) -> DeviceResult<f64> {
-        self.inner.camera_get_temperature(id).await
-    }
-    async fn camera_get_cooler_power(&self, id: &str) -> DeviceResult<f64> {
-        if self.cooler_idle.load(Ordering::SeqCst) {
-            return Ok(0.0);
-        }
-        self.inner.camera_get_cooler_power(id).await
-    }
-    async fn focuser_move_to(&self, id: &str, p: i32) -> DeviceResult<()> {
-        self.inner.focuser_move_to(id, p).await
-    }
-    async fn focuser_get_position(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.focuser_get_position(id).await
-    }
-    async fn focuser_is_moving(&self, id: &str) -> DeviceResult<bool> {
-        self.inner.focuser_is_moving(id).await
-    }
-    async fn focuser_get_temperature(&self, id: &str) -> DeviceResult<Option<f64>> {
-        self.inner.focuser_get_temperature(id).await
-    }
-    async fn focuser_halt(&self, id: &str) -> DeviceResult<()> {
-        self.inner.focuser_halt(id).await
-    }
-    async fn filterwheel_set_position(&self, id: &str, p: i32) -> DeviceResult<()> {
-        self.inner.filterwheel_set_position(id, p).await
-    }
-    async fn filterwheel_get_position(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.filterwheel_get_position(id).await
-    }
-    async fn filterwheel_get_names(&self, id: &str) -> DeviceResult<Vec<String>> {
-        self.inner.filterwheel_get_names(id).await
-    }
-    async fn filterwheel_set_filter_by_name(&self, id: &str, n: &str) -> DeviceResult<i32> {
-        self.inner.filterwheel_set_filter_by_name(id, n).await
-    }
-    async fn rotator_move_to(&self, id: &str, a: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_to(id, a).await
-    }
-    async fn rotator_move_relative(&self, id: &str, d: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_relative(id, d).await
-    }
-    async fn rotator_get_angle(&self, id: &str) -> DeviceResult<f64> {
-        self.inner.rotator_get_angle(id).await
-    }
-    async fn rotator_halt(&self, id: &str) -> DeviceResult<()> {
-        self.inner.rotator_halt(id).await
-    }
-    async fn guider_dither(
-        &self,
-        p: f64,
-        sp: f64,
-        st: f64,
-        sto: f64,
-        ra: bool,
-    ) -> DeviceResult<()> {
-        self.inner.guider_dither(p, sp, st, sto, ra).await
-    }
-    async fn plate_solve(
-        &self,
-        d: &ImageData,
-        ra: Option<f64>,
-        dec: Option<f64>,
-        s: Option<f64>,
-    ) -> DeviceResult<PlateSolveResult> {
-        self.record("plate_solve");
-        if self.plate_solve_fails.load(Ordering::SeqCst) {
-            return Err("no solution: too few stars".to_string());
-        }
-        if self
-            .sim_mount
-            .lock()
-            .unwrap()
-            .as_ref()
-            .is_some_and(|mount| mount.exposure_while_moving)
-        {
-            // A frame taken while the mount swings in trails every star.
-            return Err("Only 1 stars found, minimum is 6".to_string());
-        }
-        self.inner.plate_solve(d, ra, dec, s).await
-    }
-    async fn save_fits(
-        &self,
-        d: &ImageData,
-        f: &str,
-        ctx: &crate::scheduling::FrameContext,
-    ) -> DeviceResult<()> {
-        self.saved_frames.lock().unwrap().push(f.to_string());
-        self.inner.save_fits(d, f, ctx).await
-    }
-    async fn send_notification(
-        &self,
-        l: &str,
-        t: &str,
-        m: &str,
-        x: Option<&[String]>,
-    ) -> DeviceResult<()> {
-        self.record(format!("notify:{l}:{m}"));
-        self.inner.send_notification(l, t, m, x).await
-    }
-    fn get_observer_location(&self) -> Option<(f64, f64)> {
-        if let Some(location) = *self.observer_location.lock().unwrap() {
-            return Some(location);
-        }
-        self.inner.get_observer_location()
-    }
-    async fn polar_align_update(
-        &self,
-        r: &crate::polar_align::PolarAlignResult,
-    ) -> DeviceResult<()> {
-        self.inner.polar_align_update(r).await
-    }
     async fn dome_open(&self, id: &str) -> DeviceResult<()> {
         self.inner.dome_open(id).await
     }
@@ -699,11 +565,17 @@ impl DeviceOps for ScriptedDeviceOps {
     async fn dome_get_shutter_status(&self, _id: &str) -> DeviceResult<String> {
         Ok(self.shutter_state.lock().unwrap().clone())
     }
-    async fn calculate_image_hfr(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        self.inner.calculate_image_hfr(d).await
-    }
-    async fn detect_stars_in_image(&self, d: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        self.inner.detect_stars_in_image(d).await
+}
+
+#[async_trait]
+impl CoverCalibratorOps for ScriptedDeviceOps {
+    async fn cover_calibrator_close_cover(&self, device_id: &str) -> DeviceResult<()> {
+        self.record(format!("cover_close:{device_id}"));
+        if self.close_fails.load(Ordering::SeqCst) {
+            Err(format!("simulated cover-close failure for {device_id}"))
+        } else {
+            Ok(())
+        }
     }
     async fn cover_calibrator_open_cover(&self, id: &str) -> DeviceResult<()> {
         self.inner.cover_calibrator_open_cover(id).await
@@ -730,6 +602,119 @@ impl DeviceOps for ScriptedDeviceOps {
         self.inner.cover_calibrator_get_max_brightness(id).await
     }
 }
+
+#[async_trait]
+impl SafetyOps for ScriptedDeviceOps {
+    async fn safety_is_safe(&self, _safety_id: Option<&str>) -> DeviceResult<bool> {
+        if self.safety_absent.load(Ordering::SeqCst) {
+            self.record("safety_is_safe->absent");
+            return Err(
+                "No safety monitor or weather device configured for sequencer safety checks"
+                    .to_string(),
+            );
+        }
+        let safe = self.weather_safe.load(Ordering::SeqCst);
+        self.record(format!("safety_is_safe->{safe}"));
+        Ok(safe)
+    }
+}
+
+#[async_trait]
+impl PlateSolveOps for ScriptedDeviceOps {
+    async fn plate_solve(
+        &self,
+        d: &ImageData,
+        ra: Option<f64>,
+        dec: Option<f64>,
+        s: Option<f64>,
+    ) -> DeviceResult<PlateSolveResult> {
+        self.record("plate_solve");
+        if self.plate_solve_fails.load(Ordering::SeqCst) {
+            return Err("no solution: too few stars".to_string());
+        }
+        if self
+            .sim_mount
+            .lock()
+            .unwrap()
+            .as_ref()
+            .is_some_and(|mount| mount.exposure_while_moving)
+        {
+            // A frame taken while the mount swings in trails every star.
+            return Err("Only 1 stars found, minimum is 6".to_string());
+        }
+        self.inner.plate_solve(d, ra, dec, s).await
+    }
+}
+
+#[async_trait]
+impl FrameStoreOps for ScriptedDeviceOps {
+    async fn save_fits(
+        &self,
+        d: &ImageData,
+        f: &str,
+        ctx: &crate::scheduling::FrameContext,
+    ) -> DeviceResult<()> {
+        self.saved_frames.lock().unwrap().push(f.to_string());
+        self.inner.save_fits(d, f, ctx).await
+    }
+    async fn calculate_image_hfr(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
+        self.inner.calculate_image_hfr(d).await
+    }
+    async fn detect_stars_in_image(&self, d: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
+        self.inner.detect_stars_in_image(d).await
+    }
+}
+
+#[async_trait]
+impl OperatorNotifyOps for ScriptedDeviceOps {
+    async fn send_notification(
+        &self,
+        l: &str,
+        t: &str,
+        m: &str,
+        x: Option<&[String]>,
+    ) -> DeviceResult<()> {
+        self.record(format!("notify:{l}:{m}"));
+        self.inner.send_notification(l, t, m, x).await
+    }
+    async fn polar_align_update(
+        &self,
+        r: &crate::polar_align::PolarAlignResult,
+    ) -> DeviceResult<()> {
+        self.inner.polar_align_update(r).await
+    }
+}
+
+#[async_trait]
+impl ConnectionOps for ScriptedDeviceOps {
+    // Scripted, recorded methods
+
+    async fn device_is_connected(&self, device_id: &str) -> DeviceResult<bool> {
+        self.record(format!("device_is_connected:{device_id}"));
+        Ok(self.connected.lock().unwrap().contains(device_id))
+    }
+
+    async fn connect_device(&self, device_id: &str) -> DeviceResult<()> {
+        self.record(format!("connect_device:{device_id}"));
+        if self.connect_succeeds.load(Ordering::SeqCst) {
+            self.set_connected(device_id, true);
+            Ok(())
+        } else {
+            Err(format!("simulated reconnect failure for {device_id}"))
+        }
+    }
+}
+
+impl SiteOps for ScriptedDeviceOps {
+    fn get_observer_location(&self) -> Option<(f64, f64)> {
+        if let Some(location) = *self.observer_location.lock().unwrap() {
+            return Some(location);
+        }
+        self.inner.get_observer_location()
+    }
+}
+
+crate::forward_device_ops!(ScriptedDeviceOps => inner: FocuserOps, FilterWheelOps, RotatorOps);
 
 /// Build a `TriggerManager` whose shared `TriggerState` we can mutate to push a
 /// Dart weather verdict — used by the WeatherUnsafe recovery-gate scenarios.
@@ -3577,7 +3562,7 @@ async fn a_mount_stuck_at_its_limit_is_moved_off_it_and_parked() {
     ops.stuck_at_limit.store(true, Ordering::SeqCst);
     let shared: SharedDeviceOps = ops.clone();
 
-    let result = crate::device_ops::try_park_with_retry(&shared, "mount-1", 1, 0.0).await;
+    let result = crate::device_ops::try_park_with_retry(&*shared, "mount-1", 1, 0.0).await;
     let calls = ops.calls();
 
     assert!(result.success, "{result:?}");
@@ -3630,7 +3615,7 @@ async fn a_mount_that_will_not_move_at_all_is_reported() {
     ops.stuck_at_limit.store(true, Ordering::SeqCst);
     ops.axis_frozen.store(true, Ordering::SeqCst);
     let shared: SharedDeviceOps = ops.clone();
-    let outcome = crate::limit_backoff::back_off_limit(&shared, "mount-1").await;
+    let outcome = crate::limit_backoff::back_off_limit(&*shared, "mount-1").await;
     assert!(outcome.is_err(), "{outcome:?}");
 }
 

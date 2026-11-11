@@ -6,6 +6,7 @@
 use super::dispatch::Dispatcher;
 use super::frame_watch::{FrameWatchStage, Measurer, TARGET_DRIFT_TRIGGER_ID};
 use super::*;
+use crate::device_ops::MountOps;
 use crate::executor::scenario_sim_tests::ScriptedDeviceOps;
 use crate::frame_watch::assess::MeasuredFrame;
 use crate::frame_watch::fixture::{
@@ -703,7 +704,6 @@ async fn unverified_pointing_on_new_pier_side_cannot_be_learned_as_horizon() {
 
 #[tokio::test(start_paused = true)]
 async fn refused_probe_return_honors_failure_policy_without_exposing() {
-    use crate::device_ops::DeviceOps;
     for action in [
         crate::FlipFailureAction::PauseAndAlert,
         crate::FlipFailureAction::AbortAndPark,

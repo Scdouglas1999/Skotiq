@@ -15,10 +15,8 @@ use skotiq_sequencer::dual_rig::{
     DitherBarrier, InFlightDitherPolicy, SecondaryFrameMeta, SecondaryRig, SecondaryRigConfig,
 };
 use skotiq_sequencer::scheduling::FrameContext;
-use skotiq_sequencer::{
-    DeviceResult, ExposureRequest, GuidingCalibration, GuidingStatus, ImageData, NullDeviceOps,
-    PlateSolveResult,
-};
+use skotiq_sequencer::{CameraOps, FrameStoreOps};
+use skotiq_sequencer::{DeviceResult, ExposureRequest, ImageData, NullDeviceOps};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -57,7 +55,7 @@ impl RecordingOps {
 }
 
 #[async_trait]
-impl skotiq_sequencer::DeviceOps for RecordingOps {
+impl CameraOps for RecordingOps {
     async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
         let ExposureRequest {
             duration_secs,
@@ -82,60 +80,6 @@ impl skotiq_sequencer::DeviceOps for RecordingOps {
             bayer_offset: None,
         })
     }
-
-    async fn save_fits(
-        &self,
-        _image_data: &ImageData,
-        file_path: &str,
-        frame_ctx: &FrameContext,
-    ) -> DeviceResult<()> {
-        self.saved
-            .lock()
-            .unwrap()
-            .push((file_path.to_string(), frame_ctx.rig_label.clone()));
-        Ok(())
-    }
-
-    // Everything else delegates to NullDeviceOps
-    async fn mount_slew_to_coordinates(&self, m: &str, ra: f64, dec: f64) -> DeviceResult<()> {
-        self.inner.mount_slew_to_coordinates(m, ra, dec).await
-    }
-    async fn mount_abort_slew(&self, m: &str) -> DeviceResult<()> {
-        self.inner.mount_abort_slew(m).await
-    }
-    async fn mount_get_coordinates(&self, m: &str) -> DeviceResult<(f64, f64)> {
-        self.inner.mount_get_coordinates(m).await
-    }
-    async fn mount_sync(&self, m: &str, ra: f64, dec: f64) -> DeviceResult<()> {
-        self.inner.mount_sync(m, ra, dec).await
-    }
-    async fn mount_park(&self, m: &str) -> DeviceResult<()> {
-        self.inner.mount_park(m).await
-    }
-    async fn mount_unpark(&self, m: &str) -> DeviceResult<()> {
-        self.inner.mount_unpark(m).await
-    }
-    async fn mount_is_slewing(&self, m: &str) -> DeviceResult<bool> {
-        self.inner.mount_is_slewing(m).await
-    }
-    async fn mount_is_parked(&self, m: &str) -> DeviceResult<bool> {
-        self.inner.mount_is_parked(m).await
-    }
-    async fn mount_can_flip(&self, m: &str) -> DeviceResult<bool> {
-        self.inner.mount_can_flip(m).await
-    }
-    async fn mount_side_of_pier(
-        &self,
-        m: &str,
-    ) -> DeviceResult<skotiq_sequencer::meridian::PierSide> {
-        self.inner.mount_side_of_pier(m).await
-    }
-    async fn mount_is_tracking(&self, m: &str) -> DeviceResult<bool> {
-        self.inner.mount_is_tracking(m).await
-    }
-    async fn mount_set_tracking(&self, m: &str, e: bool) -> DeviceResult<()> {
-        self.inner.mount_set_tracking(m, e).await
-    }
     async fn camera_abort_exposure(&self, c: &str) -> DeviceResult<()> {
         self.aborts.fetch_add(1, Ordering::SeqCst);
         self.inner.camera_abort_exposure(c).await
@@ -149,105 +93,21 @@ impl skotiq_sequencer::DeviceOps for RecordingOps {
     async fn camera_get_cooler_power(&self, c: &str) -> DeviceResult<f64> {
         self.inner.camera_get_cooler_power(c).await
     }
-    async fn focuser_move_to(&self, f: &str, p: i32) -> DeviceResult<()> {
-        self.inner.focuser_move_to(f, p).await
-    }
-    async fn focuser_get_position(&self, f: &str) -> DeviceResult<i32> {
-        self.inner.focuser_get_position(f).await
-    }
-    async fn focuser_is_moving(&self, f: &str) -> DeviceResult<bool> {
-        self.inner.focuser_is_moving(f).await
-    }
-    async fn focuser_get_temperature(&self, f: &str) -> DeviceResult<Option<f64>> {
-        self.inner.focuser_get_temperature(f).await
-    }
-    async fn focuser_halt(&self, f: &str) -> DeviceResult<()> {
-        self.inner.focuser_halt(f).await
-    }
-    async fn filterwheel_set_position(&self, w: &str, p: i32) -> DeviceResult<()> {
-        self.inner.filterwheel_set_position(w, p).await
-    }
-    async fn filterwheel_get_position(&self, w: &str) -> DeviceResult<i32> {
-        self.inner.filterwheel_get_position(w).await
-    }
-    async fn filterwheel_get_names(&self, w: &str) -> DeviceResult<Vec<String>> {
-        self.inner.filterwheel_get_names(w).await
-    }
-    async fn filterwheel_set_filter_by_name(&self, w: &str, n: &str) -> DeviceResult<i32> {
-        self.inner.filterwheel_set_filter_by_name(w, n).await
-    }
-    async fn rotator_move_to(&self, r: &str, a: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_to(r, a).await
-    }
-    async fn rotator_move_relative(&self, r: &str, d: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_relative(r, d).await
-    }
-    async fn rotator_get_angle(&self, r: &str) -> DeviceResult<f64> {
-        self.inner.rotator_get_angle(r).await
-    }
-    async fn rotator_halt(&self, r: &str) -> DeviceResult<()> {
-        self.inner.rotator_halt(r).await
-    }
-    async fn guider_dither(
+}
+
+#[async_trait]
+impl FrameStoreOps for RecordingOps {
+    async fn save_fits(
         &self,
-        p: f64,
-        sp: f64,
-        st: f64,
-        sto: f64,
-        ra: bool,
+        _image_data: &ImageData,
+        file_path: &str,
+        frame_ctx: &FrameContext,
     ) -> DeviceResult<()> {
-        self.inner.guider_dither(p, sp, st, sto, ra).await
-    }
-    async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
-        self.inner.guider_get_status().await
-    }
-    async fn guider_get_calibration(&self) -> DeviceResult<GuidingCalibration> {
-        self.inner.guider_get_calibration().await
-    }
-    async fn guider_start(&self, sp: f64, st: f64, sto: f64) -> DeviceResult<()> {
-        self.inner.guider_start(sp, st, sto).await
-    }
-    async fn guider_stop(&self) -> DeviceResult<()> {
-        self.inner.guider_stop().await
-    }
-    async fn plate_solve(
-        &self,
-        i: &ImageData,
-        ra: Option<f64>,
-        dec: Option<f64>,
-        s: Option<f64>,
-    ) -> DeviceResult<PlateSolveResult> {
-        self.inner.plate_solve(i, ra, dec, s).await
-    }
-    async fn send_notification(
-        &self,
-        l: &str,
-        t: &str,
-        m: &str,
-        e: Option<&[String]>,
-    ) -> DeviceResult<()> {
-        self.inner.send_notification(l, t, m, e).await
-    }
-    fn get_observer_location(&self) -> Option<(f64, f64)> {
-        self.inner.get_observer_location()
-    }
-    async fn polar_align_update(&self, r: &skotiq_sequencer::PolarAlignResult) -> DeviceResult<()> {
-        self.inner.polar_align_update(r).await
-    }
-    async fn dome_open(&self, d: &str) -> DeviceResult<()> {
-        self.inner.dome_open(d).await
-    }
-    async fn dome_close(&self, d: &str) -> DeviceResult<()> {
-        self.inner.dome_close(d).await
-    }
-    async fn dome_park(&self, d: &str) -> DeviceResult<()> {
-        self.inner.dome_park(d).await
-    }
-    async fn dome_get_shutter_status(&self, d: &str) -> DeviceResult<String> {
-        self.inner.dome_get_shutter_status(d).await
-    }
-    async fn safety_is_safe(&self, s: Option<&str>) -> DeviceResult<bool> {
-        self.inner.safety_is_safe(s).await
+        self.saved
+            .lock()
+            .unwrap()
+            .push((file_path.to_string(), frame_ctx.rig_label.clone()));
+        Ok(())
     }
     async fn calculate_image_hfr(&self, i: &ImageData) -> DeviceResult<Option<f64>> {
         self.inner.calculate_image_hfr(i).await
@@ -255,34 +115,9 @@ impl skotiq_sequencer::DeviceOps for RecordingOps {
     async fn detect_stars_in_image(&self, i: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
         self.inner.detect_stars_in_image(i).await
     }
-    async fn cover_calibrator_open_cover(&self, c: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_open_cover(c).await
-    }
-    async fn cover_calibrator_close_cover(&self, c: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_close_cover(c).await
-    }
-    async fn cover_calibrator_halt_cover(&self, c: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_halt_cover(c).await
-    }
-    async fn cover_calibrator_calibrator_on(&self, c: &str, b: i32) -> DeviceResult<()> {
-        self.inner.cover_calibrator_calibrator_on(c, b).await
-    }
-    async fn cover_calibrator_calibrator_off(&self, c: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_calibrator_off(c).await
-    }
-    async fn cover_calibrator_get_cover_state(&self, c: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_cover_state(c).await
-    }
-    async fn cover_calibrator_get_calibrator_state(&self, c: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_calibrator_state(c).await
-    }
-    async fn cover_calibrator_get_brightness(&self, c: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_brightness(c).await
-    }
-    async fn cover_calibrator_get_max_brightness(&self, c: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_max_brightness(c).await
-    }
 }
+
+skotiq_sequencer::forward_device_ops!(RecordingOps => inner: MountOps, FocuserOps, FilterWheelOps, RotatorOps, GuiderOps, DomeOps, CoverCalibratorOps, SafetyOps, PlateSolveOps, OperatorNotifyOps, ConnectionOps, SiteOps);
 
 /// A scratch directory that deletes itself when the test ends.
 /// `Drop` rather than a cleanup call at the end of each test: the leak was

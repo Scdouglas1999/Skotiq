@@ -98,15 +98,30 @@ use async_trait::async_trait;
 // no copy of either.
 use skotiq_sequencer::meridian::{julian_day, local_sidereal_time};
 use skotiq_sequencer::{
-    DeviceOps, DeviceResult, ExposureRequest, GuidingCalibration, GuidingStatus, ImageData,
-    PlateSolveResult, PolarAlignResult,
+    CameraOps, ConnectionOps, CoverCalibratorOps, DeviceResult, DomeOps, ExposureRequest,
+    FilterWheelOps, FocuserOps, FrameStoreOps, GuiderOps, GuidingCalibration, GuidingStatus,
+    ImageData, MountOps, OperatorNotifyOps, PlateSolveOps, PlateSolveResult, PolarAlignResult,
+    RotatorOps, SafetyOps, SiteOps,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use tokio::sync::Mutex;
 
-pub(crate) mod device_ops;
+mod camera;
+mod connection;
+mod cover_calibrator;
+mod dome;
 pub(crate) mod exposure_wait;
+mod filter_wheel;
+mod focuser;
+mod frame_store;
+mod guider;
+mod mount;
+mod operator;
+mod plate_solve;
+mod rotator;
+mod safety;
+mod site;
 mod solve_diagnostics;
 pub(crate) use exposure_wait::*;
 pub(crate) mod pointing;

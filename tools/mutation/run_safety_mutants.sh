@@ -85,7 +85,7 @@ recovery() {
 }
 
 slew() {
-  run slew $seq/instructions/slew.rs $seq/device_ops.rs -- \
+  run slew $seq/instructions/slew.rs $seq/device_ops/mount.rs -- \
     --re 'slew|of_date|j2000|precess|epoch|read_back|readback|arrival|coordinates|radec|ra_dec' --exclude-re NullDeviceOps
 }
 

@@ -19,7 +19,7 @@
 
 use super::UnifiedDeviceOps;
 use skotiq_sequencer::quality::{grade_frame, FrameGrade, FrameMetrics, ImageQualityCheck};
-use skotiq_sequencer::{DeviceOps, ImageData};
+use skotiq_sequencer::{FrameStoreOps, ImageData};
 use std::path::{Path, PathBuf};
 
 fn rig_check() -> ImageQualityCheck {

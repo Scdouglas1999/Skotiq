@@ -10,9 +10,8 @@
 
 use super::*;
 use crate::depth_goal::{DepthGoalBinding, DepthGoalCompletion, DepthGoalOps, DepthGoalVerdict};
-use crate::device_ops::{
-    DeviceOps, DeviceResult, ExposureRequest, ImageData, NullDeviceOps, PlateSolveResult,
-};
+use crate::device_ops::{CameraOps, FilterWheelOps, GuiderOps};
+use crate::device_ops::{DeviceResult, ExposureRequest, NullDeviceOps};
 use crate::{FilterPlan, NodeType, SequenceDefinition, SmartExposureConfig};
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -56,20 +55,11 @@ impl RecordingOps {
 }
 
 #[async_trait]
-impl DeviceOps for RecordingOps {
+impl CameraOps for RecordingOps {
     async fn camera_start_exposure(
         &self,
         request: ExposureRequest<'_>,
     ) -> DeviceResult<crate::device_ops::ImageData> {
-        let ExposureRequest {
-            camera_id,
-            duration_secs,
-            gain,
-            offset,
-            bin_x,
-            bin_y,
-            ..
-        } = request;
         let filter = self
             .current_filter
             .lock()
@@ -84,93 +74,7 @@ impl DeviceOps for RecordingOps {
             .entry(filter)
             .or_insert(0) += 1;
         self.total_exposures.fetch_add(1, Ordering::SeqCst);
-        self.inner
-            .camera_start_exposure(
-                ExposureRequest::new(camera_id, duration_secs)
-                    .gain(gain)
-                    .offset(offset)
-                    .binning(bin_x, bin_y),
-            )
-            .await
-    }
-
-    async fn filterwheel_set_position(&self, _fw_id: &str, _position: i32) -> DeviceResult<()> {
-        Ok(())
-    }
-
-    async fn filterwheel_set_filter_by_name(&self, _fw_id: &str, name: &str) -> DeviceResult<i32> {
-        *self.current_filter.lock().unwrap() = Some(name.to_string());
-        Ok(1)
-    }
-
-    async fn filterwheel_get_names(&self, _fw_id: &str) -> DeviceResult<Vec<String>> {
-        Ok(vec!["L".into(), "R".into()])
-    }
-
-    // Everything else delegates to the null double.
-
-    fn get_observer_location(&self) -> Option<(f64, f64)> {
-        self.inner.get_observer_location()
-    }
-
-    async fn mount_slew_to_coordinates(
-        &self,
-        mount_id: &str,
-        ra_hours: f64,
-        dec_degrees: f64,
-    ) -> DeviceResult<()> {
-        self.inner
-            .mount_slew_to_coordinates(mount_id, ra_hours, dec_degrees)
-            .await
-    }
-
-    async fn mount_abort_slew(&self, mount_id: &str) -> DeviceResult<()> {
-        self.inner.mount_abort_slew(mount_id).await
-    }
-
-    async fn mount_get_coordinates(&self, mount_id: &str) -> DeviceResult<(f64, f64)> {
-        self.inner.mount_get_coordinates(mount_id).await
-    }
-
-    async fn mount_sync(
-        &self,
-        mount_id: &str,
-        ra_hours: f64,
-        dec_degrees: f64,
-    ) -> DeviceResult<()> {
-        self.inner.mount_sync(mount_id, ra_hours, dec_degrees).await
-    }
-
-    async fn mount_park(&self, mount_id: &str) -> DeviceResult<()> {
-        self.inner.mount_park(mount_id).await
-    }
-
-    async fn mount_unpark(&self, mount_id: &str) -> DeviceResult<()> {
-        self.inner.mount_unpark(mount_id).await
-    }
-
-    async fn mount_is_slewing(&self, mount_id: &str) -> DeviceResult<bool> {
-        self.inner.mount_is_slewing(mount_id).await
-    }
-
-    async fn mount_is_parked(&self, mount_id: &str) -> DeviceResult<bool> {
-        self.inner.mount_is_parked(mount_id).await
-    }
-
-    async fn mount_can_flip(&self, mount_id: &str) -> DeviceResult<bool> {
-        self.inner.mount_can_flip(mount_id).await
-    }
-
-    async fn mount_side_of_pier(&self, mount_id: &str) -> DeviceResult<crate::meridian::PierSide> {
-        self.inner.mount_side_of_pier(mount_id).await
-    }
-
-    async fn mount_is_tracking(&self, mount_id: &str) -> DeviceResult<bool> {
-        self.inner.mount_is_tracking(mount_id).await
-    }
-
-    async fn mount_set_tracking(&self, mount_id: &str, enabled: bool) -> DeviceResult<()> {
-        self.inner.mount_set_tracking(mount_id, enabled).await
+        self.inner.camera_start_exposure(request).await
     }
 
     async fn camera_abort_exposure(&self, camera_id: &str) -> DeviceResult<()> {
@@ -195,47 +99,30 @@ impl DeviceOps for RecordingOps {
     async fn camera_get_cooler_power(&self, camera_id: &str) -> DeviceResult<f64> {
         self.inner.camera_get_cooler_power(camera_id).await
     }
+}
 
-    async fn focuser_move_to(&self, focuser_id: &str, position: i32) -> DeviceResult<()> {
-        self.inner.focuser_move_to(focuser_id, position).await
+#[async_trait]
+impl FilterWheelOps for RecordingOps {
+    async fn filterwheel_set_position(&self, _fw_id: &str, _position: i32) -> DeviceResult<()> {
+        Ok(())
     }
 
-    async fn focuser_get_position(&self, focuser_id: &str) -> DeviceResult<i32> {
-        self.inner.focuser_get_position(focuser_id).await
+    async fn filterwheel_set_filter_by_name(&self, _fw_id: &str, name: &str) -> DeviceResult<i32> {
+        *self.current_filter.lock().unwrap() = Some(name.to_string());
+        Ok(1)
     }
 
-    async fn focuser_is_moving(&self, focuser_id: &str) -> DeviceResult<bool> {
-        self.inner.focuser_is_moving(focuser_id).await
-    }
-
-    async fn focuser_get_temperature(&self, focuser_id: &str) -> DeviceResult<Option<f64>> {
-        self.inner.focuser_get_temperature(focuser_id).await
-    }
-
-    async fn focuser_halt(&self, focuser_id: &str) -> DeviceResult<()> {
-        self.inner.focuser_halt(focuser_id).await
+    async fn filterwheel_get_names(&self, _fw_id: &str) -> DeviceResult<Vec<String>> {
+        Ok(vec!["L".into(), "R".into()])
     }
 
     async fn filterwheel_get_position(&self, fw_id: &str) -> DeviceResult<i32> {
         self.inner.filterwheel_get_position(fw_id).await
     }
+}
 
-    async fn rotator_move_to(&self, rotator_id: &str, angle: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_to(rotator_id, angle).await
-    }
-
-    async fn rotator_move_relative(&self, rotator_id: &str, delta: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_relative(rotator_id, delta).await
-    }
-
-    async fn rotator_get_angle(&self, rotator_id: &str) -> DeviceResult<f64> {
-        self.inner.rotator_get_angle(rotator_id).await
-    }
-
-    async fn rotator_halt(&self, rotator_id: &str) -> DeviceResult<()> {
-        self.inner.rotator_halt(rotator_id).await
-    }
-
+#[async_trait]
+impl GuiderOps for RecordingOps {
     async fn guider_dither(
         &self,
         pixels: f64,
@@ -268,124 +155,9 @@ impl DeviceOps for RecordingOps {
     async fn guider_stop(&self) -> DeviceResult<()> {
         self.inner.guider_stop().await
     }
-
-    async fn plate_solve(
-        &self,
-        image_data: &ImageData,
-        hint_ra: Option<f64>,
-        hint_dec: Option<f64>,
-        hint_scale: Option<f64>,
-    ) -> DeviceResult<PlateSolveResult> {
-        self.inner
-            .plate_solve(image_data, hint_ra, hint_dec, hint_scale)
-            .await
-    }
-
-    async fn save_fits(
-        &self,
-        image_data: &ImageData,
-        file_path: &str,
-        frame_ctx: &crate::scheduling::FrameContext,
-    ) -> DeviceResult<()> {
-        self.inner.save_fits(image_data, file_path, frame_ctx).await
-    }
-
-    async fn send_notification(
-        &self,
-        level: &str,
-        title: &str,
-        message: &str,
-        explicit_transports: Option<&[String]>,
-    ) -> DeviceResult<()> {
-        self.inner
-            .send_notification(level, title, message, explicit_transports)
-            .await
-    }
-
-    async fn polar_align_update(
-        &self,
-        result: &crate::polar_align::PolarAlignResult,
-    ) -> DeviceResult<()> {
-        self.inner.polar_align_update(result).await
-    }
-
-    async fn dome_open(&self, dome_id: &str) -> DeviceResult<()> {
-        self.inner.dome_open(dome_id).await
-    }
-
-    async fn dome_close(&self, dome_id: &str) -> DeviceResult<()> {
-        self.inner.dome_close(dome_id).await
-    }
-
-    async fn dome_park(&self, dome_id: &str) -> DeviceResult<()> {
-        self.inner.dome_park(dome_id).await
-    }
-
-    async fn dome_get_shutter_status(&self, dome_id: &str) -> DeviceResult<String> {
-        self.inner.dome_get_shutter_status(dome_id).await
-    }
-
-    async fn safety_is_safe(&self, safety_id: Option<&str>) -> DeviceResult<bool> {
-        self.inner.safety_is_safe(safety_id).await
-    }
-
-    async fn calculate_image_hfr(&self, image_data: &ImageData) -> DeviceResult<Option<f64>> {
-        self.inner.calculate_image_hfr(image_data).await
-    }
-
-    async fn detect_stars_in_image(
-        &self,
-        image_data: &ImageData,
-    ) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        self.inner.detect_stars_in_image(image_data).await
-    }
-
-    async fn cover_calibrator_open_cover(&self, device_id: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_open_cover(device_id).await
-    }
-
-    async fn cover_calibrator_close_cover(&self, device_id: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_close_cover(device_id).await
-    }
-
-    async fn cover_calibrator_halt_cover(&self, device_id: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_halt_cover(device_id).await
-    }
-
-    async fn cover_calibrator_calibrator_on(
-        &self,
-        device_id: &str,
-        brightness: i32,
-    ) -> DeviceResult<()> {
-        self.inner
-            .cover_calibrator_calibrator_on(device_id, brightness)
-            .await
-    }
-
-    async fn cover_calibrator_calibrator_off(&self, device_id: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_calibrator_off(device_id).await
-    }
-
-    async fn cover_calibrator_get_cover_state(&self, device_id: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_cover_state(device_id).await
-    }
-
-    async fn cover_calibrator_get_calibrator_state(&self, device_id: &str) -> DeviceResult<i32> {
-        self.inner
-            .cover_calibrator_get_calibrator_state(device_id)
-            .await
-    }
-
-    async fn cover_calibrator_get_brightness(&self, device_id: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_brightness(device_id).await
-    }
-
-    async fn cover_calibrator_get_max_brightness(&self, device_id: &str) -> DeviceResult<i32> {
-        self.inner
-            .cover_calibrator_get_max_brightness(device_id)
-            .await
-    }
 }
+
+crate::forward_device_ops!(RecordingOps => inner: MountOps, FocuserOps, RotatorOps, DomeOps, CoverCalibratorOps, SafetyOps, PlateSolveOps, FrameStoreOps, OperatorNotifyOps, ConnectionOps, SiteOps);
 
 /// Answers `Achieved` for one goal id + revision once the shared exposure
 /// counter reaches `achieve_after`; `Continue` before that; `Unavailable`

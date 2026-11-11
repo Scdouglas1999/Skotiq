@@ -15,7 +15,7 @@ pub mod checkpoint;
 // and system event).
 pub mod decision;
 pub mod depth_goal;
-mod device_ops;
+pub mod device_ops;
 // Dual-rig / multi-camera synchronized imaging: dither-coordination barrier
 // + secondary capture-loop driver.
 pub mod dual_rig;

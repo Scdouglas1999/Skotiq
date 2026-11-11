@@ -303,7 +303,8 @@ impl Dispatcher {
 mod tests {
     use super::super::policy::{select_dispatches, DispatchPolicy};
     use super::*;
-    use crate::device_ops::DeviceOps;
+    use crate::device_ops::MountOps;
+
     use crate::executor::scenario_sim_tests::{ScriptedDeviceOps, SimMount};
 
     struct Harness {

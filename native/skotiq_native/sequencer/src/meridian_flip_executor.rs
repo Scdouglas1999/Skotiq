@@ -1265,8 +1265,8 @@ impl MeridianFlipExecutor {
         ctx: &FlipContext,
         pre_flip_pier_side: PierSide,
     ) -> Option<Result<PierSide, String>> {
-        let freed = crate::limit_backoff::back_off_limit(&self.device_ops, &ctx.mount_id).await;
-        crate::limit_backoff::notify(&self.device_ops, "flip slew", &freed).await;
+        let freed = crate::limit_backoff::back_off_limit(&*self.device_ops, &ctx.mount_id).await;
+        crate::limit_backoff::notify(&*self.device_ops, "flip slew", &freed).await;
         // A mount that could not be freed keeps the verification's own
         // failure; the notice says why.
         freed.ok()?;
@@ -2378,7 +2378,12 @@ fn normalize_ra_diff_hours(diff: f64) -> f64 {
 mod tests {
     use super::*;
     use crate::device_ops::{
-        DeviceOps, DeviceResult, ExposureRequest, GuidingStatus, ImageData, PlateSolveResult,
+        CameraOps, ConnectionOps, CoverCalibratorOps, DomeOps, FilterWheelOps, FocuserOps,
+        FrameStoreOps, GuiderOps, MountOps, OperatorNotifyOps, PlateSolveOps, RotatorOps,
+        SafetyOps, SiteOps,
+    };
+    use crate::device_ops::{
+        DeviceResult, ExposureRequest, GuidingStatus, ImageData, PlateSolveResult,
     };
     use async_trait::async_trait;
     use std::sync::atomic::AtomicI32;
@@ -2570,7 +2575,7 @@ mod tests {
     }
 
     #[async_trait]
-    impl DeviceOps for MockDeviceOps {
+    impl MountOps for MockDeviceOps {
         async fn mount_slew_to_coordinates(
             &self,
             _mount_id: &str,
@@ -2701,7 +2706,10 @@ mod tests {
             self.state.tracking_calls.lock().unwrap().push(enabled);
             Ok(())
         }
+    }
 
+    #[async_trait]
+    impl CameraOps for MockDeviceOps {
         async fn camera_start_exposure(
             &self,
             request: ExposureRequest<'_>,
@@ -2762,7 +2770,10 @@ mod tests {
         async fn camera_get_cooler_power(&self, _camera_id: &str) -> DeviceResult<f64> {
             Ok(50.0)
         }
+    }
 
+    #[async_trait]
+    impl FocuserOps for MockDeviceOps {
         async fn focuser_move_to(&self, _focuser_id: &str, _position: i32) -> DeviceResult<()> {
             Ok(())
         }
@@ -2782,7 +2793,10 @@ mod tests {
         async fn focuser_halt(&self, _focuser_id: &str) -> DeviceResult<()> {
             Ok(())
         }
+    }
 
+    #[async_trait]
+    impl FilterWheelOps for MockDeviceOps {
         async fn filterwheel_set_position(&self, _fw_id: &str, position: i32) -> DeviceResult<()> {
             if position == 4
                 && self
@@ -2811,7 +2825,10 @@ mod tests {
         ) -> DeviceResult<i32> {
             Ok(1)
         }
+    }
 
+    #[async_trait]
+    impl RotatorOps for MockDeviceOps {
         async fn rotator_move_to(&self, _rotator_id: &str, _angle: f64) -> DeviceResult<()> {
             Ok(())
         }
@@ -2827,7 +2844,10 @@ mod tests {
         async fn rotator_halt(&self, _rotator_id: &str) -> DeviceResult<()> {
             Ok(())
         }
+    }
 
+    #[async_trait]
+    impl GuiderOps for MockDeviceOps {
         async fn guider_dither(
             &self,
             _pixels: f64,
@@ -2919,83 +2939,10 @@ mod tests {
             self.state.guider_stopped.store(true, Ordering::Relaxed);
             Ok(())
         }
+    }
 
-        async fn plate_solve(
-            &self,
-            _image_data: &ImageData,
-            hint_ra: Option<f64>,
-            hint_dec: Option<f64>,
-            _hint_scale: Option<f64>,
-        ) -> DeviceResult<PlateSolveResult> {
-            self.state.post_flip_calls.lock().unwrap().push("solve");
-            self.state.plate_solve_calls.fetch_add(1, Ordering::Relaxed);
-            let dec_offset = self
-                .state
-                .solved_dec_offsets
-                .lock()
-                .unwrap()
-                .pop_front()
-                .unwrap_or(0.0);
-            let should_fail = self
-                .state
-                .plate_solve_failures_remaining
-                .try_update(Ordering::Relaxed, Ordering::Relaxed, |remaining| {
-                    (remaining > 0).then_some(remaining - 1)
-                })
-                .is_ok();
-            // Return success with the hint coordinates so total_offset==0.
-            // Why: this is a test-only mock device op.
-            // The hint-less case yields (0,0) which still satisfies the
-            // "total_offset==0" invariant the test asserts; production
-            // plate-solve always supplies hints from the mount pointing.
-            Ok(PlateSolveResult {
-                ra_degrees: hint_ra.unwrap_or(0.0),
-                dec_degrees: hint_dec.unwrap_or(0.0) + dec_offset,
-                pixel_scale: 1.5,
-                rotation: 0.0,
-                up_position_angle_deg: 0.0,
-                success: !should_fail,
-                wcs: None,
-            })
-        }
-
-        async fn save_fits(
-            &self,
-            _image_data: &ImageData,
-            _file_path: &str,
-            _frame_ctx: &crate::scheduling::FrameContext,
-        ) -> DeviceResult<()> {
-            Ok(())
-        }
-
-        async fn send_notification(
-            &self,
-            level: &str,
-            title: &str,
-            _message: &str,
-            _explicit_transports: Option<&[String]>,
-        ) -> DeviceResult<()> {
-            self.state
-                .notifications
-                .lock()
-                .unwrap()
-                .push((level.to_string(), title.to_string()));
-            Ok(())
-        }
-
-        fn get_observer_location(&self) -> Option<(f64, f64)> {
-            // Read through the Mutex so altitude-gate tests can
-            // install a location at runtime.
-            *self.state.location.lock().unwrap()
-        }
-
-        async fn polar_align_update(
-            &self,
-            _result: &crate::polar_align::PolarAlignResult,
-        ) -> DeviceResult<()> {
-            Ok(())
-        }
-
+    #[async_trait]
+    impl DomeOps for MockDeviceOps {
         async fn dome_open(&self, _dome_id: &str) -> DeviceResult<()> {
             Ok(())
         }
@@ -3011,22 +2958,10 @@ mod tests {
         async fn dome_get_shutter_status(&self, _dome_id: &str) -> DeviceResult<String> {
             Ok("Open".to_string())
         }
+    }
 
-        async fn safety_is_safe(&self, _safety_id: Option<&str>) -> DeviceResult<bool> {
-            Ok(true)
-        }
-
-        async fn calculate_image_hfr(&self, _image_data: &ImageData) -> DeviceResult<Option<f64>> {
-            Ok(Some(2.0))
-        }
-
-        async fn detect_stars_in_image(
-            &self,
-            _image_data: &ImageData,
-        ) -> DeviceResult<Vec<(f64, f64, f64)>> {
-            Ok(vec![])
-        }
-
+    #[async_trait]
+    impl CoverCalibratorOps for MockDeviceOps {
         async fn cover_calibrator_open_cover(&self, _device_id: &str) -> DeviceResult<()> {
             self.state.cover_state.store(3, Ordering::Relaxed);
             Ok(())
@@ -3070,6 +3005,113 @@ mod tests {
 
         async fn cover_calibrator_get_max_brightness(&self, _device_id: &str) -> DeviceResult<i32> {
             Ok(255)
+        }
+    }
+
+    #[async_trait]
+    impl SafetyOps for MockDeviceOps {
+        async fn safety_is_safe(&self, _safety_id: Option<&str>) -> DeviceResult<bool> {
+            Ok(true)
+        }
+    }
+
+    #[async_trait]
+    impl PlateSolveOps for MockDeviceOps {
+        async fn plate_solve(
+            &self,
+            _image_data: &ImageData,
+            hint_ra: Option<f64>,
+            hint_dec: Option<f64>,
+            _hint_scale: Option<f64>,
+        ) -> DeviceResult<PlateSolveResult> {
+            self.state.post_flip_calls.lock().unwrap().push("solve");
+            self.state.plate_solve_calls.fetch_add(1, Ordering::Relaxed);
+            let dec_offset = self
+                .state
+                .solved_dec_offsets
+                .lock()
+                .unwrap()
+                .pop_front()
+                .unwrap_or(0.0);
+            let should_fail = self
+                .state
+                .plate_solve_failures_remaining
+                .try_update(Ordering::Relaxed, Ordering::Relaxed, |remaining| {
+                    (remaining > 0).then_some(remaining - 1)
+                })
+                .is_ok();
+            // Return success with the hint coordinates so total_offset==0.
+            // Why: this is a test-only mock device op.
+            // The hint-less case yields (0,0) which still satisfies the
+            // "total_offset==0" invariant the test asserts; production
+            // plate-solve always supplies hints from the mount pointing.
+            Ok(PlateSolveResult {
+                ra_degrees: hint_ra.unwrap_or(0.0),
+                dec_degrees: hint_dec.unwrap_or(0.0) + dec_offset,
+                pixel_scale: 1.5,
+                rotation: 0.0,
+                up_position_angle_deg: 0.0,
+                success: !should_fail,
+                wcs: None,
+            })
+        }
+    }
+
+    #[async_trait]
+    impl FrameStoreOps for MockDeviceOps {
+        async fn save_fits(
+            &self,
+            _image_data: &ImageData,
+            _file_path: &str,
+            _frame_ctx: &crate::scheduling::FrameContext,
+        ) -> DeviceResult<()> {
+            Ok(())
+        }
+
+        async fn calculate_image_hfr(&self, _image_data: &ImageData) -> DeviceResult<Option<f64>> {
+            Ok(Some(2.0))
+        }
+
+        async fn detect_stars_in_image(
+            &self,
+            _image_data: &ImageData,
+        ) -> DeviceResult<Vec<(f64, f64, f64)>> {
+            Ok(vec![])
+        }
+    }
+
+    #[async_trait]
+    impl OperatorNotifyOps for MockDeviceOps {
+        async fn send_notification(
+            &self,
+            level: &str,
+            title: &str,
+            _message: &str,
+            _explicit_transports: Option<&[String]>,
+        ) -> DeviceResult<()> {
+            self.state
+                .notifications
+                .lock()
+                .unwrap()
+                .push((level.to_string(), title.to_string()));
+            Ok(())
+        }
+
+        async fn polar_align_update(
+            &self,
+            _result: &crate::polar_align::PolarAlignResult,
+        ) -> DeviceResult<()> {
+            Ok(())
+        }
+    }
+
+    impl ConnectionOps for MockDeviceOps {}
+
+    impl SiteOps for MockDeviceOps {
+        fn get_observer_location(&self) -> Option<(f64, f64)> {
+            // Read through the Mutex so altitude-gate tests can
+            // install a location at runtime.
+            *self.state.location.lock().unwrap()
         }
     }
 

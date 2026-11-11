@@ -416,7 +416,7 @@ mod guard_tests {
     /// `release_gate_still_guards_null_device_ops` below fails if the runtime
     /// gate stops being true, so this exemption cannot rot into a live path
     /// unnoticed.
-    const RELEASE_GATED_TEST_DOUBLE: &[&str] = &["sequencer/src/device_ops.rs"];
+    const RELEASE_GATED_TEST_DOUBLE: &[&str] = &["sequencer/src/device_ops/null.rs"];
 
     fn workspace_root() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR"))
