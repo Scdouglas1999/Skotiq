@@ -235,7 +235,6 @@ class SkyBoundingBox {
   bool containsDecDeg(double decDeg) =>
       decDeg >= decMinDeg && decDeg <= decMaxDeg;
 
-  /// Whether the given coordinate falls within the bounding box.
   bool contains({required double raDeg, required double decDeg}) =>
       containsDecDeg(decDeg) && containsRaDeg(raDeg);
 }

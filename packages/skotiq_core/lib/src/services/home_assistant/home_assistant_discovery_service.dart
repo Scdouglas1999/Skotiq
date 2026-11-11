@@ -101,8 +101,6 @@ class HomeAssistantDiscoveryService {
     await _stop();
   }
 
-  // Session lifecycle
-
   Future<void> _restart() async {
     await _stop();
     await reconcile();
@@ -226,8 +224,6 @@ class HomeAssistantDiscoveryService {
     );
   }
 
-  // Discovery + state publishing
-
   bool get _domeConnected =>
       _ref.read(domeStateProvider).connectionState ==
       DeviceConnectionState.connected;
@@ -289,7 +285,6 @@ class HomeAssistantDiscoveryService {
     final safety = _ref.read(weatherSafetyProvider);
     states[HaEntityKeys.safety] = onOff(!safety.isSafe);
 
-    // Sequencer.
     final execState = _ref.read(sequenceExecutionStateProvider);
     final progress = _ref.read(sequenceProgressProvider);
     final sequenceActive =
@@ -326,7 +321,6 @@ class HomeAssistantDiscoveryService {
       states[HaEntityKeys.lastHfr] = lastHfr.toStringAsFixed(2);
     }
 
-    // Guiding.
     final phd2State = _ref.read(phd2StateProvider);
     states[HaEntityKeys.guiding] = onOff(
       phd2State == Phd2State.guiding || phd2State == Phd2State.settling,
@@ -334,7 +328,6 @@ class HomeAssistantDiscoveryService {
     final guideStats = _ref.read(guideStatsProvider);
     states[HaEntityKeys.guideRms] = guideStats.rmsTotal.toStringAsFixed(2);
 
-    // Camera.
     final camera = _ref.read(cameraStateProvider);
     states[HaEntityKeys.cameraCooling] = onOff(camera.isCooling);
     if (camera.temperature != null) {
@@ -379,8 +372,6 @@ class HomeAssistantDiscoveryService {
 
     return states;
   }
-
-  // Commands from Home Assistant
 
   void _handleCommand(String topic, String payload) {
     final payloads = _payloads;

@@ -76,7 +76,6 @@ class FlatCancelToken {
   bool _cancelled = false;
   final Completer<void> _completer = Completer<void>();
 
-  /// Whether a cancel has been requested.
   bool get isCancelled => _cancelled;
 
   /// Completes the first time [cancel] is called. Used to race against an
@@ -159,7 +158,6 @@ class _CaptureWake {
   bool get isCancel => kind == null && !isTimeout;
 }
 
-/// Helper function to convert bin values to BinningMode
 BinningMode _binningFromInts(int x, int y) {
   if (x == 1 && y == 1) return BinningMode.one;
   if (x == 2 && y == 2) return BinningMode.two;

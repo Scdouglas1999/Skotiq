@@ -112,7 +112,6 @@ class DeviceConnectProgress {
   /// Device id that was passed to the connect call.
   final String deviceId;
 
-  /// Current status of this device's connect attempt.
   final DeviceConnectProgressStatus status;
 
   /// Raw error object thrown by the backend, when [status] is `failed`.

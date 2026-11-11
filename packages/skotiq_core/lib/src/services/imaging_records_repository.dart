@@ -90,8 +90,6 @@ class ImagingRecordsRepository {
 
   bool get isRemote => _remote != null;
 
-  // Sessions
-
   Future<List<db.ImagingSession>> getAllSessions() async {
     if (_remote != null) {
       final rows = await _remote.getAllSessions();
@@ -276,8 +274,6 @@ class ImagingRecordsRepository {
     }
     await _sessionsDao!.updateNotes(id, notes);
   }
-
-  // Captured images
 
   Future<db.CapturedImage?> getImageById(int id) async {
     if (_remote != null) {

@@ -23,8 +23,6 @@ import '../backend/remote_host.dart';
 part 'quick_start_service/quick_start_models.dart';
 part 'quick_start_service/quick_start_providers.dart';
 
-// QuickStartService - Service for quick session resumption
-
 /// Service for capturing and restoring session state for quick resumption.
 ///
 /// This service provides functionality to:
@@ -84,7 +82,6 @@ class QuickStartService {
     return _buildQuickStartContext(session);
   }
 
-  /// Build a QuickStartContext from a session record.
   Future<QuickStartContext> _buildQuickStartContext(
     db.ImagingSession session,
   ) async {
@@ -121,7 +118,6 @@ class QuickStartService {
     final sequence = results[2] as db.Sequence?;
     final checkpoint = results[3] as db.SequenceCheckpoint?;
 
-    // Parse equipment snapshot if available
     EquipmentSnapshot? equipmentSnapshot;
     if (equipmentSnapshotJson != null && equipmentSnapshotJson.isNotEmpty) {
       try {
@@ -146,7 +142,6 @@ class QuickStartService {
     final plannedFrames = checkpoint == null ? 0 : checkpoint.totalFrames;
     final totalFrames = plannedFrames >= completedFrames ? plannedFrames : 0;
 
-    // Calculate total integration in hours
     final totalIntegrationHours = session.totalIntegrationSecs / 3600.0;
 
     return QuickStartContext(

@@ -203,7 +203,6 @@ class CenteringService {
   }
 }
 
-/// Provider for the centering service
 final centeringServiceProvider = Provider<CenteringService>((ref) {
   final backend = ref.watch(deviceBackendProvider);
   final service = CenteringService(
@@ -222,12 +221,10 @@ final centeringSlewPollIntervalProvider = Provider<Duration>(
 );
 final centeringSlewMaxPollTicksProvider = Provider<int>((ref) => 120);
 
-/// Provider for centering status
 final centeringStatusProvider = StateProvider<CenteringStatus>((ref) {
   return CenteringStatus.idle();
 });
 
-/// Provider for last centering result
 final lastCenteringResultProvider = StateProvider<CenteringResult?>(
   (ref) => null,
 );

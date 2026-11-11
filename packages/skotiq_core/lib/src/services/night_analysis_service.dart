@@ -181,8 +181,6 @@ class NightAnalysisService {
       sub.fwhm != null ||
       sub.eccentricity != null;
 
-  // Detector registry
-
   late final List<List<NightFinding> Function(NightData)> _detectors = [
     _detectFocusDrift,
     _detectCloudTransparencyLoss,
@@ -192,8 +190,6 @@ class NightAnalysisService {
     _detectTiltCollimation,
     _detectGraderPoorNight,
   ];
-
-  // Data loading
 
   Future<NightData> _load({int? sessionId, int? targetId}) async {
     List<NightSub> subs;
@@ -343,8 +339,6 @@ class NightAnalysisService {
       return const {};
     }
   }
-
-  // Scoring + headline
 
   /// Per-finding penalties. Monotone in severity (critical > warn > info), so
   /// the night score is monotone w.r.t. the worst finding's severity. Penalties

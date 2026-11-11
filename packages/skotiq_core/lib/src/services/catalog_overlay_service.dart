@@ -81,7 +81,6 @@ class CatalogOverlayObject {
     required this.source,
   });
 
-  /// Best display string for the marker label.
   String get displayName => commonName ?? id;
 }
 
@@ -204,7 +203,6 @@ class PlanetariumCatalogOverlaySource implements CatalogOverlaySource {
   Future<bool> get starCatalogAvailable => File(_star.path).exists();
 }
 
-/// Catalog overlay service.
 class CatalogOverlayService {
   final CatalogOverlaySource source;
 

@@ -16,7 +16,6 @@ class LombScargleResult {
   /// The best-fit period (1 / bestFrequency), in the same time units as input.
   final double bestPeriod;
 
-  /// The peak power value.
   final double peakPower;
 
   /// Estimated false alarm probability for the peak.
@@ -234,24 +233,20 @@ class PeriodAnalysisService {
       weights[i] = 1.0 / (errs[i] * errs[i]);
       weightSum += weights[i];
     }
-    // Normalize weights.
     for (var i = 0; i < n; i++) {
       weights[i] /= weightSum;
     }
 
-    // Weighted mean of magnitudes.
     var weightedMean = 0.0;
     for (var i = 0; i < n; i++) {
       weightedMean += weights[i] * mags[i];
     }
 
-    // Residuals from the mean.
     final residuals = List<double>.filled(n, 0.0);
     for (var i = 0; i < n; i++) {
       residuals[i] = mags[i] - weightedMean;
     }
 
-    // Build frequency grid.
     final minFreq = 1.0 / maxPeriod;
     final maxFreq = 1.0 / minPeriod;
     final df = 1.0 / (oversampling * timeBaseline);
@@ -465,7 +460,6 @@ class PeriodAnalysisService {
       weights[i] /= totalWeight;
     }
 
-    // Weighted mean magnitude.
     var meanMag = 0.0;
     for (var i = 0; i < n; i++) {
       meanMag += weights[i] * mags[i];

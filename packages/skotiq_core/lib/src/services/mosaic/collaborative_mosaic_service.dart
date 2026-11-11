@@ -109,8 +109,6 @@ class CollaborativeMosaicService {
     return _clientFactory(creds);
   }
 
-  // Publish
-
   /// Publish [projectId]'s panel grid to the hub as a collaborative mosaic.
   /// Persists `hub_mosaic_id` + `collab_role = owner` on the project. Returns the
   /// created hub mosaic.
@@ -238,8 +236,6 @@ class CollaborativeMosaicService {
     return projectId;
   }
 
-  // Claim
-
   /// Claim [indices] of [projectId]'s published mosaic via the hub baton.
   /// Persists each panel's claim token + assigned account/rig provenance.
   /// Returns the granted claims (a panel held by another rig is skipped).
@@ -339,8 +335,6 @@ class CollaborativeMosaicService {
       client.close();
     }
   }
-
-  // Upload
 
   /// Upload the locally-integrated master for [panelIndex] of [projectId] to the
   /// hub. Resolves the panel's `integrated_masters` master FITS (built by
@@ -543,8 +537,6 @@ class CollaborativeMosaicService {
     }
   }
 
-  // Read
-
   /// List open/claimable collaborative mosaics on the configured hub.
   Future<List<CollabMosaic>> listMosaics() async {
     final client = await _requireClient();
@@ -648,8 +640,6 @@ class CollaborativeMosaicService {
       client.close();
     }
   }
-
-  // Internals
 
   /// Resolve the consent a panel-master upload ships under, failing CLOSED.
   ///

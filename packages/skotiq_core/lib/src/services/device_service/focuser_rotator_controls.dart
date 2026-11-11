@@ -1,8 +1,6 @@
 part of '../device_service.dart';
 
 extension _DeviceServiceFocuserRotatorControls on DeviceService {
-  // Device ID Helpers
-
   /// Get the connected camera device ID.
   ///
   /// An equipment profile is connection intent, not live command authority.
@@ -10,8 +8,6 @@ extension _DeviceServiceFocuserRotatorControls on DeviceService {
   /// stale device on the current backend.
   Future<String?> _getCameraDeviceId() async =>
       _connectedDeviceIdFor(DeviceType.camera);
-
-  // Focuser control
 
   /// Get the connected focuser device ID. Active-profile IDs are deliberately
   /// not used here; only the connected state has authority to move hardware.
@@ -72,7 +68,6 @@ extension _DeviceServiceFocuserRotatorControls on DeviceService {
     }
   }
 
-  /// Move focuser to absolute position
   Future<void> _moveFocuserTo(int position) async {
     if (position < 0) {
       throw ArgumentError.value(position, 'position', 'Must be non-negative');
@@ -166,7 +161,6 @@ extension _DeviceServiceFocuserRotatorControls on DeviceService {
     var commandWasSent = false;
     var hardwareStillMoving = false;
     try {
-      // Get current position to compute target
       final currentStatus = await _backend.getFocuserStatus(deviceId);
       if (!_isStillConnectedToFocuser(deviceId)) {
         throw StateError('Focuser connection changed; move was not sent.');
@@ -259,7 +253,6 @@ extension _DeviceServiceFocuserRotatorControls on DeviceService {
     }
   }
 
-  /// Halt focuser movement
   Future<void> _haltFocuser() async {
     final deviceId = await _getFocuserDeviceId();
     if (deviceId == null || deviceId.isEmpty) {
@@ -281,8 +274,6 @@ extension _DeviceServiceFocuserRotatorControls on DeviceService {
       focuserNotifier.setMoving(false);
     }
   }
-
-  // Rotator control
 
   /// Get the connected rotator device ID. Active-profile IDs are deliberately
   /// excluded because they describe intended equipment, not a live connection.
@@ -544,7 +535,6 @@ extension _DeviceServiceFocuserRotatorControls on DeviceService {
     }
   }
 
-  /// Halt rotator movement.
   Future<void> _haltRotator() async {
     final deviceId = await _getRotatorDeviceId();
     if (deviceId == null || deviceId.isEmpty) {

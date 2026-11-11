@@ -48,7 +48,6 @@ class PeerPullFileReport {
   /// The manifest entry this is about.
   final DeliveryManifestEntry entry;
 
-  /// What happened.
   final PeerPullOutcome outcome;
 
   /// Bytes transferred on this pass. Zero for a file that was already there.
@@ -67,7 +66,6 @@ class PeerPullFileReport {
 
 /// What happened on one pull of one job.
 class PeerPullReport {
-  /// The job that was pulled.
   final int jobId;
 
   /// Per-file results, in manifest order.

@@ -33,20 +33,16 @@ import 'providers/rainviewer_radar_provider.dart';
 class WeatherRadarService {
   final Ref _ref;
 
-  /// Factory for managing and selecting radar providers.
   late final RadarProviderFactory _providerFactory;
 
-  /// Stream controller for broadcasting radar frame updates.
   final StreamController<List<RadarFrame>> _framesController =
       StreamController<List<RadarFrame>>.broadcast();
 
   /// Cached fetch result from the last successful fetch.
   RadarFetchResult? _cachedResult;
 
-  /// Timestamp of the last fetch operation.
   DateTime? _lastFetchTime;
 
-  /// Whether the service has been initialized.
   bool _initialized = false;
 
   /// Creates a weather radar service instance.
@@ -134,14 +130,12 @@ class WeatherRadarService {
   }) async {
     _ensureInitialized();
 
-    // Get weather settings to determine refresh interval and provider preference
     final database = _ref.read(databaseProvider);
     final settingsRow = await database.weatherSettingsDao.getOrCreateSettings();
     final refreshInterval = Duration(
       seconds: settingsRow.refreshIntervalSeconds,
     );
 
-    // Check if we have fresh cached data
     if (!forceRefresh && !isCacheStale(refreshInterval)) {
       if (_cachedResult != null && _cachedResult!.isSuccess) {
         developer.log(
@@ -152,12 +146,10 @@ class WeatherRadarService {
       }
     }
 
-    // Parse provider preference from settings
     final providerPreference = _parseProviderType(
       settingsRow.preferredProvider,
     );
 
-    // Select appropriate provider
     final provider = getCurrentProvider(
       latitude,
       longitude,

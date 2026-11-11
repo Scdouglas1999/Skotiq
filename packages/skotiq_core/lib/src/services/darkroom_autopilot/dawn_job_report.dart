@@ -101,7 +101,6 @@ class DawnCalibrationSlot {
     return '${_capitalize(parts.first)}${parts.length > 1 ? '; ${parts.skip(1).join('; ')}' : ''}.';
   }
 
-  /// The slot as report JSON.
   Map<String, dynamic> toJson() => {
     'kind': kind,
     'path': path,
@@ -346,7 +345,6 @@ class DawnSourceStat {
   bool metadataMatches(DawnSourceStat other) =>
       bytes == other.bytes && modified.isAtSameMomentAs(other.modified);
 
-  /// The reading as report JSON.
   Map<String, dynamic> toJson() => {
     'bytes': bytes,
     'modified': modified.toUtc().toIso8601String(),
@@ -356,7 +354,6 @@ class DawnSourceStat {
 
 /// One master's line in the morning report.
 class DawnMasterReport {
-  /// The master itself.
   final DawnMaster master;
 
   /// The target's name, or null when the master carries no target row.
@@ -448,7 +445,6 @@ class DawnMasterReport {
     return failure ?? 'its pixels could not be read';
   }
 
-  /// The master as report JSON.
   Map<String, dynamic> toJson() => {
     'masterId': master.masterId,
     'name': master.name,
@@ -515,7 +511,6 @@ class DawnCompositeReport {
   /// The linear color composite written for delivery, or null.
   final String? linearCompositePath;
 
-  /// The steps the draft carries.
   final List<Map<String, dynamic>> draftSteps;
 
   /// The draft's account of its own composition.
@@ -595,7 +590,6 @@ class DawnReportPending {
         'drafting finished.',
   );
 
-  /// The pending block as report JSON.
   Map<String, dynamic> toJson() => {'blocks': blocks, 'note': note};
 }
 
@@ -609,7 +603,6 @@ class DawnNotificationDecision {
 
   const DawnNotificationDecision({required this.sent, required this.reason});
 
-  /// The decision as report JSON.
   Map<String, dynamic> toJson() => {'sent': sent, 'reason': reason};
 }
 
@@ -621,7 +614,6 @@ class DawnJobReport {
   /// `dawn` or `manual`.
   final String kind;
 
-  /// The session processed.
   final int sessionId;
 
   /// When the job started, UTC.

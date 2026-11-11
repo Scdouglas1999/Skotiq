@@ -92,8 +92,6 @@ class CoImagingSessionService {
   ) =>
       ConstellationClient(hubBaseUrl: c.hubBaseUrl, bearerToken: c.bearerToken);
 
-  // Create / join / leave
-
   /// Open a live co-imaging session on a target and persist this rig's owner
   /// membership (anchor framing offset + membership token) durably.
   Future<CoImagingSession> createSession({
@@ -234,8 +232,6 @@ class CoImagingSessionService {
     }
   }
 
-  // Combined accounting
-
   /// Report this rig's contribution (frames + integration it just folded into the
   /// shared-target tile) to the session's COMBINED accounting, presenting the
   /// stored membership token. Advances the local cumulative tally and returns the
@@ -335,8 +331,6 @@ class CoImagingSessionService {
       sessionId: sessionId,
     );
   }
-
-  // Framing-offset pointing
 
   /// The (raDeg, decDeg) pointing DELTA this rig should add to the session
   /// target's centre so its optical centre sits at `centre + offset`, making
@@ -465,8 +459,6 @@ class CoImagingSessionService {
     return null;
   }
 
-  // Capture-loop auto-contribute
-
   /// Drive one completed sub all the way through the co-imaging pipeline, in the
   /// order that keeps accounting honest:
   ///
@@ -577,9 +569,6 @@ class CoImagingSessionService {
     return accounting;
   }
 
-  // Longitude baton
-
-  /// Current baton holder for the session.
   Future<CoImagingBatonState> batonState(String sessionId) async {
     final client = await _requireClient();
     try {
@@ -668,8 +657,6 @@ class CoImagingSessionService {
       released: released,
     );
   }
-
-  // Browse / live preview
 
   /// Browse active sessions on the configured hub.
   Future<List<CoImagingSession>> listSessions() async {

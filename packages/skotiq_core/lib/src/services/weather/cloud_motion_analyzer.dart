@@ -55,7 +55,6 @@ class CloudMotionAnalyzer {
   /// Earth's mean radius in kilometers
   static const double _earthRadiusKm = 6371.0;
 
-  /// Minimum number of frames required for motion analysis
   static const int _minFramesRequired = 2;
 
   /// Default spacing between analysis grid points in kilometers
@@ -125,7 +124,6 @@ class CloudMotionAnalyzer {
     required double userLongitude,
     double analysisRadiusKm = 100.0,
   }) {
-    // Validate input
     if (frames.length < _minFramesRequired) {
       return const CloudMotionResult.unavailable(
         CloudMotionUnavailableReason.insufficientFrames,
@@ -271,7 +269,6 @@ class CloudMotionAnalyzer {
       motionVectors.map((v) => v.directionDegrees).toList(),
     );
 
-    // Calculate ETA if clouds are approaching
     final eta = calculateEta(
       cloudDistanceKm: cloudDistance,
       cloudSpeedKmh: avgSpeed,
@@ -335,7 +332,6 @@ class CloudMotionAnalyzer {
       spacingKm: _defaultGridSpacingKm,
     );
 
-    // Find grid points with significant cloud density
     final cloudPoints = <({double lat, double lon, double distance})>[];
 
     for (final point in gridPoints) {
@@ -358,7 +354,6 @@ class CloudMotionAnalyzer {
       return null;
     }
 
-    // Return the nearest cloud point
     cloudPoints.sort((a, b) => a.distance.compareTo(b.distance));
     final nearest = cloudPoints.first;
     return (nearest.lat, nearest.lon, nearest.distance);
@@ -377,12 +372,10 @@ class CloudMotionAnalyzer {
     required double cloudLatitude,
     required double cloudLongitude,
   }) {
-    // Check for stationary clouds
     if (cloudSpeedKmh < 0.1) {
       return null;
     }
 
-    // Calculate bearing from cloud to user
     final bearingToUser = calculateBearing(
       cloudLatitude,
       cloudLongitude,
@@ -390,7 +383,6 @@ class CloudMotionAnalyzer {
       userLongitude,
     );
 
-    // Check if clouds are approaching
     if (!areCloudsApproaching(
       cloudDirectionDeg: cloudDirectionDeg,
       bearingToUser: bearingToUser,
@@ -408,7 +400,6 @@ class CloudMotionAnalyzer {
       return null;
     }
 
-    // Calculate time = distance / speed
     final hoursToArrival = cloudDistanceKm / approachSpeed;
     final minutesToArrival = (hoursToArrival * 60).round();
 
@@ -452,7 +443,6 @@ class CloudMotionAnalyzer {
     final bearingRad = math.atan2(y, x);
     final bearingDeg = _radiansToDegrees(bearingRad);
 
-    // Normalize to 0-360
     return (bearingDeg + 360) % 360;
   }
 
@@ -468,8 +458,6 @@ class CloudMotionAnalyzer {
     // Within 90 degrees means approaching (cos > 0)
     return angleDiff <= 90;
   }
-
-  // Private helper methods
 
   /// Generate grid of sampling points in a circular pattern.
   List<(double lat, double lon)> _generateGridPoints({
@@ -750,7 +738,6 @@ class CloudMotionAnalyzer {
   double _radiansToDegrees(double radians) => radians * 180.0 / math.pi;
 }
 
-/// Internal motion vector representation.
 class _MotionVector {
   final double speedKmh;
   final double directionDegrees;
@@ -766,7 +753,6 @@ class _Snapshot {
   /// Capture time of this snapshot (the timestamp of its first frame).
   final DateTime timestamp;
 
-  /// Frames that make up this snapshot.
   final List<RadarFrame> frames;
 }
 

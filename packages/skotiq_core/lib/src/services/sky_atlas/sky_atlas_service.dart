@@ -856,8 +856,6 @@ class SkyAtlasService {
     );
   }
 
-  // Regions
-
   /// All persisted regions (newest first).
   Future<List<SkyAtlasRegionRow>> regions() => _dao.getAllRegions();
 
@@ -947,8 +945,6 @@ class SkyAtlasService {
   /// Reactive region timeline for a live scrubber.
   Stream<List<SkyAtlasFoldRow>> watchRegionTimeline(int regionId) =>
       _dao.watchFoldsForRegionOverTime(regionId);
-
-  // Internals
 
   /// Blend a pulled community `.skt` accumulator into the swarm OVERLAY tree so
   /// its depth can surface in "Your Sky" — without ever touching the user's

@@ -170,8 +170,6 @@ class MqttTransport extends NotificationTransport {
   }
 }
 
-// Frame builders + reader
-
 enum _MqttPacketType { connack, puback, unknown }
 
 class _MqttPacket {

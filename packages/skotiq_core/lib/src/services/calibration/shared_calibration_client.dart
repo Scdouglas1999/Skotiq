@@ -199,8 +199,6 @@ class SharedCalibrationClient {
     return decoded;
   }
 
-  // Endpoints
-
   /// `GET /v1/calibration/masters` — ranked remote masters matching [context]'s
   /// sensor + capture tuple. The hub returns the coarse sensor-keyed set; the
   /// caller re-scores + applies the full quality gate. [masterType] optionally

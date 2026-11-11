@@ -26,8 +26,6 @@ class DarkLibraryService {
   DarkLibraryService(this._dao, {CalibrationMasterBuild? buildMaster})
     : _buildMaster = buildMaster;
 
-  // Registration
-
   /// Register a captured dark or bias frame in the library.
   ///
   /// [filePath] must point to an existing FITS/XISF file on disk.
@@ -65,8 +63,6 @@ class DarkLibraryService {
     );
   }
 
-  // Matching
-
   /// Find the best-matching dark or bias for a light frame's parameters.
   ///
   /// Matching rules:
@@ -101,8 +97,6 @@ class DarkLibraryService {
       frameType: frameType,
     );
   }
-
-  // Master dark creation
 
   /// Create a master dark by median-combining a list of raw dark frames.
   ///
@@ -188,10 +182,8 @@ class DarkLibraryService {
       _MedianCombineParams(pixelSets, imgWidth * imgHeight),
     );
 
-    // Write the master dark FITS file
     await _writeFitsFile(outputPath, masterPixels, imgWidth, imgHeight);
 
-    // Compute average temperature across input frames
     double? avgTemp;
     final temps = frames
         .where((f) => f.temperature != null)
@@ -200,7 +192,6 @@ class DarkLibraryService {
       avgTemp = temps.reduce((a, b) => a + b) / temps.length;
     }
 
-    // Register the master dark in the library
     return _dao.addEntry(
       DarkLibraryCompanion.insert(
         filePath: outputPath,
@@ -246,8 +237,6 @@ class DarkLibraryService {
     );
   }
 
-  // Dark subtraction
-
   /// Subtract a dark frame from a light frame, pixel by pixel.
   ///
   /// Both must have the same dimensions. Values are clamped to [0, 65535].
@@ -281,15 +270,10 @@ class DarkLibraryService {
     return _parseFitsPixels(bytes).pixels;
   }
 
-  // Library management
-
-  /// Get all entries in the library.
   Future<List<DarkLibraryEntry>> getAllEntries() => _dao.getAllEntries();
 
-  /// Watch all entries (reactive stream).
   Stream<List<DarkLibraryEntry>> watchAllEntries() => _dao.watchAllEntries();
 
-  /// Get distinct parameter groups present in the library.
   Future<List<DarkGroupKey>> getDistinctGroups() => _dao.getDistinctGroups();
 
   /// Get all raw frames matching specific parameters (for master dark creation).
@@ -315,7 +299,6 @@ class DarkLibraryService {
   Future<List<DarkLibraryEntry>> getEntriesForGroup(DarkGroupKey group) =>
       _dao.getEntriesForGroup(group);
 
-  /// Delete a single entry and optionally remove the file from disk.
   Future<void> deleteEntry(int id, {bool deleteFile = false}) async {
     if (deleteFile) {
       final entry = await _dao.getEntryById(id);
@@ -329,7 +312,6 @@ class DarkLibraryService {
     await _dao.deleteEntry(id);
   }
 
-  /// Delete multiple entries and optionally remove files from disk.
   Future<void> deleteEntries(List<int> ids, {bool deleteFile = false}) async {
     if (deleteFile) {
       for (final id in ids) {
@@ -345,7 +327,6 @@ class DarkLibraryService {
     await _dao.deleteEntries(ids);
   }
 
-  /// Delete all entries and optionally remove files from disk.
   Future<void> clearLibrary({bool deleteFiles = false}) async {
     if (deleteFiles) {
       final entries = await _dao.getAllEntries();
@@ -379,8 +360,6 @@ class DarkLibraryService {
 
     return orphanIds.length;
   }
-
-  // Private helpers
 
   Future<void> _deleteFileIfExists(String path) async {
     final file = File(path);
@@ -660,7 +639,6 @@ class DarkLibraryService {
       dataBytes[i * 2 + 1] = unsigned & 0xFF; // Big-endian low byte
     }
 
-    // Write file
     final file = File(path);
     await file.parent.create(recursive: true);
     final sink = file.openWrite();

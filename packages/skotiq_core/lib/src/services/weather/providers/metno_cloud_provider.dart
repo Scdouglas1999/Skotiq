@@ -17,7 +17,6 @@ import '../transient_http_retry.dart';
 /// REQUIRES an identifying User-Agent (403 without), so all requests carry
 /// [_userAgent].
 class MetNoCloudProvider extends RadarProvider {
-  /// HTTP client for API requests.
   final http.Client _httpClient;
 
   /// Compact Locationforecast endpoint (hourly near-term, 6-hourly out to ~9

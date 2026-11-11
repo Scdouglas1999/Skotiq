@@ -157,7 +157,6 @@ class HipsTileLoader extends ChangeNotifier {
   /// Monotonic snapshot version, surfaced via [HipsResidentSnapshot.version].
   int _snapshotVersion = 0;
 
-  /// The current published snapshot.
   HipsResidentSnapshot _snapshot = HipsResidentSnapshot.empty;
 
   /// Failures accumulated for the current generation (reset on a new recompute).
@@ -218,7 +217,6 @@ class HipsTileLoader extends ChangeNotifier {
   /// The current generation counter (diagnostics / tests).
   int get generation => _generation;
 
-  /// Whether a debounced recompute is currently pending.
   bool get hasPendingRecompute => _pendingTimer?.isActive ?? false;
 
   /// Requests tiles for [viewport], debouncing the recompute.
@@ -306,8 +304,6 @@ class HipsTileLoader extends ChangeNotifier {
     super.dispose();
   }
 
-  // Recompute orchestration
-
   /// Runs the recompute for [_pendingViewport]: opens a new generation,
   /// computes the visible set, republishes the resident snapshot
   /// immediately (so coarse fallbacks paint without waiting for the network),
@@ -327,7 +323,6 @@ class HipsTileLoader extends ChangeNotifier {
     final int gen = _generation;
     final HipsFetchToken token = _currentToken;
 
-    // Fresh failure ledger for this generation.
     _failures.clear();
 
     // C3: which tiles, where. This is pure/deterministic and cheap; any

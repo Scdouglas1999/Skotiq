@@ -38,7 +38,6 @@ class DefaultArtifactTransportFactory {
        _runner = runner,
        _freeSpace = freeSpace ?? SystemFreeSpaceProbe();
 
-  /// Build the transport for [destination].
   ArtifactTransport call(ArtifactDestination destination, int jobId) {
     switch (destination.kind) {
       case ArtifactDestinationKind.watchedFolder:

@@ -29,25 +29,21 @@ extension AnnotationSnrTracker on AnnotationService {
     final state = _ref.read(annotationStateProvider);
     if (state.isProcessing) return;
 
-    // Skip if SNR is too low
     if (currentSnr < _SnrAnnotationConstants.minimumSnrThreshold) return;
 
     // Skip if we don't have a previous annotation to build upon
     final currentAnnotation = _ref.read(currentAnnotationProvider);
     if (currentAnnotation == null || _lastPlateSolve == null) return;
 
-    // Check if enough time has passed since last annotation
     if (_lastAnnotationTime != null) {
       final elapsed = DateTime.now().difference(_lastAnnotationTime!);
       if (elapsed < _SnrAnnotationConstants.reAnnotationDebounce) return;
     }
 
-    // Update peak SNR tracking
     if (_peakAnnotationSnr == null || currentSnr > _peakAnnotationSnr!) {
       _peakAnnotationSnr = currentSnr;
     }
 
-    // Calculate new magnitude limit
     final newMagnitudeLimit = calculateSnrBasedMagnitudeLimit(currentSnr);
 
     // Check for SNR regression: if current SNR dropped >30% from peak,
@@ -70,7 +66,6 @@ extension AnnotationSnrTracker on AnnotationService {
       }
     }
 
-    // Check if SNR improved significantly
     if (_lastAnnotationSnr != null) {
       final snrRatio = currentSnr / _lastAnnotationSnr!;
       if (snrRatio < _SnrAnnotationConstants.snrImprovementThreshold) return;
@@ -79,7 +74,6 @@ extension AnnotationSnrTracker on AnnotationService {
       if (newMagnitudeLimit <= _currentSnrMagnitudeLimit + 0.5) return;
     }
 
-    // Calculate improvement percentage for the suggestion banner
     final improvementPercent =
         _lastAnnotationSnr != null && _lastAnnotationSnr! > 0
         ? ((currentSnr - _lastAnnotationSnr!) / _lastAnnotationSnr!) * 100.0
@@ -129,7 +123,6 @@ extension AnnotationSnrTracker on AnnotationService {
           settings?.visibleTypes.contains(AnnotationObjectFilter.stars) ??
           false;
 
-      // Search for additional objects with the new, higher magnitude limit
       final additionalObjects = await findObjectsInFov(
         plateSolve: plateSolve,
         includeStars: includeStars,
@@ -153,7 +146,6 @@ extension AnnotationSnrTracker on AnnotationService {
         return;
       }
 
-      // Add new object IDs to revealed set
       for (final obj in newObjects) {
         _revealedObjectIds.add(obj.id);
       }
@@ -163,7 +155,6 @@ extension AnnotationSnrTracker on AnnotationService {
         source: 'Annotation',
       );
 
-      // Merge new objects with existing annotation
       final mergedObjects = [...currentAnnotation.objects, ...newObjects];
 
       final updatedAnnotation = currentAnnotation.copyWith(
@@ -171,7 +162,6 @@ extension AnnotationSnrTracker on AnnotationService {
         timestamp: DateTime.now(),
       );
 
-      // Update state
       _lastAnnotationSnr = currentSnr;
       _lastAnnotationTime = DateTime.now();
       _currentSnrMagnitudeLimit = newMagnitudeLimit;
@@ -220,7 +210,6 @@ extension AnnotationSnrTracker on AnnotationService {
         return obj.magnitude! <= newMagnitudeLimit;
       }).toList();
 
-      // Rebuild revealed object set
       _revealedObjectIds.clear();
       for (final obj in filteredObjects) {
         _revealedObjectIds.add(obj.id);
@@ -237,7 +226,6 @@ extension AnnotationSnrTracker on AnnotationService {
         timestamp: DateTime.now(),
       );
 
-      // Update state
       _lastAnnotationSnr = currentSnr;
       _lastAnnotationTime = DateTime.now();
       _currentSnrMagnitudeLimit = newMagnitudeLimit;

@@ -195,7 +195,6 @@ extension _CenteringLoop on CenteringService {
     final mountState = _ref.read(mountStateProvider);
     final cameraState = _ref.read(cameraStateProvider);
 
-    // Validate mount and camera are connected
     if (mountState.connectionState != DeviceConnectionState.connected) {
       return CenteringResult.failure(
         errorMessage: 'Mount not connected',
@@ -293,7 +292,6 @@ extension _CenteringLoop on CenteringService {
     for (int iteration = 1; iteration <= config.maxIterations; iteration++) {
       if (_abortRequested) return _abortedResult(iteration - 1, iterations);
 
-      // Update status
       onStatusUpdate?.call(
         CenteringStatus(
           state: CenteringState.exposing,
@@ -512,7 +510,6 @@ extension _CenteringLoop on CenteringService {
           ),
         );
 
-        // Smart notification for centering completion
         final offsetArcmin = offset / 60.0;
         _ref
             .read(smartNotificationServiceProvider)

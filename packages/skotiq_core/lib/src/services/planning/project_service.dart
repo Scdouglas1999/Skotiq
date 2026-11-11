@@ -66,8 +66,6 @@ class ProjectService {
   static int _nowUnix() =>
       DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
 
-  // Project CRUD
-
   /// Create a new project. Sets `created_at` / `updated_at` to now, fires the
   /// change stream, and returns the new row id.
   Future<int> createProject({
@@ -148,8 +146,6 @@ class ProjectService {
     return row == null ? null : _rowToProject(row);
   }
 
-  // Membership
-
   /// Attach [targetId] to [projectId]. Idempotent: the `UNIQUE(project_id,
   /// target_id)` constraint plus `INSERT OR IGNORE` means re-adding an existing
   /// member is a no-op (the original `added_at` and any prior priority override
@@ -224,8 +220,6 @@ class ProjectService {
     return rows.map((r) => r.targetId).toList();
   }
 
-  // Progress derivation
-
   /// Build the project-scoped accrued-vs-remaining roll-up.
   ///
   /// For each member target this loads its name/RA/dec from `targets` and its
@@ -299,8 +293,6 @@ class ProjectService {
   /// a project, and add/remove/override of a membership). A UI invalidation
   /// hook — consumers re-run [listProjects] / [buildProgress] on each event.
   Stream<void> watchChanges() => _mutations.stream;
-
-  // Row mappers
 
   Project _rowToProject(db.ProjectRow row) {
     return Project.fromRow(

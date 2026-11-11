@@ -655,7 +655,6 @@ class SessionOptimizerService {
       );
     }
 
-    // -- Autofocus frequency ----------------------------------------------
     final wallHours = report.wallClockDuration.inSeconds / 3600.0;
     if (wallHours > 0.5) {
       final afRuns = report.mountStats.autofocusRuns;
@@ -733,7 +732,6 @@ class SessionOptimizerService {
       }
     }
 
-    // -- Rejection rate ---------------------------------------------------
     final attempted = report.totalFramesAttempted;
     if (attempted >= 10) {
       final rejected = report.totalFramesRejected;
@@ -761,7 +759,6 @@ class SessionOptimizerService {
       }
     }
 
-    // -- Guiding degraded --------------------------------------------------
     final gs = report.guideStats;
     final meanTotal = gs.meanRmsTotalArcsec;
     if (meanTotal != null && meanTotal >= thresholds.guidingDegradedArcsec) {
@@ -789,7 +786,6 @@ class SessionOptimizerService {
       );
     }
 
-    // -- Effective imaging fraction (efficiency) ---------------------------
     if (report.wallClockDuration.inMinutes >= 30) {
       final eff = report.effectiveImagingFraction;
       if (eff > 0 && eff < thresholds.efficiencyLowFraction) {

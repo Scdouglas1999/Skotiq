@@ -26,7 +26,6 @@ part 'profile_service/profile_export_data.dart';
 part 'profile_service/profile_service_types.dart';
 part 'profile_service/profile_backends.dart';
 
-/// Service for managing equipment profiles with auto-connect and import/export
 class ProfileService {
   final Ref _ref;
 
@@ -39,8 +38,6 @@ class ProfileService {
 
   EquipmentProfilesNotifier get _profilesNotifier =>
       _ref.read(equipmentProfilesProvider.notifier);
-
-  // Profile validation
 
   /// Validate that all devices in a profile are currently discoverable
   ///
@@ -55,11 +52,9 @@ class ProfileService {
       throw Exception('Profile not found');
     }
 
-    // Get the current discovery state
     final discoveryState = _ref.read(unifiedDiscoveryProvider);
     final rawDevices = discoveryState.rawDevices;
 
-    // Build set of discovered device IDs for fast lookup
     final discoveredIds = rawDevices.map((d) => d.id).toSet();
 
     final missingDevices = <String>[];
@@ -84,8 +79,6 @@ class ProfileService {
       missingDeviceIds: missingDeviceIds,
     );
   }
-
-  // Profile Loading with Auto-Connect
 
   /// Load and activate a profile, optionally connecting devices
   Future<void> loadProfile(int profileId, {bool autoConnect = false}) async {
@@ -193,9 +186,6 @@ class ProfileService {
     _requireAuthority(authority);
   }
 
-  // Profile Import/Export
-
-  /// Export a profile to JSON
   Future<String> exportProfileToJson(int profileId) async {
     final authority = _authority;
     final profile = await _getProfileModelById(profileId, authority: authority);
@@ -211,14 +201,12 @@ class ProfileService {
     return jsonEncode(profileExportEnvelope([exportData.toJson()]));
   }
 
-  /// Export a profile to a file
   Future<void> exportProfileToFile(int profileId, String filePath) async {
     final json = await exportProfileToJson(profileId);
     final file = File(filePath);
     await file.writeAsString(json);
   }
 
-  /// Export all profiles to JSON
   Future<String> exportAllProfilesToJson() async {
     final authority = _authority;
     final backend = authority.backend;
@@ -247,14 +235,12 @@ class ProfileService {
     );
   }
 
-  /// Export all profiles to a file
   Future<void> exportAllProfilesToFile(String filePath) async {
     final json = await exportAllProfilesToJson();
     final file = File(filePath);
     await file.writeAsString(json);
   }
 
-  /// Import a profile from JSON
   Future<int> importProfileFromJson(String json) async {
     final authority = _authority;
     final profiles = profilesFromExportDocument(json);
@@ -268,14 +254,12 @@ class ProfileService {
     return await _createProfileFromExport(exportData, authority: authority);
   }
 
-  /// Import a profile from a file
   Future<int> importProfileFromFile(String filePath) async {
     final file = File(filePath);
     final json = await file.readAsString();
     return await importProfileFromJson(json);
   }
 
-  /// Import all profiles from JSON (batch import)
   Future<List<int>> importAllProfilesFromJson(String json) async {
     final authority = _authority;
     final profilesData = profilesFromExportDocument(json);
@@ -305,16 +289,12 @@ class ProfileService {
     return ids;
   }
 
-  /// Import all profiles from a file
   Future<List<int>> importAllProfilesFromFile(String filePath) async {
     final file = File(filePath);
     final json = await file.readAsString();
     return await importAllProfilesFromJson(json);
   }
 
-  // Profile management
-
-  /// Create a new empty profile
   Future<int> createProfile(String name, {String? description}) async {
     final authority = _authority;
     if (authority.backend.remoteHost != null) {
@@ -338,7 +318,6 @@ class ProfileService {
     return id;
   }
 
-  /// Duplicate an existing profile
   Future<int> duplicateProfile(int sourceId, String newName) async {
     final authority = _authority;
     if (authority.backend.remoteHost != null) {
@@ -354,7 +333,6 @@ class ProfileService {
     return id;
   }
 
-  /// Delete a profile
   Future<void> deleteProfile(int profileId) async {
     final authority = _authority;
     if (authority.backend.remoteHost != null) {
@@ -391,7 +369,6 @@ class ProfileService {
     );
   }
 
-  /// Update profile optical configuration
   Future<void> updateProfileOptics(
     int profileId, {
     double? focalLength,
@@ -414,7 +391,6 @@ class ProfileService {
     );
   }
 
-  /// Update profile default camera settings
   Future<void> updateProfileCameraDefaults(
     int profileId, {
     int? defaultGain,
@@ -441,7 +417,6 @@ class ProfileService {
     );
   }
 
-  /// Update profile filter configuration
   Future<void> updateProfileFilters(
     int profileId, {
     List<String>? filterNames,
@@ -477,7 +452,6 @@ class ProfileService {
       return false;
     }
 
-    // Import the equipment provider to access filter wheel state
     final filterWheelState = _ref.read(filterWheelStateProvider);
 
     if (filterWheelState.connectionState != DeviceConnectionState.connected) {
@@ -562,7 +536,6 @@ class ProfileService {
   }
 }
 
-/// Provider for the profile service
 final profileServiceProvider = Provider<ProfileService>((ref) {
   return ProfileService(ref);
 });

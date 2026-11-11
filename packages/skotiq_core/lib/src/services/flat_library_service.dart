@@ -196,7 +196,6 @@ class FlatLibraryService {
   /// All registered master flats, newest first.
   Future<List<FlatLibraryEntry>> getAllEntries() => _dao.getAllEntries();
 
-  /// Delete an entry and optionally remove the FITS file from disk.
   Future<void> deleteEntry(int id, {bool deleteFile = false}) async {
     if (deleteFile) {
       final entry = await _dao.getEntryById(id);
@@ -219,7 +218,6 @@ class FlatMasterBuild {
   final BuildMasterFlatResult result;
 }
 
-/// Provider for the [FlatLibraryService].
 final flatLibraryServiceProvider = Provider<FlatLibraryService>((ref) {
   return FlatLibraryService(
     dao: ref.watch(flatLibraryDaoProvider),

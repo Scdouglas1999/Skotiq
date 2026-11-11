@@ -51,7 +51,6 @@ class DeliveryDestinationReport {
   /// The destination's operator-facing name, as the morning report prints it.
   final String name;
 
-  /// The transport it delivers over.
   final ArtifactDestinationKind kind;
 
   /// Files that arrived and verified on this pass.

@@ -8,10 +8,8 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
 import '../utils/skotiq_data_directory.dart';
 
-/// Log level for filtering
 enum LogLevel { debug, info, warning, error, critical }
 
-/// A log entry
 class LogEntry {
   final DateTime timestamp;
   final LogLevel level;
@@ -144,7 +142,6 @@ class LogEntry {
 /// both names.
 const String dartLogFileBaseName = 'skotiq-dart.log';
 
-/// Service for managing application logs
 class LoggingService {
   /// Fallback handed to [resolveSkotiqDataDirectory] when the operator
   /// has not relocated this instance. Null means "use path_provider" — the
@@ -230,13 +227,11 @@ class LoggingService {
       );
       _logDirectory = '${appDir.path}${Platform.pathSeparator}logs';
 
-      // Create logs directory
       final logsDir = Directory(_logDirectory!);
       if (!await logsDir.exists()) {
         await logsDir.create(recursive: true);
       }
 
-      // Initialize native logging with file output
       _nativeInitWithLogging(logDirectory: _logDirectory);
 
       _initialized = true;
@@ -276,10 +271,8 @@ class LoggingService {
     }
   }
 
-  /// Get the log directory path
   String? get logDirectory => _logDirectory;
 
-  /// Get the current log file path
   String? get currentLogFile => _initialized ? _currentLogFileProvider() : null;
 
   /// Path of today's Dart log file — the one [log] appends to — or null before
@@ -306,7 +299,6 @@ class LoggingService {
   /// subscriber's onData runs in its own microtask.
   Stream<LogEntry> get logEntryStream => _logEntryController.stream;
 
-  /// Log a message
   void log(
     LogLevel level,
     String message, {
@@ -325,7 +317,6 @@ class LoggingService {
       fields: fields,
     );
 
-    // Keep recent logs in memory
     _recentLogs.add(entry);
     if (_recentLogs.length > _maxRecentLogs) {
       _recentLogs.removeAt(0);
@@ -429,7 +420,6 @@ class LoggingService {
     }
   }
 
-  /// Convenience methods
   void debug(String message, {String? source, Map<String, Object?>? fields}) =>
       log(LogLevel.debug, message, source: source, fields: fields);
   void info(String message, {String? source, Map<String, Object?>? fields}) =>
@@ -447,7 +437,6 @@ class LoggingService {
     Map<String, Object?>? fields,
   }) => log(LogLevel.critical, message, source: source, fields: fields);
 
-  /// Get recent logs from memory
   List<LogEntry> getRecentLogs({LogLevel? minLevel}) {
     if (minLevel == null) return List.from(_recentLogs);
     return _recentLogs.where((e) => e.level.index >= minLevel.index).toList();
@@ -503,7 +492,6 @@ class LoggingService {
     return '${d.inHours} hours';
   }
 
-  /// Read a specific log file
   Future<String> readLogFile(String path) async {
     try {
       final file = File(path);
@@ -556,7 +544,6 @@ class LoggingService {
         output.writeln(entry.toString());
       }
 
-      // Write to output file
       final file = File(outputPath);
       await file.writeAsString(output.toString());
 
@@ -861,7 +848,6 @@ class ClearLogsResult {
   };
 }
 
-/// Provider for the logging service
 final loggingServiceProvider = Provider<LoggingService>((ref) {
   final service = LoggingService();
   unawaited(service.ensureInitialized());

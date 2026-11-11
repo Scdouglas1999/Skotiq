@@ -18,30 +18,23 @@ class _LocationContext {
   });
 }
 
-/// Timing information for a single sequence node
 class NodeTiming {
-  /// Unique identifier of the node
   final String nodeId;
 
-  /// Display name of the node
   final String nodeName;
 
   /// Type identifier of the node (e.g., 'TakeExposure', 'Autofocus')
   final String nodeType;
 
-  /// Estimated start time of this node
   final DateTime estimatedStart;
 
-  /// Estimated end time of this node
   final DateTime estimatedEnd;
 
-  /// Estimated duration of this node
   final Duration duration;
 
   /// Warning messages for timing conflicts (e.g., target below horizon)
   final List<String>? warnings;
 
-  /// ID of the parent target header node, if any
   final String? targetHeaderId;
 
   /// The node runs until it is stopped and nothing in the estimate bounds
@@ -85,12 +78,10 @@ class NodeTiming {
   }
 }
 
-/// Visibility window information for a target
 class TargetWindow {
   /// Database ID of the target (from TargetHeaderNode)
   final String targetId;
 
-  /// Display name of the target
   final String targetName;
 
   /// Time when the target rises above the minimum altitude

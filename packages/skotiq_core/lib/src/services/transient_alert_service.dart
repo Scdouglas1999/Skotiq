@@ -56,16 +56,13 @@ class _TnsObjectOutcome {
 /// final alerts = await service.getAllAlerts(settings);
 /// ```
 class TransientAlertService {
-  /// HTTP client for making API requests.
   final http.Client _httpClient;
 
   /// Logging service for error and debug logging.
   final LoggingService _logger;
 
-  /// Cached alerts from the last fetch.
   List<TransientAlert>? _cachedAlerts;
 
-  /// Expiration time of the current cache.
   DateTime? _cacheExpiry;
 
   /// The enabled upstreams and TNS bot identity the cache was populated from.
@@ -155,7 +152,6 @@ class TransientAlertService {
   /// Parses Dec string in DMS format (e.g., "+23:45:12.3") to degrees.
   double? _parseDecString(String decStr) {
     try {
-      // Handle sign
       final trimmed = decStr.trim();
       final isNegative = trimmed.startsWith('-');
       final cleanStr = trimmed.replaceFirst('+', '').replaceFirst('-', '');
@@ -197,7 +193,6 @@ class TransientAlertService {
   int _calculatePriority(TransientType type, double? magnitude) {
     int basePriority;
 
-    // Type-based priority
     switch (type) {
       case TransientType.supernova:
         basePriority = 1;
@@ -576,7 +571,6 @@ class TransientAlertService {
       tnsBotName: tnsBotName,
       tnsUseSandbox: tnsUseSandbox,
     );
-    // Check cache first
     if (isCacheValid &&
         _cachedAlerts != null &&
         _cacheFetchSignature == fetchSignature) {
@@ -639,7 +633,6 @@ class TransientAlertService {
       );
     }
 
-    // Combine all alerts
     final allAlerts = <TransientAlert>[];
     for (final result in successes) {
       allAlerts.addAll(result.alerts!);
@@ -656,7 +649,6 @@ class TransientAlertService {
       }
     }
 
-    // Update cache
     _cachedAlerts = deduplicatedAlerts;
     _cacheExpiry = DateTime.now().add(_cacheTtl);
     _cacheFetchSignature = fetchSignature;
@@ -699,13 +691,11 @@ class TransientAlertService {
         '${settings.tnsApiKey?.trim() ?? ''}';
   }
 
-  /// Filters alerts based on user settings.
   List<TransientAlert> _filterAlerts(
     List<TransientAlert> alerts,
     TransientAlertSettings settings,
   ) {
     var filtered = alerts.where((alert) {
-      // Filter by type
       if (!settings.typesToMonitor.contains(alert.type)) {
         return false;
       }
@@ -716,7 +706,6 @@ class TransientAlertService {
         return false;
       }
 
-      // Filter by source
       if (!settings.enabledSources.contains(alert.source)) {
         return false;
       }
@@ -757,7 +746,6 @@ class TransientAlertService {
       return false;
     }
 
-    // Check magnitude threshold (if magnitude is known)
     if (alert.magnitude != null) {
       // Alert must be brighter than (less than) the threshold
       if (alert.magnitude! > settings.magnitudeThreshold) {
@@ -769,7 +757,6 @@ class TransientAlertService {
     if (settings.autoQueueBright) {
       if (alert.magnitude != null &&
           alert.magnitude! <= settings.autoQueueMagnitude) {
-        // This is a bright transient that should be auto-queued
         return true;
       }
     }
@@ -788,7 +775,6 @@ class TransientAlertService {
   }
 }
 
-/// Provider for the transient alert service.
 final transientAlertServiceProvider = Provider<TransientAlertService>((ref) {
   final logger = ref.watch(loggingServiceProvider);
   final service = TransientAlertService(

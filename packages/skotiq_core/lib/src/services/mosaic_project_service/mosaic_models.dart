@@ -16,7 +16,6 @@ typedef MosaicCaptureLauncher =
 /// capture run — everything the launcher needs to build a per-panel-target
 /// mosaic sequence without re-reading the DB.
 class MosaicCaptureRequest {
-  /// The project being launched.
   final MosaicProject project;
 
   /// The project's panels, ordered by `panel_index`.

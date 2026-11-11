@@ -191,7 +191,6 @@ String _sentence(String message) {
   return body.endsWith('.') ? body : '$body.';
 }
 
-/// Data class for profile import/export
 class ProfileExportData {
   final String name;
   final String? description;

@@ -4,7 +4,6 @@ import 'package:uuid/uuid.dart';
 import 'package:skotiq_astro/skotiq_astro.dart'
     show mosaicPanelCenters;
 
-/// Result of mosaic panel generation
 class MosaicPanel {
   final double raHours;
   final double decDegrees;
@@ -25,7 +24,6 @@ class MosaicPanel {
       'Panel $panelIndex [$row,$col]: RA=${raHours.toStringAsFixed(4)}h, Dec=${decDegrees.toStringAsFixed(4)}°';
 }
 
-/// Configuration for generating a mosaic
 class MosaicConfig {
   final double centerRa;
   final double centerDec;
@@ -180,7 +178,6 @@ class MosaicExposureSettings {
         ];
 }
 
-/// Options for mosaic sequence generation
 class MosaicSequenceOptions {
   /// Use serpentine (snake) ordering to minimize slew distance
   final bool serpentineOrdering;
@@ -218,7 +215,6 @@ class MosaicSequenceOptions {
   });
 }
 
-/// Validation result for a mosaic configuration
 class MosaicValidation {
   final bool isValid;
   final List<String> errors;
@@ -233,11 +229,9 @@ class MosaicValidation {
   bool get hasWarnings => warnings.isNotEmpty;
 }
 
-/// Service for generating and managing mosaics
 class MosaicService {
   const MosaicService();
 
-  /// Convert int binning to BinningMode enum
   BinningMode _intToBinningMode(int binning) {
     switch (binning) {
       case 1:
@@ -325,12 +319,10 @@ class MosaicService {
     return config.totalPanels * totalTimePerPanel;
   }
 
-  /// Validate mosaic configuration
   MosaicValidation validateMosaic(MosaicConfig config) {
     final errors = <String>[];
     final warnings = <String>[];
 
-    // Validate panel dimensions
     if (config.panelWidthArcmin <= 0 || config.panelHeightArcmin <= 0) {
       errors.add('Panel dimensions must be positive');
     }
@@ -340,7 +332,6 @@ class MosaicService {
       errors.add('Panel dimensions exceed 360 degrees');
     }
 
-    // Validate grid size
     if (config.panelsHorizontal < 1 || config.panelsVertical < 1) {
       errors.add('Grid size must be at least 1x1');
     }
@@ -351,7 +342,6 @@ class MosaicService {
       );
     }
 
-    // Validate coordinates
     if (config.centerRa < 0 || config.centerRa >= 24) {
       errors.add('Right Ascension must be between 0 and 24 hours');
     }
@@ -360,7 +350,6 @@ class MosaicService {
       errors.add('Declination must be between -90 and 90 degrees');
     }
 
-    // Validate overlap
     if (config.overlapPercent < 0 || config.overlapPercent > 100) {
       errors.add('Overlap must be between 0 and 100 percent');
     }
@@ -373,7 +362,6 @@ class MosaicService {
       warnings.add('High overlap (>50%) wastes imaging time');
     }
 
-    // Check total panel count
     if (config.totalPanels > 100) {
       warnings.add(
         'More than 100 panels will take multiple nights to complete',
@@ -442,7 +430,6 @@ class MosaicService {
         ? _applySerpentineOrdering(panels, config.panelsHorizontal)
         : panels;
 
-    // Create target group nodes for each panel
     final targetGroupIds = <String>[];
 
     for (var i = 0; i < orderedPanels.length; i++) {
@@ -450,7 +437,6 @@ class MosaicService {
       final targetGroupId = uuid.v4();
       final childIds = <String>[];
 
-      // Add autofocus if enabled and at the right interval
       if (options.autofocusPerPanel &&
           (options.autofocusInterval == 0 ||
               i % (options.autofocusInterval + 1) == 0)) {
@@ -464,7 +450,6 @@ class MosaicService {
         );
       }
 
-      // Add slew instruction
       final slewId = uuid.v4();
       childIds.add(slewId);
       nodes[slewId] = SlewNode(
@@ -477,7 +462,6 @@ class MosaicService {
         orderIndex: childIds.length - 1,
       );
 
-      // Add centering if enabled
       if (options.centerAfterSlew) {
         final centerId = uuid.v4();
         childIds.add(centerId);
@@ -500,7 +484,6 @@ class MosaicService {
         childIds.add(loopId);
         final loopOrderIndex = childIds.length - 1;
 
-        // Create exposure node
         final exposureId = uuid.v4();
         final exposureChildIds = <String>[exposureId];
 
@@ -548,7 +531,6 @@ class MosaicService {
         );
       }
 
-      // Create target header
       nodes[targetGroupId] = TargetHeaderNode(
         id: targetGroupId,
         name: 'Panel ${panel.panelIndex + 1} [${panel.row},${panel.col}]',
@@ -577,7 +559,6 @@ class MosaicService {
       targetGroupIds.add(targetGroupId);
     }
 
-    // Create root instruction set containing all target groups
     nodes[rootId] = InstructionSetNode(
       id: rootId,
       name: mosaicName,
@@ -598,13 +579,11 @@ class MosaicService {
     List<MosaicPanel> panels,
     int panelsHorizontal,
   ) {
-    // Group panels by row
     final rowMap = <int, List<MosaicPanel>>{};
     for (final panel in panels) {
       rowMap.putIfAbsent(panel.row, () => []).add(panel);
     }
 
-    // Sort each row by column
     for (final row in rowMap.values) {
       row.sort((a, b) => a.col.compareTo(b.col));
     }
@@ -617,7 +596,6 @@ class MosaicService {
       final row = sortedRows[i];
       final rowPanels = rowMap[row]!;
 
-      // Reverse every other row
       if (i.isOdd) {
         result.addAll(rowPanels.reversed);
       } else {

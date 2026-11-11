@@ -177,8 +177,6 @@ class PhotometricCatalogService {
     );
   }
 
-  // ── APASS (cache + online) ────────────────────────────────────────────
-
   Future<List<PhotometricCatalogStar>?> _apassCone({
     required double raDegrees,
     required double decDegrees,
@@ -392,8 +390,6 @@ class PhotometricCatalogService {
     return stars;
   }
 
-  // ── HYG fallback ──────────────────────────────────────────────────────
-
   Future<List<PhotometricCatalogStar>> _hygCone({
     required double raDegrees,
     required double decDegrees,
@@ -460,8 +456,6 @@ class PhotometricCatalogService {
     }
     return baseBv + 0.06 * (subtype / 10.0);
   }
-
-  // ── Cache ─────────────────────────────────────────────────────────────
 
   Future<Directory> _cacheDirectory() async {
     final base = await resolveSkotiqDataDirectory();

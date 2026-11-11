@@ -628,7 +628,6 @@ class SessionReportService {
     );
     buf.writeln();
 
-    // Conditions.
     if (report.avgTemperatureC != null ||
         report.avgHumidityPercent != null ||
         report.avgSeeingArcsec != null) {
@@ -652,7 +651,6 @@ class SessionReportService {
       buf.writeln();
     }
 
-    // Mount + operations stats.
     buf.writeln('## Mount / operations');
     buf.writeln();
     buf.writeln('- Autofocus runs: ${report.mountStats.autofocusRuns}');
@@ -661,7 +659,6 @@ class SessionReportService {
     buf.writeln('- Trigger fires: ${report.mountStats.triggerFires}');
     buf.writeln();
 
-    // Guide stats.
     buf.writeln('## Guiding');
     buf.writeln();
     final gs = report.guideStats;
@@ -692,7 +689,6 @@ class SessionReportService {
     }
     buf.writeln();
 
-    // Per-target / per-filter breakdown.
     if (report.targets.isEmpty) {
       buf.writeln('## Targets');
       buf.writeln();

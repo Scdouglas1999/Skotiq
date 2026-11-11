@@ -96,7 +96,6 @@ class CampaignRollupService {
           ),
         )
         .toList(growable: false);
-    // Sorted descending so the most recent session is at the top.
     sessionRefs.sort((a, b) => b.startTime.compareTo(a.startTime));
 
     DateTime? firstAt;

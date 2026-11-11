@@ -63,7 +63,6 @@ class CoImagingBatonScheduler {
     unawaited(_tick());
   }
 
-  /// Stop the periodic tick.
   void stop() {
     _timer?.cancel();
     _timer = null;

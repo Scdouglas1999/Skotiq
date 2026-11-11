@@ -18,7 +18,6 @@ import 'dart:io';
 
 /// One finished external-command run.
 class SftpCommandResult {
-  /// Process exit status.
   final int exitCode;
 
   /// Everything the command wrote to stdout, decoded with the system

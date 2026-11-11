@@ -9,7 +9,6 @@ import '../providers/backend_provider.dart';
 import '../services/logging_service.dart';
 import '../backend/remote_host.dart';
 
-/// Configuration for the live stacking engine.
 class LiveStackingConfig {
   /// Whether sigma clipping is enabled for pixel rejection.
   final bool sigmaClipEnabled;
@@ -121,7 +120,6 @@ class LiveStackingConfig {
   );
 }
 
-/// Statistics about the current stacking session.
 class LiveStackingStats {
   final int stackedFrameCount;
   final int totalFramesAttempted;
@@ -166,7 +164,6 @@ class LiveStackingFrameRejected implements Exception {
   String toString() => reason;
 }
 
-/// Result from adding a frame to the live stack.
 class LiveStackingResult {
   final int width;
   final int height;
@@ -641,7 +638,6 @@ class LiveStackingService {
     );
   }
 
-  /// Get the current stacking statistics.
   Future<LiveStackingStats> getStats() async {
     final remote = _remote;
     if (remote != null) {
@@ -673,10 +669,8 @@ class LiveStackingService {
     await bridge.apiStackingStop();
   }
 
-  /// Check if live stacking is currently active.
   bool get isActive => bridge.apiStackingIsActive();
 
-  /// Get the current frame count.
   int get frameCount => bridge.apiStackingFrameCount();
 
   LiveStackingStats _convertStats(bridge.ApiLiveStackingStats bridgeStats) {
@@ -701,7 +695,6 @@ class LiveStackingService {
   }
 }
 
-/// Provider for the LiveStackingService.
 final liveStackingServiceProvider = Provider<LiveStackingService>((ref) {
   final backend = ref.watch(backendProvider);
   return LiveStackingService(ref, backend: backend);

@@ -58,7 +58,6 @@ class SequenceVersionSummary {
   });
 }
 
-/// Repository for saving and loading sequences from the database
 class SequenceRepository {
   final SequencesDao? _dao;
   final SequenceRunsDao? _runsDao;
@@ -169,8 +168,6 @@ class SequenceRepository {
     return map;
   }
 
-  /// Save a sequence to the database
-  /// Returns the database ID of the saved sequence
   Future<int> saveSequence(Sequence sequence, {bool isTemplate = false}) async {
     if (_isRemote) {
       return _remote!.saveFullSequence(
@@ -184,18 +181,15 @@ class SequenceRepository {
     final existingId = sequence.databaseId;
 
     if (existingId != null) {
-      // Update existing sequence
       await _updateSequence(existingId, sequence, isTemplate);
       return existingId;
     } else {
-      // Create new sequence
       return await _createSequence(sequence, isTemplate);
     }
   }
 
   Future<int> _createSequence(Sequence sequence, bool isTemplate) async {
     final dao = _dao!;
-    // Create the sequence record
     final sequenceId = await dao.createSequence(
       db.SequencesCompanion.insert(
         name: sequence.name,
@@ -206,7 +200,6 @@ class SequenceRepository {
       ),
     );
 
-    // Save all nodes
     await _saveNodes(sequenceId, sequence.nodes);
 
     return sequenceId;
@@ -353,7 +346,6 @@ class SequenceRepository {
     };
   }
 
-  /// Load a sequence from the database
   Future<Sequence?> loadSequence(int sequenceId) async {
     if (_isRemote) {
       final map = await _remote!.getFullSequence(sequenceId);
@@ -367,7 +359,6 @@ class SequenceRepository {
 
     final dbNodes = await _dao.getNodesForSequence(sequenceId);
 
-    // Convert database nodes to model nodes
     final nodes = <String, SequenceNode>{};
     for (final dbNode in dbNodes) {
       final node = _dbNodeToModel(dbNode);
@@ -380,7 +371,6 @@ class SequenceRepository {
       nodes[node.id] = node;
     }
 
-    // Build child relationships
     for (final dbNode in dbNodes) {
       if (dbNode.parentNodeId != null &&
           nodes.containsKey(dbNode.parentNodeId)) {
@@ -403,7 +393,6 @@ class SequenceRepository {
     );
   }
 
-  /// Load all sequences from the database
   Future<List<Sequence>> loadAllSequences() async {
     if (_isRemote) {
       final maps = await _remote!.listFullSequences();
@@ -425,7 +414,6 @@ class SequenceRepository {
     return sequences;
   }
 
-  /// Load all templates from the database
   Future<List<Sequence>> loadAllTemplates() async {
     if (_isRemote) {
       final maps = await _remote!.listFullTemplates();
@@ -705,7 +693,6 @@ class SequenceRepository {
     return restored.copyWith(databaseId: version.sequenceId);
   }
 
-  /// Delete a sequence from the database
   Future<void> deleteSequence(int sequenceId) async {
     if (_isRemote) {
       await _remote!.deleteSequence(sequenceId);
@@ -724,7 +711,6 @@ class SequenceRepository {
       return loadSequence(newId);
     }
 
-    // Load the source sequence with its full node tree
     final source = await loadSequence(sequenceId);
     if (source == null) {
       throw Exception('Sequence $sequenceId not found');
@@ -732,18 +718,15 @@ class SequenceRepository {
 
     const uuid = Uuid();
 
-    // Build a mapping from old node ID to new node ID
     final idMapping = <String, String>{};
     for (final oldId in source.nodes.keys) {
       idMapping[oldId] = uuid.v4();
     }
 
-    // Remap the root node ID
     final newRootNodeId = source.rootNodeId != null
         ? idMapping[source.rootNodeId] ?? source.rootNodeId
         : null;
 
-    // Rebuild nodes with new IDs, remapping parent and child references
     final newNodes = <String, SequenceNode>{};
     for (final entry in source.nodes.entries) {
       final oldNode = entry.value;
@@ -763,7 +746,6 @@ class SequenceRepository {
       newNodes[newId] = remappedNode;
     }
 
-    // Create a new sequence with the remapped nodes
     final duplicated = Sequence(
       id: uuid.v4(),
       name: newName,
@@ -808,7 +790,6 @@ class SequenceRepository {
   }
 }
 
-/// Provider for the sequence repository
 final sequenceRepositoryProvider = Provider<SequenceRepository>((ref) {
   final backend = ref.watch(backendProvider);
   final host = backend.remoteHost?.sequences;

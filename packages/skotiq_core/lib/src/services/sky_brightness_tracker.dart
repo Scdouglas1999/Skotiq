@@ -12,7 +12,6 @@ class SkyBrightnessTracker {
   /// the sky-brightness range seen across a normal unattended night.
   static const _maxSummarySampleAge = Duration(hours: 12);
 
-  /// Minimum samples needed for rate calculation
   static const _minSamples = 2;
 
   /// Calibration anchor for converting ADU/sec to
@@ -87,7 +86,6 @@ class SkyBrightnessTracker {
     return mags;
   }
 
-  /// Add a brightness measurement
   void addSample({
     required double adu,
     required double exposureTime,
@@ -174,7 +172,6 @@ class SkyBrightnessTracker {
     return midpointAduPerSec * exposureTime;
   }
 
-  /// Calculate optimal exposure to achieve target ADU
   double? calculateOptimalExposure({
     required double targetAdu,
     required double minExposure,
@@ -206,11 +203,9 @@ class SkyBrightnessTracker {
 
       if (predictedAdu == null || predictedAdu <= 0) break;
 
-      // Adjust exposure
       final ratio = targetAdu / predictedAdu;
       exposure = (exposure * ratio).clamp(minExposure, maxExposure);
 
-      // Check convergence
       if ((ratio - 1.0).abs() < 0.02) break;
     }
 
@@ -224,10 +219,8 @@ class SkyBrightnessTracker {
     return rate > 0;
   }
 
-  /// Get number of samples
   int get sampleCount => _recentSamples().length;
 
-  /// Clear all samples
   void clear() => _samples.clear();
 }
 

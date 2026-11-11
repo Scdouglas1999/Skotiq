@@ -50,7 +50,6 @@ class CenteringSlewTimeoutException implements Exception {
   }
 }
 
-/// Result of a centering operation
 class CenteringResult {
   final bool success;
   final double? finalOffsetArcsec;
@@ -95,7 +94,6 @@ class CenteringResult {
   }
 }
 
-/// Single iteration of the centering process
 class CenteringIteration {
   final int iterationNumber;
   final double? solvedRa;
@@ -122,9 +120,7 @@ class CenteringIteration {
   });
 }
 
-/// Configuration for centering operation
 class CenteringConfig {
-  /// Maximum number of centering iterations
   final int maxIterations;
 
   /// Tolerance in arcseconds - centering succeeds if offset is below this
@@ -133,7 +129,6 @@ class CenteringConfig {
   /// Exposure time for centering images in seconds
   final double exposureTime;
 
-  /// Binning to use for centering images
   final int binning;
 
   /// Gain to use for centering images. When omitted, the current imaging gain
@@ -168,7 +163,6 @@ class CenteringConfig {
   });
 }
 
-/// Current state of centering operation
 enum CenteringState {
   idle,
   exposing,
@@ -179,7 +173,6 @@ enum CenteringState {
   error,
 }
 
-/// Status information during centering
 class CenteringStatus {
   final CenteringState state;
   final int currentIteration;
@@ -189,7 +182,6 @@ class CenteringStatus {
   final String? message;
   final List<CenteringIteration> iterationHistory;
 
-  /// Path to the most recently captured centering image
   final String? lastImagePath;
 
   /// Solved RA of the most recent plate solve (hours)

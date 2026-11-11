@@ -258,8 +258,6 @@ class TransientSubmissionService {
     );
   }
 
-  // ── reply parsing ──────────────────────────────────────────────────────────
-
   Map<String, dynamic>? _tryDecode(String body) {
     try {
       final decoded = jsonDecode(body);

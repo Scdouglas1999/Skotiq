@@ -32,7 +32,6 @@ class NotificationMessage {
   }) : severity = severity ?? category.defaultSeverity;
 }
 
-/// Common contract for every notification transport.
 abstract class NotificationTransport {
   /// Which transport kind this implementation handles. Used by the
   /// router to pick the right instance for a given routing rule.

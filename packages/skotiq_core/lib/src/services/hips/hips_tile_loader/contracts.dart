@@ -96,7 +96,6 @@ class HipsTileFailure {
   /// The tile (or Allsky pseudo-id) that failed.
   final HipsTileId id;
 
-  /// The surfaced fetch exception.
   final HipsFetchException error;
 
   const HipsTileFailure(this.id, this.error);
@@ -254,7 +253,6 @@ abstract class HipsLoaderClock {
 /// Public so the C7 [hipsLoaderClockProvider] can resolve it as the production
 /// default while tests override that provider with a manually-advanced clock.
 class HipsRealLoaderClock implements HipsLoaderClock {
-  /// Creates the production timer-backed clock.
   const HipsRealLoaderClock();
 
   @override

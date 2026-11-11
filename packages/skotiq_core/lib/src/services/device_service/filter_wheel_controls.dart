@@ -1,8 +1,6 @@
 part of '../device_service.dart';
 
 extension _DeviceServiceFilterWheelControls on DeviceService {
-  // Filter wheel control
-
   /// Get the connected filter wheel device ID. An active profile is connection
   /// intent, not permission to command disconnected hardware.
   Future<String?> _getFilterWheelDeviceId() async =>
@@ -57,7 +55,6 @@ extension _DeviceServiceFilterWheelControls on DeviceService {
     final filterWheelNotifier = _ref.read(filterWheelStateProvider.notifier);
     final operationsNotifier = _ref.read(activeOperationsProvider.notifier);
 
-    // Get filter name for display
     final filterWheelState = _ref.read(filterWheelStateProvider);
     final filterNames = filterWheelState.filterNames;
     final filterName = position >= 0 && position < filterNames.length
@@ -100,7 +97,6 @@ extension _DeviceServiceFilterWheelControls on DeviceService {
         throw RangeError.range(position, 0, positionCount - 1, 'position');
       }
 
-      // Move the filter wheel
       _ref
           .read(loggingServiceProvider)
           .debug(

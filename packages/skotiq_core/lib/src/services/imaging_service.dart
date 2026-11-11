@@ -68,7 +68,6 @@ class ImagingService {
   final BackendNotifier _backendOwner;
   final LoggingService _logger;
 
-  // Capture state
   bool _isCapturing = false;
   bool _cancelRequested = false;
   bool _retired = false;
@@ -282,7 +281,6 @@ class ImagingService {
     }
   }
 
-  /// Cancel the current exposure
   void cancelExposure() {
     _cancelRequested = true;
     // Interrupt an in-flight single capture. Setting the flag alone only
@@ -363,7 +361,6 @@ class ImagingService {
     return true;
   }
 
-  /// Check if currently capturing
   bool get isCapturing => _isCapturing;
 
   /// All naming-pattern variables this service recognises.
@@ -635,7 +632,6 @@ class ImagingService {
   }
 }
 
-/// Provider for the imaging service
 final imagingServiceProvider = Provider<ImagingService>((ref) {
   // Capture is backend-owned. Rebuild the service when the active host
   // changes so callers can use service identity as an authority boundary.
@@ -645,7 +641,6 @@ final imagingServiceProvider = Provider<ImagingService>((ref) {
   return service;
 });
 
-/// Provider for the current displayed image
 final currentImageProvider = StateProvider<CapturedImageData?>((ref) => null);
 
 /// Whether the currently displayed image has been auto-calibrated.
@@ -692,13 +687,11 @@ List<int> histogram256FromRawU16(Uint16List raw) {
   return bins;
 }
 
-/// Provider for exposure progress
 final exposureProgressProvider =
     StateNotifierProvider<ExposureProgressNotifier, ExposureProgress>((ref) {
       return ExposureProgressNotifier();
     });
 
-/// Exposure progress notifier
 class ExposureProgressNotifier extends StateNotifier<ExposureProgress> {
   ExposureProgressNotifier() : super(ExposureProgress.idle());
 

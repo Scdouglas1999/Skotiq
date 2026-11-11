@@ -107,7 +107,6 @@ class SequenceFileService {
       throw SequenceValidationFailedException(issues);
     }
 
-    // Prepare JSON
     final json = sequenceToMap(sequence);
     final jsonString = const JsonEncoder.withIndent('  ').convert(json);
 
@@ -126,7 +125,6 @@ class SequenceFileService {
 
     if (target == null) return null;
 
-    // Write file
     final file = File(target.path);
     await file.writeAsString(jsonString);
     // Marking-saved is the caller's responsibility — the editor notifier
@@ -141,7 +139,6 @@ class SequenceFileService {
 
   /// Import a sequence from a JSON file
   Future<Sequence?> importSequence() async {
-    // Show open dialog
     final file = await file_selector.openFile(
       initialDirectory: _initialDirectoryOrNull,
       acceptedTypeGroups: [

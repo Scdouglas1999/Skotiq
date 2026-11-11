@@ -201,7 +201,6 @@ class _TonightSuggestionScorer {
         continue;
       }
 
-      // Skip targets below minimum score
       if (score.totalScore < config.minScore) {
         continue;
       }
@@ -218,7 +217,6 @@ class _TonightSuggestionScorer {
         continue;
       }
 
-      // Filter by preferred object types if specified
       if (config.preferredObjectTypes.isNotEmpty) {
         final objectType = target.objectType?.toLowerCase() ?? '';
         final matches = config.preferredObjectTypes.any(
@@ -229,10 +227,8 @@ class _TonightSuggestionScorer {
         }
       }
 
-      // Calculate data progress
       final dataProgress = _calculateDataProgress(target.id, target, sessions);
 
-      // Compute framing fit score and adjusted total score
       double adjustedTotalScore = score.totalScore;
       double? framingFitScore;
       final tags = <String>[];
@@ -256,7 +252,6 @@ class _TonightSuggestionScorer {
         }
       }
 
-      // Generate human-readable reasoning
       final reasoning = _generateNightReasoning(
         score,
         dataProgress,
@@ -267,7 +262,6 @@ class _TonightSuggestionScorer {
         fovShortAxisArcmin: fovShortAxisArcmin,
       );
 
-      // Build score breakdown map
       final scoreBreakdown = <String, double>{
         'altitude': score.altitudeScore,
         'moonDistance': score.moonDistanceScore,
@@ -299,18 +293,15 @@ class _TonightSuggestionScorer {
       suggestions.add(suggestion);
     }
 
-    // Sort by configured mode
     _sortSuggestions(suggestions, config.sortMode, config.prioritizeIncomplete);
 
     return suggestions;
   }
 
-  /// Convert a database Target to a CelestialObject for scoring.
   CelestialObject _targetToCelestialObject(Target target) {
     // Target.ra is in decimal hours, Target.dec is in decimal degrees
     final coordinate = CelestialCoordinate(ra: target.ra, dec: target.dec);
 
-    // Determine DSO type from object type string
     final dsoType = _parseDsoType(target.objectType);
 
     return DeepSkyObject(
@@ -325,7 +316,6 @@ class _TonightSuggestionScorer {
     );
   }
 
-  /// Parse object type string to DsoType enum.
   DsoType _parseDsoType(String? objectType) {
     if (objectType == null || objectType.isEmpty) {
       return DsoType.other;
@@ -361,7 +351,6 @@ class _TonightSuggestionScorer {
     Target target,
     List<ImagingSession> sessions,
   ) {
-    // Sum total integration time from all sessions for this target
     double totalIntegrationSecs = 0;
     for (final session in sessions) {
       if (session.targetId == targetId) {
@@ -372,7 +361,6 @@ class _TonightSuggestionScorer {
     // Also include any integration time already stored on the target itself
     totalIntegrationSecs += target.totalIntegrationSecs;
 
-    // Calculate expected total integration time
     final plannedSubs = target.totalPlannedSubs;
     if (plannedSubs <= 0) {
       // If no planned subs, we can't calculate progress
@@ -387,7 +375,6 @@ class _TonightSuggestionScorer {
     final expectedTotalSecs = plannedSubs * _typicalExposureSecs;
     final progress = totalIntegrationSecs / expectedTotalSecs;
 
-    // Clamp to 0-1 range
     return progress.clamp(0.0, 1.0);
   }
 
@@ -481,7 +468,6 @@ class _TonightSuggestionScorer {
     return null;
   }
 
-  /// Generate a human-readable reasoning string for the night-based suggestion.
   String _generateNightReasoning(
     TargetScore score,
     double dataProgress,
@@ -493,7 +479,6 @@ class _TonightSuggestionScorer {
   }) {
     final parts = <String>[];
 
-    // Peak altitude assessment
     final peakAlt =
         score.visibility.peakAltitude ?? score.visibility.currentAltitude;
     if (peakAlt >= 60) {
@@ -535,13 +520,11 @@ class _TonightSuggestionScorer {
       }
     }
 
-    // Build first sentence
     var reasoning = parts.join(', ');
     if (reasoning.isNotEmpty) {
       reasoning = '${reasoning[0].toUpperCase()}${reasoning.substring(1)}.';
     }
 
-    // Imaging window
     final hoursAbove = score.visibility.hoursAboveMinAlt;
     if (hoursAbove != null && hoursAbove > 0) {
       reasoning +=
@@ -559,7 +542,6 @@ class _TonightSuggestionScorer {
           'will fare much better than broadband tonight.';
     }
 
-    // Data progress
     if (dataProgress > 0) {
       final pct = (dataProgress * 100).toStringAsFixed(0);
       reasoning += ' $pct% of planned data collected.';
@@ -684,7 +666,6 @@ class _TonightSuggestionScorer {
     return 1 + (fillRatio / 0.05) * 19;
   }
 
-  /// Sort suggestions according to the configured mode.
   void _sortSuggestions(
     List<TargetSuggestion> suggestions,
     SuggestionSortMode sortMode,

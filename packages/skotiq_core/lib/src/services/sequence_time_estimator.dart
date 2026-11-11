@@ -83,7 +83,6 @@ class SequenceTimeEstimator {
     final timings = <NodeTiming>[];
     var currentTime = startTime;
 
-    // Create location context if coordinates provided
     final locationContext = (latitude != null && longitude != null)
         ? _LocationContext(
             latitude: latitude,
@@ -108,7 +107,6 @@ class SequenceTimeEstimator {
         );
       }
     } else {
-      // Process from root node
       final rootNode = sequence.nodes[sequence.rootNodeId];
       if (rootNode != null && rootNode.isEnabled) {
         _processNode(
@@ -165,7 +163,6 @@ class SequenceTimeEstimator {
     final windows = <String, TargetWindow>{};
     final nightDate = AstronomyCalculations.nightDateOf(date);
 
-    // Find all TargetHeaderNode instances in the sequence
     for (final node in sequence.nodes.values) {
       if (node is TargetHeaderNode && node.isEnabled) {
         final effectiveMinAltitude = _effectiveMinAltitude(node, minAltitude);
@@ -259,7 +256,6 @@ class SequenceTimeEstimator {
         continue;
       }
 
-      // Check start time
       if (!window.isVisibleAt(timing.estimatedStart)) {
         final start = timing.estimatedStart;
         if (window.riseTime != null && start.isBefore(window.riseTime!)) {

@@ -62,8 +62,6 @@ class ConstellationClient {
     'Authorization': 'Bearer $bearerToken',
   };
 
-  // Endpoints
-
   /// `GET /v1/info` — hub identity + tiling. Call before contributing so an
   /// order/tile-size mismatch is caught before any blob leaves the device.
   Future<HubInfo> info() async {
@@ -347,8 +345,6 @@ class ConstellationClient {
     }
   }
 
-  // Follow-the-night handoff
-
   /// `GET /v1/handoff/{targetId}` — ask whether a shared target is dark and
   /// available for this user right now. Returns null when the hub has no
   /// handoff state for the target (HTTP 404 is treated as "no claim").
@@ -387,8 +383,6 @@ class ConstellationClient {
     }
   }
 
-  // Attribution
-
   /// `GET /v1/attribution?artifactType=&artifactRef=` — the authoritative,
   /// consent-aware contributor-credit list for one finished collaborative
   /// artifact. [artifactType] is `mosaic` | `coimaging` | `tile` | `subframe` |
@@ -424,8 +418,6 @@ class ConstellationClient {
       _decodeJson(response, 'Attribution for $artifactType $artifactRef'),
     );
   }
-
-  // Collaborative mosaics
 
   /// `POST /v1/mosaics` — publish a panel grid as claimable work items. Returns
   /// the created mosaic (with its panel states).
@@ -662,8 +654,6 @@ class ConstellationClient {
       'Pull mosaic output',
     );
   }
-
-  // Live co-imaging sessions
 
   /// `POST /v1/coimaging/sessions` — open a live co-imaging session on a target.
   /// The caller is the owner + anchor participant; the response carries the

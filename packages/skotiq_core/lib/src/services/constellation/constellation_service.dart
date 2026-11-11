@@ -121,8 +121,6 @@ class ConstellationService {
   /// Targets the user has joined on the hub (targetId -> hub target row).
   final Map<int, SharedTarget> _joined = {};
 
-  // Account / sign-in
-
   /// Verify connectivity + tiling against the configured hub. Throws on a
   /// HEALPix-order mismatch so the UI can refuse to federate with an
   /// incompatible hub before any data moves.
@@ -178,8 +176,6 @@ class ConstellationService {
       client.close();
     }
   }
-
-  // Browse / join
 
   /// List the shared targets the swarm is collecting on the configured hub.
   Future<List<SharedTarget>> browseSharedTargets() async {
@@ -300,8 +296,6 @@ class ConstellationService {
 
   /// Inverse of [_joinRowKey].
   static int _targetIdFromJoinRow(int rowTileId) => -rowTileId - 1;
-
-  // Contribute
 
   /// Contribute the local atlas tiles covering a joined target to the hub.
   ///
@@ -629,8 +623,6 @@ class ConstellationService {
     }
   }
 
-  // Pull / blend
-
   /// Pull the fused community co-add for a joined target's tiles and cache them
   /// under the atlas `swarm/` directory for blending into "Your Sky".
   ///
@@ -863,8 +855,6 @@ class ConstellationService {
     return receipt;
   }
 
-  // Follow-the-night
-
   /// Ask the hub which joined targets are dark + available for this user now and
   /// turn them into deepen-the-thinnest-first suggestions, ranked by how shallow
   /// the swarm co-add still is. Targets the hub has no handoff state for are
@@ -985,8 +975,6 @@ class ConstellationService {
       client.close();
     }
   }
-
-  // Retention
 
   /// Reclaim accumulated swarm `.skt`/`.fits` pull/delta blobs under the atlas
   /// `swarm/<order>/` tree, bounded by age (and optionally total bytes).

@@ -152,8 +152,6 @@ class NotificationRouter {
              )
            : matrix;
 
-  // Public surface
-
   NotificationRoutingMatrix get matrix => _matrix;
 
   Map<NotificationTransportKind, NotificationResult> get lastResults =>
@@ -202,7 +200,6 @@ class NotificationRouter {
     );
   }
 
-  /// Dispose all subscriptions + transports.
   Future<void> dispose() async {
     await _subscription?.cancel();
     _subscription = null;
@@ -635,8 +632,6 @@ class NotificationRouter {
     ctx.addAll(overrides); // overrides win
     return ctx;
   }
-
-  // Internal: filters / dispatch
 
   NotificationRoutingRule _ruleFor(NotificationCategory category) {
     final activeSeq = _activeSequenceId;

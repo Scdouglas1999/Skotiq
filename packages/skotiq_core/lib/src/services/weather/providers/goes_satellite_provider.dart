@@ -24,7 +24,6 @@ import '../../../models/weather/weather_models.dart';
 /// - Coverage: CONUS (lat 14-57, lon -153 to -53)
 /// - Works 24/7 (infrared doesn't require sunlight)
 class GoesSatelliteProvider extends RadarProvider {
-  /// HTTP client for fetching metadata.
   final http.Client _client;
 
   /// Base URL for the IEM GOES CONUS IR WMS service.
@@ -54,7 +53,6 @@ class GoesSatelliteProvider extends RadarProvider {
   /// Pure image decoding/resampling helper (no I/O).
   final RadarTileDecoder _decoder;
 
-  /// Creates a new GOES satellite provider.
   GoesSatelliteProvider({http.Client? client})
     : _client = client ?? http.Client(),
       _decoder = const RadarTileDecoder();
@@ -81,7 +79,6 @@ class GoesSatelliteProvider extends RadarProvider {
     required double longitude,
     double radiusKm = 100.0,
   }) async {
-    // Verify coverage
     if (!coversLocation(latitude, longitude)) {
       return RadarFetchResult.error(
         'Location ($latitude, $longitude) is outside GOES satellite coverage area',
@@ -130,10 +127,8 @@ class GoesSatelliteProvider extends RadarProvider {
 
   @override
   String buildTileUrl(RadarFrame frame, int z, int x, int y) {
-    // Calculate Web Mercator bounding box for this tile
     final bbox = _tileToBBox(x, y, z);
 
-    // Build WMS GetMap URL
     final params = {
       'service': 'WMS',
       'version': '1.1.1',

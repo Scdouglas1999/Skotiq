@@ -546,7 +546,6 @@ class MasterAccumulationService {
   }
 }
 
-/// Provider for the [MasterAccumulationService].
 final masterAccumulationServiceProvider = Provider<MasterAccumulationService>((
   ref,
 ) {

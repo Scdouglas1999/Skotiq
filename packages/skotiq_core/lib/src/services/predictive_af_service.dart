@@ -116,8 +116,6 @@ class PredictiveAfService {
     await _driftController.close();
   }
 
-  // ── Sample recording ──────────────────────────────────────────────────
-
   /// Append a sample from a freshly-completed autofocus run, capping the
   /// window to `maxTrainingSamples` (default 50). Re-fits the regression
   /// and updates the stored slope/intercept/confidence.
@@ -239,8 +237,6 @@ class PredictiveAfService {
     return fetched!;
   }
 
-  // ── Prediction gate ───────────────────────────────────────────────────
-
   /// Should the caller skip the AF sweep and trust the learned model?
   /// Updates `last_used_at` as a side effect so the UI can show staleness.
   Future<PredictiveAfDecision> evaluateForFilter({
@@ -314,8 +310,6 @@ class PredictiveAfService {
       confidence: model.confidenceScore,
     );
   }
-
-  // ── Drift tracking ────────────────────────────────────────────────────
 
   /// After a real AF run completes, call this with what the model predicted
   /// (BEFORE the AF) and the actual converged position. Updates the drift
@@ -413,8 +407,6 @@ class PredictiveAfService {
     _driftController.add(status);
     return status;
   }
-
-  // ── Queries ───────────────────────────────────────────────────────────
 
   Future<FilterFocusModel?> getModel({
     required int? equipmentProfileId,

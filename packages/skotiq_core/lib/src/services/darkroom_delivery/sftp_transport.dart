@@ -97,7 +97,6 @@ typedef HostKeyPinWriter = Future<void> Function(HostKeyScanEntry key);
 
 /// Copies artifacts to an SFTP server, one atomic file at a time.
 class SftpTransport implements ArtifactTransport {
-  /// The destination row this transport serves.
   final ArtifactDestination destination;
 
   /// The job whose artifacts are being delivered; names the remote staged

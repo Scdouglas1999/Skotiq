@@ -172,7 +172,6 @@ final capturePreviewPublisherProvider = Provider<CapturePreviewPublisher>((
   return publisher;
 });
 
-/// Build UI image data from a backend capture result.
 CapturedImageData capturedImageDataFromResult({
   required CapturedImageResult capturedImage,
   required ExposureSettings settings,

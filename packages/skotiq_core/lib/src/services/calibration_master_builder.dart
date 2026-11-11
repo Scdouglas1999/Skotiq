@@ -78,7 +78,6 @@ class CalibrationMasterBuildResult {
   final int width;
   final int height;
 
-  /// Frames combined into the master.
   final int frameCount;
 
   /// Frames left out because they read brighter than the group's first ones.

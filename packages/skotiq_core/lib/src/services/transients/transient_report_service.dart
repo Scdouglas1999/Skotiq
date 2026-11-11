@@ -365,8 +365,6 @@ class TransientReportService {
     return filePath;
   }
 
-  // ── format helpers ─────────────────────────────────────────────────────────
-
   TransientKind _kind(TransientDetectionRow d) =>
       TransientKind.fromWire(d.kind);
 

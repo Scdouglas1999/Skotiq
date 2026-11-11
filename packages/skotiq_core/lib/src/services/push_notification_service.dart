@@ -167,7 +167,6 @@ class PushNotificationService {
   /// Stream of push notifications to broadcast to mobile clients
   Stream<PushNotification> get notifications => _notificationController.stream;
 
-  /// Current configuration
   PushNotificationConfig get config => _config;
 
   /// Whether anything is subscribed to [notifications]. The remote access
@@ -214,7 +213,6 @@ class PushNotificationService {
     );
   }
 
-  /// Dispose of resources
   void dispose() {
     _notificationController.close();
   }

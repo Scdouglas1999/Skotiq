@@ -122,8 +122,6 @@ extension _PredictiveAfFocusModelStore on PredictiveAfService {
     }
   }
 
-  // ── Internals ─────────────────────────────────────────────────────────
-
   Future<void> _touchLastUsed(
     int? equipmentProfileId,
     String filterName,

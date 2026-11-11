@@ -119,7 +119,6 @@ class BroadcastSessionState {
   /// HTTP path prefix the broadcast page is served at.
   final String path;
 
-  /// Operating mode.
   final LiveStackingMode mode;
 
   /// Stack method selected at activation time. The mapping to the

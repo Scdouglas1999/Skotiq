@@ -39,7 +39,6 @@ class DarkroomRenderedPreview {
   /// Height of the rendered level in pixels.
   final int height;
 
-  /// Whether the render carried colour channels.
   final bool isColor;
 
   /// Row-major RGBA8 samples, four bytes per pixel.

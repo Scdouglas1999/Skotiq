@@ -33,7 +33,6 @@ class DawnPhotometry {
 
   const DawnPhotometry._(this.stars, this.unavailableReason);
 
-  /// A resolved field.
   const DawnPhotometry.resolved(List<Map<String, dynamic>> stars)
     : this._(stars, null);
 

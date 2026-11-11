@@ -83,7 +83,6 @@ extension _DeviceServiceControlHelpers on DeviceService {
         return;
       }
 
-      // Persist the new values.
       final notifier = _ref.read(equipmentProfilesProvider.notifier);
       final updated = activeProfile.copyWith(
         defaultGain: newGain ?? activeProfile.defaultGain,
@@ -425,19 +424,16 @@ extension _DeviceServiceControlHelpers on DeviceService {
         return;
       }
 
-      // Check if focuser is connected
       final focuserDeviceId = await _getFocuserDeviceId();
       if (focuserDeviceId == null || focuserDeviceId.isEmpty) {
         return;
       }
 
-      // Check if focuser is ready
       final focuserState = _ref.read(focuserStateProvider);
       if (focuserState.connectionState != DeviceConnectionState.connected) {
         return;
       }
 
-      // Resolve the effective offset for this filter.
       final newOffset = _resolveConfiguredFilterOffset(filterName);
 
       final filterWheelDeviceId = _ref.read(filterWheelStateProvider).deviceId;

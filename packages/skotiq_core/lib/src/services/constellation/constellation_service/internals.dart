@@ -68,8 +68,6 @@ extension _ConstellationServiceInternals on ConstellationService {
     return joined?.activeTileId;
   }
 
-  // Internals
-
   /// Resolve a target's sky centre from the joined hub row, falling back to the
   /// local target table when the hub did not advertise coordinates.
   Future<({double raDeg, double decDeg})> _targetCenter(

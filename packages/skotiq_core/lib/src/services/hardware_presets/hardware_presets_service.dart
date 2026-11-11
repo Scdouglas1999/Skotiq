@@ -189,8 +189,6 @@ class HardwarePresetsService {
   static String encodeCameraOverrides(List<CameraDefaultsPreset> overrides) =>
       jsonEncode(overrides.map((preset) => preset.toJson()).toList());
 
-  // Internals.
-
   /// Merges [overrides] (first) with [catalog], de-duping by the key returned
   /// from [idOf] so an override replaces the matching built-in and each id
   /// appears at most once. Override ordering is preserved; built-ins follow in

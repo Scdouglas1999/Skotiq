@@ -104,8 +104,6 @@ class CalibrationLibraryService implements CalibrationLibrary {
     );
   }
 
-  // Listing + enrichment
-
   /// All library records matching [filter], newest first.
   ///
   /// When [enrichFromHeaders] is set (the default), records missing a camera
@@ -152,8 +150,6 @@ class CalibrationLibraryService implements CalibrationLibrary {
     }
     return null;
   }
-
-  // Matching
 
   /// Pick the best master per type for [context].
   ///
@@ -284,8 +280,6 @@ class CalibrationLibraryService implements CalibrationLibrary {
       warnings: setWarnings,
     );
   }
-
-  // Shared calibration libraries
 
   /// Download a REMOTE master surfaced by [match] and merge it into the local
   /// library, applying the quality + consent gates and conflict resolution:
@@ -465,8 +459,6 @@ class CalibrationLibraryService implements CalibrationLibrary {
   @override
   HostFileDownload? masterFileDownload(CalibrationMasterRecord record) => null;
 
-  // Tagging
-
   /// Replace the user tags of one master.
   @override
   Future<void> setTags(
@@ -495,8 +487,6 @@ class CalibrationLibraryService implements CalibrationLibrary {
       await _tagsDao.upsert(type, id, notes: cleaned);
     }
   }
-
-  // Deletion
 
   /// Delete one master's DB row (plus its `calibration_tags` annotation) and,
   /// when [deleteFile] is set, the on-disk artifact(s). Returns false when no

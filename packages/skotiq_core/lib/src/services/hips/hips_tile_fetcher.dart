@@ -161,7 +161,6 @@ class HipsFetchToken {
   /// and removes itself on completion, so this never grows unbounded.
   final Set<void Function()> _aborts = <void Function()>{};
 
-  /// Whether [cancel] has been called.
   bool get isCancelled => _cancelled;
 
   /// Cancels the token: aborts every currently-bound request and marks all
@@ -366,8 +365,6 @@ class HipsTileFetcher {
       _client.close();
     }
   }
-
-  // internals
 
   /// Performs the GET for [url], honouring [token] cancellation and the size
   /// cap, and returns the response body bytes. Throws the typed HTTP/decode

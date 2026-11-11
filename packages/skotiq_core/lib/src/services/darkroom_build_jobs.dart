@@ -76,7 +76,6 @@ class DarkroomBuildJob {
   final DarkroomRegistrationPreview? preview;
   final String? directory;
 
-  /// Filter being built.
   final String? filter;
   final int filterIndex;
   final int filterCount;
@@ -376,7 +375,6 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
   /// Every build that ends (done, failed or stopped), as it ends.
   Stream<DarkroomBuildJob> get finished => _finished.stream;
 
-  /// Whether a build is running.
   bool get busy => state?.active == true || _service.isRunning;
 
   /// Completes once no build is running.

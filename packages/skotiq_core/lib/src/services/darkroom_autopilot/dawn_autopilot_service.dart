@@ -61,7 +61,6 @@ class DawnJobOutcome {
   /// The `darkroom_jobs.id` this outcome belongs to.
   final int jobId;
 
-  /// The job's final state.
   final DarkroomJobState state;
 
   /// The morning report, or null when the job stopped before one could be

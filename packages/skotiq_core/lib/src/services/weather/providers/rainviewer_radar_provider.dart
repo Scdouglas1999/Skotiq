@@ -39,7 +39,6 @@ class RainViewerRadarProvider extends RadarProvider {
   /// band just outside the analysis radius is still captured for motion.
   static const double _boundsPaddingDeg = 0.25;
 
-  /// HTTP client for making API requests.
   final http.Client _httpClient;
 
   /// Pure tile-decoding / resampling helper (no I/O).
@@ -73,7 +72,6 @@ class RainViewerRadarProvider extends RadarProvider {
       level: 800,
     );
     try {
-      // Fetch the radar metadata from RainViewer API
       final response = await _httpClient.get(Uri.parse(_apiUrl));
 
       if (response.statusCode != 200) {
@@ -82,7 +80,6 @@ class RainViewerRadarProvider extends RadarProvider {
         );
       }
 
-      // Parse JSON response
       final Map<String, dynamic> data;
       try {
         data = json.decode(response.body) as Map<String, dynamic>;
@@ -92,7 +89,6 @@ class RainViewerRadarProvider extends RadarProvider {
         );
       }
 
-      // Extract host URL and radar data
       final String host = data['host'] as String? ?? '';
 
       final Map<String, dynamic>? radarData =

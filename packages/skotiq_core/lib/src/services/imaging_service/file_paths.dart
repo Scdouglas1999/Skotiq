@@ -36,7 +36,6 @@ extension _ImagingServiceFilePaths on ImagingService {
       );
     }
 
-    // Get naming pattern from imaging provider
     final namingPattern = _ref.read(namingPatternProvider);
 
     final substitutions = _buildPatternSubstitutions(
@@ -76,7 +75,6 @@ extension _ImagingServiceFilePaths on ImagingService {
       substitutions: substitutions,
     );
 
-    // Create directory if needed
     final directory = Directory(path.dirname(fullPath));
     if (!await directory.exists()) {
       await directory.create(recursive: true);

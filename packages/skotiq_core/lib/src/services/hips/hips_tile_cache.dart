@@ -104,13 +104,11 @@ class HipsTileCache {
     }
   }
 
-  /// Number of tiles currently resident.
   int get length => _entries.length;
 
   /// Whether the cache currently holds no tiles.
   bool get isEmpty => _entries.isEmpty;
 
-  /// Whether the cache currently holds at least one tile.
   bool get isNotEmpty => _entries.isNotEmpty;
 
   /// Approximate total decoded bytes of all resident tiles. Always equals the
@@ -235,10 +233,7 @@ class HipsTileCache {
     _disposed = true;
   }
 
-  /// Whether [dispose] has been called.
   bool get isDisposed => _disposed;
-
-  // internals
 
   /// Evicts least-recently-used tiles until both [maxEntries] and [maxBytes]
   /// are satisfied, while keeping at least one tile resident so a freshly
@@ -289,25 +284,20 @@ class HipsTileCacheSnapshot {
     <HipsTileId, ui.Image>{},
   );
 
-  /// Number of tiles in the snapshot.
   int get length => _images.length;
 
   /// Whether the snapshot contains no tiles.
   bool get isEmpty => _images.isEmpty;
 
-  /// Whether the snapshot contains at least one tile.
   bool get isNotEmpty => _images.isNotEmpty;
 
   /// The decoded image for [id] in this snapshot, or `null` if absent.
   ui.Image? operator [](HipsTileId id) => _images[id];
 
-  /// Whether [id] is present in this snapshot.
   bool contains(HipsTileId id) => _images.containsKey(id);
 
-  /// The tile ids present in this snapshot.
   Iterable<HipsTileId> get ids => _images.keys;
 
-  /// The (id, image) pairs present in this snapshot.
   Iterable<MapEntry<HipsTileId, ui.Image>> get entries => _images.entries;
 }
 

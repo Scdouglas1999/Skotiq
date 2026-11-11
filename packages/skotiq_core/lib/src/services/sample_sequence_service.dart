@@ -7,7 +7,6 @@ import 'package:uuid/uuid.dart';
 import '../models/sequence/sequence_models.dart';
 import 'sequence_file_service.dart';
 
-/// Skill level classification for sample sequences.
 enum SampleSequenceSkillLevel {
   beginner,
   intermediate,

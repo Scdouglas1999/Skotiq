@@ -480,7 +480,6 @@ class FrameGradeEvent {
   /// Running consecutive-rejects count. 0 after every accepted frame.
   final int consecutiveRejects;
 
-  /// Capture timestamp.
   final DateTime timestamp;
 
   const FrameGradeEvent({

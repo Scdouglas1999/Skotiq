@@ -274,7 +274,6 @@ class AdaptiveSwapDriver {
     return score;
   }
 
-  /// Pull the dashboard snapshot. Convenience wrapper.
   Future<AdaptiveSwapSnapshot?> pullSnapshot() =>
       backend.sequencerGetAdaptiveSwapSnapshot();
 

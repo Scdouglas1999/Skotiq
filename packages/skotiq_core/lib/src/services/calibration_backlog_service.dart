@@ -778,7 +778,6 @@ final calibrationBacklogServiceProvider = Provider<CalibrationBacklogService>((
 /// reload.
 final calibrationLibraryRevisionProvider = StateProvider<int>((ref) => 0);
 
-/// Progress of one backlog group's build.
 enum CalibrationBuildPhase { queued, building, built, failed }
 
 class CalibrationBuildStatus {

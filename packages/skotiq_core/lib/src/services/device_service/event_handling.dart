@@ -245,7 +245,6 @@ extension _DeviceServiceEventHandling on DeviceService {
         _ref.read(mountStateProvider.notifier).setSlewing(false);
         _ref.read(mountStateProvider.notifier).setParked(true);
         _ref.read(mountStateProvider.notifier).setTracking(false);
-        // Smart notification
         _ref
             .read(smartNotificationServiceProvider)
             .showSuccessIfNotOnScreens(
@@ -257,7 +256,6 @@ extension _DeviceServiceEventHandling on DeviceService {
 
       case 'MountUnparked':
         _ref.read(mountStateProvider.notifier).setParked(false);
-        // Smart notification
         _ref
             .read(smartNotificationServiceProvider)
             .showSuccessIfNotOnScreens(
@@ -524,7 +522,6 @@ extension _DeviceServiceEventHandling on DeviceService {
     // the guider reports. It is not the imaging camera and has no slot.
     if (_isGuideCameraEvent(deviceType, deviceId)) return;
 
-    // Check if this is a critical device and sequence is running
     final isCriticalDevice =
         deviceType.toLowerCase() == 'camera' ||
         deviceType.toLowerCase() == 'mount';

@@ -19,7 +19,6 @@ class AnnotationCatalogQueryException implements Exception {
   /// Used to compose log lines and the user-visible error message.
   final String catalog;
 
-  /// The original error that the catalog query threw.
   final Object cause;
 
   const AnnotationCatalogQueryException(this.catalog, this.cause);
@@ -49,7 +48,6 @@ extension AnnotationPipeline on AnnotationService {
       return;
     }
 
-    // Check if auto-annotate is enabled
     final AnnotationSettings settings;
     try {
       settings = await _ref.read(annotationSettingsProvider.future);
@@ -73,7 +71,6 @@ extension AnnotationPipeline on AnnotationService {
       return;
     }
 
-    // Check if annotations are enabled at all
     if (!settings.enabled) {
       _logger.debug('Annotations disabled, skipping', source: 'Annotation');
       _ref.read(annotationStateProvider.notifier).state =
@@ -306,7 +303,6 @@ extension AnnotationPipeline on AnnotationService {
       _ref.read(annotationStateProvider.notifier).state =
           const AnnotationState.searching();
 
-      // Get annotation settings for filtering
       final includeStars = settings.visibleTypes.contains(
         AnnotationObjectFilter.stars,
       );
@@ -552,7 +548,6 @@ extension AnnotationPipeline on AnnotationService {
       throw AnnotationCatalogQueryException('DSO', e);
     }
 
-    // Optionally include bright stars
     if (includeStars) {
       try {
         // For stars, apply the SNR-based cutoff more aggressively
@@ -575,7 +570,6 @@ extension AnnotationPipeline on AnnotationService {
           final pixelCoords = plateSolve.skyToPixel(raDeg, decDeg);
           if (pixelCoords == null) continue;
 
-          // Check if pixel coordinates are within image bounds
           if (pixelCoords.x < 0 ||
               pixelCoords.x >= plateSolve.imageWidth ||
               pixelCoords.y < 0 ||
