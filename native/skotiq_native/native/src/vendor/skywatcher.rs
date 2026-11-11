@@ -16,8 +16,6 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::Notify;
 
-// Constants
-
 /// Default serial baud rate for SynScan protocol (older mounts, hand controller)
 const SYNSCAN_BAUD_RATE: u32 = 9600;
 
@@ -84,8 +82,6 @@ mod commands {
     pub const RESPONSE_ERROR: char = '!';
 }
 
-// Motion mode flags
-
 /// Motion mode byte construction.
 ///
 /// Why: The SynScan motor protocol overloads bit `0x02` based on bit `0x01`
@@ -114,8 +110,6 @@ fn build_motion_mode(is_tracking: bool, is_fast: bool, is_ccw: bool) -> u8 {
     }
     mode
 }
-
-// Data encoding / decoding
 
 /// Encode a 24-bit value to SynScan hex format (reversed byte pairs)
 fn encode_24bit(value: i64) -> String {
@@ -146,12 +140,10 @@ fn decode_24bit(hex: &str) -> Result<i64, DriverError> {
     Ok((b0 as i64) | ((b1 as i64) << 8) | ((b2 as i64) << 16))
 }
 
-/// Convert encoder steps to degrees
 fn steps_to_degrees(steps: i64) -> f64 {
     (steps as f64 / STEPS_PER_REVOLUTION) * 360.0
 }
 
-/// Convert degrees to encoder steps
 fn degrees_to_steps(degrees: f64) -> i64 {
     ((degrees / 360.0) * STEPS_PER_REVOLUTION) as i64
 }
@@ -211,12 +203,8 @@ fn decode_reply(reply: String) -> Result<String, DriverError> {
     })
 }
 
-// Connection types
-
-/// Connection type for SynScan mount
 #[derive(Debug, Clone)]
 pub enum SynScanConnection {
-    /// Serial port connection
     Serial { port: String, baud_rate: u32 },
     /// UDP/WiFi connection
     Udp { ip: String, port: u16 },
@@ -231,9 +219,6 @@ impl Default for SynScanConnection {
     }
 }
 
-// Sky-Watcher mount implementation
-
-/// Sky-Watcher SynScan mount driver
 pub struct SkyWatcherMount {
     device_id: String,
     name: String,
@@ -360,7 +345,6 @@ impl SkyWatcherMount {
         Ok(raw - POSITION_OFFSET)
     }
 
-    /// Get axis status
     fn get_axis_status(&self, axis: char) -> Result<u16, DriverError> {
         let response = self.send_axis_command(commands::GET_STATUS, axis, None)?;
         u16::from_str_radix(&response, 16)
@@ -382,33 +366,28 @@ impl SkyWatcherMount {
         Ok(running && goto_mode)
     }
 
-    /// Set axis goto target
     fn set_axis_target(&self, axis: char, steps: i64) -> Result<(), DriverError> {
         let encoded = encode_24bit(steps + POSITION_OFFSET);
         self.send_axis_command(commands::SET_GOTO_TARGET, axis, Some(&encoded))?;
         Ok(())
     }
 
-    /// Start axis motion
     fn start_axis_motion(&self, axis: char) -> Result<(), DriverError> {
         self.send_axis_command(commands::START_MOTION, axis, None)?;
         Ok(())
     }
 
-    /// Stop axis motion
     fn stop_axis_motion(&self, axis: char) -> Result<(), DriverError> {
         self.send_axis_command(commands::STOP_MOTION, axis, None)?;
         Ok(())
     }
 
-    /// Set motion mode for axis
     fn set_axis_motion_mode(&self, axis: char, mode: u8) -> Result<(), DriverError> {
         let encoded = format!("{:02X}", mode);
         self.send_axis_command(commands::SET_MOTION_MODE, axis, Some(&encoded))?;
         Ok(())
     }
 
-    /// Sync axis position
     fn sync_axis_position(&self, axis: char, steps: i64) -> Result<(), DriverError> {
         let encoded = encode_24bit(steps + POSITION_OFFSET);
         self.send_axis_command(commands::SYNC_POSITION, axis, Some(&encoded))?;
@@ -788,9 +767,6 @@ impl MountDriver for SkyWatcherMount {
     }
 }
 
-// Discovery
-
-/// Sky-Watcher mount discovery info
 pub struct SkyWatcherMountInfo {
     pub port: String,
     pub name: String,

@@ -179,8 +179,6 @@ fn assert_waited(elapsed: Duration, at_least: Duration, what: &str) {
     );
 }
 
-// Sessions
-
 #[tokio::test]
 async fn skywatcher_session() {
     let _park_state = isolate_park_state().await;
@@ -394,8 +392,6 @@ async fn connect_to_a_port_that_does_not_exist() {
 
     check_transcript("connect_missing_port", &lines);
 }
-
-// Port scans
 
 fn port(path: &str) -> serialport::SerialPortInfo {
     serialport::SerialPortInfo {
