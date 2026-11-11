@@ -179,6 +179,14 @@ class FramingHandlers implements RouteSource {
             );
           }
           final result = raced as CenteringResult;
+          if (!result.success) {
+            throw JobFailedException(
+              code: 'centering_failed',
+              message:
+                  result.errorMessage ?? 'Centering did not reach the target.',
+              details: resultToJson(result),
+            );
+          }
           return resultToJson(result);
         },
       );
