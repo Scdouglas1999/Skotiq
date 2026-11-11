@@ -78,7 +78,6 @@ class MobileViewControls extends ConsumerWidget {
             isActive: showFOV,
             onTap: onToggleFOV,
           ),
-          // Gyroscope aim button - only on mobile platforms
           if (defaultTargetPlatform == TargetPlatform.iOS ||
               defaultTargetPlatform == TargetPlatform.android) ...[
             Container(
@@ -101,7 +100,6 @@ class MobileViewControls extends ConsumerWidget {
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Gyroscope aim toggle
                     GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: () => _handleGyroscopeToggle(context, ref),
@@ -129,7 +127,6 @@ class MobileViewControls extends ConsumerWidget {
                                       ? colors.info
                                       : ImageOverlayColors.secondary,
                                 ),
-                                // Compass accuracy indicator dot
                                 if (isEnabled && orientation.isActive)
                                   Positioned(
                                     bottom: 1,
@@ -202,14 +199,12 @@ class MobileViewControls extends ConsumerWidget {
     final isEnabled = ref.read(gyroscopeAimingEnabledProvider);
 
     if (!isEnabled) {
-      // Turning on: check if calibration has been acknowledged this session
       final calibrated = ref.read(compassCalibrationAcknowledgedProvider);
       if (!calibrated) {
         _showCalibrationDialog(context, ref);
         return;
       }
     } else {
-      // Turning off: also disable mount sync
       ref.read(gyroscopeMountSyncProvider.notifier).state = false;
     }
 
@@ -247,7 +242,6 @@ class MobileViewControls extends ConsumerWidget {
   }
 }
 
-/// Compact slew controls for mobile
 class MobileSlewControls extends ConsumerWidget {
   final SkotiqColors colors;
   final bool slewMode;

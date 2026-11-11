@@ -246,16 +246,13 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Header
                       _buildHeader(),
 
-                      // Divider
                       Container(
                         height: 1,
                         color: widget.colors.border.withValues(alpha: 0.5),
                       ),
 
-                      // Content
                       Flexible(
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.all(16),
@@ -272,13 +269,11 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
                         ),
                       ),
 
-                      // Divider
                       Container(
                         height: 1,
                         color: widget.colors.border.withValues(alpha: 0.5),
                       ),
 
-                      // Action buttons
                       _buildActions(),
                     ],
                   ),
@@ -388,7 +383,6 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
               ],
             ),
           ),
-          // Export chart button
           if (widget.onExportChart != null) ...[
             GestureDetector(
               onTap: widget.onExportChart,
@@ -407,7 +401,6 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
             ),
             const SizedBox(width: 4),
           ],
-          // Close button
           GestureDetector(
             onTap: widget.onDismiss,
             child: Container(
@@ -463,13 +456,11 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
   Widget _buildCoordinates() {
     final coords = widget.coordinates;
 
-    // Format RA
     final raH = coords.ra.floor();
     final raM = ((coords.ra - raH) * 60).floor();
     final raS = (((coords.ra - raH) * 60 - raM) * 60).toStringAsFixed(1);
     final raStr = '${raH}h ${raM}m ${raS}s';
 
-    // Format Dec
     final sign = coords.dec >= 0 ? '+' : '-';
     final decD = coords.dec.abs().floor();
     final decM = ((coords.dec.abs() - decD) * 60).floor();
