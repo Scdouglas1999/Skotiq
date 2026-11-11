@@ -488,37 +488,6 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
     await mountService.slewTo(coords.ra, coords.dec);
   }
 
-  void _toggleSlewMode() {
-    _update(() {
-      _slewMode = !_slewMode;
-    });
-    if (_slewMode) {
-      context.showInfoSnackBar('Slew mode enabled - tap on sky to slew mount');
-    }
-  }
-
-  Future<void> _handleStopSlew() async {
-    final mountState = ref.read(mountStateProvider);
-    if (mountState.connectionState != DeviceConnectionState.connected) {
-      if (mounted) {
-        context.showWarningSnackBar('Mount not connected');
-      }
-      return;
-    }
-
-    if (!mountState.isSlewing) {
-      if (mounted) {
-        context.showInfoSnackBar('Mount is not slewing');
-      }
-      return;
-    }
-
-    final result = await ref.read(mountCommandServiceProvider).abortSlew();
-    if (mounted) {
-      context.showCommandActionResult(result);
-    }
-  }
-
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
