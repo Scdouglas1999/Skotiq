@@ -2,7 +2,6 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Camera capabilities
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CameraCapabilities {
     pub can_cool: bool,
@@ -17,7 +16,6 @@ pub struct CameraCapabilities {
     pub supports_readout_modes: bool,
 }
 
-/// Current camera status
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CameraStatus {
     pub state: CameraState,
@@ -32,7 +30,6 @@ pub struct CameraStatus {
     pub exposure_remaining: Option<f64>, // seconds
 }
 
-/// Camera operational state
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CameraState {
     Idle = 0,
@@ -115,7 +112,6 @@ impl FrameType {
     }
 }
 
-/// Exposure parameters
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExposureParams {
     pub duration_secs: f64,
@@ -183,7 +179,6 @@ pub struct SensorInfo {
     pub bayer_pattern: Option<BayerPattern>,
 }
 
-/// Bayer pattern for color sensors
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BayerPattern {
     Rggb,
@@ -269,7 +264,6 @@ pub struct VendorFeatures {
     pub custom_data: std::collections::HashMap<String, serde_json::Value>,
 }
 
-/// Image data from camera
 #[derive(Debug, Clone)]
 pub struct ImageData {
     pub width: u32,
@@ -280,7 +274,6 @@ pub struct ImageData {
     pub metadata: ImageMetadata,
 }
 
-/// Image metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImageMetadata {
     pub exposure_time: f64,

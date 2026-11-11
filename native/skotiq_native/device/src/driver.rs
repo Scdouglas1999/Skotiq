@@ -21,13 +21,11 @@ use std::fmt::Debug;
 /// Common interface for all native devices
 #[async_trait]
 pub trait DeviceDriver: Send + Sync + Debug {
-    /// Get the unique device ID
     fn id(&self) -> &str;
 
     /// Get the device name/model
     fn name(&self) -> &str;
 
-    /// Get the vendor name
     fn vendor(&self) -> Vendor;
 
     /// Hardware serial number, when the vendor SDK exposes one for THIS unit.
@@ -48,13 +46,10 @@ pub trait DeviceDriver: Send + Sync + Debug {
         None
     }
 
-    /// Check if the device is connected
     fn is_connected(&self) -> bool;
 
-    /// Connect to the device
     async fn connect(&mut self) -> Result<(), DriverError>;
 
-    /// Disconnect from the device
     async fn disconnect(&mut self) -> Result<(), DriverError>;
 }
 
@@ -64,22 +59,16 @@ pub trait DeviceDriver: Send + Sync + Debug {
 /// Similar to NINA's ICameraDevice interface.
 #[async_trait]
 pub trait CameraDriver: DeviceDriver {
-    /// Get camera capabilities
     fn capabilities(&self) -> CameraCapabilities;
 
-    /// Get current camera status
     async fn get_status(&self) -> Result<CameraStatus, DriverError>;
 
-    /// Start an exposure
     async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError>;
 
-    /// Abort current exposure
     async fn abort_exposure(&mut self) -> Result<(), DriverError>;
 
-    /// Check if exposure is complete
     async fn is_exposure_complete(&self) -> Result<bool, DriverError>;
 
-    /// Download the image data from the camera
     async fn download_image(&mut self) -> Result<ImageData, DriverError>;
 
     /// Set cooler state and, optionally, the target temperature.
@@ -95,34 +84,25 @@ pub trait CameraDriver: DeviceDriver {
         target_temp: Option<f64>,
     ) -> Result<(), DriverError>;
 
-    /// Get current sensor temperature
     async fn get_temperature(&self) -> Result<f64, DriverError>;
 
     /// Get cooler power percentage
     async fn get_cooler_power(&self) -> Result<f64, DriverError>;
 
-    /// Set gain
     async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError>;
 
-    /// Get current gain
     async fn get_gain(&self) -> Result<i32, DriverError>;
 
-    /// Set offset
     async fn set_offset(&mut self, offset: i32) -> Result<(), DriverError>;
 
-    /// Get current offset
     async fn get_offset(&self) -> Result<i32, DriverError>;
 
-    /// Set binning
     async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), DriverError>;
 
-    /// Get current binning
     async fn get_binning(&self) -> Result<(i32, i32), DriverError>;
 
-    /// Set subframe region
     async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), DriverError>;
 
-    /// Get sensor information
     fn get_sensor_info(&self) -> SensorInfo;
 
     /// Get available readout modes (vendor-specific)
@@ -219,26 +199,20 @@ pub trait MountDriver: DeviceDriver {
         dec_degrees: f64,
     ) -> Result<(), DriverError>;
 
-    /// Get current coordinates
     async fn get_coordinates(&self) -> Result<(f64, f64), DriverError>;
 
-    /// Sync to coordinates
     async fn sync_to_coordinates(
         &mut self,
         ra_hours: f64,
         dec_degrees: f64,
     ) -> Result<(), DriverError>;
 
-    /// Park the mount
     async fn park(&mut self) -> Result<(), DriverError>;
 
-    /// Unpark the mount
     async fn unpark(&mut self) -> Result<(), DriverError>;
 
-    /// Check if mount is slewing
     async fn is_slewing(&self) -> Result<bool, DriverError>;
 
-    /// Check if mount is parked
     async fn is_parked(&self) -> Result<bool, DriverError>;
 
     /// Pulse guide (for autoguiding)
@@ -248,37 +222,26 @@ pub trait MountDriver: DeviceDriver {
         duration_ms: u32,
     ) -> Result<(), DriverError>;
 
-    /// Abort current slew
     async fn abort_slew(&mut self) -> Result<(), DriverError>;
 
-    /// Set tracking enabled/disabled
     async fn set_tracking(&mut self, enabled: bool) -> Result<(), DriverError>;
 
-    /// Get tracking state
     async fn get_tracking(&self) -> Result<bool, DriverError>;
 
-    /// Set tracking rate
     async fn set_tracking_rate(&mut self, rate: TrackingRate) -> Result<(), DriverError>;
 
-    /// Get tracking rate
     async fn get_tracking_rate(&self) -> Result<TrackingRate, DriverError>;
 
-    /// Check if mount supports slewing
     fn can_slew(&self) -> bool;
 
-    /// Check if mount supports sync
     fn can_sync(&self) -> bool;
 
-    /// Check if mount supports pulse guide
     fn can_pulse_guide(&self) -> bool;
 
-    /// Check if mount supports setting tracking rate
     fn can_set_tracking_rate(&self) -> bool;
 
-    /// Get side of pier
     async fn get_side_of_pier(&self) -> Result<PierSide, DriverError>;
 
-    /// Get Alt/Az coordinates
     async fn get_alt_az(&self) -> Result<(f64, f64), DriverError>;
 
     /// Get local sidereal time
@@ -360,22 +323,16 @@ pub trait FocuserDriver: DeviceDriver {
     /// Move relative by steps
     async fn move_relative(&mut self, steps: i32) -> Result<(), DriverError>;
 
-    /// Get current position
     async fn get_position(&self) -> Result<i32, DriverError>;
 
-    /// Check if focuser is moving
     async fn is_moving(&self) -> Result<bool, DriverError>;
 
-    /// Halt movement
     async fn halt(&mut self) -> Result<(), DriverError>;
 
-    /// Get temperature (if available)
     async fn get_temperature(&self) -> Result<Option<f64>, DriverError>;
 
-    /// Get maximum position
     fn get_max_position(&self) -> i32;
 
-    /// Get step size
     fn get_step_size(&self) -> f64;
 }
 
@@ -385,19 +342,14 @@ pub trait FilterWheelDriver: DeviceDriver {
     /// Move to filter position (0-indexed)
     async fn move_to_position(&mut self, position: i32) -> Result<(), DriverError>;
 
-    /// Get current filter position
     async fn get_position(&self) -> Result<i32, DriverError>;
 
-    /// Check if filter wheel is moving
     async fn is_moving(&self) -> Result<bool, DriverError>;
 
-    /// Get number of filter slots
     fn get_filter_count(&self) -> i32;
 
-    /// Get filter names
     async fn get_filter_names(&self) -> Result<Vec<String>, DriverError>;
 
-    /// Set filter name
     async fn set_filter_name(&mut self, position: i32, name: String) -> Result<(), DriverError>;
 }
 
