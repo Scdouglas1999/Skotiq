@@ -4,8 +4,12 @@
 // supplies the Riverpod plumbing that:
 //   1. Instantiates a single log per `ProviderContainer`.
 //   2. Subscribes to the backend's event stream and records every
-//      `EventCategory.equipment` event whose type is `Disconnected` or
-//      `Error` (severity warning or higher).
+//      `EventCategory.equipment` `Error` event of severity warning or
+//      higher. That is how a lost device arrives: the heartbeat gives it up
+//      and publishes an Error with the reason. A `Disconnected` event is
+//      not recorded: the native side publishes it only from its disconnect
+//      command (the Disconnect button, a profile switch, shutdown), which is
+//      the operator's doing, not a dropout.
 //   3. Periodically prunes entries older than 24 h so the in-memory
 //      list stays bounded for long unattended sessions.
 //
@@ -45,26 +49,18 @@ final usbDisconnectEventBridgeProvider = Provider<void>((ref) {
   subscription = backend.eventStream.listen(
     (event) {
       if (event.category != core_events.EventCategory.equipment) return;
-      // Only Disconnected/Error events count. PropertyChanged + heartbeat
-      // events fire constantly during a connected session and would swamp
-      // the log without indicating any disconnect.
-      final isDisconnect = event.eventType == 'Disconnected';
-      final isError = event.eventType == 'Error';
-      if (!isDisconnect && !isError) return;
-      // For Error events we additionally require severity >= warning so
-      // info-level "device returned ASCOM error" chatter doesn't pollute
-      // the count (some drivers raise low-severity errors during a clean
-      // shutdown).
-      if (isError && event.severity == core_events.EventSeverity.info) {
-        return;
-      }
+      if (event.eventType != 'Error') return;
+      // Severity >= warning, so info-level "device returned ASCOM error"
+      // chatter doesn't pollute the count (some drivers raise low-severity
+      // errors during a clean shutdown).
+      if (event.severity == core_events.EventSeverity.info) return;
       final data = event.data;
       final deviceId = (data['device_id'] as String?) ?? '';
       final deviceType = data['device_type'] as String?;
       final reason =
           (data['message'] as String?) ??
           (data['reason'] as String?) ??
-          (isError ? 'device error' : null);
+          'device error';
       // We use the wall-clock at receive time rather than the event's
       // own timestamp because the event timestamp on `SkotiqEvent`
       // is `millisecondsSinceEpoch` and we'd just convert it; using
@@ -78,14 +74,12 @@ final usbDisconnectEventBridgeProvider = Provider<void>((ref) {
       ref
           .read(loggingServiceProvider)
           .warning(
-            isDisconnect
-                ? 'Device disconnect recorded'
-                : 'Device error recorded',
+            'Device error recorded',
             source: 'UsbDisconnectLog',
             fields: {
               'device': deviceId,
               if (deviceType != null) 'type': deviceType,
-              if (reason != null) 'reason': reason,
+              'reason': reason,
             },
           );
     },
