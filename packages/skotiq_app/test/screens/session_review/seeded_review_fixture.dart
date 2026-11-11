@@ -36,32 +36,6 @@ class FakeReviewSeam implements PostSessionSeam {
       '${invocation.memberName} not stubbed in seeded review fixture');
 }
 
-/// A representative finished-master hero outcome. The [previewPath] points at
-/// the on-disk PNG the [MasterOverlayView] hero loads; pass the path of a
-/// synthesized sample PNG.
-PostSessionIntegrationOutcome seededOutcome({
-  required String previewPath,
-  String? rejectionMapPath,
-}) {
-  return PostSessionIntegrationOutcome(
-    masterId: 1,
-    filter: 'Ha',
-    result: IntegrateSessionResult(
-      masterFitsPath: '/tmp/seed/master.fits',
-      previewPath: previewPath,
-      rejectionMapPath: rejectionMapPath,
-      framesIntegrated: 58,
-      framesRejected: 6,
-      totalIntegrationSec: 58 * 120.0,
-      rmsResidual: 0.41,
-      width: 400,
-      height: 300,
-      channels: 1,
-      perFrameStats: const [],
-    ),
-  );
-}
-
 /// A representative multi-severity Night Doctor verdict (critical + warn + info,
 /// each with evidence subs, advice and a backing metric series).
 NightReport seededNightReport() {
@@ -228,15 +202,16 @@ AnnotationLayer seededAnnotationLayer() {
   );
 }
 
-/// A narrowband-flavoured filter so [SessionReviewState.narrowbandChannels]
-/// surfaces a channel for the workbench mixer.
-IntegratedMaster seededMaster() {
+/// The Ha master under review, with its stretched preview at [previewPngPath].
+IntegratedMaster seededMaster({
+  String previewPngPath = '/tmp/seed/master_preview.png',
+}) {
   return IntegratedMaster(
     id: 1,
     targetId: 1,
     name: 'NGC 7000 master',
     masterFitsPath: '/tmp/seed/master.fits',
-    previewPngPath: '/tmp/seed/master_preview.png',
+    previewPngPath: previewPngPath,
     sidecarPath: null,
     rejectionMapPath: null,
     status: IntegratedMasterStatus.finalized,
@@ -264,7 +239,7 @@ IntegratedMaster seededMaster() {
 class SeededReviewController extends SessionReviewController {
   SeededReviewController(super.ref, super.scope, {required this.previewPath});
 
-  /// On-disk hero preview PNG path the seeded outcome points at.
+  /// On-disk hero preview PNG path of the seeded master.
   final String previewPath;
 
   @override
@@ -275,11 +250,10 @@ class SeededReviewController extends SessionReviewController {
       title: 'NGC 7000',
       targetId: 1,
       targetName: 'NGC 7000',
-      masters: [seededMaster()],
-      // The reviewed master is now an explicit, scope-resolved field rather than
-      // "newest row in the library" — the seed states it.
-      reviewedMaster: seededMaster(),
-      lastOutcome: seededOutcome(previewPath: previewPath),
+      masters: [seededMaster(previewPngPath: previewPath)],
+      // The reviewed master is an explicit, scope-resolved field rather than
+      // "newest row in the library"; the seed states it.
+      reviewedMaster: seededMaster(previewPngPath: previewPath),
       nightReport: seededNightReport(),
       improvementCurve: seededImprovementCurve(),
       growthPoints: seededGrowthPoints(),
@@ -292,37 +266,12 @@ class SeededReviewController extends SessionReviewController {
   Future<void> refresh() async {}
 
   @override
-  Future<PostSessionIntegrationOutcome?> integrate() async => null;
-
-  @override
-  Future<PostSessionIntegrationOutcome?> reIntegrate(
-          IntegrationSettings settings) async =>
-      null;
-
-  @override
   Future<PostSessionIntegrationOutcome?> reIntegratePreview(
           IntegrationSettings settings) async =>
       null;
 
   @override
-  Future<String?> runColorCalibration() async => null;
-
-  @override
-  Future<String?> runBackgroundExtraction() async => null;
-
-  @override
   Future<String?> runDeconvolve() async => null;
-
-  @override
-  Future<String?> runStarReduction() async => null;
-
-  @override
-  Future<String?> runNarrowband(
-    String palette,
-    List<List<double>> weights, {
-    List<NarrowbandChannelRef>? channels,
-  }) async =>
-      null;
 
   @override
   Future<CullToRecommendedResult> cullToRecommended() async =>

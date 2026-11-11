@@ -1,5 +1,5 @@
 // ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
-// Private load, finishing and accumulating-master helpers of SessionReviewController.
+// Private load, finishing-preview and accumulating-master helpers of SessionReviewController.
 part of '../session_review_controller.dart';
 
 extension _SessionReviewControllerHelpers on SessionReviewController {
@@ -46,7 +46,7 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
       } else {
         unawaited(loadSmartData());
       }
-      unawaited(loadComposites());
+      unawaited(_loadNewestComposite());
     } catch (e) {
       if (!mounted) return;
       state = state.copyWith(loading: false, error: 'Failed to load: ${userFacingError(e)}');
@@ -143,6 +143,21 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
     }
   }
 
+  /// The newest narrowband composite an earlier build combined in Session
+  /// Review for this target (or any target when none is resolved), so the
+  /// workbench can still say where that file is. New composites are made in
+  /// the Darkroom.
+  Future<void> _loadNewestComposite() async {
+    final dao = _ref.read(narrowbandCompositesDaoProvider);
+    final tid = state.targetId;
+    final composites =
+        tid != null ? await dao.getForTarget(tid) : await dao.getAll();
+    if (!mounted) return;
+    state = state.copyWith(
+      narrowbandComposite: composites.isEmpty ? null : composites.first,
+    );
+  }
+
   Future<List<DbCapturedImage>> _loadSubs() async {
     if (_scope.isSession) {
       return _images.getImagesForSession(_scope.sessionId!);
@@ -163,17 +178,6 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
     if (targetId == null) return (null, null);
     final t = await _ref.read(targetsDaoProvider).getTargetById(targetId);
     return (targetId, t?.name);
-  }
-
-  /// The reviewed target's catalog coordinates (RA in decimal hours, Dec in
-  /// decimal degrees) for hinting the master plate-solve, or `(null, null)` when
-  /// no target / coordinates are known (the solve then runs blind).
-  Future<(double?, double?)> _resolveTargetHint() async {
-    final id = state.targetId;
-    if (id == null) return (null, null);
-    final t = await _ref.read(targetsDaoProvider).getTargetById(id);
-    if (t == null) return (null, null);
-    return (t.ra, t.dec);
   }
 
   /// The header title for this review.
@@ -316,7 +320,8 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
         return (IntegrationCurve.fromJson(decoded), population);
       }
       return (null, const <String>[]);
-    } catch (_) {
+    } catch (e) {
+      _logSoftFailure('reading the improvement curve', e);
       return (null, const <String>[]);
     }
   }
@@ -335,7 +340,8 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
         corePoints.map(GrowthPoint.fromCore).toList(growable: false),
         coreBest != null ? BestNight.fromCore(coreBest) : null,
       );
-    } catch (_) {
+    } catch (e) {
+      _logSoftFailure('reading the project growth', e);
       return (const <GrowthPoint>[], null);
     }
   }
@@ -360,7 +366,8 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
         fovDeg: fovW > fovH ? fovW : fovH,
       );
       return layer.items.isEmpty ? null : layer;
-    } catch (_) {
+    } catch (e) {
+      _logSoftFailure('annotating the master', e);
       return null;
     }
   }
@@ -394,129 +401,34 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
     );
   }
 
-  Future<String?> _runColorCalibration(
-    IntegratedMaster master,
-    String inputFits,
-    WcsOverlay wcs,
-  ) async {
+  /// Log a part of the review that failed. The panel that shows it
+  /// falls back to its empty state, so the record is what says why.
+  void _logSoftFailure(String what, Object error) {
+    _ref.read(loggingServiceProvider).warning(
+      'Session Review: $what failed',
+      source: 'SessionReviewController',
+      fields: {
+        'sessionId': _scope.sessionId,
+        'targetId': _scope.targetId,
+        'error': '$error',
+      },
+    );
+  }
+
+  /// Render the sibling preview PNG of a finishing FITS for the hero's
+  /// "after" layer. A failure is logged and leaves the written FITS and its
+  /// recorded path in place; the hero then simply has no layer for it.
+  Future<void> _renderFinishingPreview(String fits) async {
+    final png = SessionReviewController._swapExtension(fits, '.png');
     try {
-      final service = _ref.read(colorCalibrationServiceProvider);
-      final output =
-          SessionReviewController._suffixBeforeExtension(inputFits, '_color');
-      final result = await service.calibrate(
-        masterFits: inputFits,
-        outputFits: output,
-        wcs: wcs,
-        channels: master.channels,
-        whiteRefBv: state.settings.whiteRefBv,
-      );
-      if (ColorCalibrationService.wasSkipped(result)) {
-        if (mounted) {
-          state = state.copyWith(
-            error: 'Color calibration found too few catalog cross-matches in '
-                'this field to solve a white balance.',
-          );
-        }
-        return null;
-      }
-      // Render a sibling preview PNG so the calibrated result is viewable;
-      // fail-soft so a render failure never sinks the written FITS or its path.
-      final previewPng =
-          SessionReviewController._swapExtension(result.outputPath, '.png');
-      try {
-        await _ref.read(finishingPreviewRendererProvider)(
-            result.outputPath, previewPng);
-      } catch (_) {
-        // Leave the FITS path persisted; the overlay simply shows no preview.
-      }
-      await _mastersDao.updateSmartFields(
-        master.id,
-        colorCalibratedPath: result.outputPath,
-      );
-      await _publishMasters();
-      return result.outputPath;
+      await _ref.read(finishingPreviewRendererProvider)(fits, png);
     } catch (e) {
-      if (mounted) {
-        state = state.copyWith(error: 'Color calibration failed: ${userFacingError(e)}');
-      }
-      return null;
-    } finally {
-      if (mounted) state = state.copyWith(calibrating: false);
-    }
-  }
-
-  /// Shared engine for the three workbench finishing actions (background
-  /// extraction / deconvolution / star reduction). Each operates on the current
-  /// reviewed master's finished FITS, never re-running the stack:
-  ///
-  ///  1. Guard a reviewed master that carries a `masterFitsPath` on disk.
-  ///  2. Flip the action's [busy] flag (via [SessionReviewController.state]).
-  ///  3. [invoke] the post-session seam, writing `<master><suffix>.fits`.
-  ///  4. Render a sibling preview PNG (`<master><suffix>.png`) via the injected
-  ///     [finishingPreviewRendererProvider] so `MasterOverlayView` can show the
-  ///     before/after — fail-soft: a render failure still keeps the FITS path.
-  ///  5. [persist] the written FITS path onto the row (and [alsoMark] any extra
-  ///     bookkeeping column, e.g. `background_extracted`).
-  ///  6. Refresh the master list so the new artifact path round-trips on reload.
-  ///
-  /// Returns the written FITS path, or null when no master is in scope or the
-  /// pass throws (the error surfaces on [SessionReviewState.error]).
-  Future<String?> _runFinishingStep({
-    required SessionReviewState Function(bool busy) busy,
-    required String suffix,
-    required String label,
-    required Future<String> Function(
-      PostSessionSeam seam,
-      IntegratedMaster master,
-      String output,
-    ) invoke,
-    required Future<void> Function(int masterId, String path) persist,
-    Future<void> Function(int masterId)? alsoMark,
-  }) async {
-    final master = state.reviewedMaster;
-    final inputFits = master?.masterFitsPath;
-    if (master == null || inputFits == null || inputFits.trim().isEmpty) {
-      state = state.copyWith(
-        error: '$label needs a finished master FITS — integrate first.',
+      _ref.read(loggingServiceProvider).warning(
+        'The preview of a finishing result could not be rendered',
+        source: 'SessionReviewController',
+        fields: {'fits': fits, 'error': '$e'},
       );
-      return null;
     }
-    state = busy(true).copyWith(clearError: true);
-    return _withLiveProgress(() async {
-      try {
-        final seam = _ref.read(postSessionSeamProvider);
-        final output =
-            SessionReviewController._suffixBeforeExtension(inputFits, suffix);
-        final written = await invoke(seam, master, output);
-        // Render a sibling preview PNG so the result is viewable; fail-soft so
-        // a render failure (no native lib in a test, missing FITS) never sinks
-        // the already-written finishing FITS or its persisted path.
-        final previewPng =
-            SessionReviewController._swapExtension(written, '.png');
-        try {
-          await _ref.read(finishingPreviewRendererProvider)(
-              written, previewPng);
-        } catch (_) {
-          // Leave the FITS path persisted; the overlay shows no preview.
-        }
-        await persist(master.id, written);
-        if (alsoMark != null) await alsoMark(master.id);
-        await _publishMasters();
-        return written;
-      } catch (e) {
-        if (mounted) state = state.copyWith(error: '$label failed: ${userFacingError(e)}');
-        return null;
-      } finally {
-        if (mounted) state = busy(false);
-      }
-    });
-  }
-
-  IntegratedMaster? _masterById(int id) {
-    for (final m in state.masters) {
-      if (m.id == id) return m;
-    }
-    return null;
   }
 
   DbCapturedImage _bestReference(List<DbCapturedImage> subs) {
@@ -599,9 +511,10 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
           final direct = await _mastersDao.getById(scoped.first);
           if (direct != null) return direct;
         }
-      } catch (_) {
-        // Fail soft: a scoping-query failure must not sink the screen. Fall
-        // through to the target-scope rule below.
+      } catch (e) {
+        // A scoping-query failure must not sink the screen; fall through to
+        // the target-scope rule below.
+        _logSoftFailure('finding the reviewed master', e);
       }
     }
     if (!_scope.isSession && _scope.targetId != null) {

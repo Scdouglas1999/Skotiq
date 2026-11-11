@@ -235,7 +235,7 @@ void main() {
     );
 
     expect(find.text('Review on imaging host'), findsOneWidget);
-    expect(find.text('Review & integrate'), findsNothing);
+    expect(find.text('Session review'), findsNothing);
   });
 
   testWidgets('Copy as Markdown writes to the clipboard', (tester) async {

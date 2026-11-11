@@ -1,8 +1,8 @@
 // Controller tests for the Session Review screen.
 //
 // Exercises the UI-side orchestration against an in-memory database and a fake
-// post-session seam: sub loading, the bulk-cull predicate, accept/reject
-// round-trip, and that a one-shot integrate persists an integrated_masters row.
+// post-session seam: sub loading, the bulk-cull predicate, the accept/reject
+// round-trip, and deconvolution of the reviewed master.
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,93 +11,36 @@ import 'package:skotiq_app/screens/session_review/session_review_controller.dart
 import 'package:skotiq_core/skotiq_core.dart';
 // ignore: implementation_imports
 import 'package:skotiq_core/src/services/post_session_seam.dart' as seam;
-// ignore: implementation_imports
-import 'package:skotiq_astro/skotiq_astro.dart' show Star;
 
 import '../../harness/mock_database.dart';
 import '../../harness/temporary_data_directory.dart';
 
-/// A [ColorCalibrationService] whose [calibrate] is scriptable: it records the
-/// call and returns a configurable result, so the controller's
-/// `runColorCalibration` can be exercised without real photometry / a catalog.
-class _FakeColorCalibrationService extends ColorCalibrationService {
-  _FakeColorCalibrationService(seam.PostSessionSeam s)
-      : super(
-          seam: s,
-          starSearch: (_, __, {maxMagnitude}) async => const <Star>[],
-        );
-
-  final List<({String masterFits, String outputFits, int channels})> calls = [];
-
-  /// When false, [calibrate] returns a *skipped* result (too few matches).
-  bool succeed = true;
-
-  @override
-  Future<ColorCalibrationResult> calibrate({
-    required String masterFits,
-    required String outputFits,
-    required WcsOverlay? wcs,
-    required int channels,
-    double? whiteRefBv,
-    double matchToleranceArcsec =
-        ColorCalibrationService.defaultMatchToleranceArcsec,
-    int? maxStars,
-    int? aperture,
-  }) async {
-    calls.add(
-        (masterFits: masterFits, outputFits: outputFits, channels: channels));
-    if (!succeed) return ColorCalibrationService.skipped(outputFits);
-    return ColorCalibrationResult(
-      outputPath: outputFits,
-      channelScale: List<double>.filled(channels, 1.0),
-      matched: 12,
-      residual: 0.01,
-    );
-  }
-}
-
 class _FakeSeam implements PostSessionSeam {
-  /// Records the args of every finishing-pass call, keyed by step name, so the
-  /// finishing-action tests can assert the seam was driven on the right master.
-  final Map<String, List<Map<String, dynamic>>> finishingCalls = {
-    'extractBackground': [],
-    'deconvolvePreview': [],
-    'reduceStarsPreview': [],
-  };
+  /// The args of every deconvolution call, so the tests can assert the seam
+  /// was driven on the right master.
+  final List<Map<String, dynamic>> deconvolveCalls = [];
 
   @override
   Future<seam.IntegrateSessionResult> integrateSession(
-      Map<String, dynamic> args) async {
-    final lights = (args['lightPaths'] as List).cast<String>();
-    final output = args['output'] as Map<String, dynamic>;
-    return seam.IntegrateSessionResult(
-      masterFitsPath: output['masterFitsPath'] as String,
-      previewPath: output['previewPngPath'] as String?,
-      rejectionMapPath: output['rejectionMapPath'] as String?,
-      framesIntegrated: lights.length,
-      framesRejected: 0,
-      totalIntegrationSec: lights.length * 60.0,
-      rmsResidual: 0.4,
-      width: 100,
-      height: 80,
-      channels: 1,
-      perFrameStats: [
-        for (final p in lights)
-          seam.PerFrameRecord(
-            path: p,
-            weight: 1.0,
-            rmsResidualPx: 0.4,
-            accepted: true,
-            reason: null,
-          ),
-      ],
-    );
-  }
+          Map<String, dynamic> args) async =>
+      throw UnimplementedError();
 
   @override
   Future<seam.MasterAccumulateResult> masterAccumulate(
           Map<String, dynamic> args) async =>
-      throw UnimplementedError();
+      seam.MasterAccumulateResult(
+        sidecarPath: args['sidecarPath'] as String? ?? '',
+        masterPath: null,
+        previewPath: null,
+        frameCount: 0,
+        totalIntegrationSec: 0,
+        width: 100,
+        height: 80,
+        channels: 1,
+        framesAdded: 0,
+        rejected: 0,
+        frameWeights: const [],
+      );
 
   @override
   Future<seam.BuildMasterFlatResult> buildMasterFlat(
@@ -108,10 +51,6 @@ class _FakeSeam implements PostSessionSeam {
   Future<seam.SaveFitsMasterResult> saveFitsMaster(
           Map<String, dynamic> args) async =>
       throw UnimplementedError();
-
-  // Smart morning report seam surface (unused by these tests)
-  // These controller tests only exercise integrateSession; the remaining nine
-  // PostSessionSeam members are stubbed to satisfy the interface.
 
   @override
   Future<IntegrationCurve> analyzeNight({
@@ -142,22 +81,18 @@ class _FakeSeam implements PostSessionSeam {
       throw UnimplementedError();
 
   @override
-  Future<String> extractBackground(Map<String, dynamic> args) async {
-    finishingCalls['extractBackground']!.add(args);
-    return args['outputFits'] as String;
-  }
+  Future<String> extractBackground(Map<String, dynamic> args) async =>
+      throw UnimplementedError();
 
   @override
   Future<String> deconvolvePreview(Map<String, dynamic> args) async {
-    finishingCalls['deconvolvePreview']!.add(args);
+    deconvolveCalls.add(args);
     return args['outputFits'] as String;
   }
 
   @override
-  Future<String> reduceStarsPreview(Map<String, dynamic> args) async {
-    finishingCalls['reduceStarsPreview']!.add(args);
-    return args['outputFits'] as String;
-  }
+  Future<String> reduceStarsPreview(Map<String, dynamic> args) async =>
+      throw UnimplementedError();
 
   @override
   Future<Map<String, dynamic>> drizzleIntegrate(
@@ -282,250 +217,85 @@ void main() {
     expect(state().acceptedCount, 3);
   });
 
-  test('integrate persists a master from the accepted subs', () async {
+  Future<String> accumulatingSidecar() async {
     final c = controller();
     await waitUntilLoaded();
-    await c.bulkReject(hfrThreshold: 3.5); // drop the worst sub
-    final outcome = await c.integrate();
-    expect(outcome, isNotNull);
-    expect(outcome!.result.framesIntegrated, 2);
-
+    await c.createAccumulatingMaster(filter: 'L');
     final masters = await container.read(integratedMastersDaoProvider).getAll();
-    expect(masters, hasLength(1));
-    expect(masters.first.frameCount, 2);
-    expect(state().lastOutcome, isNotNull);
-    expect(state().masters, hasLength(1));
+    return masters
+        .singleWhere((m) => m.status == IntegratedMasterStatus.accumulating)
+        .sidecarPath!;
+  }
+
+  test('with no image folder chosen, an accumulating master goes where '
+      'unattended builds go, not to wherever the app was started from',
+      () async {
+    final sidecar = await accumulatingSidecar();
+    expect(sidecar, startsWith('${dataDir().path}/documents/Skotiq/Masters'));
   });
 
-  test('with no image folder chosen, the master goes where unattended '
-      "builds go, not to wherever the app was started from", () async {
-    final c = controller();
-    await waitUntilLoaded();
-    await c.integrate();
-
-    final master =
-        (await container.read(integratedMastersDaoProvider).getAll()).single;
-    final masters = '${dataDir().path}/documents/Skotiq/Masters';
-    expect(master.masterFitsPath, startsWith(masters));
-    expect(master.masterFitsPath, isNot(startsWith('.')));
-  });
-
-  test('with an image folder chosen, the master goes under it', () async {
+  test('with an image folder chosen, an accumulating master goes under it',
+      () async {
     await container
         .read(settingsDaoProvider)
         .setImageOutputDirectory('/data/astro');
-    final c = controller();
-    await waitUntilLoaded();
-    await c.integrate();
-
-    final master =
-        (await container.read(integratedMastersDaoProvider).getAll()).single;
-    expect(master.masterFitsPath, startsWith('/data/astro/masters'));
+    expect(await accumulatingSidecar(), startsWith('/data/astro/masters'));
   });
 
-  // Workbench finishing actions (post-steps on the current master)
-
-  /// Integrate to land one persisted master in scope, then return the
-  /// controller + that master's FITS path so the finishing tests run on it.
+  /// A master over this night's subs as the Darkroom's build registers it: a
+  /// row with no target and a fold record per sub. Returns the controller,
+  /// loaded with that master under review, and the master's FITS path.
   Future<(SessionReviewController, String)> seededMaster() async {
+    const fits = '/masters/NGC_891/L_master_linear.fits';
+    final masters = container.read(integratedMastersDaoProvider);
+    final id = await masters.insertMaster(
+      name: 'NGC 891 L',
+      masterFitsPath: fits,
+      previewPngPath: '/masters/NGC_891/L_master_linear.png',
+      status: IntegratedMasterStatus.finalized,
+      accumulationMode: AccumulationMode.batch,
+      frameCount: 3,
+      filter: 'L',
+    );
+    for (final sub in await container
+        .read(imagesDaoProvider)
+        .getImagesForSession(sessionId)) {
+      await masters.recordFoldedFrame(masterId: id, imageId: sub.id);
+    }
     final c = controller();
     await waitUntilLoaded();
-    await c.integrate();
-    final master = state().reviewedMaster!;
-    return (c, master.masterFitsPath!);
+    expect(state().reviewedMaster?.id, id);
+    return (c, fits);
   }
-
-  test('runBackgroundExtraction drives the seam + persists the _bgx path',
-      () async {
-    final (c, fits) = await seededMaster();
-    final written = await c.runBackgroundExtraction();
-
-    // The seam ran `extractBackground` on the master FITS, writing `_bgx`.
-    expect(fakeSeam.finishingCalls['extractBackground'], hasLength(1));
-    final call = fakeSeam.finishingCalls['extractBackground']!.single;
-    expect(call['inputFits'], fits);
-    expect(written, endsWith('_bgx.fits'));
-
-    // A sibling preview PNG was rendered next to the FITS.
-    expect(renderCalls, hasLength(1));
-    expect(renderCalls.single.inputFits, written);
-    expect(renderCalls.single.outputPng, endsWith('_bgx.png'));
-
-    // The written path round-tripped onto the refreshed master row.
-    expect(state().reviewedMaster!.backgroundExtractedPath, written);
-    expect(state().extractingBackground, isFalse);
-    expect(state().error, isNull);
-  });
 
   test('runDeconvolve drives the seam + persists the _decon path', () async {
     final (c, fits) = await seededMaster();
     final written = await c.runDeconvolve();
 
-    expect(fakeSeam.finishingCalls['deconvolvePreview'], hasLength(1));
-    expect(fakeSeam.finishingCalls['deconvolvePreview']!.single['inputFits'],
-        fits);
-    expect(written, endsWith('_decon.fits'));
-    expect(renderCalls.single.outputPng, endsWith('_decon.png'));
+    expect(fakeSeam.deconvolveCalls, hasLength(1));
+    expect(fakeSeam.deconvolveCalls.single['inputFits'], fits);
+    expect(written, '/masters/NGC_891/L_master_linear_decon.fits');
+    expect(renderCalls.single.inputFits, written);
+    expect(renderCalls.single.outputPng,
+        '/masters/NGC_891/L_master_linear_decon.png');
     expect(state().reviewedMaster!.deconvolvedPath, written);
     expect(state().deconvolving, isFalse);
+    expect(state().error, isNull);
   });
 
-  test('runStarReduction drives the seam + persists the _starred path',
-      () async {
-    final (c, fits) = await seededMaster();
-    final written = await c.runStarReduction();
-
-    expect(fakeSeam.finishingCalls['reduceStarsPreview'], hasLength(1));
-    expect(fakeSeam.finishingCalls['reduceStarsPreview']!.single['inputFits'],
-        fits);
-    expect(written, endsWith('_starred.fits'));
-    expect(renderCalls.single.outputPng, endsWith('_starred.png'));
-    expect(state().reviewedMaster!.starReducedPath, written);
-    expect(state().reducingStars, isFalse);
-  });
-
-  test('a finishing action is a guarded no-op with no master in scope',
-      () async {
+  test('deconvolution is a guarded no-op with no master in scope', () async {
     final c = controller();
     await waitUntilLoaded();
-    // No integrate() → no reviewed master.
     expect(state().reviewedMaster, isNull);
 
     final written = await c.runDeconvolve();
     expect(written, isNull);
-    expect(fakeSeam.finishingCalls['deconvolvePreview'], isEmpty);
+    expect(fakeSeam.deconvolveCalls, isEmpty);
     expect(renderCalls, isEmpty);
     expect(state().error, isNotNull);
   });
 
-  test('runColorCalibration without a solved WCS surfaces an error, no write',
-      () async {
-    // No plate-solver in this harness, so the integrated master has no WCS.
-    final fakeColor = _FakeColorCalibrationService(fakeSeam);
-    container.dispose();
-    container = ProviderContainer(overrides: [
-      databaseProvider.overrideWithValue(db),
-      postSessionSeamProvider.overrideWithValue(fakeSeam),
-      colorCalibrationServiceProvider.overrideWithValue(fakeColor),
-      finishingPreviewRendererProvider.overrideWithValue(
-        (String inputFits, String outputPng) async {
-          renderCalls.add((inputFits: inputFits, outputPng: outputPng));
-        },
-      ),
-    ]);
-    final c = controller();
-    await waitUntilLoaded();
-    await c.integrate();
-
-    final written = await c.runColorCalibration();
-    expect(written, isNull);
-    expect(fakeColor.calls, isEmpty,
-        reason: 'no WCS -> calibrate never called');
-    expect(state().reviewedMaster!.colorCalibratedPath, isNull);
-    expect(state().error, contains('WCS'));
-    expect(state().calibrating, isFalse);
-  });
-
-  test(
-      'runColorCalibration on a WCS-solved master calls the service + persists '
-      'color_calibrated_path', () async {
-    final fakeColor = _FakeColorCalibrationService(fakeSeam);
-    container.dispose();
-    container = ProviderContainer(overrides: [
-      databaseProvider.overrideWithValue(db),
-      postSessionSeamProvider.overrideWithValue(fakeSeam),
-      colorCalibrationServiceProvider.overrideWithValue(fakeColor),
-      finishingPreviewRendererProvider.overrideWithValue(
-        (String inputFits, String outputPng) async {
-          renderCalls.add((inputFits: inputFits, outputPng: outputPng));
-        },
-      ),
-    ]);
-    final c = controller();
-    await waitUntilLoaded();
-    await c.integrate();
-    final master = state().reviewedMaster!;
-    final fits = master.masterFitsPath!;
-
-    // Stamp a solved WCS onto the master row, then reload so reviewedMaster
-    // carries it (the controller's plate-solve step is unwired in this harness).
-    await container.read(integratedMastersDaoProvider).updateWcs(
-          master.id,
-          crval1: 202.4696,
-          crval2: 47.1952,
-          crpix1: 50.0,
-          crpix2: 40.0,
-          cd1_1: -0.000352,
-          cd1_2: 0.0000061,
-          cd2_1: 0.0000061,
-          cd2_2: 0.000352,
-        );
-    await c.refresh();
-    await waitUntilLoaded();
-    expect(state().reviewedMaster!.hasWcs, isTrue);
-
-    final written = await c.runColorCalibration();
-
-    // The service was called once against the master FITS, writing `_color`.
-    expect(fakeColor.calls, hasLength(1));
-    expect(fakeColor.calls.single.masterFits, fits);
-    expect(written, endsWith('_color.fits'));
-    expect(fakeColor.calls.single.outputFits, written);
-
-    // A sibling preview PNG was rendered next to the calibrated FITS.
-    expect(renderCalls.last.inputFits, written);
-    expect(renderCalls.last.outputPng, endsWith('_color.png'));
-
-    // The path round-tripped onto the refreshed master row.
-    expect(state().reviewedMaster!.colorCalibratedPath, written);
-    expect(state().calibrating, isFalse);
-    expect(state().error, isNull);
-  });
-
-  test('runColorCalibration surfaces a message when the field is too sparse',
-      () async {
-    final fakeColor = _FakeColorCalibrationService(fakeSeam)..succeed = false;
-    container.dispose();
-    container = ProviderContainer(overrides: [
-      databaseProvider.overrideWithValue(db),
-      postSessionSeamProvider.overrideWithValue(fakeSeam),
-      colorCalibrationServiceProvider.overrideWithValue(fakeColor),
-      finishingPreviewRendererProvider.overrideWithValue(
-        (String inputFits, String outputPng) async {
-          renderCalls.add((inputFits: inputFits, outputPng: outputPng));
-        },
-      ),
-    ]);
-    final c = controller();
-    await waitUntilLoaded();
-    await c.integrate();
-    final master = state().reviewedMaster!;
-    await container.read(integratedMastersDaoProvider).updateWcs(
-          master.id,
-          crval1: 202.4696,
-          crval2: 47.1952,
-          crpix1: 50.0,
-          crpix2: 40.0,
-          cd1_1: -0.000352,
-          cd1_2: 0.0000061,
-          cd2_1: 0.0000061,
-          cd2_2: 0.000352,
-        );
-    await c.refresh();
-    await waitUntilLoaded();
-
-    final written = await c.runColorCalibration();
-    expect(written, isNull);
-    expect(fakeColor.calls, hasLength(1)); // it was attempted...
-    // ...but skipped, so nothing is persisted and the user is told why.
-    expect(state().reviewedMaster!.colorCalibratedPath, isNull);
-    expect(state().error, isNotNull);
-    expect(state().calibrating, isFalse);
-  });
-
-  test('a render failure still persists the finishing FITS path (fail-soft)',
-      () async {
-    // Swap in a renderer that throws; the action must keep the written path.
+  test('a render failure still persists the deconvolved FITS path', () async {
     container.dispose();
     container = ProviderContainer(overrides: [
       databaseProvider.overrideWithValue(db),
@@ -535,13 +305,11 @@ void main() {
             throw StateError('no native lib'),
       ),
     ]);
-    final c = controller();
-    await waitUntilLoaded();
-    await c.integrate();
+    final (c, _) = await seededMaster();
 
-    final written = await c.runBackgroundExtraction();
-    expect(written, endsWith('_bgx.fits'));
-    expect(state().reviewedMaster!.backgroundExtractedPath, written);
-    expect(state().error, isNull); // render failure is swallowed, not surfaced
+    final written = await c.runDeconvolve();
+    expect(written, endsWith('_decon.fits'));
+    expect(state().reviewedMaster!.deconvolvedPath, written);
+    expect(state().error, isNull);
   });
 }

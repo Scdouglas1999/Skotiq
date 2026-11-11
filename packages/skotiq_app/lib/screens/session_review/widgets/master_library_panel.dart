@@ -85,8 +85,9 @@ class MasterLibraryPanel extends StatelessWidget {
                 const SizedBox(width: SkotiqTokens.spaceMd),
                 Expanded(
                   child: Text(
-                    'No masters yet. Integrate the night, or start an '
-                    'accumulating master to grow across multiple nights.',
+                    'Masters the Darkroom builds are listed in its Edit tab. '
+                    'Start an accumulating master here to grow one across '
+                    'nights.',
                     style: SkotiqTypography.bodySm.copyWith(
                       color: colors.textSecondary,
                     ),

@@ -4,7 +4,7 @@
 // and does not:
 //
 //  * the action cluster was a horizontally scrolling Row, so at phone width the
-//    first three icons — "Review & integrate", "Refine in Darkroom" and
+//    first three icons — "Session review", "Refine in Darkroom" and
 //    "Session Report" — were clipped away while the accessibility tree went on
 //    advertising all seven, and a tap where one used to be landed on nothing;
 //  * the Darkroom refusal was posted to the page's ScaffoldMessenger while the
@@ -225,7 +225,7 @@ void main() {
     expect(announced, contains('Session actions'));
     expect(announced, contains('Close'));
     expect(announced, isNot(contains('Refine in Darkroom')));
-    expect(announced, isNot(contains('Review & integrate')));
+    expect(announced, isNot(contains('Session review')));
     expect(announced, isNot(contains('Session report')));
 
     // And every one of them is reachable once the menu is open.
@@ -236,7 +236,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
     for (final label in const [
-      'Review & integrate',
+      'Session review',
       'Refine in Darkroom',
       'Session report',
       'Export to JSON',

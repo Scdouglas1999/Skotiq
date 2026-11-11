@@ -150,7 +150,7 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
     // reached its rig is `Disconnected`, so that test read false for the whole
     // pre-handshake window and after every drop — and during exactly that
     // window this dialog kept its host-capable labels, "Refine in Darkroom"
-    // explained itself only after the press, and "Review & integrate" did not
+    // explained itself only after the press, and "Session review" did not
     // refuse at all: it popped the dialog and landed the operator on the
     // Session Review host-only wall. Both actions ask the same question every
     // other Darkroom entry point asks, in the words
@@ -331,7 +331,7 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
         buttonKey: const ValueKey('session_detail_review'),
         icon: LucideIcons.sparkles,
         label: reviewRefusal == null
-            ? 'Review & integrate'
+            ? 'Session review'
             : 'Review on imaging host',
         unavailableReason: reviewRefusal,
         onPressed: () {

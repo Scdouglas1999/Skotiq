@@ -8,7 +8,7 @@
 // The gate is the client ROLE. Asked as `backend is NetworkBackend` it was a
 // CONNECTION fact, which reads false for the whole life of a `--remote-host`
 // launch before its first handshake — and in that window the dialog kept its
-// host-capable labels and "Review & integrate" navigated onto the Session
+// host-capable labels and "Session review" navigated onto the Session
 // Review host-only wall instead of refusing. That case is the third test here.
 //
 // WHERE THE REFUSAL IS READ. These assertions go through the published
@@ -200,7 +200,7 @@ void main() {
 
     for (final entry in {
       'session_detail_darkroom': 'Refine in Darkroom',
-      'session_detail_review': 'Review & integrate',
+      'session_detail_review': 'Session review',
     }.entries) {
       final button = find.byKey(ValueKey(entry.key));
       expect(button, findsOneWidget);
@@ -369,7 +369,7 @@ void main() {
     expect(data.hasFlag(SemanticsFlag.hasEnabledState), isTrue);
     expect(data.hasFlag(SemanticsFlag.isEnabled), isFalse);
 
-    // Review & integrate is the way OUT of this state, so it stays live.
+    // Session review is the way OUT of this state, so it stays live.
     expect(
       tester
           .widget<SkotiqIconButton>(

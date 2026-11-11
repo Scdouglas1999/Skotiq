@@ -10,7 +10,7 @@ import 'master_preview_view.dart';
 /// same accepted subs.
 ///
 /// The comparison is EXPLORATORY: it must not change the controller's working
-/// settings, persist a master, or flip the shared hero/`lastOutcome`. Each side
+/// settings, persist a master, or change the hero. Each side
 /// runs `controller.reIntegratePreview(settings)`, a throwaway non-persisting
 /// integration, which is what guarantees that.
 ///

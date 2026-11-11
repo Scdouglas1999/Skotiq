@@ -223,35 +223,3 @@ class BestNight {
   int get hashCode =>
       Object.hash(date, meanWeight, frameCount, integrationHours);
 }
-
-/// One single-channel narrowband master available to mix in the
-/// [NarrowbandMixerPanel]: a labelled channel (e.g. `Ha`, `OIII`, `SII`) backed
-/// by an on-disk linear FITS master.
-class NarrowbandChannelRef {
-  /// The persisted `integrated_masters` row id this channel comes from.
-  final int masterId;
-
-  /// Channel / filter label shown on the mixer row (e.g. `Ha`, `OIII`, `SII`).
-  final String label;
-
-  /// On-disk linear FITS master path the native combine consumes, or null when
-  /// this master has not been finalized to a FITS yet.
-  final String? fitsPath;
-
-  const NarrowbandChannelRef({
-    required this.masterId,
-    required this.label,
-    required this.fitsPath,
-  });
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is NarrowbandChannelRef &&
-          other.masterId == masterId &&
-          other.label == label &&
-          other.fitsPath == fitsPath;
-
-  @override
-  int get hashCode => Object.hash(masterId, label, fitsPath);
-}
