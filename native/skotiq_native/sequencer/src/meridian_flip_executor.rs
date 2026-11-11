@@ -2018,7 +2018,7 @@ impl MeridianFlipExecutor {
     // Helper methods
 
     async fn get_pier_side(&self, mount_id: &str) -> Result<PierSide, String> {
-        Ok(self.device_ops.mount_side_of_pier(mount_id).await?)
+        self.device_ops.mount_side_of_pier(mount_id).await
     }
 
     /// Hour angle of the J2000 target `ra_hours`/`dec_degrees`, taken against

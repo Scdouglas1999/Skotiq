@@ -694,8 +694,7 @@ impl IndiCamera {
             .get_sensor_height()
             .await
             .ok_or_else(|| IndiError::Unavailable("Sensor height not available".to_string()))?;
-        self.set_frame(0, 0, width, height)
-            .await
+        self.set_frame(0, 0, width, height).await
     }
 
     // Cooler power

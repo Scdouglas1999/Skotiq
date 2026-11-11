@@ -161,7 +161,9 @@ impl IndiCoverCalibrator {
             return Ok(());
         }
 
-        Err(IndiError::Unavailable("No compatible cover control property found".to_string()))
+        Err(IndiError::Unavailable(
+            "No compatible cover control property found".to_string(),
+        ))
     }
 
     /// Close the cover (park dust cap)
@@ -195,7 +197,9 @@ impl IndiCoverCalibrator {
             return Ok(());
         }
 
-        Err(IndiError::Unavailable("No compatible cover control property found".to_string()))
+        Err(IndiError::Unavailable(
+            "No compatible cover control property found".to_string(),
+        ))
     }
 
     /// Halt cover movement (abort)
@@ -216,7 +220,9 @@ impl IndiCoverCalibrator {
             return Ok(());
         }
 
-        Err(IndiError::Unavailable("No compatible cover abort property found".to_string()))
+        Err(IndiError::Unavailable(
+            "No compatible cover abort property found".to_string(),
+        ))
     }
 
     /// Get cover state
@@ -457,7 +463,9 @@ impl IndiCoverCalibrator {
             return Ok(());
         }
 
-        Err(IndiError::Unavailable("No compatible calibrator control property found".to_string()))
+        Err(IndiError::Unavailable(
+            "No compatible calibrator control property found".to_string(),
+        ))
     }
 
     /// Turn off the calibrator light
@@ -502,7 +510,9 @@ impl IndiCoverCalibrator {
             return Ok(());
         }
 
-        Err(IndiError::Unavailable("No compatible calibrator control property found".to_string()))
+        Err(IndiError::Unavailable(
+            "No compatible calibrator control property found".to_string(),
+        ))
     }
 
     /// Get calibrator state
@@ -609,7 +619,9 @@ impl IndiCoverCalibrator {
             return Ok(brightness as i32);
         }
 
-        Err(IndiError::Unavailable("Brightness property not available".to_string()))
+        Err(IndiError::Unavailable(
+            "Brightness property not available".to_string(),
+        ))
     }
 
     /// Set brightness (0-max)
@@ -644,7 +656,9 @@ impl IndiCoverCalibrator {
             return Ok(());
         }
 
-        Err(IndiError::Unavailable("Brightness property not available".to_string()))
+        Err(IndiError::Unavailable(
+            "Brightness property not available".to_string(),
+        ))
     }
 
     /// Get maximum brightness
@@ -675,7 +689,9 @@ impl IndiCoverCalibrator {
             }
         }
 
-        Err(IndiError::Unavailable("Brightness property limits not available".to_string()))
+        Err(IndiError::Unavailable(
+            "Brightness property limits not available".to_string(),
+        ))
     }
 }
 
