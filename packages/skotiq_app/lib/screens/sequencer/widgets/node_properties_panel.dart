@@ -271,13 +271,22 @@ class _SelectedNodeBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final issues = ref.watch(liveValidationProvider).issuesByNodeId[nodeId];
-    if (issues == null || issues.isEmpty) return const SizedBox.shrink();
+    // The target editor says "Coordinates not set" beside the RA/Dec fields
+    // with its own Look up button; pinned here as well, the same words sat
+    // over the fields below them.
+    final issues = [
+      for (final issue
+          in ref.watch(liveValidationProvider).issuesByNodeId[nodeId] ??
+              const <ValidationIssue>[])
+        if (issue.code != kTargetCoordinatesUnsetCode) issue,
+    ];
+    if (issues.isEmpty) return const SizedBox.shrink();
 
     // One banner per problem: the worst issue speaks for the node, and the
-    // Preflight dialog in the page header lists the rest.
+    // Preflight dialog in the page header lists the rest. Severity runs
+    // error, warning, info, so the worst has the lowest index.
     final worst = issues.reduce(
-      (a, b) => a.severity.index >= b.severity.index ? a : b,
+      (a, b) => a.severity.index <= b.severity.index ? a : b,
     );
     final tone = switch (worst.severity) {
       ValidationSeverity.error => BannerTone.error,

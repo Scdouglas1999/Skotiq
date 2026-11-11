@@ -86,13 +86,9 @@ void main() {
   testWidgets('switching tabs keeps the selected-node banner pinned',
       (tester) async {
     final handle = await pumpPanel(tester);
-    // An unset target fires a real validation issue that names the node, so
-    // the banner has something to show.
-    final node = TargetHeaderNode(
-      targetName: 'Unset target',
-      raHours: 0,
-      decDegrees: 0,
-    );
+    // A zero-length exposure fires a real validation issue that names the
+    // node, so the banner has something to show.
+    final node = ExposureNode(name: 'Broken', durationSecs: 0, count: 5);
     loadAndSelect(handle, singleNodeSequence(node), node.id);
     await tester.pump();
     // liveValidationProvider debounces 500 ms before issues land.
@@ -107,6 +103,34 @@ void main() {
     await tester.tap(find.text('Notes'), warnIfMissed: false);
     await tester.pump();
     expect(find.byType(SkotiqBanner), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+  });
+
+  // The pinned banner repeated "Target Coordinates Not Set" under the target
+  // editor's own inline notice and covered the Rotation and Priority fields.
+  testWidgets('an unset target is not pinned twice', (tester) async {
+    final handle = await pumpPanel(tester);
+    final lights = ExposureNode(name: 'Lights', durationSecs: 60, count: 5);
+    final node = TargetHeaderNode(
+      targetName: 'Unset target',
+      raHours: 0,
+      decDegrees: 0,
+      childIds: [lights.id],
+    );
+    loadAndSelect(
+      handle,
+      Sequence.create(
+        name: 'Tabs test',
+        rootNodeId: node.id,
+        nodes: {node.id: node, lights.id: lights.copyWith(parentId: node.id)},
+      ),
+      node.id,
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+
+    expect(find.byType(SkotiqBanner), findsNothing);
+    expect(find.textContaining('Coordinates not set'), findsOneWidget);
     await tester.pump(const Duration(seconds: 1));
   });
 
