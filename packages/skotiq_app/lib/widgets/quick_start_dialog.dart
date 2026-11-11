@@ -148,7 +148,8 @@ class QuickStartDialog extends ConsumerWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                _formatDate(quickStartContext.lastSessionDate),
+                '${quickStartContext.stoppedByOperator ? 'You stopped it' : 'Interrupted'}'
+                ' · ${_formatDate(quickStartContext.lastSessionDate)}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colors.textMuted,
                 ),
@@ -245,7 +246,7 @@ class QuickStartDialog extends ConsumerWidget {
               ),
               const SizedBox(width: SkotiqTokens.spaceSm),
               Text(
-                'Equipment Settings to Restore',
+                'Settings it used',
                 style: theme.textTheme.titleSmall?.copyWith(
                   color: colors.textSecondary,
                   fontWeight: FontWeight.w500,
@@ -262,7 +263,7 @@ class QuickStartDialog extends ConsumerWidget {
               if (snapshot.coolerTargetTemp != null)
                 _EquipmentChip(
                   icon: LucideIcons.thermometer,
-                  label:
+                  label: 'Cooler '
                       '${snapshot.coolerTargetTemp!.toStringAsFixed(0)}\u00B0C',
                   colors: colors,
                 ),
@@ -281,7 +282,8 @@ class QuickStartDialog extends ConsumerWidget {
               if (snapshot.filterPosition != null)
                 _EquipmentChip(
                   icon: LucideIcons.aperture,
-                  label: 'Filter ${snapshot.filterPosition! + 1}',
+                  label: snapshot.filterName ??
+                      'Filter slot ${snapshot.filterPosition! + 1}',
                   colors: colors,
                 ),
               if (snapshot.focuserPosition != null)
@@ -403,8 +405,17 @@ class QuickStartDialog extends ConsumerWidget {
                 ),
               ),
             ],
-          )
-        else if (_hasRestorableSetup)
+          ),
+        if (quickStartContext.canResumeFromCheckpoint) ...[
+          const SizedBox(height: SkotiqTokens.spaceSm),
+          Text(
+            'Start fresh loads the plan and its settings from the first step. '
+            'Restore progress picks up where the run ended and waits for '
+            'Start. Skip changes nothing.',
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            textAlign: TextAlign.center,
+          ),
+        ] else if (_hasRestorableSetup)
           SkotiqButton(
             label: 'Load Previous Setup',
             icon: LucideIcons.history,

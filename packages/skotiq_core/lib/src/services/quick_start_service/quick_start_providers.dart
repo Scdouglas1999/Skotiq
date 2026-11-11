@@ -103,6 +103,7 @@ Future<List<QuickStartContext>> _remoteQuickStartContexts(
       lastSessionDate: session.endTime ?? session.startTime,
       equipmentSnapshot: snapshot,
       totalIntegrationHours: session.totalIntegrationSecs / 3600.0,
+      stoppedByOperator: session.status == kOperatorStoppedSessionStatus,
     );
     contexts.add(context.withCheckpointInfo(checkpoint));
   }

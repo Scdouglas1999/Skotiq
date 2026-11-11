@@ -160,6 +160,7 @@ class QuickStartService {
       lastSessionDate: session.endTime ?? session.startTime,
       equipmentSnapshot: equipmentSnapshot,
       totalIntegrationHours: totalIntegrationHours,
+      stoppedByOperator: session.status == kOperatorStoppedSessionStatus,
     );
   }
 
@@ -223,12 +224,15 @@ class QuickStartService {
     }
 
     return EquipmentSnapshot(
-      coolerTargetTemp: cameraState.targetTemp,
+      // The set-point is only a setting in use while the cooler runs; a run
+      // at ambient has no temperature to restore.
+      coolerTargetTemp: cameraState.isCooling ? cameraState.targetTemp : null,
       cameraGain: cameraState.gain,
       cameraOffset: cameraState.offset,
       cameraBinX: binX,
       cameraBinY: binY,
       filterPosition: filterWheelState.currentPosition,
+      filterName: filterWheelState.currentFilterName,
       focuserPosition: focuserState.position,
       exposureTime: exposureTime,
       capturedAt: DateTime.now(),
@@ -334,8 +338,12 @@ class QuickStartService {
 /// and one the operator stopped keeping its resume point.
 const Set<String> kContinuableSessionStatuses = {
   kInterruptedSessionStatus,
-  'paused-stopped',
+  kOperatorStoppedSessionStatus,
 };
+
+/// The session status of a run the operator stopped with its resume point
+/// kept.
+const String kOperatorStoppedSessionStatus = 'paused-stopped';
 
 /// How long a run stays on offer after it ended.
 const Duration kContinueSessionMaxAge = Duration(days: 7);
