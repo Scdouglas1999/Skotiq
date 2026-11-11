@@ -12,6 +12,16 @@ Future<void> prepareFlatOutputDirectory(
   await Directory(path).create(recursive: true);
 }
 
+/// `Flats` inside [captureFolder], joined in the style of the computer that
+/// writes the files; null when there is no capture folder.
+String? defaultFlatFolder(String captureFolder, {required bool onHost}) {
+  final base = captureFolder.trim();
+  if (base.isEmpty) return null;
+  return (onHost ? hostPathContext(base) : p.context).join(base, _flatsFolder);
+}
+
+const String _flatsFolder = 'Flats';
+
 /// Validates a controller-supplied output directory against the host's
 /// allow-listed, writable roots and returns the normalized host path.
 @visibleForTesting

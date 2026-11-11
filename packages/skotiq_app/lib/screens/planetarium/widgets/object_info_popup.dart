@@ -457,17 +457,8 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
   Widget _buildCoordinates() {
     final coords = widget.coordinates;
 
-    final raH = coords.ra.floor();
-    final raM = ((coords.ra - raH) * 60).floor();
-    final raS = (((coords.ra - raH) * 60 - raM) * 60).toStringAsFixed(1);
-    final raStr = '${raH}h ${raM}m ${raS}s';
-
-    final sign = coords.dec >= 0 ? '+' : '-';
-    final decD = coords.dec.abs().floor();
-    final decM = ((coords.dec.abs() - decD) * 60).floor();
-    final decS =
-        (((coords.dec.abs() - decD) * 60 - decM) * 60).toStringAsFixed(0);
-    final decStr = "$sign$decD\u00b0 $decM' $decS\"";
+    final raStr = CoordinateFormat.raReadout(coords.ra);
+    final decStr = CoordinateFormat.decReadout(coords.dec);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

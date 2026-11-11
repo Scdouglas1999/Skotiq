@@ -278,15 +278,6 @@ class _MountGuardRecoveryDialogState
   );
 }
 
-String _radec(double raHours, double decDegrees) {
-  final raTotal = (raHours * 3600).round();
-  final h = raTotal ~/ 3600;
-  final m = (raTotal % 3600) ~/ 60;
-  final s = raTotal % 60;
-  final sign = decDegrees < 0 ? '-' : '+';
-  final decTotal = (decDegrees.abs() * 60).round();
-  final d = decTotal ~/ 60;
-  final dm = decTotal % 60;
-  String two(int v) => v.toString().padLeft(2, '0');
-  return 'RA ${two(h)}h ${two(m)}m ${two(s)}s, Dec $sign${two(d)} ${two(dm)}';
-}
+String _radec(double raHours, double decDegrees) =>
+    'RA ${CoordinateFormat.raDense(raHours)}, '
+    'Dec ${CoordinateFormat.decCompact(decDegrees)}';

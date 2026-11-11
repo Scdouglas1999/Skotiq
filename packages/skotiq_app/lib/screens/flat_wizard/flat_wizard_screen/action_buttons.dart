@@ -9,6 +9,7 @@ class _ActionButtons extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(flatWizardProvider);
     final notifier = ref.read(flatWizardProvider.notifier);
+    final saveFolder = ref.watch(flatWizardSaveFolderProvider);
 
     // The terminal error is a verdict ("no frames were saved"); on its own it
     // names no cause and no next step. Pair it with the measured diagnosis and
@@ -22,15 +23,36 @@ class _ActionButtons extends ConsumerWidget {
         Row(children: [
           const Icon(LucideIcons.folder, size: 16),
           const SizedBox(width: SkotiqTokens.spaceSm),
-          Expanded(
+          if (saveFolder == null)
+            const Expanded(
               child: Text(
-            state.globalSettings.savePath ?? 'Choose where to save flats',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: SkotiqTypography.bodySm,
-          )),
+                'Choose where to save flats',
+                style: SkotiqTypography.bodySm,
+              ),
+            )
+          else ...[
+            const Text('Saves to ', style: SkotiqTypography.bodySm),
+            Expanded(
+              child: Tooltip(
+                message: saveFolder,
+                child: LayoutBuilder(
+                  builder: (context, constraints) => Text(
+                    pathTail(
+                      saveFolder,
+                      maxWidth: constraints.maxWidth,
+                      style: SkotiqTypography.bodySm,
+                      textScaler: MediaQuery.textScalerOf(context),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: SkotiqTypography.bodySm,
+                  ),
+                ),
+              ),
+            ),
+          ],
           SkotiqButton(
-              label: 'Folder',
+              label: saveFolder == null ? 'Choose…' : 'Change…',
               variant: ButtonVariant.ghost,
               size: ButtonSize.small,
               onPressed:
@@ -109,7 +131,7 @@ class _ActionButtons extends ConsumerWidget {
     final settings = ref.read(flatWizardProvider).globalSettings;
     try {
       final result = await SavePathDialog.show(context,
-          currentPath: settings.savePath,
+          currentPath: ref.read(flatWizardSaveFolderProvider),
           createDateSubfolder: settings.createDateSubfolder,
           createFilterSubfolders: settings.createFilterSubfolders);
       if (result == null || !context.mounted) return;
@@ -137,11 +159,12 @@ class _ActionButtons extends ConsumerWidget {
     final authority = ref.read(backendProvider);
 
     try {
-      if (state.globalSettings.savePath == null ||
-          state.globalSettings.savePath!.isEmpty) {
+      // Flats default to the capture folder; only a computer with neither
+      // has to be asked.
+      if (ref.read(flatWizardSaveFolderProvider) == null) {
         final result = await SavePathDialog.show(
           context,
-          currentPath: state.globalSettings.savePath,
+          currentPath: null,
           createDateSubfolder: state.globalSettings.createDateSubfolder,
           createFilterSubfolders: state.globalSettings.createFilterSubfolders,
         );
@@ -184,3 +207,4 @@ class _ActionButtons extends ConsumerWidget {
     }
   }
 }
+

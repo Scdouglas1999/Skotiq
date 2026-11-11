@@ -110,8 +110,7 @@ class _FramingTelescopeSectionState
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final framingState = ref.watch(framingProvider);
-    final solverDetection = ref.watch(plateSolverDetectionProvider);
-    final solverPreference = ref.watch(plateSolverPreferenceProvider);
+    final solverReady = ref.watch(plateSolverReadyProvider);
 
     final target = framingState.target;
     // The aim is where the telescope will actually point - the dragged
@@ -122,11 +121,7 @@ class _FramingTelescopeSectionState
     final hasTarget = target != null;
     final latestCameraFrame = ref.watch(currentImageProvider);
     final hasCameraFrame = latestCameraFrame?.filePath != null;
-    final detection = solverDetection.valueOrNull;
-    final preference = solverPreference.valueOrNull;
-    final hasSolver = detection != null &&
-        preference != null &&
-        detection.supports(preference.choice);
+    final hasSolver = solverReady == true;
 
     // The readiness note must come from the SAME predicate that enables the
     // slew button. [SlewDropdownButton] gates itself on the mount being
@@ -204,6 +199,15 @@ class _FramingTelescopeSectionState
             'slewing.',
             color: colors.warning,
           ),
+        // The button falls back to a plain slew without a solver; this says
+        // why centering is not on offer and where to set it up.
+        if (hasTarget && solverReady == false)
+          const PlateSolverRequiredBanner(
+            contextMessage:
+                'Slew points the mount at the target. Centering it, and '
+                'solving the latest camera frame below, need ASTAP or '
+                'Astrometry.net.',
+          ),
         // Advisory, and shown even when the slew is allowed: the mount will
         // happily drive into the ground.
         if (hasTarget && isBelowHorizon)
@@ -219,7 +223,6 @@ class _FramingTelescopeSectionState
           canSolve: hasTarget && hasCameraFrame && hasSolver && !_isSolving,
           hasTarget: hasTarget,
           hasCameraFrame: hasCameraFrame,
-          hasSolver: hasSolver,
           outcome: _lastSolve,
           onSolve: _solveCurrentFrame,
         ),
@@ -353,7 +356,6 @@ class _SolveStep extends StatelessWidget {
   final bool canSolve;
   final bool hasTarget;
   final bool hasCameraFrame;
-  final bool hasSolver;
   final _SolveOutcome? outcome;
   final VoidCallback onSolve;
 
@@ -363,7 +365,6 @@ class _SolveStep extends StatelessWidget {
     required this.canSolve,
     required this.hasTarget,
     required this.hasCameraFrame,
-    required this.hasSolver,
     required this.outcome,
     required this.onSolve,
   });
@@ -392,14 +393,6 @@ class _SolveStep extends StatelessWidget {
         if (outcome != null) ...[
           const SizedBox(height: SkotiqTokens.spaceSm),
           _SolveOutcomeView(colors: colors, outcome: outcome!),
-        ] else if (hasTarget && hasCameraFrame && !hasSolver) ...[
-          const SizedBox(height: SkotiqTokens.spaceSm),
-          const PlateSolverRequiredBanner(
-            contextMessage:
-                'Framing solves the latest camera exposure to measure how '
-                'far the mount is from your target. Set up ASTAP (or '
-                'Astrometry.net) to enable this.',
-          ),
         ],
       ],
     );

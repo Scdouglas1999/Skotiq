@@ -12,6 +12,7 @@ import 'depthlock/depthlock_hint.dart';
 import 'depthlock/depthlock_region_layer.dart';
 import 'depthlock/depthlock_selection.dart';
 import 'preview_viewport.dart';
+import 'session_stack_plan.dart';
 import 'stacking_panel.dart'
     show StackedPreviewStretch, stackedPreviewStretchProvider;
 
@@ -76,7 +77,11 @@ class LiveStackCanvas extends ConsumerWidget {
                   : 'No stack running',
               body: stack.status == LiveStackingStatus.running
                   ? 'The stacked image appears here as frames are added.'
-                  : 'Start a stack from a reference sub and it appears here.',
+                  : ref.watch(sessionStackPlanProvider) != null
+                      ? 'Stack tonight\'s frames from the panel and the '
+                          'stacked image appears here.'
+                      : 'Start a stack from a reference sub and it appears '
+                          'here.',
             ),
           ),
         ),

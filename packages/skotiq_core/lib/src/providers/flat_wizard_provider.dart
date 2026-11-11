@@ -38,6 +38,22 @@ final flatWizardProvider =
       return FlatWizardNotifier(ref);
     });
 
+/// The folder flats are saved under: the one the operator chose, else
+/// `Flats` in the capture folder (the host's on a linked client). Null only
+/// when neither is set.
+final flatWizardSaveFolderProvider = Provider<String?>((ref) {
+  final chosen = ref.watch(
+    flatWizardProvider.select((state) => state.globalSettings.savePath),
+  );
+  if (chosen != null && chosen.isNotEmpty) return chosen;
+  final captureFolder =
+      ref.watch(appSettingsProvider).valueOrNull?.imageOutputPath ?? '';
+  return defaultFlatFolder(
+    captureFolder,
+    onHost: ref.watch(backendProvider).remoteHost != null,
+  );
+});
+
 /// A filter queued for capture, paired with its STABLE index into
 /// `FlatWizardState.filterSettings`. Carrying the original index (rather than a
 /// subset-local loop index) is what keeps per-filter status/count updates

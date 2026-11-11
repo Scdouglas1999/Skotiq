@@ -39,7 +39,8 @@ class FramingTargetInfoOverlay extends StatelessWidget {
             ),
           const SizedBox(height: 4),
           Text(
-            '${target.raFormatted}  ${target.decFormatted}',
+            '${CoordinateFormat.raReadout(target.raHours)}  '
+            '${CoordinateFormat.decReadout(target.decDegrees)}',
             style: SkotiqTypography.caption.copyWith(
                 color: colors.textSecondary,
                 fontFeatures: const [FontFeature.tabularFigures()]),

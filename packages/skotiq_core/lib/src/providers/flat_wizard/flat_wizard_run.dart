@@ -8,8 +8,9 @@ extension FlatWizardRun on FlatWizardNotifier {
   /// Run the full flat-capture lifecycle for the current mode: per-filter
   /// calibration, frame capture, FITS save, and history recording.
   ///
-  /// This is the single authoritative entry point. The screen only resolves
-  /// the save path (dialog) and calls this; all validation, cancellation, and
+  /// This is the single authoritative entry point. The screen asks for a
+  /// folder only when neither a chosen one nor a capture folder exists, and
+  /// calls this; all validation, cancellation, and
   /// truthful outcome reporting live here so the UI cannot drift from reality.
   ///
   /// Contract:
@@ -87,9 +88,20 @@ extension FlatWizardRun on FlatWizardNotifier {
         return;
       }
 
-      var savePath = runSettings.savePath;
-      if (savePath == null || savePath.isEmpty) {
-        setErrorMessage('No save path set');
+      // Without a chosen folder, flats go to `Flats` in the capture folder.
+      // On a host that folder may not exist yet, so the capture folder is
+      // what gets checked; the host creates the rest when it writes.
+      final chosen = runSettings.savePath;
+      final usesCaptureFolder = chosen == null || chosen.isEmpty;
+      var savePath = usesCaptureFolder
+          ? (ref.read(appSettingsProvider).valueOrNull?.imageOutputPath ?? '')
+                .trim()
+          : chosen;
+      if (savePath.isEmpty) {
+        setErrorMessage(
+          'No folder for flats: choose one, or set the capture folder in '
+          'Settings.',
+        );
         return;
       }
       if (host != null) {
@@ -105,6 +117,9 @@ extension FlatWizardRun on FlatWizardNotifier {
           setStatusMessage('Failed — choose a writable host folder.');
           return;
         }
+      }
+      if (usesCaptureFolder) {
+        savePath = defaultFlatFolder(savePath, onHost: host != null)!;
       }
 
       final queue = _buildFilterQueue();

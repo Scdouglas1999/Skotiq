@@ -70,7 +70,7 @@ exactly as mocked up, they are the most important pixels in the overhaul.
 | **The night band.** A horizontal timeline of tonight (sunset → astro dark → dawn → sunrise) with a sky gradient, the current-time marker, the target's altitude arc and its imageable window. | Tonight, top of the page, always visible | `mockups/png/tonight.png`, `tonight-empty.png` |
 | **The hero line.** State eyebrow, then the target or the night's headline at 28 px, then one line of facts, with the ONE primary action on the right. | Tonight | `tonight.png` |
 | **Glass HUD over the frame.** Readouts and the capture bar float over the image; the image runs edge to edge under a single 44 px toolbar. | Imaging, Live stack, Darkroom, Framing | `imaging.png` |
-| **The checklist.** First-run and "something is missing" state is one numbered checklist with the done items struck through and the next step highlighted. It replaces ten tour toasts and four catalog nags. | Tonight (empty state), Equipment side panel | `tonight-empty.png`, `equipment.png` |
+| **The checklist.** First-run and "something is missing" state is one numbered checklist with the done items checked off (a check in the disc, not a strike-through, which reads as canceled) and the next step highlighted. It replaces ten tour toasts and four catalog nags. | Tonight (empty state), Equipment side panel | `tonight-empty.png`, `equipment.png` |
 
 ## Vocabulary (use these words in code and docs)
 

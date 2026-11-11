@@ -140,7 +140,15 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
 
     final colors = context.skotiqColors;
     final selectedSection = ref.watch(selectedImagingPanelProvider);
-    final frameCount = ref.watch(recentSessionFramesProvider).length;
+    // The kept light frames: what Session frames shows as kept (flats and
+    // darks of the night are not session frames).
+    final frameCount = ref.watch(
+      recentSessionFramesProvider.select(
+        (frames) => frames
+            .where((frame) => frame.settings.frameType == FrameType.light)
+            .length,
+      ),
+    );
     final narrow = MediaQuery.sizeOf(context).width <
         ShellChromeMetrics.shellLayoutBreakpoint;
 
@@ -224,9 +232,7 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
                 ImagingTab.liveView =>
                   _liveView(colors, selectedSection, narrow),
                 ImagingTab.liveStack => _liveStack(colors, narrow),
-                ImagingTab.sessionFrames => ImagingSessionFrames(
-                    onFrameSelected: _showFrame,
-                  ),
+                ImagingTab.sessionFrames => const ImagingSessionFrames(),
               },
             ),
           ],
@@ -461,11 +467,6 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
       return;
     }
     FullscreenImageViewer.show(context, image);
-  }
-
-  /// Puts a session frame back on the canvas and returns to the viewer.
-  void _showFrame(CapturedImage frame) {
-    setState(() => _tab = ImagingTab.liveView);
   }
 }
 

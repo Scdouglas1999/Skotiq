@@ -191,18 +191,21 @@ class _FocuserControlsState extends ConsumerState<FocuserControls> {
           children: [
             _MoveButton(
               icon: LucideIcons.chevronsLeft,
+              label: 'Move in ${stepSize * 10} steps',
               size: buttonSize,
               onPressed: canMove ? () => _moveRelative(-stepSize * 10) : null,
             ),
             const SizedBox(width: 4),
             _MoveButton(
               icon: LucideIcons.chevronLeft,
+              label: 'Move in $stepSize steps',
               size: buttonSize,
               onPressed: canMove ? () => _moveRelative(-stepSize) : null,
             ),
             const SizedBox(width: 4),
             _MoveButton(
               icon: LucideIcons.octagon,
+              label: 'Stop the focuser',
               size: buttonSize,
               color: colors.error,
               onPressed: canHalt ? _halt : null,
@@ -210,12 +213,14 @@ class _FocuserControlsState extends ConsumerState<FocuserControls> {
             const SizedBox(width: 4),
             _MoveButton(
               icon: LucideIcons.chevronRight,
+              label: 'Move out $stepSize steps',
               size: buttonSize,
               onPressed: canMove ? () => _moveRelative(stepSize) : null,
             ),
             const SizedBox(width: 4),
             _MoveButton(
               icon: LucideIcons.chevronsRight,
+              label: 'Move out ${stepSize * 10} steps',
               size: buttonSize,
               onPressed: canMove ? () => _moveRelative(stepSize * 10) : null,
             ),
@@ -237,12 +242,17 @@ class _FocuserControlsState extends ConsumerState<FocuserControls> {
 
 class _MoveButton extends StatelessWidget {
   final IconData icon;
+
+  /// What the press does, for the tooltip and screen readers: the arrows
+  /// alone do not say how far, or that the middle one stops.
+  final String label;
   final double size;
   final VoidCallback? onPressed;
   final Color? color;
 
   const _MoveButton({
     required this.icon,
+    required this.label,
     required this.size,
     this.onPressed,
     this.color,
@@ -260,6 +270,10 @@ class _MoveButton extends StatelessWidget {
       child: Semantics(
           button: true,
           enabled: onPressed != null,
+          label: label,
+          child: Tooltip(
+          message: label,
+          excludeFromSemantics: true,
           child: InkWell(
             onTap: onPressed,
             borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
@@ -274,7 +288,7 @@ class _MoveButton extends StatelessWidget {
                     : colors.textMuted,
               ),
             ),
-          )),
+          ))),
     );
   }
 }

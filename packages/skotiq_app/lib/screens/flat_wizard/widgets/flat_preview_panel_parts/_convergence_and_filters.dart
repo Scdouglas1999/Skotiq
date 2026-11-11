@@ -59,6 +59,12 @@ class _AduConvergenceGraph extends StatelessWidget {
     maxY += pad;
 
     final maxX = math.max((history.length - 1).toDouble(), 1.0);
+    // Round ticks inside the range: an interval of a third of a padded range
+    // put two labels on top of each other at the bottom edge.
+    final ticks = ChartScale.ticksWithin(minY, maxY, 3);
+    final kiloDecimals = ChartScale.decimalsFor(ticks.step / 1000);
+    bool isTick(double value) => ticks.values
+        .any((tick) => (tick - value).abs() <= ticks.step.abs() * 1e-6);
 
     return LineChart(
       LineChartData(
@@ -73,19 +79,29 @@ class _AduConvergenceGraph extends StatelessWidget {
               const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           topTitles:
               const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(
+            axisNameSize: 16,
+            axisNameWidget: Text(
+              'Exposures, in order',
+              style: TextStyle(
+                  fontSize: SkotiqTypography.fontSize8,
+                  color: colors.textMuted),
+            ),
+            sideTitles: const SideTitles(showTitles: false),
+          ),
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 34,
-              interval: (maxY - minY) / 2,
-              getTitlesWidget: (value, meta) => Text(
-                '${(value / 1000).toStringAsFixed(0)}k',
-                style: TextStyle(
-                    fontSize: SkotiqTypography.fontSize8,
-                    color: colors.textMuted),
-              ),
+              interval: ticks.step > 0 ? ticks.step : null,
+              getTitlesWidget: (value, meta) => isTick(value)
+                  ? Text(
+                      '${(value / 1000).toStringAsFixed(kiloDecimals)}k',
+                      style: TextStyle(
+                          fontSize: SkotiqTypography.fontSize8,
+                          color: colors.textMuted),
+                    )
+                  : const SizedBox.shrink(),
             ),
           ),
         ),

@@ -346,7 +346,8 @@ class FramingTargetSection extends StatelessWidget {
           size: IconButtonSize.sm,
           onPressed: () {
             Clipboard.setData(ClipboardData(
-              text: '${aim.raFormatted}, ${aim.decFormatted}',
+              text: '${CoordinateFormat.raReadout(aim.raHours)}, '
+                  '${CoordinateFormat.decReadout(aim.decDegrees)}',
             ));
             context.showInfoSnackBar('Coordinates copied');
           },
@@ -369,8 +370,14 @@ class FramingTargetSection extends StatelessWidget {
                 columns: 2,
                 semanticLabel: 'Frame center',
                 items: [
-                  MetricGridItem(label: 'RA', value: aim.raFormatted),
-                  MetricGridItem(label: 'Dec', value: aim.decFormatted),
+                  MetricGridItem(
+                    label: 'RA',
+                    value: CoordinateFormat.raReadout(aim.raHours),
+                  ),
+                  MetricGridItem(
+                    label: 'Dec',
+                    value: CoordinateFormat.decReadout(aim.decDegrees),
+                  ),
                 ],
               ),
               const SizedBox(height: SkotiqTokens.spaceSm),

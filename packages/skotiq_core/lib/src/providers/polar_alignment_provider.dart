@@ -19,6 +19,7 @@ import 'capability_provider.dart';
 import '../settings/store_settings.dart';
 import 'database_provider.dart';
 import 'profiles_provider.dart';
+import 'settings_provider.dart';
 
 part 'polar_alignment/polar_wire_decoding.dart';
 part 'polar_alignment/polar_config_notifier.dart';
@@ -491,9 +492,13 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
       // Both start modes are supported end-to-end: "Current" measures from the
       // mount's current pointing, "Pole" (startFromCurrent=false) slews to the
       // pole region first (native `slew_to_pole_region`, which requires the
-      // site location — enforced host-side). Pass the user's choice through
-      // verbatim.
-      final effectiveConfig = config;
+      // site location — enforced host-side). The pole is the site's: a
+      // northern site aligns on the north celestial pole whatever an older
+      // saved setting says.
+      final site = ref.read(appObserverLocationProvider);
+      final effectiveConfig = site == null
+          ? config
+          : config.copyWith(isNorth: site.latitude >= 0);
 
       // Validate against the real camera capabilities where resolvable (host
       // authority flows through cameraCapabilitiesProvider); otherwise the

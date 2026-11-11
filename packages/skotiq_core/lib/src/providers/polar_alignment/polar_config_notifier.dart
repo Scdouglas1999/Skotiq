@@ -122,8 +122,6 @@ class PolarAlignmentConfigNotifier extends StateNotifier<PolarAlignmentConfig> {
 
   Future<void> setBinning(int value) => _edit(state.copyWith(binning: value));
 
-  Future<void> setIsNorth(bool value) => _edit(state.copyWith(isNorth: value));
-
   Future<void> setManualRotation(bool value) =>
       _edit(state.copyWith(manualRotation: value));
 

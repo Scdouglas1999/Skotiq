@@ -195,7 +195,7 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Save Location Required',
+                            'Folder for flats',
                             style: TextStyle(
                               fontSize: SkotiqTypography.fontSize18,
                               fontWeight: FontWeight.bold,
@@ -204,7 +204,7 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Choose where to save your flat frames',
+                            'Flats are saved here, in the subfolders chosen below.',
                             style: TextStyle(
                               fontSize: SkotiqTypography.fontSize13,
                               color: colors.textSecondary,
@@ -245,7 +245,7 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
                     }
                   },
                   label: 'Create date subfolder automatically',
-                  description: 'e.g., /2026-01-07/',
+                  description: 'e.g., /${ClockFormat.date(DateTime.now())}/',
                   colors: colors,
                 ),
                 const SizedBox(height: 12),

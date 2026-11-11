@@ -623,7 +623,7 @@ const List<TutorialStep> _polarAlignmentTour = [
     id: 'pat_hemisphere',
     title: 'Hemisphere',
     description:
-        'Select your hemisphere. This determines whether to use Polaris (north) or Sigma Octantis (south) as the reference point.',
+        'The pole you align on comes from your observing location: the north celestial pole near Polaris for a northern site, the south pole near Sigma Octantis for a southern one.',
     targetKey: 'polar_hemisphere',
     position: TooltipPosition.right,
     order: 1,

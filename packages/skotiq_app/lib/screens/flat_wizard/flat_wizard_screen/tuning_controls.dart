@@ -84,6 +84,7 @@ class _CaptureConfigSummary extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(flatCameraConfigProvider);
     final lights = ref.watch(exposureSettingsProvider);
+    final colors = SkotiqColors.of(context);
 
     // An unknown value is an em dash, never 'n/a' (02 rule 3). 'driver
     // default' stays: it is a real, distinct state — the camera WILL be
@@ -125,12 +126,18 @@ class _CaptureConfigSummary extends ConsumerWidget {
         // Key/value rows, not one run-on mono line reading
         // "Gain n/a · Offset n/a · Bin 1×1".
         KeyValueList(rows: rows),
+        const SizedBox(height: SkotiqTokens.spaceXs),
+        Text(
+          'Every filter uses these unless its own gain or offset is set '
+          'above.',
+          style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
+        ),
         if (mismatches.isNotEmpty) ...[
           const SizedBox(height: SkotiqTokens.spaceSm),
           // The one banner style (05 §11), not a bespoke emphasis surface.
           SkotiqBanner(
             tone: BannerTone.warning,
-            title: 'Inherited settings differ from current light settings',
+            title: 'Camera settings differ from current light settings',
             message: '${mismatches.join(', ')}. Set per-filter overrides above '
                 'to match the lights you want to calibrate.',
           ),

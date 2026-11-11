@@ -464,6 +464,32 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     }
   }
 
+  /// Start a new live stacking session aligned to [referencePath], then add
+  /// [framePaths] in order.
+  ///
+  /// Frames that are already on disk join the stack here; frames captured
+  /// afterwards arrive through [addFrameFromFile] as usual. A Stop or a host
+  /// change ends the catch-up after the frame in flight.
+  Future<void> startFromFrames(
+    String referencePath,
+    List<String> framePaths, {
+    LiveStackingConfig? config,
+  }) {
+    return _trackStart(() async {
+      await _startFromFile(referencePath, config: config);
+      final generation = _sessionGeneration;
+      final authority = _sessionAuthority;
+      for (final path in framePaths) {
+        if (authority == null ||
+            !_isCurrentSession(generation, authority) ||
+            state.status != LiveStackingStatus.running) {
+          return;
+        }
+        await addFrameFromFile(path);
+      }
+    });
+  }
+
   /// Start a new live stacking session from raw pixel data.
   Future<void> startFromData({
     required int width,

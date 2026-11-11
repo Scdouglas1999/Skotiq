@@ -38,6 +38,14 @@ class _FixedBackendNotifier extends BackendNotifier {
   }
 }
 
+class _FakeAppSettings extends AppSettingsNotifier {
+  _FakeAppSettings(this._initial);
+  final AppSettingsState _initial;
+
+  @override
+  Future<AppSettingsState> build() async => _initial;
+}
+
 class _SeededCameraNotifier extends CameraStateNotifier {
   _SeededCameraNotifier(super.ref, CameraStateSnapshot seed) {
     state = seed;
@@ -83,9 +91,16 @@ void main() {
     List<String> filterNames = const ['L', 'R', 'G'],
     bool cameraExposing = false,
     bool cameraConnected = true,
+    String? captureFolder,
   }) {
     final container = ProviderContainer(
       overrides: [
+        if (captureFolder != null)
+          appSettingsProvider.overrideWith(
+            () => _FakeAppSettings(
+              AppSettingsState(imageOutputPath: captureFolder),
+            ),
+          ),
         databaseProvider.overrideWithValue(db),
         activeEquipmentProfileProvider.overrideWithValue(null),
         backendProvider.overrideWith(
@@ -336,6 +351,59 @@ void main() {
       expect(state.isCapturing, isFalse);
       expect(state.errorMessage, contains('Camera not connected'));
       expect(backend.startCount, 0);
+    });
+  });
+
+  group('save folder', () {
+    test('without a chosen folder, flats go to Flats in the capture folder',
+        () async {
+      final backend = _AutoBackend();
+      addTearDown(backend.dispose);
+      final container = makeContainer(
+        backend,
+        filterNames: const ['L'],
+        captureFolder: tempDir.path,
+      );
+      await container.read(appSettingsProvider.future);
+      final notifier = container.read(flatWizardProvider.notifier);
+      await notifier.loadFiltersFromWheel();
+      notifier.updateGlobalSettings(
+        container.read(flatWizardProvider).globalSettings.copyWith(
+              createDateSubfolder: false,
+              createFilterSubfolders: false,
+              frameCount: 1,
+            ),
+      );
+      final flats = '${tempDir.path}${Platform.pathSeparator}Flats';
+      expect(container.read(flatWizardSaveFolderProvider), flats);
+
+      notifier.setMode(FlatWizardMode.quick);
+      notifier.setCurrentFilterIndex(0);
+      await notifier.runCapture();
+
+      expect(container.read(flatWizardProvider).errorMessage, isNull);
+      expect(backend.savedPaths, hasLength(1));
+      expect(backend.savedPaths.single, startsWith(flats));
+    });
+
+    test('a chosen folder wins over the capture folder', () async {
+      final backend = _AutoBackend();
+      addTearDown(backend.dispose);
+      final container = makeContainer(
+        backend,
+        captureFolder: '/somewhere/else',
+      );
+      await container.read(appSettingsProvider.future);
+      await primeWizard(container);
+      expect(container.read(flatWizardSaveFolderProvider), tempDir.path);
+    });
+
+    test('with neither, there is no folder to save to', () async {
+      final backend = _AutoBackend();
+      addTearDown(backend.dispose);
+      final container = makeContainer(backend, captureFolder: '');
+      await container.read(appSettingsProvider.future);
+      expect(container.read(flatWizardSaveFolderProvider), isNull);
     });
   });
 
