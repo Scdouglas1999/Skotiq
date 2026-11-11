@@ -273,8 +273,7 @@ class NightAnalysisService {
     ];
   }
 
-  /// Read the raw-DDL `eccentricity` column (not on the drift table class) for a
-  /// batch of sub ids. Fail-soft: any read error → empty map (the eccentricity
+  /// Read the `eccentricity` column for a batch of sub ids. Fail-soft: any read error → empty map (the eccentricity
   /// signal is simply absent and detectors that need it stay silent).
   Future<Map<int, double>> _loadEccentricity(List<int> ids) async {
     if (ids.isEmpty) return const {};

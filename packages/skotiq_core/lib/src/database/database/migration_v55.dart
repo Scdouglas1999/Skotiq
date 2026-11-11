@@ -24,9 +24,9 @@ extension _SkotiqDatabaseMigrationV55 on SkotiqDatabase {
   /// Guarded by [_tableExists] to match the v52–v54 style (the v2–v17 chain
   /// recreates tables from the CURRENT Drift schema, which already declares
   /// these, so a blind `createTable` would throw on those paths). The indexes
-  /// are created with `IF NOT EXISTS` here AND are re-asserted by
-  /// `_createCustomIndexes` (re-run by the migration strategy after this hook),
-  /// so creating them in either place is idempotent. The new table's unique
+  /// are created with `IF NOT EXISTS` here and are also declared on their
+  /// tables, so the pass that closes every upgrade would create them too. The
+  /// new table's unique
   /// `@TableIndex` on `scope` is materialized explicitly below for the same
   /// reason as v54's contribution-key index (createTable does not always emit
   /// the table index on the migration path).
@@ -44,8 +44,8 @@ extension _SkotiqDatabaseMigrationV55 on SkotiqDatabase {
     }
   }
 
-  /// The Wave 3 scale indexes — created here on the upgrade path and re-asserted
-  /// by `_createCustomIndexes` on fresh installs. Idempotent (`IF NOT EXISTS`).
+  /// The Wave 3 scale indexes as the v55 step created them. Idempotent
+  /// (`IF NOT EXISTS`).
   Future<void> _createLivingSkyWave3Indexes() async {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_transient_detections_dismissed '

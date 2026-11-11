@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/darkroom/recipe.dart';
 import '../../providers/database_provider.dart';
 import '../database.dart';
+import '../epoch_seconds.dart';
 
 /// A recipe row was addressed by an id that has no row.
 class RecipeMissingException implements Exception {
@@ -121,12 +122,8 @@ class RecipeDraftNote {
 /// Data-access object for the v58 `recipes` table — the non-destructive
 /// operation stack replayed over a linear master, and the branch graph over it.
 ///
-/// The table is managed with raw DDL (see
-/// [SkotiqDatabase._createDarkroomTables]) rather than a drift `Table`
-/// class, so this DAO is a plain class that reads/writes through the database's
-/// `customSelect`/`customInsert`/`customStatement` APIs — mirroring
-/// [MosaicProjectsDao] and [CampaignsDao]. It is deliberately NOT a
-/// `@DriftAccessor`.
+/// The table is declared in `database/schema/darkroom.drift`; this DAO queries
+/// with SQL through the database's `customSelect` / `customStatement` APIs.
 ///
 /// BRANCHING. A branch is a row carrying both `parent_recipe_id` and the
 /// `divergence_index` into that parent's step list; a root recipe carries
@@ -196,8 +193,8 @@ class RecipesDao {
     }
     _assertBranchCoherent(parentRecipeId, divergenceIndex);
 
-    final created = _toEpochSeconds(createdAt ?? DateTime.now());
-    final updated = updatedAt == null ? created : _toEpochSeconds(updatedAt);
+    final created = toEpochSeconds(createdAt ?? DateTime.now());
+    final updated = updatedAt == null ? created : toEpochSeconds(updatedAt);
     return _db.customInsert(
       'INSERT INTO recipes('
       'target_id, session_id, master_id, base_master_path, name, steps_json, '
@@ -382,7 +379,7 @@ class RecipesDao {
         'the steps_json envelope format starts at 1',
       );
     }
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     return _db.customUpdate(
       'UPDATE recipes SET steps_json = ?, '
       'schema_version = COALESCE(?, schema_version), updated_at = ? '
@@ -430,7 +427,7 @@ class RecipesDao {
     List<RecipeDraftNote> notes, {
     DateTime? now,
   }) {
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     return _db.customUpdate(
       'UPDATE recipes SET draft_notes_json = ?, updated_at = ? WHERE id = ?',
       variables: [
@@ -445,7 +442,7 @@ class RecipesDao {
   /// Rename a recipe (the branch label), bumping `updated_at`. Returns the
   /// number of rows changed.
   Future<int> rename(int id, String name, {DateTime? now}) {
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     return _db.customUpdate(
       'UPDATE recipes SET name = ?, updated_at = ? WHERE id = ?',
       variables: [Variable<String>(name), Variable<int>(at), Variable<int>(id)],
@@ -544,16 +541,10 @@ class RecipesDao {
       parentRecipeId: row.readNullable<int>('parent_recipe_id'),
       divergenceIndex: row.readNullable<int>('divergence_index'),
       schemaVersion: row.read<int>('schema_version'),
-      createdAt: _fromEpochSeconds(row.read<int>('created_at')),
-      updatedAt: _fromEpochSeconds(row.read<int>('updated_at')),
+      createdAt: fromEpochSeconds(row.read<int>('created_at')),
+      updatedAt: fromEpochSeconds(row.read<int>('updated_at')),
     );
   }
-
-  static int _toEpochSeconds(DateTime when) =>
-      when.toUtc().millisecondsSinceEpoch ~/ 1000;
-
-  static DateTime _fromEpochSeconds(int seconds) =>
-      DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
 }
 
 /// Riverpod provider for [RecipesDao].

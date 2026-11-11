@@ -9,13 +9,21 @@ library;
 // still reachable through this barrel via the `DbCapturedImage` /
 // `DbEquipmentProfile` typedef aliases re-exported below
 export 'src/database/database.dart'
-    hide Target, Sequence, SequenceNode, CapturedImage, EquipmentProfile;
+    hide
+        Target,
+        Sequence,
+        SequenceNode,
+        CapturedImage,
+        EquipmentProfile,
+        // The `darkroom_state` table; the app has a `DarkroomState` of its own.
+        DarkroomState;
 export 'src/database/database_aliases.dart';
 // Aliases for class names hidden from the barrel due to symbol collisions
 // (legacy HorizonProfile vs scheduler HorizonProfile; tutorial-step
 // FirstNightWizard model vs skotiq_app FirstNightWizard widget).
 export 'src/legacy_aliases.dart';
 export 'src/database/integrity_check.dart';
+export 'src/database/recovery/crash_recovery.dart';
 export 'src/database/integration_stage_marker.dart';
 export 'src/database/session_orphan_sweep.dart';
 export 'src/database/single_instance_lock.dart';
@@ -467,25 +475,19 @@ export 'src/providers/frame_watch_settings_provider.dart';
 export 'src/services/annotation_service.dart';
 export 'src/services/scheduler_service.dart';
 export 'src/services/scheduler/scheduler_engine.dart';
-export 'src/services/scheduler/integration_goal_service.dart'
-    hide
-        integrationGoalsSchemaSql,
-        integrationGoalsTargetIndexSql,
-        targetConstraintsSchemaSql,
-        targetConstraintsTargetIndexSql,
-        horizonProfilesSchemaSql;
+export 'src/services/scheduler/integration_goal_service.dart';
 export 'src/services/scheduler/target_constraint_service.dart';
-export 'src/services/scheduler/scheduler_queue_service.dart'
-    hide schedulerRemovedTargetsSchemaSql;
+export 'src/services/scheduler/scheduler_queue_service.dart';
 // Two HorizonProfile classes exist in the codebase:
 //   * settings_provider.dart::HorizonProfile  - legacy 8-point compass profile
 //     stored as JSON in app_settings.horizon_profile_json
 //   * services/scheduler/horizon_profile.dart::HorizonProfile  - newer
-//     samples-based profile persisted in the horizon_profiles drift table
+//     samples-based profile persisted in the horizon_profiles table
 // The legacy one is still referenced by target_suggestion_service.dart via a
 // `show` import; we hide it from the barrel so the scheduler's profile is the
 // canonical public class.
 export 'src/services/scheduler/horizon_profile.dart';
+export 'src/services/scheduler/horizon_profile_store.dart';
 // The single rejection-reason ladder shared by the engine's decision record
 // and the queue row's STATUS chip.
 export 'src/services/scheduler/rejection_labels.dart';
@@ -493,21 +495,13 @@ export 'src/services/scheduler/sky_calculations.dart';
 export 'src/providers/scheduler_provider.dart';
 // Multi-Night & Forecast Planning (Roadmap #5) — services + Riverpod wiring.
 //   * project_service.dart           - Project/membership CRUD + derived
-//     CampaignProgress roll-up over the raw projects / project_targets tables.
-//     The schema DDL constants are hidden from the barrel (mirroring the
-//     scheduler stack); scheduler_provider.dart imports them directly via the
-//     src path to ensure the planner tables exist alongside the scheduler ones.
+//     CampaignProgress roll-up over the projects / project_targets tables.
 //   * forecast_planning_service.dart - pure, I/O-free N-night clear-dark-hours
 //     scorer fed already-fetched hourly cloud data + project target candidates.
 //   * planning_provider.dart         - active-project selection, project list /
 //     progress, and the week-ahead forecast providers (forecast fetch lives at
 //     this provider layer, per the scheduler-stack convention).
-export 'src/services/planning/project_service.dart'
-    hide
-        projectsSchemaSql,
-        projectTargetsSchemaSql,
-        projectTargetsProjectIndexSql,
-        projectTargetsTargetIndexSql;
+export 'src/services/planning/project_service.dart';
 export 'src/services/planning/forecast_planning_service.dart';
 export 'src/providers/planning_provider.dart';
 export 'src/services/focus_model_service.dart';

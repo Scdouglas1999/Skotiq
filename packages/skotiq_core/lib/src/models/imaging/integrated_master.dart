@@ -52,8 +52,8 @@ enum AccumulationMode {
 
 /// A persisted record of one integrated master (the `integrated_masters` row).
 ///
-/// This is the Dart mirror of the raw-DDL table documented in
-/// `database/tables/post_session_tables.dart`. It is an immutable value type
+/// This is the Dart mirror of the table declared in
+/// `database/schema/post_session.drift`. It is an immutable value type
 /// with value equality and JSON-string accessors for the `settings_json` /
 /// `stats_json` columns left to the service layer.
 class IntegratedMaster {

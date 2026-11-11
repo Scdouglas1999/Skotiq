@@ -7,13 +7,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 // that collides with Flutter's async `ConnectionState`. Hide the core one
 // here; everything else we need from the barrel is unaffected.
 import 'package:skotiq_core/skotiq_core.dart' hide ConnectionState;
-// horizonProfilesSchemaSql is intentionally hidden from the package barrel
-// (it's a DDL constant, not public API). Pull it in via the source file
-// directly so the local (host) path can guarantee the table exists before
-// reading. On a remote slave horizon profiles come from the host over REST.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/scheduler/integration_goal_service.dart'
-    show horizonProfilesSchemaSql;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../accessible_dropdown.dart';
@@ -95,20 +88,8 @@ class _TargetConstraintsEditorState
       profiles = (await backend.getHorizonProfiles())
         ..sort((a, b) => a.name.compareTo(b.name));
     } else {
-      final db = ref.read(databaseProvider);
-      await db.customStatement(horizonProfilesSchemaSql);
-      final hpRows = await db
-          .customSelect(
-            'SELECT id, name, samples_json FROM horizon_profiles ORDER BY name ASC',
-          )
-          .get();
-      profiles = hpRows
-          .map((r) => HorizonProfile.fromRow(
-                id: r.read<int>('id'),
-                name: r.read<String>('name'),
-                samplesJson: r.read<String>('samples_json'),
-              ))
-          .toList();
+      profiles = (await loadHorizonProfiles(ref.read(databaseProvider)))
+        ..sort((a, b) => a.name.compareTo(b.name));
     }
 
     return _LoadedConstraints(

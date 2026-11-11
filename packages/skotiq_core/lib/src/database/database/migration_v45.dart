@@ -25,7 +25,7 @@ extension _SkotiqDatabaseMigrationV45 on SkotiqDatabase {
   /// from `onCreate`.
   Future<void> _upgradeSchemaV45(Migrator m, int from) async {
     if (from < 45) {
-      await _createMosaicTables();
+      await _createMosaicTables(m);
     }
   }
 }

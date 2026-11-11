@@ -28,7 +28,7 @@ extension _SkotiqDatabaseMigrationV32ToV40 on SkotiqDatabase {
     //     payload as JSON so future heuristic columns can be added
     //     without breaking forward / backward compat.
     if (from < 32) {
-      await _createFrameForensicsTable();
+      await _createFrameForensicsTable(m);
     }
 
     // Version 33: Replay Debug — `sequence_decisions` table.
@@ -60,32 +60,13 @@ extension _SkotiqDatabaseMigrationV32ToV40 on SkotiqDatabase {
     //     row with no extra context still parses to an empty map
     //     on read.
     if (from < 33) {
-      await customStatement(
-        'CREATE TABLE IF NOT EXISTS sequence_decisions ('
-        'id INTEGER PRIMARY KEY AUTOINCREMENT,'
-        'sequence_run_id INTEGER,'
-        'timestamp_unix_ms INTEGER NOT NULL,'
-        'category TEXT NOT NULL,'
-        'summary TEXT NOT NULL,'
-        'details_json TEXT NOT NULL DEFAULT \'{}\','
-        'node_id TEXT)',
-      );
-      await customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_sequence_decisions_run '
-        'ON sequence_decisions (sequence_run_id)',
-      );
-      await customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_sequence_decisions_timestamp '
-        'ON sequence_decisions (timestamp_unix_ms)',
-      );
-      await customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_sequence_decisions_category '
-        'ON sequence_decisions (category)',
-      );
-      await customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_sequence_decisions_run_ts '
-        'ON sequence_decisions (sequence_run_id, timestamp_unix_ms)',
-      );
+      await _createMissing(m, [
+        sequenceDecisions,
+        idxSequenceDecisionsRun,
+        idxSequenceDecisionsTimestamp,
+        idxSequenceDecisionsCategory,
+        idxSequenceDecisionsRunTs,
+      ]);
       // Seed the user-tunable retention setting if it's not
       // already present. Default 90 days matches the design spec.
       await customStatement(
@@ -104,7 +85,7 @@ extension _SkotiqDatabaseMigrationV32ToV40 on SkotiqDatabase {
     // calculator's mount-tracking ceiling once enough guided
     // sessions exist for the active mount.
     if (from < 34) {
-      await _createGuideRmsHistoryTable();
+      await _createGuideRmsHistoryTable(m);
     }
 
     // Version 35: Promote safety monitor to a first-class equipment-profile
@@ -162,7 +143,7 @@ extension _SkotiqDatabaseMigrationV32ToV40 on SkotiqDatabase {
     // via `customSelect`/`customStatement`. The same helper runs from
     // `onCreate` so fresh installs get the table too.
     if (from < 38) {
-      await _createStackedResultsTable();
+      await _createStackedResultsTable(m);
     }
 
     // Version 39 (OSC / Color Stacking, C11): record colour provenance on
@@ -209,7 +190,7 @@ extension _SkotiqDatabaseMigrationV32ToV40 on SkotiqDatabase {
     // single source of truth. Caching a tally here would silently drift out
     // of sync whenever a frame is rejected, deleted, or re-graded.
     if (from < 40) {
-      await _createProjectsTables();
+      await _createProjectsTables(m);
     }
   }
 }

@@ -4,16 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/imaging/night_report.dart';
 import '../../providers/database_provider.dart';
 import '../database.dart';
+import '../epoch_seconds.dart';
 
 /// Data-access object for the v42 `night_reports` table — the persisted Night
 /// Doctor verdict for each session (and/or target) the Smart Morning Report
 /// pipeline produces.
 ///
-/// The table is managed with raw DDL (see
-/// [SkotiqDatabase._createNightReportsTable]) rather than a drift `Table`
-/// class, so this DAO is a plain class that reads/writes through the database's
-/// `customSelect`/`customInsert`/`customUpdate` APIs — mirroring
-/// [IntegratedMastersDao]. It is deliberately NOT a `@DriftAccessor`.
+/// The table is declared in `database/schema/post_session.drift`; this DAO queries
+/// with SQL through the database's `customSelect` / `customStatement` APIs.
 ///
 /// SQLite errors propagate; reads map nullable columns to the model's nullable
 /// fields. The `findings_json` column round-trips through
@@ -49,7 +47,7 @@ class NightReportsDao {
         Variable<int>(score),
         Variable<String>(headline),
         Variable<String>(NightReport.encodeFindings(findings)),
-        Variable<int>(_toEpochSeconds(createdAt ?? now)),
+        Variable<int>(toEpochSeconds(createdAt ?? now)),
       ],
     );
   }
@@ -121,15 +119,9 @@ class NightReportsDao {
       findings: NightReport.decodeFindings(
         row.readNullable<String>('findings_json'),
       ),
-      createdAt: _fromEpochSeconds(row.read<int>('created_at')),
+      createdAt: fromEpochSeconds(row.read<int>('created_at')),
     );
   }
-
-  static int _toEpochSeconds(DateTime when) =>
-      when.toUtc().millisecondsSinceEpoch ~/ 1000;
-
-  static DateTime _fromEpochSeconds(int seconds) =>
-      DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
 }
 
 /// Riverpod provider for [NightReportsDao].

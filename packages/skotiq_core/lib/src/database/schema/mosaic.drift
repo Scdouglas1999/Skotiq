@@ -1,0 +1,52 @@
+-- Mosaic projects and their panels.
+-- Timestamps are INTEGER unix seconds (UTC) unless a column says otherwise.
+
+import '../tables/targets.dart';
+import 'post_session.drift';
+
+-- A mosaic: grid config, source target, and the stitched output, which is itself
+-- an integrated_masters row. hub_mosaic_id / collab_role / collab_status are
+-- null unless the project was published to the hub as a collaborative mosaic.
+CREATE TABLE mosaic_projects (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  target_id INTEGER REFERENCES targets(id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  "rows" INTEGER NOT NULL,
+  cols INTEGER NOT NULL,
+  overlap_pct REAL NOT NULL DEFAULT 15.0,
+  position_angle_deg REAL NOT NULL DEFAULT 0.0,
+  status TEXT NOT NULL DEFAULT 'planning',
+  output_master_id INTEGER REFERENCES integrated_masters(id) ON DELETE SET NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  hub_mosaic_id TEXT,
+  collab_role TEXT,
+  collab_status TEXT
+) AS MosaicProjectRow;
+
+CREATE INDEX IF NOT EXISTS idx_mosaic_projects_target ON mosaic_projects (target_id);
+CREATE INDEX IF NOT EXISTS idx_mosaic_projects_status ON mosaic_projects (status);
+CREATE INDEX IF NOT EXISTS idx_mosaic_projects_hub ON mosaic_projects (hub_mosaic_id);
+
+-- One panel of a mosaic; panel_index is 0-based. The panel's WCS rides on its
+-- integrated_masters row. assigned_* / claim_token / uploaded_master_id track a
+-- hub panel claim and are null until a rig takes the panel.
+CREATE TABLE mosaic_panels (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id INTEGER NOT NULL REFERENCES mosaic_projects(id) ON DELETE CASCADE,
+  panel_index INTEGER NOT NULL,
+  center_ra REAL NOT NULL,
+  center_dec REAL NOT NULL,
+  target_id INTEGER REFERENCES targets(id) ON DELETE SET NULL,
+  integrated_master_id INTEGER REFERENCES integrated_masters(id) ON DELETE SET NULL,
+  captured_count INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'pending',
+  assigned_rig_id TEXT,
+  assigned_user_id TEXT,
+  claim_token TEXT,
+  uploaded_master_id INTEGER,
+  UNIQUE(project_id, panel_index)
+) AS MosaicPanelRow;
+
+CREATE INDEX IF NOT EXISTS idx_mosaic_panels_project ON mosaic_panels (project_id);
+CREATE INDEX IF NOT EXISTS idx_mosaic_panels_master ON mosaic_panels (integrated_master_id);

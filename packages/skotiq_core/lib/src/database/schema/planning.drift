@@ -1,0 +1,87 @@
+-- Planning and scheduling: projects and their member targets, integration
+-- goals, target constraints, horizon profiles, the scheduler queue's removed
+-- targets and the multi-night campaign counters.
+-- Timestamps are INTEGER unix seconds (UTC) unless a column says otherwise.
+
+import '../tables/targets.dart';
+
+-- A project groups targets into one multi-night campaign. Accrued progress is
+-- never stored here: it is derived from captured_images on demand, so it
+-- cannot go stale when a frame is rejected, deleted or re-graded. The active
+-- project is the app_settings key planning.active_project_id.
+CREATE TABLE projects (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  description TEXT,
+  color_argb INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+) AS ProjectRow;
+
+CREATE TABLE project_targets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  target_id INTEGER NOT NULL REFERENCES targets(id) ON DELETE CASCADE,
+  priority_override INTEGER,
+  added_at INTEGER NOT NULL,
+  UNIQUE(project_id, target_id)
+) AS ProjectTargetRow;
+
+CREATE INDEX IF NOT EXISTS idx_project_targets_project ON project_targets (project_id);
+CREATE INDEX IF NOT EXISTS idx_project_targets_target ON project_targets (target_id);
+
+-- Per-target, per-filter frame goals.
+CREATE TABLE integration_goals (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  target_id INTEGER NOT NULL REFERENCES targets(id) ON DELETE CASCADE,
+  "filter" TEXT NOT NULL,
+  exposure_seconds REAL NOT NULL,
+  frame_count INTEGER NOT NULL,
+  priority INTEGER NOT NULL DEFAULT 5,
+  created_at INTEGER NOT NULL,
+  UNIQUE(target_id, "filter", exposure_seconds)
+) AS IntegrationGoalRow;
+
+CREATE INDEX IF NOT EXISTS idx_integration_goals_target ON integration_goals (target_id);
+
+-- Hard constraints on a target. kind is a TargetConstraintKind name;
+-- payload_json is that kind's payload.
+CREATE TABLE target_constraints (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  target_id INTEGER NOT NULL REFERENCES targets(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  payload_json TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1
+) AS TargetConstraintRow;
+
+CREATE INDEX IF NOT EXISTS idx_target_constraints_target ON target_constraints (target_id);
+
+-- Custom horizons; samples_json is a JSON array of {az, alt} samples.
+CREATE TABLE horizon_profiles (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  samples_json TEXT NOT NULL
+) AS HorizonProfileRow;
+
+-- Targets the operator took out of the scheduler queue. The row is the whole
+-- state; re-admission deletes it.
+CREATE TABLE scheduler_removed_targets (
+  target_id INTEGER PRIMARY KEY REFERENCES targets(id) ON DELETE CASCADE,
+  removed_at INTEGER NOT NULL
+) AS SchedulerRemovedTargetRow;
+
+-- Durable (target, filter, accepted, desired, last_date) counter. Bookkeeping
+-- only: it never feeds the scheduler's goals-complete decision.
+CREATE TABLE campaigns (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  target_id INTEGER NOT NULL REFERENCES targets(id) ON DELETE CASCADE,
+  "filter" TEXT NOT NULL,
+  accepted_count INTEGER NOT NULL DEFAULT 0,
+  desired_count INTEGER NOT NULL DEFAULT 0,
+  last_date INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  UNIQUE(target_id, "filter")
+) AS CampaignRow;
+
+CREATE INDEX IF NOT EXISTS idx_campaigns_target ON campaigns (target_id);

@@ -24,6 +24,14 @@ import 'imaging_sessions.dart';
 @TableIndex(name: 'idx_transient_detections_session', columns: {#sessionId})
 @TableIndex(name: 'idx_transient_detections_tile', columns: {#tileId})
 @TableIndex(name: 'idx_transient_detections_detected', columns: {#detectedAt})
+@TableIndex(
+  name: 'idx_transient_detections_dismissed',
+  columns: {#dismissed, #tileId},
+)
+@TableIndex(
+  name: 'idx_transient_detections_confirmed',
+  columns: {#reviewed, #dismissed, #detectedAt},
+)
 class TransientDetections extends Table {
   IntColumn get id => integer().autoIncrement()();
 

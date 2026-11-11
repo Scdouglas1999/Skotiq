@@ -335,11 +335,9 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
 
   // Thumbnail sidecar bookkeeping.
   //
-  // The `thumbnail_path` column lives off-table (raw DDL, see
-  // `database.dart::_ensureCapturedImagesThumbnailPathColumn`) so we go
-  // through `customStatement` / `customSelect`. Nullable column — null
-  // means no sidecar yet; the GET handler falls back to a cold-read and
-  // self-heals by writing the sidecar then stamping the column.
+  // `thumbnail_path` is nullable — null means no sidecar yet; the GET handler
+  // falls back to a cold-read and self-heals by writing the sidecar then
+  // stamping the column.
 
   /// Read the sidecar JPEG path for [imageId], or null if no sidecar has
   /// been written. Doesn't probe the filesystem — callers must stat the
@@ -615,11 +613,9 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
 
   // Thumbnail — producing-node provenance
   //
-  // The columns producing_node_id / producing_run_id / runtime_grade /
-  // eccentricity are stored on captured_images via the v30 raw-DDL migration
-  // (see database.dart). They are NOT declared on the [CapturedImages] Drift
-  // Table to keep the .g.dart codegen surface unchanged; the helpers below
-  // therefore go through `customSelect` / `customStatement`.
+  // The helpers below were written when producing_node_id / producing_run_id
+  // / runtime_grade / eccentricity were not on the [CapturedImages] class, and
+  // still query them with SQL.
 
   /// Stamp the producing-node provenance on an already-persisted image row.
   ///
@@ -685,11 +681,8 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
   /// Measured median FWHM for every frame of [sessionId] that has one, keyed
   /// by image id. Frames the producing path never measured are absent.
   ///
-  /// `fwhm` is a v50 raw-DDL column, so it is NOT a field on the generated
-  /// `CapturedImage` data class — anything holding a `List<DbCapturedImage>`
-  /// (the exporters, the report builder) cannot see it and has to look it up
-  /// here. Batched because the alternative, [getFwhm] per frame, is one query
-  /// per sub across a whole night.
+  /// Batched because the alternative, [getFwhm] per frame, is one query per
+  /// sub across a whole night.
   Future<Map<int, double>> getFwhmForSession(int sessionId) async {
     final rows = await customSelect(
       'SELECT id, fwhm FROM captured_images '
@@ -1069,10 +1062,9 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
   // session-replay scrubber uses this to enumerate every frame on the
   // run's timeline.
   //
-  // `producing_run_id` is a raw-DDL TEXT column (v30 migration); the
-  // value is `sequence_runs.id.toString()` (see SequenceExecutor).
-  // We use `customSelect` because Drift's generated typed select API
-  // cannot reference the raw column. We then call `capturedImages.map`
+  // `producing_run_id` is TEXT; the value is `sequence_runs.id.toString()`
+  // (see SequenceExecutor). The query is SQL; we then call
+  // `capturedImages.map`
   // on the row data to materialise a fully-typed CapturedImage — that
   // mapper is part of Drift's generated table accessor and accepts a
   // `Map<String, dynamic>` of column-name → value.
