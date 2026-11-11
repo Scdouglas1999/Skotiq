@@ -1,13 +1,18 @@
 // The Guide tab's lower sections: the guide star with its scatter plot,
-// PHD2's calibration, and the dither and settle values.
+// the guider's calibration, and the dither and settle values.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../../utils/confirm_dialog.dart';
 import '../../../../utils/guide_distance.dart';
+import '../../../../utils/snackbar_helper.dart';
 import '../../../../localization/skotiq_localizations.dart';
+import '../../actions/night_action_controller.dart';
 import '../../data/plan/night_plan_inputs.dart';
 import '../../data/session/equipment_summary_provider.dart'
     show kNightGuideStopReasons;
@@ -175,11 +180,24 @@ class NightGuideCalibrationSection extends ConsumerWidget {
   const NightGuideCalibrationSection({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NightGuideCalibrationSection> createState() =>
+      _NightGuideCalibrationSectionState();
+}
+
+class _NightGuideCalibrationSectionState
+    extends ConsumerState<NightGuideCalibrationSection> {
+  /// The calibration command in flight.
+  String? _busy;
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final colors = context.skotiqColors;
     final calibration = ref.watch(calibrationStateProvider);
     final clock = ref.watch(clockProvider);
+    final inputs = ref.watch(nightActionInputsProvider);
+    final guiderId = ref.watch(guiderStateProvider.select((g) => g.deviceId));
+    final isPhd2 = guiderId == null || isPhd2DeviceId(guiderId);
     final at = calibration.calibratedAt;
     final status = !calibration.isCalibrated
         ? l10n.text('nightScopeGuideNotCalibrated')
@@ -192,6 +210,19 @@ class NightGuideCalibrationSection extends ConsumerWidget {
     String? rate(double? value) =>
         value == null || !value.isFinite ? null : value.toStringAsFixed(2);
     final angle = calibration.rotationAngle;
+
+    final reason = !inputs.canCommand
+        ? l10n.text('nightActWhyNoHost')
+        : inputs.runActive
+            ? l10n.text('nightActWhyRunOwns')
+            : _busy != null
+                ? l10n.text('nightScopeWhyGuiderBusy')
+                : null;
+    final flipReason = reason ??
+        (calibration.isCalibrated
+            ? null
+            : l10n.text('nightScopeWhyNotCalibrated'));
+
     return NightPanelSection(
       title: l10n.text('nightScopeGuideCalibration'),
       trailing: status,
@@ -215,8 +246,74 @@ class NightGuideCalibrationSection extends ConsumerWidget {
             ),
           ],
         ),
+        // Only PHD2 takes these; the built-in guider calibrates itself
+        // when guiding starts.
+        if (isPhd2)
+          NightPanelButtonGrid(
+            columns: 2,
+            buttons: [
+              NightPanelButtonSpec(
+                key: const ValueKey<String>('nightGuide.flipCal'),
+                label: l10n.text('nightScopeGuideFlipCal'),
+                busy: _busy == 'flipCal',
+                disabledReason: flipReason,
+                onPressed: flipReason == null
+                    ? () => _run(
+                          'flipCal',
+                          () => ref
+                              .read(calibrationStateProvider.notifier)
+                              .flipCalibration(),
+                        )
+                    : null,
+              ),
+              NightPanelButtonSpec(
+                key: const ValueKey<String>('nightGuide.clearCal'),
+                label: l10n.text('nightScopeGuideClearCal'),
+                busy: _busy == 'clearCal',
+                disabledReason: reason,
+                onPressed:
+                    reason == null ? () => unawaited(_confirmClear()) : null,
+              ),
+            ],
+          ),
       ],
     );
+  }
+
+  Future<void> _confirmClear() async {
+    final l10n = context.l10n;
+    final confirmed = await ConfirmDialog.show(
+      context: context,
+      title: l10n.text('nightScopeGuideClearTitle'),
+      message: l10n.text('nightScopeGuideClearBody'),
+      confirmLabel: l10n.text('nightScopeGuideClearCal'),
+      cancelLabel: l10n.text('cancel'),
+      isDestructive: true,
+    );
+    if (!confirmed || !mounted) return;
+    await _run(
+      'clearCal',
+      () => ref.read(calibrationStateProvider.notifier).clearCalibration(),
+    );
+  }
+
+  Future<void> _run(String id, Future<void> Function() command) async {
+    final l10n = context.l10n;
+    setState(() => _busy = id);
+    try {
+      await command();
+    } catch (e) {
+      if (mounted) {
+        context.showErrorSnackBar(
+          l10n.text(
+            'nightScopeGuideCommandFailed',
+            params: {'error': userFacingError(e)},
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = null);
+    }
   }
 }
 
@@ -240,12 +337,14 @@ class NightGuideDitherSection extends ConsumerWidget {
           items: [
             MetricGridItem(
               label: l10n.text('nightScopeGuideEvery'),
-              value: every == null
+              value: settings == null
                   ? null
-                  : l10n.text(
-                      'nightScopeGuideFrames',
-                      params: {'count': '$every'},
-                    ),
+                  : every == null
+                      ? l10n.text('nightScopeGuideDitherOff')
+                      : l10n.text(
+                          'nightScopeGuideFrames',
+                          params: {'count': '$every'},
+                        ),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeGuideAmount'),

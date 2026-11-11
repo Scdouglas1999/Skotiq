@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/night_control/actions/manual_action_gating.dart';
 import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/panel/guide/night_guide_tab.dart';
@@ -41,6 +42,20 @@ class _BuiltinGuider extends GuiderStateNotifier {
       deviceName: 'Built-in Multi-Star Guider',
     );
   }
+}
+
+class _MockGuider extends Mock implements Phd2Controller {}
+
+_MockGuider _guiderThatStarts() {
+  final guider = _MockGuider();
+  when(
+    () => guider.startGuiding(
+      settlePixels: any(named: 'settlePixels'),
+      settleTime: any(named: 'settleTime'),
+      settleTimeout: any(named: 'settleTimeout'),
+    ),
+  ).thenAnswer((_) async {});
+  return guider;
 }
 
 class _Samples extends NightGuideSamplesNotifier {
@@ -251,6 +266,94 @@ void main() {
     await tester.tap(find.byKey(dither));
     await tester.pump();
     expect(api.calls, ['dither']);
+  });
+
+  testWidgets('Guide starts guiding outside a run with the settle settings', (
+    tester,
+  ) async {
+    final guider = _guiderThatStarts();
+    final handle = await pumpPanelTab(
+      tester,
+      const NightGuideTab(),
+      overrides: [
+        ..._connected(),
+        guiderStateProvider.overrideWith(_BuiltinGuider.new),
+        phd2ControllerProvider.overrideWithValue(guider),
+      ],
+    );
+    final settings = handle.container.read(appSettingsProvider.notifier);
+    await tester.runAsync(() async {
+      await handle.container.read(appSettingsProvider.future);
+      await settings.setSettleThreshold(2.0);
+      await settings.setSettleTime(15);
+      await settings.setSettleTimeout(90);
+    });
+    await tester.pump();
+
+    const guide = ValueKey<String>('nightGuide.guide');
+    expect(find.text('Guide'), findsOneWidget);
+    expect(isEnabled(tester, guide), isTrue);
+    await tester.tap(find.byKey(guide));
+    await tester.pump();
+    verify(
+      () => guider.startGuiding(
+        settlePixels: 2.0,
+        settleTime: 15,
+        settleTimeout: 90,
+      ),
+    ).called(1);
+  });
+
+  testWidgets('Guide waits while a run owns the guider or it already guides', (
+    tester,
+  ) async {
+    await pumpPanelTab(
+      tester,
+      const NightGuideTab(),
+      overrides: [
+        ..._connected(
+          inputs: panelInputs(
+            runState: SequenceExecutionState.running,
+            isGuiding: true,
+          ),
+        ),
+        phd2ControllerProvider.overrideWithValue(_guiderThatStarts()),
+      ],
+    );
+    const guide = ValueKey<String>('nightGuide.guide');
+    expect(isEnabled(tester, guide), isFalse);
+    expect(tooltipOf(tester, guide), 'The run controls this while it is loaded');
+  });
+
+  testWidgets('Guide says why it waits while the guider already guides', (
+    tester,
+  ) async {
+    await pumpPanelTab(
+      tester,
+      const NightGuideTab(),
+      overrides: [
+        ..._connected(),
+        phd2StateProvider.overrideWith((ref) => Phd2State.guiding),
+        phd2ControllerProvider.overrideWithValue(_guiderThatStarts()),
+      ],
+    );
+    const guide = ValueKey<String>('nightGuide.guide');
+    expect(isEnabled(tester, guide), isFalse);
+    expect(tooltipOf(tester, guide), 'Already guiding');
+  });
+
+  testWidgets('the calibration buttons are PHD2\'s and sit with its calibration',
+      (tester) async {
+    await pumpPanelTab(
+      tester,
+      const NightGuideTab(),
+      overrides: [
+        ..._connected(),
+        guiderStateProvider.overrideWith(_BuiltinGuider.new),
+      ],
+    );
+    expect(find.byKey(const ValueKey<String>('nightGuide.flipCal')), findsNothing);
+    expect(find.byKey(const ValueKey<String>('nightGuide.clearCal')), findsNothing);
   });
 
   testWidgets('lays out at 1.3x text without overflow', (tester) async {

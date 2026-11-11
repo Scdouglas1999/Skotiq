@@ -13,7 +13,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
-import '../../../../utils/confirm_dialog.dart';
 import '../../../../utils/guide_distance.dart';
 import '../../../../utils/snackbar_helper.dart';
 import '../../../../widgets/phd2_connection_dialog.dart';
@@ -182,7 +181,8 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
     } catch (e) {
       if (mounted) {
         context.showErrorSnackBar(
-          l10n.text('nightCtrGuideConnectFailed', params: {'detail': userFacingError(e)}),
+          l10n.text('nightCtrGuideConnectFailed',
+              params: {'detail': userFacingError(e)}),
         );
       }
     } finally {
@@ -203,7 +203,8 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
     } catch (e) {
       if (mounted) {
         context.showErrorSnackBar(
-          l10n.text('nightScopeGuideConnectFailed', params: {'error': userFacingError(e)}),
+          l10n.text('nightScopeGuideConnectFailed',
+              params: {'error': userFacingError(e)}),
         );
       }
     } finally {
@@ -232,7 +233,6 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
     final state = ref.watch(phd2StateProvider);
     final stats = ref.watch(guideStatsProvider);
     final rms = ref.watch(nightGuideRmsProvider);
-    final calibration = ref.watch(calibrationStateProvider);
     final inputs = ref.watch(nightActionInputsProvider);
     final isPhd2 = guider.deviceId == null || isPhd2DeviceId(guider.deviceId!);
 
@@ -271,41 +271,40 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
       ),
     ];
 
-    // Guiding belongs to a loaded run; only Dither, which goes through the
+    // A loaded run owns the guider; only Dither, which goes through the
     // action controller, stays available.
-    String? reason({bool phd2Only = false}) {
+    String? reason() {
       if (!inputs.canCommand) return l10n.text('nightActWhyNoHost');
       if (inputs.runActive) return l10n.text('nightActWhyRunOwns');
       if (_busy != null) return l10n.text('nightScopeWhyGuiderBusy');
-      if (phd2Only && !isPhd2) return l10n.text('nightScopeWhyPhd2Only');
       return null;
     }
 
     final looping = state == Phd2State.looping;
-    final active = state == Phd2State.guiding ||
+    final guiding = state == Phd2State.guiding ||
         state == Phd2State.calibrating ||
-        state == Phd2State.settling ||
-        state == Phd2State.paused ||
-        state == Phd2State.lostLock;
+        state == Phd2State.settling;
+    final held = state == Phd2State.paused || state == Phd2State.lostLock;
     final loopReason = reason() ??
         (looping
             ? l10n.text('nightScopeWhyLooping')
-            : active
+            : guiding || held
                 ? l10n.text('nightScopeWhyStopFirst')
                 : null);
     final findReason = reason() ??
         (looping || state == Phd2State.selected
             ? null
             : l10n.text('nightScopeWhyLoopFirst'));
+    final guideReason = reason() ??
+        (guiding
+            ? l10n.text('nightScopeWhyGuiding')
+            : held || state == Phd2State.unknown
+                ? l10n.text('nightScopeWhyStopFirst')
+                : null);
     final stopReason = reason() ??
         (state == Phd2State.stopped || state == Phd2State.selected
             ? l10n.text('nightScopeWhyNothingToStop')
             : null);
-    final flipCalReason = reason(phd2Only: true) ??
-        (calibration.isCalibrated
-            ? null
-            : l10n.text('nightScopeWhyNotCalibrated'));
-    final clearCalReason = reason(phd2Only: true);
     final ditherReason =
         manualActionDisabledReason(inputs, ManualActionId.dither)
             ?.resolve(l10n);
@@ -346,6 +345,16 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
                   findReason == null ? () => _run('find', _findStar) : null,
             ),
             NightPanelButtonSpec(
+              key: const ValueKey<String>('nightGuide.guide'),
+              label: l10n.text('nightScopeGuideGuide'),
+              emphasized: true,
+              busy: _busy == 'guide',
+              tooltip: l10n.text('nightScopeGuideGuideHint'),
+              disabledReason: guideReason,
+              onPressed:
+                  guideReason == null ? () => _run('guide', _guide) : null,
+            ),
+            NightPanelButtonSpec(
               key: const ValueKey<String>('nightGuide.stop'),
               label: l10n.text('nightScopeGuideStop'),
               busy: _busy == 'stop',
@@ -366,29 +375,6 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
                   ? () => unawaited(ref.read(nightActionApiProvider).dither())
                   : null,
             ),
-            NightPanelButtonSpec(
-              key: const ValueKey<String>('nightGuide.flipCal'),
-              label: l10n.text('nightScopeGuideFlipCal'),
-              busy: _busy == 'flipCal',
-              disabledReason: flipCalReason,
-              onPressed: flipCalReason == null
-                  ? () => _run(
-                        'flipCal',
-                        () => ref
-                            .read(calibrationStateProvider.notifier)
-                            .flipCalibration(),
-                      )
-                  : null,
-            ),
-            NightPanelButtonSpec(
-              key: const ValueKey<String>('nightGuide.clearCal'),
-              label: l10n.text('nightScopeGuideClearCal'),
-              busy: _busy == 'clearCal',
-              disabledReason: clearCalReason,
-              onPressed: clearCalReason == null
-                  ? () => unawaited(_confirmClear())
-                  : null,
-            ),
           ],
         ),
       ],
@@ -404,21 +390,17 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
     }
   }
 
-  Future<void> _confirmClear() async {
-    final l10n = context.l10n;
-    final confirmed = await ConfirmDialog.show(
-      context: context,
-      title: l10n.text('nightScopeGuideClearTitle'),
-      message: l10n.text('nightScopeGuideClearBody'),
-      confirmLabel: l10n.text('nightScopeGuideClearCal'),
-      cancelLabel: l10n.text('cancel'),
-      isDestructive: true,
+  /// Calibrates when the guider needs it, then guides with the settle
+  /// settings the run uses.
+  Future<void> _guide() {
+    final settle = GuideSettle.of(
+      ref.read(appSettingsProvider).valueOrNull ?? const AppSettingsState(),
     );
-    if (!confirmed || !mounted) return;
-    await _run(
-      'clearCal',
-      () => ref.read(calibrationStateProvider.notifier).clearCalibration(),
-    );
+    return ref.read(phd2ControllerProvider).startGuiding(
+          settlePixels: settle.pixels,
+          settleTime: settle.seconds,
+          settleTimeout: settle.timeoutSeconds,
+        );
   }
 
   Future<void> _run(String id, Future<void> Function() command) async {
@@ -429,7 +411,8 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
     } catch (e) {
       if (mounted) {
         context.showErrorSnackBar(
-          l10n.text('nightScopeGuideCommandFailed', params: {'error': userFacingError(e)}),
+          l10n.text('nightScopeGuideCommandFailed',
+              params: {'error': userFacingError(e)}),
         );
       }
     } finally {
