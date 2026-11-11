@@ -6,23 +6,7 @@ use super::*;
 #[derive(Debug)]
 pub struct SvbonyCamera {
     pub(crate) camera_id: i32,
-    pub(crate) device_id: String,
-    pub(crate) name: String,
-    pub(crate) connected: bool,
-    pub(crate) capabilities: CameraCapabilities,
-    pub(crate) sensor_info: SensorInfo,
-    pub(crate) state: CameraState,
-    // Current settings
-    pub(crate) current_gain: i32,
-    pub(crate) current_offset: i32,
-    pub(crate) current_bin_x: i32,
-    pub(crate) current_bin_y: i32,
-    pub(crate) subframe: Option<SubFrame>,
-    pub(crate) cooler_on: bool,
-    pub(crate) target_temp: f64,
-    // Exposure tracking
-    pub(crate) exposure_start: Option<std::time::Instant>,
-    pub(crate) exposure_duration: f64,
+    pub(crate) core: CameraCore,
     pub(crate) image_type: SvbImgType,
     pub(crate) image_buffer: Vec<u8>,
 }
@@ -32,21 +16,11 @@ impl SvbonyCamera {
     pub fn new(camera_id: i32) -> Self {
         Self {
             camera_id,
-            device_id: format!("svbony_{}", camera_id),
-            name: format!("SVBony Camera {}", camera_id),
-            connected: false,
-            capabilities: CameraCapabilities::default(),
-            sensor_info: SensorInfo::default(),
-            state: CameraState::Idle,
-            current_gain: 0,
-            current_offset: 0,
-            current_bin_x: 1,
-            current_bin_y: 1,
-            subframe: None,
-            cooler_on: false,
-            target_temp: -10.0,
-            exposure_start: None,
-            exposure_duration: 0.0,
+            core: CameraCore::new(
+                format!("svbony_{}", camera_id),
+                format!("SVBony Camera {}", camera_id),
+                -10.0,
+            ),
             image_type: SvbImgType::Raw16,
             image_buffer: Vec::new(),
         }
@@ -58,9 +32,7 @@ impl SvbonyCamera {
         sdk: &SvbonySdk,
         control_type: SvbControlType,
     ) -> Result<i64, NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
+        self.core.require_connected()?;
         let mut value: c_long = 0;
         let mut is_auto: c_int = 0;
         // SAFETY: `self.camera_id` was validated by SVBOpenCamera in `connect`; `&mut value` and `&mut is_auto` are valid stack out-pointers to POD types; `control_type as c_int` enumerates a SvbControlType discriminant per SVBCameraSDK.h.
@@ -85,9 +57,7 @@ impl SvbonyCamera {
         &self,
         control_type: SvbControlType,
     ) -> Result<i64, NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
+        self.core.require_connected()?;
         let sdk = SvbonySdk::lock().await?;
         let mut value: c_long = 0;
         let mut is_auto: c_int = 0;
@@ -114,9 +84,7 @@ impl SvbonyCamera {
         control_type: SvbControlType,
         value: i64,
     ) -> Result<(), NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
+        self.core.require_connected()?;
         // SAFETY: `self.camera_id` is the camera ID validated by SVBOpenCamera in `connect`; SVBSetControlValue takes all-POD arguments (c_int/c_long/c_int) with no out-pointers.
         let result = unsafe {
             (sdk.set_control_value)(self.camera_id, control_type as c_int, value as c_long, 0)
@@ -133,9 +101,7 @@ impl SvbonyCamera {
         control_type: SvbControlType,
         value: i64,
     ) -> Result<(), NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
+        self.core.require_connected()?;
         let sdk = SvbonySdk::lock().await?;
         // SAFETY: `self.camera_id` is the camera ID validated by SVBOpenCamera in `connect`; SVBSetControlValue takes all-POD arguments (c_int/c_long/c_int) with no out-pointers.
         let result = unsafe {
@@ -166,9 +132,7 @@ impl SvbonyCamera {
         &self,
         target_type: SvbControlType,
     ) -> Result<(i64, i64, i64), NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
+        self.core.require_connected()?;
         let sdk = SvbonySdk::lock().await?;
 
         // Get number of controls
@@ -206,11 +170,11 @@ impl SvbonyCamera {
 #[async_trait]
 impl NativeDevice for SvbonyCamera {
     fn id(&self) -> &str {
-        &self.device_id
+        &self.core.device_id
     }
 
     fn name(&self) -> &str {
-        &self.name
+        &self.core.name
     }
 
     fn vendor(&self) -> NativeVendor {
@@ -218,11 +182,11 @@ impl NativeDevice for SvbonyCamera {
     }
 
     fn is_connected(&self) -> bool {
-        self.connected
+        self.core.connected
     }
 
     async fn connect(&mut self) -> Result<(), NativeError> {
-        if self.connected {
+        if self.core.connected {
             return Ok(());
         }
 
@@ -275,7 +239,7 @@ impl NativeDevice for SvbonyCamera {
         }
 
         // Set capabilities
-        self.capabilities = CameraCapabilities {
+        self.core.capabilities = CameraCapabilities {
             // Cooling is reported by SVB_CAMERA_PROPERTY_EX.bSupportControlTemp —
             // there is no IsCoolerCam field in SVB_CAMERA_PROPERTY; reading a
             // `prop.is_cooler_cam` there returns uninitialized stack (always
@@ -298,13 +262,7 @@ impl NativeDevice for SvbonyCamera {
         // Determine bayer pattern
         let is_color = prop.is_color_cam != 0;
         let bayer_pattern = if is_color {
-            Some(match prop.bayer_pattern {
-                0 => BayerPattern::Rggb,
-                1 => BayerPattern::Bggr,
-                2 => BayerPattern::Grbg,
-                3 => BayerPattern::Gbrg,
-                _ => BayerPattern::Rggb,
-            })
+            Some(bayer_from_asi_index(prop.bayer_pattern))
         } else {
             None
         };
@@ -350,7 +308,7 @@ impl NativeDevice for SvbonyCamera {
             }
             f64::from(px)
         };
-        self.sensor_info = SensorInfo {
+        self.core.sensor_info = SensorInfo {
             width: width_u32,
             height: height_u32,
             pixel_size_x: pixel_size_um,
@@ -383,7 +341,7 @@ impl NativeDevice for SvbonyCamera {
                     && check_info.camera_id == self.camera_id
                 {
                     // SAFETY: SVBGetCameraInfo populated `check_info.friendly_name` as a NUL-terminated C string inside a [c_char; 32] buffer per SVBCameraSDK.h; the pointer is valid for the duration of this stack `check_info` value.
-                    self.name = unsafe { CStr::from_ptr(check_info.friendly_name.as_ptr()) }
+                    self.core.name = unsafe { CStr::from_ptr(check_info.friendly_name.as_ptr()) }
                         .to_string_lossy()
                         .to_string();
                     break;
@@ -416,20 +374,21 @@ impl NativeDevice for SvbonyCamera {
         // left-justifies the sensor bits into 16 bits (ceiling 65520 for a
         // 12-bit sensor), while the RAW8 fallback above caps every sample at
         // 255. See [`container_max_adu`].
-        self.sensor_info.max_adu = container_max_adu(self.image_type, self.sensor_info.bit_depth);
-        self.connected = true;
-        self.state = CameraState::Idle;
+        self.core.sensor_info.max_adu =
+            container_max_adu(self.image_type, self.core.sensor_info.bit_depth);
+        self.core.connected = true;
+        self.core.state = CameraState::Idle;
 
         // Drop the SDK lock before applying the post-open settle. Control reads
         // performed before this delay can return stale firmware values.
         drop(sdk);
 
-        let quirk_lookup_id = format!("native:svbony:{}", self.name);
+        let quirk_lookup_id = format!("native:svbony:{}", self.core.name);
         if let Some(delay_ms) = crate::quirks::get_connect_delay_ms(&quirk_lookup_id) {
             tracing::debug!(
                 "Applying DelayAfterConnect quirk: sleeping {}ms before reading controls from {}",
                 delay_ms,
-                self.name
+                self.core.name
             );
             tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
         }
@@ -443,24 +402,24 @@ impl NativeDevice for SvbonyCamera {
         // safe in this range. We don't propagate errors here and keep the default 0
         // fallback for connect-time setup.
         if let Ok(gain) = self.get_control_value(&sdk, SvbControlType::Gain) {
-            self.current_gain = gain as i32;
+            self.core.gain = gain as i32;
         }
         if let Ok(offset) = self.get_control_value(&sdk, SvbControlType::BlackLevel) {
-            self.current_offset = offset as i32;
+            self.core.offset = offset as i32;
         }
 
         tracing::info!(
             "Connected to SVBony camera: {} ({}x{})",
-            self.name,
-            self.sensor_info.width,
-            self.sensor_info.height
+            self.core.name,
+            self.core.sensor_info.width,
+            self.core.sensor_info.height
         );
 
         Ok(())
     }
 
     async fn disconnect(&mut self) -> Result<(), NativeError> {
-        if !self.connected {
+        if !self.core.connected {
             return Ok(());
         }
 
@@ -478,9 +437,9 @@ impl NativeDevice for SvbonyCamera {
             return Err(SvbError::from_i32(result).to_native_error("close camera"));
         }
 
-        self.connected = false;
-        self.state = CameraState::Idle;
-        tracing::info!("Disconnected from SVBony camera: {}", self.name);
+        self.core.connected = false;
+        self.core.state = CameraState::Idle;
+        tracing::info!("Disconnected from SVBony camera: {}", self.core.name);
         Ok(())
     }
 }

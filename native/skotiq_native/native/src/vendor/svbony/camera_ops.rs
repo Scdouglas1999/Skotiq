@@ -5,16 +5,14 @@ use super::*;
 #[async_trait]
 impl NativeCamera for SvbonyCamera {
     fn capabilities(&self) -> CameraCapabilities {
-        self.capabilities.clone()
+        self.core.capabilities.clone()
     }
 
     async fn get_status(&self) -> Result<CameraStatus, NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         // Get sensor temperature and cooler power using async methods that take the SDK lock
-        let sensor_temp = if self.capabilities.can_cool {
+        let sensor_temp = if self.core.capabilities.can_cool {
             self.get_control_value_async(SvbControlType::CurrentTemperature)
                 .await
                 .map(|v| v as f64 / 10.0)
@@ -23,7 +21,7 @@ impl NativeCamera for SvbonyCamera {
             None
         };
 
-        let cooler_power = if self.capabilities.can_cool && self.cooler_on {
+        let cooler_power = if self.core.capabilities.can_cool && self.core.cooler.enabled {
             self.get_control_value_async(SvbControlType::CoolerPower)
                 .await
                 .map(|v| v as f64)
@@ -32,10 +30,10 @@ impl NativeCamera for SvbonyCamera {
             None
         };
 
-        let exposure_remaining = if self.state == CameraState::Exposing {
-            self.exposure_start.map(|start| {
+        let exposure_remaining = if self.core.state == CameraState::Exposing {
+            self.core.exposure_started_at.map(|start| {
                 let elapsed = start.elapsed().as_secs_f64();
-                (self.exposure_duration - elapsed).max(0.0)
+                (self.core.exposure_duration - elapsed).max(0.0)
             })
         } else {
             None
@@ -44,27 +42,25 @@ impl NativeCamera for SvbonyCamera {
         let offset = self.get_offset().await?;
 
         Ok(CameraStatus {
-            state: self.state,
+            state: self.core.state,
             sensor_temp,
             cooler_power,
-            target_temp: if self.capabilities.can_cool {
-                Some(self.target_temp)
+            target_temp: if self.core.capabilities.can_cool {
+                Some(self.core.cooler.target_c)
             } else {
                 None
             },
-            cooler_on: self.cooler_on,
+            cooler_on: self.core.cooler.enabled,
             gain,
             offset,
-            bin_x: self.current_bin_x,
-            bin_y: self.current_bin_y,
+            bin_x: self.core.bin_x,
+            bin_y: self.core.bin_y,
             exposure_remaining,
         })
     }
 
     async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = SvbonySdk::installed()?;
 
@@ -101,17 +97,15 @@ impl NativeCamera for SvbonyCamera {
             return Err(SvbError::from_i32(result).to_native_error("start exposure"));
         }
 
-        self.exposure_start = Some(std::time::Instant::now());
-        self.exposure_duration = params.duration_secs;
-        self.state = CameraState::Exposing;
+        self.core.exposure_started_at = Some(std::time::Instant::now());
+        self.core.exposure_duration = params.duration_secs;
+        self.core.state = CameraState::Exposing;
 
         Ok(())
     }
 
     async fn abort_exposure(&mut self) -> Result<(), NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         // Acquire the SDK lock for SDK operations
         let sdk = SvbonySdk::lock().await?;
@@ -122,22 +116,20 @@ impl NativeCamera for SvbonyCamera {
             return Err(SvbError::from_i32(result).to_native_error("abort exposure"));
         }
 
-        self.state = CameraState::Idle;
-        self.exposure_start = None;
+        self.core.state = CameraState::Idle;
+        self.core.exposure_started_at = None;
         Ok(())
     }
 
     async fn is_exposure_complete(&self) -> Result<bool, NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
+        self.core.require_connected()?;
 
-        match self.state {
+        match self.core.state {
             CameraState::Idle => Ok(true),
             CameraState::Exposing => {
-                if let Some(start) = self.exposure_start {
+                if let Some(start) = self.core.exposure_started_at {
                     let elapsed = start.elapsed().as_secs_f64();
-                    Ok(elapsed >= self.exposure_duration)
+                    Ok(elapsed >= self.core.exposure_duration)
                 } else {
                     Ok(false)
                 }
@@ -147,9 +139,7 @@ impl NativeCamera for SvbonyCamera {
     }
 
     async fn download_image(&mut self) -> Result<ImageData, NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         // Acquire the SDK lock for all SDK operations in this method
         let sdk = SvbonySdk::lock().await?;
@@ -213,7 +203,7 @@ impl NativeCamera for SvbonyCamera {
         }
 
         // Get image data with timeout
-        self.state = CameraState::Downloading;
+        self.core.state = CameraState::Downloading;
         // SAFETY: `self.camera_id` validated; `self.image_buffer.as_mut_ptr()` points to at least `buffer_size` bytes (resized above via `image_buffer.resize(buffer_size, 0)`), which is what we pass as the third argument so SVBGetVideoData will not write past the allocation. The 5000 ms timeout is documented as block-with-deadline behavior in SVBCameraSDK.h.
         let result = unsafe {
             (sdk.get_video_data)(
@@ -225,7 +215,7 @@ impl NativeCamera for SvbonyCamera {
         };
 
         if SvbError::from_i32(result) != SvbError::Success {
-            self.state = CameraState::Error;
+            self.core.state = CameraState::Error;
             return Err(SvbError::from_i32(result).to_native_error("download image"));
         }
 
@@ -234,22 +224,17 @@ impl NativeCamera for SvbonyCamera {
         let _ = unsafe { (sdk.stop_video_capture)(self.camera_id) };
 
         // Convert the negotiated wire format to the pipeline's u16 pixels.
-        let data: Vec<u16> = match self.image_type {
-            SvbImgType::Raw8 => self.image_buffer[..buffer_size]
-                .iter()
-                .copied()
-                .map(u16::from)
-                .collect(),
-            SvbImgType::Raw16 => self.image_buffer[..buffer_size]
-                .as_chunks::<2>()
-                .0
-                .iter()
-                .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
-                .collect(),
-        };
+        // RAW8 samples keep their own value here (no scaling to 16 bits).
+        let data = unpack_samples(
+            &self.image_buffer[..buffer_size],
+            match self.image_type {
+                SvbImgType::Raw8 => SampleLayout::U8Unscaled,
+                SvbImgType::Raw16 => SampleLayout::U16Little,
+            },
+        );
 
         // Get temperature for metadata (while we hold the SDK lock)
-        let temperature = if self.capabilities.can_cool {
+        let temperature = if self.core.capabilities.can_cool {
             self.get_control_value(&sdk, SvbControlType::CurrentTemperature)
                 .map(|v| v as f64 / 10.0)
                 .ok()
@@ -263,41 +248,28 @@ impl NativeCamera for SvbonyCamera {
             "offset",
         )?;
 
-        let metadata = ImageMetadata {
-            exposure_time: self.exposure_duration,
+        self.core.state = CameraState::Idle;
+        self.core.exposure_started_at = None;
+
+        let width = roi_dimension("SVBony", "width", width)?;
+        let height = roi_dimension("SVBony", "height", height)?;
+        let bits_per_pixel = match self.image_type {
+            SvbImgType::Raw8 => 8,
+            SvbImgType::Raw16 => self.core.sensor_info.bit_depth,
+        };
+        Ok(Frame {
             gain,
             offset,
-            bin_x: self.current_bin_x,
-            bin_y: self.current_bin_y,
             temperature,
-            timestamp: chrono::Utc::now(),
-            subframe: self.subframe.clone(),
-            readout_mode: None,
-            vendor_data: VendorFeatures::default(),
-        };
-
-        self.state = CameraState::Idle;
-        self.exposure_start = None;
-
-        // Why: width/height are c_int populated by SVBGetROIFormat above. A negative
-        // value indicates SDK corruption; surface via try_into rather than wrap.
-        let width_u32 = u32::try_from(width).map_err(|_| {
-            NativeError::SdkError(format!("SVBony returned negative ROI width: {}", width))
-        })?;
-        let height_u32 = u32::try_from(height).map_err(|_| {
-            NativeError::SdkError(format!("SVBony returned negative ROI height: {}", height))
-        })?;
-        Ok(ImageData {
-            width: width_u32,
-            height: height_u32,
-            data,
-            bits_per_pixel: match self.image_type {
-                SvbImgType::Raw8 => 8,
-                SvbImgType::Raw16 => self.sensor_info.bit_depth,
-            },
-            bayer_pattern: self.sensor_info.bayer_pattern,
-            metadata,
-        })
+            ..self.core.frame(
+                width,
+                height,
+                data,
+                bits_per_pixel,
+                self.core.sensor_info.bayer_pattern,
+            )
+        }
+        .into_image())
     }
 
     async fn set_cooler(
@@ -305,10 +277,8 @@ impl NativeCamera for SvbonyCamera {
         enabled: bool,
         target_temp: Option<f64>,
     ) -> Result<(), NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
-        if !self.capabilities.can_cool {
+        self.core.require_connected()?;
+        if !self.core.capabilities.can_cool {
             return Err(NativeError::NotSupported);
         }
 
@@ -324,18 +294,16 @@ impl NativeCamera for SvbonyCamera {
             // finite values in this range; NaN sentinel would be clamped to 0.
             self.set_control_value_async(SvbControlType::TargetTemperature, (target * 10.0) as i64)
                 .await?;
-            self.target_temp = target;
+            self.core.cooler.target_c = target;
         }
 
-        self.cooler_on = enabled;
+        self.core.cooler.enabled = enabled;
         Ok(())
     }
 
     async fn get_temperature(&self) -> Result<f64, NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
-        if !self.capabilities.can_cool {
+        self.core.require_connected()?;
+        if !self.core.capabilities.can_cool {
             return Err(NativeError::NotSupported);
         }
 
@@ -347,10 +315,8 @@ impl NativeCamera for SvbonyCamera {
     }
 
     async fn get_cooler_power(&self) -> Result<f64, NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
-        if !self.capabilities.can_cool {
+        self.core.require_connected()?;
+        if !self.core.capabilities.can_cool {
             return Err(NativeError::NotSupported);
         }
 
@@ -366,7 +332,7 @@ impl NativeCamera for SvbonyCamera {
         // Why: i32 -> i64 is widening (sign-extended); always safe.
         self.set_control_value_async(SvbControlType::Gain, gain as i64)
             .await?;
-        self.current_gain = gain;
+        self.core.gain = gain;
         Ok(())
     }
 
@@ -380,7 +346,7 @@ impl NativeCamera for SvbonyCamera {
         // Why: i32 -> i64 is widening (sign-extended); always safe.
         self.set_control_value_async(SvbControlType::BlackLevel, offset as i64)
             .await?;
-        self.current_offset = offset;
+        self.core.offset = offset;
         Ok(())
     }
 
@@ -392,16 +358,14 @@ impl NativeCamera for SvbonyCamera {
     }
 
     async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         // SVBony only supports symmetric binning
         let bin = bin_x.min(bin_y);
-        if bin > self.capabilities.max_bin_x {
+        if bin > self.core.capabilities.max_bin_x {
             return Err(NativeError::InvalidParameter(format!(
                 "Binning {} exceeds max {}",
-                bin, self.capabilities.max_bin_x
+                bin, self.core.capabilities.max_bin_x
             )));
         }
 
@@ -416,16 +380,16 @@ impl NativeCamera for SvbonyCamera {
         // Why: sensor_info.width/height are u32 (<= 16k on SVBony hardware); converting
         // to i32 via try_from is the right way to fail closed on any pathological value.
         // bin is already validated > 0.
-        let width_i32 = i32::try_from(self.sensor_info.width).map_err(|_| {
+        let width_i32 = i32::try_from(self.core.sensor_info.width).map_err(|_| {
             NativeError::SdkError(format!(
                 "SVBony sensor width does not fit in i32: {}",
-                self.sensor_info.width
+                self.core.sensor_info.width
             ))
         })?;
-        let height_i32 = i32::try_from(self.sensor_info.height).map_err(|_| {
+        let height_i32 = i32::try_from(self.core.sensor_info.height).map_err(|_| {
             NativeError::SdkError(format!(
                 "SVBony sensor height does not fit in i32: {}",
-                self.sensor_info.height
+                self.core.sensor_info.height
             ))
         })?;
         let width = width_i32 / bin;
@@ -449,19 +413,17 @@ impl NativeCamera for SvbonyCamera {
             return Err(SvbError::from_i32(result).to_native_error("set binning"));
         }
 
-        self.current_bin_x = bin;
-        self.current_bin_y = bin;
+        self.core.bin_x = bin;
+        self.core.bin_y = bin;
         Ok(())
     }
 
     async fn get_binning(&self) -> Result<(i32, i32), NativeError> {
-        Ok((self.current_bin_x, self.current_bin_y))
+        Ok((self.core.bin_x, self.core.bin_y))
     }
 
     async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = SvbonySdk::installed()?;
 
@@ -496,20 +458,20 @@ impl NativeCamera for SvbonyCamera {
                 })?,
             ),
             None => {
-                let bin_x_u32 = u32::try_from(self.current_bin_x.max(1)).map_err(|_| {
+                let bin_x_u32 = u32::try_from(self.core.bin_x.max(1)).map_err(|_| {
                     NativeError::InvalidParameter(format!(
                         "SVBony current_bin_x not representable as u32: {}",
-                        self.current_bin_x
+                        self.core.bin_x
                     ))
                 })?;
-                let bin_y_u32 = u32::try_from(self.current_bin_y.max(1)).map_err(|_| {
+                let bin_y_u32 = u32::try_from(self.core.bin_y.max(1)).map_err(|_| {
                     NativeError::InvalidParameter(format!(
                         "SVBony current_bin_y not representable as u32: {}",
-                        self.current_bin_y
+                        self.core.bin_y
                     ))
                 })?;
-                let binned_w = self.sensor_info.width / bin_x_u32;
-                let binned_h = self.sensor_info.height / bin_y_u32;
+                let binned_w = self.core.sensor_info.width / bin_x_u32;
+                let binned_h = self.core.sensor_info.height / bin_y_u32;
                 let w_ci = c_int::try_from(binned_w).map_err(|_| {
                     NativeError::SdkError(format!(
                         "SVBony binned width does not fit in c_int: {}",
@@ -537,19 +499,19 @@ impl NativeCamera for SvbonyCamera {
                 start_y,
                 width,
                 height,
-                self.current_bin_x as c_int,
+                self.core.bin_x as c_int,
             )
         };
         if SvbError::from_i32(result) != SvbError::Success {
             return Err(SvbError::from_i32(result).to_native_error("set subframe"));
         }
 
-        self.subframe = subframe;
+        self.core.subframe = subframe;
         Ok(())
     }
 
     fn get_sensor_info(&self) -> SensorInfo {
-        self.sensor_info.clone()
+        self.core.sensor_info.clone()
     }
 
     async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, NativeError> {
@@ -578,9 +540,7 @@ impl NativeCamera for SvbonyCamera {
     }
 
     async fn get_gain_range(&self) -> Result<(i32, i32), NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         // Use async method that takes the SDK lock.
         // Why: gain min/max are small non-negative integers (<= ~720 per SVBony spec)
@@ -591,9 +551,7 @@ impl NativeCamera for SvbonyCamera {
     }
 
     async fn get_offset_range(&self) -> Result<(i32, i32), NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         // SVBony uses BlackLevel as the offset control (use async method that takes the SDK lock).
         // Why: BlackLevel min/max are small non-negative integers (<= ~512) returned as
@@ -616,9 +574,7 @@ impl NativeCamera for SvbonyCamera {
     async fn get_recommended_settings(
         &self,
     ) -> Result<crate::camera::CameraRecommendedSettings, NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let mut out = crate::camera::CameraRecommendedSettings::default();
         let mut notes: Vec<String> = Vec::new();

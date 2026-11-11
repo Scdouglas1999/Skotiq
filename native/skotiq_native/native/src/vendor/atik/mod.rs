@@ -5,7 +5,10 @@
 
 use crate::camera::{
     BayerPattern, CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData,
-    ImageMetadata, ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
+    ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
+};
+use crate::camera_core::{
+    image_dimension, unpack_samples, CameraCore, Frame, SampleLayout, SdkHandle,
 };
 use crate::traits::{NativeCamera, NativeDevice, NativeError, NativeFilterWheel};
 use crate::NativeVendor;

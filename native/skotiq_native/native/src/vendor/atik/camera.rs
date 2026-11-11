@@ -6,30 +6,15 @@ use super::*;
 pub struct AtikCamera {
     pub(crate) device_index: i32,
     pub(crate) serial_number: Option<String>,
-    pub(crate) device_id: String,
-    pub(crate) name: String,
-    pub(crate) handle: Mutex<HandleWrapper>,
-    pub(crate) connected: bool,
-    pub(crate) capabilities: CameraCapabilities,
-    pub(crate) sensor_info: SensorInfo,
-    pub(crate) state: CameraState,
-    // Current settings
-    pub(crate) current_gain: i32,
-    pub(crate) current_offset: i32,
-    pub(crate) current_bin_x: i32,
-    pub(crate) current_bin_y: i32,
-    pub(crate) subframe: Option<SubFrame>,
-    pub(crate) cooler_on: bool,
-    pub(crate) target_temp: f64,
-    // Exposure tracking
-    pub(crate) exposure_duration: f64,
+    pub(crate) handle: Mutex<SdkHandle<ArtemisHandle>>,
+    pub(crate) core: CameraCore,
 }
 
 impl std::fmt::Debug for AtikCamera {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AtikCamera")
-            .field("device_id", &self.device_id)
-            .field("name", &self.name)
+            .field("device_id", &self.core.device_id)
+            .field("name", &self.core.name)
             .field("device_index", &self.device_index)
             .field("serial_number", &self.serial_number)
             .finish()
@@ -47,21 +32,12 @@ impl AtikCamera {
         Self {
             device_index,
             serial_number,
-            device_id: format!("atik_{}", device_index),
-            name: format!("Atik Camera {}", device_index),
-            handle: Mutex::new(HandleWrapper(std::ptr::null_mut())),
-            connected: false,
-            capabilities: CameraCapabilities::default(),
-            sensor_info: SensorInfo::default(),
-            state: CameraState::Idle,
-            current_gain: 0,
-            current_offset: 0,
-            current_bin_x: 1,
-            current_bin_y: 1,
-            subframe: None,
-            cooler_on: false,
-            target_temp: -10.0,
-            exposure_duration: 0.0,
+            handle: Mutex::new(SdkHandle(std::ptr::null_mut())),
+            core: CameraCore::new(
+                format!("atik_{}", device_index),
+                format!("Atik Camera {}", device_index),
+                -10.0,
+            ),
         }
     }
 }
@@ -69,11 +45,11 @@ impl AtikCamera {
 #[async_trait]
 impl NativeDevice for AtikCamera {
     fn id(&self) -> &str {
-        &self.device_id
+        &self.core.device_id
     }
 
     fn name(&self) -> &str {
-        &self.name
+        &self.core.name
     }
 
     fn vendor(&self) -> NativeVendor {
@@ -81,11 +57,11 @@ impl NativeDevice for AtikCamera {
     }
 
     fn is_connected(&self) -> bool {
-        self.connected
+        self.core.connected
     }
 
     async fn connect(&mut self) -> Result<(), NativeError> {
-        if self.connected {
+        if self.core.connected {
             return Ok(());
         }
 
@@ -185,7 +161,7 @@ impl NativeDevice for AtikCamera {
         };
 
         // Set capabilities
-        self.capabilities = CameraCapabilities {
+        self.core.capabilities = CameraCapabilities {
             can_cool,
             can_set_gain: true,
             can_set_offset: true,
@@ -233,7 +209,7 @@ impl NativeDevice for AtikCamera {
             AtikColourDecision::ConnectAsMono(reason) => {
                 tracing::warn!(
                     "Atik camera '{}': {}. Connecting as monochrome — frames will carry no BAYERPAT card and will not be debayered. If this is a colour camera, update the AtikCameras driver.",
-                    self.device_id,
+                    self.core.device_id,
                     reason
                 );
                 None
@@ -241,7 +217,7 @@ impl NativeDevice for AtikCamera {
             AtikColourDecision::Refuse(reason) => {
                 tracing::error!(
                     "Atik camera '{}': {}; refusing to connect rather than guess the colour filter array",
-                    self.device_id,
+                    self.core.device_id,
                     reason
                 );
                 // SAFETY: `handle` was successfully opened above.
@@ -251,7 +227,7 @@ impl NativeDevice for AtikCamera {
                     "Atik camera '{}': {reason}. Skotiq will not guess a colour filter array, \
                      because debayering against the wrong one corrupts every frame of the session. \
                      Update the AtikCameras driver or report this colour type.",
-                    self.device_id
+                    self.core.device_id
                 )));
             }
         };
@@ -286,7 +262,7 @@ impl NativeDevice for AtikCamera {
                 return Err(error);
             }
         };
-        self.sensor_info = SensorInfo {
+        self.core.sensor_info = SensorInfo {
             width: pixels_x_u32,
             height: pixels_y_u32,
             // Why: pixel_microns_{x,y} are c_float; widening f32 -> f64 is lossless.
@@ -307,7 +283,7 @@ impl NativeDevice for AtikCamera {
             .trim()
             .to_string();
         if !name.is_empty() {
-            self.name = name;
+            self.core.name = name;
         }
 
         // Set 16-bit mode. This is not optional: `sensor_info` above publishes
@@ -325,13 +301,13 @@ impl NativeDevice for AtikCamera {
             ArtemisError::NotImplemented => {
                 tracing::debug!(
                     "Atik camera '{}' does not implement ArtemisEightBitMode; it is 16-bit only",
-                    self.name
+                    self.core.name
                 );
             }
             other => {
                 tracing::error!(
                     "Atik ArtemisEightBitMode(16-bit) failed for camera '{}' ({:?}); refusing to connect rather than decode a possibly 8-bit buffer as 16-bit",
-                    self.name,
+                    self.core.name,
                     other
                 );
                 // SAFETY: `handle` was successfully opened above. ArtemisDisconnect
@@ -347,30 +323,30 @@ impl NativeDevice for AtikCamera {
         // SAFETY: handle is valid; preview=0 is a valid mode constant; both
         // out-pointers are valid stack pointers to c_int.
         if unsafe { (sdk.get_gain)(handle, 0, &mut gain, &mut offset) } == 0 {
-            self.current_gain = gain;
-            self.current_offset = offset;
+            self.core.gain = gain;
+            self.core.offset = offset;
         }
 
         {
             let mut stored_handle = self.handle.lock().unwrap_or_else(|e| e.into_inner());
-            *stored_handle = HandleWrapper(handle);
+            *stored_handle = SdkHandle(handle);
         }
         self.device_index = device_index;
-        self.connected = true;
-        self.state = CameraState::Idle;
+        self.core.connected = true;
+        self.core.state = CameraState::Idle;
 
         tracing::info!(
             "Connected to Atik camera: {} ({}x{})",
-            self.name,
-            self.sensor_info.width,
-            self.sensor_info.height
+            self.core.name,
+            self.core.sensor_info.width,
+            self.core.sensor_info.height
         );
 
         Ok(())
     }
 
     async fn disconnect(&mut self) -> Result<(), NativeError> {
-        if !self.connected {
+        if !self.core.connected {
             return Ok(());
         }
 
@@ -380,21 +356,21 @@ impl NativeDevice for AtikCamera {
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
         // Abort any exposure
-        // SAFETY: `handle` is valid because `self.connected` was true (only set
+        // SAFETY: `handle` is valid because `self.core.connected` was true (only set
         // after successful connect() above) and disconnect hasn't run yet.
         let _ = unsafe { (sdk.abort_exposure)(handle) };
 
         // Warm up cooler gracefully. If the camera refuses the warm-up it stays at its
         // cold setpoint until power is removed — a thermal-shock risk the operator can
         // only act on if we say it happened.
-        if self.cooler_on {
+        if self.core.cooler.enabled {
             // SAFETY: handle is valid (connected=true); ArtemisCoolerWarmUp
             // takes only the handle, no out-pointers.
             let warm_up_result = unsafe { (sdk.cooler_warm_up)(handle) };
             if ArtemisError::from_i32(warm_up_result) != ArtemisError::Ok {
                 tracing::error!(
                     "Atik ArtemisCoolerWarmUp failed for camera '{}' ({:?}); the sensor is being disconnected while still cooled",
-                    self.name,
+                    self.core.name,
                     ArtemisError::from_i32(warm_up_result)
                 );
             }
@@ -407,22 +383,22 @@ impl NativeDevice for AtikCamera {
         if result == 0 {
             tracing::error!(
                 "Atik ArtemisDisconnect() failed for camera '{}'. Device may be in an inconsistent state.",
-                self.name
+                self.core.name
             );
             return Err(NativeError::SdkError(format!(
                 "Failed to disconnect from Atik camera '{}'. Device may need reconnection.",
-                self.name
+                self.core.name
             )));
         }
 
         {
             let mut h = self.handle.lock().unwrap_or_else(|e| e.into_inner());
-            *h = HandleWrapper(std::ptr::null_mut());
+            *h = SdkHandle(std::ptr::null_mut());
         }
-        self.connected = false;
-        self.state = CameraState::Idle;
+        self.core.connected = false;
+        self.core.state = CameraState::Idle;
 
-        tracing::info!("Disconnected from Atik camera: {}", self.name);
+        tracing::info!("Disconnected from Atik camera: {}", self.core.name);
 
         Ok(())
     }

@@ -8,8 +8,11 @@
 //! through an `SdkGuard`, which holds the SDK lock for as long as it lives.
 
 use crate::camera::{
-    BayerPattern, CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData,
-    ImageMetadata, ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
+    CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData, ReadoutMode,
+    SensorInfo, SubFrame, VendorFeatures,
+};
+use crate::camera_core::{
+    bayer_from_asi_index, roi_dimension, unpack_samples, CameraCore, Frame, SampleLayout,
 };
 use crate::traits::{NativeCamera, NativeDevice, NativeError};
 use crate::utils::calculate_buffer_size_i32;
@@ -119,22 +122,22 @@ mod tests {
     #[tokio::test]
     async fn svbony_set_gain_error_does_not_mutate_cache() {
         let mut camera = SvbonyCamera::new(0);
-        camera.current_gain = 12;
+        camera.core.gain = 12;
 
         let err = camera.set_gain(48).await.unwrap_err();
 
         assert!(matches!(err, NativeError::NotConnected));
-        assert_eq!(camera.current_gain, 12);
+        assert_eq!(camera.core.gain, 12);
     }
 
     #[tokio::test]
     async fn svbony_set_offset_error_does_not_mutate_cache() {
         let mut camera = SvbonyCamera::new(0);
-        camera.current_offset = 8;
+        camera.core.offset = 8;
 
         let err = camera.set_offset(22).await.unwrap_err();
 
         assert!(matches!(err, NativeError::NotConnected));
-        assert_eq!(camera.current_offset, 8);
+        assert_eq!(camera.core.offset, 8);
     }
 }

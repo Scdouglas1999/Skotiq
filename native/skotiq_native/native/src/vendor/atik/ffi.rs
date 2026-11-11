@@ -7,19 +7,6 @@ use super::*;
 /// Atik SDK handle type
 pub(crate) type ArtemisHandle = *mut c_void;
 
-/// Wrapper to make raw pointer Send + Sync
-/// SAFETY: The Atik SDK requires that all calls to a given camera handle
-/// be serialized, which we ensure through the Mutex wrapper in AtikCamera.
-pub(crate) struct HandleWrapper(pub(crate) ArtemisHandle);
-// SAFETY: HandleWrapper is only ever accessed while holding the per-camera
-// `handle: Mutex<HandleWrapper>` AND the Atik SDK lock (`AtikSdk::lock()`), so
-// no two threads ever touch the raw ArtemisHandle concurrently.
-unsafe impl Send for HandleWrapper {}
-// SAFETY: Same justification as `Send` above — the wrapped raw pointer is
-// never dereferenced outside the global Atik SDK mutex, so shared references
-// across threads cannot trigger concurrent FFI calls.
-unsafe impl Sync for HandleWrapper {}
-
 /// Atik error codes
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -8,7 +8,7 @@ pub struct AtikFilterWheel {
     pub(crate) serial_number: Option<String>,
     pub(crate) device_id: String,
     pub(crate) name: String,
-    pub(crate) handle: Mutex<HandleWrapper>,
+    pub(crate) handle: Mutex<SdkHandle<ArtemisHandle>>,
     pub(crate) connected: bool,
     pub(crate) filter_count: i32,
 }
@@ -38,7 +38,7 @@ impl AtikFilterWheel {
             serial_number,
             device_id: format!("atik_efw_{}", device_index),
             name: format!("Atik EFW {}", device_index),
-            handle: Mutex::new(HandleWrapper(std::ptr::null_mut())),
+            handle: Mutex::new(SdkHandle(std::ptr::null_mut())),
             connected: false,
             filter_count: 0,
         }
@@ -139,7 +139,7 @@ impl NativeDevice for AtikFilterWheel {
 
         {
             let mut h = self.handle.lock().unwrap_or_else(|e| e.into_inner());
-            *h = HandleWrapper(handle);
+            *h = SdkHandle(handle);
         }
         self.device_index = device_index;
         self.filter_count = filter_count;
@@ -166,7 +166,7 @@ impl NativeDevice for AtikFilterWheel {
 
         {
             let mut h = self.handle.lock().unwrap_or_else(|e| e.into_inner());
-            *h = HandleWrapper(std::ptr::null_mut());
+            *h = SdkHandle(std::ptr::null_mut());
         }
         self.connected = false;
         Ok(())

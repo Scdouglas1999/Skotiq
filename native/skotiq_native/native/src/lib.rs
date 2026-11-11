@@ -27,6 +27,7 @@
 pub mod camera {
     pub use skotiq_device::camera::*;
 }
+pub(crate) mod camera_core;
 pub mod catalog;
 pub mod discovery;
 pub mod quirks;
