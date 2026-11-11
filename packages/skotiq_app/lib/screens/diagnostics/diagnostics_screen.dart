@@ -72,6 +72,12 @@ class _DiagnosticsTabContentState extends ConsumerState<DiagnosticsTabContent> {
       _selectedSessionId = null;
     }
 
+    final latestSession = sessionsAsync.valueOrNull?.fold<ImagingSession?>(
+      null,
+      (latest, s) =>
+          latest == null || s.startTime.isAfter(latest.startTime) ? s : latest,
+    );
+
     // Phone tier reflows the header: the session selector drops to its own
     // line under the title so the wide dropdown can't push the title into a
     // RenderFlex overflow on a narrow phone.
@@ -177,6 +183,16 @@ class _DiagnosticsTabContentState extends ConsumerState<DiagnosticsTabContent> {
                           icon: LucideIcons.stethoscope,
                           title: l10n.text('diagnosticsNoSessionTitle'),
                           body: l10n.text('diagnosticsNoSessionBody'),
+                          // With sessions on record the way forward is to
+                          // look at one, not to go and image another.
+                          actionLabel: latestSession == null
+                              ? 'Go to Imaging'
+                              : 'Open the latest session',
+                          onAction: latestSession == null
+                              ? null
+                              : () => setState(
+                                    () => _selectedSessionId = latestSession.id,
+                                  ),
                         ),
                       ),
                     ),

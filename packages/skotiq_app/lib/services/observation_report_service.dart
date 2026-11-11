@@ -506,7 +506,7 @@ class ObservationReportService {
               ),
               _statCell(
                 'Uniformity CV',
-                latest.uniformityCv.toStringAsFixed(3),
+                latest.measuredUniformityCv?.toStringAsFixed(3) ?? '-',
               ),
               _statCell(
                 'Dynamic Range',

@@ -140,13 +140,14 @@ class UniformityTrendCard extends StatelessWidget {
     final sorted = frameMetrics.toList(growable: false)
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
     for (final m in sorted) {
-      if (!m.uniformityCv.isFinite) continue;
+      final cv = m.measuredUniformityCv;
+      if (cv == null) continue;
       final imageId = m.capturedImageId;
       if (imageId != null && rejectedImageIds.contains(imageId)) {
         excluded++;
         continue;
       }
-      points.add(_TrendPoint(m.timestamp, m.uniformityCv));
+      points.add(_TrendPoint(m.timestamp, cv));
     }
 
     return _TrendCardShell(

@@ -161,6 +161,45 @@ void main() {
     expect(find.text('Select an imaging session to analyze'), findsOneWidget);
   });
 
+  // UX walk 2, F36: with sessions on record the empty state's only action was
+  // "Go to Imaging", while the session picker sat elsewhere on the tab.
+  testWidgets('with sessions on record the empty state opens the latest one',
+      (tester) async {
+    ImagingSession session(int id, DateTime start) => ImagingSession(
+          id: id,
+          name: 'Night $id',
+          startTime: start,
+          totalExposures: 0,
+          successfulExposures: 0,
+          failedExposures: 0,
+          totalIntegrationSecs: 0,
+          autofocusCount: 0,
+          status: 'completed',
+        );
+    await pumpAppScreen(
+      tester,
+      const DiagnosticsTabContent(showTitle: true),
+      size: const Size(1280, 800),
+      settle: false,
+      extraOverrides: [
+        allSessionsProvider.overrideWith(
+          (ref) => Stream.value([
+            session(1, DateTime(2026, 11, 9, 21)),
+            session(2, DateTime(2026, 11, 11, 8, 21)),
+          ]),
+        ),
+      ],
+    );
+    await _drainAsyncFrames(tester);
+
+    expect(find.text('Go to Imaging'), findsNothing);
+    await tester.tap(find.text('Open the latest session'));
+    await _drainAsyncFrames(tester);
+
+    expect(find.text('Select an imaging session to analyze'), findsNothing);
+    expect(find.textContaining('Night 2'), findsWidgets);
+  });
+
   // DiagnosticDumpScreen — bug-report attachment surface
 
   testWidgets(

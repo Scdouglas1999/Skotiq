@@ -84,6 +84,7 @@ class ScienceSessionSummary extends ConsumerWidget {
     }
 
     final solveStats = _solveStats(images);
+    final uniformityCv = latestFrameQuality?.measuredUniformityCv;
 
     // Resolve the target the active session is bound to so we can offer a
     // "see all sessions for this target" link. Quick-capture sessions
@@ -221,18 +222,18 @@ class ScienceSessionSummary extends ConsumerWidget {
                     colors: colors,
                     icon: LucideIcons.layoutGrid,
                     label: 'Uniformity CV',
-                    value: latestFrameQuality == null
+                    value: uniformityCv == null
                         ? kReadoutUnknown
-                        : latestFrameQuality.uniformityCv.toStringAsFixed(3),
+                        : uniformityCv.toStringAsFixed(3),
                     sub: latestFrameQuality == null
                         ? null
                         : latestFrameQuality.snr > 0
                             ? 'Sky/read noise '
                                 '${latestFrameQuality.snr.toStringAsFixed(1)}x'
                             : null,
-                    tone: latestFrameQuality == null
+                    tone: uniformityCv == null
                         ? colors.textMuted
-                        : latestFrameQuality.uniformityCv > 0.28
+                        : uniformityCv > 0.28
                             ? colors.warning
                             : colors.success,
                     tooltip:
