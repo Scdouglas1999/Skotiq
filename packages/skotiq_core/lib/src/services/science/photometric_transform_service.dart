@@ -178,7 +178,6 @@ class PhotometricTransformService {
     final extinctionCoefficient = -a1;
     final colorTerm = a2;
 
-    // Compute residuals
     var sumSqResidual = 0.0;
     final fitData = <TransformStarMatch>[];
     for (var i = 0; i < n; i++) {
@@ -341,7 +340,6 @@ class PhotometricTransformService {
   // (PhotometricTransformCoefficients.applyTransform) so there is exactly
   // one implementation; the science pipeline calls it directly.
 
-  /// Save computed coefficients to the database.
   Future<int> saveTransform(
     PhotometricTransformCoefficients coefficients,
   ) async {
@@ -364,7 +362,6 @@ class PhotometricTransformService {
     );
   }
 
-  /// Delete a saved transform.
   Future<void> deleteTransform(int id) {
     return _scienceDao.deletePhotometricTransform(id);
   }
@@ -384,7 +381,6 @@ class PhotometricTransformService {
     return _rowToCoefficients(row);
   }
 
-  /// Load all saved transforms.
   Future<List<PhotometricTransformCoefficients>> getAllTransforms() async {
     final rows = await _scienceDao.getAllTransforms();
     return rows.map(_rowToCoefficients).toList(growable: false);

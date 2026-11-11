@@ -162,7 +162,6 @@ class MpcExportService {
       groups.putIfAbsent(candidate.candidateId, () => []).add(candidate);
     }
 
-    // Sort each group by timestamp
     for (final group in groups.values) {
       group.sort((a, b) => a.timestamp.compareTo(b.timestamp));
     }
@@ -616,13 +615,11 @@ class MpcObservationGroup {
         .length;
   }
 
-  /// Time span from first to last observation
   Duration get timeSpan {
     if (observations.length < 2) return Duration.zero;
     return observations.last.timestamp.difference(observations.first.timestamp);
   }
 
-  /// Average confidence across all observations
   double get averageConfidence {
     if (observations.isEmpty) return 0.0;
     return observations.map((c) => c.confidence).reduce((a, b) => a + b) /
@@ -652,7 +649,6 @@ List<MpcObservationGroup> buildObservationGroups(
     grouped.putIfAbsent(c.candidateId, () => []).add(c);
   }
 
-  // Sort each group internally by timestamp
   for (final group in grouped.values) {
     group.sort((a, b) => a.timestamp.compareTo(b.timestamp));
   }
@@ -660,7 +656,6 @@ List<MpcObservationGroup> buildObservationGroups(
   final groups = <MpcObservationGroup>[];
   var counter = 1;
 
-  // Sort groups by first observation timestamp
   final sortedEntries = grouped.entries.toList()
     ..sort(
       (a, b) => a.value.first.timestamp.compareTo(b.value.first.timestamp),

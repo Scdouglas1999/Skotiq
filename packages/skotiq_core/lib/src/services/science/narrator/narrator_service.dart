@@ -321,8 +321,6 @@ class NarratorService {
     _subs.add(_lightCurveSub!);
   }
 
-  // ── Pulled device streams ─────────────────────────────────────────────────
-
   void _bindGuiding() {
     _subs.add(
       _ref.listen<Phd2State>(phd2StateProvider, (prev, next) {
@@ -791,8 +789,6 @@ class NarratorService {
       queue.removeFirst();
     }
   }
-
-  // ── Context assembly + evaluation ─────────────────────────────────────────
 
   /// Build a context from current state and persist any accepted drafts.
   Future<void> _onUpdate({int? capturedImageId}) async {

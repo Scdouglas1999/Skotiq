@@ -45,7 +45,6 @@ enum ScienceStage {
 
 /// Outcome of a single stage for a single frame.
 enum ScienceStageOutcome {
-  /// Stage is currently running.
   running,
 
   /// Stage produced data and persisted at least one row.
@@ -76,7 +75,6 @@ class ScienceStageResult {
   /// Wall-clock duration of the stage in milliseconds. `null` while running.
   final int? durationMs;
 
-  /// Capture path being processed.
   final String? imagePath;
 
   /// DB id of the [CapturedImages] row, when available.
@@ -143,7 +141,6 @@ class ScienceFrameStatus {
   bool get hasFailure =>
       stages.values.any((r) => r.outcome == ScienceStageOutcome.failed);
 
-  /// Stages currently running for this frame.
   Iterable<ScienceStage> get runningStages => stages.entries
       .where((e) => e.value.outcome == ScienceStageOutcome.running)
       .map((e) => e.key);

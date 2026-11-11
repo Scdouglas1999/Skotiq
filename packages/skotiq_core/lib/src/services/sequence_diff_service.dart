@@ -109,7 +109,6 @@ class SequenceDiffService {
   }
 }
 
-/// Result of [SequenceDiffService.diff].
 class SequenceDiffResult {
   final String previousName;
   final String currentName;

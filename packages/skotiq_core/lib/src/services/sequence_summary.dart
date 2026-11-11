@@ -12,7 +12,6 @@ class SequenceSummary {
   /// `sequences.id` — the database row id (stable handle for open/edit).
   final int id;
 
-  /// Display name.
   final String name;
 
   /// Total number of nodes in the sequence (all categories).
@@ -39,10 +38,8 @@ class SequenceSummary {
   /// How many times this sequence has been run.
   final int runCount;
 
-  /// Library tags.
   final List<String> tags;
 
-  /// Library favorite flag.
   final bool isFavorite;
 
   /// When the sequence row was first created (`sequences.createdAt`).

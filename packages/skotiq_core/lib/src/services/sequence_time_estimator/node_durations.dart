@@ -32,7 +32,6 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
     // Update target header ID if this is a target header node
     final targetId = node is TargetHeaderNode ? node.id : currentTargetHeaderId;
 
-    // Calculate duration for this node
     var nodeDuration = _estimateNodeDuration(
       node,
       currentTime,
