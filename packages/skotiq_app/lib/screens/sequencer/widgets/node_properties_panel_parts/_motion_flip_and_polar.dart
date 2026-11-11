@@ -1,4 +1,3 @@
-// Meridian-flip and polar-alignment instruction property editors.
 part of '../node_properties_panel.dart';
 
 class _MeridianFlipProperties extends ConsumerWidget {

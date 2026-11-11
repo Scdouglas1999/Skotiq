@@ -1,9 +1,3 @@
-// Part of ../node_properties_panel.dart -- migrated from the former
-// instruction_node_properties library. Richer
-// mount/optics motion editors: Center (custom-coords + solve params),
-// Autofocus (settings-defaults display + per-node overrides), Rotator,
-// Slew (custom-coords + target-resolution preview), Meridian Flip, and
-// Polar Alignment.
 part of '../node_properties_panel.dart';
 
 class _CenterProperties extends ConsumerWidget {
@@ -173,7 +167,6 @@ class _AutofocusProperties extends ConsumerWidget {
       children: [
         NodeSectionHeader(colors: colors, label: 'Autofocus settings'),
         const SizedBox(height: 12),
-        // Use Settings Defaults toggle
         NodePropertyField(
           colors: colors,
           label: 'Use settings defaults',
@@ -204,10 +197,8 @@ class _AutofocusProperties extends ConsumerWidget {
           ),
         ),
         if (node.useSettingsDefaults)
-          // Read-only display of current global AF settings
           _buildDefaultsDisplay(context, afSettings)
         else
-          // Editable per-node overrides
           _buildEditableFields(ref),
 
         const SizedBox(height: 8),
@@ -239,7 +230,6 @@ class _AutofocusProperties extends ConsumerWidget {
     );
   }
 
-  /// Displays the persisted global AF settings as read-only informational rows.
   Widget _buildDefaultsDisplay(
       BuildContext context, AutofocusSettings afSettings) {
     return Container(
@@ -308,7 +298,6 @@ class _AutofocusProperties extends ConsumerWidget {
     );
   }
 
-  /// Editable fields for per-node overrides (original behavior).
   Widget _buildEditableFields(WidgetRef ref) {
     return Column(
       children: [

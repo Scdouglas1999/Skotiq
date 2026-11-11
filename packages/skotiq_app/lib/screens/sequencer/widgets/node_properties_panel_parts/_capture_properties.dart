@@ -30,7 +30,6 @@ class _DitherProperties extends ConsumerWidget {
               ref.read(currentSequenceProvider.notifier).updateNode(
                     node.copyWith(pixels: value),
                   );
-              // Save as default for future nodes
               ref.read(sequencerDefaultsProvider.notifier).updateDitherDefaults(
                     pixels: value,
                   );
@@ -51,7 +50,6 @@ class _DitherProperties extends ConsumerWidget {
               ref.read(currentSequenceProvider.notifier).updateNode(
                     node.copyWith(settleTime: value),
                   );
-              // Save as default for future nodes
               ref.read(sequencerDefaultsProvider.notifier).updateDitherDefaults(
                     settleTime: value,
                   );
