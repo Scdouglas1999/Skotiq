@@ -317,7 +317,6 @@ class DiskSpaceGuardService {
   Future<DiskSpaceInfo> sample(String capturePath) =>
       _diskService.query(capturePath);
 
-  /// Whether a watchdog is currently active.
   bool get isRunning => _watchdogTimer?.isActive == true;
 
   /// Stream of watchdog events. Closed when [stop] is called.

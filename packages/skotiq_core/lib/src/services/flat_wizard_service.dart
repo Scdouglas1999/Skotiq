@@ -20,7 +20,6 @@ part 'flat_wizard_service/flat_wizard_models.dart';
 part 'flat_wizard_service/exposure_events.dart';
 part 'flat_wizard_service/exposure_event_keys.dart';
 
-/// Service for flat frame calibration and sequence generation
 class FlatWizardService {
   final SkotiqBackend backend;
 
@@ -154,7 +153,6 @@ class FlatWizardService {
       gain = _clampToRange(gain, caps?.gainMin, caps?.gainMax);
     }
 
-    // Offset
     final offsetSupported =
         (caps?.canSetOffset == true || status?.canSetOffset == true) &&
         caps?.canSetOffset != false &&
@@ -165,7 +163,6 @@ class FlatWizardService {
       offset = _clampToRange(offset, caps?.offsetMin, caps?.offsetMax);
     }
 
-    // Binning
     var binX = (profileBinX ?? fallbackBinX ?? 1);
     var binY = (profileBinY ?? fallbackBinY ?? 1);
     if (binX < 1) binX = 1;
@@ -228,7 +225,6 @@ class FlatWizardService {
       return (minExposure + maxExposure) / 2;
     }
 
-    // Calculate raw ratio
     final ratio = targetAdu / currentAdu;
 
     // Apply safety limits to prevent extreme jumps
@@ -242,10 +238,8 @@ class FlatWizardService {
                   0.7 // Reduce aggressive changes
         : clampedRatio;
 
-    // Calculate next exposure
     final nextExposure = currentExposure * adjustedRatio;
 
-    // Clamp to valid range
     return nextExposure.clamp(minExposure, maxExposure);
   }
 
@@ -655,7 +649,6 @@ class FlatWizardService {
         level: 800,
       );
 
-      // Notify progress callback
       onProgress?.call(iteration, exposure, adu);
 
       // Check if within tolerance
@@ -677,7 +670,6 @@ class FlatWizardService {
         );
       }
 
-      // Calculate next exposure
       final nextExposure = calculateNextExposure(
         currentExposure: exposure,
         currentAdu: adu,
@@ -754,7 +746,6 @@ class FlatWizardService {
     void Function(int iteration, double exposure, double adu, String status)?
     onProgress,
   }) async {
-    // Get starting exposure
     double exposure = FlatExposureCalculator.getStartingExposure(
       historicalExposure: historicalExposure,
       minExposure: minExposure,
@@ -858,7 +849,6 @@ class FlatWizardService {
 
       lastAdu = adu;
 
-      // Update brightness tracker
       brightnessTracker.addSample(
         adu: adu,
         exposureTime: exposure,
@@ -904,7 +894,6 @@ class FlatWizardService {
           );
       }
 
-      // Check limits
       final limitStatus = FlatExposureCalculator.checkLimits(
         exposure: exposure,
         measuredAdu: adu,
@@ -950,9 +939,6 @@ class FlatWizardService {
     );
   }
 
-  /// Calibrate multiple filters in sequence
-  ///
-  /// Runs calibration for each filter and returns list of results
   Future<List<FlatResult>> calibrateMultipleFilters({
     required String deviceId,
     required List<String> filters,
@@ -1050,7 +1036,6 @@ class FlatWizardService {
         continue;
       }
 
-      // Create exposure node for this filter
       final node = ExposureNode(
         id: const Uuid().v4(),
         name: 'Flat ${cal.filter}',
@@ -1093,7 +1078,6 @@ class FlatWizardService {
     int? offset,
     bool onlySuccessful = true,
   }) {
-    // Generate flat capture nodes
     final captureNodes = generateFlatSequence(
       calibrations: calibrations,
       framesPerFilter: framesPerFilter,
@@ -1104,7 +1088,6 @@ class FlatWizardService {
       onlySuccessful: onlySuccessful,
     );
 
-    // Create root instruction set node
     final rootId = const Uuid().v4();
     final rootNode = InstructionSetNode(
       id: rootId,
@@ -1114,14 +1097,12 @@ class FlatWizardService {
       isEnabled: true,
     );
 
-    // Update child nodes with parent reference
     final updatedNodes = <String, SequenceNode>{rootId: rootNode};
     for (int i = 0; i < captureNodes.length; i++) {
       final child = captureNodes[i];
       updatedNodes[child.id] = child.copyWith(parentId: rootId, orderIndex: i);
     }
 
-    // Build description
     final desc =
         description ??
         'Flat frame sequence generated from wizard\n'

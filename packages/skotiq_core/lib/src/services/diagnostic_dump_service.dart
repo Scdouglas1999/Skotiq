@@ -238,7 +238,6 @@ class DiagnosticDumpService {
       ),
     );
 
-    // Encode to disk
     final outFile = File(outputPath);
     final parent = outFile.parent;
     if (!await parent.exists()) {

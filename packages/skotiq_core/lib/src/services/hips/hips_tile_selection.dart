@@ -58,7 +58,6 @@ import 'healpix_nested.dart';
 /// outside the survey's published range. A miswired caller fails here rather
 /// than painting a blank or wrong sky.
 class HipsTileSelectionError extends ArgumentError {
-  /// Creates a tile-selection argument error.
   HipsTileSelectionError(super.message);
 }
 
@@ -115,7 +114,6 @@ class HipsVisibleTile {
   /// The addressed tile (survey + Norder + Npix).
   final HipsTileId id;
 
-  /// The projected mesh for this tile.
   final HipsTileMesh mesh;
 
   const HipsVisibleTile({required this.id, required this.mesh});

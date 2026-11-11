@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-/// Calculates optimal flat frame exposure with improved convergence
 class FlatExposureCalculator {
   /// Safe full-scale ADU when the connected camera's effective range is
   /// unknown (a 16-bit sensor). Real cameras can be 8/10/12/14/16-bit or expose

@@ -8,7 +8,6 @@ import 'logging_service.dart';
 /// Error severity levels matching Rust EventSeverity
 enum ErrorSeverity { info, warning, error, critical }
 
-/// Convert to LogLevel for integration with logging service
 extension ErrorSeverityExtension on ErrorSeverity {
   LogLevel toLogLevel() {
     switch (this) {
@@ -24,7 +23,6 @@ extension ErrorSeverityExtension on ErrorSeverity {
   }
 }
 
-/// Error categories for structured logging
 enum ErrorCategory {
   device,
   imaging,
@@ -37,7 +35,6 @@ enum ErrorCategory {
   unknown,
 }
 
-/// Structured error entry with context
 class ErrorEntry {
   final DateTime timestamp;
   final ErrorSeverity severity;
@@ -83,13 +80,11 @@ class ErrorEntry {
     );
   }
 
-  /// Format for display
   String get displayMessage {
     final prefix = deviceType != null ? '[$deviceType] ' : '';
     return '$prefix$message';
   }
 
-  /// Format for logging
   String get logMessage {
     final buffer = StringBuffer();
     buffer.write('[${severity.name.toUpperCase()}]');
@@ -107,7 +102,6 @@ class ErrorEntry {
   String toString() => logMessage;
 }
 
-/// Service for structured error logging and history
 class ErrorService {
   static final ErrorService _instance = ErrorService._internal();
   factory ErrorService() => _instance;
@@ -124,14 +118,11 @@ class ErrorService {
     _loggingService = service;
   }
 
-  /// Set the UI notification notifier for displaying errors to the user
   void setUiNotificationNotifier(UiNotificationNotifier notifier) {
     _uiNotificationNotifier = notifier;
   }
 
-  /// Log a structured error
   void log(ErrorEntry entry) {
-    // Add to history
     _errorHistory.add(entry);
     while (_errorHistory.length > _maxHistorySize) {
       _errorHistory.removeFirst();
@@ -195,13 +186,11 @@ class ErrorService {
       }
     }
 
-    // Notify listeners
     for (final listener in _listeners) {
       listener(entry);
     }
   }
 
-  /// Convert error category to user-friendly title
   String _categoryToTitle(ErrorCategory category) {
     switch (category) {
       case ErrorCategory.device:
@@ -225,7 +214,6 @@ class ErrorService {
     }
   }
 
-  /// Convenience method for device errors
   void logDeviceError({
     required String operation,
     required String message,
@@ -247,12 +235,10 @@ class ErrorService {
     );
   }
 
-  /// Add listener for new errors
   void addListener(void Function(ErrorEntry) listener) {
     _listeners.add(listener);
   }
 
-  /// Remove listener
   void removeListener(void Function(ErrorEntry) listener) {
     _listeners.remove(listener);
   }
@@ -264,7 +250,6 @@ class ErrorService {
 
 }
 
-/// Provider for the error service
 final errorServiceProvider = Provider<ErrorService>((ref) {
   final service = ErrorService();
   final logging = ref.watch(loggingServiceProvider);

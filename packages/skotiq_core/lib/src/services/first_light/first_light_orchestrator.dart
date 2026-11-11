@@ -78,7 +78,6 @@ enum FirstLightPhase {
 /// genuinely succeeded. Nothing here is faked to make the UI look further
 /// along than the real pipeline is.
 class FirstLightState {
-  /// Current stage of the flow.
   final FirstLightPhase phase;
 
   /// Exposure length used for the capture, in seconds. `null` until [run]
@@ -386,8 +385,6 @@ class FirstLightOrchestrator {
   }
 
   void _emit(FirstLightState state) => _onState(state);
-
-  // Stage implementations.
 
   void _requireCameraConnected() {
     final camera = _ref.read(cameraStateProvider);

@@ -219,7 +219,6 @@ class FlatMasterBuild {
   final BuildMasterFlatResult result;
 }
 
-/// Provider for the [FlatLibraryService].
 final flatLibraryServiceProvider = Provider<FlatLibraryService>((ref) {
   return FlatLibraryService(
     dao: ref.watch(flatLibraryDaoProvider),

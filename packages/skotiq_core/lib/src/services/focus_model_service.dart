@@ -9,7 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
 import '../utils/skotiq_data_directory.dart';
 
-/// Provider for the focus model service
 final focusModelServiceProvider = Provider<FocusModelService>((ref) {
   // Plumb user-configurable thresholds
   // through so the autofocus settings panel can override the rejection /
@@ -126,7 +125,6 @@ class FocusModel {
     required this.lastUpdated,
   });
 
-  /// Predict focus position for a given temperature
   int predictPosition(double temperatureCelsius) {
     return (intercept + slope * temperatureCelsius).round();
   }
@@ -311,7 +309,6 @@ class ProfileFocusData {
   );
 }
 
-/// Service for managing focus models and predictions
 class FocusModelService {
   final Map<String, ProfileFocusData> _profileData = {};
   String? _storageDir;
@@ -339,7 +336,6 @@ class FocusModelService {
     _isInitialized = true;
   }
 
-  /// Get focus data for a profile
   ProfileFocusData? getProfileData(String profileId) {
     return _profileData[profileId];
   }
@@ -372,7 +368,6 @@ class FocusModelService {
 
     data = data.copyWith(dataPoints: newPoints);
 
-    // Recalculate temperature model
     final model = _calculateTemperatureModel(newPoints);
     if (model != null) {
       data = data.copyWith(temperatureModel: model);
@@ -497,7 +492,6 @@ class FocusModelService {
   ) {
     final offsets = <String, FilterOffset>{};
 
-    // Group by filter
     final byFilter = <String, List<FocusHistoryPoint>>{};
     for (final point in points) {
       if (point.filterName != null) {
@@ -505,7 +499,6 @@ class FocusModelService {
       }
     }
 
-    // Get reference filter data
     final refPoints = byFilter[referenceFilter];
     if (refPoints == null || refPoints.isEmpty) return offsets;
 
@@ -594,7 +587,6 @@ class FocusModelService {
           'span=${formatCelsius(tempSpread)}).';
     }
 
-    // Calculate offsets for each non-reference filter
     for (final entry in byFilter.entries) {
       if (entry.key == referenceFilter) continue;
 
@@ -799,7 +791,6 @@ class FocusModelService {
     await _saveProfile(profileId);
   }
 
-  /// Clear focus data for a profile
   Future<void> clearProfileData(String profileId) async {
     await initialize();
     _profileData.remove(profileId);
@@ -811,14 +802,12 @@ class FocusModelService {
     }
   }
 
-  /// Export focus data
   String exportData(String profileId) {
     final data = _profileData[profileId];
     if (data == null) return '{}';
     return jsonEncode(data.toJson());
   }
 
-  /// Import focus data
   Future<void> importData(String profileId, String jsonData) async {
     await initialize();
     final json = jsonDecode(jsonData) as Map<String, dynamic>;
@@ -867,7 +856,6 @@ class FocusModelService {
   }
 }
 
-/// Result of focus position prediction
 class FocusPrediction {
   final int position;
   final double confidence;
@@ -883,7 +871,6 @@ class FocusPrediction {
     required this.model,
   });
 
-  /// Get a human-readable confidence description
   String get confidenceDescription {
     if (confidence >= 0.9) return 'High';
     if (confidence >= 0.7) return 'Good';
