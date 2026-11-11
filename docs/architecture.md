@@ -253,7 +253,7 @@ Release readiness is documented and gated rather than asserted:
   fail-closed audit, dependency-duplicate check, coverage threshold). Each gate
   maps to a step in `.github/workflows/ci.yml` and blocks merge on red.
 - **Release evidence** — `docs/release-evidence/` collects the per-release
-  validation record (alongside `docs/release/` and `docs/releases/` notes such
+  validation record (alongside the `docs/release/` notes such
   as `docs/release/v4.1.0.md`). Treat this as the place that holds the proof a
   release was exercised, not just described.
 - **Supported hardware** — `docs/supported-hardware-by-platform.md` is the
