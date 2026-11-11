@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -952,17 +953,9 @@ final runDashboardRecentEventsProvider =
 /// A user who walks away from the laptop for an hour and comes back needs
 /// to be able to see at-a-glance whether anything critical happened. The
 /// trigger feed alone is not enough — it only holds 5 rows and they
-/// scroll off. Critical events are escalated by:
-///
-///   * Holding them in this notifier indefinitely (until the user
-///     dismisses them or clears via "Mark all seen").
-///   * Rendering a persistent banner above the Run Dashboard
-///     (`run_dashboard_critical_banner.dart`).
-///   * Forwarding them to [uiNotificationProvider] as toast / center
-///     notifications so the global app notification queue surfaces them
-///     consistently with other in-app alerts.
-///   * Optionally firing an audible alert (system bell) when the user has
-///     enabled `audibleAlertsOnCritical` in settings.
+/// scroll off. This notifier holds them until the user dismisses them or
+/// clears them all; Tonight's banner (`critical_event_banner.dart`) shows
+/// them. [runCriticalAlertsProvider] fills it.
 class RunDashboardCriticalEventsNotifier
     extends StateNotifier<List<RunDashboardEvent>> {
   RunDashboardCriticalEventsNotifier(this._ref) : super(const []);
@@ -1181,15 +1174,39 @@ bool _isRestatedFailureReason(
   return false;
 }
 
-/// Side-effect provider: subscribes to the event history and routes
-/// critical events through the dashboard notifier, the in-app
-/// notification queue, the audible alert player, and the mobile push
-/// notification stream.
+/// One critical event the operator must not miss, escalated once.
+class RunCriticalAlert {
+  const RunCriticalAlert({required this.event, required this.row});
+
+  final sk_events.SkotiqEvent event;
+
+  /// The banner's entry for [event].
+  final RunDashboardEvent row;
+
+  /// The alert's text: the event's detail, or its title when it has none.
+  String get detail => row.message.isNotEmpty ? row.message : row.title;
+
+  String get title => 'Critical · ${row.category}';
+}
+
+/// The critical events of the run, each once, as they arrive.
 ///
-/// This provider must be `ref.watch`-ed somewhere in the widget tree for
-/// the side effects to run. The Run Dashboard scaffolding watches it in
-/// its build method.
-final runDashboardCriticalEventsBridgeProvider = Provider<void>((ref) {
+/// Reads the event history, decides which events are critical alerts (not
+/// the operator's own Stop, not a terminal failure restating a reason the
+/// run already raised) and keeps Tonight's banner
+/// ([runDashboardCriticalEventsProvider]) up to date, including clearing a
+/// run's faults once the run goes on. The alert sound
+/// ([runCriticalAlertSoundProvider]) and the phone push
+/// ([runCriticalAlertPushProvider]) listen to the stream it returns. Toasts
+/// are not raised here: the error toast bridge already shows every backend
+/// error on every screen.
+///
+/// An always-on service (`startup/always_on_services.dart`), so an alert
+/// reaches the operator whichever screen is open.
+final runCriticalAlertsProvider =
+    Provider<Stream<RunCriticalAlert>>((ref) {
+  final alerts = StreamController<RunCriticalAlert>.broadcast(sync: true);
+  ref.onDispose(alerts.close);
   // Use ref.listen on the history so we react to new entries without
   // depending on the order or count of rebuilds.
   //
@@ -1200,9 +1217,6 @@ final runDashboardCriticalEventsBridgeProvider = Provider<void>((ref) {
   // any host event after one the client stamped with a clock running ahead
   // (its own "reconnected" notice), never reached the banner.
   List<sk_events.SkotiqEvent> seen = const [];
-  // Last time we played the audible alert. We hold this in the provider
-  // closure scope so the cooldown survives provider rebuilds.
-  DateTime? lastAlertAt;
   // Mid-run failure reasons this run has already escalated, so the terminal
   // event that restates one is not escalated a second time. See
   // [_isRestatedFailureReason].
@@ -1217,13 +1231,6 @@ final runDashboardCriticalEventsBridgeProvider = Provider<void>((ref) {
       // The history list is newest-first and only gains events at its front.
       final fresh = next.takeWhile((event) => !known.contains(event)).toList();
       if (fresh.isEmpty) return;
-
-      // Read settings once per batch; the user can't toggle these mid-batch
-      // and re-reading per event would race the AsyncNotifier update.
-      final settings = ref.read(appSettingsProvider).valueOrNull;
-      final audibleEnabled = settings?.audibleAlertsOnCritical ?? false;
-      final soundChoice = settings?.criticalAlertSound ?? 'systemBell';
-      final pushEnabled = settings?.pushCriticalAlerts ?? true;
 
       // Process oldest-first so the most recent ends up at the head of
       // the notifier's state list.
@@ -1263,70 +1270,16 @@ final runDashboardCriticalEventsBridgeProvider = Provider<void>((ref) {
           developer.log(
             '[$kStopClassificationLogTag] run_dashboard bridge: cancellation '
             'notice not escalated',
-            name: 'RunDashboardCriticalEventsBridge',
+            name: 'RunCriticalAlerts',
           );
           continue;
         }
         if (_isRestatedFailureReason(event, escalatedSequencerFailureReasons)) {
           continue;
         }
-        final dashboardEvent = _toDashboardEvent(event);
-        ref
-            .read(runDashboardCriticalEventsProvider.notifier)
-            .add(dashboardEvent);
-
-        // Forward to the in-app notification queue. Title is the
-        // category, message is the event detail (or title if there is
-        // no detail). Long duration so the toast doesn't time out while
-        // the user is reading.
-        final notif = ref.read(uiNotificationProvider.notifier);
-        final detail = dashboardEvent.message.isNotEmpty
-            ? dashboardEvent.message
-            : dashboardEvent.title;
-        notif.showError(
-          detail,
-          title: 'Critical · ${dashboardEvent.category}',
-          duration: const Duration(seconds: 30),
-        );
-
-        // Audible alert: respects the user setting + the 5-second cooldown
-        // so a storm of critical events doesn't make the laptop sound like
-        // a slot machine.
-        if (audibleEnabled && soundChoice != 'none') {
-          final now = DateTime.now();
-          if (lastAlertAt == null ||
-              now.difference(lastAlertAt!) >= _audibleAlertCooldown) {
-            lastAlertAt = now;
-            // Fire-and-forget: SystemSound.play returns Future<void> and we
-            // don't gate further work on it. Errors from the platform
-            // channel are surfaced via developer.log inside the player
-            // rather than thrown — a failed audio cue must not crash the
-            // event dispatch path.
-            final player = ref.read(criticalAlertPlayerProvider);
-            player.play(sound: soundChoice);
-          }
-        }
-
-        // Mobile push notification: forwarded through the NotificationRouter
-        // — the single systemPush producer after the architecture-unification
-        // collapse. The router's SystemPushTransport broadcasts to paired
-        // phones as a critical WebSocket message. This path covers criticality
-        // classifications the router's core-stream classifier does not push on
-        // its own (e.g. generic system errors / FITS save failures); for
-        // events the classifier DOES recognise, the router's systemPush
-        // content-signature dedup collapses this push and the classifier's
-        // into exactly one page. The router honours the master push gate, so
-        // the `pushEnabled` check here mirrors the user's `pushCriticalAlerts`
-        // preference (an extra, cheap short-circuit).
-        if (pushEnabled && !_routerClassifierAlreadyPushes(event)) {
-          final router = ref.read(notificationRouterProvider);
-          router.routeCriticalPush(
-            title: 'Critical · ${dashboardEvent.category}',
-            body: detail,
-            eventType: sk_events.skotiqEventDisplayTitle(event),
-            eventCategory: _bridgeCategoryToCore(event.category),
-          );
-        }
+        final row = _toDashboardEvent(event);
+        ref.read(runDashboardCriticalEventsProvider.notifier).add(row);
+        alerts.add(RunCriticalAlert(event: event, row: row));
       }
     },
     fireImmediately: true,
@@ -1342,4 +1295,48 @@ final runDashboardCriticalEventsBridgeProvider = Provider<void>((ref) {
       ref.read(runDashboardCriticalEventsProvider.notifier).clearRunFaults();
     }
   });
+  return alerts.stream;
+});
+
+/// Plays the alert sound for each critical alert (Settings: audible alerts),
+/// at most once per [_audibleAlertCooldown].
+final runCriticalAlertSoundProvider = Provider<void>((ref) {
+  DateTime? lastAlertAt;
+  final subscription = ref.watch(runCriticalAlertsProvider).listen((_) {
+    final settings = ref.read(appSettingsProvider).valueOrNull;
+    if (!(settings?.audibleAlertsOnCritical ?? false)) return;
+    final sound = settings?.criticalAlertSound ?? 'systemBell';
+    if (sound == 'none') return;
+    final now = DateTime.now();
+    final last = lastAlertAt;
+    if (last != null && now.difference(last) < _audibleAlertCooldown) return;
+    lastAlertAt = now;
+    unawaited(
+      ref.read(criticalAlertPlayerProvider).play(sound: sound).catchError(
+            (Object error) => developer.log(
+              'Critical alert sound failed: $error',
+              name: 'RunCriticalAlertSound',
+            ),
+          ),
+    );
+  });
+  ref.onDispose(subscription.cancel);
+});
+
+/// Pages paired phones for each critical alert (Settings: push critical
+/// alerts) that the notification router does not already push from the
+/// event stream on its own; see [_routerClassifierAlreadyPushes].
+final runCriticalAlertPushProvider = Provider<void>((ref) {
+  final subscription = ref.watch(runCriticalAlertsProvider).listen((alert) {
+    final settings = ref.read(appSettingsProvider).valueOrNull;
+    if (!(settings?.pushCriticalAlerts ?? true)) return;
+    if (_routerClassifierAlreadyPushes(alert.event)) return;
+    ref.read(notificationRouterProvider).routeCriticalPush(
+          title: alert.title,
+          body: alert.detail,
+          eventType: sk_events.skotiqEventDisplayTitle(alert.event),
+          eventCategory: _bridgeCategoryToCore(alert.event.category),
+        );
+  });
+  ref.onDispose(subscription.cancel);
 });

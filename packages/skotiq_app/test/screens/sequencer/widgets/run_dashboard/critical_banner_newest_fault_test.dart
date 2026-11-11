@@ -95,7 +95,7 @@ void main() {
     );
     addTearDown(container.dispose);
     await container.read(appSettingsProvider.future);
-    container.read(runDashboardCriticalEventsBridgeProvider);
+    container.read(runCriticalAlertsProvider);
     return container;
   }
 

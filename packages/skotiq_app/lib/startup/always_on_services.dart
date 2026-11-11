@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../screens/imaging/widgets/depthlock/depthlock_hint.dart';
+import '../screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import '../screens/session_review/auto_integration_service.dart';
 import '../services/location_sync_service.dart';
 
@@ -77,6 +78,26 @@ final List<AlwaysOnService> alwaysOnServices = [
     errorNotificationBridgeProvider,
     _windows,
     'backend errors and warnings shown as toasts on every screen',
+  ),
+  AlwaysOnService(
+    'critical run alerts',
+    runCriticalAlertsProvider,
+    _everyRole,
+    "Tonight's critical banner, and the alerts the sound and the phone push "
+        'follow',
+  ),
+  AlwaysOnService(
+    'critical alert sound',
+    runCriticalAlertSoundProvider,
+    _windows,
+    'the alert sound on a critical run event (Settings: audible alerts)',
+  ),
+  AlwaysOnService(
+    'critical alert push',
+    runCriticalAlertPushProvider,
+    // Phones are paired with the host; a client has no queue to deliver from.
+    _hosts,
+    'the phone alert on a critical run event (Settings: push critical alerts)',
   ),
   AlwaysOnService(
     'mount guard alarm',

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import 'package:skotiq_app/startup/always_on_services.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
@@ -33,6 +34,10 @@ void main() {
       expect(_entry(recoveryAudibleBridgeProvider).roles, windows);
       expect(_entry(recoveryPushBridgeProvider).roles, hosts);
       expect(_entry(liveStackingKillSwitchBridgeProvider).roles, hosts);
+      // Critical run alerts reach the operator whichever screen is open.
+      expect(_entry(runCriticalAlertsProvider).roles, AppRole.values.toSet());
+      expect(_entry(runCriticalAlertSoundProvider).roles, windows);
+      expect(_entry(runCriticalAlertPushProvider).roles, hosts);
     });
 
     test('host-only work runs on the daemon as well as the GUI host', () {
