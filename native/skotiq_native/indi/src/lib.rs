@@ -39,7 +39,6 @@
 //! - Protocol version negotiation support (1.7, 1.8, 1.9)
 //! - Exponential backoff with jitter for reconnection
 
-pub mod autofocus;
 mod camera;
 mod client;
 mod covercalibrator;
@@ -55,7 +54,6 @@ mod safetymonitor;
 mod switch_device;
 mod weather;
 
-pub use autofocus::{AutofocusMethod, IndiAutofocus, IndiAutofocusConfig, IndiAutofocusResult};
 pub use camera::{IndiBayerPattern, IndiCamera, IndiReadoutMode};
 pub use client::*;
 pub use covercalibrator::{IndiCalibratorState, IndiCoverCalibrator, IndiCoverState};
