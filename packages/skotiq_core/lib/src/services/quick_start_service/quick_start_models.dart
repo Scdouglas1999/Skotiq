@@ -1,23 +1,17 @@
 part of '../quick_start_service.dart';
 
-// EquipmentSnapshot - Captures equipment state for quick session resumption
-
 /// Represents a snapshot of equipment state at a point in time.
 /// Used to restore equipment settings when resuming a session.
 class EquipmentSnapshot {
   /// Target temperature for camera cooling (Celsius)
   final double? coolerTargetTemp;
 
-  /// Camera gain setting
   final int? cameraGain;
 
-  /// Camera offset setting
   final int? cameraOffset;
 
-  /// Camera horizontal binning
   final int? cameraBinX;
 
-  /// Camera vertical binning
   final int? cameraBinY;
 
   /// Filter wheel position (0-indexed)
@@ -44,7 +38,6 @@ class EquipmentSnapshot {
     required this.capturedAt,
   });
 
-  /// Create a copy with some fields replaced
   EquipmentSnapshot copyWith({
     double? coolerTargetTemp,
     int? cameraGain,
@@ -197,24 +190,18 @@ class EquipmentSnapshot {
   }
 }
 
-// QuickStartContext - Full context for quick session resumption
-
 /// Contains all the information needed to quickly resume a previous session.
 /// This includes session details, target info, sequence progress, and equipment state.
 class QuickStartContext {
-  /// Database ID of the session
   final int sessionId;
 
   /// User-provided session name
   final String? sessionName;
 
-  /// Equipment profile ID used in this session
   final int? profileId;
 
-  /// Equipment profile name
   final String? profileName;
 
-  /// Target ID being imaged
   final int? targetId;
 
   /// Target name (e.g., "Orion Nebula")
@@ -226,10 +213,8 @@ class QuickStartContext {
   /// Target declination in decimal degrees
   final double? targetDec;
 
-  /// Sequence ID being executed
   final int? sequenceId;
 
-  /// Sequence name
   final String? sequenceName;
 
   /// Number of frames completed in the sequence
@@ -241,7 +226,6 @@ class QuickStartContext {
   /// When the session was last active
   final DateTime lastSessionDate;
 
-  /// Captured equipment state
   final EquipmentSnapshot? equipmentSnapshot;
 
   /// Total integration time accumulated in hours
@@ -309,7 +293,6 @@ class QuickStartContext {
     );
   }
 
-  /// Calculate the percentage of frames completed
   double get progressPercentage {
     if (totalFrames == 0) return 0.0;
     return (completedFrames / totalFrames * 100).clamp(0.0, 100.0);
@@ -325,7 +308,6 @@ class QuickStartContext {
   bool get hasEquipmentSnapshot =>
       equipmentSnapshot != null && equipmentSnapshot!.hasEquipmentData;
 
-  /// Get a display-friendly session description
   String get displayDescription {
     final parts = <String>[];
 
@@ -352,7 +334,6 @@ class QuickStartContext {
     return parts.join(' - ');
   }
 
-  /// Get how long ago the session was active
   Duration get timeSinceLastSession {
     return DateTime.now().difference(lastSessionDate);
   }

@@ -24,9 +24,7 @@ class ProfileAutoConnectException implements Exception {
       'connect for profile "$profileName": ${failures.join('; ')}';
 }
 
-/// Result of validating a profile's devices against discovered devices
 class ProfileValidationResult {
-  /// Whether all devices in the profile are available
   final bool isValid;
 
   /// List of device types that are configured in profile but not found
@@ -45,7 +43,6 @@ class ProfileValidationResult {
     this.missingDeviceIds = const {},
   });
 
-  /// Create a result indicating all devices are valid
   const ProfileValidationResult.valid({required this.availableDevices})
     : isValid = true,
       missingDevices = const [],

@@ -38,7 +38,6 @@ class InstalledPluginManifest {
   /// manifest (legacy `.dart` bundles).
   final String id;
 
-  /// Human-readable name.
   final String name;
 
   /// Semantic version string.
@@ -47,7 +46,6 @@ class InstalledPluginManifest {
   /// Author or maintainer of the plugin (free-form string).
   final String? author;
 
-  /// Plugin description.
   final String? description;
 
   /// The operator preference recorded by the archive API. Never runtime
@@ -444,8 +442,6 @@ class PluginManagementService {
     }
     return null;
   }
-
-  // Internal: registry persistence
 
   Future<Map<String, InstalledPluginManifest>> _loadRegistry() async {
     final pluginDir = await _pluginDirectory();

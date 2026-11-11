@@ -24,7 +24,6 @@ class SchedulerCandidate {
   /// User-set priority on the target row (higher = better).
   final int userPriority;
 
-  /// Integration goals attached to this target.
   final List<IntegrationGoal> goals;
 
   /// Per-(goal) captured-frame counts, in the same order as `goals`.

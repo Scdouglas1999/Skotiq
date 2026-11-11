@@ -68,10 +68,8 @@ class SolverNotAvailableError implements Exception {
   String toString() => 'SolverNotAvailableError: $message';
 }
 
-/// Plate solver type
 enum PlateSolverType { astap, astrometryNet }
 
-/// Plate solver configuration
 class PlateSolverConfig {
   final PlateSolverType type;
   final String executablePath;
@@ -115,7 +113,6 @@ class _SolverProcessResult {
   });
 }
 
-/// Plate solve service
 class PlateSolveService {
   final Ref _ref;
   final SkotiqBackend _backend;
@@ -567,7 +564,6 @@ class PlateSolveService {
         return _failureResult('Astrometry.net failed: ${result.stderr}');
       }
 
-      // Parse the output
       final output = result.stdout.toString();
       return _parseAstrometryOutput(output);
     } on TimeoutException {
@@ -969,7 +965,6 @@ class PlateSolveService {
   }
 }
 
-/// Plate solve service provider
 final plateSolveServiceProvider = Provider<PlateSolveService>((ref) {
   final backend = ref.watch(backendProvider);
   final service = PlateSolveService(ref, backend: backend);
@@ -991,7 +986,6 @@ bool samePlateSolveOutcome(PlateSolveResult a, PlateSolveResult b) =>
     a.solveTimeSecs == b.solveTimeSecs &&
     a.error == b.error;
 
-/// Active plate solve state
 class PlateSolveState {
   final bool isSolving;
   final PlateSolveResult? lastResult;
@@ -1016,7 +1010,6 @@ class PlateSolveState {
   }
 }
 
-/// Plate solve state provider
 final plateSolveStateProvider = StateProvider<PlateSolveState>((ref) {
   return const PlateSolveState();
 });

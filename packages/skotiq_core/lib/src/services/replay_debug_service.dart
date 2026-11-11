@@ -40,8 +40,6 @@ class ReplayDebugService {
     await _changeBus.close();
   }
 
-  // Writes.
-
   /// Persist a decision built from a Rust bridge event. Returns the
   /// inserted row id.
   Future<int> persistFromBridgeEvent({
@@ -113,8 +111,6 @@ class ReplayDebugService {
     return removed;
   }
 
-  // Reads.
-
   /// One-shot fetch of every decision for a given run, ordered
   /// chronologically (ascending by timestamp). Returns an empty list
   /// when there are no rows.
@@ -174,7 +170,6 @@ class ReplayDebugService {
 
     controller = StreamController<List<ReplayDecision>>(
       onListen: () {
-        // Initial emission.
         push();
         sub = _changeBus.stream.listen((_) => push());
       },

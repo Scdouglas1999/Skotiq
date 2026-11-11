@@ -237,7 +237,6 @@ class AavsoExportService {
       );
     }
 
-    // Write to file
     final directory = await _getExportDirectory();
     final sanitizedName = targetStarName
         .replaceAll(RegExp(r'[^\w\s-]'), '')

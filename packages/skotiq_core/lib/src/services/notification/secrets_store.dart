@@ -239,7 +239,6 @@ class SecretsStore {
     }
   }
 
-  /// Delete a single secret.
   Future<void> delete(String field) async {
     try {
       await _ensureLegacyNamespaceMigrated();

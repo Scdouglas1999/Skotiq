@@ -4,7 +4,6 @@ extension _SchedulerEngineScoring on SchedulerEngine {
   TargetScore _scoreCandidate(SchedulerCandidate c, DateTime now) {
     final rejections = <String>[];
 
-    // Altitude / azimuth.
     final (alt, az) = AstronomyCalculations.objectAltAz(
       raDeg: c.raHours * 15.0,
       decDeg: c.decDegrees,

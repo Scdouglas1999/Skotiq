@@ -109,7 +109,6 @@ Future<List<QuickStartContext>> _remoteQuickStartContexts(
   return contexts;
 }
 
-/// Provider for the QuickStartService
 final quickStartServiceProvider = Provider<QuickStartService>((ref) {
   return QuickStartService(
     sessionsDao: ref.watch(sessionsDaoProvider),

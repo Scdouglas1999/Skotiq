@@ -219,7 +219,6 @@ extension _ProfileServiceBackends on ProfileService {
     }
   }
 
-  /// Create a profile from export data
   Future<int> _createProfileFromExport(
     ProfileExportData data, {
     required _BackendAuthority authority,

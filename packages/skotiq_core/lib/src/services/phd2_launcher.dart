@@ -130,7 +130,6 @@ class Phd2Launcher {
     );
   }
 
-  /// Check whether [host]:[port] is accepting TCP connections.
   Future<bool> _isPortOpen(String host, int port) async {
     final connectHost = resolvePhd2ConnectHost(host);
     try {

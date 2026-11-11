@@ -23,8 +23,6 @@ import '../backend/remote_host.dart';
 part 'quick_start_service/quick_start_models.dart';
 part 'quick_start_service/quick_start_providers.dart';
 
-// QuickStartService - Service for quick session resumption
-
 /// Service for capturing and restoring session state for quick resumption.
 ///
 /// This service provides functionality to:
@@ -84,7 +82,6 @@ class QuickStartService {
     return _buildQuickStartContext(session);
   }
 
-  /// Build a QuickStartContext from a session record.
   Future<QuickStartContext> _buildQuickStartContext(
     db.ImagingSession session,
   ) async {

@@ -43,7 +43,6 @@ class SafetyConfig {
   /// Radar refresh cadence (seconds).
   final int refreshIntervalSeconds;
 
-  /// Preferred radar provider.
   final RadarProviderType preferredProvider;
 
   // Weather-safety toggles (owned by WeatherSettings table)
