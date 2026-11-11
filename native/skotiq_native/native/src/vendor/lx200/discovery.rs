@@ -282,7 +282,3 @@ pub(crate) fn scan_serial_ports() -> Result<Vec<Lx200MountInfo>, NativeError> {
     tracing::debug!("LX200 discovery complete: found {} mounts", mounts.len());
     Ok(mounts)
 }
-
-pub fn is_available() -> bool {
-    true
-}

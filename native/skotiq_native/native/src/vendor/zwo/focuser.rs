@@ -464,42 +464,6 @@ impl NativeFocuser for ZwoFocuser {
     }
 }
 
-impl ZwoFocuser {
-    /// `move_to` the absolute position, then wait for the focuser to settle
-    /// under the config's focuser timeout.
-    pub async fn move_to_with_timeout(
-        &mut self,
-        position: i32,
-        config: &NativeTimeoutConfig,
-    ) -> Result<(), NativeError> {
-        // Start the move
-        self.move_to(position).await?;
-
-        // Wait for move to complete
-        wait_for_focuser_move(|| async { self.is_moving().await }, config, position).await
-    }
-
-    /// Move `steps` from the current position (positive is outward), then wait
-    /// for the focuser to settle under the config's focuser timeout.
-    pub async fn move_relative_with_timeout(
-        &mut self,
-        steps: i32,
-        config: &NativeTimeoutConfig,
-    ) -> Result<(), NativeError> {
-        // Calculate target position
-        let current = self.get_position().await?;
-        let target = current.checked_add(steps).ok_or_else(|| {
-            NativeError::InvalidParameter(format!(
-                "ZWO EAF relative move from {} by {} overflows i32",
-                current, steps
-            ))
-        })?;
-
-        // Use move_to_with_timeout
-        self.move_to_with_timeout(target, config).await
-    }
-}
-
 // Focuser discovery
 
 /// ZWO focuser discovery info

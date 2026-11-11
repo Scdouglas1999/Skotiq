@@ -429,7 +429,7 @@ impl NativeDevice for SvbonyCamera {
         drop(_lock);
 
         let quirk_lookup_id = format!("native:svbony:{}", self.name);
-        if let Some(delay_ms) = crate::quirks::get_timing_delay(&quirk_lookup_id, "connect") {
+        if let Some(delay_ms) = crate::quirks::get_connect_delay_ms(&quirk_lookup_id) {
             tracing::debug!(
                 "Applying DelayAfterConnect quirk: sleeping {}ms before reading controls from {}",
                 delay_ms,

@@ -224,7 +224,7 @@ impl NativeDevice for TouptekCamera {
             self.brand.to_lowercase(),
             self.device_index
         );
-        if let Some(delay_ms) = crate::quirks::get_timing_delay(&quirk_lookup_id, "connect") {
+        if let Some(delay_ms) = crate::quirks::get_connect_delay_ms(&quirk_lookup_id) {
             tracing::debug!(
                 "Applying DelayAfterConnect quirk: sleeping {}ms before starting pull mode on {}",
                 delay_ms,

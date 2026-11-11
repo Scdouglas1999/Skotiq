@@ -167,7 +167,7 @@ impl NativeDevice for ZwoCamera {
         // Apply per-model DelayAfterConnect quirk (e.g. ASI533: 200ms). The
         // quirks database is queried with a synthetic device_id that embeds the
         // SDK-reported model name so per-model `ModelContains` matchers fire.
-        if let Some(delay_ms) = crate::quirks::get_timing_delay(&quirk_lookup_id, "connect") {
+        if let Some(delay_ms) = crate::quirks::get_connect_delay_ms(&quirk_lookup_id) {
             tracing::debug!(
                 "Applying DelayAfterConnect quirk: sleeping {}ms after connecting to {}",
                 delay_ms,

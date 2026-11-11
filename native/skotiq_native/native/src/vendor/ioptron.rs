@@ -966,10 +966,6 @@ fn scan_serial_ports() -> Result<Vec<IOptronMountInfo>, NativeError> {
     Ok(mounts)
 }
 
-pub fn is_available() -> bool {
-    true
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

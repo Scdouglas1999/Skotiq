@@ -52,7 +52,6 @@ pub enum NativeVendor {
     Moravian,
     Fujifilm,
     GPhoto2,
-    Ascom,
     // Mount vendors
     SkyWatcher,
     IOptron,
@@ -74,7 +73,6 @@ impl NativeVendor {
             NativeVendor::Moravian => "Moravian",
             NativeVendor::Fujifilm => "Fujifilm",
             NativeVendor::GPhoto2 => "gPhoto2",
-            NativeVendor::Ascom => "ASCOM",
             NativeVendor::SkyWatcher => "Sky-Watcher",
             NativeVendor::IOptron => "iOptron",
             NativeVendor::Meade => "Meade",
@@ -124,9 +122,3 @@ pub const NATIVE_VENDOR_SUBTYPES: &[(&str, &[&str])] = &[
     ("atik", &["efw"]),
     ("fli", &["focuser", "fw"]),
 ];
-
-/// Check if native drivers are available on this platform
-pub fn is_available() -> bool {
-    // Native drivers are available on all platforms that have vendor SDKs
-    true
-}

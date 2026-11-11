@@ -506,22 +506,6 @@ impl NativeFilterWheel for ZwoFilterWheel {
     }
 }
 
-impl ZwoFilterWheel {
-    /// `move_to_position` to the 0-indexed slot, then wait for the wheel to
-    /// settle under the config's filter-wheel timeout.
-    pub async fn move_to_position_with_timeout(
-        &mut self,
-        position: i32,
-        config: &NativeTimeoutConfig,
-    ) -> Result<(), NativeError> {
-        // Start the move
-        self.move_to_position(position).await?;
-
-        // Wait for move to complete
-        wait_for_filterwheel_move(|| async { self.is_moving().await }, config, position).await
-    }
-}
-
 // Filter wheel discovery
 
 /// ZWO filter wheel discovery info

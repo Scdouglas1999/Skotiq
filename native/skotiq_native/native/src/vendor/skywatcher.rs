@@ -964,11 +964,6 @@ fn scan_serial_ports() -> Result<Vec<SkyWatcherMountInfo>, NativeError> {
     Ok(mounts)
 }
 
-/// Check if Sky-Watcher protocol is available
-pub fn is_available() -> bool {
-    true
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

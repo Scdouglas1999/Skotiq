@@ -10,13 +10,6 @@
 //! - `zwo_camera_mutex()` - ASI Camera SDK (ASICamera2.dll)
 //! - `zwo_eaf_mutex()` - EAF Focuser SDK (EAF_focuser.dll)
 //! - `zwo_efw_mutex()` - EFW Filter Wheel SDK (EFW_filter.dll)
-//!
-//! ## Timeout Handling
-//!
-//! All SDK operations that can potentially hang (exposure polling, image download,
-//! focuser moves, filter wheel moves) have configurable timeouts via `NativeTimeoutConfig`.
-//! Use the helper methods like `wait_for_exposure_complete`, `move_focuser_with_timeout`,
-//! and `move_filterwheel_with_timeout` to ensure operations don't block indefinitely.
 
 // c_long is i32 on Windows and i64 on Linux (LP64), so the `as i32` casts on
 // SDK control values are identity on one platform and a real (documented,
@@ -29,10 +22,7 @@
 use crate::camera::*;
 use crate::sync::{zwo_camera_mutex, zwo_eaf_mutex, zwo_efw_mutex};
 use crate::traits::*;
-use crate::utils::{
-    calculate_buffer_size_i32, safe_cstr_to_string, wait_for_exposure, wait_for_filterwheel_move,
-    wait_for_focuser_move, CleanupGuard,
-};
+use crate::utils::{calculate_buffer_size_i32, safe_cstr_to_string, CleanupGuard};
 use crate::NativeVendor;
 use async_trait::async_trait;
 use skotiq_imaging::buffer_pool::global_u8_pool;

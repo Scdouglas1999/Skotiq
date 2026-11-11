@@ -8,11 +8,6 @@
 //! The POA SDK is NOT thread-safe. All SDK operations are protected by
 //! `player_one_mutex()` from `crate::sync` to prevent concurrent access.
 //!
-//! ## Timeout Handling
-//!
-//! All SDK operations that can potentially hang (exposure polling, image download)
-//! have configurable timeouts via `NativeTimeoutConfig`.
-//!
 //! ## `unwrap_or` policy
 //!
 //! POA SDK property reads (`get_control_int`, `get_control_bool`, etc.)
@@ -51,9 +46,7 @@
 use crate::camera::*;
 use crate::sync::player_one_mutex;
 use crate::traits::*;
-use crate::utils::{
-    calculate_buffer_size_i32, safe_cstr_to_string, wait_for_exposure, CleanupGuard,
-};
+use crate::utils::{calculate_buffer_size_i32, safe_cstr_to_string, CleanupGuard};
 use crate::NativeVendor;
 use async_trait::async_trait;
 use skotiq_imaging::buffer_pool::global_u8_pool;

@@ -803,17 +803,6 @@ pub async fn discover_devices(
         .collect())
 }
 
-/// Discover devices from a specific vendor
-pub async fn discover_vendor_devices(
-    vendor: NativeVendor,
-) -> Result<Vec<NativeDeviceInfo>, NativeError> {
-    let all_devices = discover_all_devices().await?;
-    Ok(all_devices
-        .into_iter()
-        .filter(|d| d.vendor == vendor)
-        .collect())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

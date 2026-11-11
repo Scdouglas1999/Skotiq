@@ -38,59 +38,10 @@ pub use database::*;
 pub use types::*;
 
 use crate::NativeVendor;
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
 
-/// Global quirk registry with runtime overrides
-static QUIRK_REGISTRY: std::sync::OnceLock<Arc<RwLock<QuirkRegistry>>> = std::sync::OnceLock::new();
-
-/// Initialize or get the global quirk registry
-fn get_registry() -> &'static Arc<RwLock<QuirkRegistry>> {
-    QUIRK_REGISTRY.get_or_init(|| Arc::new(RwLock::new(QuirkRegistry::new())))
-}
-
-/// Registry that combines built-in quirks with runtime overrides
-pub struct QuirkRegistry {
-    /// Runtime overrides that take precedence over built-in quirks
-    overrides: HashMap<String, Vec<Quirk>>,
-    /// Devices for which quirks should be disabled (for testing)
-    disabled_devices: std::collections::HashSet<String>,
-}
-
-impl QuirkRegistry {
-    fn new() -> Self {
-        Self {
-            overrides: HashMap::new(),
-            disabled_devices: std::collections::HashSet::new(),
-        }
-    }
-}
-
-/// Every quirk that applies to `device_id` (e.g. `native:zwo:ASI294MC Pro`), in
-/// descending priority: a runtime override wins outright, otherwise the built-in
-/// database is consulted device ID first, then model pattern, then vendor.
+/// Every quirk that applies to `device_id` (e.g. `native:zwo:ASI294MC Pro`):
+/// the database is consulted device ID first, then model pattern, then vendor.
 pub fn get_quirks_for_device(device_id: &str) -> Vec<Quirk> {
-    let registry = get_registry().read().unwrap_or_else(|e| e.into_inner());
-
-    // Check if quirks are disabled for this device
-    if registry.disabled_devices.contains(device_id) {
-        tracing::debug!("Quirks disabled for device: {}", device_id);
-        return Vec::new();
-    }
-
-    // Check for runtime overrides first
-    if let Some(overrides) = registry.overrides.get(device_id) {
-        tracing::debug!(
-            "Using {} runtime override quirks for device: {}",
-            overrides.len(),
-            device_id
-        );
-        return overrides.clone();
-    }
-
-    drop(registry); // Release the lock before calling the database
-
-    // Get quirks from the built-in database
     database::get_device_quirks(device_id)
 }
 
@@ -99,110 +50,9 @@ pub fn get_quirks_for_vendor(vendor: &NativeVendor) -> Vec<Quirk> {
     database::get_vendor_quirks(vendor)
 }
 
-/// Replace a device's quirks at runtime, taking precedence over the built-in
-/// database so a configuration can be tried without a code change.
-pub fn set_quirk_overrides(device_id: &str, quirks: Vec<Quirk>) {
-    let mut registry = get_registry().write().unwrap_or_else(|e| e.into_inner());
-    tracing::info!(
-        "Setting {} quirk overrides for device: {}",
-        quirks.len(),
-        device_id
-    );
-    registry.overrides.insert(device_id.to_string(), quirks);
-}
-
-/// Clear runtime quirk overrides for a device.
-///
-/// After clearing, the device will use the built-in quirks again.
-pub fn clear_quirk_overrides(device_id: &str) {
-    let mut registry = get_registry().write().unwrap_or_else(|e| e.into_inner());
-    tracing::info!("Clearing quirk overrides for device: {}", device_id);
-    registry.overrides.remove(device_id);
-}
-
-/// Disable all quirks for a device.
-///
-/// This is useful for testing to ensure quirks are actually being applied.
-pub fn disable_quirks_for_device(device_id: &str) {
-    let mut registry = get_registry().write().unwrap_or_else(|e| e.into_inner());
-    tracing::info!("Disabling all quirks for device: {}", device_id);
-    registry.disabled_devices.insert(device_id.to_string());
-}
-
-/// Re-enable quirks for a device after they were disabled.
-pub fn enable_quirks_for_device(device_id: &str) {
-    let mut registry = get_registry().write().unwrap_or_else(|e| e.into_inner());
-    tracing::info!("Re-enabling quirks for device: {}", device_id);
-    registry.disabled_devices.remove(device_id);
-}
-
-/// Correct a raw SDK temperature by every temperature quirk the device carries.
-pub fn apply_temperature_quirks(device_id: &str, raw_temp: f64) -> f64 {
-    let quirks = get_quirks_for_device(device_id);
-    let mut temp = raw_temp;
-
-    for quirk in quirks {
-        if let Quirk::Temperature(temp_quirk) = quirk {
-            match temp_quirk {
-                TemperatureQuirk::ScaleFactor(factor) => {
-                    let old_temp = temp;
-                    temp /= factor;
-                    tracing::trace!(
-                        "Applied temperature scale factor {} to {}: {} -> {}",
-                        factor,
-                        device_id,
-                        old_temp,
-                        temp
-                    );
-                }
-                TemperatureQuirk::Offset(offset) => {
-                    let old_temp = temp;
-                    temp += offset;
-                    tracing::trace!(
-                        "Applied temperature offset {} to {}: {} -> {}",
-                        offset,
-                        device_id,
-                        old_temp,
-                        temp
-                    );
-                }
-                TemperatureQuirk::Inverted => {
-                    let old_temp = temp;
-                    temp = -temp;
-                    tracing::trace!(
-                        "Applied temperature inversion to {}: {} -> {}",
-                        device_id,
-                        old_temp,
-                        temp
-                    );
-                }
-                TemperatureQuirk::SkipFirstRead => {
-                    // This quirk is handled at the caller level
-                    tracing::trace!(
-                        "Temperature SkipFirstRead quirk noted for {} (handled by caller)",
-                        device_id
-                    );
-                }
-                TemperatureQuirk::RequiresDelayMs(delay_ms) => {
-                    // This quirk is handled at the caller level
-                    tracing::trace!(
-                        "Temperature requires {}ms delay for {} (handled by caller)",
-                        delay_ms,
-                        device_id
-                    );
-                }
-            }
-        }
-    }
-
-    temp
-}
-
 /// Look up the settle delay required before trusting a temperature read.
 ///
-/// Callers should apply this before issuing the SDK read. The helper returns
-/// only `RequiresDelayMs`; scale/offset/inversion corrections are handled by
-/// `apply_temperature_quirks` after the raw value is available.
+/// Callers should apply this before issuing the SDK read.
 pub fn get_temperature_delay_ms(device_id: &str) -> Option<u64> {
     let quirks = get_quirks_for_device(device_id);
     for quirk in quirks {
@@ -263,81 +113,23 @@ pub fn get_position_delay_after_move_ms(device_id: &str) -> Option<u64> {
     None
 }
 
-/// Delay in milliseconds a device requires after `operation`, or `None` when it
-/// declares no timing quirk for that operation.
-pub fn get_timing_delay(device_id: &str, operation: &str) -> Option<u64> {
-    let quirks = get_quirks_for_device(device_id);
-
-    for quirk in quirks {
-        if let Quirk::Timing(timing_quirk) = quirk {
-            match &timing_quirk {
-                TimingQuirk::DelayAfterOperation {
-                    operation_name,
-                    delay_ms,
-                } => {
-                    if operation_name == operation {
-                        return Some(*delay_ms);
-                    }
-                }
-                TimingQuirk::DelayAfterConnect(delay_ms) if operation == "connect" => {
-                    return Some(*delay_ms);
-                }
-                TimingQuirk::DelayAfterDisconnect(delay_ms) if operation == "disconnect" => {
-                    return Some(*delay_ms);
-                }
-                TimingQuirk::DelayBetweenCommands(delay_ms) if operation == "command" => {
-                    return Some(*delay_ms);
-                }
-                _ => {}
-            }
-        }
-    }
-
-    None
-}
-
-/// Discovery operations to skip for a vendor, because some SDKs crash when they
-/// are performed during enumeration.
-pub fn get_discovery_skip_operations(vendor: &NativeVendor) -> Vec<String> {
-    let quirks = get_quirks_for_vendor(vendor);
-    let mut skip_ops = Vec::new();
-
-    for quirk in quirks {
-        if let Quirk::Discovery(discovery_quirk) = quirk {
-            match discovery_quirk {
-                DiscoveryQuirk::SkipOperation(op) => {
-                    skip_ops.push(op);
-                }
-                DiscoveryQuirk::SkipOperations(ops) => {
-                    skip_ops.extend(ops);
-                }
-                _ => {}
-            }
-        }
-    }
-
-    skip_ops
+/// Delay in milliseconds a device requires after connecting, or `None` when
+/// it declares none.
+pub fn get_connect_delay_ms(device_id: &str) -> Option<u64> {
+    get_quirks_for_device(device_id)
+        .into_iter()
+        .find_map(|quirk| match quirk {
+            Quirk::Timing(TimingQuirk::DelayAfterConnect(delay_ms)) => Some(delay_ms),
+            _ => None,
+        })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Mutex;
-
-    /// Serializes tests that read or mutate the process-global `QUIRK_REGISTRY`
-    /// under the shared `native:zwo:ASI294MC Pro` key: one test disables quirks
-    /// for that key while another asserts they are non-empty, so unserialized
-    /// they race on the transient disabled window. Poisoning is recovered from
-    /// because a panic in one test must not wedge the rest.
-    static REGISTRY_GUARD: Mutex<()> = Mutex::new(());
-
-    fn registry_guard() -> std::sync::MutexGuard<'static, ()> {
-        REGISTRY_GUARD.lock().unwrap_or_else(|e| e.into_inner())
-    }
 
     #[test]
     fn test_get_zwo_quirks() {
-        let _guard = registry_guard();
         let quirks = get_quirks_for_device("native:zwo:ASI294MC Pro");
         assert!(!quirks.is_empty(), "ZWO ASI294 should have model quirks");
 
@@ -365,43 +157,6 @@ mod tests {
             has_discovery_protection,
             "QHY should have discovery protection"
         );
-    }
-
-    #[test]
-    fn test_apply_temperature_quirks_passthrough_for_zwo() {
-        // The ZWO ASI driver already divides ASI_TEMPERATURE by 10 inline (see
-        // `vendor/zwo.rs` ~828/1162), so the database intentionally has no
-        // ScaleFactor quirk for ZWO cameras. apply_temperature_quirks must
-        // therefore be a no-op for ZWO cameras to avoid double-scaling.
-        let _guard = registry_guard();
-        let raw_temp = 20.0;
-        let corrected = apply_temperature_quirks("native:zwo:ASI294MC Pro", raw_temp);
-        assert!(
-            (corrected - 20.0).abs() < 0.01,
-            "ZWO temperature must not be re-scaled by quirks layer: got {}",
-            corrected
-        );
-    }
-
-    #[test]
-    fn test_apply_temperature_quirks_with_runtime_override() {
-        // When a runtime override declares a ScaleFactor, the helper must apply
-        // it — this is the wire-up that diagnostics and per-device tuning rely
-        // on.
-        let device_id = "test:scale:device";
-        set_quirk_overrides(
-            device_id,
-            vec![Quirk::Temperature(TemperatureQuirk::ScaleFactor(10.0))],
-        );
-
-        let corrected = apply_temperature_quirks(device_id, 200.0);
-        assert!(
-            (corrected - 20.0).abs() < 0.01,
-            "ScaleFactor override should scale temperature: got {}",
-            corrected
-        );
-
-        clear_quirk_overrides(device_id);
     }
 
     #[test]
@@ -446,10 +201,10 @@ mod tests {
     }
 
     #[test]
-    fn test_get_timing_delay_zwo_asi533_connect() {
+    fn test_get_connect_delay_zwo_asi533() {
         // ASI533 cameras carry a 200ms DelayAfterConnect quirk that
         // `ZwoCamera::connect` consumes after open+init.
-        let delay = get_timing_delay("native:zwo:ZWO ASI533MC Pro", "connect");
+        let delay = get_connect_delay_ms("native:zwo:ZWO ASI533MC Pro");
         assert_eq!(
             delay,
             Some(200),
@@ -458,56 +213,13 @@ mod tests {
     }
 
     #[test]
-    fn test_get_timing_delay_other_zwo_camera_no_connect_quirk() {
+    fn test_get_connect_delay_other_zwo_camera_has_none() {
         // Cameras without a DelayAfterConnect entry must return None so the
         // caller knows to skip the sleep, not silently apply a default.
-        let delay = get_timing_delay("native:zwo:ZWO ASI294MC Pro", "connect");
+        let delay = get_connect_delay_ms("native:zwo:ZWO ASI294MC Pro");
         assert_eq!(
             delay, None,
             "ASI294 must not carry a DelayAfterConnect quirk"
         );
-    }
-
-    #[test]
-    fn test_quirk_overrides() {
-        let device_id = "test:device:1";
-
-        // Initially should have no quirks
-        let quirks = get_quirks_for_device(device_id);
-        assert!(quirks.is_empty());
-
-        // Set override
-        set_quirk_overrides(
-            device_id,
-            vec![Quirk::Temperature(TemperatureQuirk::ScaleFactor(5.0))],
-        );
-
-        let quirks = get_quirks_for_device(device_id);
-        assert_eq!(quirks.len(), 1);
-
-        // Clear override
-        clear_quirk_overrides(device_id);
-        let quirks = get_quirks_for_device(device_id);
-        assert!(quirks.is_empty());
-    }
-
-    #[test]
-    fn test_disable_quirks() {
-        let _guard = registry_guard();
-        let device_id = "native:zwo:ASI294MC Pro";
-
-        // Should have quirks by default (model-specific SkipFirstRead)
-        let quirks = get_quirks_for_device(device_id);
-        assert!(!quirks.is_empty(), "ZWO device should have vendor quirks");
-
-        // Disable quirks
-        disable_quirks_for_device(device_id);
-        let quirks = get_quirks_for_device(device_id);
-        assert!(quirks.is_empty(), "Quirks should be disabled");
-
-        // Re-enable
-        enable_quirks_for_device(device_id);
-        let quirks = get_quirks_for_device(device_id);
-        assert!(!quirks.is_empty(), "Quirks should be re-enabled");
     }
 }

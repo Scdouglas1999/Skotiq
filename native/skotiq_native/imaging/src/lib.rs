@@ -250,7 +250,6 @@ impl ImageFormat {
                 | ImageFormat::GenericRAW
         )
     }
-
 }
 
 /// Pixel data types

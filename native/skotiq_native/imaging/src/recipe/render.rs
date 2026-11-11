@@ -26,9 +26,7 @@ use std::sync::Arc;
 use serde_json::Value;
 
 use super::cache::{CacheKey, RenderCache};
-use super::model::{
-    OpApplied, OpContext, OpError, OpImage, OpStage, Recipe, RecipeError,
-};
+use super::model::{OpApplied, OpContext, OpError, OpImage, OpStage, Recipe, RecipeError};
 use super::pyramid::ImagePyramid;
 use super::registry::OpRegistry;
 
