@@ -30,7 +30,6 @@ class SkotiqPanel extends StatelessWidget {
     this.dashed = false,
   });
 
-  /// The panel's content.
   final Widget child;
 
   /// An optional [PanelHead] rendered above [child] with a 12px gap.

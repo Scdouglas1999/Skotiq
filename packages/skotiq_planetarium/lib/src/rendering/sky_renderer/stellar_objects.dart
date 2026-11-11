@@ -152,7 +152,6 @@ extension _SkyCanvasPainterStellarObjects on SkyCanvasPainter {
         }
       }
 
-      // Star color
       var color = _starColor(star);
       color = _getEnhancedStarColor(color, magnitude);
 
@@ -475,9 +474,7 @@ extension _SkyCanvasPainterStellarObjects on SkyCanvasPainter {
     final easedPhase = Curves.easeOutCubic.transform(
       popinPhase.clamp(0.0, 1.0),
     );
-    // Scale from 80% to 100%
     final popinScale = 0.8 + 0.2 * easedPhase;
-    // Alpha from 0 to 1
     final popinAlpha = easedPhase;
     final animating =
         dsoPopinAnimationPhase != null && dsoPopinAnimationPhase! < 1.0;
@@ -518,7 +515,6 @@ extension _SkyCanvasPainterStellarObjects on SkyCanvasPainter {
       final majorPx = (dso.sizeArcMin ?? 0) / 60 * scale;
       final minorPx = (dso.minorAxisArcMin ?? dso.sizeArcMin ?? 0) / 60 * scale;
 
-      // Surface brightness opacity scaling
       final sb = _surfaceBrightness(dso);
       final sbOpacity = _surfaceBrightnessOpacity(sb);
 

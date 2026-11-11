@@ -68,7 +68,6 @@ class ScoringWeights {
   }
 }
 
-/// Result of scoring a target
 class TargetScore {
   final CelestialObject target;
   final double totalScore; // 0-100
@@ -93,7 +92,6 @@ class TargetScore {
   });
 }
 
-/// Target visibility information
 class TargetVisibilityInfo {
   final double currentAltitude;
   final double currentAzimuth;
@@ -136,7 +134,6 @@ class TargetVisibilityInfo {
   });
 }
 
-/// Warning types for targets
 enum WarningType {
   lowAltitude,
   highAirmass,
@@ -147,10 +144,8 @@ enum WarningType {
   twilight,
 }
 
-/// Warning severity levels
 enum WarningSeverity { info, caution, warning, critical }
 
-/// A warning about target conditions
 class TargetWarning {
   final WarningType type;
   final WarningSeverity severity;

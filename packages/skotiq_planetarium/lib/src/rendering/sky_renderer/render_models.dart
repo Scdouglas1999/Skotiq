@@ -20,10 +20,8 @@ part of '../sky_renderer.dart';
 ///   two-layer host isn't involved).
 enum SkyRenderScope { base, overlay, full }
 
-/// Mount tracking status for rendering
 enum MountRenderStatus { disconnected, parked, slewing, tracking, stopped }
 
-/// Configuration for sky rendering
 class SkyRenderConfig {
   final bool showStars;
   final bool showConstellationLines;
@@ -287,7 +285,6 @@ class SkyRenderConfig {
   ]);
 }
 
-/// Sky view projection type
 enum SkyProjection { stereographic, orthographic, azimuthalEquidistant }
 
 /// The celestial frame the sky view is centered on and panned in.
@@ -486,7 +483,6 @@ class LabelLayoutManager {
     }
   }
 
-  /// Returns true if label can be placed without overlap
   bool canPlace(Rect labelRect) {
     final paddedRect = labelRect.inflate(2);
     for (final existing in _nearbyRects(paddedRect)) {

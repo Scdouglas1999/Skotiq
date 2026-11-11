@@ -1,6 +1,5 @@
 import 'coordinate_system.dart';
 
-/// Base class for celestial objects
 abstract class CelestialObject {
   String get id;
   String get name;
@@ -8,7 +7,6 @@ abstract class CelestialObject {
   double? get magnitude;
 }
 
-/// Star data
 class Star implements CelestialObject {
   @override
   final String id;
@@ -116,43 +114,32 @@ enum DsoType {
   /// Stellar association
   association,
 
-  /// Open cluster
   openCluster,
 
-  /// Globular cluster
   globularCluster,
 
-  /// Star cluster with nebulosity
   clusterWithNebulosity,
 
-  /// Galaxy
   galaxy,
 
-  /// Galaxy pair
   galaxyPair,
 
-  /// Galaxy triplet
   galaxyTriplet,
 
-  /// Galaxy group
   galaxyGroup,
 
-  /// Planetary nebula
   planetaryNebula,
 
   /// HII ionized region
   hiiRegion,
 
-  /// Dark nebula
   darkNebula,
 
-  /// Emission nebula
   emissionNebula,
 
   /// Generic nebula
   nebula,
 
-  /// Reflection nebula
   reflectionNebula,
 
   /// Supernova remnant
@@ -161,10 +148,8 @@ enum DsoType {
   /// Nova star
   nova,
 
-  /// Star cloud
   starCloud,
 
-  /// Asterism
   asterism,
 
   /// Other/Unknown type
@@ -201,9 +186,7 @@ const Map<String, DsoType> kOpenNgcTypeCodes = {
 DsoType dsoTypeFromOpenNgcCode(String code) =>
     kOpenNgcTypeCodes[code] ?? DsoType.other;
 
-/// Extensions for DsoType
 extension DsoTypeExtension on DsoType {
-  /// Get display name for the type
   String get displayName {
     switch (this) {
       case DsoType.star:
@@ -251,7 +234,6 @@ extension DsoTypeExtension on DsoType {
     }
   }
 
-  /// Get abbreviated name
   String get abbreviation {
     switch (this) {
       case DsoType.star:
@@ -299,20 +281,17 @@ extension DsoTypeExtension on DsoType {
     }
   }
 
-  /// Check if this is a cluster type
   bool get isCluster =>
       this == DsoType.openCluster ||
       this == DsoType.globularCluster ||
       this == DsoType.clusterWithNebulosity;
 
-  /// Check if this is a galaxy type
   bool get isGalaxy =>
       this == DsoType.galaxy ||
       this == DsoType.galaxyPair ||
       this == DsoType.galaxyTriplet ||
       this == DsoType.galaxyGroup;
 
-  /// Check if this is a nebula type
   bool get isNebula =>
       this == DsoType.nebula ||
       this == DsoType.emissionNebula ||
@@ -323,7 +302,6 @@ extension DsoTypeExtension on DsoType {
       this == DsoType.supernova;
 }
 
-/// Deep sky object data
 class DeepSkyObject implements CelestialObject {
   @override
   final String id;
@@ -357,7 +335,6 @@ class DeepSkyObject implements CelestialObject {
     this.commonNames,
   });
 
-  /// Get size string for display
   String? get sizeString {
     if (sizeArcMin == null) return null;
 
@@ -367,14 +344,12 @@ class DeepSkyObject implements CelestialObject {
     return "${sizeArcMin!.toStringAsFixed(1)}'";
   }
 
-  /// Check if this is a Messier object
   bool get isMessier =>
       catalogIds.any(
         (c) => c.startsWith('M') && RegExp(r'^M\d+$').hasMatch(c),
       ) ||
       (name.startsWith('M') && RegExp(r'^M\d+$').hasMatch(name));
 
-  /// Get Messier number if applicable
   String? get messierNumber {
     for (final c in catalogIds) {
       if (c.startsWith('M') && RegExp(r'^M\d+$').hasMatch(c)) {
@@ -387,7 +362,6 @@ class DeepSkyObject implements CelestialObject {
     return null;
   }
 
-  /// Get NGC/IC designation
   String? get ngcIcDesignation {
     if (id.startsWith('NGC') || id.startsWith('IC')) {
       return id;

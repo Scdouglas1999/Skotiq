@@ -110,13 +110,10 @@ class HyperLedaData {
     return math.pow(10, (modBest + 5) / 5) / 1e6;
   }
 
-  /// Get the display name for this object
   String get displayName => name ?? 'PGC $pgc';
 
-  /// Get the catalog ID
   String get catalogId => 'PGC$pgc';
 
-  /// Get size string
   String? get sizeString {
     if (majorAxis == null) return null;
     if (minorAxis != null && minorAxis != majorAxis) {
@@ -125,7 +122,6 @@ class HyperLedaData {
     return "${majorAxis!.toStringAsFixed(1)}'";
   }
 
-  /// Get distance string
   String? get distanceString {
     if (distance != null) {
       if (distance! < 1) {
@@ -152,7 +148,6 @@ class HyperLedaCatalogLoader {
 
   HyperLedaCatalogLoader(this.filePath);
 
-  /// Load all galaxies from the catalog
   Future<List<HyperLedaData>> loadAll() async {
     if (_cachedData != null) return _cachedData!;
 
@@ -184,7 +179,6 @@ class HyperLedaCatalogLoader {
     return galaxies;
   }
 
-  /// Load galaxies up to a magnitude limit
   Future<List<HyperLedaData>> loadByMagnitude(double maxMagnitude) async {
     final all = await loadAll();
     return all.where((g) => (g.magnitude ?? 99) <= maxMagnitude).toList();
@@ -245,7 +239,6 @@ class HyperLedaCatalogLoader {
         }).toList();
   }
 
-  /// Search galaxies by name
   Future<List<HyperLedaData>> search(String query) async {
     final all = await loadAll();
     final q = query.toLowerCase();
@@ -256,13 +249,11 @@ class HyperLedaCatalogLoader {
     }).toList();
   }
 
-  /// Find a galaxy by PGC number
   Future<HyperLedaData?> findByPgc(int pgc) async {
     final all = await loadAll();
     return all.where((g) => g.pgc == pgc).firstOrNull;
   }
 
-  /// Get galaxy count
   Future<int> get count async {
     final all = await loadAll();
     return all.length;

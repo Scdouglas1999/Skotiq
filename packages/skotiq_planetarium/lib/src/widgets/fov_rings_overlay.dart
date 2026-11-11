@@ -37,7 +37,6 @@ class FovRingsOverlay extends StatelessWidget {
   /// Optical finder circle diameter in degrees.
   final double finderDiameterDeg;
 
-  /// Ring stroke color.
   final Color color;
 
   const FovRingsOverlay({

@@ -28,7 +28,6 @@ abstract class UpdateManifest with _$UpdateManifest {
     /// Build number for ordering
     required int buildNumber,
 
-    /// Release date
     required DateTime releaseDate,
 
     /// Target platform (windows, macos, linux)
@@ -52,7 +51,6 @@ abstract class UpdateManifest with _$UpdateManifest {
     /// SHA-256 hash of the downloaded package archive
     String? packageSha256,
 
-    /// Download URL for the update package
     required String downloadUrl,
 
     /// Release notes (markdown)
@@ -187,10 +185,8 @@ abstract class VersionInfo with _$VersionInfo {
     /// Latest stable version
     required String latestVersion,
 
-    /// Latest build number
     required int latestBuildNumber,
 
-    /// Available channels
     required Map<String, ChannelInfo> channels,
 
     /// Minimum supported version (older versions must update)

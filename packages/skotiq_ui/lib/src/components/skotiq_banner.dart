@@ -48,7 +48,6 @@ class SkotiqBanner extends StatelessWidget {
   /// One more sentence of detail, on the same line as [title].
   final String? message;
 
-  /// The banner's tone.
   final BannerTone tone;
 
   /// Overrides the tone's default glyph.
@@ -60,13 +59,10 @@ class SkotiqBanner extends StatelessWidget {
   /// Shows the dismiss `x` when non-null.
   final VoidCallback? onDismiss;
 
-  /// Vertical padding.
   static const double verticalPadding = SkotiqTokens.spaceSm;
 
-  /// Horizontal padding.
   static const double horizontalPadding = SkotiqTokens.spaceMd;
 
-  /// The tone icon's size.
   static const double iconSize = SkotiqTokens.iconSm;
 
   /// Gap between the icon, the text and the actions.

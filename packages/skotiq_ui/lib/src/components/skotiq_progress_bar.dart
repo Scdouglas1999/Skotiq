@@ -4,9 +4,7 @@ import '../theme/skotiq_tokens.dart';
 import '../theme/skotiq_typography.dart';
 import '../utils/on_screen_animation_gate.dart';
 
-/// Progress bar style variants
 enum SkotiqProgressStyle {
-  /// Standard progress bar
   standard,
 
   /// Thin progress bar (4px height)
@@ -64,7 +62,6 @@ class SkotiqProgressBar extends StatelessWidget {
   /// Progress value from 0.0 to 1.0
   final double value;
 
-  /// Visual style of the progress bar
   final SkotiqProgressStyle style;
 
   /// State for automatic color selection
@@ -73,25 +70,19 @@ class SkotiqProgressBar extends StatelessWidget {
   /// Optional label shown above the progress bar
   final String? label;
 
-  /// Whether to show percentage text
   final bool showPercentage;
 
-  /// Whether to show indeterminate animation
   final bool indeterminate;
 
   /// Number of segments (for segmented style)
   final int? segments;
 
-  /// Custom height override
   final double? height;
 
-  /// Custom background color
   final Color? backgroundColor;
 
-  /// Custom foreground color
   final Color? foregroundColor;
 
-  /// Custom animation duration
   final Duration? animationDuration;
 
   double get _height {
@@ -426,10 +417,8 @@ class SkotiqCircularProgress extends StatelessWidget {
   /// Progress value from 0.0 to 1.0
   final double value;
 
-  /// Size of the circular progress
   final double size;
 
-  /// Width of the progress stroke
   final double strokeWidth;
 
   /// State for automatic color selection
@@ -438,13 +427,10 @@ class SkotiqCircularProgress extends StatelessWidget {
   /// Whether to show percentage in center
   final bool showPercentage;
 
-  /// Whether to show indeterminate animation
   final bool indeterminate;
 
-  /// Custom background color
   final Color? backgroundColor;
 
-  /// Custom foreground color
   final Color? foregroundColor;
 
   /// Custom center widget

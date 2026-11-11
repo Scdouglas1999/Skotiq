@@ -60,7 +60,6 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
     );
   }
 
-  /// Build header with thumbnail for DSOs
   Widget _buildHeaderWithThumbnail(
     Color txtColor,
     Color accent,
@@ -71,7 +70,6 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Thumbnail
         _buildThumbnail(dso),
         const SizedBox(width: 12),
         // Name and details
@@ -217,8 +215,6 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
     }
     return ids.toSet().toList(); // Remove duplicates
   }
-
-  // Thumbnail widget
 
   /// Build a survey thumbnail for DSOs with icon fallback on network/load errors.
   Widget _buildThumbnail(DeepSkyObject dso) {

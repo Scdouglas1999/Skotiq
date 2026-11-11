@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
-/// Status of a queued target
 enum QueuedTargetStatus {
   pending, // Waiting to be imaged
   active, // Currently being imaged
@@ -84,7 +83,6 @@ class QueuedTarget {
   bool get isPending => status == QueuedTargetStatus.pending;
 }
 
-/// State of the target queue
 class TargetQueueState {
   final List<QueuedTarget> targets;
   final String? activeTargetId;
@@ -148,12 +146,10 @@ class TargetQueueState {
   }
 }
 
-/// Notifier for managing the target queue
 class TargetQueueNotifier extends StateNotifier<TargetQueueState> {
   TargetQueueNotifier() : super(const TargetQueueState());
   int _idSequence = 0;
 
-  /// Add a target to the queue
   void addTarget(
     CelestialObject object, {
     int? priority,
@@ -203,7 +199,6 @@ class TargetQueueNotifier extends StateNotifier<TargetQueueState> {
     state = state.copyWith(targets: _normalizePriorities(updatedTargets));
   }
 
-  /// Remove a target from the queue
   void removeTarget(String targetId) {
     final updatedTargets = _normalizePriorities(
       state.targets.where((t) => t.id != targetId).toList(),
@@ -229,7 +224,6 @@ class TargetQueueNotifier extends StateNotifier<TargetQueueState> {
     state = state.copyWith(targets: _normalizePriorities(ordered));
   }
 
-  /// Set the active target
   void setActiveTarget(String? targetId) {
     if (targetId == null) {
       state = state.copyWith(clearActiveTarget: true);
@@ -256,7 +250,6 @@ class TargetQueueNotifier extends StateNotifier<TargetQueueState> {
     state = state.copyWith(targets: updatedTargets, activeTargetId: targetId);
   }
 
-  /// Mark the active target as completed
   void completeActiveTarget() {
     if (state.activeTargetId == null) return;
 
@@ -285,7 +278,6 @@ class TargetQueueNotifier extends StateNotifier<TargetQueueState> {
     }
   }
 
-  /// Skip the active target
   void skipActiveTarget() {
     if (state.activeTargetId == null) return;
 
@@ -335,7 +327,6 @@ class TargetQueueNotifier extends StateNotifier<TargetQueueState> {
     if (reachedPlan) completeActiveTarget();
   }
 
-  /// Start the imaging session
   void startSession() {
     if (state.targets.isEmpty) return;
 
@@ -354,12 +345,10 @@ class TargetQueueNotifier extends StateNotifier<TargetQueueState> {
     state = state.copyWith(isRunning: false);
   }
 
-  /// Clear all targets
   void clearQueue() {
     state = const TargetQueueState();
   }
 
-  /// Clear only completed targets
   void clearCompletedTargets() {
     final updatedTargets = _normalizePriorities(
       state.targets
@@ -380,12 +369,10 @@ class TargetQueueNotifier extends StateNotifier<TargetQueueState> {
     ];
   }
 
-  /// Toggle auto-advance setting
   void setAutoAdvance(bool enabled) {
     state = state.copyWith(autoAdvance: enabled);
   }
 
-  /// Update target notes
   void updateTargetNotes(String targetId, String? notes) {
     final updatedTargets = state.targets.map((t) {
       if (t.id == targetId) {
@@ -578,7 +565,6 @@ class TargetQueueNotifier extends StateNotifier<TargetQueueState> {
   }
 }
 
-/// Provider for the target queue
 final targetQueueProvider =
     StateNotifierProvider<TargetQueueNotifier, TargetQueueState>((ref) {
       return TargetQueueNotifier();

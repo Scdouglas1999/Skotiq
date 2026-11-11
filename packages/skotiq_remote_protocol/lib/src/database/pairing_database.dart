@@ -52,22 +52,17 @@ class PairingDatabase extends _$PairingDatabase {
         }
       },
       beforeOpen: (details) async {
-        // Enable foreign key enforcement
         await customStatement('PRAGMA foreign_keys = ON');
       },
     );
   }
 
-  // Paired devices operations
-
-  /// Get all active paired devices
   Future<List<PairedDevice>> getActivePairedDevices() async {
     return (select(
       pairedDevices,
     )..where((tbl) => tbl.isActive.equals(true))).get();
   }
 
-  /// Get a specific paired device by device ID
   Future<PairedDevice?> getPairedDevice(String deviceId) async {
     return (select(
       pairedDevices,
@@ -132,7 +127,6 @@ class PairingDatabase extends _$PairingDatabase {
     );
   }
 
-  /// Update the last connected timestamp for a device
   Future<void> updateLastConnected(String deviceId) async {
     await (update(pairedDevices)..where((tbl) => tbl.deviceId.equals(deviceId)))
         .write(PairedDevicesCompanion(lastConnectedAt: Value(DateTime.now())));
@@ -204,9 +198,6 @@ class PairingDatabase extends _$PairingDatabase {
     await deletePushPrefsForDevice(deviceId);
   }
 
-  // Pairing sessions operations
-
-  /// Create a new pairing session
   Future<int> createPairingSession({
     required String pairingCode,
     required String sessionToken,
@@ -223,14 +214,12 @@ class PairingDatabase extends _$PairingDatabase {
     );
   }
 
-  /// Get a pairing session by code
   Future<PairingSession?> getPairingSession(String pairingCode) async {
     return (select(
       pairingSessions,
     )..where((tbl) => tbl.pairingCode.equals(pairingCode))).getSingleOrNull();
   }
 
-  /// Mark a pairing session as used
   Future<void> markPairingSessionUsed(String pairingCode) async {
     await (update(pairingSessions)
           ..where((tbl) => tbl.pairingCode.equals(pairingCode)))
@@ -244,7 +233,6 @@ class PairingDatabase extends _$PairingDatabase {
     )..where((tbl) => tbl.pairingCode.equals(pairingCode))).go();
   }
 
-  /// Delete expired pairing sessions (cleanup)
   Future<void> deleteExpiredPairingSessions() async {
     final now = DateTime.now();
     await (delete(
@@ -252,7 +240,6 @@ class PairingDatabase extends _$PairingDatabase {
     )..where((tbl) => tbl.expiresAt.isSmallerThanValue(now))).go();
   }
 
-  /// Delete all used pairing sessions
   Future<void> deleteUsedPairingSessions() async {
     await (delete(
       pairingSessions,
@@ -307,8 +294,6 @@ class PairingDatabase extends _$PairingDatabase {
       );
     return query.get();
   }
-
-  // Device push token operations
 
   /// Insert-or-update a device's cellular-push token for a platform.
   ///
@@ -380,8 +365,6 @@ class PairingDatabase extends _$PairingDatabase {
       devicePushTokens,
     )..where((tbl) => tbl.token.equals(token))).go();
   }
-
-  // Device push preferences operations
 
   /// The per-device preferences row, or `null` when the device has never set
   /// one. A null result means "all categories enabled" (the delivery's
@@ -509,7 +492,6 @@ LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final file = await resolvePairingDatabaseFile();
 
-    // Ensure directory exists
     await file.parent.create(recursive: true);
 
     await migrateLegacyPairingStore(file);

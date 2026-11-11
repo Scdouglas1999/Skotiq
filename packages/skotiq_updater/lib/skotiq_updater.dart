@@ -5,11 +5,9 @@
 /// - Pull-Based: App checks update server on startup, prompts user to download
 library;
 
-// Models
 export 'src/models/update_manifest.dart';
 export 'src/models/update_state.dart';
 
-// Services
 export 'src/services/update_service.dart';
 export 'src/services/update_downloader.dart';
 export 'src/services/android_installer.dart';

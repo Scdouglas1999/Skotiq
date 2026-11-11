@@ -22,7 +22,6 @@ class Glass extends StatelessWidget {
   /// bar.
   final Widget child;
 
-  /// Internal padding.
   final EdgeInsets padding;
 
   /// The default HUD padding (`observatory.css` glass blocks: `8 12`).

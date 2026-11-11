@@ -1,7 +1,5 @@
 part of '../planetarium_providers.dart';
 
-// Catalog providers
-
 /// Deep-sky objects to magnitude 16, so faint imaging targets are there when
 /// zoomed in; the dynamic magnitude limit filters them per frame.
 final loadedDsosProvider = FutureProvider<List<DeepSkyObject>>((ref) async {
@@ -115,8 +113,6 @@ final fovFilteredDsosProvider = Provider<AsyncValue<List<DeepSkyObject>>>((
 final constellationDataProvider = Provider<List<ConstellationData>>((ref) {
   return Constellations.all;
 });
-
-// Computed astronomy data providers
 
 /// Provider that only updates when the date changes (not every second)
 /// This prevents unnecessary recalculations of date-dependent values like twilight.
@@ -269,14 +265,12 @@ final moonInfoProvider = Provider<MoonTimes>((ref) {
     return MoonTimes(illumination: illumination, phaseName: phaseName);
   }
 
-  // Calculate rise/set times for the date
   final moonTimes = AstronomyCalculations.calculateMoonTimes(
     date: currentDate,
     latitudeDeg: site.latitude,
     longitudeDeg: site.longitude,
   );
 
-  // Return combined data
   return MoonTimes(
     moonrise: moonTimes.moonrise,
     moonset: moonTimes.moonset,

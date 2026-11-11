@@ -9,7 +9,6 @@ extension _TargetWarnings on TargetScoringService {
   }) {
     final warnings = <TargetWarning>[];
 
-    // Below horizon
     if (alt < 0) {
       warnings.add(
         TargetWarning(
@@ -48,7 +47,6 @@ extension _TargetWarnings on TargetScoringService {
       );
     }
 
-    // High airmass
     if (airmass > 2.5 && airmass.isFinite) {
       warnings.add(
         TargetWarning(
@@ -69,7 +67,6 @@ extension _TargetWarnings on TargetScoringService {
       );
     }
 
-    // Moon proximity
     warnings.addAll(_moonProximityWarnings(moonDist));
 
     // Setting soon
@@ -282,7 +279,6 @@ extension _TargetWarnings on TargetScoringService {
       );
     }
 
-    // Moon proximity
     warnings.addAll(_moonProximityWarnings(moonDist));
 
     // Short imaging window

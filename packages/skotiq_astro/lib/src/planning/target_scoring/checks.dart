@@ -1,6 +1,5 @@
 part of '../target_scoring.dart';
 
-/// Quick helper methods for common checks
 extension TargetCheckExtensions on TargetScoringService {
   /// Check if a target is currently observable (above horizon, reasonable
   /// altitude). When a [horizonMask] is configured the local skyline at the

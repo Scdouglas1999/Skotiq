@@ -1,11 +1,7 @@
 part of '../planetarium_providers.dart';
 
-// Search provider
-
-/// Object type filter for search
 enum SearchObjectTypeFilter { all, stars, galaxies, nebulae, clusters }
 
-/// Search filter configuration
 class SearchFilters {
   final SearchObjectTypeFilter typeFilter;
   final double? minMagnitude;
@@ -71,7 +67,6 @@ class ScoredSearchResult {
   });
 }
 
-/// Object search state
 class ObjectSearchState {
   final String query;
   final List<CelestialObject> results;
@@ -137,13 +132,10 @@ int? _scoreMatch(String query, String target) {
   final qNorm = q.replaceAll(RegExp(r'\s+'), '');
   final tNorm = t.replaceAll(RegExp(r'\s+'), '');
 
-  // Exact match
   if (t == q || tNorm == qNorm) return 0;
 
-  // Starts with
   if (t.startsWith(q) || tNorm.startsWith(qNorm)) return 1;
 
-  // Contains
   if (t.contains(q) || tNorm.contains(qNorm)) return 2;
 
   // Fuzzy match: only if query is >= 3 chars to avoid too many false positives
@@ -282,7 +274,6 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
 
   void updateFilters(SearchFilters filters) {
     state = state.copyWith(filters: filters);
-    // Re-run search with new filters if there's an active query
     if (state.query.isNotEmpty) {
       search(state.query);
     }
@@ -330,7 +321,6 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
         }
       }
 
-      // Search stars
       if (filters.typeFilter == SearchObjectTypeFilter.all ||
           filters.typeFilter == SearchObjectTypeFilter.stars) {
         try {
@@ -367,7 +357,6 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
               continue;
             }
 
-            // Check star name alias
             if (starNameAlias != null &&
                 star.name.toLowerCase().contains(starNameAlias)) {
               scored.add(
@@ -417,7 +406,6 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
         }
       }
 
-      // Search DSOs
       if (filters.typeFilter == SearchObjectTypeFilter.all ||
           filters.typeFilter != SearchObjectTypeFilter.stars) {
         try {
@@ -430,7 +418,6 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
             // downloaded OpenNGC file; search them too.
             ...kSupplementalDsos.where((d) => !catalogIds.contains(d.id)),
           ]) {
-            // Apply type filter
             if (!_passesDsoTypeFilter(dso, filters.typeFilter)) continue;
             if (!_passesFilters(dso, filters)) continue;
 
@@ -471,7 +458,6 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
               }
             }
 
-            // Check display name
             final (displayName, _) = _getDsoDisplayInfoForSearch(dso);
             final displayScore = _scoreMatch(qLower, displayName);
             if (displayScore != null &&
@@ -480,14 +466,12 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
               matchSource = 'name';
             }
 
-            // Check id
             final idScore = _scoreMatch(qLower, dso.id);
             if (idScore != null && (bestScore == null || idScore < bestScore)) {
               bestScore = idScore;
               matchSource = 'id';
             }
 
-            // Check catalog IDs
             for (final catId in dso.catalogIds) {
               final catScore = _scoreMatch(qLower, catId);
               if (catScore != null &&
@@ -497,7 +481,6 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
               }
             }
 
-            // Check constellation
             final constellation = dso.constellation;
             if (constellation != null) {
               final conScore = _scoreMatch(qLower, constellation);
@@ -613,7 +596,6 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
   }
 
   bool _passesFilters(CelestialObject obj, SearchFilters filters) {
-    // Magnitude filter
     if (filters.minMagnitude != null && obj.magnitude != null) {
       if (obj.magnitude! < filters.minMagnitude!) return false;
     }
@@ -621,7 +603,6 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
       if (obj.magnitude! > filters.maxMagnitude!) return false;
     }
 
-    // Constellation filter
     if (filters.constellationFilter != null) {
       String? objConstellation;
       if (obj is Star) {
@@ -637,7 +618,6 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
       }
     }
 
-    // Observable now filter
     if (filters.observableNow) {
       final site = _ref.read(observerLocationProvider).site;
       // Whether an object is up is a question about a place. With no site on

@@ -5,7 +5,6 @@ part 'variable_star_catalog/star_data_part1.dart';
 part 'variable_star_catalog/star_data_part2.dart';
 part 'variable_star_catalog/star_data.dart';
 
-/// Type of variable star
 enum VariableStarType {
   /// Mira-type long period pulsating (e.g., Mira, Chi Cygni)
   mira,
@@ -139,7 +138,6 @@ extension VariableStarTypeExtension on VariableStarType {
   }
 }
 
-/// Data for a single variable star.
 class VariableStarData {
   /// Common name (e.g., "Mira", "Algol", "Delta Cephei")
   final String name;
@@ -156,7 +154,6 @@ class VariableStarData {
   /// Dec in degrees (J2000)
   final double dec;
 
-  /// Variable star type
   final VariableStarType type;
 
   /// Period in days (null if irregular or unknown)
@@ -168,12 +165,10 @@ class VariableStarData {
   /// Minimum brightness magnitude (faintest)
   final double magMin;
 
-  /// Spectral type
   final String? spectralType;
 
   CelestialCoordinate get coordinates => CelestialCoordinate(ra: ra, dec: dec);
 
-  /// Magnitude range
   double get magRange => magMin - magMax;
 
   /// Estimate current visual magnitude based on a simple sinusoidal model.
@@ -184,7 +179,6 @@ class VariableStarData {
       return (magMax + magMin) / 2;
     }
 
-    // Use Julian Date for phase calculation
     final jd = AstronomyCalculations.julianDate(time);
     // Use J2000 epoch as reference for phase
     const j2000 = 2451545.0;
@@ -255,7 +249,6 @@ class VariableStarData {
 class VariableStarCatalog {
   VariableStarCatalog._();
 
-  /// All variable stars in the catalog.
   static const List<VariableStarData> stars = variableStarCatalogStars;
 
   /// Get variable stars brighter than a given magnitude limit (at maximum).
@@ -263,12 +256,10 @@ class VariableStarCatalog {
     return stars.where((s) => s.magMax <= magLimit).toList();
   }
 
-  /// Get variable stars of a specific type.
   static List<VariableStarData> getByType(VariableStarType type) {
     return stars.where((s) => s.type == type).toList();
   }
 
-  /// Get variable stars in a specific constellation.
   static List<VariableStarData> getByConstellation(String constellation) {
     return stars
         .where(
@@ -277,7 +268,6 @@ class VariableStarCatalog {
         .toList();
   }
 
-  /// Search variable stars by name.
   static List<VariableStarData> search(String query) {
     final lower = query.toLowerCase();
     return stars.where((s) {

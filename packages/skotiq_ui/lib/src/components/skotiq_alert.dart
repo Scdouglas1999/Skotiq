@@ -9,7 +9,6 @@ import '../theme/skotiq_colors.dart';
 import '../theme/skotiq_tokens.dart';
 import '../theme/skotiq_typography.dart';
 
-/// Alert severity levels
 enum SkotiqAlertSeverity {
   /// Informational alert (blue)
   info,
@@ -45,10 +44,8 @@ class SkotiqAlert extends StatelessWidget {
     this.compact = false,
   });
 
-  /// The main message text
   final String message;
 
-  /// Severity level for styling
   final SkotiqAlertSeverity severity;
 
   /// Optional title shown above the message
@@ -63,10 +60,8 @@ class SkotiqAlert extends StatelessWidget {
   /// Callback when dismiss button is pressed (shows dismiss button when set)
   final VoidCallback? onDismiss;
 
-  /// Whether to show the severity icon
   final bool showIcon;
 
-  /// Use compact padding
   final bool compact;
 
   IconData get _defaultIcon {

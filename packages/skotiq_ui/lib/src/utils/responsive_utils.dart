@@ -247,8 +247,6 @@ abstract final class Responsive {
     return 'desktop';
   }
 
-  // Universal scaling
-
   /// Calculate a universal scale factor based on screen dimensions.
   ///
   /// This provides a 0.85-1.25 range scale factor based on the screen's
@@ -334,15 +332,11 @@ abstract final class Responsive {
     );
   }
 
-  // Aspect ratio detection
-
-  /// Returns true if the screen is in portrait orientation.
   static bool isPortrait(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
     return size.height > size.width;
   }
 
-  /// Returns true if the screen is in landscape orientation.
   static bool isLandscape(BuildContext context) => !isPortrait(context);
 
   /// True on a **phone held in landscape** (see [isPhone] — device-class on
@@ -397,8 +391,6 @@ abstract final class Responsive {
     if (isUltraWideAspect(context)) return ultrawide ?? landscape;
     return landscape;
   }
-
-  // Layout helpers
 
   /// Returns the number of columns for a grid based on screen width.
   ///

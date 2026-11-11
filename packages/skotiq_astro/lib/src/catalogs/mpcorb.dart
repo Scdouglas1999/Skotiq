@@ -21,8 +21,6 @@ class MpcOrbParser {
   /// hyperbolic; outside what the elliptical Keplerian propagator supports).
   static const double maxCometEccentricity = 0.998;
 
-  // Minor planets (MPCORB 1-line format)
-
   /// Parse an MPCORB-format text blob into elements.
   ///
   /// Header text (MPCORB.DAT carries ~40 lines of prose ending in a dashed
@@ -123,8 +121,6 @@ class MpcOrbParser {
       return null;
     }
   }
-
-  // Comets (MPC CometEls.txt format)
 
   /// Parse the MPC `CometEls.txt` file into elements.
   ///
@@ -227,8 +223,6 @@ class MpcOrbParser {
       return null;
     }
   }
-
-  // Packed-date helpers
 
   /// Unpack an MPC packed epoch like `K2669` (2026-06-09.0 TT) to a Julian
   /// Date. Century letter: I=18, J=19, K=20. Month/day digits: 1-9, then

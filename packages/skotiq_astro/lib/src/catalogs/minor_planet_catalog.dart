@@ -2,12 +2,10 @@ import 'dart:math' as math;
 import '../astronomy/astronomy_calculations.dart';
 import '../coordinate_system.dart';
 
-/// Type of minor body
 enum MinorBodyType {
   /// Asteroid (minor planet)
   asteroid,
 
-  /// Comet
   comet,
 }
 
@@ -21,7 +19,6 @@ class MinorBodyElements {
   /// Common designation (e.g., "Ceres", "Vesta")
   final String? commonName;
 
-  /// Body type
   final MinorBodyType type;
 
   /// Epoch of the elements as Julian Date
@@ -30,7 +27,6 @@ class MinorBodyElements {
   /// Semi-major axis in AU (for elliptical orbits)
   final double semiMajorAxis;
 
-  /// Eccentricity
   final double eccentricity;
 
   /// Inclination in degrees
@@ -141,7 +137,6 @@ class KeplerianPropagator {
     // Mean motion (degrees/day)
     final n = 360.0 / elements.periodDays;
 
-    // Current mean anomaly
     var meanAnomaly = (elements.meanAnomaly + n * daysSinceEpoch) % 360.0;
     if (meanAnomaly < 0) meanAnomaly += 360.0;
 
@@ -201,7 +196,6 @@ class KeplerianPropagator {
     final yEq = dyEcl * cosEps - dzEcl * sinEps;
     final zEq = dyEcl * sinEps + dzEcl * cosEps;
 
-    // RA and Dec
     var ra = math.atan2(yEq, xEq) * _rad2deg;
     if (ra < 0) ra += 360.0;
     final raHours = ra / 15.0;
@@ -223,7 +217,6 @@ class KeplerianPropagator {
     final cosPhase = (r * r + dist * dist - sunDist * sunDist) / (2 * r * dist);
     final phaseAngle = math.acos(cosPhase.clamp(-1.0, 1.0)) * _rad2deg;
 
-    // Visual magnitude estimate
     double visualMag;
     if (elements.type == MinorBodyType.comet) {
       // Comet magnitude: m = H + 5*log10(delta) + 10*log10(r)
@@ -310,7 +303,6 @@ class KeplerianPropagator {
 
   static double _log10(double x) => math.log(x) / math.ln10;
 
-  /// Batch compute positions for multiple minor bodies.
   static List<MinorBodyData> computePositions({
     required List<MinorBodyElements> elements,
     required DateTime time,
@@ -683,6 +675,5 @@ class MinorPlanetCatalog {
     ),
   ];
 
-  /// All minor bodies (asteroids + comets).
   static List<MinorBodyElements> get all => [...asteroids, ...comets];
 }

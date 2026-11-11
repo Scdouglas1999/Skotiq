@@ -4,7 +4,6 @@ import '../coordinate_system.dart';
 import '../astronomy/astronomy_calculations.dart';
 import 'mosaic_geometry.dart';
 
-/// Mosaic overlap configuration
 class MosaicOverlap {
   /// Horizontal overlap percentage (0-1)
   final double horizontal;
@@ -22,7 +21,6 @@ class MosaicOverlap {
   }
 }
 
-/// A single panel in a mosaic
 class PlanetariumMosaicPanel {
   /// Panel index (0-based, row-major)
   final int index;
@@ -33,7 +31,6 @@ class PlanetariumMosaicPanel {
   /// Column index (0-based)
   final int column;
 
-  /// Center coordinates
   final CelestialCoordinate center;
 
   /// Camera rotation angle (degrees)
@@ -51,7 +48,6 @@ class PlanetariumMosaicPanel {
   /// Estimated imaging time (minutes)
   double? imagingTimeMinutes;
 
-  /// Custom label for the panel
   String? label;
 
   PlanetariumMosaicPanel({
@@ -84,7 +80,6 @@ class PlanetariumMosaicPanel {
     ];
 
     return offsets.map((offset) {
-      // Apply rotation
       final x = offset.$1 * math.cos(rotRad) - offset.$2 * math.sin(rotRad);
       final y = offset.$1 * math.sin(rotRad) + offset.$2 * math.cos(rotRad);
 
@@ -126,9 +121,7 @@ class PlanetariumMosaicPanel {
   }
 }
 
-/// Mosaic configuration
 class PlanetariumMosaicConfig {
-  /// Center coordinate of the mosaic
   final CelestialCoordinate center;
 
   /// Total mosaic width (degrees)
@@ -143,7 +136,6 @@ class PlanetariumMosaicConfig {
   /// Single panel FOV height (degrees)
   final double panelFovHeight;
 
-  /// Overlap configuration
   final MosaicOverlap overlap;
 
   /// Camera rotation (degrees)
@@ -192,18 +184,14 @@ class PlanetariumMosaicConfig {
   }
 }
 
-/// Planned mosaic with all panels
 class MosaicPlan {
   /// Configuration used to generate this plan
   final PlanetariumMosaicConfig config;
 
-  /// All panels in the mosaic
   final List<PlanetariumMosaicPanel> panels;
 
-  /// Total number of rows
   final int rows;
 
-  /// Total number of columns
   final int columns;
 
   /// Effective total width after adding all panels
@@ -225,7 +213,6 @@ class MosaicPlan {
     List<int>? captureOrder,
   }) : captureOrder = captureOrder ?? List.generate(panels.length, (i) => i);
 
-  /// Get total number of panels
   int get panelCount => panels.length;
 
   /// Get estimated total imaging time (minutes)
@@ -235,7 +222,6 @@ class MosaicPlan {
     return times.reduce((a, b) => a + b);
   }
 
-  /// Get center coordinates
   CelestialCoordinate get center => config.center;
 
   /// Get all panel corners for outline drawing
@@ -264,13 +250,11 @@ class MosaicPlan {
     }
   }
 
-  /// Get panels in capture order
   List<PlanetariumMosaicPanel> get panelsInCaptureOrder {
     return captureOrder.map((i) => panels[i]).toList();
   }
 }
 
-/// Mosaic planner service
 class MosaicPlanner {
   // Panel-center geometry is delegated to the shared [mosaicPanelCenters]
   // implementation in mosaic_geometry.dart so the planetarium preview and the
@@ -296,16 +280,13 @@ class MosaicPlanner {
     final stepWidth = panelWidth * (1 - overlap.horizontal);
     final stepHeight = panelHeight * (1 - overlap.vertical);
 
-    // Calculate minimum panels needed
     final cols = (totalWidth / stepWidth).ceil().clamp(1, 100);
     final rows = (totalHeight / stepHeight).ceil().clamp(1, 100);
 
     return (rows, cols);
   }
 
-  /// Generate a mosaic plan
   static MosaicPlan generateMosaic(PlanetariumMosaicConfig config) {
-    // Calculate panel counts if not specified
     final (calcRows, calcCols) = calculatePanelCount(
       totalWidth: config.totalWidth,
       totalHeight: config.totalHeight,
@@ -317,11 +298,9 @@ class MosaicPlanner {
     final rows = config.rows ?? calcRows;
     final cols = config.columns ?? calcCols;
 
-    // Effective step sizes
     final stepWidth = config.panelFovWidth * (1 - config.overlap.horizontal);
     final stepHeight = config.panelFovHeight * (1 - config.overlap.vertical);
 
-    // Calculate actual covered dimensions
     final effectiveWidth = config.panelFovWidth + (cols - 1) * stepWidth;
     final effectiveHeight = config.panelFovHeight + (rows - 1) * stepHeight;
 
@@ -367,13 +346,11 @@ class MosaicPlanner {
       effectiveHeight: effectiveHeight,
     );
 
-    // Optimize capture order by default
     plan.optimizeCaptureOrder(snakePattern: true);
 
     return plan;
   }
 
-  /// Generate a simple rectangular grid mosaic
   static MosaicPlan generateRectangularMosaic({
     required CelestialCoordinate center,
     required int rows,
@@ -383,11 +360,9 @@ class MosaicPlanner {
     MosaicOverlap overlap = const MosaicOverlap(),
     double rotation = 0,
   }) {
-    // Calculate effective step sizes
     final stepWidth = panelFovWidth * (1 - overlap.horizontal);
     final stepHeight = panelFovHeight * (1 - overlap.vertical);
 
-    // Calculate total dimensions
     final totalWidth = panelFovWidth + (columns - 1) * stepWidth;
     final totalHeight = panelFovHeight + (rows - 1) * stepHeight;
 
@@ -406,7 +381,6 @@ class MosaicPlanner {
     );
   }
 
-  /// Calculate slew distance between two panels
   static double slewDistance(
     PlanetariumMosaicPanel from,
     PlanetariumMosaicPanel to,
@@ -419,7 +393,6 @@ class MosaicPlanner {
     );
   }
 
-  /// Calculate total slew time for a capture order
   static double totalSlewDistance(MosaicPlan plan) {
     var total = 0.0;
     final orderedPanels = plan.panelsInCaptureOrder;
@@ -431,7 +404,6 @@ class MosaicPlanner {
     return total;
   }
 
-  /// Check if two panels overlap
   static bool panelsOverlap(
     PlanetariumMosaicPanel a,
     PlanetariumMosaicPanel b,
@@ -440,7 +412,6 @@ class MosaicPlanner {
     final aCorners = a.corners;
     final bCorners = b.corners;
 
-    // Get bounding boxes
     final aMinRa = aCorners.map((c) => c.ra).reduce(math.min);
     final aMaxRa = aCorners.map((c) => c.ra).reduce(math.max);
     final aMinDec = aCorners.map((c) => c.dec).reduce(math.min);
@@ -451,7 +422,6 @@ class MosaicPlanner {
     final bMinDec = bCorners.map((c) => c.dec).reduce(math.min);
     final bMaxDec = bCorners.map((c) => c.dec).reduce(math.max);
 
-    // Check overlap
     return !(aMaxRa < bMinRa ||
         bMaxRa < aMinRa ||
         aMaxDec < bMinDec ||
@@ -469,7 +439,6 @@ class MosaicPlanner {
     var minPanels = double.infinity;
     var optimalAngle = 0.0;
 
-    // Try angles from 0 to 90 degrees
     for (var angle = 0.0; angle <= 90; angle += 5) {
       // Rotate the target dimensions
       final rad = angle * math.pi / 180;
@@ -499,9 +468,7 @@ class MosaicPlanner {
   }
 }
 
-/// Mosaic export utilities
 class MosaicExporter {
-  /// Export mosaic plan to JSON
   static String toJson(MosaicPlan plan) {
     final panels = plan.panelsInCaptureOrder
         .map(
@@ -539,7 +506,6 @@ class MosaicExporter {
     return const JsonEncoder.withIndent('  ').convert(data);
   }
 
-  /// Export mosaic panel coordinates to CSV
   static String toCsv(MosaicPlan plan) {
     final buffer = StringBuffer();
     buffer.writeln('Panel,Row,Column,RA_Hours,RA_Degrees,Dec_Degrees,Rotation');

@@ -9,7 +9,6 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import '../widgets/interactive_sky_view.dart';
 import 'sky_renderer.dart';
 
-/// Type of FOV indicator
 enum FOVType {
   /// Rectangular sensor FOV (camera)
   sensorRectangle,
@@ -20,19 +19,14 @@ enum FOVType {
   /// Standard Telrad circles (0.5, 2, 4 degrees)
   telradCircles,
 
-  /// Finder scope circle
   finderScope,
 
-  /// Custom rectangle
   customRectangle,
 
-  /// Custom circle
   customCircle,
 }
 
-/// Configuration for a field of view indicator
 class FOVIndicator {
-  /// Type of FOV indicator
   final FOVType type;
 
   /// Width in degrees (for rectangles)
@@ -44,22 +38,18 @@ class FOVIndicator {
   /// Rotation angle in degrees
   final double rotation;
 
-  /// Display color
   final Color color;
 
   /// Label text (e.g., "Camera", "50mm eyepiece")
   final String label;
 
-  /// Whether this indicator is visible
   final bool visible;
 
-  /// Line thickness
   final double strokeWidth;
 
   /// Whether to show corner brackets instead of full border
   final bool showCornerBrackets;
 
-  /// Whether to show center crosshair
   final bool showCrosshair;
 
   const FOVIndicator({
@@ -75,7 +65,6 @@ class FOVIndicator {
     this.showCrosshair = false,
   });
 
-  /// Create a camera sensor FOV indicator
   factory FOVIndicator.camera({
     required double widthDegrees,
     required double heightDegrees,
@@ -95,7 +84,6 @@ class FOVIndicator {
     );
   }
 
-  /// Create a circular eyepiece FOV indicator
   factory FOVIndicator.eyepiece({
     required double diameterDegrees,
     Color color = const Color(0xFF2196F3),
@@ -112,7 +100,6 @@ class FOVIndicator {
     );
   }
 
-  /// Create standard Telrad circles
   factory FOVIndicator.telrad({Color color = const Color(0xFFFF0000)}) {
     return FOVIndicator(
       type: FOVType.telradCircles,
@@ -125,7 +112,6 @@ class FOVIndicator {
     );
   }
 
-  /// Create finder scope FOV indicator
   factory FOVIndicator.finder({
     required double diameterDegrees,
     Color color = const Color(0xFFFF9800),
@@ -169,7 +155,6 @@ class FOVIndicator {
   }
 }
 
-/// Painter for FOV overlay indicators
 class FOVOverlayPainter extends CustomPainter {
   /// Current view center RA in hours
   final double centerRA;
@@ -183,7 +168,6 @@ class FOVOverlayPainter extends CustomPainter {
   /// View rotation in degrees
   final double viewRotation;
 
-  /// List of FOV indicators to display
   final List<FOVIndicator> indicators;
 
   /// Center coordinates for the FOV indicators (if different from view center)
@@ -294,16 +278,13 @@ class FOVOverlayPainter extends CustomPainter {
       final cornerLength = math.min(width, height) * 0.15;
       _drawCornerBrackets(canvas, rect, cornerLength, paint);
     } else {
-      // Draw full rectangle
       canvas.drawRect(rect, paint);
     }
 
-    // Draw crosshair
     if (indicator.showCrosshair) {
       _drawCrosshair(canvas, Offset.zero, math.min(width, height) * 0.1, paint);
     }
 
-    // Draw label
     if (indicator.label.isNotEmpty) {
       _drawLabel(
         canvas,
@@ -313,7 +294,6 @@ class FOVOverlayPainter extends CustomPainter {
       );
     }
 
-    // Draw dimensions
     final dimText =
         '${indicator.widthDegrees.toStringAsFixed(1)}° × ${indicator.heightDegrees.toStringAsFixed(1)}°';
     _drawLabel(
@@ -341,12 +321,10 @@ class FOVOverlayPainter extends CustomPainter {
 
     canvas.drawCircle(center, radius, paint);
 
-    // Draw crosshair
     if (indicator.showCrosshair) {
       _drawCrosshair(canvas, center, radius * 0.15, paint);
     }
 
-    // Draw label
     if (indicator.label.isNotEmpty) {
       _drawLabel(
         canvas,
@@ -356,7 +334,6 @@ class FOVOverlayPainter extends CustomPainter {
       );
     }
 
-    // Draw diameter
     final dimText = '${indicator.widthDegrees.toStringAsFixed(1)}°';
     _drawLabel(
       canvas,
@@ -385,13 +362,11 @@ class FOVOverlayPainter extends CustomPainter {
       canvas.drawCircle(center, radius, paint);
     }
 
-    // Draw center dot
     final dotPaint = Paint()
       ..color = indicator.color
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, 3, dotPaint);
 
-    // Draw label
     if (indicator.label.isNotEmpty) {
       final outerRadius = telradDiameters.last / 2 * scale;
       _drawLabel(

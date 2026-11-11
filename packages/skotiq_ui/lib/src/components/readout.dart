@@ -59,7 +59,6 @@ class Readout extends StatelessWidget {
   /// An optional unit attached to the value at 60% size in `textMuted`.
   final String? unit;
 
-  /// Which of the three scales to use.
   final ReadoutSize size;
 
   /// Overrides the value colour — a status colour on a value that carries
@@ -155,7 +154,6 @@ class ReadoutRow extends StatelessWidget {
   /// The readouts, in reading order.
   final List<Readout> children;
 
-  /// Horizontal gap between readouts.
   final double gap;
 
   /// Vertical gap between wrapped lines.

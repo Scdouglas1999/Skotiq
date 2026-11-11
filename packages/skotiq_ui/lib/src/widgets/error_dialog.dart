@@ -26,7 +26,6 @@ class ErrorDialog extends StatefulWidget {
     this.onDismiss,
   });
 
-  /// Show the error dialog in the given context.
   static Future<void> show(
     BuildContext context, {
     required String title,
@@ -104,7 +103,6 @@ class _ErrorDialogState extends State<ErrorDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // User-friendly message
             Semantics(
               label: 'Error message',
               child: Text(

@@ -70,7 +70,6 @@ class HygStarCatalog {
       _outcome == StarCatalogLoadOutcome.fileMissing ||
       _outcome == StarCatalogLoadOutcome.parseFailed;
 
-  /// Number of stars in the built-in fallback list.
   static int get fallbackStarCount => _fallbackBrightStars.length;
 
   /// Every star in the file, brightest first; the built-in bright-star list

@@ -407,10 +407,8 @@ String _normalizeTransportScheme(Object? raw, {String fallback = 'http'}) {
   return (lowered == 'http' || lowered == 'https') ? lowered : fallback;
 }
 
-/// Discovery status callback type
 typedef DiscoveryStatusCallback = void Function(String status);
 
-/// Enhanced discovery service with multiple fallback methods
 /// Why a server probe succeeded or failed.
 ///
 /// Reachable and authorised are different answers. A Skotiq host drops
@@ -959,7 +957,6 @@ class EnhancedSkotiqDiscovery {
         }
       });
 
-      // Set timeout for discovery
       timeoutTimer = Timer(timeout, () {
         if (!completer.isCompleted) {
           completer.complete(servers);
@@ -993,7 +990,6 @@ class EnhancedSkotiqDiscovery {
     }
   }
 
-  /// Discover via UDP broadcast (existing method)
   static Future<List<DiscoveredServer>> discoverViaUdp({
     Duration timeout = const Duration(seconds: 3),
     DiscoveryStatusCallback? onStatus,

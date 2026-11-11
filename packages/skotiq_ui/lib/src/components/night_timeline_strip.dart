@@ -119,7 +119,6 @@ class NightTimelineStrip extends StatelessWidget {
   /// A window's height, centered in the strip.
   static const double spanHeight = 6;
 
-  /// A window's corner radius.
   static const double spanRadius = 2;
 
   /// The "now" marker's width. It spans the full [stripHeight].
@@ -138,7 +137,6 @@ class NightTimelineStrip extends StatelessWidget {
   /// the solid done fill, so the edge carries the contrast instead.
   static const double activeAlpha = 0.3;
 
-  /// The active window's outline.
   static const double activeEdgeWidth = 1;
 
   /// The ground-colored halo either side of the "now" marker. The marker is
@@ -147,7 +145,6 @@ class NightTimelineStrip extends StatelessWidget {
   /// keeps the marker on a ground it clears.
   static const double nowHalo = 1;
 
-  /// Alpha of a planned window.
   static const double plannedAlpha = 0.75;
 
   /// Where [instant] falls between [start] and [end], clamped to 0 to 1.
@@ -250,7 +247,6 @@ class NightTimelinePalette {
   /// The active window's tint.
   final Color active;
 
-  /// The active window's outline.
   final Color activeEdge;
   final Color planned;
   final Color now;

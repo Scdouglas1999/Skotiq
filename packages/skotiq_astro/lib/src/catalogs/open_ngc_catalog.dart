@@ -206,7 +206,6 @@ class OpenNgcDsoCatalog {
       catalogIds.add(messier);
     }
 
-    // Determine display name
     String displayName;
     if (messier != null) {
       displayName = messier;

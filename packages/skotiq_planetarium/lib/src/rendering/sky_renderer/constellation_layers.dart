@@ -165,7 +165,6 @@ extension _SkyCanvasPainterConstellationLayers on SkyCanvasPainter {
       constellations.length,
     );
 
-    // Draw the picture to the real canvas
     canvas.drawPicture(picture);
   }
 
@@ -324,7 +323,6 @@ extension _SkyCanvasPainterConstellationLayers on SkyCanvasPainter {
         }
       }
 
-      // Only draw if at least one point is visible on screen
       if (hasVisiblePoint) {
         canvas.drawPath(path, fillPaint);
         canvas.drawPath(path, strokePaint);

@@ -42,7 +42,6 @@ class SkotiqToolbar extends StatelessWidget {
   /// Opens the overflow menu.
   final VoidCallback? onOverflowPressed;
 
-  /// The overflow button's tooltip.
   final String overflowTooltip;
 
   /// Gap between the buttons inside one group.
@@ -51,7 +50,6 @@ class SkotiqToolbar extends StatelessWidget {
   /// Padding on either side of a group separator.
   static const double groupPadding = 6;
 
-  /// The separator's size.
   static const double separatorWidth = 1;
   static const double separatorHeight = 14;
 

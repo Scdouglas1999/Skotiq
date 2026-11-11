@@ -62,7 +62,6 @@ class AnnotationObject {
     );
   }
 
-  /// Create from HyperLEDA data
   factory AnnotationObject.fromHyperLeda(HyperLedaData galaxy) {
     final altNames = <String>[];
     if (galaxy.name != null) {
@@ -89,7 +88,6 @@ class AnnotationObject {
     );
   }
 
-  /// Create from GLADE+ data
   factory AnnotationObject.fromGladePlus(GladePlusData galaxy) {
     return AnnotationObject(
       id: 'pgc_${galaxy.pgc}',
@@ -149,7 +147,6 @@ class AnnotationObject {
       ? '$morphology Galaxy'
       : type.displayName;
 
-  /// Get size string
   String? get sizeString {
     if (majorAxis == null) return null;
     if (minorAxis != null && (minorAxis! - majorAxis!).abs() > 0.1) {
@@ -158,7 +155,6 @@ class AnnotationObject {
     return "${majorAxis!.toStringAsFixed(1)}'";
   }
 
-  /// Get distance string
   String? get distanceString {
     if (distance == null) return null;
     if (type.isGalaxy) {
@@ -189,7 +185,6 @@ class AnnotationCatalog {
        _ledaLoader = ledaLoader,
        _gladeLoader = gladeLoader;
 
-  /// Check if catalog is available
   bool get isAvailable =>
       _ngcLoader != null || _ledaLoader != null || _gladeLoader != null;
 
@@ -278,7 +273,6 @@ class AnnotationCatalog {
   String _positionKey(AnnotationObject object) =>
       '${object.ra.toStringAsFixed(2)},${object.dec.toStringAsFixed(2)}';
 
-  /// Find the closest object to given coordinates
   Future<AnnotationObject?> findClosest({
     required double ra,
     required double dec,

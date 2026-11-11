@@ -3,7 +3,6 @@
 // Provides three quality tiers to support devices from Raspberry Pi
 // to high-end desktops.
 
-/// Quality tier for planetarium rendering
 enum RenderQuality {
   /// Ultra-low power mode for Raspberry Pi and extremely constrained devices.
   /// No effects at all: raw points only, no PSF, no blur, no Milky Way,
@@ -22,7 +21,6 @@ enum RenderQuality {
 
 /// Configuration for planetarium rendering based on quality tier
 class RenderQualityConfig {
-  /// The selected quality tier
   final RenderQuality quality;
 
   /// Whether to use MaskFilter.blur effects (expensive on CPU)
@@ -40,13 +38,10 @@ class RenderQualityConfig {
   /// Detail level for Milky Way rendering (0.0 = off, 1.0 = full)
   final double milkyWayDetail;
 
-  /// Whether to show constellation art overlay
   final bool showConstellationArt;
 
-  /// Whether to animate star twinkle
   final bool animateStarTwinkle;
 
-  /// Whether to use smooth zoom animations
   final bool smoothZoomAnimation;
 
   /// Minimum star magnitude to display (higher = fainter stars shown)
@@ -55,12 +50,9 @@ class RenderQualityConfig {
   /// Minimum DSO magnitude to display
   final double dsoMagnitudeLimit;
 
-  // Visual polish features
-
   /// Whether to show twilight gradient sky (sun-altitude aware)
   final bool enableTwilightGradient;
 
-  /// Whether to show horizon glow effect
   final bool enableHorizonGlow;
 
   /// Whether to show light pollution dome effect
@@ -283,7 +275,6 @@ class RenderQualityConfig {
       groundPlaneDetail = 1.0,
       reduceLabels = false;
 
-  /// Create a custom configuration
   const RenderQualityConfig.custom({
     required this.quality,
     this.useBlurEffects = false,
@@ -313,7 +304,6 @@ class RenderQualityConfig {
     this.reduceLabels = false,
   });
 
-  /// Get configuration for a specific quality tier
   factory RenderQualityConfig.fromQuality(RenderQuality quality) {
     switch (quality) {
       case RenderQuality.minimal:
@@ -327,7 +317,6 @@ class RenderQualityConfig {
     }
   }
 
-  /// Create a copy with modified parameters
   RenderQualityConfig copyWith({
     RenderQuality? quality,
     bool? useBlurEffects,

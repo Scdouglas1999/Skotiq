@@ -23,7 +23,6 @@ class CelestialSpatialIndex<T extends CelestialObject> {
   /// the object set changes.
   List<List<List<T>>>? _grid;
 
-  /// All objects stored in the index
   final List<T> _allObjects = [];
 
   /// Lazily-built magnitude-sorted view (brightest first), used by
@@ -55,21 +54,18 @@ class CelestialSpatialIndex<T extends CelestialObject> {
     _grid = grid;
   }
 
-  /// Clear all objects from the index
   void clear() {
     _grid = null;
     _allObjects.clear();
     _byMagnitude = null;
   }
 
-  /// Add a single object to the index
   void add(T object) {
     _allObjects.add(object);
     _grid = null;
     _byMagnitude = null;
   }
 
-  /// Add multiple objects to the index
   void addAll(List<T> objects) {
     _allObjects.addAll(objects);
     _grid = null;
@@ -283,10 +279,8 @@ class CelestialSpatialIndex<T extends CelestialObject> {
     return (fovDegrees * 1.5 * wide, fovDegrees * 1.5 * tall);
   }
 
-  /// Get all objects in the index
   List<T> get all => _allObjects;
 
-  /// Get total number of indexed objects
   int get length => _allObjects.length;
 
   /// Query objects within a viewport defined by center and field of view
@@ -323,7 +317,6 @@ class CelestialSpatialIndex<T extends CelestialObject> {
 
     final results = <T>[];
 
-    // Calculate cell ranges
     final startDecCell = _decToCell(minDec);
     final endDecCell = _decToCell(maxDec);
 
@@ -362,7 +355,6 @@ class CelestialSpatialIndex<T extends CelestialObject> {
       addCellRange(startRaCell, endRaCell);
     }
 
-    // Apply maxResults limit if specified
     if (maxResults != null && results.length > maxResults) {
       return results.sublist(0, maxResults);
     }
@@ -399,7 +391,6 @@ class CelestialSpatialIndex<T extends CelestialObject> {
     return results;
   }
 
-  /// Query objects within a magnitude range
   List<T> queryByMagnitude(double maxMagnitude, {int? maxResults}) {
     final results = <T>[];
     for (final obj in _allObjects) {
@@ -473,13 +464,11 @@ class DsoSpatialIndex extends CelestialSpatialIndex<DeepSkyObject> {
       }
     }
 
-    // Sort by magnitude (brightest first)
     results.sort((a, b) => (a.magnitude ?? 99).compareTo(b.magnitude ?? 99));
 
     return results;
   }
 
-  /// Query DSOs by type
   List<DeepSkyObject> queryByType(DsoType type, {int? maxResults}) {
     final results = <DeepSkyObject>[];
     for (final dso in all) {

@@ -1,9 +1,5 @@
 part of '../design_reference_board.dart';
 
-// Section shell
-
-// Semantic palette
-
 class _SemanticPaletteSection extends StatelessWidget {
   const _SemanticPaletteSection({required this.colors});
 

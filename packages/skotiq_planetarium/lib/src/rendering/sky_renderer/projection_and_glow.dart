@@ -41,7 +41,6 @@ extension _SkyCanvasPainterProjectionAndGlow on SkyCanvasPainter {
       return _horizontalToScreen(alt, az, center, scale);
     }
 
-    // Convert RA from hours to degrees
     final raDeg = coord.ra * 15;
     final decDeg = coord.dec;
 
@@ -146,7 +145,6 @@ extension _SkyCanvasPainterProjectionAndGlow on SkyCanvasPainter {
         break;
     }
 
-    // Apply rotation
     final rotRad = viewState.rotation * SkyCanvasPainter._deg2rad;
     final xRot = x * math.cos(rotRad) - y * math.sin(rotRad);
     final yRot = x * math.sin(rotRad) + y * math.cos(rotRad);
@@ -432,7 +430,6 @@ extension _SkyCanvasPainterProjectionAndGlow on SkyCanvasPainter {
     double opacity = 0.3,
   }) {
     if (qualityConfig.useBlurEffects) {
-      // Use cached blur paint
       final glowPaint = _PaintCache.getBlurPaint(
         blurSigma,
         color,

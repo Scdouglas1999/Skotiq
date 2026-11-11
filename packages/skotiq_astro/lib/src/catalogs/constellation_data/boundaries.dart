@@ -11,12 +11,10 @@ class BoundaryVertex {
 /// Boundaries are simplified IAU constellation boundaries (J2000 epoch).
 /// Each boundary is a closed polygon of RA/Dec vertices.
 class ConstellationBoundaries {
-  /// Get boundary vertices for a given constellation abbreviation.
   static List<BoundaryVertex>? getBoundary(String abbreviation) {
     return _boundaries[abbreviation];
   }
 
-  /// Get all boundary data.
   static Map<String, List<BoundaryVertex>> get all => _boundaries;
 
   /// Determine which constellation contains the given RA/Dec coordinate.

@@ -26,7 +26,6 @@ class TargetScoringService {
   final (double ra, double dec)? moonPosition;
   final double moonIllumination;
 
-  // Twilight info
   final TwilightTimes? twilight;
 
   /// Local skyline mask: minimum observable altitude at each azimuth. When
@@ -54,13 +53,11 @@ class TargetScoringService {
     return math.max(requestedMin, mask(azimuthDegrees));
   }
 
-  /// Score a single target
   TargetScore scoreTarget(CelestialObject target) {
     final coord = target.coordinates;
     final raDeg = coord.raDegrees;
     final decDeg = coord.dec;
 
-    // Calculate current position
     final (alt, az) = AstronomyCalculations.objectAltAz(
       raDeg: raDeg,
       decDeg: decDeg,
@@ -69,7 +66,6 @@ class TargetScoringService {
       longitudeDeg: longitude,
     );
 
-    // Calculate visibility
     final visibility = AstronomyCalculations.calculateObjectVisibility(
       raDeg: raDeg,
       decDeg: decDeg,
@@ -80,10 +76,8 @@ class TargetScoringService {
       longitudeDeg: longitude,
     );
 
-    // Calculate airmass
     final airmass = AstronomyCalculations.airmass(alt);
 
-    // Calculate moon distance
     double moonDist = 180;
     if (moonPosition != null) {
       moonDist = AstronomyCalculations.angularSeparation(
@@ -94,7 +88,6 @@ class TargetScoringService {
       );
     }
 
-    // Create visibility info
     final visibilityInfo = TargetVisibilityInfo(
       currentAltitude: alt,
       currentAzimuth: az,
@@ -115,7 +108,6 @@ class TargetScoringService {
     final darknessScore = _scoreDarkness();
     final airmassScore = _scoreAirmass(airmass);
 
-    // Generate warnings
     final warnings = _generateWarnings(
       alt: alt,
       airmass: airmass,

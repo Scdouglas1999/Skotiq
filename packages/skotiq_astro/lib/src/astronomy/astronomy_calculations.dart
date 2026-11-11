@@ -92,10 +92,6 @@ DateTime observingNightOf(DateTime time) =>
 class AstronomyCalculations {
   AstronomyCalculations._();
 
-  // Constants
-
-  // Julian date calculations
-
   /// Julian Date (UTC) of [dt], to the millisecond.
   ///
   /// The one Julian Date in the product, taken straight from the instant's
@@ -104,13 +100,9 @@ class AstronomyCalculations {
   /// double (under 0.1 ms) and with astropy over 2000-2032.
   static double julianDate(DateTime dt) => _julianDate(dt);
 
-  /// Convert Julian Date to DateTime
   static DateTime fromJulianDate(double jd) => _fromJulianDate(jd);
 
-  /// Modified Julian Date
   static double modifiedJulianDate(DateTime dt) => _modifiedJulianDate(dt);
-
-  // Sidereal time
 
   /// Greenwich Mean Sidereal Time in hours
   static double greenwichMeanSiderealTime(DateTime dt) =>
@@ -128,8 +120,6 @@ class AstronomyCalculations {
     if (ha <= -12.0) ha += 24.0;
     return ha;
   }
-
-  // Atmospheric refraction
 
   /// Calculate atmospheric refraction correction using Bennett (1982) formula
   /// This is the standard formula used by the USNO
@@ -157,8 +147,6 @@ class AstronomyCalculations {
   /// 3 iterations provide sub-arcsecond accuracy
   static double apparentToTrueAltitude(double apparentAltDeg) =>
       _apparentToTrueAltitude(apparentAltDeg);
-
-  // Coordinate transformations
 
   /// Convert equatorial (RA/Dec) to horizontal (Alt/Az) coordinates
   /// Returns (altitude, azimuth) in degrees
@@ -211,8 +199,6 @@ class AstronomyCalculations {
     required double latDeg,
   }) => _galacticToEquatorial(lonDeg: lonDeg, latDeg: latDeg);
 
-  // Precession & nutation
-
   /// Nutation in longitude and obliquity (degrees) for a given Julian Date.
   ///
   /// Uses the four dominant terms of the IAU 1980 nutation series (the 18.6-yr
@@ -259,8 +245,6 @@ class AstronomyCalculations {
     required DateTime dt,
   }) => _precessFromDateToJ2000(raDeg: raDeg, decDeg: decDeg, dt: dt);
 
-  // Sun calculations
-
   /// Calculate Sun position for given DateTime
   /// Returns (ra, dec) in degrees
   static (double ra, double dec) sunPosition(DateTime dt) => _sunPosition(dt);
@@ -288,8 +272,6 @@ class AstronomyCalculations {
     required double latitudeDeg,
     required double longitudeDeg,
   }) => _sunAltAz(dt: dt, latitudeDeg: latitudeDeg, longitudeDeg: longitudeDeg);
-
-  // Twilight calculations
 
   static const double civilTwilightAngle = -6.0;
   static const double nauticalTwilightAngle = -12.0;
@@ -353,8 +335,6 @@ class AstronomyCalculations {
   static Duration? darknessHours(TwilightTimes twilight) =>
       _darknessHours(twilight);
 
-  // Moon calculations
-
   /// Calculate Moon position for given DateTime
   /// Returns (ra, dec, distance) - ra/dec in degrees, distance in km
   static (double ra, double dec, double distance) moonPosition(DateTime dt) =>
@@ -363,7 +343,6 @@ class AstronomyCalculations {
   /// Calculate Moon illumination percentage (0-100)
   static double moonIllumination(DateTime dt) => _moonIllumination(dt);
 
-  /// Calculate Moon phase name
   static String moonPhaseName(DateTime dt) => _moonPhaseName(dt);
 
   /// Calculate Moon altitude at given time and location
@@ -382,7 +361,6 @@ class AstronomyCalculations {
     apparent: apparent,
   );
 
-  /// Find Moon rise/set times
   static MoonTimes calculateMoonTimes({
     required DateTime date,
     required double latitudeDeg,
@@ -392,8 +370,6 @@ class AstronomyCalculations {
     latitudeDeg: latitudeDeg,
     longitudeDeg: longitudeDeg,
   );
-
-  // Object rise/set/transit calculations
 
   /// The calendar date of the night that CONTAINS [instant] — the value to pass
   /// as `date` to [calculateObjectVisibility] when all you hold is a timestamp.
@@ -563,8 +539,6 @@ class AstronomyCalculations {
     longitudeDeg: longitudeDeg,
   );
 
-  // Meridian / meridian-flip geometry
-
   /// Hour angle of a target (degrees) for the given instant and location.
   ///
   /// HA = LST - RA, normalised to (-180, 180]. Negative means the target is
@@ -604,8 +578,6 @@ class AstronomyCalculations {
     pastMeridianMinutes: pastMeridianMinutes,
   );
 
-  // Airmass calculation
-
   /// Airmass for planning surfaces, with the scheduler's convention applied.
   ///
   /// The number itself comes from [airmassForTrueAltitude] — the product's one
@@ -618,8 +590,6 @@ class AstronomyCalculations {
   /// a null. This mirrors `skotiq_sequencer::scheduling::astronomy::airmass`
   /// on the Rust side, which does the same for the same reason.
   static double airmass(double altitudeDeg) => _airmass(altitudeDeg);
-
-  // Angular separation
 
   /// Calculate angular separation between two sky coordinates (degrees).
   ///

@@ -1,8 +1,5 @@
 part of '../planetarium_providers.dart';
 
-// Mosaic plan provider
-
-/// Current mosaic plan state
 class MosaicPlanState {
   final MosaicPlan? plan;
   final PlanetariumMosaicConfig? config;
@@ -119,8 +116,6 @@ final mosaicPlanProvider =
     StateNotifierProvider<MosaicPlanNotifier, MosaicPlanState>((ref) {
       return MosaicPlanNotifier(ref);
     });
-
-// Best targets provider
 
 /// A target the "Best Targets Tonight" panel is willing to recommend, together
 /// with the evidence for the recommendation.

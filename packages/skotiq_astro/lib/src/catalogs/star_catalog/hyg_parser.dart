@@ -212,7 +212,6 @@ _HygRow? _parseHygLine(String line) {
       if (raHours < 0) raHours += 24.0;
       if (raHours >= 24) raHours -= 24.0;
 
-      // Clamp dec to [-90, 90]
       dec = dec.clamp(-90.0, 90.0);
     }
   }
@@ -248,7 +247,6 @@ _HygRow? _parseHygLine(String line) {
     starName = id;
   }
 
-  // Build alternate catalog IDs
   final catalogIds = <String>[];
   if (hipId != null && hipId > 0) catalogIds.add('HIP $hipId');
   if (hdId != null && hdId > 0) catalogIds.add('HD $hdId');

@@ -74,13 +74,11 @@ class _PaintCache {
     return _dimStarPaint;
   }
 
-  /// Get grid paint with specified color
   static Paint getGridPaint(Color color) {
     _gridPaint.color = color;
     return _gridPaint;
   }
 
-  /// Get constellation line paint
   static Paint getConstellationPaint(Color color) {
     _constellationPaint.color = color;
     return _constellationPaint;
@@ -124,50 +122,42 @@ class _PaintCache {
     return paint;
   }
 
-  /// Get horizon paint with specified color
   static Paint getHorizonPaint(Color color) {
     _horizonPaint.color = color;
     return _horizonPaint;
   }
 
-  /// Get ecliptic paint with specified color
   static Paint getEclipticPaint(Color color) {
     _eclipticPaint.color = color;
     return _eclipticPaint;
   }
 
-  /// Get galactic plane paint with specified color
   static Paint getGalacticPlanePaint(Color color) {
     _galacticPlanePaint.color = color;
     return _galacticPlanePaint;
   }
 
-  /// Get meridian paint with specified color
   static Paint getMeridianPaint(Color color) {
     _meridianPaint.color = color;
     return _meridianPaint;
   }
 
-  /// Get alt-az grid paint with specified color
   static Paint getAltAzPaint(Color color) {
     _altAzPaint.color = color;
     return _altAzPaint;
   }
 
-  /// Get zenith cross paint with specified color
   static Paint getZenithCrossPaint(Color color) {
     _zenithCrossPaint.color = color;
     return _zenithCrossPaint;
   }
 
-  /// Get ground plane paint with specified color
   static Paint getGroundPaint(Color color) {
     _groundPaint.color = color;
     _groundPaint.shader = null;
     return _groundPaint;
   }
 
-  /// Get background paint with shader
   static Paint getBackgroundPaint(ui.Shader shader) {
     _backgroundPaint.shader = shader;
     return _backgroundPaint;
@@ -197,7 +187,6 @@ class _PaintCache {
     _cachedTwilightVerticalShader = null;
     _cachedTwilightRadialShader = null;
     _lastSunAltitude = null;
-    // Clear global rendering caches
     _constellationLineCache.clear();
     _milkyWayCache.clear();
     _backgroundGradientCache.clear();
@@ -222,7 +211,6 @@ class _TextCache {
     if (painter == null) {
       // Evict old entries if cache is full
       if (_cache.length >= _maxCacheSize) {
-        // Remove oldest 100 entries
         final keysToRemove = _cache.keys.take(100).toList();
         for (final k in keysToRemove) {
           _cache[k]?.dispose();
@@ -255,7 +243,6 @@ class _ShaderCache {
   static final Map<String, ui.Shader> _linearShaders = {};
   static const int _maxCacheSize = 512;
 
-  /// Get or create a radial gradient shader
   static ui.Shader getRadialShader(
     Offset center,
     double radius,
@@ -738,5 +725,3 @@ class _ProjectionCache {
     _valid = false;
   }
 }
-
-/// Enhanced sky rendering painter

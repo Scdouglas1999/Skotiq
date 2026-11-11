@@ -60,7 +60,6 @@ class SatellitePass {
   /// Rise azimuth in degrees
   final double riseAzimuth;
 
-  /// Maximum elevation time
   final DateTime maxElevationTime;
 
   /// Maximum elevation in degrees
@@ -75,7 +74,6 @@ class SatellitePass {
   /// Set azimuth in degrees
   final double setAzimuth;
 
-  /// Duration of the pass
   Duration get duration => setTime.difference(riseTime);
 
   /// Whether this is a bright/good pass (max elevation > 30 degrees)
@@ -230,7 +228,6 @@ class TleParser {
     String line2,
   ) {
     try {
-      // Verify checksums
       if (!_verifyChecksum(line1) || !_verifyChecksum(line2)) {
         developer.log(
           '[TLE] Checksum mismatch for $name',
@@ -240,7 +237,6 @@ class TleParser {
         // Continue anyway - some sources have bad checksums
       }
 
-      // Line 1 parsing
       final catalogNumber = int.parse(line1.substring(2, 7).trim());
       final intlDesignator = line1.substring(9, 17).trim();
       final epochYear = int.parse(line1.substring(18, 20).trim());
@@ -249,7 +245,6 @@ class TleParser {
       // B* drag term - special format: +/-NNNNN+/-N meaning N.NNNNN * 10^N
       final bstar = _parseBstar(line1.substring(53, 61).trim());
 
-      // Line 2 parsing
       final inclination = double.parse(line2.substring(8, 16).trim());
       final raan = double.parse(line2.substring(17, 25).trim());
 
@@ -307,7 +302,6 @@ class TleParser {
     var s = bstarStr.replaceAll(' ', '');
     if (s == '00000-0' || s == '00000+0' || s.isEmpty) return 0.0;
 
-    // Parse sign
     double sign = 1.0;
     if (s.startsWith('-')) {
       sign = -1.0;
@@ -364,7 +358,6 @@ class SatelliteCatalog {
   /// How old TLE data can be before we re-download (default: 24 hours)
   final Duration maxAge;
 
-  /// Cache directory for TLE files
   final String? cacheDirectory;
 
   SatelliteCatalog({
@@ -372,7 +365,6 @@ class SatelliteCatalog {
     this.cacheDirectory,
   });
 
-  /// Get the cache file path for a TLE source.
   String _cacheFilePath(String sourceName) {
     final dir = cacheDirectory ?? CatalogManager.instance.catalogDirectory;
     return path.join(
@@ -404,14 +396,12 @@ class SatelliteCatalog {
   /// Tries cache first, falls back to network download.
   /// Throws if both cache and network fail.
   Future<List<OrbitalElements>> loadSource(TleSource source) async {
-    // Check memory cache
     if (_cachedGroups.containsKey(source.name) &&
         _lastDownloadTime != null &&
         DateTime.now().difference(_lastDownloadTime!) < maxAge) {
       return _cachedGroups[source.name]!;
     }
 
-    // Check disk cache
     final cacheFile = File(_cacheFilePath(source.name));
     if (await cacheFile.exists()) {
       final stat = await cacheFile.stat();
@@ -451,7 +441,6 @@ class SatelliteCatalog {
         );
       }
 
-      // Save to disk cache
       try {
         final dir = Directory(path.dirname(cacheFile.path));
         if (!await dir.exists()) {
@@ -543,7 +532,6 @@ class SatelliteCatalog {
     return results;
   }
 
-  /// Clear all cached TLE data.
   void clearCache() {
     _cachedGroups.clear();
     _lastDownloadTime = null;

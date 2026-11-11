@@ -292,8 +292,6 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
     );
   }
 
-  // Quick stats bar
-
   /// Build a quick stats bar showing altitude, transit time, and moon distance
   Widget _buildQuickStats(
     WidgetRef ref,
@@ -303,7 +301,6 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
   ) {
     final obsTime = ref.watch(observationMinuteProvider);
 
-    // Calculate transit time
     final visibility = ref.watch(
       objectVisibilityProvider((
         raDeg: object.coordinates.ra * 15,
@@ -318,7 +315,6 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
       )),
     );
 
-    // Format transit time
     String transitTime = '--:--';
     if (visibility.transitTime != null) {
       final t = visibility.transitTime!;
@@ -367,8 +363,6 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
     );
   }
 
-  // Visibility score indicator
-
   /// Calculate visibility score (0-100) based on altitude, moon phase, and twilight
   int _calculateVisibilityScore(
     WidgetRef ref,
@@ -377,7 +371,6 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
   ) {
     final obsTime = ref.watch(observationMinuteProvider);
 
-    // Start with base score of 0
     var score = 0.0;
 
     // Altitude score (0-40 points)
@@ -423,7 +416,6 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
     return score.round().clamp(0, 100);
   }
 
-  /// Build visibility score indicator widget
   Widget _buildVisibilityIndicator(int score) {
     final color = score >= 70
         ? SkyPlotColors.good
