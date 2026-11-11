@@ -175,11 +175,9 @@ apps/mobile/lib/main_parts/mobile_reconnect_ops.dart	_MobileReconnectOps	comment
 apps/mobile/lib/main_parts/mobile_reconnect_ops.dart	_closeActiveRelayTunnel	comment_best_effort	1	V0149	// Best-effort teardown only.
 apps/mobile/lib/main_parts/mobile_reconnect_ops.dart	_connectToServer	comment_best_effort	1	V0149	// best-effort — failures fall back to the platform default.
 apps/mobile/lib/main_parts/mobile_reconnect_ops.dart	_closeActiveRelayTunnel	empty_catch	1	V0149	} catch (_) {
-apps/mobile/lib/screens/replay/session_picker_screen.dart	_parseStats	empty_catch	1	V0121	} catch (_) {
-apps/mobile/lib/screens/replay/session_picker_screen.dart	build	literal_null_coalesce	1	V0121	stats['framesCaptured'] as int? ?? stats['frame_count'] as int? ?? 0;
-apps/mobile/lib/screens/replay/session_replay_screen.dart	_resolveDataSource	unimplemented_behavior	1	V0274	// genuinely not implemented, and an empty timeline would read as a
 apps/mobile/lib/screens/servers/saved_servers_screen.dart	_pingOne	empty_catch	1	V0121	} catch (_) {
 apps/mobile/lib/screens/servers/saved_servers_screen.dart	_editTailscaleHost	literal_null_coalesce	1	V0121	initialValue: server.tailscaleHost ?? '',
+apps/mobile/lib/screens/setup/first_run_setup_screen.dart	build	literal_null_coalesce	1	U2-16	: (v) => change(v ?? false),
 apps/mobile/lib/services/battery_service.dart	-	literal_null_coalesce	1	V0121	/// if (state?.isLowPower ?? false) { /* throttle */ }
 apps/mobile/lib/services/lan_push_notification_receiver.dart	stop	empty_catch	1	V0121	} catch (_) {
 apps/mobile/lib/services/live_activity_lifecycle_provider.dart	LiveActivityLifecycleController	comment_best_effort	1	V0121	/// Best-effort lookup so consumers (tests, debug overlays) can confirm
@@ -1554,6 +1552,7 @@ packages/skotiq_app/lib/router/app_router.dart	-	literal_null_coalesce	1	V0121	e
 packages/skotiq_app/lib/router/app_router.dart	-	literal_null_coalesce	1	V0121	final resultId = int.tryParse(idParam ?? '') ?? -1;
 packages/skotiq_app/lib/router/app_router.dart	-	literal_null_coalesce	1	V0121	int.tryParse(state.pathParameters['id'] ?? '') ?? -1;
 packages/skotiq_app/lib/router/app_router.dart	-	literal_null_coalesce	1	V0121	int.tryParse(state.pathParameters['runId'] ?? '') ?? -1;
+packages/skotiq_app/lib/router/app_router.dart	-	literal_null_coalesce	1	U2-16	int.tryParse(state.pathParameters['runId'] ?? '') ?? -1;
 packages/skotiq_app/lib/router/app_router.dart	-	literal_null_coalesce	1	V0121	int.tryParse(state.uri.queryParameters['session'] ?? '');
 packages/skotiq_app/lib/router/app_router.dart	-	literal_null_coalesce	1	V0121	int.tryParse(state.uri.queryParameters['target'] ?? '');
 packages/skotiq_app/lib/router/app_router.dart	-	literal_null_coalesce	1	V0121	startedAt: DateTime.tryParse(q['started'] ?? ''),
@@ -2414,26 +2413,27 @@ packages/skotiq_core/lib/src/database/daos/delivery_journal_dao.dart	markDeliver
 packages/skotiq_core/lib/src/database/daos/delivery_journal_dao.dart	recordAttempt	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
 packages/skotiq_core/lib/src/database/daos/delivery_journal_dao.dart	recordStillOwed	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
 packages/skotiq_core/lib/src/database/daos/delivery_journal_dao.dart	requeueForRetry	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/delivery_journal_dao.dart	recordAttempt	literal_null_coalesce	1	U2-16	bytes: Value(bytes ?? 0),
+packages/skotiq_core/lib/src/database/daos/delivery_journal_dao.dart	recordStillOwed	literal_null_coalesce	1	U2-16	bytes: Value(bytes ?? 0),
 packages/skotiq_core/lib/src/database/daos/delivery_targets_dao.dart	clearSecretRef	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
 packages/skotiq_core/lib/src/database/daos/delivery_targets_dao.dart	create	guessed_now_timestamp	1	U2-05	final created = toEpochSeconds(createdAt ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/delivery_targets_dao.dart	update	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/delivery_targets_dao.dart	updateDestination	guessed_now_timestamp	1	U2-16	final at = toEpochSeconds(now ?? DateTime.now());
 packages/skotiq_core/lib/src/database/daos/equipment_profiles_dao.dart	createProfile	literal_null_coalesce	1	V0012	.map((row) => row.read(countExpression) ?? 0)
 packages/skotiq_core/lib/src/database/daos/flat_history_dao.dart	countFiltered	literal_null_coalesce	1	V0121	return row.read(countExpr) ?? 0;
-packages/skotiq_core/lib/src/database/daos/flat_library_dao.dart	addEntry	guessed_now_timestamp	1	U2-05	final createdSecs = toEpochSeconds((createdAt ?? DateTime.now()).toUtc());
+packages/skotiq_core/lib/src/database/daos/flat_library_dao.dart	addEntry	guessed_now_timestamp	1	U2-16	createdAt: Value(toEpochSeconds((createdAt ?? DateTime.now()).toUtc())),
 packages/skotiq_core/lib/src/database/daos/guide_rms_history_dao.dart	countFiltered	literal_null_coalesce	1	V0121	return row.read(countExpr) ?? 0;
 packages/skotiq_core/lib/src/database/daos/images_dao.dart	markPlateSolveFailed	guessed_now_timestamp	1	V0012	final stamp = (at ?? DateTime.now()).millisecondsSinceEpoch;
 packages/skotiq_core/lib/src/database/daos/images_dao.dart	stampAtlasFolded	guessed_now_timestamp	1	V0012	CapturedImagesCompanion(atlasFoldedAt: Value(at ?? DateTime.now())),
+packages/skotiq_core/lib/src/database/daos/images_dao.dart	_count	literal_null_coalesce	1	U2-16	return row.read(count) ?? 0;
 packages/skotiq_core/lib/src/database/daos/images_dao.dart	countImagesByProducingNode	literal_null_coalesce	1	V0012	return (row?.data['c'] as int?) ?? 0;
-packages/skotiq_core/lib/src/database/daos/images_dao.dart	countImagesByProducingRun	literal_null_coalesce	1	V0012	return (row?.data['c'] as int?) ?? 0;
 packages/skotiq_core/lib/src/database/daos/images_dao.dart	getImageCount	literal_null_coalesce	1	V0012	return result.read(countExp) ?? 0;
 packages/skotiq_core/lib/src/database/daos/images_dao.dart	getImageCountForSession	literal_null_coalesce	1	V0012	return result.read(countExp) ?? 0;
-packages/skotiq_core/lib/src/database/daos/integrated_masters_dao.dart	recordFoldedFrame	guessed_now_timestamp	1	U2-05	Variable<int>(toEpochSeconds((foldedAt ?? DateTime.now()).toUtc())),
+packages/skotiq_core/lib/src/database/daos/integrated_masters_dao.dart	recordFoldedFrame	guessed_now_timestamp	1	U2-16	foldedAt: toEpochSeconds((foldedAt ?? DateTime.now()).toUtc()),
+packages/skotiq_core/lib/src/database/daos/integrated_masters_dao.dart	getAccumulatingForTargetFilter	literal_null_coalesce	1	U2-16	final trimmed = filter?.trim() ?? '';
+packages/skotiq_core/lib/src/database/daos/mosaic_projects_dao.dart	_write	guessed_now_timestamp	1	U2-16	changes.copyWith(updatedAt: Value(toEpochSeconds(now ?? DateTime.now()))),
 packages/skotiq_core/lib/src/database/daos/mosaic_projects_dao.dart	create	guessed_now_timestamp	1	U2-05	final created = toEpochSeconds(createdAt ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/mosaic_projects_dao.dart	setCollabStatus	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/mosaic_projects_dao.dart	setHubMosaic	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/mosaic_projects_dao.dart	setOutputMaster	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/mosaic_projects_dao.dart	updateStatus	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/narrowband_composites_dao.dart	insertComposite	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(createdAt ?? DateTime.now().toUtc());
+packages/skotiq_core/lib/src/database/daos/narrowband_composites_dao.dart	insertComposite	guessed_now_timestamp	1	U2-16	createdAt: createdAt ?? DateTime.now().toUtc(),
+packages/skotiq_core/lib/src/database/daos/night_reports_dao.dart	insertReport	guessed_now_timestamp	1	U2-16	createdAt: toEpochSeconds(createdAt ?? DateTime.now().toUtc()),
 packages/skotiq_core/lib/src/database/daos/observation_logs_dao.dart	countFiltered	literal_null_coalesce	1	V0012	return row.read(countExpr) ?? 0;
 packages/skotiq_core/lib/src/database/daos/observation_logs_dao.dart	exportAllLogs	literal_null_coalesce	1	V0012	'altitude': log.altitude ?? '',
 packages/skotiq_core/lib/src/database/daos/observation_logs_dao.dart	exportAllLogs	literal_null_coalesce	1	V0012	'azimuth': log.azimuth ?? '',
@@ -2498,7 +2498,7 @@ packages/skotiq_core/lib/src/database/daos/settings_dao.dart	getObserverElevatio
 packages/skotiq_core/lib/src/database/daos/settings_dao.dart	getObserverLatitude	literal_null_coalesce	1	V0012	return double.tryParse(value ?? '0') ?? 0.0;
 packages/skotiq_core/lib/src/database/daos/settings_dao.dart	getObserverLongitude	literal_null_coalesce	1	V0012	return double.tryParse(value ?? '0') ?? 0.0;
 packages/skotiq_core/lib/src/database/daos/sky_atlas_dao.dart	refreshRegionRollups	literal_null_coalesce	1	V0170	final count = row.read(countExpr) ?? 0;
-packages/skotiq_core/lib/src/database/daos/stacked_results_dao.dart	_mapRow	literal_null_coalesce	1	V0121	row.readNullable<double>('avg_alignment_residual') ?? 0.0;
+packages/skotiq_core/lib/src/database/daos/stacked_results_dao.dart	_mapRow	literal_null_coalesce	1	U2-16	final avgAlignmentResidual = row.avgAlignmentResidual ?? 0.0;
 packages/skotiq_core/lib/src/database/daos/targets_dao.dart	countUntrackedTargets	literal_null_coalesce	1	V0121	return row.read(count) ?? 0;
 packages/skotiq_core/lib/src/database/daos/tutorial_dao.dart	getLastStepIndex	literal_null_coalesce	1	V0012	return progress?.lastStepIndex ?? 0;
 packages/skotiq_core/lib/src/database/daos/tutorial_progress_dao.dart	isCategoryCompleted	literal_null_coalesce	1	V0012	return progress?.completed ?? false;
