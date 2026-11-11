@@ -433,8 +433,8 @@ class _SoftwareUpdateCardState extends ConsumerState<_SoftwareUpdateCard> {
         // this card says about it.
         return 'Checking for updates…';
       case UpdateStatus.error:
-        return 'Could not check for updates: '
-            '${state.errorMessage ?? "unknown error"}';
+        return 'Could not check for updates. '
+            '${state.errorMessage ?? "The check did not finish."}';
       case UpdateStatus.available:
         final version = state.availableUpdate?.version ?? 'A new version';
         if (state.requiresManualUpgrade) {
@@ -477,12 +477,21 @@ class _SoftwareUpdateCardState extends ConsumerState<_SoftwareUpdateCard> {
           return 'No update source is configured, so this build does not '
               'check for updates.';
         }
-        // Reached when no check has completed yet — either the throttled
-        // startup check has not run, or this platform does not run one at
-        // all. Claiming a background check here would be false on the
-        // second, so this says only what is certainly true.
-        return 'No update check has run yet. '
-            'Check now to look for a new version.';
+        // Nothing has run this launch. An earlier launch's check is on
+        // record when there was one, with why it did not finish if it
+        // did not; its result is not, so this says only when it ran.
+        final lastCheck = state.lastCheckTime;
+        if (lastCheck == null) {
+          return 'No update check has run yet. '
+              'Check now to look for a new version.';
+        }
+        final when = RelativeTime.ago(lastCheck, style: RelativeTimeStyle.words);
+        final failure = state.errorMessage;
+        if (failure != null && failure.isNotEmpty) {
+          return 'The last update check, $when, did not finish: $failure '
+              'Check now to try again.';
+        }
+        return 'Last checked for updates $when. Check now to look again.';
     }
   }
 

@@ -414,9 +414,9 @@ class UpdateService {
         currentVersion: _currentVersion,
       );
     } on SocketException catch (e) {
-      throw UpdateException('Network error: ${e.message}');
+      throw UpdateException('Could not reach the update server (${e.message}).');
     } on http.ClientException catch (e) {
-      throw UpdateException('Network error: ${e.message}');
+      throw UpdateException('Could not reach the update server (${e.message}).');
     } on FormatException catch (e) {
       throw UpdateException('Invalid response format: ${e.message}');
     } on TypeError catch (e) {
@@ -1574,10 +1574,12 @@ enum UpdateApplyOutcome {
 }
 
 class UpdateException implements Exception {
+  /// Written for the operator: it reaches Settings > About and the host's
+  /// update status as it is.
   final String message;
 
   UpdateException(this.message);
 
   @override
-  String toString() => 'UpdateException: $message';
+  String toString() => message;
 }

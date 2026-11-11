@@ -54,6 +54,10 @@ class UpdatePromptStore {
           _ => null,
         },
         deferredAt: _readTime(decoded['deferredAt']),
+        lastCheckError: switch (decoded['lastCheckError']) {
+          final String e when e.trim().isNotEmpty => e,
+          _ => null,
+        },
       );
     } catch (e) {
       developer.log(
@@ -90,6 +94,7 @@ class UpdatePromptStore {
           'lastCheckAt': state.lastCheckAt?.toUtc().toIso8601String(),
           'deferredVersion': state.deferredVersion,
           'deferredAt': state.deferredAt?.toUtc().toIso8601String(),
+          'lastCheckError': state.lastCheckError,
         }),
         flush: true,
       );
@@ -113,10 +118,15 @@ class UpdatePromptState {
   final String? deferredVersion;
   final DateTime? deferredAt;
 
+  /// Why the check at [lastCheckAt] did not finish; null when it did. Kept so
+  /// a later launch that does not check again can still say what happened.
+  final String? lastCheckError;
+
   const UpdatePromptState({
     this.lastCheckAt,
     this.deferredVersion,
     this.deferredAt,
+    this.lastCheckError,
   });
 
   /// Whether enough time has passed to check again.
@@ -152,12 +162,25 @@ class UpdatePromptState {
     bool clearDeferral = false,
   }) {
     if (clearDeferral) {
-      return UpdatePromptState(lastCheckAt: lastCheckAt ?? this.lastCheckAt);
+      return UpdatePromptState(
+        lastCheckAt: lastCheckAt ?? this.lastCheckAt,
+        lastCheckError: lastCheckError,
+      );
     }
     return UpdatePromptState(
       lastCheckAt: lastCheckAt ?? this.lastCheckAt,
       deferredVersion: deferredVersion ?? this.deferredVersion,
       deferredAt: deferredAt ?? this.deferredAt,
+      lastCheckError: lastCheckError,
     );
   }
+
+  /// This state with how the check at [lastCheckAt] ended: [error] null when
+  /// it finished.
+  UpdatePromptState withCheckOutcome(String? error) => UpdatePromptState(
+    lastCheckAt: lastCheckAt,
+    deferredVersion: deferredVersion,
+    deferredAt: deferredAt,
+    lastCheckError: error,
+  );
 }

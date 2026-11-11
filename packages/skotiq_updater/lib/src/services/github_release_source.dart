@@ -159,13 +159,13 @@ class GithubReleaseSource {
           .timeout(
             _timeout,
             onTimeout: () => throw GithubReleaseException(
-              'GitHub did not respond within ${_timeout.inSeconds}s ($uri).',
+              'GitHub did not respond within ${_timeout.inSeconds} s.',
             ),
           );
     } on SocketException catch (e) {
-      throw GithubReleaseException('Network error: ${e.message}');
+      throw GithubReleaseException('Could not reach GitHub (${e.message}).');
     } on http.ClientException catch (e) {
-      throw GithubReleaseException('Network error: ${e.message}');
+      throw GithubReleaseException('Could not reach GitHub (${e.message}).');
     }
   }
 
