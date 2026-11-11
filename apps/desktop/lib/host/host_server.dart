@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_app/services/app_update.dart'
     show updateControllerProvider;
 import 'package:skotiq_core/skotiq_core.dart';
@@ -14,6 +15,7 @@ import '../headless_api/auth_policy.dart';
 import '../headless_api/handlers/pairing_handlers.dart' show PairingMode;
 import '../headless_api/tls_provisioner.dart';
 import '../headless_api_server.dart';
+import '../secret_file.dart';
 import 'host_startup.dart';
 
 /// How the remote access server is to be started. The daemon fills this from
@@ -91,6 +93,40 @@ class RunningHostServer {
       }
     }
   }
+}
+
+/// File in the data directory holding the identity of a host that has no
+/// configured admin token.
+const hostIdentityKeyFileName = 'host_identity.key';
+
+/// The secret a plain-HTTP host's fingerprint is derived from.
+///
+/// A configured admin token (the GUI's persistent token, the daemon's
+/// `--auth-token`) is the identity clients already pinned, so it stays one.
+/// Without one, the identity is a key kept owner-only in [dataDirectory]: a
+/// token generated at start (`--require-auth`) or no token at all would give
+/// the host a new fingerprint on every start, and every linked client refuses
+/// a host whose fingerprint changed.
+Future<String> hostIdentitySecret({
+  required String? adminToken,
+  required Directory dataDirectory,
+  required LoggingService logger,
+  required String logSource,
+}) async {
+  final token = adminToken?.trim();
+  if (token != null && token.isNotEmpty) {
+    logger.info('Host identity: the configured admin token', source: logSource);
+    return token;
+  }
+  final file = File(p.join(dataDirectory.path, hostIdentityKeyFileName));
+  final key = await readOrCreateSecretFile(file, generateSecretHex);
+  logger.info(
+    key.created
+        ? 'Host identity: created ${file.path}'
+        : 'Host identity: ${file.path}',
+    source: logSource,
+  );
+  return key.value;
 }
 
 /// Starts the remote access server and everything a client reaches through
@@ -175,6 +211,14 @@ Future<RunningHostServer> startHostServer({
     pairingMode: config.pairingMode,
     tlsContext: tls?.securityContext,
     tlsPublicKeyFingerprint: tls?.publicKeyFingerprintSha256,
+    identitySecret: tls != null
+        ? null
+        : await hostIdentitySecret(
+            adminToken: config.authToken,
+            dataDirectory: await resolveSkotiqDataDirectory(),
+            logger: logger,
+            logSource: logSource,
+          ),
   );
 
   try {

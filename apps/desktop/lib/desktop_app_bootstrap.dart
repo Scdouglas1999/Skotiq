@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -273,7 +272,7 @@ class GuiRemoteAccess {
           bindLocalOnly: false,
           requiresAuthentication: true,
           dashboardAvailable: true,
-          serverFingerprint: computeServerFingerprint(_persistentToken!),
+          serverFingerprint: server.serverFingerprint,
         );
 
     _collaborationSubscription = server.collaborationManager.stream.listen((
@@ -349,27 +348,14 @@ Future<bool> shouldStartMinimized(ProviderContainer container) async {
 Future<String> _getOrCreateRemoteAccessToken(LoggingService logger) async {
   final appData = await resolveSkotiqDataDirectory();
   final tokenFile = File(path.join(appData.path, 'remote_access_token.txt'));
-
-  if (await tokenFile.exists()) {
-    final existing = (await tokenFile.readAsString()).trim();
-    if (existing.isNotEmpty) {
-      // Repair a file an older build created world-readable.
-      await restrictSecretFile(tokenFile);
-      return existing;
-    }
+  final token = await readOrCreateSecretFile(tokenFile, generateSecretHex);
+  if (token.created) {
+    logger.info(
+      'Generated new remote-access bearer token. Pair via the dashboard or '
+      'copy the token from this file to configure mobile/CLI clients.',
+      source: _logSource,
+      fields: {'token_path': tokenFile.path},
+    );
   }
-
-  // 32 bytes of cryptographically random hex; matches the entropy that
-  // HeadlessApiServer.requireAuth uses internally when no token is supplied.
-  final rng = Random.secure();
-  final bytes = List<int>.generate(32, (_) => rng.nextInt(256));
-  final token = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-  await writeSecretFile(tokenFile, token);
-  logger.info(
-    'Generated new remote-access bearer token. Pair via the dashboard or '
-    'copy the token from this file to configure mobile/CLI clients.',
-    source: _logSource,
-    fields: {'token_path': tokenFile.path},
-  );
-  return token;
+  return token.value;
 }

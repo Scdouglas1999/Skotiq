@@ -20,6 +20,7 @@
 library;
 
 import 'dart:io';
+import 'dart:math';
 
 /// Write [contents] to [file] such that only the owner can read it.
 ///
@@ -63,4 +64,31 @@ Future<void> restrictSecretFile(File file) async {
       '[secrets] WARNING: could not restrict ${file.path}: $error',
     );
   }
+}
+
+/// The secret kept in [file], or a new one from [generate] written there
+/// owner-only when the file is missing or empty. `created` says which.
+Future<({String value, bool created})> readOrCreateSecretFile(
+  File file,
+  String Function() generate,
+) async {
+  if (await file.exists()) {
+    final existing = (await file.readAsString()).trim();
+    if (existing.isNotEmpty) {
+      // Repair a file an older build created world-readable.
+      await restrictSecretFile(file);
+      return (value: existing, created: false);
+    }
+  }
+  final value = generate();
+  await writeSecretFile(file, value);
+  return (value: value, created: true);
+}
+
+/// 32 cryptographically random bytes as 64 hex digits.
+String generateSecretHex() {
+  final rng = Random.secure();
+  return [
+    for (var i = 0; i < 32; i++) rng.nextInt(256).toRadixString(16).padLeft(2, '0'),
+  ].join();
 }

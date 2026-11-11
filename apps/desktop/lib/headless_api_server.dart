@@ -170,10 +170,16 @@ class HeadlessApiServer {
   final SecurityContext? tlsContext;
 
   /// when TLS is active, the SHA-256 hex digest of the certificate's
-  /// SubjectPublicKeyInfo DER. It overrides the token-derived fingerprint with
-  /// a cert-pinned identity anchor. Plain HTTP mode leaves this null and falls
-  /// back to the token-derived fingerprint.
+  /// SubjectPublicKeyInfo DER. It overrides the [identitySecret] fingerprint
+  /// with a cert-pinned identity anchor. Plain HTTP mode leaves this null and falls
+  /// back to [identitySecret].
   final String? tlsPublicKeyFingerprint;
+
+  /// The secret the plain-HTTP fingerprint is derived from. A linked client
+  /// refuses a host whose fingerprint changed, so the host start-up passes one
+  /// that survives a restart (see `hostIdentitySecret`). Without one the
+  /// fingerprint holds only for this server's lifetime.
+  final String? identitySecret;
 
   /// capacity of the in-memory ring buffer that backs WS replay on
   /// reconnect. Default 5000 events â‰ˆ 5 MB at 1 KB/event. Tuned per-deploy
@@ -398,6 +404,7 @@ class HeadlessApiServer {
     this.pairingMode = PairingMode.lanOpen,
     this.tlsContext,
     this.tlsPublicKeyFingerprint,
+    this.identitySecret,
     this.eventReplayBufferSize = 5000,
     PairingService? pairingService,
     PairingService Function()? pairingServiceFactory,
@@ -457,29 +464,18 @@ class HeadlessApiServer {
     }
     _effectiveAuthTokensByValue = Map.unmodifiable(tokensByValue);
 
-    // when TLS is active, the cert's SubjectPublicKeyInfo SHA-256 is
-    // the right identity anchor for client-side cert pinning. The
-    // token-derived fingerprint (computed from the admin bearer token, see
-    // [computeServerFingerprint]) is retained as the plain-HTTP fallback so
-    // existing QR-flow clients keep working unchanged. Format:
-    //  - TLS mode:  raw hex digest of SubjectPublicKeyInfo DER (64 chars).
-    //  - HTTP mode: sha256("skotiq-remote-v1:" + adminToken).
+    // With TLS the certificate's SubjectPublicKeyInfo SHA-256 is the identity
+    // a client pins (raw hex of the DER, 64 chars). Over plain HTTP it is
+    // sha256("skotiq-remote-v1:" + identitySecret).
     final tlsPin = tlsPublicKeyFingerprint?.trim();
-    if (tlsPin != null && tlsPin.isNotEmpty) {
-      _serverFingerprint = tlsPin;
-    } else {
-      final identityMaterial = () {
-        final primary = _effectiveAuthToken?.trim();
-        if (primary != null && primary.isNotEmpty) {
-          return primary;
-        }
-        if (tokensByValue.isNotEmpty) {
-          return tokensByValue.keys.first;
-        }
-        return _generateRandomToken();
-      }();
-      _serverFingerprint = computeServerFingerprint(identityMaterial);
-    }
+    final secret = identitySecret?.trim();
+    _serverFingerprint = tlsPin != null && tlsPin.isNotEmpty
+        ? tlsPin
+        : computeServerFingerprint(
+            secret != null && secret.isNotEmpty
+                ? secret
+                : _generateRandomToken(),
+          );
 
     // Why: the resolver iterates the entire token map every lookup with
     // constant-time comparison. The map captured here is the union of the
@@ -671,7 +667,7 @@ class HeadlessApiServer {
   /// The same SHA-256 hex digest the server surfaces from `GET /api/info`.
   ///
   /// Either the TLS SubjectPublicKeyInfo digest when TLS is active or the
-  /// `computeServerFingerprint`-derived token digest otherwise. Exposed so
+  /// [identitySecret] digest otherwise. Exposed so
   /// the mDNS advertiser can publish the value as a TXT record,
   /// keeping the QR `fingerprint`, the `/api/info` `fingerprint`, and the
   /// mDNS `fingerprint` aligned.
