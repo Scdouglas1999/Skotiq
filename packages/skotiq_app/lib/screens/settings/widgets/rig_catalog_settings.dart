@@ -116,7 +116,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
       if (!_isCurrentLoad(backend, generation)) return;
       setState(() {
         _loading = false;
-        _error = '$e';
+        _error = userFacingError(e);
       });
     }
   }
@@ -179,7 +179,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
   /// permitted for this endpoint", which reads as a product bug instead of the
   /// re-pair it actually needs.
   static String _describeFailure(Object error) {
-    final text = '$error';
+    final text = userFacingError(error);
     if (text.contains('Token scope is not permitted') ||
         text.contains('Access denied')) {
       return 'this device is paired without admin access. Re-pair it with '

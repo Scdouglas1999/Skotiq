@@ -252,7 +252,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
         try {
           catalogs = await backend.listAvailableCatalogs();
         } catch (e, st) {
-          catalogError = e is ServerError ? e.message : e.toString();
+          catalogError = e is ServerError ? e.message : userFacingError(e);
           developer.log(
             'first-run: failed to load catalogs: $e',
             name: 'FirstRunSetup',
@@ -266,7 +266,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
         try {
           profiles = await backend.getProfiles();
         } catch (e, st) {
-          profileError = e is ServerError ? e.message : e.toString();
+          profileError = e is ServerError ? e.message : userFacingError(e);
           developer.log(
             'first-run: failed to load profiles: $e',
             name: 'FirstRunSetup',

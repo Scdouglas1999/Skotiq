@@ -348,7 +348,7 @@ class _DarkroomChannelCombineDialogState
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = 'The combined recipe could not be written: $error';
+        _error = 'The combined recipe could not be written: ${userFacingError(error)}';
       });
     }
   }

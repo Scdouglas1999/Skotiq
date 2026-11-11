@@ -333,10 +333,10 @@ class _FramingTelescopeSectionState
       if (!_ownsSolve(backend, revision)) return;
       setState(() {
         _isSolving = false;
-        _lastSolve = _SolveOutcome.failed(e.toString());
+        _lastSolve = _SolveOutcome.failed(userFacingError(e));
       });
       if (!mounted) return;
-      context.showErrorSnackBar('Solve failed: $e');
+      context.showErrorSnackBar('Solve failed: ${userFacingError(e)}');
     }
   }
 

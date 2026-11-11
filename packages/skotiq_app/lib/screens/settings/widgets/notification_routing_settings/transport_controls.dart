@@ -203,7 +203,7 @@ Widget _transportErrorSection({
       SettingRow(
         icon: LucideIcons.alertTriangle,
         title: 'Could not load configuration',
-        subtitle: error.toString(),
+        subtitle: userFacingError(error),
         trailing: SkotiqButton(
           label: 'Retry',
           icon: LucideIcons.refreshCw,

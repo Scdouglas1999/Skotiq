@@ -546,7 +546,7 @@ class CapturePanel extends ConsumerWidget {
           logger.error('[Imaging] Session ended but mount park failed: $e',
               source: 'CapturePanel', fields: {'error': e.toString()});
           if (context.mounted) {
-            context.showErrorSnackBar('Session ended, but parking failed: $e');
+            context.showErrorSnackBar('Session ended, but parking failed: ${userFacingError(e)}');
           }
         }
       }
@@ -555,7 +555,7 @@ class CapturePanel extends ConsumerWidget {
       logger.error('[Imaging] Error ending session: $e',
           source: 'CapturePanel', fields: {'error': e.toString()});
       if (context.mounted) {
-        context.showErrorSnackBar('Failed to end session: $e');
+        context.showErrorSnackBar('Failed to end session: ${userFacingError(e)}');
       }
       return false;
     }
@@ -645,7 +645,7 @@ class _CaptureSavePathButtonState extends ConsumerState<CaptureSavePathButton> {
           !identical(ref.read(backendProvider), authority)) {
         return;
       }
-      context.showErrorSnackBar('Could not update the capture folder: $error');
+      context.showErrorSnackBar('Could not update the capture folder: ${userFacingError(error)}');
     } finally {
       if (mounted && generation == _operationGeneration) {
         setState(() => _busy = false);

@@ -431,7 +431,7 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
       if (mounted) {
         setState(() {
           _saving = false;
-          _error = 'Could not save recipe: $e';
+          _error = 'Could not save recipe: ${userFacingError(e)}';
         });
       }
     }

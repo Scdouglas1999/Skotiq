@@ -167,7 +167,7 @@ Widget _annotationAuthorityState({
           if (error != null) ...[
             const SizedBox(height: 6),
             Text(
-              error.toString(),
+              userFacingError(error),
               textAlign: TextAlign.center,
               style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),

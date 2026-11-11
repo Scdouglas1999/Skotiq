@@ -1,3 +1,4 @@
+import '../errors/error_text.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -230,7 +231,7 @@ class StackAndShareNotifier extends StateNotifier<StackAndShareState> {
         progress: state.progress.phase == StackAndSharePhase.error
             ? state.progress
             : state.progress.copyWith(phase: StackAndSharePhase.error),
-        errorMessage: e.toString(),
+        errorMessage: userFacingError(e),
       );
       _logger.error(
         'Stack-and-Share run failed for session $sessionId: $e',

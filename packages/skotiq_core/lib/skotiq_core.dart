@@ -62,6 +62,7 @@ export 'src/models/equipment_profile_remote_mapping.dart';
 export 'src/models/equipment_profile_validation.dart';
 export 'src/models/settings/app_settings.dart';
 export 'src/models/errors/server_error.dart';
+export 'src/errors/error_text.dart';
 export 'src/models/imaging/imaging_models.dart';
 export 'src/models/imaging/camera_preset.dart';
 export 'src/models/imaging/auto_stretch_settings.dart';

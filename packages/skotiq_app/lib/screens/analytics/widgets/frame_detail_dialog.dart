@@ -5,14 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        CoordinateParser,
-        DbCapturedImage,
-        FramePhotometricCalibrationRow,
-        FrameQualityAssessment,
-        imagingRecordsRepositoryProvider,
-        isRemoteModeProvider;
+import 'package:skotiq_core/skotiq_core.dart' show DbCapturedImage, FramePhotometricCalibrationRow, FrameQualityAssessment, imagingRecordsRepositoryProvider, isRemoteModeProvider, userFacingError;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/filter_label.dart';
@@ -324,7 +317,7 @@ class _FrameDetailDialogState extends ConsumerState<FrameDetailDialog> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _busy = false);
-      context.showErrorSnackBar('Failed to update frame: $error');
+      context.showErrorSnackBar('Failed to update frame: ${userFacingError(error)}');
     }
   }
 }

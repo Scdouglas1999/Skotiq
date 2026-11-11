@@ -522,7 +522,7 @@ class _TransientAlertDropdownContent extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            error.toString(),
+            userFacingError(error),
             style: TextStyle(
               fontSize: SkotiqTypography.fontSize11,
               color: colors.textMuted,

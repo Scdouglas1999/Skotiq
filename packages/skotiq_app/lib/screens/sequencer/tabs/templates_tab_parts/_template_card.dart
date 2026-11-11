@@ -619,7 +619,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
       } catch (e) {
         if (context.mounted &&
             identical(ref.read(backendProvider), authority)) {
-          context.showErrorSnackBar('Could not create template copy: $e');
+          context.showErrorSnackBar('Could not create template copy: ${userFacingError(e)}');
         }
         return;
       }
@@ -668,7 +668,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
       } catch (e) {
         if (context.mounted &&
             identical(ref.read(backendProvider), authority)) {
-          context.showErrorSnackBar('Failed to duplicate template: $e');
+          context.showErrorSnackBar('Failed to duplicate template: ${userFacingError(e)}');
         }
       }
     } else {
@@ -702,7 +702,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
       } catch (e) {
         if (context.mounted &&
             identical(ref.read(backendProvider), authority)) {
-          context.showErrorSnackBar('Failed to duplicate template: $e');
+          context.showErrorSnackBar('Failed to duplicate template: ${userFacingError(e)}');
         }
       }
     }

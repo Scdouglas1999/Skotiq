@@ -47,7 +47,7 @@ class WeekForecastStrip extends ConsumerWidget {
         padding: SkotiqTokens.screenPadding,
         child: SkotiqBanner(
             title: 'Forecast unavailable',
-            message: error.toString(),
+            message: userFacingError(error),
             tone: BannerTone.error,
             action: SkotiqButton(
               label: 'Retry',

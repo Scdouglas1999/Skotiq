@@ -44,11 +44,3 @@ double normalizedDepth(double seconds, double maxSeconds) {
   return math.sqrt(ratio);
 }
 
-/// A user-facing message for an atlas read error, trimmed of the bridge's
-/// envelope noise so the empty-state body stays readable.
-String describeAtlasError(Object error) {
-  final raw = error.toString();
-  const prefix = 'Exception: ';
-  final trimmed = raw.startsWith(prefix) ? raw.substring(prefix.length) : raw;
-  return trimmed.isEmpty ? 'Unknown error.' : trimmed;
-}

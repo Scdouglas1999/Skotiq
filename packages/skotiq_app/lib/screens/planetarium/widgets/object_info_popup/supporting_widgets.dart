@@ -409,7 +409,7 @@ class _AddToListDialogState extends ConsumerState<_AddToListDialog> {
             child: Center(
                 child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
           ),
-          error: (e, _) => Text('Error loading lists: $e'),
+          error: (e, _) => Text('Error loading lists: ${userFacingError(e)}'),
         ),
       ),
       actions: [

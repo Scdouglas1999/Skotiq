@@ -268,7 +268,7 @@ class _NoteEditorDialogState extends ConsumerState<NoteEditorDialog> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save note: $e')),
+        SnackBar(content: Text('Failed to save note: ${userFacingError(e)}')),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -291,7 +291,7 @@ class _NoteEditorDialogState extends ConsumerState<NoteEditorDialog> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete: $e')),
+        SnackBar(content: Text('Failed to delete: ${userFacingError(e)}')),
       );
     } finally {
       if (mounted) setState(() => _saving = false);

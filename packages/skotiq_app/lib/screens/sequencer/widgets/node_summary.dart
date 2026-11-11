@@ -228,7 +228,7 @@ List<SummaryFragment> nodeSummary(
         const StaticFragment('× '),
         EditableFragment(
           InlineEditKind.exposureDuration,
-          '${_fmtSecs(dur)}s',
+          '${QuantityFormat.trimmed(dur)}s',
         ),
         if (filter != null && filter.isNotEmpty)
           EditableFragment(
@@ -273,7 +273,7 @@ List<SummaryFragment> nodeSummary(
       <SummaryFragment>[
         EditableFragment(
           InlineEditKind.centerTolerance,
-          '${_fmtSecs(acc)}"',
+          '${QuantityFormat.trimmed(acc)}"',
           icon: LucideIcons.crosshair,
         ),
         if (filter != null && filter.isNotEmpty) StaticFragment(filter),
@@ -332,7 +332,7 @@ List<SummaryFragment> nodeSummary(
         const StaticFragment('for '),
         EditableFragment(
           InlineEditKind.delaySeconds,
-          '${_fmtSecs(secs)}s',
+          '${QuantityFormat.trimmed(secs)}s',
           icon: LucideIcons.timer,
         ),
       ],
@@ -341,7 +341,7 @@ List<SummaryFragment> nodeSummary(
     DitherNode(pixels: final px, pattern: final pattern) => <SummaryFragment>[
         EditableFragment(
           InlineEditKind.ditherPixels,
-          '${_fmtSecs(px)}px',
+          '${QuantityFormat.trimmed(px)}px',
           icon: LucideIcons.shuffle,
         ),
         EditableFragment(InlineEditKind.ditherPattern, pattern.name),
@@ -352,7 +352,7 @@ List<SummaryFragment> nodeSummary(
         const StaticFragment('→ '),
         EditableFragment(
           InlineEditKind.coolTargetTemp,
-          '${_fmtSecs(temp)}°C',
+          '${QuantityFormat.trimmed(temp)}°C',
           icon: LucideIcons.snowflake,
         ),
       ],
@@ -362,7 +362,7 @@ List<SummaryFragment> nodeSummary(
     WarmCameraNode(targetTemp: final temp, ratePerMin: final rate) =>
       <SummaryFragment>[
         StaticFragment(
-          '→ ${_fmtSecs(temp)}°C @ ${_fmtSecs(rate)}°/min',
+          '→ ${QuantityFormat.trimmed(temp)}°C @ ${QuantityFormat.trimmed(rate)}°/min',
           icon: LucideIcons.thermometer,
         ),
       ],
@@ -370,7 +370,7 @@ List<SummaryFragment> nodeSummary(
     // Rotator — angle + reference are panel-grade together; static.
     RotatorNode(targetAngle: final angle, relative: final relative) =>
       <SummaryFragment>[
-        StaticFragment('→ ${_fmtSecs(angle)}° ${relative ? 'rel' : 'abs'}'),
+        StaticFragment('→ ${QuantityFormat.trimmed(angle)}° ${relative ? 'rel' : 'abs'}'),
       ],
 
     // Flat-panel calibrator on — brightness shown statically (the panel
@@ -442,7 +442,7 @@ List<SummaryFragment> nodeSummary(
                   for (final plan in plans)
                     StaticFragment(
                       '${plan.filterName.isEmpty ? '#${(plan.filterIndex ?? 0) + 1}' : plan.filterName}'
-                      ' ${plan.count}×${_fmtSecs(plan.durationSecs)}s',
+                      ' ${plan.count}×${QuantityFormat.trimmed(plan.durationSecs)}s',
                       emphasized: true,
                     ),
                   if (_depthLockedFilters(plans) != null)
@@ -456,7 +456,7 @@ List<SummaryFragment> nodeSummary(
       startAltitude: final startAlt,
     ) =>
       <SummaryFragment>[
-        StaticFragment('${isNorth ? 'N' : 'S'} · alt ${_fmtSecs(startAlt)}°'),
+        StaticFragment('${isNorth ? 'N' : 'S'} · alt ${QuantityFormat.trimmed(startAlt)}°'),
       ],
 
     // Guiding lifecycle — settle params are a tuple; static.
@@ -466,7 +466,7 @@ List<SummaryFragment> nodeSummary(
     ) =>
       <SummaryFragment>[
         StaticFragment(
-          'settle ${_fmtSecs(settlePx)}px/${_fmtSecs(settleTime)}s',
+          'settle ${QuantityFormat.trimmed(settlePx)}px/${QuantityFormat.trimmed(settleTime)}s',
         ),
       ],
     StopGuidingNode() => const <SummaryFragment>[
@@ -549,7 +549,7 @@ List<SummaryFragment> nodeSummary(
     TargetSchedulerNode() => <SummaryFragment>[
         StaticFragment(
           '${node.childIds.length} targets · min score '
-          '${_fmtSecs(node.minScoreToRun)}',
+          '${QuantityFormat.trimmed(node.minScoreToRun)}',
         ),
       ],
 
@@ -594,7 +594,7 @@ List<SummaryFragment> nodeSummary(
     ) =>
       <SummaryFragment>[
         StaticFragment(
-          '${method.name} · ${_fmtSecs(minutesPast)} min past'
+          '${method.name} · ${QuantityFormat.trimmed(minutesPast)} min past'
           '${autoCenter ? ' · auto-center' : ''}',
         ),
       ],
@@ -637,13 +637,13 @@ List<SummaryFragment> _loopSummary(
     case LoopConditionType.untilAltitude:
       return <SummaryFragment>[
         StaticFragment(
-          'until alt ≤ ${_fmtSecs(repeatUntilAltitude ?? 0)}°',
+          'until alt ≤ ${QuantityFormat.trimmed(repeatUntilAltitude ?? 0)}°',
         ),
       ];
     case LoopConditionType.altitudeAbove:
       return <SummaryFragment>[
         StaticFragment(
-          'until alt ≥ ${_fmtSecs(repeatUntilAltitude ?? 0)}°',
+          'until alt ≥ ${QuantityFormat.trimmed(repeatUntilAltitude ?? 0)}°',
         ),
       ];
     case LoopConditionType.integrationTime:
@@ -661,30 +661,20 @@ String _conditionalDescriptor(ConditionalType cond, double? threshold) {
     case ConditionalType.always:
       return 'always';
     case ConditionalType.altitudeAbove:
-      return 'alt ≥ ${_fmtSecs(t ?? 0)}°';
+      return 'alt ≥ ${QuantityFormat.trimmed(t ?? 0)}°';
     case ConditionalType.timeAfter:
       return 'time is later';
     case ConditionalType.guidingRmsBelow:
-      return 'guide RMS ≤ ${_fmtSecs(t ?? 0)}"';
+      return 'guide RMS ≤ ${QuantityFormat.trimmed(t ?? 0)}"';
     case ConditionalType.hfrBelow:
-      return 'HFR ≤ ${_fmtSecs(t ?? 0)}';
+      return 'HFR ≤ ${QuantityFormat.trimmed(t ?? 0)}';
     case ConditionalType.weatherSafe:
       return 'weather safe';
     case ConditionalType.moonSeparationAbove:
-      return 'moon sep ≥ ${_fmtSecs(t ?? 0)}°';
+      return 'moon sep ≥ ${QuantityFormat.trimmed(t ?? 0)}°';
     case ConditionalType.safetyMonitorSafe:
       return 'safety monitor safe';
   }
-}
-
-/// Format a duration in seconds compactly: drops a trailing `.0` so whole
-/// numbers read cleanly (`60` not `60.0`) while keeping one decimal for
-/// fractional values (`1.5`).
-String _fmtSecs(double value) {
-  if (value == value.roundToDouble()) {
-    return value.toStringAsFixed(0);
-  }
-  return value.toStringAsFixed(1);
 }
 
 /// Format a wall-clock [DateTime] as `HH:MM` in its own zone. Returns

@@ -222,7 +222,7 @@ class SettingsErrorState extends StatelessWidget {
     return EmptyState(
       icon: LucideIcons.alertTriangle,
       title: 'Settings did not load',
-      body: error.toString(),
+      body: userFacingError(error),
       action: onRetry == null
           ? null
           : SkotiqButton(

@@ -527,7 +527,7 @@ class _PlanRow extends StatelessWidget {
                     color: colors.primary,
                   ),
                   label: Text(
-                    'Suggested ${_formatExposureSeconds(recommendation.seconds)}',
+                    'Suggested ${'${QuantityFormat.trimmed(recommendation.seconds)}s'}',
                     style: TextStyle(
                       fontSize: Responsive.fontSize(context, 11),
                       color: colors.primary,
@@ -826,14 +826,6 @@ double _recommendedExposureSeconds(
     return fallbackSecs;
   }
   return seconds;
-}
-
-String _formatExposureSeconds(double seconds) {
-  final rounded = seconds.roundToDouble();
-  if ((seconds - rounded).abs() < 0.05) {
-    return '${rounded.toInt()}s';
-  }
-  return '${seconds.toStringAsFixed(1)}s';
 }
 
 class _EstimateSummary extends ConsumerWidget {

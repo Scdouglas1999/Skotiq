@@ -67,6 +67,8 @@ void main() {
 
   test('decimal hours from one hour up', () {
     expect(DurationFormat.decimalHours(5400), '1.5h');
+    expect(DurationFormat.decimalHours(7200), '2h');
+    expect(DurationFormat.decimalHours(41 * 3600), '41h');
     expect(DurationFormat.decimalHours(44280), '12.3h');
     expect(DurationFormat.decimalHours(140 * 3600), '140h');
     expect(DurationFormat.decimalHours(2700), '45m');

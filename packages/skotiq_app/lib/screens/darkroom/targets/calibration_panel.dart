@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
 import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/skotiq_core.dart' show userFacingError;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/darkroom_navigation.dart';
@@ -75,7 +76,7 @@ class DarkroomCalibrationPanel extends ConsumerWidget {
               Center(child: SkotiqProgressBar(value: 0, indeterminate: true)),
         ),
         error: (error, _) => Text(
-          'The calibration library could not be read: $error',
+          'The calibration library could not be read: ${userFacingError(error)}',
           style: SkotiqTypography.bodySm.copyWith(color: colors.error),
         ),
         data: (list) => list.isEmpty

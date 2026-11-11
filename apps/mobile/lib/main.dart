@@ -477,7 +477,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Error: $e',
+                    'Error: ${userFacingError(e)}',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: SkotiqTypography.fontSize12,

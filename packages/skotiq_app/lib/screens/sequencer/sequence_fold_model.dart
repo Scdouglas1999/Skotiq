@@ -28,7 +28,6 @@ library;
 import 'package:equatable/equatable.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
-import 'ledger_seconds.dart';
 
 /// Which kind of contiguous sibling run a [FoldGroup] collapses into one row.
 enum FoldKind {
@@ -508,7 +507,7 @@ FoldGroup _filterRunGroup(
     firstIndex: start,
     label: memberLabels.join(' · '),
     chipText:
-        '${formatLedgerSeconds(first.durationSecs)} s ×${first.count} each',
+        '${QuantityFormat.trimmed(first.durationSecs)} s ×${first.count} each',
     durationSecs: first.durationSecs,
     count: first.count,
     gain: first.gain,

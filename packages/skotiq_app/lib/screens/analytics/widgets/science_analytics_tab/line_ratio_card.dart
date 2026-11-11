@@ -268,7 +268,7 @@ class _LineRatioCardState extends ConsumerState<_LineRatioCard> {
     } catch (error) {
       if (mounted && _ownsOperation(generation, sessionId, backend)) {
         setState(() {
-          _statusMessage = 'Could not load science settings: $error';
+          _statusMessage = 'Could not load science settings: ${userFacingError(error)}';
           _isGenerating = false;
         });
       }
@@ -332,7 +332,7 @@ class _LineRatioCardState extends ConsumerState<_LineRatioCard> {
     } catch (error) {
       if (mounted && _ownsOperation(generation, sessionId, backend)) {
         setState(() {
-          _statusMessage = 'Line-ratio generation failed: $error';
+          _statusMessage = 'Line-ratio generation failed: ${userFacingError(error)}';
         });
       }
     } finally {

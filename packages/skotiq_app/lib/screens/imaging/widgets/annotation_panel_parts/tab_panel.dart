@@ -34,7 +34,7 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$failureMessage: $error'),
+          content: Text('$failureMessage: ${userFacingError(error)}'),
           backgroundColor: SkotiqColors.of(context).error,
           duration: const Duration(seconds: 4),
         ),
@@ -53,7 +53,7 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Re-annotation failed: $error'),
+            content: Text('Re-annotation failed: ${userFacingError(error)}'),
             backgroundColor: SkotiqColors.of(context).error,
           ),
         );
@@ -115,7 +115,7 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to save annotated image: $e'),
+            content: Text('Failed to save annotated image: ${userFacingError(e)}'),
             backgroundColor: SkotiqColors.of(context).error,
             duration: const Duration(seconds: 4),
           ),
@@ -213,7 +213,7 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to save preset: $e'),
+            content: Text('Failed to save preset: ${userFacingError(e)}'),
             backgroundColor: SkotiqColors.of(context).error,
             duration: const Duration(seconds: 4),
           ),
@@ -241,7 +241,7 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to apply preset: $e'),
+            content: Text('Failed to apply preset: ${userFacingError(e)}'),
             backgroundColor: SkotiqColors.of(context).error,
             duration: const Duration(seconds: 4),
           ),
@@ -290,7 +290,7 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to delete preset: $e'),
+            content: Text('Failed to delete preset: ${userFacingError(e)}'),
             backgroundColor: SkotiqColors.of(context).error,
             duration: const Duration(seconds: 4),
           ),

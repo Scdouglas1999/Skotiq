@@ -22,6 +22,7 @@
 library;
 
 import '../../backend/frame_capture_metadata.dart';
+import '../../errors/error_text.dart';
 import '../../models/backend/event_types.dart';
 import '../../models/sequence/instruction_progress_detail.dart';
 import '../../models/sequence/sequence_models.dart' show NodeStatus;
@@ -884,7 +885,7 @@ SequencerRunEvent _decode(SkotiqEvent event) {
         error: d.string('error'),
         actionTaken: d.string('action_taken'),
         failedSteps: steps is List
-            ? steps.map((e) => e.toString()).toList(growable: false)
+            ? steps.map((e) => userFacingError(e)).toList(growable: false)
             : const <String>[],
       );
 

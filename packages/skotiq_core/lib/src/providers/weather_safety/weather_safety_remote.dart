@@ -129,7 +129,7 @@ extension _WeatherSafetyRemote on WeatherSafetyNotifier {
     } catch (error) {
       if (!mounted) return;
       state = WeatherSafetyState.initial().copyWith(
-        failModeWarning: 'Imaging host safety status unavailable: $error',
+        failModeWarning: 'Imaging host safety status unavailable: ${userFacingError(error)}',
         lastEvaluation: DateTime.now(),
         hostVerdictUnavailable: true,
       );

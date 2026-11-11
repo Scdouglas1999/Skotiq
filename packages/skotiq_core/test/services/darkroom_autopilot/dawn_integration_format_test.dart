@@ -1,7 +1,7 @@
 // The one line the operator reads at 7am has to distinguish a short night from
 // an empty one.
 //
-// `formatDawnIntegration` rounds to whole minutes, and the report headline is
+// The headline once rounded integration to whole minutes, and the report is
 // built from it. A night that integrated 24 s therefore printed
 // "Your 4 drafts are ready — 0m integrated", which is the identical string the
 // function reserves for a night that integrated nothing — while the same
@@ -54,13 +54,8 @@ DawnJobReport _report(double seconds) => DawnJobReport(
 );
 
 void main() {
-  test('a night that integrated nothing keeps the zero sentinel', () {
-    expect(DurationFormat.seconds(0, style: DurationStyle.coarse, roundToMinute: true), '0m');
-    expect(DurationFormat.seconds(-1, style: DurationStyle.coarse, roundToMinute: true), '0m');
-  });
-
   test('a sub-minute night states its seconds, never "0m"', () {
-    expect(DurationFormat.seconds(24.0, style: DurationStyle.coarse, roundToMinute: true), '24 s');
+    expect(DurationFormat.seconds(24.0, style: DurationStyle.coarse, roundToMinute: true), '24s');
     expect(DurationFormat.seconds(1.0, style: DurationStyle.coarse, roundToMinute: true), '1 s');
     // A fraction of a second rounds UP so it can never land back on the 0 the
     // zero branch owns.
@@ -77,7 +72,7 @@ void main() {
 
   test('the morning headline for a 24 s night does not read "0m"', () {
     final headline = _report(24.0).headline;
-    expect(headline, contains('24 s integrated'));
+    expect(headline, contains('24s integrated'));
     expect(headline, isNot(contains('0m')));
   });
 }

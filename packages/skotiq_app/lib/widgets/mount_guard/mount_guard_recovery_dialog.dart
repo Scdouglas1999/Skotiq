@@ -4,7 +4,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'mount_guard_banner.dart' show mountGuardErrorText;
 
 /// The two ways to make the mount's position trustworthy again: the operator
 /// puts it at home and says so, or Skotiq plate solves a frame and, once the
@@ -41,7 +40,7 @@ class _MountGuardRecoveryDialogState
             'being at its home position.';
       });
     } catch (e) {
-      setState(() => _error = mountGuardErrorText(e));
+      setState(() => _error = userFacingError(e));
     }
   }
 
@@ -61,7 +60,7 @@ class _MountGuardRecoveryDialogState
     } catch (e) {
       setState(() {
         _step = _Step.choose;
-        _error = mountGuardErrorText(e);
+        _error = userFacingError(e);
       });
     }
   }
@@ -86,7 +85,7 @@ class _MountGuardRecoveryDialogState
     } catch (e) {
       setState(() {
         _step = _Step.solved;
-        _error = mountGuardErrorText(e);
+        _error = userFacingError(e);
       });
     }
   }

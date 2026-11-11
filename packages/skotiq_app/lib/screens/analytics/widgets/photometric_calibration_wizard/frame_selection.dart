@@ -40,7 +40,7 @@ extension _PhotometricWizardFrameSelection
                 const SizedBox(width: SkotiqTokens.spaceMd),
                 Expanded(
                   child: Text(
-                    'Could not load imaging sessions: $error',
+                    'Could not load imaging sessions: ${userFacingError(error)}',
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style:
@@ -195,7 +195,7 @@ extension _PhotometricWizardFrameSelection
         children: [
           Expanded(
             child: Text(
-              'Error loading images: $error',
+              'Error loading images: ${userFacingError(error)}',
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: SkotiqTypography.body.copyWith(color: colors.error),

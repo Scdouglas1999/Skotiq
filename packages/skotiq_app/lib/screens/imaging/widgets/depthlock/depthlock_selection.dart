@@ -8,7 +8,6 @@ import 'package:path/path.dart' as p;
 import 'package:skotiq_core/skotiq_core.dart';
 
 import 'depthlock_geometry.dart';
-import 'depthlock_presentation.dart';
 import 'depthlock_presets.dart';
 
 /// What the imaging screen can offer DepthLock right now: which file the
@@ -481,7 +480,7 @@ final depthLockStackSelectionProvider = Provider<DepthLockSelection>((ref) {
   if (info.hasError) {
     return DepthLockSelection(
       imageSize: stackSize,
-      blocker: depthLockErrorMessage(info.error!),
+      blocker: userFacingError(info.error!),
     );
   }
   if (reference == null) {

@@ -485,7 +485,7 @@ class _ObservationLogSettingsState
       }
     } catch (e) {
       if (context.mounted) {
-        context.showErrorSnackBar('Export failed: $e');
+        context.showErrorSnackBar('Export failed: ${userFacingError(e)}');
       }
     } finally {
       if (mounted) {

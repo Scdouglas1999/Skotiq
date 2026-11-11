@@ -49,7 +49,7 @@ class _PolarAlignmentRunOverlayState
       await ref.read(polarAlignmentControllerProvider).stop();
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Could not stop polar alignment: $e');
+        context.showErrorSnackBar('Could not stop polar alignment: ${userFacingError(e)}');
       }
     } finally {
       if (mounted) setState(() => _stopping = false);

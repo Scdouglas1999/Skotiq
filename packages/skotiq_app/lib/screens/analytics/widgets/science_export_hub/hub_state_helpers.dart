@@ -306,9 +306,9 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
       if (!_isCurrentAuthority(backend, generation) || !mounted) return;
       setState(() {
         _isExporting = false;
-        _lastExportResult = 'Export failed: $e';
+        _lastExportResult = 'Export failed: ${userFacingError(e)}';
       });
-      context.showErrorSnackBar('Export failed: $e');
+      context.showErrorSnackBar('Export failed: ${userFacingError(e)}');
     }
   }
 
@@ -382,9 +382,9 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
       if (!_isCurrentAuthority(backend, generation) || !mounted) return;
       setState(() {
         _isExporting = false;
-        _lastExportResult = 'Report generation failed: $e';
+        _lastExportResult = 'Report generation failed: ${userFacingError(e)}';
       });
-      context.showErrorSnackBar('Report generation failed: $e');
+      context.showErrorSnackBar('Report generation failed: ${userFacingError(e)}');
     }
   }
 

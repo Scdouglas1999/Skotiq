@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../utils/user_facing_error.dart';
 import '../../session_review/auto_integration_service.dart';
 import '../../settings/delivery_settings.dart';
 import '../../settings/settings_sections.dart';

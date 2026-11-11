@@ -95,7 +95,7 @@ Future<bool> confirmAndDeleteSequenceNode({
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to delete "${node.name}": $error'),
+          content: Text('Failed to delete "${node.name}": ${userFacingError(error)}'),
           backgroundColor: resolvedColors.error,
           duration: const Duration(seconds: 4),
         ),

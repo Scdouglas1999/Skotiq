@@ -195,7 +195,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           content: Text(
             'Skotiq is staying open so your edits are not lost. '
             'Check the database or remote-host connection, then try closing '
-            'again.\n\n$error',
+            'again.\n\n${userFacingError(error)}',
             style: TextStyle(color: colors.textSecondary),
           ),
           actions: [

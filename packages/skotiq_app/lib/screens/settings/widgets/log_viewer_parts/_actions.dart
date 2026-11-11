@@ -238,7 +238,7 @@ extension _LogViewerActions on _LogViewerState {
       if (mounted && _isCurrentAction(token, backend)) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Export failed: $e'),
+            content: Text('Export failed: ${userFacingError(e)}'),
             backgroundColor: SkotiqColors.of(context).error,
           ),
         );
@@ -270,7 +270,7 @@ extension _LogViewerActions on _LogViewerState {
         if (mounted && _isCurrentAction(token, backend)) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Could not list the host’s log files: $e'),
+              content: Text('Could not list the host’s log files: ${userFacingError(e)}'),
               backgroundColor: SkotiqColors.of(context).error,
             ),
           );
@@ -508,7 +508,7 @@ extension _LogViewerActions on _LogViewerState {
       if (!mounted || !_isCurrentAction(token, backend)) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Clear failed: $e'),
+          content: Text('Clear failed: ${userFacingError(e)}'),
           backgroundColor: SkotiqColors.of(context).error,
         ),
       );

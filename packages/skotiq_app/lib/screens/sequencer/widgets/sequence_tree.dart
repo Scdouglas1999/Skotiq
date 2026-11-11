@@ -11,7 +11,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../utils/sequence_mutator_helper.dart';
 import '../../../widgets/tutorial_keys/sequencer_keys.dart';
 import '../../accessible_dropdown.dart';
-import '../ledger_seconds.dart';
 import '../sequence_fold_model.dart';
 import '../sequence_fold_state.dart';
 import 'delete_node_confirmation.dart';

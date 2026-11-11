@@ -1,3 +1,4 @@
+import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:developer' as developer;
 
@@ -479,7 +480,7 @@ class DarkLibraryNotifier extends StateNotifier<DarkLibraryUiState> {
             : 'Master dark created.',
       );
     } catch (e) {
-      _finishMutation(error: 'Failed to create master dark: $e');
+      _finishMutation(error: 'Failed to create master dark: ${userFacingError(e)}');
     }
   }
 
@@ -504,7 +505,7 @@ class DarkLibraryNotifier extends StateNotifier<DarkLibraryUiState> {
             : 'No orphaned entries found.',
       );
     } catch (e) {
-      _finishMutation(error: 'Failed to clean orphans: $e');
+      _finishMutation(error: 'Failed to clean orphans: ${userFacingError(e)}');
     }
   }
 
@@ -526,7 +527,7 @@ class DarkLibraryNotifier extends StateNotifier<DarkLibraryUiState> {
       _refreshLibrary();
       _finishMutation(status: 'Entry deleted.');
     } catch (e) {
-      _finishMutation(error: 'Failed to delete entry: $e');
+      _finishMutation(error: 'Failed to delete entry: ${userFacingError(e)}');
     }
   }
 
@@ -547,7 +548,7 @@ class DarkLibraryNotifier extends StateNotifier<DarkLibraryUiState> {
       _refreshLibrary();
       _finishMutation(status: 'Library cleared ($removed entries removed).');
     } catch (e) {
-      _finishMutation(error: 'Failed to clear library: $e');
+      _finishMutation(error: 'Failed to clear library: ${userFacingError(e)}');
     }
   }
 
@@ -594,7 +595,7 @@ class DarkLibraryNotifier extends StateNotifier<DarkLibraryUiState> {
       return removed;
     } catch (error) {
       if (!mounted) rethrow;
-      _finishMutation(error: 'Failed to delete group: $error');
+      _finishMutation(error: 'Failed to delete group: ${userFacingError(error)}');
       rethrow;
     }
   }

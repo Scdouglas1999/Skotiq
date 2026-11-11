@@ -500,7 +500,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Failed to load suggestions: $e',
+                    'Failed to load suggestions: ${userFacingError(e)}',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: colors.error),
                   ),

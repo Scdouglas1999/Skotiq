@@ -339,7 +339,7 @@ class _MosaicContributeSheetState
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = 'Could not save your sharing choice: $error';
+        _error = 'Could not save your sharing choice: ${userFacingError(error)}';
       });
     }
   }

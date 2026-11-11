@@ -127,7 +127,7 @@ void main() {
       reason: '0.17h was captured; it was rejected, which is a different thing',
     );
     expect(find.textContaining('No accepted frames yet'), findsOneWidget);
-    expect(find.textContaining('0.2h captured'), findsWidgets);
+    expect(find.textContaining('10m captured'), findsWidgets);
   });
 
   testWidgets('accepted and captured integration are named separately',

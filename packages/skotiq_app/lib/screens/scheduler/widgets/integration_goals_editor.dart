@@ -107,7 +107,7 @@ class _IntegrationGoalsEditorState
       return true;
     } catch (e) {
       if (_isCurrentOperation(authority, targetId, operationGeneration)) {
-        _showGoalErrorOn(messenger, errorColor, 'Failed to add goal: $e');
+        _showGoalErrorOn(messenger, errorColor, 'Failed to add goal: ${userFacingError(e)}');
       }
       return false;
     } finally {
@@ -151,7 +151,7 @@ class _IntegrationGoalsEditorState
       ref.invalidate(allIntegrationGoalsProvider);
     } catch (e) {
       if (_isCurrentOperation(authority, targetId, operationGeneration)) {
-        _showGoalErrorOn(messenger, errorColor, 'Failed to update goal: $e');
+        _showGoalErrorOn(messenger, errorColor, 'Failed to update goal: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentOperation(authority, targetId, operationGeneration)) {
@@ -189,7 +189,7 @@ class _IntegrationGoalsEditorState
       ref.invalidate(allIntegrationGoalsProvider);
     } catch (e) {
       if (_isCurrentOperation(authority, targetId, operationGeneration)) {
-        _showGoalErrorOn(messenger, errorColor, 'Failed to delete goal: $e');
+        _showGoalErrorOn(messenger, errorColor, 'Failed to delete goal: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentOperation(authority, targetId, operationGeneration)) {
@@ -282,7 +282,7 @@ class _IntegrationGoalsEditorState
             ),
           ),
           error: (e, _) => Text(
-            'Failed to load goals: $e',
+            'Failed to load goals: ${userFacingError(e)}',
             style: SkotiqTypography.caption.copyWith(color: colors.error),
           ),
           data: (progress) => Column(
@@ -573,7 +573,7 @@ class _AddGoalRowState extends State<_AddGoalRow> {
       final seconds =
           widget.exposureContext?.recommendForFilter(filter).seconds;
       if (seconds != null && seconds.isFinite && seconds > 0) {
-        _exposureCtl.text = _formatExposureSeconds(seconds);
+        _exposureCtl.text = QuantityFormat.trimmed(seconds);
       }
     });
   }
@@ -740,10 +740,3 @@ void _showGoalErrorOn(
   );
 }
 
-String _formatExposureSeconds(double seconds) {
-  final rounded = seconds.roundToDouble();
-  if ((seconds - rounded).abs() < 0.05) {
-    return rounded.toInt().toString();
-  }
-  return seconds.toStringAsFixed(1);
-}

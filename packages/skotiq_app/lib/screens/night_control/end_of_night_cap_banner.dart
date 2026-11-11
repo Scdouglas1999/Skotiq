@@ -40,7 +40,7 @@ class EndOfNightCapBanner extends ConsumerWidget {
       } catch (error) {
         ref
             .read(uiNotificationProvider.notifier)
-            .showError('The imaging host did not take the answer: $error');
+            .showError('The imaging host did not take the answer: ${userFacingError(error)}');
       }
     }
 

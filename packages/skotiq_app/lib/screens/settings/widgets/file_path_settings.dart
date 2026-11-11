@@ -143,7 +143,7 @@ Future<String?> _probeStorageDirectory(String path) async {
     await Directory(path).create(recursive: true);
     return null;
   } catch (error) {
-    return '$error';
+    return userFacingError(error);
   }
 }
 
@@ -225,7 +225,7 @@ class FilePathSettings extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted && identical(ref.read(backendProvider), authority)) {
-        context.showErrorSnackBar('Could not update the storage path: $e');
+        context.showErrorSnackBar('Could not update the storage path: ${userFacingError(e)}');
       }
     }
   }
@@ -472,7 +472,7 @@ class _AppDataFolderRow extends ConsumerWidget {
                 } catch (e) {
                   if (context.mounted) {
                     context.showErrorSnackBar(
-                      'Could not open the application data folder: $e',
+                      'Could not open the application data folder: ${userFacingError(e)}',
                     );
                   }
                 }
@@ -493,7 +493,7 @@ class _AppDataFolderRow extends ConsumerWidget {
                 } catch (e) {
                   if (context.mounted) {
                     context.showErrorSnackBar(
-                      'Could not open the logs folder: $e',
+                      'Could not open the logs folder: ${userFacingError(e)}',
                     );
                   }
                 }
@@ -534,7 +534,7 @@ class _BackupFolderRow extends ConsumerWidget {
       // an unmounted or read-only volume must not be accepted here and then
       // discovered at 3am when the scheduled backup fires.
       if (context.mounted) {
-        context.showErrorSnackBar('Could not use that backup folder: $e');
+        context.showErrorSnackBar('Could not use that backup folder: ${userFacingError(e)}');
       }
     }
   }
@@ -617,7 +617,7 @@ class _BackupFolderRow extends ConsumerWidget {
                 } catch (e) {
                   if (context.mounted) {
                     context.showErrorSnackBar(
-                      'Could not open the backup folder: $e',
+                      'Could not open the backup folder: ${userFacingError(e)}',
                     );
                   }
                 }

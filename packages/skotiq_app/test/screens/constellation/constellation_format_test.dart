@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/constellation/constellation_format.dart';
+import 'package:skotiq_core/skotiq_core.dart' show userFacingError;
 
 void main() {
   group('formatYourContribution', () {
@@ -117,16 +118,14 @@ void main() {
   group('describeConstellationError', () {
     test('strips the ConstellationException envelope', () {
       expect(
-        describeConstellationError(
-          'ConstellationException(auth): No hub configured.',
-        ),
+        userFacingError('ConstellationException(auth): No hub configured.'),
         'No hub configured.',
       );
     });
 
     test('strips a bare Exception prefix', () {
       expect(
-        describeConstellationError('Exception: boom'),
+        userFacingError('Exception: boom'),
         'boom',
       );
     });

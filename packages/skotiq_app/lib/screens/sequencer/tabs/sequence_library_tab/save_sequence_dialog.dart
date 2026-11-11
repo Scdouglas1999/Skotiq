@@ -213,7 +213,7 @@ class _SaveSequenceDialogState extends ConsumerState<_SaveSequenceDialog> {
       }
     } catch (e) {
       if (mounted && identical(ref.read(backendProvider), _authority)) {
-        context.showErrorSnackBar('Failed to save sequence: $e');
+        context.showErrorSnackBar('Failed to save sequence: ${userFacingError(e)}');
       }
     } finally {
       if (mounted && identical(ref.read(backendProvider), _authority)) {

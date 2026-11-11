@@ -104,7 +104,7 @@ class _FramingExportMosaicButtonState
       unawaited(context.push('/mosaic/$projectId'));
     } catch (e) {
       if (!mounted) return;
-      context.showErrorSnackBar('Could not create mosaic project: $e');
+      context.showErrorSnackBar('Could not create mosaic project: ${userFacingError(e)}');
     } finally {
       if (mounted) {
         setState(() => _isExporting = false);

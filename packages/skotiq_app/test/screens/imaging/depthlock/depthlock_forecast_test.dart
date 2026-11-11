@@ -81,7 +81,7 @@ void main() {
 
       expect(
         line,
-        'About 2.4 h more (18 exposures) at the recent sky, then 16 to '
+        'About 2.4h more (18 exposures) at the recent sky, then 16 to '
         'confirm.',
       );
     });
@@ -258,7 +258,7 @@ void main() {
         ),
       ]);
 
-      expect(summary, 'Ha · done · OIII · 2.8 h');
+      expect(summary, 'Ha · done · OIII · 2.8h');
     });
 
     test('a capped filter says so instead of quoting hours', () {

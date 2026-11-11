@@ -202,7 +202,7 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
     } catch (e) {
       if (mounted &&
           _isCurrentOperation(generation, authority, scanning: true)) {
-        context.showErrorSnackBar('Equipment scan failed: $e');
+        context.showErrorSnackBar('Equipment scan failed: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentOperation(generation, authority, scanning: true)) {
@@ -249,7 +249,7 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
       // scan that ran and found nothing.
       if (_isCurrentOperation(generation, authority, rescanning: true)) {
         messenger?.showSnackBar(
-          SnackBar(content: Text('Rescan failed: $e')),
+          SnackBar(content: Text('Rescan failed: ${userFacingError(e)}')),
         );
       }
     } finally {
@@ -666,7 +666,7 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
     } catch (e) {
       if (mounted) {
         context.showErrorSnackBar(
-            'Failed to disconnect ${device.displayName}: $e');
+            'Failed to disconnect ${device.displayName}: ${userFacingError(e)}');
       }
     }
   }

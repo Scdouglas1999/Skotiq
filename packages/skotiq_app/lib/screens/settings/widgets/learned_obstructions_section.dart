@@ -63,7 +63,7 @@ class LearnedObstructionsSection extends ConsumerWidget {
       error: (e, _) => SettingsSection(
         title: 'Learned obstructions',
         isMobile: isMobile,
-        children: [intro, note('Could not read the learned obstructions: $e')],
+        children: [intro, note('Could not read the learned obstructions: ${userFacingError(e)}')],
       ),
       data: (settings) {
         final points = settings
@@ -138,7 +138,7 @@ class LearnedObstructionsSection extends ConsumerWidget {
           .removeLearnedPoint(point);
     } catch (e) {
       if (context.mounted) {
-        context.showErrorSnackBar('Could not remove the obstruction: $e');
+        context.showErrorSnackBar('Could not remove the obstruction: ${userFacingError(e)}');
       }
     }
   }
@@ -166,7 +166,7 @@ class LearnedObstructionsSection extends ConsumerWidget {
           .clearLearnedPointsForSite(latitude, longitude);
     } catch (e) {
       if (context.mounted) {
-        context.showErrorSnackBar('Could not clear the obstructions: $e');
+        context.showErrorSnackBar('Could not clear the obstructions: ${userFacingError(e)}');
       }
     }
   }

@@ -310,7 +310,7 @@ class ConnectionSettings extends ConsumerWidget {
                           if (!ctx.mounted) return;
                           setDialogState(() {
                             disconnecting = false;
-                            disconnectError = 'Disconnect blocked: $e';
+                            disconnectError = 'Disconnect blocked: ${userFacingError(e)}';
                           });
                         }
                       },
@@ -384,7 +384,7 @@ class _HostSettingsRefreshButtonState
       }
     } catch (e) {
       if (_isCurrent(generation, authority) && mounted) {
-        context.showErrorSnackBar('Refresh failed: $e');
+        context.showErrorSnackBar('Refresh failed: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrent(generation, authority)) {
@@ -532,10 +532,10 @@ class _ConnectToServerDialogState
         _isConnecting = false;
         _statusMessage = switch ((hadLocalBackend, restoreError)) {
           (true, null) =>
-            'Connection failed: $e\nStill working locally on this computer.',
-          (true, final String problem) => 'Connection failed: $e\n'
+            'Connection failed: ${userFacingError(e)}\nStill working locally on this computer.',
+          (true, final String problem) => 'Connection failed: ${userFacingError(e)}\n'
               'Could not return to local mode either: $problem',
-          _ => 'Connection failed: $e',
+          _ => 'Connection failed: ${userFacingError(e)}',
         };
       });
     }
@@ -551,7 +551,7 @@ class _ConnectToServerDialogState
       // A newer connect/disconnect owns the backend now; leave it alone.
       return null;
     } catch (error) {
-      return '$error';
+      return userFacingError(error);
     }
   }
 

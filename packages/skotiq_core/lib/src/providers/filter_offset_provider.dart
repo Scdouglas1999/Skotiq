@@ -1,3 +1,4 @@
+import '../errors/error_text.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -140,7 +141,7 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
       if (_isCurrentLoad(generation)) {
         state = state.copyWith(
           isLoading: false,
-          error: 'Failed to load filter offsets: $e',
+          error: 'Failed to load filter offsets: ${userFacingError(e)}',
         );
       }
     }
@@ -214,7 +215,7 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
       }
     } catch (e) {
       if (_isCurrentMutation(mutation, authority, backend, profileId)) {
-        state = previous.copyWith(error: 'Failed to save filter offset: $e');
+        state = previous.copyWith(error: 'Failed to save filter offset: ${userFacingError(e)}');
       }
     }
   }
@@ -253,7 +254,7 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
       await _loadOffsetsForActiveProfile();
     } catch (e) {
       if (_isCurrentMutation(mutation, authority, backend, profileId)) {
-        state = state.copyWith(error: 'Failed to set reference filter: $e');
+        state = state.copyWith(error: 'Failed to set reference filter: ${userFacingError(e)}');
       }
     }
   }
@@ -284,7 +285,7 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
       );
     } catch (e) {
       if (_isCurrentMutation(mutation, authority, backend, profileId)) {
-        state = previous.copyWith(error: 'Failed to clear offsets: $e');
+        state = previous.copyWith(error: 'Failed to clear offsets: ${userFacingError(e)}');
       }
     }
   }

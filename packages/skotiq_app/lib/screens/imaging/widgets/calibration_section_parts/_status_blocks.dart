@@ -72,7 +72,7 @@ class _StatusBlock extends ConsumerWidget {
         colors: colors,
         icon: SkotiqIcons.warning,
         iconColor: colors.error,
-        message: 'Failed to load defect map status: $err',
+        message: 'Failed to load defect map status: ${userFacingError(err)}',
       ),
     );
   }

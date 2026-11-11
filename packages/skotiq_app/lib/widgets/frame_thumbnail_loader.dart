@@ -12,7 +12,7 @@ import 'package:skotiq_core/skotiq_core.dart'
         DbCapturedImage,
         imagingBackendProvider,
         isRemoteModeProvider,
-        loggingServiceProvider;
+        loggingServiceProvider, userFacingError;
 import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqColors, SkotiqMark;
 
 /// Result of asking the backend (and then the local disk) for a frame's
@@ -82,7 +82,7 @@ Future<FrameThumbnailPayload> loadFrameThumbnail(
         'Thumbnail not found in backend cache for image ${image.id}.';
   } catch (error) {
     backendError =
-        'Backend thumbnail request failed for image ${image.id}: $error';
+        'Backend thumbnail request failed for image ${image.id}: ${userFacingError(error)}';
     ref.read(loggingServiceProvider).warning(
           'loadFrameThumbnail: $backendError',
           source: 'FrameThumbnail',
@@ -106,7 +106,7 @@ Future<FrameThumbnailPayload> loadFrameThumbnail(
     );
   } catch (error) {
     final localError =
-        'Failed to check local image file "${image.filePath}": $error';
+        'Failed to check local image file "${image.filePath}": ${userFacingError(error)}';
     ref.read(loggingServiceProvider).warning(
           'loadFrameThumbnail: $localError',
           source: 'FrameThumbnail',

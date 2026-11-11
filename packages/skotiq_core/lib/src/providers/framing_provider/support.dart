@@ -154,7 +154,7 @@ final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
             'Camera is connected but did not report valid sensor dimensions.';
       }
     } catch (e) {
-      cameraMessage = 'Could not query camera specs: $e';
+      cameraMessage = 'Could not query camera specs: ${userFacingError(e)}';
     }
   } else if (profile.cameraId == null) {
     cameraMessage =

@@ -149,7 +149,7 @@ class _AddTargetDialogState extends ConsumerState<_AddTargetDialog> {
       if (!mounted) return;
       setState(() {
         _adding = null;
-        _addError = 'Could not add ${match.name}: $error';
+        _addError = 'Could not add ${match.name}: ${userFacingError(error)}';
       });
     }
   }
@@ -195,7 +195,7 @@ class _AddTargetDialogState extends ConsumerState<_AddTargetDialog> {
               ),
               error: (err, _) => SkotiqBanner(
                   title: 'Failed to load targets',
-                  message: err.toString(),
+                  message: userFacingError(err),
                   tone: BannerTone.error),
               data: (targets) {
                 final query = _query.toLowerCase();

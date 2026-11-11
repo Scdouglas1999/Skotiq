@@ -74,7 +74,7 @@ class _DefectMapBuildButtonState extends ConsumerState<DefectMapBuildButton> {
           widget.cameraId != cameraId) {
         return;
       }
-      context.showErrorSnackBar('Could not select dark frames: $error');
+      context.showErrorSnackBar('Could not select dark frames: ${userFacingError(error)}');
     } finally {
       if (mounted && generation == _operationGeneration) {
         setState(() => _picking = false);

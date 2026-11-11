@@ -531,7 +531,7 @@ class _InfoRow extends ConsumerWidget {
       }
       final exposure = [
         if (header.currentFilter case final filter?) filter,
-        if (header.currentExposureSecs case final secs?) '${_secs(secs)} s',
+        if (header.currentExposureSecs case final secs?) '${QuantityFormat.trimmed(secs)} s',
       ].join(' ');
       if (exposure.isNotEmpty) parts.add(exposure);
       if (header.framesDone case final done?) {
@@ -578,9 +578,6 @@ class _InfoRow extends ConsumerWidget {
     return parts.isEmpty ? null : parts.join(' · ');
   }
 
-  static String _secs(double secs) => secs == secs.roundToDouble()
-      ? secs.toStringAsFixed(0)
-      : secs.toStringAsFixed(1);
 }
 
 /// "Running 4 h 04 m", "Ready · not started", "Paused for autofocus".

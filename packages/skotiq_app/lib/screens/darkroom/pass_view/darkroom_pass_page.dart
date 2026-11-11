@@ -66,7 +66,7 @@ class _DarkroomPassPageState extends ConsumerState<DarkroomPassPage> {
       setState(() => _stopRequested = false);
       SkotiqToastHelper.show(
         context: context,
-        message: 'The pass could not be stopped: $error',
+        message: 'The pass could not be stopped: ${userFacingError(error)}',
         severity: SkotiqAlertSeverity.error,
       );
     }
@@ -98,7 +98,7 @@ class _DarkroomPassPageState extends ConsumerState<DarkroomPassPage> {
         child: EmptyState(
           icon: SkotiqIcons.imageOff,
           title: 'This pass could not be read',
-          body: '$error',
+          body: userFacingError(error),
         ),
       ),
       data: (tl) {

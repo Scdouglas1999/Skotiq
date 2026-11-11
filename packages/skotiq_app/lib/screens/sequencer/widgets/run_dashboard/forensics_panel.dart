@@ -63,7 +63,7 @@ class RunDashboardForensicsPanel extends ConsumerWidget {
 
     return backfillAsync.when(
       loading: () => const SizedBox.shrink(),
-      error: (e, st) => _ErrorBanner(message: e.toString(), colors: colors),
+      error: (e, st) => _ErrorBanner(message: userFacingError(e), colors: colors),
       data: (backfilled) {
         // Merge live event (if any) on top of the backfilled list,
         // de-duplicating by id.

@@ -144,7 +144,7 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          'Could not change replay logging: $error',
+                          'Could not change replay logging: ${userFacingError(error)}',
                         ),
                       ),
                     );
@@ -176,7 +176,7 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            'Could not change replay retention: $error',
+                            'Could not change replay retention: ${userFacingError(error)}',
                           ),
                         ),
                       );
@@ -286,7 +286,7 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
     } catch (error) {
       if (mounted && _isCurrentClear(generation, authority)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not clear replay history: $error')),
+          SnackBar(content: Text('Could not clear replay history: ${userFacingError(error)}')),
         );
       }
     } finally {

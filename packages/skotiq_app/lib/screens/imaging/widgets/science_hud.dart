@@ -609,7 +609,7 @@ class _ScienceHudPanelState extends ConsumerState<ScienceHudPanel> {
         operationGeneration,
       )) {
         messenger.showSnackBar(
-          SnackBar(content: Text('Could not save science session: $error')),
+          SnackBar(content: Text('Could not save science session: ${userFacingError(error)}')),
         );
       }
     } finally {
@@ -654,7 +654,7 @@ class _ScienceHudPanelState extends ConsumerState<ScienceHudPanel> {
         operationGeneration,
       )) {
         messenger.showSnackBar(
-          SnackBar(content: Text('Could not save photometry setup: $error')),
+          SnackBar(content: Text('Could not save photometry setup: ${userFacingError(error)}')),
         );
       }
     } finally {

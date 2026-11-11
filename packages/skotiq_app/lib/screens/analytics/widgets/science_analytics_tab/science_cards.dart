@@ -83,7 +83,7 @@ class _AavsoExportButtonState extends ConsumerState<_AavsoExportButton> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Export failed: $e'),
+          content: Text('Export failed: ${userFacingError(e)}'),
           backgroundColor: widget.colors.error,
           duration: const Duration(seconds: 5),
         ),

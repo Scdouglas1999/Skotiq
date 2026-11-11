@@ -385,7 +385,7 @@ class CalibrationLibraryPanelState
       await reload();
     } catch (e) {
       if (scope.isStale) return;
-      _showMessage('Could not save the tags: $e', isError: true);
+      _showMessage('Could not save the tags: ${userFacingError(e)}', isError: true);
     }
   }
 
@@ -450,7 +450,7 @@ class CalibrationLibraryPanelState
       _bumpRevision();
     } catch (e) {
       if (scope.isStale) return;
-      _showMessage('Could not delete the master: $e', isError: true);
+      _showMessage('Could not delete the master: ${userFacingError(e)}', isError: true);
     }
   }
 
@@ -475,7 +475,7 @@ class CalibrationLibraryPanelState
       await reload();
     } catch (e) {
       if (scope.isStale) return;
-      _showMessage('Could not share the master: $e', isError: true);
+      _showMessage('Could not share the master: ${userFacingError(e)}', isError: true);
     }
   }
 
@@ -515,7 +515,7 @@ class CalibrationLibraryPanelState
       await reload();
     } catch (e) {
       if (scope.isStale) return;
-      _showMessage('Could not stop sharing: $e', isError: true);
+      _showMessage('Could not stop sharing: ${userFacingError(e)}', isError: true);
     }
   }
 
@@ -529,7 +529,7 @@ class CalibrationLibraryPanelState
       _bumpRevision();
     } catch (e) {
       if (scope.isStale) return;
-      _showMessage('Could not pull the shared master: $e', isError: true);
+      _showMessage('Could not pull the shared master: ${userFacingError(e)}', isError: true);
     }
   }
 

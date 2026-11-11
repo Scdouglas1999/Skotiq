@@ -162,7 +162,7 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Test exposure failed: $error'),
+          content: Text('Test exposure failed: ${userFacingError(error)}'),
           backgroundColor: widget.colors.error,
         ),
       );
@@ -702,7 +702,7 @@ class _ExposureRecommendationCard extends StatelessWidget {
                   color: differs ? colors.primary : colors.textMuted,
                 ),
                 label: Text(
-                  'Apply ${_formatSeconds(recommended)}',
+                  'Apply ${'${QuantityFormat.trimmed(recommended)}s'}',
                   style: TextStyle(
                     fontSize: Responsive.fontSize(context, 12),
                     color: differs ? colors.primary : colors.textMuted,
@@ -713,7 +713,7 @@ class _ExposureRecommendationCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${_formatSeconds(recommended)} · ${recommendation.limitingFactor.label}',
+            '${'${QuantityFormat.trimmed(recommended)}s'} · ${recommendation.limitingFactor.label}',
             style: TextStyle(
               fontSize: Responsive.fontSize(context, 12),
               color: colors.textSecondary,
@@ -748,13 +748,6 @@ class _ExposureRecommendationCard extends StatelessWidget {
     );
   }
 
-  static String _formatSeconds(double seconds) {
-    final rounded = seconds.roundToDouble();
-    if ((seconds - rounded).abs() < 0.05) {
-      return '${rounded.toInt()}s';
-    }
-    return '${seconds.toStringAsFixed(1)}s';
-  }
 }
 
 /// Non-blocking amber notice shown under a duration/delay field whose value is

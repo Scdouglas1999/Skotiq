@@ -75,7 +75,7 @@ class _AdaptiveExposureSettingsState
     } catch (error) {
       if (mounted && generation == _globalBoundsSaveGeneration) {
         setState(() {
-          _globalBoundsError = 'Could not save exposure bounds: $error';
+          _globalBoundsError = 'Could not save exposure bounds: ${userFacingError(error)}';
         });
       }
       rethrow;
@@ -287,7 +287,7 @@ class _PerFilterEditorState extends ConsumerState<_PerFilterEditor> {
         setState(() {
           _boundsError = error is ArgumentError
               ? error.message.toString()
-              : 'Could not save per-filter exposure bounds: $error';
+              : 'Could not save per-filter exposure bounds: ${userFacingError(error)}';
         });
       }
       // The message above tells the operator; this puts the field back.

@@ -1,3 +1,4 @@
+import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
@@ -567,7 +568,7 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
       if (mounted) {
         state = state.copyWith(
           phase: PolarAlignPhase.error,
-          errorMessage: e.toString(),
+          errorMessage: userFacingError(e),
           statusMessage: allSky
               ? 'Failed to start all-sky polar alignment'
               : 'Failed to start polar alignment',
@@ -673,7 +674,7 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
       // camera or mount may still be running on the host.
       if (mounted && generation == _backendGeneration) {
         state = state.copyWith(
-          errorMessage: 'Failed to stop polar alignment: $e',
+          errorMessage: 'Failed to stop polar alignment: ${userFacingError(e)}',
           statusMessage: 'Stop failed — retry to make the rig safe',
         );
       }
@@ -771,7 +772,7 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
     } catch (e) {
       if (mounted) {
         state = state.copyWith(
-          errorMessage: 'Failed to stop before completing: $e',
+          errorMessage: 'Failed to stop before completing: ${userFacingError(e)}',
           statusMessage: 'Stop failed — retry before leaving alignment',
         );
       }
@@ -798,7 +799,7 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
           state = state.copyWith(
             phase: PolarAlignPhase.error,
             errorMessage:
-                'Polar alignment stopped, but its result could not be saved: $e',
+                'Polar alignment stopped, but its result could not be saved: ${userFacingError(e)}',
             statusMessage: 'Alignment stopped — result was not saved',
           );
         }

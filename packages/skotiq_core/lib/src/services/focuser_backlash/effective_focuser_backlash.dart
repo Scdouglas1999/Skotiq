@@ -112,7 +112,7 @@ EffectiveFocuserBacklash resolveEffectiveFocuserBacklash({
       switchedOffOperatorSteps: switchedOff,
       provenance:
           'no backlash larger than '
-          '${_formatSteps(measured.resolutionLimitSteps)} steps was '
+          '${QuantityFormat.trimmed(measured.resolutionLimitSteps)} steps was '
           'detectable when this focuser was ${_measuredPhrase(measured)}',
     );
   }
@@ -139,6 +139,3 @@ String _measuredPhrase(FocuserBacklashCalibrationRecord record) {
       '${record.measuredAtPosition}$at';
 }
 
-String _formatSteps(double value) => value == value.roundToDouble()
-    ? value.round().toString()
-    : value.toStringAsFixed(1);

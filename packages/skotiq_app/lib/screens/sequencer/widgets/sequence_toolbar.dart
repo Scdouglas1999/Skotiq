@@ -448,7 +448,7 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               }
             } catch (e) {
               if (requireCurrentContext() && context.mounted) {
-                context.showErrorSnackBar('Failed to load sequence: $e');
+                context.showErrorSnackBar('Failed to load sequence: ${userFacingError(e)}');
               }
             }
           }
@@ -505,14 +505,14 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               } catch (err) {
                 if (context.mounted) {
                   context.showErrorSnackBar(
-                    'Failed to export sequence file: $err',
+                    'Failed to export sequence file: ${userFacingError(err)}',
                   );
                 }
               }
             } catch (e) {
               if (context.mounted) {
                 context.showErrorSnackBar(
-                  'Failed to export sequence file: $e',
+                  'Failed to export sequence file: ${userFacingError(e)}',
                 );
               }
             }
@@ -573,7 +573,7 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                 source: 'Sequencer',
               );
               if (context.mounted) {
-                context.showErrorSnackBar('Failed to slew: $e');
+                context.showErrorSnackBar('Failed to slew: ${userFacingError(e)}');
               }
             }
           }

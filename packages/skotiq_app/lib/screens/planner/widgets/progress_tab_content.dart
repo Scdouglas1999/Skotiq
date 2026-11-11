@@ -661,7 +661,7 @@ class _ProgressErrorState extends StatelessWidget {
             ),
             const SizedBox(height: SkotiqTokens.spaceSm),
             Text(
-              error.toString(),
+              userFacingError(error),
               textAlign: TextAlign.center,
               style: SkotiqTypography.caption
                   .copyWith(color: colors.textSecondary),

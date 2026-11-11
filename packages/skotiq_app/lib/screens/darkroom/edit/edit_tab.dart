@@ -134,7 +134,7 @@ class _DarkroomImageList extends ConsumerWidget {
       error: (error, _) => EmptyState(
         icon: SkotiqIcons.imageOff,
         title: 'The image library could not be read',
-        body: '$error',
+        body: userFacingError(error),
         action: SkotiqButton(
           label: 'Try again',
           icon: SkotiqIcons.refresh,

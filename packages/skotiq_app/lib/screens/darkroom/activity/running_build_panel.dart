@@ -27,7 +27,7 @@ class _RunningBuildPanelState extends ConsumerState<RunningBuildPanel> {
     try {
       await action();
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      if (mounted) setState(() => _error = userFacingError(e));
     }
   }
 

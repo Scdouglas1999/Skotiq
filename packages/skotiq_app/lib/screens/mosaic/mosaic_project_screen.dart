@@ -182,7 +182,7 @@ class _MosaicProjectScreenState extends ConsumerState<MosaicProjectScreen> {
           icon: SkotiqIcons.warning,
           title: 'Mosaic storage unavailable',
           body: 'Could not resolve a durable artifacts directory, so panel '
-              'masters and the stitched mosaic have nowhere to live: $e',
+              'masters and the stitched mosaic have nowhere to live: ${userFacingError(e)}',
           action: SkotiqButton(
             label: 'Try again',
             icon: SkotiqIcons.refresh,

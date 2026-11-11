@@ -64,7 +64,7 @@ class CampaignRollupDialog extends ConsumerWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '$err',
+                  userFacingError(err),
                   style: SkotiqTypography.caption
                       .copyWith(color: colors.textMuted),
                   textAlign: TextAlign.center,

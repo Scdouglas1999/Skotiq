@@ -12,7 +12,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../utils/user_facing_error.dart';
 import 'settings_widgets.dart';
 
 final endOfNightSettingsProvider = FutureProvider.autoDispose<EonSettings>(

@@ -39,7 +39,7 @@ class _ProjectsError extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 420),
           child: SkotiqBanner(
               title: 'Failed to load projects',
-              message: error.toString(),
+              message: userFacingError(error),
               tone: BannerTone.error,
               action: SkotiqButton(
                 label: 'Retry',

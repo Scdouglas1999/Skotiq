@@ -47,7 +47,7 @@ class _DarkroomTargetsTabState extends ConsumerState<DarkroomTargetsTab> {
         child: EmptyState(
           icon: SkotiqIcons.imageOff,
           title: 'The captured lights could not be read',
-          body: '$error',
+          body: userFacingError(error),
           action: SkotiqButton(
             label: 'Try again',
             icon: SkotiqIcons.refresh,

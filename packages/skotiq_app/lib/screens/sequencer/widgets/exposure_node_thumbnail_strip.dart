@@ -8,7 +8,7 @@ import 'package:skotiq_core/skotiq_core.dart'
         ProducingNodeThumbnail,
         exposureNodeThumbnailsProvider,
         FrameExclusionKind,
-        frameExclusionKindOf;
+        frameExclusionKindOf, userFacingError;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'thumbnail_strip_prefs.dart';
@@ -111,7 +111,7 @@ class _StripBody extends ConsumerWidget {
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
-                  'Failed to load frame thumbnails: $error',
+                  'Failed to load frame thumbnails: ${userFacingError(error)}',
                   style: TextStyle(
                       fontSize: SkotiqTypography.fontSize10,
                       color: colors.warning),

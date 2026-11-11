@@ -691,7 +691,7 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
       }
     } catch (e) {
       if (context.mounted) {
-        context.showErrorSnackBar('Export failed: $e');
+        context.showErrorSnackBar('Export failed: ${userFacingError(e)}');
       }
     }
   }
@@ -730,7 +730,7 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
       }
     } catch (e) {
       if (context.mounted) {
-        context.showErrorSnackBar('Export failed: $e');
+        context.showErrorSnackBar('Export failed: ${userFacingError(e)}');
       }
     }
   }
@@ -766,7 +766,7 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
       );
     } catch (e) {
       if (context.mounted) {
-        context.showErrorSnackBar('Export failed: $e');
+        context.showErrorSnackBar('Export failed: ${userFacingError(e)}');
       }
     }
   }
@@ -803,7 +803,7 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
       }
     } catch (e) {
       if (context.mounted) {
-        context.showErrorSnackBar('Report export failed: $e');
+        context.showErrorSnackBar('Report export failed: ${userFacingError(e)}');
       }
     }
   }

@@ -40,7 +40,7 @@ class _ConstellationSignOutButtonState
       widget.onSignedOut();
     } catch (error) {
       if (!mounted) return;
-      context.showErrorSnackBar('Could not sign out: $error');
+      context.showErrorSnackBar('Could not sign out: ${userFacingError(error)}');
     } finally {
       if (mounted) setState(() => _signingOut = false);
     }

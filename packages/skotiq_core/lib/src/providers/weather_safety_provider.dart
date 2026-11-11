@@ -1,3 +1,4 @@
+import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart' show visibleForTesting;
@@ -320,7 +321,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     } catch (error) {
       if (!mounted) return;
       final failure = WeatherSafetyState.initial().copyWith(
-        failModeWarning: 'Weather safety configuration unavailable: $error',
+        failModeWarning: 'Weather safety configuration unavailable: ${userFacingError(error)}',
         lastEvaluation: DateTime.now(),
       );
       state = failure;
@@ -785,7 +786,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
             .catchError((Object error) {
               if (mounted) {
                 state = WeatherSafetyState.initial().copyWith(
-                  failModeWarning: 'Could not snooze host safety: $error',
+                  failModeWarning: 'Could not snooze host safety: ${userFacingError(error)}',
                   lastEvaluation: DateTime.now(),
                 );
               }
@@ -865,7 +866,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
             .catchError((Object error) {
               if (mounted) {
                 state = WeatherSafetyState.initial().copyWith(
-                  failModeWarning: 'Could not cancel host snooze: $error',
+                  failModeWarning: 'Could not cancel host snooze: ${userFacingError(error)}',
                   lastEvaluation: DateTime.now(),
                 );
               }

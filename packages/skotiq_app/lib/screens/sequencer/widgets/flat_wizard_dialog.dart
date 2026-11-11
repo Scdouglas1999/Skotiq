@@ -395,7 +395,7 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
       if (_isActiveRun(generation, token)) {
         setState(() {
           _snapshot = null;
-          _errorMessage = 'Calibration failed: $error';
+          _errorMessage = 'Calibration failed: ${userFacingError(error)}';
         });
       }
     } finally {
@@ -455,7 +455,7 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
       });
     } catch (error) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not add flat nodes: $error')),
+        SnackBar(content: Text('Could not add flat nodes: ${userFacingError(error)}')),
       );
       return;
     }

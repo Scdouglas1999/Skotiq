@@ -14,7 +14,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../../localization/skotiq_localizations.dart';
-import '../../../services/manual_capture_controller.dart';
 import '../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart'
     show runDashboardActiveTargetProvider;
 import '../data/plan/night_flip_provider.dart';
@@ -745,7 +744,7 @@ class NightActionController extends Notifier<ManualActionState>
   }
 
   static String _clean(Object error) =>
-      ManualCaptureController.cleanError(error);
+      userFacingError(error);
 }
 
 /// A failure that already has its operator-facing text.

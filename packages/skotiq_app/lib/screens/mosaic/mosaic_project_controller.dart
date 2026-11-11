@@ -181,7 +181,7 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
       );
     } catch (e) {
       if (!mounted) return;
-      state = state.copyWith(isLoading: false, error: 'Failed to load: $e');
+      state = state.copyWith(isLoading: false, error: 'Failed to load: ${userFacingError(e)}');
     }
   }
 
@@ -251,7 +251,7 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
       if (!mounted) return;
       state = state.copyWith(
         isStartingCapture: false,
-        error: 'Start capture failed: $e',
+        error: 'Start capture failed: ${userFacingError(e)}',
       );
     }
   }
@@ -293,7 +293,7 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
       if (!mounted) return;
       state = state.copyWith(
         isIntegrating: false,
-        error: 'Integration failed: $e',
+        error: 'Integration failed: ${userFacingError(e)}',
       );
     }
   }
@@ -325,7 +325,7 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
       if (mounted) state = state.copyWith(isStitching: false);
     } catch (e) {
       if (!mounted) return;
-      state = state.copyWith(isStitching: false, error: 'Stitch failed: $e');
+      state = state.copyWith(isStitching: false, error: 'Stitch failed: ${userFacingError(e)}');
     }
   }
 
@@ -376,7 +376,7 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
       );
     } catch (e) {
       if (!mounted) return;
-      state = state.copyWith(isPublishing: false, error: 'Publish failed: $e');
+      state = state.copyWith(isPublishing: false, error: 'Publish failed: ${userFacingError(e)}');
     }
   }
 
@@ -458,7 +458,7 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
       );
     } catch (e) {
       if (!mounted) return;
-      state = state.copyWith(isClaiming: false, error: 'Claim failed: $e');
+      state = state.copyWith(isClaiming: false, error: 'Claim failed: ${userFacingError(e)}');
     }
   }
 
@@ -502,7 +502,7 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
       );
     } catch (e) {
       if (!mounted) return;
-      state = state.copyWith(isClaiming: false, error: 'Release failed: $e');
+      state = state.copyWith(isClaiming: false, error: 'Release failed: ${userFacingError(e)}');
     }
   }
 
@@ -537,7 +537,7 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
     } catch (e) {
       if (!mounted) return;
       state =
-          state.copyWith(isClaiming: false, error: 'Force-release failed: $e');
+          state.copyWith(isClaiming: false, error: 'Force-release failed: ${userFacingError(e)}');
     }
   }
 
@@ -610,7 +610,7 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
       );
     } catch (e) {
       if (!mounted) return;
-      state = state.copyWith(isUploading: false, error: 'Upload failed: $e');
+      state = state.copyWith(isUploading: false, error: 'Upload failed: ${userFacingError(e)}');
     }
   }
 
@@ -641,7 +641,7 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
       );
     } catch (e) {
       if (!mounted) return;
-      state = state.copyWith(isAssembling: false, error: 'Assemble failed: $e');
+      state = state.copyWith(isAssembling: false, error: 'Assemble failed: ${userFacingError(e)}');
     }
   }
 
@@ -667,7 +667,7 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
       }
       return const [];
     } catch (e) {
-      if (mounted) state = state.copyWith(error: 'Discover failed: $e');
+      if (mounted) state = state.copyWith(error: 'Discover failed: ${userFacingError(e)}');
       return const [];
     }
   }
@@ -706,7 +706,7 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
       );
     } catch (e) {
       if (!mounted) return;
-      state = state.copyWith(isJoining: false, error: 'Join failed: $e');
+      state = state.copyWith(isJoining: false, error: 'Join failed: ${userFacingError(e)}');
     }
   }
 
@@ -736,7 +736,7 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
       );
     } catch (e) {
       if (!mounted) return;
-      state = state.copyWith(isRefreshing: false, error: 'Refresh failed: $e');
+      state = state.copyWith(isRefreshing: false, error: 'Refresh failed: ${userFacingError(e)}');
     }
   }
 
@@ -770,7 +770,7 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
     } catch (e) {
       if (!mounted) return;
       state =
-          state.copyWith(isDownloading: false, error: 'Download failed: $e');
+          state.copyWith(isDownloading: false, error: 'Download failed: ${userFacingError(e)}');
     }
   }
 

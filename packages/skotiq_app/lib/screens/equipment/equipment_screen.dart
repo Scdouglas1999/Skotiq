@@ -304,7 +304,7 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen> {
       if (!mounted) return;
       context.showErrorSnackBar(
         context.l10n
-            .text('equipmentCreateProfileFailed', params: {'error': '$e'}),
+            .text('equipmentCreateProfileFailed', params: {'error': userFacingError(e)}),
       );
     }
   }
@@ -331,7 +331,7 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen> {
       if (!_isCurrentProfileOperation(generation, authority)) return;
       if (!mounted) return;
       context.showErrorSnackBar(
-        'Could not switch to "${profile.name}": $e',
+        'Could not switch to "${profile.name}": ${userFacingError(e)}',
       );
     }
   }
@@ -361,7 +361,7 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen> {
       if (!_isCurrentProfileOperation(generation, authority)) return;
       if (!mounted) return;
       context.showErrorSnackBar(
-        context.l10n.text('equipmentSetDefaultFailed', params: {'error': '$e'}),
+        context.l10n.text('equipmentSetDefaultFailed', params: {'error': userFacingError(e)}),
       );
     }
   }
@@ -391,7 +391,7 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen> {
       if (!_isCurrentProfileOperation(generation, authority)) return;
       if (!mounted) return;
       context.showErrorSnackBar(
-        context.l10n.text('equipmentDuplicateFailed', params: {'error': '$e'}),
+        context.l10n.text('equipmentDuplicateFailed', params: {'error': userFacingError(e)}),
       );
     }
   }
@@ -488,7 +488,7 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen> {
       if (!_isCurrentProfileOperation(generation, backendAtDelete)) return;
       if (!mounted) return;
       context.showErrorSnackBar(
-        context.l10n.text('equipmentDeleteFailed', params: {'error': '$e'}),
+        context.l10n.text('equipmentDeleteFailed', params: {'error': userFacingError(e)}),
       );
     }
   }
@@ -527,7 +527,7 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen> {
     } catch (e) {
       if (!_isCurrentProfileOperation(generation, authority)) return;
       if (!mounted) return;
-      context.showErrorSnackBar('Failed to reorder: $e');
+      context.showErrorSnackBar('Failed to reorder: ${userFacingError(e)}');
     }
   }
 
@@ -822,7 +822,7 @@ class _EquipmentProfilesUnavailable extends StatelessWidget {
         title: 'Could not load equipment profiles',
         body: 'Skotiq could not read the equipment configuration. '
             'No profiles or setup actions are shown until it can be loaded.\n\n'
-            '$error',
+            '${userFacingError(error)}',
         action: SkotiqButton(
           label: 'Retry',
           icon: LucideIcons.refreshCw,

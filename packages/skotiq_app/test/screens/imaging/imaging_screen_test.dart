@@ -465,7 +465,7 @@ void main() {
 
   testWidgets(
       'camera_temperature_displays_when_connected: the Capture section chip '
-      'formats cameraStateProvider.temperature as "X.X °C"', (tester) async {
+      'formats cameraStateProvider.temperature as "X.X°C"', (tester) async {
     // The banner's stats readout renders '---' when disconnected, 'N/A' when
     // connected without a temperature reading, and 'X.X°C' when both
     // are present. We exercise the happy path: connected + 17.3°C →
@@ -494,7 +494,7 @@ void main() {
     expect(find.byKey(ImagingTutorialKeys.statsPanel), findsNothing,
         reason: 'with no frame on screen nothing covers the canvas; the '
             'frame-info pill arrives with the first frame');
-    expect(find.text('17.3 °C'), findsWidgets,
+    expect(find.text('17.3°C'), findsWidgets,
         reason: 'The connected camera temperature must surface on the Capture '
             'section chip — a missing match means the cameraStateProvider '
             'binding has drifted.');

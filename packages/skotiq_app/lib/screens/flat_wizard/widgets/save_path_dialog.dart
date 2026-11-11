@@ -121,7 +121,7 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
       if (result != null) _pathController.text = result;
     } catch (error) {
       if (mounted && _isCurrentBrowse(generation, authority)) {
-        context.showErrorSnackBar('Could not choose a save folder: $error');
+        context.showErrorSnackBar('Could not choose a save folder: ${userFacingError(error)}');
       }
     } finally {
       if (_isCurrentBrowse(generation, authority)) {

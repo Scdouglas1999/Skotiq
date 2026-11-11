@@ -324,7 +324,7 @@ class _MpcExportPanelState extends ConsumerState<MpcExportPanel> {
       }
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('MPC export failed: $e');
+        context.showErrorSnackBar('MPC export failed: ${userFacingError(e)}');
       }
     } finally {
       if (mounted) {
@@ -354,7 +354,7 @@ class _MpcExportPanelState extends ConsumerState<MpcExportPanel> {
       }
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Copy failed: $e');
+        context.showErrorSnackBar('Copy failed: ${userFacingError(e)}');
       }
     }
   }

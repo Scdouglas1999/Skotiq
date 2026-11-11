@@ -63,7 +63,7 @@ class _DeleteSequenceDialogState extends ConsumerState<_DeleteSequenceDialog> {
     } catch (e) {
       if (!mounted || !identical(ref.read(backendProvider), _authority)) return;
       setState(() => _isDeleting = false);
-      context.showErrorSnackBar('Failed to delete: $e');
+      context.showErrorSnackBar('Failed to delete: ${userFacingError(e)}');
     }
   }
 

@@ -67,16 +67,3 @@ String formatHubLabel(String name, String fingerprint) {
   return shortPrint.isEmpty ? name : '$name · $shortPrint';
 }
 
-/// A user-facing message for a Constellation hub error, trimmed of the
-/// `Exception:` / `ConstellationException(...)` envelope noise.
-String describeConstellationError(Object error) {
-  var raw = error.toString();
-  const exc = 'Exception: ';
-  if (raw.startsWith(exc)) raw = raw.substring(exc.length);
-  // ConstellationException(kind): message  ->  message
-  final marker = raw.indexOf('): ');
-  if (raw.startsWith('ConstellationException(') && marker != -1) {
-    raw = raw.substring(marker + 3);
-  }
-  return raw.isEmpty ? 'Unknown error.' : raw;
-}

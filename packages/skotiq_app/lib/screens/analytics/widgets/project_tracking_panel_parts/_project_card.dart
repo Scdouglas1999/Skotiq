@@ -97,7 +97,7 @@ class _EnhancedProjectCard extends ConsumerWidget {
           !identical(ref.read(backendProvider), authority)) {
         return;
       }
-      context.showErrorSnackBar('Failed to save goal: $e');
+      context.showErrorSnackBar('Failed to save goal: ${userFacingError(e)}');
     }
   }
 

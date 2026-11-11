@@ -313,7 +313,7 @@ class _RecoveryActionButtonsState extends State<_RecoveryActionButtons> {
     try {
       await widget.control.tryNow();
     } catch (e) {
-      _showError(extractRecoveryActionError('Retry failed', e));
+      _showError(failureText('Retry failed', e));
     } finally {
       if (mounted) setState(() => _tryNowBusy = false);
     }
@@ -325,7 +325,7 @@ class _RecoveryActionButtonsState extends State<_RecoveryActionButtons> {
     try {
       await widget.control.skipNode();
     } catch (e) {
-      _showError(extractRecoveryActionError('Skip failed', e));
+      _showError(failureText('Skip failed', e));
     } finally {
       if (mounted) setState(() => _skipBusy = false);
     }
@@ -337,7 +337,7 @@ class _RecoveryActionButtonsState extends State<_RecoveryActionButtons> {
     try {
       await widget.control.abort();
     } catch (e) {
-      _showError(extractRecoveryActionError('Abort failed', e));
+      _showError(failureText('Abort failed', e));
     } finally {
       if (mounted) setState(() => _abortBusy = false);
     }
@@ -410,22 +410,6 @@ class _RecoveryActionButtonsState extends State<_RecoveryActionButtons> {
       ],
     );
   }
-}
-
-/// Best-effort error formatter for the recovery action buttons.
-///
-/// [SkotiqError] from the network backend carries a userMessage that
-/// is already operator-friendly; anything else falls back to the raw
-/// `toString()` after stripping the `Exception:` prefix common to
-/// Dart `Exception` subclasses.
-String extractRecoveryActionError(String prefix, Object error) {
-  if (error is SkotiqError) {
-    return '$prefix: ${error.userMessage}';
-  }
-  final raw = error.toString();
-  final cleaned =
-      raw.startsWith('Exception: ') ? raw.substring('Exception: '.length) : raw;
-  return '$prefix: $cleaned';
 }
 
 /// Status-LED widget used by the sequencer screen's top bar and the

@@ -4,7 +4,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../constellation/constellation_format.dart';
 import '../mosaic/mosaic_contribute_sheet.dart';
 import '../sequencer/widgets/target_node_properties.dart'
     show TargetCoordinateMatch, targetCoordinateLookupProvider;
@@ -366,7 +365,7 @@ class _CoImagingCreateSheetState extends ConsumerState<_CoImagingCreateSheet> {
       // Keep the sheet open on failure so the user can correct + retry.
       setState(() {
         _busy = false;
-        _error = describeConstellationError(error);
+        _error = userFacingError(error);
       });
     }
   }

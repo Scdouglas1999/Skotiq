@@ -169,24 +169,6 @@ String _seconds(double value) => value >= 1
     ? '${value.toStringAsFixed(0)} s'
     : '${value.toStringAsFixed(2)} s';
 
-/// The message an error carries, without rewording it.
-///
-/// A DepthLock refusal is the native engine explaining a geometry, a stale
-/// revision or an unusable master to the operator. Anything this layer
-/// substituted would be less useful than what it replaced, so the only work
-/// done here is unwrapping the envelope the error arrived in.
-String depthLockErrorMessage(Object error) {
-  if (error is SkotiqError) return error.userMessage;
-  // The FFI backend throws the bridge union, whose toString leaks the
-  // freezed wrapper around the native reason.
-  final bridged = bridgeErrorMessage(error);
-  if (bridged != null) return bridged;
-  final raw = error.toString();
-  return raw.startsWith('Exception: ')
-      ? raw.substring('Exception: '.length)
-      : raw;
-}
-
 /// Integration time for [frames] exposures of this goal, in hours.
 double depthLockHours({required int frames, required double exposureSecs}) =>
     frames <= 0 || exposureSecs <= 0 ? 0 : frames * exposureSecs / 3600.0;

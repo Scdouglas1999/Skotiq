@@ -101,12 +101,12 @@ void main() {
         ]),
       );
 
-      // The arithmetic-mean bug rendered "12:00:00.00".
-      expect(facts, isNot(contains('12:00:00')));
+      // The arithmetic-mean bug rendered a center at 12h.
+      expect(facts, isNot(contains('12h 00m')));
       // Circular mean puts the centre back on the RA 0h seam — either side of
       // it is the same place on the sky.
       expect(
-        facts.contains('00:00:00') || facts.contains('23:59:5'),
+        facts.contains('00h 00m 00') || facts.contains('23h 59m 5'),
         isTrue,
         reason: 'expected a center at the RA 0h seam, got: $facts',
       );
@@ -123,9 +123,9 @@ void main() {
       ]),
     );
 
-    // 5.55h and 5.65h average to 5.60h = 05:36:00. Field-wise rounding renders
-    // this same value as the impossible '05:35:60.00'.
-    expect(facts, contains('05:36:00.00'));
+    // 5.55h and 5.65h average to 5.60h = 05h 36m. Field-wise rounding renders
+    // this same value as the impossible 05h 35m 60s.
+    expect(facts, contains('05h 36m 00.0s'));
     // One convention, axis-labelled, shared with the Collaborate card.
     expect(facts, contains('2 wide × 1 high'));
   });

@@ -232,7 +232,7 @@ class _HistoryTabState extends ConsumerState<HistoryTab> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          err.toString(),
+                          userFacingError(err),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                               color: colors.textMuted,

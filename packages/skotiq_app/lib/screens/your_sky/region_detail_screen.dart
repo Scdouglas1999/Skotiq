@@ -129,7 +129,7 @@ class RegionDetailScreen extends ConsumerWidget {
           error: (error, _) => EmptyState(
             icon: LucideIcons.alertCircle,
             title: 'Could not load region',
-            body: describeAtlasError(error),
+            body: userFacingError(error),
           ),
         ),
       ),
@@ -504,7 +504,7 @@ class _RegionCutoutActionsState extends ConsumerState<RegionCutoutActions> {
     } on Object catch (e) {
       if (!_isCurrent(generation, backend, regionId)) return;
       messenger.showSnackBar(SnackBar(
-        content: Text('Could not export: $e'),
+        content: Text('Could not export: ${userFacingError(e)}'),
         duration: const Duration(seconds: 4),
       ));
     } finally {
@@ -545,7 +545,7 @@ class _RegionCutoutActionsState extends ConsumerState<RegionCutoutActions> {
     } on Object catch (e) {
       if (!_isCurrent(generation, backend, regionId)) return;
       messenger.showSnackBar(SnackBar(
-        content: Text('Could not set reference frame: $e'),
+        content: Text('Could not set reference frame: ${userFacingError(e)}'),
         duration: const Duration(seconds: 4),
       ));
     } finally {

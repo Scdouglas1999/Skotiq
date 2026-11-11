@@ -66,7 +66,7 @@ class _SwitchControlCardState extends ConsumerState<SwitchControlCard> {
       await service.refreshSwitchChannels();
     } catch (e) {
       if (mounted && _isCurrentService(service)) {
-        context.showErrorSnackBar('Channel refresh failed: $e');
+        context.showErrorSnackBar('Channel refresh failed: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(service)) {
@@ -83,7 +83,7 @@ class _SwitchControlCardState extends ConsumerState<SwitchControlCard> {
       await service.setSwitchChannel(index, value);
     } catch (e) {
       if (mounted && _isCurrentService(service)) {
-        context.showErrorSnackBar('Switch failed: $e');
+        context.showErrorSnackBar('Switch failed: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(service)) {
@@ -100,7 +100,7 @@ class _SwitchControlCardState extends ConsumerState<SwitchControlCard> {
       await service.setSwitchChannelValue(index, value);
     } catch (e) {
       if (mounted && _isCurrentService(service)) {
-        context.showErrorSnackBar('Switch failed: $e');
+        context.showErrorSnackBar('Switch failed: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(service)) {

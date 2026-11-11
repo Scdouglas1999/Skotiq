@@ -6,7 +6,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../widgets/your_sky_opt_in.dart';
 import 'region_detail_screen.dart';
-import 'sky_atlas_format.dart';
 import 'widgets/atlas_coverage_overlay.dart';
 import 'widgets/atlas_region_card.dart';
 import 'widgets/name_region_sheet.dart';
@@ -283,7 +282,7 @@ class _YourSkyAtlas extends ConsumerWidget {
     return EmptyState(
       icon: LucideIcons.alertCircle,
       title: 'Could not load your atlas',
-      body: describeAtlasError(error),
+      body: userFacingError(error),
       action: SkotiqButton(
         label: 'Retry',
         icon: SkotiqIcons.refresh,

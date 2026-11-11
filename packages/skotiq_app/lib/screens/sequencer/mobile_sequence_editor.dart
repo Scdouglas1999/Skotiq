@@ -783,7 +783,7 @@ class _RecoveryActionsState extends State<_RecoveryActions> {
     try {
       await widget.control.tryNow();
     } catch (e) {
-      _showError(extractRecoveryActionError('Retry failed', e));
+      _showError(failureText('Retry failed', e));
     } finally {
       if (mounted) setState(() => _tryNowBusy = false);
     }
@@ -795,7 +795,7 @@ class _RecoveryActionsState extends State<_RecoveryActions> {
     try {
       await widget.control.skipNode();
     } catch (e) {
-      _showError(extractRecoveryActionError('Skip failed', e));
+      _showError(failureText('Skip failed', e));
     } finally {
       if (mounted) setState(() => _skipBusy = false);
     }
@@ -807,7 +807,7 @@ class _RecoveryActionsState extends State<_RecoveryActions> {
     try {
       await widget.control.abort();
     } catch (e) {
-      _showError(extractRecoveryActionError('Abort failed', e));
+      _showError(failureText('Abort failed', e));
     } finally {
       if (mounted) setState(() => _abortBusy = false);
     }

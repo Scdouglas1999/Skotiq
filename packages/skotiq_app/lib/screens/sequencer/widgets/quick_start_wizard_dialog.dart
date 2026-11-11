@@ -636,7 +636,7 @@ class _QuickStartWizardDialogState
         if (!_isCurrentAuthority(authority, generation)) return;
         if (!mounted) return;
         setState(() => _finishingAsTemplate = null);
-        context.showErrorSnackBar('Could not save template: $error');
+        context.showErrorSnackBar('Could not save template: ${userFacingError(error)}');
         return;
       }
       if (!_isCurrentAuthority(authority, generation)) return;
@@ -760,7 +760,7 @@ class _QuickStartWizardDialogState
         child: EmptyState(
           icon: LucideIcons.alertTriangle,
           title: 'Could not load wizard defaults',
-          body: '$error',
+          body: userFacingError(error),
           action: SkotiqButton(
             label: 'Retry',
             icon: LucideIcons.refreshCw,

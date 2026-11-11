@@ -64,8 +64,8 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
         context.showErrorSnackBar(
           wasApplied
               ? 'Backup schedule saved, but the auto-save service reported: '
-                  '$error'
-              : 'Could not save backup schedule: $error',
+                  '${userFacingError(error)}'
+              : 'Could not save backup schedule: ${userFacingError(error)}',
         );
       }
       if (!wasApplied) throw SettingWriteHandled(error);
@@ -81,7 +81,7 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
       }
       if (mounted) context.showSuccessSnackBar('Backup created successfully');
     } catch (error) {
-      if (mounted) context.showErrorSnackBar('Backup failed: $error');
+      if (mounted) context.showErrorSnackBar('Backup failed: ${userFacingError(error)}');
     } finally {
       if (mounted) {
         setState(() => _isSavingNow = false);

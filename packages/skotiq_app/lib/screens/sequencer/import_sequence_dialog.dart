@@ -75,7 +75,7 @@ class ImportSequenceFlow {
     } catch (e) {
       if (!context.mounted) return false;
       if (!_requireCurrentAuthority(context, ref, authority)) return false;
-      context.showErrorSnackBar('Could not open the file picker: $e');
+      context.showErrorSnackBar('Could not open the file picker: ${userFacingError(e)}');
       return false;
     }
     // Dismissing a platform file picker is the conventional Cancel action.
@@ -89,7 +89,7 @@ class ImportSequenceFlow {
     } catch (e) {
       if (!context.mounted) return false;
       if (!_requireCurrentAuthority(context, ref, authority)) return false;
-      context.showErrorSnackBar('Could not read "${file.name}": $e');
+      context.showErrorSnackBar('Could not read "${file.name}": ${userFacingError(e)}');
       return false;
     }
     if (!context.mounted) return false;
@@ -127,7 +127,7 @@ class ImportSequenceFlow {
     } catch (e) {
       if (!context.mounted) return false;
       if (!_requireCurrentAuthority(context, ref, authority)) return false;
-      context.showErrorSnackBar('Import failed unexpectedly: $e');
+      context.showErrorSnackBar('Import failed unexpectedly: ${userFacingError(e)}');
       return false;
     }
     if (result == null) return false;
@@ -209,7 +209,7 @@ class ImportSequenceFlow {
     } catch (e) {
       if (!context.mounted) return false;
       if (!_requireCurrentAuthority(context, ref, authority)) return false;
-      context.showErrorSnackBar('Failed to save imported sequence: $e');
+      context.showErrorSnackBar('Failed to save imported sequence: ${userFacingError(e)}');
       return false;
     }
 

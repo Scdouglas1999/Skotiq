@@ -118,7 +118,7 @@ class _CloudSyncCardState extends ConsumerState<CloudSyncCard> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      context.showErrorSnackBar('Failed to load sync settings: $e');
+      context.showErrorSnackBar('Failed to load sync settings: ${userFacingError(e)}');
     }
   }
 
@@ -214,7 +214,7 @@ class _CloudSyncCardState extends ConsumerState<CloudSyncCard> {
       return true;
     } catch (e) {
       if (!mounted || !identical(service, _service)) return false;
-      context.showErrorSnackBar('Failed to save sync settings: $e');
+      context.showErrorSnackBar('Failed to save sync settings: ${userFacingError(e)}');
       return false;
     } finally {
       if (manageBusy && mounted && identical(service, _service)) {
@@ -276,8 +276,8 @@ class _CloudSyncCardState extends ConsumerState<CloudSyncCard> {
       }
     } catch (e) {
       if (!mounted || !identical(service, _service)) return;
-      setState(() => _lastError = '$e');
-      context.showErrorSnackBar('Push failed: $e');
+      setState(() => _lastError = userFacingError(e));
+      context.showErrorSnackBar('Push failed: ${userFacingError(e)}');
     } finally {
       if (mounted && identical(service, _service)) {
         setState(() => _pushing = false);
@@ -336,7 +336,7 @@ class _CloudSyncCardState extends ConsumerState<CloudSyncCard> {
       }
     } catch (e) {
       if (!mounted || !identical(service, _service)) return;
-      context.showErrorSnackBar('Restore failed: $e');
+      context.showErrorSnackBar('Restore failed: ${userFacingError(e)}');
     } finally {
       if (mounted && identical(service, _service)) {
         setState(() => _browsing = false);

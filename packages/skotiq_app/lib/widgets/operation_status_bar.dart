@@ -104,7 +104,7 @@ class _OperationStatusBarState extends ConsumerState<OperationStatusBar>
     } catch (e) {
       if (!mounted) return;
       setState(() => _cancellingOperationId = null);
-      context.showErrorSnackBar('Cancel failed: $e');
+      context.showErrorSnackBar('Cancel failed: ${userFacingError(e)}');
     }
   }
 

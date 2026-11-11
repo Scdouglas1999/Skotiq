@@ -43,7 +43,7 @@ class _PhotometricTransformsCard extends ConsumerWidget {
               ),
             ),
             error: (error, _) => Text(
-              'Failed to load transforms: $error',
+              'Failed to load transforms: ${userFacingError(error)}',
               style: SkotiqTypography.caption.copyWith(
                 color: colors.error,
               ),

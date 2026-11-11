@@ -387,7 +387,7 @@ class ImagingHistorySection extends ConsumerWidget {
       error: (error, _) => Padding(
         padding: const EdgeInsets.all(16),
         child: Text(
-          'Failed to load imaging history: $error',
+          'Failed to load imaging history: ${userFacingError(error)}',
           style: TextStyle(
               color: colors.error, fontSize: SkotiqTypography.fontSize12),
         ),

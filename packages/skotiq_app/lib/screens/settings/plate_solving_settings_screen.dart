@@ -178,7 +178,7 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
     } catch (error) {
       if (mounted && _isCurrentPathChoice(generation, authority)) {
         context.showErrorSnackBar(
-          'Could not choose a plate-solver path: $error',
+          'Could not choose a plate-solver path: ${userFacingError(error)}',
         );
       }
     } finally {
@@ -230,7 +230,7 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
       }
     } catch (e) {
       if (!mounted || !identical(ref.read(backendProvider), authority)) return;
-      context.showErrorSnackBar('Failed to save plate-solver settings: $e');
+      context.showErrorSnackBar('Failed to save plate-solver settings: ${userFacingError(e)}');
     }
   }
 
@@ -247,7 +247,7 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
       context.showSuccessSnackBar('Re-scanned plate-solver paths.');
     } catch (e) {
       if (!mounted || !identical(ref.read(backendProvider), authority)) return;
-      context.showErrorSnackBar('Re-scan failed: $e');
+      context.showErrorSnackBar('Re-scan failed: ${userFacingError(e)}');
     }
   }
 

@@ -6,7 +6,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'constellation_format.dart';
 import 'constellation_ui_providers.dart';
 
 /// Open the Constellation sign-in flow (adaptive: dialog on desktop/tablet,
@@ -168,7 +167,7 @@ class _ConstellationSignInSheetState
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = describeConstellationError(error);
+        _error = userFacingError(error);
       });
     }
   }

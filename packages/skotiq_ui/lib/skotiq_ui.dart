@@ -88,5 +88,7 @@ export 'src/components/page_header.dart';
 // Night control
 export 'src/components/night_timeline_strip.dart';
 export 'src/components/series_chart.dart';
+export 'src/charts/chart_scale.dart';
+export 'src/charts/skotiq_chart.dart';
 export 'src/components/metric_grid.dart';
 export 'src/components/panel_tab_strip.dart';

@@ -390,7 +390,7 @@ class _SaveSessionDevicesButtonState
       );
     } catch (e) {
       if (!mounted) return;
-      context.showErrorSnackBar('Could not save to the profile: $e');
+      context.showErrorSnackBar('Could not save to the profile: ${userFacingError(e)}');
     } finally {
       if (mounted) setState(() => _saving = false);
     }

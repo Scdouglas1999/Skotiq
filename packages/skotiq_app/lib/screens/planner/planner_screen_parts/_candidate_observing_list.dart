@@ -197,7 +197,7 @@ class _CandidateObservingListDialogState
                   ),
                 ),
                 error: (error, _) => Text(
-                  'Could not load observing lists: $error',
+                  'Could not load observing lists: ${userFacingError(error)}',
                   style: SkotiqTypography.body
                       .copyWith(color: widget.colors.error),
                 ),

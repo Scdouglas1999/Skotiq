@@ -459,7 +459,7 @@ class _NameRegionSheetState extends ConsumerState<NameRegionSheet> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = 'Could not create region: $e';
+        _error = 'Could not create region: ${userFacingError(e)}';
       });
     }
   }

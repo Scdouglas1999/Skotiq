@@ -5,6 +5,8 @@
 /// the dashboard read "12s").
 library;
 
+import 'quantity_format.dart';
+
 /// How much of a duration the text carries.
 enum DurationStyle {
   /// Every unit from the largest down: `1h 2m 3s`, `2m 3s`, `3s`. For a
@@ -65,7 +67,7 @@ abstract final class DurationFormat {
   }
 
   /// Total integration the way imagers quote it: decimal hours from one hour
-  /// up (`1.5h`, `12.3h`, `140h`), the [DurationStyle.coarse] text below
+  /// up (`1.5h`, `12h`, `12.3h`, `140h`), the [DurationStyle.coarse] text below
   /// (`45m`, `30s`).
   static String decimalHours(num seconds) {
     final v = seconds.toDouble();
@@ -73,7 +75,7 @@ abstract final class DurationFormat {
     final hours = v / 3600;
     if (hours < 1)
       return DurationFormat.seconds(v, style: DurationStyle.coarse);
-    return '${hours.toStringAsFixed(hours < 99.95 ? 1 : 0)}h';
+    return '${QuantityFormat.trimmed(hours, maxDecimals: hours < 99.95 ? 1 : 0)}h';
   }
 
   static String _render(int totalSeconds, DurationStyle style, bool toMinute) {

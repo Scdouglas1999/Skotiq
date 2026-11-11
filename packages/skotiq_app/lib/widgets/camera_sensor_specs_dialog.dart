@@ -467,7 +467,7 @@ class _CameraSensorSpecsDialogState
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = 'Could not save camera specs: $error';
+        _error = 'Could not save camera specs: ${userFacingError(error)}';
       });
     }
   }

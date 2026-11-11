@@ -70,7 +70,7 @@ class _ConnectionStaleBannerState extends ConsumerState<ConnectionStaleBanner> {
       await backend.reconnectNow();
     } catch (e) {
       if (mounted && _isCurrentRetry(generation, backend)) {
-        context.showErrorSnackBar('Reconnect failed: $e');
+        context.showErrorSnackBar('Reconnect failed: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentRetry(generation, backend)) {

@@ -9,6 +9,7 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../errors/error_text.dart';
 import '../../models/backend/device_types.dart';
 import '../device_heartbeat_health_provider.dart';
 
@@ -88,24 +89,8 @@ class DeviceReadHealthNotifier
 
 /// A read error as one line for the operator: the driver's own sentence,
 /// without the exception wrappers it arrives in.
-String readErrorText(Object error) {
-  var text = error.toString().trim();
-  for (final prefix in const ['Exception: ', 'Bad state: ', 'StateError: ']) {
-    if (text.startsWith(prefix)) text = text.substring(prefix.length);
-  }
-  final newline = text.indexOf('\n');
-  if (newline > 0) text = text.substring(0, newline);
-  // The bridge's error type, `SkotiqError.operationFailed(field0: <driver
-  // message>)`, and a linked host's error code, `internal_error: <message>`,
-  // wrap the sentence the operator needs.
-  final bridge = RegExp(
-    r'^SkotiqError\.\w+\((?:.*?\b(?:field0|reason|message): )?(.*)\)$',
-  ).firstMatch(text);
-  if (bridge != null) text = bridge.group(1)!.trim();
-  final code = RegExp(r'^[a-z]+(?:_[a-z]+)+: (.*)$').firstMatch(text);
-  if (code != null) text = code.group(1)!.trim();
-  return text;
-}
+String readErrorText(Object error) =>
+    userFacingError(error).split('\n').first.trim();
 
 final deviceReadHealthProvider =
     StateNotifierProvider<

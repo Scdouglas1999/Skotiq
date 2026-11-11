@@ -199,7 +199,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _isLoadingBackups = false;
-        _loadError = 'Failed to load backups: $e';
+        _loadError = 'Failed to load backups: ${userFacingError(e)}';
       });
     }
   }
@@ -241,7 +241,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       await _loadAvailableBackups();
     } catch (e) {
       if (!mounted || !_backendStillMatches(token)) return;
-      context.showErrorSnackBar('Error creating backup: $e');
+      context.showErrorSnackBar('Error creating backup: ${userFacingError(e)}');
     } finally {
       if (mounted) {
         setState(() => _isCreatingBackup = false);
@@ -299,7 +299,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       }
     } catch (e) {
       if (!mounted || !_backendStillMatches(token)) return;
-      context.showErrorSnackBar('Restore failed: $e');
+      context.showErrorSnackBar('Restore failed: ${userFacingError(e)}');
     } finally {
       if (mounted) {
         setState(() => _isRestoring = false);
@@ -357,7 +357,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       await _loadAvailableBackups();
     } catch (e) {
       if (!mounted || !_isCurrentImport(generation, token)) return;
-      context.showErrorSnackBar('Import failed: $e');
+      context.showErrorSnackBar('Import failed: ${userFacingError(e)}');
     } finally {
       if (_isCurrentImport(generation, token)) {
         setState(() => _isImportingBackup = false);
@@ -399,7 +399,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       await _loadAvailableBackups();
     } catch (e) {
       if (!mounted || !_backendStillMatches(token)) return;
-      context.showErrorSnackBar('Failed to delete backup: $e');
+      context.showErrorSnackBar('Failed to delete backup: ${userFacingError(e)}');
     } finally {
       if (mounted) setState(() => _isManagingBackup = false);
     }
@@ -441,7 +441,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       );
     } catch (e) {
       if (!mounted || !_backendStillMatches(token)) return;
-      context.showErrorSnackBar('Download failed: $e');
+      context.showErrorSnackBar('Download failed: ${userFacingError(e)}');
     } finally {
       if (mounted) setState(() => _isManagingBackup = false);
     }

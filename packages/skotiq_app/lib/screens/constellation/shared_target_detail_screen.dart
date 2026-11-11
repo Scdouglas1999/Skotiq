@@ -10,7 +10,6 @@ import '../collaborative_sky/coimaging_create_sheet.dart';
 import '../your_sky/region_detail_screen.dart';
 import '../your_sky/sky_atlas_format.dart';
 import 'constellation_contribute_sheet.dart';
-import 'constellation_format.dart';
 import 'constellation_ui_providers.dart';
 import 'widgets/contribution_bar.dart';
 
@@ -256,7 +255,7 @@ class _SharedTargetDetailScreenState
       if (!mounted) return;
       setState(() => _pulling = false);
       messenger.showSnackBar(
-        SnackBar(content: Text(describeConstellationError(error))),
+        SnackBar(content: Text(userFacingError(error))),
       );
     }
   }
@@ -341,7 +340,7 @@ class _SharedTargetDetailScreenState
     } catch (error) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text(describeConstellationError(error))),
+        SnackBar(content: Text(userFacingError(error))),
       );
     } finally {
       if (mounted) setState(() => _retracting = false);
@@ -848,7 +847,7 @@ class _ContributionsCard extends ConsumerWidget {
         children: [
           SkotiqBanner(
               title: 'Contribution receipts unavailable',
-              message: '${describeConstellationError(error)}\n\n'
+              message: '${userFacingError(error)}\n\n'
                   'Retract actions are hidden until Skotiq can verify your '
                   'receipts with the imaging host.',
               tone: BannerTone.warning),

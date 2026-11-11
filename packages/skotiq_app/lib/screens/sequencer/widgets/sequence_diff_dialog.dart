@@ -143,7 +143,7 @@ class SequenceDiffDialog extends StatelessWidget {
     } on FormatException catch (e) {
       if (!context.mounted) return;
       await _showNoComparison(
-          context, colors, 'This run\'s snapshot could not be read: $e');
+          context, colors, 'This run\'s snapshot could not be read: ${userFacingError(e)}');
       return;
     }
 
@@ -153,7 +153,7 @@ class SequenceDiffDialog extends StatelessWidget {
     } on FormatException catch (e) {
       if (!context.mounted) return;
       await _showNoComparison(context, colors,
-          'The previous run\'s snapshot could not be read: $e');
+          'The previous run\'s snapshot could not be read: ${userFacingError(e)}');
       return;
     }
 

@@ -280,7 +280,7 @@ class SessionReviewController extends StateNotifier<SessionReviewState> {
         integrating: false,
         clearProgress: true,
         clearLiveProgress: true,
-        error: 'Integration failed: $e',
+        error: 'Integration failed: ${userFacingError(e)}',
       );
       return null;
     }
@@ -593,7 +593,7 @@ class SessionReviewController extends StateNotifier<SessionReviewState> {
         return outputPath;
       } catch (e) {
         if (mounted) {
-          state = state.copyWith(error: 'Narrowband combine failed: $e');
+          state = state.copyWith(error: 'Narrowband combine failed: ${userFacingError(e)}');
         }
         return null;
       } finally {
@@ -774,7 +774,7 @@ class SessionReviewController extends StateNotifier<SessionReviewState> {
       if (!mounted) return null;
       state = state.copyWith(
         integrating: false,
-        error: 'Add to master failed: $e',
+        error: 'Add to master failed: ${userFacingError(e)}',
       );
       return null;
     }
@@ -827,7 +827,7 @@ class SessionReviewController extends StateNotifier<SessionReviewState> {
       if (!mounted) return null;
       state = state.copyWith(
         integrating: false,
-        error: 'Create master failed: $e',
+        error: 'Create master failed: ${userFacingError(e)}',
       );
       return null;
     }
@@ -857,7 +857,7 @@ class SessionReviewController extends StateNotifier<SessionReviewState> {
       if (!mounted) return;
       state = state.copyWith(
         integrating: false,
-        error: 'Finalize failed: $e',
+        error: 'Finalize failed: ${userFacingError(e)}',
       );
     }
   }

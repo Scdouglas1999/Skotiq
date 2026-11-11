@@ -2,6 +2,7 @@
 // title row, the body that scrolls (or not) the way the layout asks, the
 // dense 28 px button, a label/value row and the view-model to kit mappings.
 import 'package:flutter/material.dart';
+import 'package:skotiq_core/skotiq_core.dart' show userFacingError;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
@@ -418,30 +419,13 @@ Future<void> nightPanelAttempt(
     await action();
   } catch (error) {
     if (overlay == null || !overlay.mounted) return;
-    final detail = nightPanelErrorText(error);
+    final detail = userFacingError(error);
     SkotiqToastHelper.showInOverlay(
       overlay: overlay,
       message: l10n.text(errorKey, params: <String, String>{'detail': detail}),
       severity: SkotiqAlertSeverity.error,
     );
   }
-}
-
-/// An error as a sentence: the `Exception:` labels each layer adds on the
-/// way up from the driver are peeled off.
-String nightPanelErrorText(Object error) {
-  final raw = '$error'.trim();
-  final label = RegExp(
-    r'^(Exception|StateError|Bad state|Operation failed)\s*:\s*',
-    caseSensitive: false,
-  );
-  var text = raw;
-  for (var i = 0; i < 4; i++) {
-    final peeled = text.replaceFirst(label, '').trim();
-    if (peeled == text || peeled.isEmpty) break;
-    text = peeled;
-  }
-  return text;
 }
 
 Color nightToneColor(MetricTone tone, SkotiqColors colors) => switch (tone) {

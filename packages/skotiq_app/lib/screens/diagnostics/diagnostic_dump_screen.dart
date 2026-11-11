@@ -224,7 +224,7 @@ class _DiagnosticDumpScreenState extends ConsumerState<DiagnosticDumpScreen> {
       if (!mounted) return;
       // Surface the failure rather than swallowing it. The service has
       // already logged the structured stack trace via LoggingService.
-      context.showErrorSnackBar('Diagnostic dump failed: $e');
+      context.showErrorSnackBar('Diagnostic dump failed: ${userFacingError(e)}');
     } finally {
       if (mounted) {
         setState(() {

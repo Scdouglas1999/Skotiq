@@ -177,7 +177,7 @@ class _GoalList extends ConsumerWidget {
             ),
             error: (error, _) => SkotiqBanner(
               title: 'The goal list could not be read',
-              message: depthLockErrorMessage(error),
+              message: userFacingError(error),
               tone: BannerTone.error,
               icon: SkotiqIcons.error,
             ),
@@ -445,7 +445,7 @@ class _DepthLockGoalDetailState extends ConsumerState<DepthLockGoalDetail> {
     try {
       await action();
     } catch (error) {
-      if (mounted) context.showErrorSnackBar(depthLockErrorMessage(error));
+      if (mounted) context.showErrorSnackBar(userFacingError(error));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

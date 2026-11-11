@@ -240,7 +240,7 @@ extension _HistoryPanel on _PolarAlignmentScreenState {
             error: (error, stack) => Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
-                'Failed to load history: $error',
+                'Failed to load history: ${userFacingError(error)}',
                 style: TextStyle(
                   fontSize: SkotiqTypography.fontSize11,
                   color: colors.error,

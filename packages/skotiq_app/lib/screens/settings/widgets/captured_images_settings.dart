@@ -109,7 +109,7 @@ class _CapturedImagesSettingsState
       }
       setState(() {
         _loading = false;
-        _error = '$e';
+        _error = userFacingError(e);
       });
     }
   }

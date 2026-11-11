@@ -319,7 +319,7 @@ class _ActionsRow extends StatelessWidget {
       );
     } catch (e) {
       messenger?.showSnackBar(
-        SnackBar(content: Text('Could not update detection: $e')),
+        SnackBar(content: Text('Could not update detection: ${userFacingError(e)}')),
       );
     }
   }

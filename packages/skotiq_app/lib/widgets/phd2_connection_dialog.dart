@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
-import '../utils/phd2_helper.dart';
 
 /// Reusable PHD2 connection configuration dialog.
 ///
@@ -186,7 +185,7 @@ class _Phd2ConnectionDialogState extends ConsumerState<Phd2ConnectionDialog> {
       setState(() => _connecting = false);
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Could not save PHD2 connection settings: $e'),
+          content: Text('Could not save PHD2 connection settings: ${userFacingError(e)}'),
           backgroundColor: errorColor,
         ),
       );
@@ -201,7 +200,7 @@ class _Phd2ConnectionDialogState extends ConsumerState<Phd2ConnectionDialog> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            'PHD2 connection failed: ${phd2FailureMessage(e)}',
+            'PHD2 connection failed: ${userFacingError(e)}',
           ),
           backgroundColor: errorColor,
         ),

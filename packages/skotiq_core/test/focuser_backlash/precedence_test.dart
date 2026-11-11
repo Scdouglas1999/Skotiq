@@ -69,10 +69,10 @@ void main() {
         // Backlash varies along the travel, so the position is never left out.
         expect(effective.provenance, contains('position 6620'));
         expect(effective.provenance, contains('2026-09-14'));
-        expect(effective.provenance, contains('14.5 °C'));
+        expect(effective.provenance, contains('14.5°C'));
         expect(
           '${effective.steps} steps, ${effective.provenance}',
-          '105 steps, measured on 2026-09-14 at position 6620, 14.5 °C',
+          '105 steps, measured on 2026-09-14 at position 6620, 14.5°C',
         );
       },
     );

@@ -53,7 +53,7 @@ class RunDashboardAdaptiveConditionsPanel extends ConsumerWidget {
           // tucked behind a tooltip so the dashboard never dumps a stack-y
           // toString() at the user.
           child: Tooltip(
-            message: error.toString(),
+            message: userFacingError(error),
             child: Text(
               error is SkotiqError
                   ? error.userMessage

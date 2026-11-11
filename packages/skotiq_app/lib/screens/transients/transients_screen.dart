@@ -247,7 +247,7 @@ class TransientsView extends ConsumerWidget {
     return EmptyState(
       icon: LucideIcons.alertCircle,
       title: 'Failed to load transient alerts',
-      body: error.toString(),
+      body: userFacingError(error),
       action: SkotiqButton(
         label: 'Retry',
         icon: SkotiqIcons.refresh,

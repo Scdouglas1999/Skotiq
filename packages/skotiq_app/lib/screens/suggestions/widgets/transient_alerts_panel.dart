@@ -6,7 +6,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/transient_type_style.dart';
-import '../../../utils/user_facing_error.dart';
 
 part 'transient_alerts_panel_parts/_alert_tiles.dart';
 part 'transient_alerts_panel_parts/_settings_dialog.dart';

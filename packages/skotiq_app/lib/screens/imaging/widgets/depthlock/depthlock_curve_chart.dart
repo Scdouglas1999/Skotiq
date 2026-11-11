@@ -78,7 +78,7 @@ class _DepthLockCurveChartState extends ConsumerState<DepthLockCurveChart> {
       error: (error, _) => _ChartFrame(
         title: 'Progress',
         child: Text(
-          depthLockErrorMessage(error),
+          userFacingError(error),
           style: SkotiqTypography.caption.copyWith(color: colors.warning),
         ),
       ),

@@ -278,7 +278,7 @@ class _SessionInsightTileState extends ConsumerState<_SessionInsightTile> {
       setState(() => _dismissed = false);
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
         SnackBar(
-          content: Text('Could not save dismissed suggestion: $error'),
+          content: Text('Could not save dismissed suggestion: ${userFacingError(error)}'),
           backgroundColor: widget.colors.error,
         ),
       );

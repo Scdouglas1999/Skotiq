@@ -5,7 +5,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../your_sky/sky_atlas_format.dart';
-import 'constellation_format.dart';
 
 /// Open the "Share one of my targets" flow: pick a local imageable field,
 /// confirm the swarm radius, and seed it as a shared target on the hub.
@@ -92,7 +91,7 @@ class _ShareTargetSheetState extends ConsumerState<_ShareTargetSheet> {
             ),
             error: (error, _) => SkotiqBanner(
                 title: 'Could not load your targets',
-                message: '$error',
+                message: userFacingError(error),
                 tone: BannerTone.warning),
           ),
           if (_selected != null) ...[
@@ -131,7 +130,7 @@ class _ShareTargetSheetState extends ConsumerState<_ShareTargetSheet> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = describeConstellationError(error);
+        _error = userFacingError(error);
       });
     }
   }

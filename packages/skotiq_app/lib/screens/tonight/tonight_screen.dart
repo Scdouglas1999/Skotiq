@@ -279,7 +279,7 @@ class _TargetConfirmCard extends StatelessWidget {
       error: (e, _) => _NoTargetCard(
         colors: colors,
         title: 'Could not pick a target',
-        body: '$e',
+        body: userFacingError(e),
         onAction: onRefreshPick,
       ),
       data: (target) {
@@ -514,7 +514,7 @@ class _MorningPayoff extends StatelessWidget {
         colors: colors,
         icon: LucideIcons.alertTriangle,
         title: 'Morning report unavailable',
-        body: '$error',
+        body: userFacingError(error),
         onRetry: onRetry,
       ),
       data: (sessionId) {

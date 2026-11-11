@@ -198,7 +198,7 @@ class _PolarAlignmentScreenState extends ConsumerState<PolarAlignmentScreen>
     } catch (e) {
       if (!mounted) return;
       context.showErrorSnackBar(
-        'Plate solver not ready. Check Plate Solving settings: $e',
+        'Plate solver not ready. Check Plate Solving settings: ${userFacingError(e)}',
       );
       return;
     }
@@ -217,7 +217,7 @@ class _PolarAlignmentScreenState extends ConsumerState<PolarAlignmentScreen>
             .startAllSkyAlignment(config);
       } catch (e) {
         if (!mounted) return;
-        context.showErrorSnackBar('All-sky polar alignment failed: $e');
+        context.showErrorSnackBar('All-sky polar alignment failed: ${userFacingError(e)}');
       }
       return;
     }
@@ -229,7 +229,7 @@ class _PolarAlignmentScreenState extends ConsumerState<PolarAlignmentScreen>
       await ref.read(polarAlignmentControllerProvider).start();
     } catch (e) {
       if (!mounted) return;
-      context.showErrorSnackBar('Could not start polar alignment: $e');
+      context.showErrorSnackBar('Could not start polar alignment: ${userFacingError(e)}');
     }
   }
 
@@ -246,7 +246,7 @@ class _PolarAlignmentScreenState extends ConsumerState<PolarAlignmentScreen>
     } catch (e) {
       if (!mounted) return;
       // Stop failed/timed out: the run stays blocked and visibly in error.
-      context.showErrorSnackBar('Could not stop polar alignment: $e');
+      context.showErrorSnackBar('Could not stop polar alignment: ${userFacingError(e)}');
     } finally {
       if (mounted) setState(() => _stopping = false);
     }
@@ -257,7 +257,7 @@ class _PolarAlignmentScreenState extends ConsumerState<PolarAlignmentScreen>
       await ref.read(polarAlignmentControllerProvider).complete();
     } catch (e) {
       if (!mounted) return;
-      context.showErrorSnackBar('Could not complete polar alignment: $e');
+      context.showErrorSnackBar('Could not complete polar alignment: ${userFacingError(e)}');
     }
   }
 

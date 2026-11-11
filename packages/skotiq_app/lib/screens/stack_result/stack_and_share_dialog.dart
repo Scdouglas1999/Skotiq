@@ -29,44 +29,13 @@ class StackShareFailure {
   });
 }
 
-/// Matches a freezed / flutter_rust_bridge stringified union, e.g.
-/// `SkotiqError.imageError(field0: Reference frame has only 0 stars)`.
-/// The name must be followed immediately by `(`, so a real sentence that merely
-/// ends in a parenthetical ("… 10.34px (max 10.00px)") is left alone.
-final RegExp _bridgeWrapper = RegExp(
-  r'^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\(\s*(?:field0:\s*)?(.*)\)$',
-  dotAll: true,
-);
-
-/// Matches a Dart exception's `toString()` type prefix, e.g.
-/// `LiveStackBusyException: …` or `Exception: …`.
-final RegExp _exceptionPrefix = RegExp(
-  r'^[A-Za-z_$][\w$]*(?:Exception|Error|Failure)?:\s+',
-);
-
 /// Turn the orchestrator's raw exception string into something an imager can
 /// act on.
 ///
-/// `e.toString()` renders the Rust union's Dart wrapper —
-/// `SkotiqError.imageError(field0: …)`, positional-field label and all —
-/// rather than the sentence inside it. This unwraps the payload (nested
-/// wrappers included), keeps the raw text for the technical-details disclosure,
-/// and attaches a next step for the causes that have one.
+/// Keeps the raw text for the technical-details disclosure and attaches a next
+/// step for the causes that have one.
 StackShareFailure describeStackShareFailure(String raw) {
-  var message = raw.trim();
-  // Peel layer by layer: an app exception can carry a bridge union, which can
-  // carry another. Bounded so a pathological string cannot spin here.
-  for (var i = 0; i < 4; i++) {
-    final before = message;
-    final prefix = _exceptionPrefix.firstMatch(message);
-    if (prefix != null && prefix.end < message.length) {
-      message = message.substring(prefix.end).trim();
-    }
-    final match = _bridgeWrapper.firstMatch(message);
-    final inner = match?.group(1)?.trim();
-    if (inner != null && inner.isNotEmpty) message = inner;
-    if (message == before) break;
-  }
+  var message = userFacingError(raw);
   if (message.isEmpty) message = raw.trim();
 
   final lower = message.toLowerCase();
@@ -188,7 +157,7 @@ class _StackAndShareDialogState extends ConsumerState<StackAndShareDialog> {
     _demosaicQuality = defaults.demosaicQuality.toLowerCase();
     _qualityController = TextEditingController(
       text: defaults.minQualityScore > 0
-          ? _trimNum(defaults.minQualityScore)
+          ? QuantityFormat.trimmed(defaults.minQualityScore)
           : '',
     );
   }
@@ -427,7 +396,7 @@ class _StackAndShareDialogState extends ConsumerState<StackAndShareDialog> {
     } catch (e) {
       if (!mounted) return;
       messenger?.showSnackBar(
-        SnackBar(content: Text('Could not stop live stacking: $e')),
+        SnackBar(content: Text('Could not stop live stacking: ${userFacingError(e)}')),
       );
     }
   }
@@ -727,15 +696,6 @@ class _RunProgress extends StatelessWidget {
       StackAndSharePhase.error => 'Failed',
     };
   }
-}
-
-/// Formats a number without a trailing `.0` for whole values, otherwise with a
-/// single decimal place (mirrors the model helper, kept private to the UI).
-String _trimNum(double value) {
-  if (value == value.roundToDouble()) {
-    return value.round().toString();
-  }
-  return value.toStringAsFixed(1);
 }
 
 /// The "Override auto-detection" disclosure row that expands the manual OSC

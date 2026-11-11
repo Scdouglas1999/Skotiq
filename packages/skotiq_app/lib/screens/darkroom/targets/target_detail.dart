@@ -823,7 +823,7 @@ class _JobBanner extends ConsumerWidget {
                       jobs.resume(folder).catchError((Object e) {
                         if (context.mounted) {
                           ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-                            SnackBar(content: Text('$e')),
+                            SnackBar(content: Text(userFacingError(e))),
                           );
                         }
                       }),

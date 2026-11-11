@@ -251,7 +251,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       unawaited(_loadSiblings(masterId));
     } catch (error) {
       if (!mounted) return;
-      _fail('The Darkroom could not read this master or its recipes: $error');
+      _fail('The Darkroom could not read this master or its recipes: ${userFacingError(error)}');
     }
   }
 
@@ -386,7 +386,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
         draftNotes: const [],
         draftNotesError:
             'The account of how this recipe was drafted could not be read, so '
-            'any operation the draft left out is unexplained here: $error',
+            'any operation the draft left out is unexplained here: ${userFacingError(error)}',
       );
     }
   }
@@ -466,7 +466,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       state = state.copyWith(
         siblings: const [],
         siblingsError:
-            'The other masters of this night could not be read: $error',
+            'The other masters of this night could not be read: ${userFacingError(error)}',
       );
     }
   }
@@ -554,7 +554,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
         photometryStarCount: 0,
         photometryNote:
             'The star catalog could not be read, so the color calibration '
-            'has nothing to regress against: $error',
+            'has nothing to regress against: ${userFacingError(error)}',
       );
     }
   }
@@ -680,7 +680,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       if (!mounted) return;
       state = state.copyWith(
         offerBusy: false,
-        offerError: 'The automatic edit could not be created: $error',
+        offerError: 'The automatic edit could not be created: ${userFacingError(error)}',
       );
       return;
     }
@@ -778,7 +778,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       if (!mounted) return;
       state = state.copyWith(
         offerBusy: false,
-        offerError: 'The recipe could not be created: $error',
+        offerError: 'The recipe could not be created: ${userFacingError(error)}',
       );
     }
   }
@@ -835,7 +835,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       state = state.copyWith(
         offerBusy: false,
         offerError: 'That file could not be read, so nothing was imported. '
-            '$kDarkroomImportNextStep The reader answered: $error',
+            '$kDarkroomImportNextStep The reader answered: ${userFacingError(error)}',
       );
       return;
     }
@@ -1108,7 +1108,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       if (!mounted) return false;
       _refuseInsert(
         'That step could not be checked with the engine, so it was not added: '
-        '$error',
+        '${userFacingError(error)}',
       );
       return false;
     }
@@ -1289,7 +1289,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       if (!mounted) return false;
       _refuseReorder(
         'That order could not be checked with the engine, so the move was not '
-        'made: $error',
+        'made: ${userFacingError(error)}',
       );
       return false;
     }
@@ -1856,7 +1856,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       if (!mounted) return;
       state = state.copyWith(
         savePending: false,
-        saveError: 'This edit could not be written to the recipe: $error',
+        saveError: 'This edit could not be written to the recipe: ${userFacingError(error)}',
       );
     }
   }

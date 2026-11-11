@@ -185,7 +185,7 @@ class _ProjectTrackingPanelState extends ConsumerState<ProjectTrackingPanel> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            'Error loading projects: $error',
+            'Error loading projects: ${userFacingError(error)}',
             textAlign: TextAlign.center,
             maxLines: 4,
             overflow: TextOverflow.ellipsis,

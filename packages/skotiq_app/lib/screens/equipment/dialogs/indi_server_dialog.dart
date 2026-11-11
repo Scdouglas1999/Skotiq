@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
-import '../../../utils/user_facing_error.dart';
 
 /// INDI server address configuration (Linux/macOS).
 class IndiServerDialog extends ConsumerStatefulWidget {
@@ -70,7 +69,7 @@ class _IndiServerDialogState extends ConsumerState<IndiServerDialog> {
       if (!mounted) return;
       setState(() {
         _statusSuccess = false;
-        _statusMessage = 'Could not load saved INDI settings: $e';
+        _statusMessage = 'Could not load saved INDI settings: ${userFacingError(e)}';
       });
     }
   }
@@ -191,7 +190,7 @@ class _IndiServerDialogState extends ConsumerState<IndiServerDialog> {
       setState(() {
         _isSaving = false;
         _statusSuccess = false;
-        _statusMessage = 'Could not save INDI settings: $e';
+        _statusMessage = 'Could not save INDI settings: ${userFacingError(e)}';
       });
       return;
     }

@@ -5,7 +5,7 @@
 // contributing its seconds, so the report read "Your 3 drafts are ready — 24 s
 // integrated" — a draft count that excludes it beside a total that includes it.
 // When the same master merely had NO PATH it was diverted to
-// `mastersWithoutFile` and the same night read "18 s integrated". Two numbers
+// `mastersWithoutFile` and the same night read "18s integrated". Two numbers
 // for one practical outcome, decided by which way the master failed.
 
 import 'package:flutter_test/flutter_test.dart';
@@ -83,8 +83,8 @@ void main() {
 
     expect(
       report.headline,
-      'Your 3 drafts are ready — 18 s integrated; 1 master has no draft '
-      '(6 s more integrated)',
+      'Your 3 drafts are ready — 18s integrated; 1 master has no draft '
+      '(6s more integrated)',
     );
     expect(report.draftsRendered, 3);
     expect(report.draftedIntegrationSeconds, 18.0);
@@ -118,20 +118,20 @@ void main() {
       ],
     );
 
-    expect(unreadable.headline, startsWith('Your 3 drafts are ready — 18 s'));
-    expect(withoutFile.headline, startsWith('Your 3 drafts are ready — 18 s'));
+    expect(unreadable.headline, startsWith('Your 3 drafts are ready — 18s'));
+    expect(withoutFile.headline, startsWith('Your 3 drafts are ready — 18s'));
     // A master with no file recorded no seconds anywhere, so the clause states
     // the master without inventing an integration total for it.
     expect(
       withoutFile.headline,
-      'Your 3 drafts are ready — 18 s integrated; 1 master has no draft',
+      'Your 3 drafts are ready — 18s integrated; 1 master has no draft',
     );
   });
 
   test('a night whose masters all drafted says nothing extra', () {
     final report = _report(masters: [_drafted(1, 'B'), _drafted(2, 'G')]);
 
-    expect(report.headline, 'Your 2 drafts are ready — 12 s integrated');
+    expect(report.headline, 'Your 2 drafts are ready — 12s integrated');
     expect(report.draftedIntegrationSeconds, report.integrationSeconds);
   });
 
@@ -140,7 +140,7 @@ void main() {
 
     expect(
       report.headline,
-      'Your night — no draft was rendered; 6 s integrated',
+      'Your night — no draft was rendered; 6s integrated',
     );
     expect(report.draftedIntegrationSeconds, 0.0);
   });
@@ -175,7 +175,7 @@ void main() {
 
     expect(
       report.headline,
-      'NGC 7000 — 6 s integrated; 1 master has no draft (6 s more integrated)',
+      'NGC 7000 — 6s integrated; 1 master has no draft (6s more integrated)',
     );
   });
 }

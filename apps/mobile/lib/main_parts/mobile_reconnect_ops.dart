@@ -517,7 +517,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
       setState(() {
         _isDiscovering = false;
         _statusMessage = '';
-        _error = 'Connection error: $e';
+        _error = 'Connection error: ${userFacingError(e)}';
       });
     }
   }

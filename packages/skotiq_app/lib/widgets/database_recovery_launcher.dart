@@ -341,7 +341,7 @@ class _DatabaseRecoveryLauncherState
         name: 'DatabaseRecovery',
         level: 1000,
       );
-      _restoreError = '$e';
+      _restoreError = userFacingError(e);
     }
   }
 

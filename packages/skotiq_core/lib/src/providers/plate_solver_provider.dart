@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/skotiq_backend.dart';
+import '../errors/error_text.dart';
 import '../models/plate_solver.dart';
 import '../services/logging_service.dart';
 import '../services/plate_solve_service.dart';
@@ -198,7 +199,7 @@ class PlateSolverSettingsNotifier
       state = state.copyWith(verifying: false, astapVerifyInfo: info);
     } catch (e) {
       if (!_isCurrent(generation)) return;
-      state = state.copyWith(verifying: false, astapVerifyError: e.toString());
+      state = state.copyWith(verifying: false, astapVerifyError: userFacingError(e));
     }
   }
 
@@ -215,7 +216,7 @@ class PlateSolverSettingsNotifier
       if (!_isCurrent(generation)) return;
       state = state.copyWith(
         verifying: false,
-        astrometryVerifyError: e.toString(),
+        astrometryVerifyError: userFacingError(e),
       );
     }
   }

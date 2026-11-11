@@ -1,3 +1,4 @@
+import '../../../errors/error_text.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -736,7 +737,7 @@ class RunEventHandler {
         );
         result = PluginNodeDispatchResult(
           success: false,
-          message: 'dispatcher threw: $e',
+          message: 'dispatcher threw: ${userFacingError(e)}',
         );
       }
 

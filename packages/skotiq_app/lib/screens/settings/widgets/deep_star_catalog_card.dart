@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/skotiq_core.dart' show userFacingError;
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -113,7 +114,7 @@ class _DeepStarCatalogCardState extends ConsumerState<DeepStarCatalogCard> {
         context.showInfoSnackBar('Download paused — resume any time');
       }
     } catch (e) {
-      if (mounted) context.showErrorSnackBar('Download failed: $e');
+      if (mounted) context.showErrorSnackBar('Download failed: ${userFacingError(e)}');
     } finally {
       if (mounted) {
         setState(() {
@@ -139,7 +140,7 @@ class _DeepStarCatalogCardState extends ConsumerState<DeepStarCatalogCard> {
             '${result.missing.length} missing, ${result.corrupt.length} corrupt');
       }
     } catch (e) {
-      if (mounted) context.showErrorSnackBar('Verification failed: $e');
+      if (mounted) context.showErrorSnackBar('Verification failed: ${userFacingError(e)}');
     } finally {
       if (mounted) setState(() => _action = null);
     }
@@ -175,7 +176,7 @@ class _DeepStarCatalogCardState extends ConsumerState<DeepStarCatalogCard> {
       // Deletion is best-effort, so some files may have been removed even
       // when the manager reports that others were locked or inaccessible.
       ref.read(deepStarManifestRefreshProvider.notifier).state++;
-      context.showErrorSnackBar('Deletion incomplete: $e');
+      context.showErrorSnackBar('Deletion incomplete: ${userFacingError(e)}');
     } finally {
       if (mounted) {
         setState(() => _action = null);
@@ -404,7 +405,7 @@ class _LoadError extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          error.toString(),
+          userFacingError(error),
           style: SkotiqTypography.captionSm.copyWith(
             color: colors.textSecondary,
           ),

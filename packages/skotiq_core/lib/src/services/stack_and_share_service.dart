@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/network_backend.dart';
+import '../errors/error_text.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
 import 'stacking_engine_seam.dart';
@@ -328,7 +329,7 @@ class StackAndShareService {
           if (!_hasAuthority) rethrow;
           framesProcessed++;
           framesRejected++;
-          final reason = _rejectionReason(e);
+          final reason = userFacingError(e);
           rejectionReasons[reason] = (rejectionReasons[reason] ?? 0) + 1;
           _logger.warning(
             'Frame rejected from the stack (${frame.filePath}): $reason',

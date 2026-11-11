@@ -83,7 +83,7 @@ mixin DeviceConnectionMixin<T extends ConsumerStatefulWidget>
           }
         }
       } else if (mounted) {
-        context.showErrorSnackBar('Failed to connect $deviceName: $e');
+        context.showErrorSnackBar('Failed to connect $deviceName: ${userFacingError(e)}');
       }
     } finally {
       if (mounted) setState(() => _isConnecting = false);
@@ -102,7 +102,7 @@ mixin DeviceConnectionMixin<T extends ConsumerStatefulWidget>
       await disconnectFn();
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Failed to disconnect $deviceType: $e');
+        context.showErrorSnackBar('Failed to disconnect $deviceType: ${userFacingError(e)}');
       }
     }
   }

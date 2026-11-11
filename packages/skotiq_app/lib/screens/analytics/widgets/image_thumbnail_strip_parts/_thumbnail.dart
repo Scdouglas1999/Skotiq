@@ -526,7 +526,7 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
       ref.invalidate(dbSessionImagesProvider);
     } catch (e) {
       if (!mounted) return;
-      context.showErrorSnackBar('Failed to update frame: $e');
+      context.showErrorSnackBar('Failed to update frame: ${userFacingError(e)}');
     }
   }
 

@@ -21,7 +21,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     } catch (e) {
       if (mounted && _isCurrentAuthority(authority, generation)) {
         context.showErrorSnackBar(
-          'Could not check for interrupted mosaic: $e',
+          'Could not check for interrupted mosaic: ${userFacingError(e)}',
         );
       }
     }
@@ -45,7 +45,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     } catch (e) {
       if (mounted) {
         setState(() => _checkpointAction = null);
-        context.showErrorSnackBar('Failed to resume mosaic: $e');
+        context.showErrorSnackBar('Failed to resume mosaic: ${userFacingError(e)}');
       }
     }
   }
@@ -66,7 +66,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     } catch (e) {
       if (mounted) {
         setState(() => _checkpointAction = null);
-        context.showErrorSnackBar('Failed to discard checkpoint: $e');
+        context.showErrorSnackBar('Failed to discard checkpoint: ${userFacingError(e)}');
       }
     }
   }
@@ -334,7 +334,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
       context.showErrorSnackBar(error.message);
       return;
     } catch (error) {
-      context.showErrorSnackBar('Could not load mosaic: $error');
+      context.showErrorSnackBar('Could not load mosaic: ${userFacingError(error)}');
       return;
     }
 
@@ -434,7 +434,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     } catch (e) {
       if (mounted) {
         setState(() => _isCreatingProject = false);
-        context.showErrorSnackBar('Could not create mosaic project: $e');
+        context.showErrorSnackBar('Could not create mosaic project: ${userFacingError(e)}');
       }
     }
   }

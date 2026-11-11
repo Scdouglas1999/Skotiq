@@ -1,3 +1,4 @@
+import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:developer' as developer;
 
@@ -189,7 +190,7 @@ class DefectMapNotifier extends StateNotifier<DefectMapUiState> {
       state = state.copyWith(
         isBuilding: false,
         statusMessage: null,
-        errorMessage: 'Failed to build defect map: $e',
+        errorMessage: 'Failed to build defect map: ${userFacingError(e)}',
       );
     }
   }
@@ -311,7 +312,7 @@ class DefectMapNotifier extends StateNotifier<DefectMapUiState> {
       }
       state = state.copyWith(
         statusMessage: null,
-        errorMessage: 'Failed to update defect-map toggle: $e',
+        errorMessage: 'Failed to update defect-map toggle: ${userFacingError(e)}',
       );
     }
   }
@@ -355,7 +356,7 @@ class DefectMapNotifier extends StateNotifier<DefectMapUiState> {
       }
       state = state.copyWith(
         statusMessage: null,
-        errorMessage: 'Failed to push defect-map settings to sequencer: $e',
+        errorMessage: 'Failed to push defect-map settings to sequencer: ${userFacingError(e)}',
       );
     }
   }
@@ -430,7 +431,7 @@ class DefectMapNotifier extends StateNotifier<DefectMapUiState> {
       state = state.copyWith(
         isClearing: false,
         statusMessage: null,
-        errorMessage: 'Failed to clear defect map: $e',
+        errorMessage: 'Failed to clear defect map: ${userFacingError(e)}',
       );
     }
   }

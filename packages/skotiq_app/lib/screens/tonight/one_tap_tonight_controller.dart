@@ -176,7 +176,7 @@ class OneTapTonightController extends ValueNotifier<OneTapTonightState> {
     } catch (e) {
       _publish(state.copyWith(
         phase: OneTapPhase.failed,
-        error: 'Could not start tonight: $e',
+        error: 'Could not start tonight: ${userFacingError(e)}',
       ));
     }
   }

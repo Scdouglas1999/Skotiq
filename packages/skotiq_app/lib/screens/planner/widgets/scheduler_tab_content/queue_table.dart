@@ -236,7 +236,7 @@ class _QueueTable extends ConsumerWidget {
               error: (e, _) => Padding(
                 padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
                 child: Text(
-                  'Failed to load integration goals: $e',
+                  'Failed to load integration goals: ${userFacingError(e)}',
                   style: SkotiqTypography.caption.copyWith(color: colors.error),
                 ),
               ),

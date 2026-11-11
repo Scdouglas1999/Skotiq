@@ -71,7 +71,7 @@ class _FocuserControlsState extends ConsumerState<FocuserControls> {
       await service.moveFocuserRelative(steps);
     } catch (e) {
       if (mounted && _isCurrentService(service)) {
-        context.showErrorSnackBar('Failed to move focuser: $e');
+        context.showErrorSnackBar('Failed to move focuser: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(service)) {
@@ -94,8 +94,8 @@ class _FocuserControlsState extends ConsumerState<FocuserControls> {
       if (mounted && _isCurrentService(service)) {
         context.showErrorSnackBar(
           cancellingAutofocus
-              ? 'Failed to cancel autofocus: $e'
-              : 'Failed to halt focuser: $e',
+              ? 'Failed to cancel autofocus: ${userFacingError(e)}'
+              : 'Failed to halt focuser: ${userFacingError(e)}',
         );
       }
     }
@@ -149,7 +149,7 @@ class _FocuserControlsState extends ConsumerState<FocuserControls> {
       }
     } catch (e) {
       if (mounted && _isCurrentService(service)) {
-        context.showErrorSnackBar('Autofocus failed: $e');
+        context.showErrorSnackBar('Autofocus failed: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(service)) {

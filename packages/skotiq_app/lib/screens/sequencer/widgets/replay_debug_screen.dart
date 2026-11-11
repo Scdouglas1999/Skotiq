@@ -170,7 +170,7 @@ class _ReplayDebugScreenState extends ConsumerState<ReplayDebugScreen> {
         error: (err, _) => EmptyState(
           icon: LucideIcons.alertTriangle,
           title: 'Could not load replay log',
-          body: '$err',
+          body: userFacingError(err),
           action: SkotiqButton(
             label: 'Retry',
             icon: SkotiqIcons.refresh,

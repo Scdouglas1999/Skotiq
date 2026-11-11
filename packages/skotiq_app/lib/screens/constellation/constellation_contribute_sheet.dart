@@ -9,7 +9,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../widgets/your_sky_opt_in.dart';
 
-import 'constellation_format.dart';
 import 'constellation_ui_providers.dart';
 
 /// Open the contribute consent flow for [target]. Resolves the
@@ -340,7 +339,7 @@ class _ConstellationContributeSheetState
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = describeConstellationError(error);
+        _error = userFacingError(error);
       });
     }
   }

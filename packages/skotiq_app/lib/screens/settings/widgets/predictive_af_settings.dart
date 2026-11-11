@@ -480,7 +480,7 @@ class _ModelViewer extends StatelessWidget {
                   } catch (error) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Re-train failed: $error')),
+                        SnackBar(content: Text('Re-train failed: ${userFacingError(error)}')),
                       );
                     }
                   }
@@ -504,7 +504,7 @@ class _ModelViewer extends StatelessWidget {
                   } catch (error) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Export failed: $error')),
+                        SnackBar(content: Text('Export failed: ${userFacingError(error)}')),
                       );
                     }
                   }

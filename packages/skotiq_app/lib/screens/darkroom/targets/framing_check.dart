@@ -271,11 +271,11 @@ class _DarkroomFramingCheckState extends ConsumerState<DarkroomFramingCheck> {
           DarkroomFramingSession(original: plan);
       unawaited(
         _jobs.checkFraming(target: _key, plan: plan).catchError((Object e) {
-          if (mounted) setState(() => _error = '$e');
+          if (mounted) setState(() => _error = userFacingError(e));
         }),
       );
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      if (mounted) setState(() => _error = userFacingError(e));
     } finally {
       if (mounted) setState(() => _preparing = false);
     }
@@ -286,7 +286,7 @@ class _DarkroomFramingCheckState extends ConsumerState<DarkroomFramingCheck> {
     try {
       await body();
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      if (mounted) setState(() => _error = userFacingError(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -324,7 +324,7 @@ class _DarkroomFramingCheckState extends ConsumerState<DarkroomFramingCheck> {
         final directory = darkroomTargetBuildDirectory(parent, _key);
         unawaited(
           _jobs.accept(directory).catchError((Object e) {
-            if (mounted) setState(() => _error = '$e');
+            if (mounted) setState(() => _error = userFacingError(e));
           }),
         );
         if (mounted) context.go(darkroomTargetLocation(_key));

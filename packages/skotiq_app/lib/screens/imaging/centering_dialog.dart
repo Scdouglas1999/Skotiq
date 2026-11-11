@@ -477,7 +477,7 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
       // Surface the failure rather than swallow it: a silent abort failure
       // leaves the mount slewing after the user thinks they aborted.
       if (mounted) {
-        context.showErrorSnackBar('Abort failed: $e');
+        context.showErrorSnackBar('Abort failed: ${userFacingError(e)}');
       }
     } finally {
       if (mounted) {
@@ -542,7 +542,7 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
       if (mounted) {
         setState(() {
           _isCentering = false;
-          _solverMissingMessage = 'Plate-solver detection failed: $e';
+          _solverMissingMessage = 'Plate-solver detection failed: ${userFacingError(e)}';
         });
       }
       return;
@@ -592,14 +592,14 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
       if (mounted) {
         setState(() {
           _result = CenteringResult.failure(
-            errorMessage: 'Centering error: $e',
+            errorMessage: 'Centering error: ${userFacingError(e)}',
             iterations: 0,
             iterationHistory: [],
           );
           _isCentering = false;
         });
 
-        context.showErrorSnackBar('Centering failed: $e');
+        context.showErrorSnackBar('Centering failed: ${userFacingError(e)}');
       }
     }
   }

@@ -375,7 +375,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
         }
       } catch (e) {
         if (mounted && _isCurrentOperation(revision, backend)) {
-          context.showErrorSnackBar('Rotation failed: $e');
+          context.showErrorSnackBar('Rotation failed: ${userFacingError(e)}');
         }
       }
     }
@@ -482,7 +482,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
       return false;
     } catch (e) {
       if (mounted && _isCurrentOperation(revision, backend)) {
-        context.showErrorSnackBar('Could not check the plate solver: $e');
+        context.showErrorSnackBar('Could not check the plate solver: ${userFacingError(e)}');
       }
       return false;
     }
@@ -572,7 +572,7 @@ class _CenteringDialogWithResultState
         setState(() => _isCentering = false);
         Navigator.of(context).pop(
           CenteringResult.failure(
-            errorMessage: 'Unable to load plate-solving settings: $error',
+            errorMessage: 'Unable to load plate-solving settings: ${userFacingError(error)}',
             iterations: 0,
             iterationHistory: const [],
           ),
@@ -620,7 +620,7 @@ class _CenteringDialogWithResultState
     } catch (e) {
       if (mounted) {
         final failureResult = CenteringResult.failure(
-          errorMessage: 'Centering error: $e',
+          errorMessage: 'Centering error: ${userFacingError(e)}',
           iterations: 0,
           iterationHistory: [],
         );
@@ -638,7 +638,7 @@ class _CenteringDialogWithResultState
       await ref.read(centeringServiceProvider).stop();
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Cancel failed: $e');
+        context.showErrorSnackBar('Cancel failed: ${userFacingError(e)}');
       }
     }
     if (mounted) {

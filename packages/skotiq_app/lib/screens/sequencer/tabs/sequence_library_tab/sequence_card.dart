@@ -575,7 +575,7 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
       return sequence;
     } catch (e) {
       if (context.mounted && _isCurrentAuthority(authority)) {
-        context.showErrorSnackBar('Failed to load sequence: $e');
+        context.showErrorSnackBar('Failed to load sequence: ${userFacingError(e)}');
       }
       return null;
     }
@@ -624,7 +624,7 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
       ref.invalidate(savedSequenceSummariesProvider);
     } catch (e) {
       if (mounted && _isCurrentAuthority(authority)) {
-        context.showErrorSnackBar('Failed to update favorite: $e');
+        context.showErrorSnackBar('Failed to update favorite: ${userFacingError(e)}');
       }
     }
   }
@@ -778,7 +778,7 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
       }
     } catch (e) {
       if (context.mounted && _isCurrentAuthority(authority)) {
-        context.showErrorSnackBar('Failed to duplicate: $e');
+        context.showErrorSnackBar('Failed to duplicate: ${userFacingError(e)}');
       }
     }
   }
@@ -844,12 +844,12 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
         }
       } catch (err) {
         if (context.mounted && _isCurrentAuthority(authority)) {
-          context.showErrorSnackBar('Failed to export: $err');
+          context.showErrorSnackBar('Failed to export: ${userFacingError(err)}');
         }
       }
     } catch (e) {
       if (context.mounted && _isCurrentAuthority(authority)) {
-        context.showErrorSnackBar('Failed to export: $e');
+        context.showErrorSnackBar('Failed to export: ${userFacingError(e)}');
       }
     }
   }

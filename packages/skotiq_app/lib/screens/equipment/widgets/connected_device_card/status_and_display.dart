@@ -169,7 +169,7 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
       await _reconnect(deviceService, deviceId);
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Failed to reconnect: $e');
+        context.showErrorSnackBar('Failed to reconnect: ${userFacingError(e)}');
       }
     }
   }

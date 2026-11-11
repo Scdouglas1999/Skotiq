@@ -174,7 +174,7 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
         setState(() => _noticeText = outcome);
       }
     } catch (e) {
-      if (mounted) setState(() => _errorText = _messageFor(e));
+      if (mounted) setState(() => _errorText = userFacingError(e));
     } finally {
       if (mounted) {
         setState(() {
@@ -186,11 +186,6 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
         });
       }
     }
-  }
-
-  String _messageFor(Object error) {
-    if (error is StateError) return error.message;
-    return error.toString().replaceFirst('Exception: ', '');
   }
 
   /// The panel sizes to its content and never scrolls on its own.

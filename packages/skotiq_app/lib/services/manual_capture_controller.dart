@@ -86,18 +86,6 @@ final manualCaptureControllerProvider =
 );
 
 class ManualCaptureController extends Notifier<ManualCaptureState> {
-  /// Strips a leading `SomeException(category): ` prefix so a failure reads
-  /// as English. Matched on `toString()` because `SkotiqException` is not
-  /// exported from the `skotiq_core` barrel.
-  static final RegExp _exceptionPrefix =
-      RegExp(r'^[A-Za-z_][A-Za-z0-9_]*(?:\([^)]*\))?:\s*');
-
-  static String cleanError(Object error) {
-    final raw = error.toString().trim();
-    final stripped = raw.replaceFirst(_exceptionPrefix, '').trim();
-    return stripped.isEmpty ? raw : stripped;
-  }
-
   /// The service that owns the capture in flight, so Stop aborts that one
   /// even after a backend switch rebuilt [imagingServiceProvider].
   ImagingService? _activeService;
@@ -208,7 +196,7 @@ class ManualCaptureController extends Notifier<ManualCaptureState> {
       }
       return result;
     } catch (e) {
-      state = state.copyWith(lastError: cleanError(e));
+      state = state.copyWith(lastError: userFacingError(e));
       rethrow;
     } finally {
       previewSubscription.close();
@@ -276,7 +264,7 @@ class ManualCaptureController extends Notifier<ManualCaptureState> {
           _feedToLiveStacker(image);
         },
         onError: (error) {
-          final cleaned = cleanError(error);
+          final cleaned = userFacingError(error);
           state = state.copyWith(lastError: cleaned);
           final status = ref.read(manualLoopStatusProvider.notifier);
           status.state = status.state.copyWith(
@@ -303,7 +291,7 @@ class ManualCaptureController extends Notifier<ManualCaptureState> {
     if (backend is NetworkBackend && state.isLooping) {
       unawaited(
         backend.stopHostManualLoop().catchError((Object e) {
-          state = state.copyWith(lastError: cleanError(e));
+          state = state.copyWith(lastError: userFacingError(e));
         }),
       );
       return;
@@ -347,7 +335,7 @@ class ManualCaptureController extends Notifier<ManualCaptureState> {
         },
       );
     } catch (e) {
-      final cleaned = cleanError(e);
+      final cleaned = userFacingError(e);
       state = state.copyWith(lastError: cleaned);
       onError?.call(cleaned);
     } finally {

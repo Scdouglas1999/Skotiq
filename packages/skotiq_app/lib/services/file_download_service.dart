@@ -2,7 +2,7 @@ import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:skotiq_core/skotiq_core.dart'
-    show ExportTarget, chooseExportTarget;
+    show ExportTarget, chooseExportTarget, userFacingError, failureText;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -82,7 +82,7 @@ Future<FileDownloadOutcome> downloadFileToDevice({
   try {
     tmpDir = await (temporaryDirectory ?? getTemporaryDirectory)();
   } catch (e) {
-    return FileDownloadOutcome.failed('Could not open a temp directory: $e');
+    return FileDownloadOutcome.failed('Could not open a temp directory: ${userFacingError(e)}');
   }
   final tempPath = p.join(
     tmpDir.path,
@@ -94,7 +94,7 @@ Future<FileDownloadOutcome> downloadFileToDevice({
     await fetch(tempPath, onProgress);
   } catch (e) {
     await _deleteQuietly(tempPath);
-    return FileDownloadOutcome.failed(downloadErrorMessage(e));
+    return FileDownloadOutcome.failed(failureText('Download failed', e));
   }
 
   final isMobile = Platform.isAndroid || Platform.isIOS;
@@ -128,21 +128,8 @@ Future<FileDownloadOutcome> downloadFileToDevice({
     return FileDownloadOutcome.saved(target.path);
   } catch (e) {
     await _deleteQuietly(tempPath);
-    return FileDownloadOutcome.failed('Could not save the file: $e');
+    return FileDownloadOutcome.failed('Could not save the file: ${userFacingError(e)}');
   }
-}
-
-String downloadErrorMessage(Object e) {
-  // SkotiqException / IoException (thrown by the resumable downloader)
-  // carry a user-facing `userMessage`, but the type isn't exported from the
-  // core barrel — read it duck-typed rather than widening the export surface.
-  try {
-    final message = (e as dynamic).userMessage;
-    if (message is String && message.trim().isNotEmpty) return message;
-  } catch (_) {
-    // Not one of our typed exceptions; fall through to a generic message.
-  }
-  return 'Download failed: $e';
 }
 
 Future<void> _deleteQuietly(String path) async {

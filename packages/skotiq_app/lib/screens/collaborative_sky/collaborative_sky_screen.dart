@@ -7,7 +7,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../widgets/your_sky_opt_in.dart';
 
-import '../constellation/constellation_format.dart';
 import '../constellation/constellation_sign_in_sheet.dart';
 import '../constellation/constellation_ui_providers.dart';
 import '../constellation/widgets/hub_status_card.dart';
@@ -102,7 +101,7 @@ class CollaborativeSkyView extends ConsumerWidget {
     return EmptyState(
       icon: LucideIcons.alertCircle,
       title: 'Could not reach the hub',
-      body: describeConstellationError(error),
+      body: userFacingError(error),
       action: SkotiqButton(
         label: 'Retry',
         icon: SkotiqIcons.refresh,
@@ -215,7 +214,7 @@ class _ConnectedBody extends ConsumerWidget {
               children: [
                 SkotiqBanner(
                     title: 'Hub unavailable',
-                    message: describeConstellationError(error),
+                    message: userFacingError(error),
                     tone: BannerTone.warning),
                 const SizedBox(height: SkotiqTokens.spaceMd),
                 Wrap(
@@ -313,7 +312,7 @@ class _CoImagingSectionState extends ConsumerState<_CoImagingSection> {
           loading: () => const _SectionSkeleton(),
           error: (error, _) => SkotiqBanner(
               title: 'Could not list co-imaging sessions',
-              message: describeConstellationError(error),
+              message: userFacingError(error),
               tone: BannerTone.warning),
         ),
       ],
@@ -396,7 +395,7 @@ class _CoImagingCardWiredState extends ConsumerState<_CoImagingCardWired> {
     final bool? joined = memberships
         ?.any((membership) => membership.sessionId == widget.session.sessionId);
     final membershipErrorMessage = membershipsAsync.hasError
-        ? describeConstellationError(membershipsAsync.error!)
+        ? userFacingError(membershipsAsync.error!)
         : null;
     // Subscribe to the live combined-preview channel only while the session is
     // still live, so the SSE connection is opened for the "we're building this
@@ -488,7 +487,7 @@ class _CoImagingCardWiredState extends ConsumerState<_CoImagingCardWired> {
     } catch (error) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text(describeConstellationError(error))),
+        SnackBar(content: Text(userFacingError(error))),
       );
     } finally {
       if (mounted) setState(() => _joining = false);
@@ -541,7 +540,7 @@ class _CoImagingCardWiredState extends ConsumerState<_CoImagingCardWired> {
     } catch (error) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text(describeConstellationError(error))),
+        SnackBar(content: Text(userFacingError(error))),
       );
     } finally {
       if (mounted) setState(() => _leaving = false);
@@ -597,7 +596,7 @@ class _CoImagingCardWiredState extends ConsumerState<_CoImagingCardWired> {
     } catch (error) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text(describeConstellationError(error))),
+        SnackBar(content: Text(userFacingError(error))),
       );
     } finally {
       if (mounted) setState(() => _ending = false);
@@ -658,7 +657,7 @@ class _MosaicsSection extends ConsumerWidget {
           loading: () => const _SectionSkeleton(),
           error: (error, _) => SkotiqBanner(
               title: 'Could not list collaborative mosaics',
-              message: describeConstellationError(error),
+              message: userFacingError(error),
               tone: BannerTone.warning),
         ),
       ],
@@ -723,7 +722,7 @@ class _SharedLibrarySection extends ConsumerWidget {
           loading: () => const _SectionSkeleton(),
           error: (error, _) => SkotiqBanner(
               title: 'Could not read the calibration library',
-              message: describeConstellationError(error),
+              message: userFacingError(error),
               tone: BannerTone.warning),
         ),
       ],

@@ -8,7 +8,6 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 import '../../../services/push_delivery_targets_provider.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../../utils/user_facing_error.dart';
 import '../../../widgets/tutorial_keys/settings_keys.dart';
 import 'notification_routing_settings.dart';
 import 'settings_widgets.dart';

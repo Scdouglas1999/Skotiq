@@ -124,7 +124,7 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
       }
     } catch (e) {
       if (mounted && identical(ref.read(backendProvider), _authority)) {
-        context.showErrorSnackBar('Failed to save template: $e');
+        context.showErrorSnackBar('Failed to save template: ${userFacingError(e)}');
       }
     } finally {
       if (mounted && identical(ref.read(backendProvider), _authority)) {

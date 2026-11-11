@@ -313,7 +313,7 @@ class _SummaryLoadNotice extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Science summary incomplete: $error'
+              'Science summary incomplete: ${userFacingError(error)}'
               '${additionalErrorCount > 0 ? ' (+$additionalErrorCount more)' : ''}',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,

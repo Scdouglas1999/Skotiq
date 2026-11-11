@@ -43,14 +43,6 @@ class CheckpointAttemptFailure {
 /// `'$error'` on a plain `Exception` prints `Exception: <message>`, which is
 /// how a raw runtime string ended up in the operator's startup modal.
 @visibleForTesting
-String describeCheckpointFailure(Object error) {
-  final text = error is SkotiqError ? error.userMessage : '$error';
-  final trimmed = text.trim();
-  for (final prefix in const ['Exception: ', 'Bad state: ']) {
-    if (trimmed.startsWith(prefix)) return trimmed.substring(prefix.length);
-  }
-  return trimmed;
-}
 
 /// File names the native `CheckpointManager` uses inside the checkpoint
 /// directory (`native/skotiq_native/sequencer/src/checkpoint.rs`,
@@ -278,7 +270,7 @@ Widget buildCheckpointRecoveryDialog({
             SkotiqAlert(
               severity: SkotiqAlertSeverity.error,
               title: 'Recovery did not complete',
-              message: '${describeCheckpointFailure(failure.error)}\n\n'
+              message: '${userFacingError(failure.error)}\n\n'
                   '$aftermath',
             ),
           ],

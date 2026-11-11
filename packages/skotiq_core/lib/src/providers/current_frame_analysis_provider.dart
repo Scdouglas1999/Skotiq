@@ -7,6 +7,7 @@
 // detector on a bridge worker thread. Both read the frame's FITS file, so a
 // frame without one (a remote preview, a frame still being written) waits
 // until its path arrives.
+import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:collection';
 
@@ -436,7 +437,7 @@ class FrameAutoSolver extends Notifier<Map<DateTime, FrameSolveVm>> {
         FrameSolveVm(
           frameCapturedAt: key,
           status: FrameSolveStatus.failed,
-          message: '$e',
+          message: userFacingError(e),
         ),
       );
     } finally {

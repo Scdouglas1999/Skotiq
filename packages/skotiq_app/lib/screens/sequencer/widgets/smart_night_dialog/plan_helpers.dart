@@ -360,7 +360,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
         setState(() => _previewDraftId = draft.id);
       } catch (e) {
         if (mounted) {
-          context.showWarningSnackBar('Could not save adjusted counts: $e');
+          context.showWarningSnackBar('Could not save adjusted counts: ${userFacingError(e)}');
         }
       }
     });
@@ -445,7 +445,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
       );
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Could not start Smart Night sequence: $e');
+        context.showErrorSnackBar('Could not start Smart Night sequence: ${userFacingError(e)}');
       }
       return;
     } finally {
@@ -474,7 +474,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
           .saveSequence(plan.sequence, isTemplate: true);
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Could not save template: $e');
+        context.showErrorSnackBar('Could not save template: ${userFacingError(e)}');
       }
       return;
     } finally {

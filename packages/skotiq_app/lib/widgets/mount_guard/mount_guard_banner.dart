@@ -55,7 +55,7 @@ class _EntryCardState extends ConsumerState<_EntryCard> {
           .read(mountGuardProvider.notifier)
           .acknowledgeFault(widget.entry.deviceId);
     } catch (e) {
-      setState(() => _error = mountGuardErrorText(e));
+      setState(() => _error = userFacingError(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -214,10 +214,3 @@ String _summarizeAttempts(List<String> attempts) {
   return '${rounds.values.first.join(', ')} (${rounds.length} rounds)';
 }
 
-/// The operator-facing text of a guard refusal.
-String mountGuardErrorText(Object error) {
-  final bridge = bridgeErrorMessage(error);
-  if (bridge != null) return bridge;
-  if (error is ServerError) return error.message;
-  return error.toString().replaceFirst(RegExp(r'^[A-Za-z]*(Exception|Error): '), '');
-}

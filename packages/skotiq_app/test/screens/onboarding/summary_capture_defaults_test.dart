@@ -71,7 +71,7 @@ void main() {
 
     expect(find.text('Capture defaults'), findsOneWidget);
     expect(
-        find.text('gain 100 · offset 50 · bin 1×1 · -10 °C'), findsOneWidget);
+        find.text('gain 100 · offset 50 · bin 1×1 · -10°C'), findsOneWidget);
   });
 
   testWidgets('no set-points reads as not set rather than invented numbers', (

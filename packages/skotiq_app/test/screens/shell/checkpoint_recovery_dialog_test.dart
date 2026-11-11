@@ -30,6 +30,7 @@ import 'package:skotiq_core/skotiq_core.dart'
         NetworkBackend,
         SequencerBackend,
         SkotiqError;
+import 'package:skotiq_core/skotiq_core.dart' show userFacingError;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _MockHost extends Mock implements NetworkBackend {}
@@ -249,20 +250,18 @@ void main() {
   group('describeCheckpointFailure', () {
     test('strips the Dart wrapper from a plain Exception', () {
       expect(
-        describeCheckpointFailure(Exception('checkpoint is corrupt')),
+        userFacingError(Exception('checkpoint is corrupt')),
         'checkpoint is corrupt',
       );
     });
 
     test('prefers the operator-facing message of a SkotiqError', () {
       expect(
-        describeCheckpointFailure(
-          const SkotiqError(
+        userFacingError(const SkotiqError(
             category: BackendErrorCategory.connection,
             message: 'ipc channel closed while resuming',
             userMessage: 'The imaging host stopped responding.',
-          ),
-        ),
+          )),
         'The imaging host stopped responding.',
       );
     });

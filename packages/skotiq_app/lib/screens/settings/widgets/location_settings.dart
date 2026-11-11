@@ -412,7 +412,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           }
                         } catch (e) {
                           if (context.mounted) {
-                            context.showErrorSnackBar('Sync failed: $e');
+                            context.showErrorSnackBar('Sync failed: ${userFacingError(e)}');
                           }
                         }
                       },
@@ -742,7 +742,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _placeSearching = false);
-      context.showErrorSnackBar('Could not search for a place: $e');
+      context.showErrorSnackBar('Could not search for a place: ${userFacingError(e)}');
     }
   }
 
@@ -873,7 +873,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
       );
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Could not detect a location: $e');
+        context.showErrorSnackBar('Could not detect a location: ${userFacingError(e)}');
       }
     } finally {
       if (mounted) setState(() => _detecting = false);
@@ -945,7 +945,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
       }
     } catch (e) {
       if (mounted && _isCurrentHorizonImport(generation, authority)) {
-        context.showErrorSnackBar('Could not import horizon file: $e');
+        context.showErrorSnackBar('Could not import horizon file: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentHorizonImport(generation, authority)) {
@@ -1098,7 +1098,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
           );
     } catch (error) {
       if (mounted) {
-        context.showErrorSnackBar('Could not reset the horizon mask: $error');
+        context.showErrorSnackBar('Could not reset the horizon mask: ${userFacingError(error)}');
       }
     }
   }

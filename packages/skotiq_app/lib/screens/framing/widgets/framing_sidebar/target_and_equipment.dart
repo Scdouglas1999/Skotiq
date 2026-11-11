@@ -484,7 +484,7 @@ class FramingEquipmentSection extends StatelessWidget {
           SkotiqBanner(
             tone: BannerTone.error,
             title: 'Could not read your equipment',
-            message: e.toString(),
+            message: userFacingError(e),
           ),
         ],
       ),

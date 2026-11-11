@@ -42,7 +42,7 @@ class EquipmentHealthPanel extends ConsumerWidget {
           error: (error, _) => EquipmentBlockerRow(
             toneColor: colors.error,
             title: 'Health is unavailable',
-            detail: '$error',
+            detail: userFacingError(error),
             showDivider: false,
           ),
         ),

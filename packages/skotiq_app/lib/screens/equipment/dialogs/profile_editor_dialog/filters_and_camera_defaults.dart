@@ -436,7 +436,7 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
     } catch (e) {
       if (!mounted) return;
       // Surface the failure to the user — never silently fall back.
-      context.showErrorSnackBar('Auto-detect failed: $e');
+      context.showErrorSnackBar('Auto-detect failed: ${userFacingError(e)}');
     } finally {
       if (mounted) {
         setState(() {
