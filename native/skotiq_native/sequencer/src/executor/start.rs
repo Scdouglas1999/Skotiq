@@ -44,6 +44,32 @@ fn terminal_verdict_message(result: NodeStatus, root_display_name: &str) -> Stri
     format!("{}: {}", verb, root_display_name)
 }
 
+/// Give a starting run its per-target integration accounting.
+///
+/// The checkpoint's accounting goes in first and the operator's handoff
+/// choice on top of it, target by target: Resume replaces a target's totals
+/// with the ones the operator confirmed, Restart (an empty map for the
+/// target) zeroes it, and a target with no choice keeps what the checkpoint
+/// credited. `restore_snapshot` replaces the whole registry, so the other
+/// order would discard the operator's choice on every checkpoint resume.
+async fn seed_run_budget(
+    registry: &crate::scheduling::BudgetRegistry,
+    checkpoint: Option<crate::scheduling::BudgetRegistrySnapshot>,
+    carry_over: HashMap<String, HashMap<String, f64>>,
+) {
+    if let Some(snapshot) = checkpoint {
+        registry.restore_snapshot(snapshot).await;
+    }
+    for (target_id, per_filter) in carry_over {
+        tracing::info!(
+            "Seeding integration carry-over for target_id={} ({} filter entries)",
+            target_id,
+            per_filter.len()
+        );
+        registry.seed_carry_over(&target_id, per_filter).await;
+    }
+}
+
 impl SequenceExecutor {
     /// Start executing the sequence.
     ///
@@ -517,38 +543,15 @@ impl SequenceExecutor {
                     let mut slot = context.defect_map_apply.write().await;
                     *slot = initial;
                 }
-                // seed per-target carry-over integration into
-                // the BudgetRegistry. The map is drained out of the
-                // runtime config (cloned then cleared) so a subsequent
-                // start() without an explicit re-seed begins fresh
-                // rather than re-applying stale prior-session totals.
-                //
-                // This runs AFTER `restore_snapshot` so an explicit
-                // "Resume" handoff decision overrides the pre-pause
-                // checkpoint state — the operator has expressed an
-                // intent that supersedes whatever the executor parked
-                // on disk. `Restart` writes an empty map so a target
-                // that was previously carried-over is now zeroed.
-                {
-                    let carry_over: HashMap<String, HashMap<String, f64>> = {
-                        let mut rc = runtime_config.write();
-                        std::mem::take(&mut rc.pending_integration_carry_over)
-                    };
-                    if !carry_over.is_empty() {
-                        for (target_id, per_filter) in carry_over.into_iter() {
-                            tracing::info!(
-                                "Seeding integration carry-over for target_id={} \
-                                 ({} filter entries)",
-                                target_id,
-                                per_filter.len()
-                            );
-                            context
-                                .budget_registry
-                                .seed_carry_over(&target_id, per_filter)
-                                .await;
-                        }
-                    }
-                }
+                // Taken, not read: the choice belongs to this start only.
+                let carry_over =
+                    std::mem::take(&mut runtime_config.write().pending_integration_carry_over);
+                seed_run_budget(
+                    &context.budget_registry,
+                    budget_snapshot_to_restore,
+                    carry_over,
+                )
+                .await;
                 tracing::info!(
                     "Executor started: session_id={}, observer={:?}, telescope={:?}, grading_active={}",
                     context.session_id,
@@ -577,17 +580,6 @@ impl SequenceExecutor {
                             .unwrap_or(false),
                     }),
                 );
-
-                // restore per-target integration-budget
-                // accounting from the checkpoint, if any. An empty snapshot
-                // (no checkpoint loaded, or pre-budget checkpoint) is a
-                // no-op which matches the documented backwards-compat
-                // behaviour: resume with zero credited per-filter
-                // integration and the budget runtime begins crediting from
-                // there.
-                if let Some(snapshot) = budget_snapshot_to_restore {
-                    context.budget_registry.restore_snapshot(snapshot).await;
-                }
 
                 // restore the SmartExposure per-node
                 // resume map from the checkpoint. Each entry seeds the
