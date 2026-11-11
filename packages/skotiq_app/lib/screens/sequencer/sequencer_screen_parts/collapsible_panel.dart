@@ -114,7 +114,6 @@ class _CollapsiblePanelState extends State<_CollapsiblePanel>
         final isEffectivelyCollapsed = width < widget.collapsedWidth + 20;
 
         if (isEffectivelyCollapsed) {
-          // Collapsed state - show icon button strip
           return Container(
             width: widget.collapsedWidth,
             decoration: BoxDecoration(
@@ -141,7 +140,6 @@ class _CollapsiblePanelState extends State<_CollapsiblePanel>
           );
         }
 
-        // Expanded state - show resizable panel with content
         return SizedBox(
           width: width,
           child: ResizablePanel(

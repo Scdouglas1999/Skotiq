@@ -68,7 +68,6 @@ class _DesktopBuilderLayout extends ConsumerWidget {
   /// The palette column's width (06 §Sequencer: 264 / 1fr / 300).
   static const double paletteWidth = 264.0;
 
-  /// The properties column's width.
   static const double propertiesWidth = 300.0;
 
   /// Bucket the raw available width to the nearest 64px before computing
@@ -120,7 +119,6 @@ class _DesktopBuilderLayout extends ConsumerWidget {
     // drag only steps the dimensions every ~64px instead of every frame.
     final dims = _panelDimensions(_bucketWidth(availableWidth));
 
-    // Calculate space needed for different configurations.
     final bothExpandedWidth =
         dims.leftExpanded + minCenterWidth + dims.rightExpanded;
     const bothCollapsedMinWidth =
@@ -132,7 +130,6 @@ class _DesktopBuilderLayout extends ConsumerWidget {
         // carries the live sequence's own name and actions. A second title
         // block here would be the app introducing itself twice.
 
-        // Equipment telemetry strip (visible during execution)
         Consumer(
           builder: (context, ref, child) {
             final executionState = ref.watch(sequenceExecutionStateProvider);
@@ -144,7 +141,6 @@ class _DesktopBuilderLayout extends ConsumerWidget {
           },
         ),
 
-        // Batch operations toolbar (visible during multi-select)
         Consumer(
           builder: (context, ref, child) {
             final isMultiSelect = ref.watch(isMultiSelectActiveProvider);
@@ -236,7 +232,6 @@ class _DesktopBuilderLayout extends ConsumerWidget {
 
               return Row(
                 children: [
-                  // Left panel - Toolbox (Node Palette + Snippet Palette)
                   _CollapsiblePanel(
                     colors: colors,
                     isCollapsed: effectiveToolboxCollapsed,
@@ -348,5 +343,3 @@ class _DesktopBuilderLayout extends ConsumerWidget {
     );
   }
 }
-
-/// Combined toolbox panel with Node Palette and Snippet Palette tabs

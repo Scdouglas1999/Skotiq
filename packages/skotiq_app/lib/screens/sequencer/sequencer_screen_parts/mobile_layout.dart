@@ -93,14 +93,12 @@ class _MobileBuilderLayout extends ConsumerWidget {
               SequenceToolbar(
                   key: SequencerTutorialKeys.toolbar, colors: colors),
 
-              // Compact playback controls.
               MobilePlaybackBar(colors: colors),
 
               // Live telemetry while executing — a wrapping stat strip so the
               // dense readout reflows instead of overflowing a phone column.
               if (isRunning) _MobileTelemetryStrip(colors: colors),
 
-              // Progress bar (when running).
               if (isRunning)
                 SequenceProgressBar(
                     key: SequencerTutorialKeys.progressBar, colors: colors),
@@ -156,7 +154,6 @@ class _MobileBuilderLayout extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                 ],
-                // Add-node FAB.
                 FloatingActionButton(
                   heroTag: 'add_node_fab',
                   backgroundColor: colors.primary,

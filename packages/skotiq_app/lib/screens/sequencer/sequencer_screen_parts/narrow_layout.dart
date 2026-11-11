@@ -161,7 +161,6 @@ class _RailDraggable extends ConsumerStatefulWidget {
   static const double tileHeight = 36.0;
   static const double verticalMargin = 3.0;
 
-  /// Total row height = tile + top & bottom margin.
   static const double rowExtent = tileHeight + verticalMargin * 2;
 
   @override
@@ -261,5 +260,3 @@ class _RailDraggableState extends ConsumerState<_RailDraggable> {
     );
   }
 }
-
-/// Mobile layout: Full-screen tree with FAB and bottom sheets

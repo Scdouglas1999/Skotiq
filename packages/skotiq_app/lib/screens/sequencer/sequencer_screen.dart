@@ -68,14 +68,12 @@ enum SequencerTab {
 
   const SequencerTab(this.label, this.icon);
 
-  /// Visible tab label.
   final String label;
 
   /// Leading icon used in the strip + collapsed (icon-only) phone mode.
   final IconData icon;
 }
 
-/// Map a sequencer `?tab=` deep link to the canonical tab enum.
 SequencerTab? sequencerTabFromQuery(String? value) {
   if (value == null) return null;
   switch (value.toLowerCase()) {
@@ -99,7 +97,6 @@ SequencerTab? sequencerTabFromQuery(String? value) {
 /// visible effect even when the user is on the Targets tab.
 enum SequencerToolboxTab { nodes, snippets, targets }
 
-/// Currently selected sequencer tab.
 final sequencerTabProvider =
     StateProvider<int>((ref) => SequencerTab.builder.index);
 
@@ -554,7 +551,6 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
                     ),
                   ),
 
-                // Progress bar (when running)
                 if (isRunning)
                   SequenceProgressBar(
                       key: SequencerTutorialKeys.progressBar, colors: colors),
@@ -592,7 +588,6 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
                         index: SequencerTab.sequences.index,
                         builder: (_) => const SequenceLibraryTab(),
                       ),
-                      // History tab.
                       _LazyTab(
                         controller: _tabController,
                         index: SequencerTab.history.index,
