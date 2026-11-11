@@ -3,11 +3,8 @@ import 'package:skotiq_core/skotiq_core.dart';
 import '../utils/snackbar_helper.dart';
 import '../widgets/troubleshooter/connection_troubleshooter_dialog.dart';
 
-/// Mixin that provides unified device connection/disconnection handling.
-///
-/// This eliminates duplicate connect/disconnect handler code across equipment screens.
-/// All device connection handlers should use this mixin instead of implementing
-/// their own try/catch/setState patterns.
+/// A user-started connect: one in-flight flag, and a failure that opens the
+/// connection troubleshooter with a single retry.
 mixin DeviceConnectionMixin<T extends ConsumerStatefulWidget>
     on ConsumerState<T> {
   bool _isConnecting = false;
@@ -64,6 +61,7 @@ mixin DeviceConnectionMixin<T extends ConsumerStatefulWidget>
           deviceType: deviceType,
           driverType: resolvedDriverType,
           rawError: e.toString(),
+          reason: connectFailureReason(e),
         );
         if (retry && mounted) {
           // Re-attempt exactly once. A second failure falls back to the
@@ -87,23 +85,6 @@ mixin DeviceConnectionMixin<T extends ConsumerStatefulWidget>
       }
     } finally {
       if (mounted) setState(() => _isConnecting = false);
-    }
-  }
-
-  /// Disconnects from a device with unified error handling.
-  ///
-  /// [disconnectFn] - The async function that performs the actual disconnection
-  /// [deviceType] - Display name for error messages (e.g., 'camera', 'mount')
-  Future<void> disconnectDevice({
-    required Future<void> Function() disconnectFn,
-    required String deviceType,
-  }) async {
-    try {
-      await disconnectFn();
-    } catch (e) {
-      if (mounted) {
-        context.showErrorSnackBar('Failed to disconnect $deviceType: $e');
-      }
     }
   }
 }

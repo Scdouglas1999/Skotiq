@@ -44,7 +44,7 @@ Future<void> _pumpCard(
         localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
         supportedLocales: SkotiqLocalizations.supportedLocales,
         home: const Scaffold(
-          body: ConnectedDeviceCard(type: ConnectedDeviceType.safetyMonitor),
+          body: ConnectedDeviceCard(type: DeviceType.safetyMonitor),
         ),
       ),
     ),

@@ -9,6 +9,7 @@ import '../../../services/mount_command_service.dart';
 import '../../../utils/authority_bound_dialog.dart';
 import '../../../utils/cooled_camera_guard.dart';
 import '../../../utils/device_format_utils.dart';
+import '../../../utils/device_type_ui.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../utils/user_facing_error.dart';
 import '../../../widgets/focuser_backlash/effective_backlash_readout.dart';
@@ -26,19 +27,6 @@ part 'connected_device_card/dialogs_and_settings.dart';
 part 'connected_device_card/helper_widgets.dart';
 part 'connected_device_card/motion_dialogs.dart';
 
-enum ConnectedDeviceType {
-  camera,
-  mount,
-  focuser,
-  filterWheel,
-  guider,
-  rotator,
-  dome,
-  weather,
-  safetyMonitor,
-  coverCalibrator,
-}
-
 /// Narrow adapters keep the equipment card on the canonical weather-safety
 /// state machine while allowing the quick-action surface to be tested without
 /// constructing its long-lived polling timers.
@@ -55,135 +43,6 @@ final equipmentSafetySnoozeActionProvider =
 final equipmentSafetyCancelSnoozeActionProvider = Provider<VoidCallback>(
   (ref) => ref.read(weatherSafetyProvider.notifier).cancelSnooze,
 );
-
-extension ConnectedDeviceTypeExtension on ConnectedDeviceType {
-  /// The device's ROLE, in sentence case. The card's eyebrow uppercases it for
-  /// display; nothing else should ship shouting text.
-  String get displayName {
-    switch (this) {
-      case ConnectedDeviceType.camera:
-        return 'Camera';
-      case ConnectedDeviceType.mount:
-        return 'Mount';
-      case ConnectedDeviceType.focuser:
-        return 'Focuser';
-      case ConnectedDeviceType.filterWheel:
-        return 'Filter wheel';
-      case ConnectedDeviceType.guider:
-        return 'Guider';
-      case ConnectedDeviceType.rotator:
-        return 'Rotator';
-      case ConnectedDeviceType.dome:
-        return 'Dome';
-      case ConnectedDeviceType.weather:
-        return 'Weather';
-      case ConnectedDeviceType.safetyMonitor:
-        return 'Safety monitor';
-      case ConnectedDeviceType.coverCalibrator:
-        return 'Cover calibrator';
-    }
-  }
-
-  IconData get icon {
-    switch (this) {
-      case ConnectedDeviceType.camera:
-        return LucideIcons.camera;
-      case ConnectedDeviceType.mount:
-        return LucideIcons.compass;
-      case ConnectedDeviceType.focuser:
-        return LucideIcons.focus;
-      case ConnectedDeviceType.filterWheel:
-        return LucideIcons.disc;
-      case ConnectedDeviceType.guider:
-        return LucideIcons.crosshair;
-      case ConnectedDeviceType.rotator:
-        return LucideIcons.rotateCw;
-      case ConnectedDeviceType.dome:
-        return LucideIcons.home;
-      case ConnectedDeviceType.weather:
-        return LucideIcons.cloudSun;
-      case ConnectedDeviceType.safetyMonitor:
-        return LucideIcons.shieldCheck;
-      case ConnectedDeviceType.coverCalibrator:
-        return LucideIcons.lamp;
-    }
-  }
-
-  /// Accent color for the card header icon — one accent per device category.
-  ///
-  /// Mapping:
-  ///   - imaging chain (capture)            -> `colors.primary`  (cyan-blue)
-  ///       - camera
-  ///   - sky pointing / mechanical          -> `colors.warning`  (amber)
-  ///       - mount
-  ///       - rotator
-  ///       - dome
-  ///   - opto-mechanical adjusters          -> `colors.accent`   (light cyan)
-  ///       - focuser
-  ///       - filterWheel
-  ///       - coverCalibrator
-  ///   - measurement / telemetry            -> `colors.info`     (blue)
-  ///       - guider
-  ///       - weather
-  ///   - life-safety / interlocks           -> `colors.success`  (green)
-  ///       - safetyMonitor
-  ///
-  /// Status colors (success/warning/error) are reserved for the connection
-  /// state border and badge — they are not used as device accents here so the
-  /// border color is unambiguous.
-  /// Maps the card's local device-type enum to the canonical core
-  /// [DeviceType] consumed by the connection troubleshooter (so its
-  /// classifier produces hardware-aware copy: "camera" vs "mount", etc.).
-  DeviceType get coreDeviceType {
-    switch (this) {
-      case ConnectedDeviceType.camera:
-        return DeviceType.camera;
-      case ConnectedDeviceType.mount:
-        return DeviceType.mount;
-      case ConnectedDeviceType.focuser:
-        return DeviceType.focuser;
-      case ConnectedDeviceType.filterWheel:
-        return DeviceType.filterWheel;
-      case ConnectedDeviceType.guider:
-        return DeviceType.guider;
-      case ConnectedDeviceType.rotator:
-        return DeviceType.rotator;
-      case ConnectedDeviceType.dome:
-        return DeviceType.dome;
-      case ConnectedDeviceType.weather:
-        return DeviceType.weather;
-      case ConnectedDeviceType.safetyMonitor:
-        return DeviceType.safetyMonitor;
-      case ConnectedDeviceType.coverCalibrator:
-        return DeviceType.coverCalibrator;
-    }
-  }
-
-  Color accentColor(SkotiqColors colors) {
-    switch (this) {
-      // Imaging chain
-      case ConnectedDeviceType.camera:
-        return colors.primary;
-      // Sky pointing & mechanical positioners
-      case ConnectedDeviceType.mount:
-      case ConnectedDeviceType.rotator:
-      case ConnectedDeviceType.dome:
-        return colors.warning;
-      // Opto-mechanical adjusters in the optical path
-      case ConnectedDeviceType.focuser:
-      case ConnectedDeviceType.filterWheel:
-      case ConnectedDeviceType.coverCalibrator:
-        return colors.accent;
-      // Measurement / telemetry
-      case ConnectedDeviceType.guider:
-      case ConnectedDeviceType.weather:
-        return colors.info;
-      // Life-safety / interlocks
-      case ConnectedDeviceType.safetyMonitor:
-        return colors.success;
-    }
-  }
-}
 
 /// Get display name for a device, preferring deviceName, falling back to formatted deviceId
 String _getDeviceDisplayName(
@@ -217,7 +76,7 @@ class ConnectedDeviceCard extends ConsumerStatefulWidget {
   @visibleForTesting
   static const freshnessTick = Duration(seconds: 1);
 
-  final ConnectedDeviceType type;
+  final DeviceType type;
   final VoidCallback? onDisconnect;
   final VoidCallback? onSettings;
 
@@ -315,8 +174,8 @@ class _ConnectedDeviceCardState extends ConsumerState<ConnectedDeviceCard>
   }
 
   bool get _needsFreshnessClock =>
-      widget.type == ConnectedDeviceType.safetyMonitor ||
-      widget.type == ConnectedDeviceType.weather;
+      widget.type == DeviceType.safetyMonitor ||
+      widget.type == DeviceType.weather;
 
   @override
   void dispose() {
@@ -462,13 +321,13 @@ class _ConnectedDeviceCardState extends ConsumerState<ConnectedDeviceCard>
   Future<void> _addToProfile() async {
     final profile = ref.read(activeEquipmentProfileProvider);
     final profileId = profile?.id;
-    final slot = _profileSlot;
-    if (profileId == null || slot == null) return;
+    final slot = widget.type;
+    if (profileId == null) return;
     try {
       await saveSessionDevicesToProfile(
         ref,
         profileId: profileId,
-        slots: <ProfileDeviceSlot>{slot},
+        slots: <DeviceType>{slot},
       );
       if (!mounted) return;
       ref.read(profileMutationEpochProvider.notifier).state++;
@@ -479,25 +338,12 @@ class _ConnectedDeviceCardState extends ConsumerState<ConnectedDeviceCard>
     }
   }
 
-  ProfileDeviceSlot? get _profileSlot => switch (widget.type) {
-        ConnectedDeviceType.camera => ProfileDeviceSlot.camera,
-        ConnectedDeviceType.mount => ProfileDeviceSlot.mount,
-        ConnectedDeviceType.focuser => ProfileDeviceSlot.focuser,
-        ConnectedDeviceType.filterWheel => ProfileDeviceSlot.filterWheel,
-        ConnectedDeviceType.guider => ProfileDeviceSlot.guider,
-        ConnectedDeviceType.rotator => ProfileDeviceSlot.rotator,
-        ConnectedDeviceType.dome => ProfileDeviceSlot.dome,
-        ConnectedDeviceType.weather => ProfileDeviceSlot.weather,
-        ConnectedDeviceType.safetyMonitor => ProfileDeviceSlot.safetyMonitor,
-        ConnectedDeviceType.coverCalibrator =>
-          ProfileDeviceSlot.coverCalibrator,
-      };
-
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final connectionState = _getConnectionState();
     final accentColor = widget.type.accentColor(colors);
+    final live = connectionState == DeviceConnectionState.connected;
 
     // A panel, not a bordered card: the connection state is carried by the
     // status chip in the header, so the container needs no coloured ring
@@ -511,22 +357,26 @@ class _ConnectedDeviceCardState extends ConsumerState<ConnectedDeviceCard>
 
           const SizedBox(height: SkotiqTokens.spaceMd),
 
-          _buildMetricsRow(colors),
+          // Readings and controls belong to a device that is up. One that is
+          // still connecting, or dropped, shows why and what can be done.
+          if (live) _buildMetricsRow(colors),
 
-          // Troubleshooter-backed error subtitle + Diagnose affordance, shown
-          // only when the device is in an error state.
           _buildErrorSubtitle(colors, connectionState),
 
           _buildSessionOnlyNotice(colors, connectionState),
 
           const SizedBox(height: SkotiqTokens.spaceMd),
 
-          _buildActionsRow(colors),
+          if (live)
+            _buildActionsRow(colors)
+          else if (connectionState == DeviceConnectionState.error)
+            _buildFailedActionsRow(),
 
-          SizeTransition(
-            sizeFactor: _expandAnimation,
-            child: _buildExpandedContent(colors),
-          ),
+          if (live)
+            SizeTransition(
+              sizeFactor: _expandAnimation,
+              child: _buildExpandedContent(colors),
+            ),
         ],
       ),
     );

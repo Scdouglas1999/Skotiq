@@ -30,7 +30,7 @@ Future<HarnessHandle> pumpMount(
     tester,
     DeviceTileWidth(
       width: tileWidth,
-      child: const ConnectedDeviceCard(type: ConnectedDeviceType.mount),
+      child: const ConnectedDeviceCard(type: DeviceType.mount),
     ),
     backend: backend,
     extraOverrides: [

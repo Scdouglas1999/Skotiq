@@ -16,7 +16,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     // Disconnecting a camera whose TEC is still active cuts cooler power
     // abruptly — gate with the shared cooled-camera confirm. Confirm BEFORE
     // _beginDeviceCommand so the card is not held busy while the dialog is up.
-    if (widget.type == ConnectedDeviceType.camera) {
+    if (widget.type == DeviceType.camera) {
       final proceed = await confirmDisconnectCooledCamera(context, ref);
       if (!proceed || !mounted) return;
     }
@@ -26,38 +26,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     final deviceService = ref.read(deviceServiceProvider);
     final deviceId = _currentCardDeviceId();
     try {
-      switch (widget.type) {
-        case ConnectedDeviceType.camera:
-          await deviceService.disconnectCamera();
-          break;
-        case ConnectedDeviceType.mount:
-          await deviceService.disconnectMount();
-          break;
-        case ConnectedDeviceType.focuser:
-          await deviceService.disconnectFocuser();
-          break;
-        case ConnectedDeviceType.filterWheel:
-          await deviceService.disconnectFilterWheel();
-          break;
-        case ConnectedDeviceType.guider:
-          await deviceService.disconnectGuider();
-          break;
-        case ConnectedDeviceType.rotator:
-          await deviceService.disconnectRotator();
-          break;
-        case ConnectedDeviceType.dome:
-          await deviceService.disconnectDome();
-          break;
-        case ConnectedDeviceType.weather:
-          await deviceService.disconnectWeather();
-          break;
-        case ConnectedDeviceType.safetyMonitor:
-          await deviceService.disconnectSafetyMonitor();
-          break;
-        case ConnectedDeviceType.coverCalibrator:
-          await deviceService.disconnectCoverCalibrator();
-          break;
-      }
+      await deviceService.disconnect(widget.type);
     } catch (e) {
       if (mounted &&
           _hasCurrentDeviceAuthority(backend, deviceService, deviceId)) {
@@ -402,21 +371,8 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     }
   }
 
-  String? _currentCardDeviceId() => switch (widget.type) {
-        ConnectedDeviceType.camera => ref.read(cameraStateProvider).deviceId,
-        ConnectedDeviceType.mount => ref.read(mountStateProvider).deviceId,
-        ConnectedDeviceType.focuser => ref.read(focuserStateProvider).deviceId,
-        ConnectedDeviceType.filterWheel =>
-          ref.read(filterWheelStateProvider).deviceId,
-        ConnectedDeviceType.guider => ref.read(guiderStateProvider).deviceId,
-        ConnectedDeviceType.rotator => ref.read(rotatorStateProvider).deviceId,
-        ConnectedDeviceType.dome => ref.read(domeStateProvider).deviceId,
-        ConnectedDeviceType.weather => ref.read(weatherStateProvider).deviceId,
-        ConnectedDeviceType.safetyMonitor =>
-          ref.read(safetyMonitorStateProvider).deviceId,
-        ConnectedDeviceType.coverCalibrator =>
-          ref.read(coverCalibratorStateProvider).deviceId,
-      };
+  String? _currentCardDeviceId() =>
+      ref.read(widget.type.slot.state).deviceId;
 
   bool _hasCurrentDeviceAuthority(
     SkotiqBackend backend,

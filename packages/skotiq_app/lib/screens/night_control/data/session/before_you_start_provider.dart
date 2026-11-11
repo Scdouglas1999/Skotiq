@@ -114,7 +114,7 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
   final mount = ref.watch(mountStateProvider);
   final guider = ref.watch(guiderStateProvider);
   final phd2 = ref.watch(phd2StateProvider);
-  final assigned = ref.watch(assignedProfileDeviceSlotsProvider).toSet();
+  final assigned = ref.watch(assignedProfileDeviceTypesProvider).toSet();
   final settings = ref.watch(appSettingsProvider).valueOrNull;
   final solver = ref.watch(nightSolverStatusProvider);
   final projection = ref.watch(nightDiskProjectionProvider);
@@ -181,7 +181,7 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
         ),
       ),
     );
-  } else if (assigned.contains(ProfileDeviceSlot.filterWheel)) {
+  } else if (assigned.contains(DeviceType.filterWheel)) {
     rows.add(
       _notConnected(
         ChecklistItemId.filterWheel,
@@ -203,7 +203,7 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
             : NightText.literal(nightGrouped(position)),
       ),
     );
-  } else if (assigned.contains(ProfileDeviceSlot.focuser)) {
+  } else if (assigned.contains(DeviceType.focuser)) {
     rows.add(
       _notConnected(
         ChecklistItemId.focuser,
@@ -269,7 +269,7 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
               actionKey: 'nightSessionActionLoop',
             ),
     );
-  } else if (assigned.contains(ProfileDeviceSlot.guider)) {
+  } else if (assigned.contains(DeviceType.guider)) {
     rows.add(
       _notConnected(
         ChecklistItemId.guider,

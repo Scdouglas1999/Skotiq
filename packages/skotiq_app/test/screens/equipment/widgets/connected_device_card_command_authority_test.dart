@@ -41,10 +41,10 @@ void main() {
       (tester) async {
     await pumpAppScreen(
       tester,
-      const ConnectedDeviceCard(type: ConnectedDeviceType.guider),
+      const ConnectedDeviceCard(type: DeviceType.guider),
     );
 
-    expect(_button(tester, 'Start guiding').onPressed, isNull);
+    expect(find.widgetWithText(SkotiqButton, 'Start guiding'), findsNothing);
   });
 
   testWidgets('host switch unlocks guiding and suppresses the old result',
@@ -60,7 +60,7 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const ConnectedDeviceCard(type: ConnectedDeviceType.guider),
+      const ConnectedDeviceCard(type: DeviceType.guider),
       backend: backendA,
       extraOverrides: [
         backendProvider.overrideWith(

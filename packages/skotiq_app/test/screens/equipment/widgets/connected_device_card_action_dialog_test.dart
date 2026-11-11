@@ -80,7 +80,7 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const ConnectedDeviceCard(type: ConnectedDeviceType.focuser),
+      const ConnectedDeviceCard(type: DeviceType.focuser),
       extraOverrides: [
         backendProvider.overrideWith((ref) {
           notifier = _SwappableBackendNotifier(ref, hostA);
@@ -115,7 +115,7 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const ConnectedDeviceCard(type: ConnectedDeviceType.focuser),
+      const ConnectedDeviceCard(type: DeviceType.focuser),
       extraOverrides: [
         focuserStateProvider.overrideWith(
           (ref) => _ConnectedFocuserNotifier(ref),
@@ -156,7 +156,7 @@ void main() {
     final service = _MockDeviceService();
     await pumpAppScreen(
       tester,
-      const ConnectedDeviceCard(type: ConnectedDeviceType.focuser),
+      const ConnectedDeviceCard(type: DeviceType.focuser),
       extraOverrides: [
         focuserStateProvider.overrideWith(
           (ref) => _ConnectedFocuserNotifier(ref, maxPosition: 1000),
@@ -186,7 +186,7 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const ConnectedDeviceCard(type: ConnectedDeviceType.focuser),
+      const ConnectedDeviceCard(type: DeviceType.focuser),
       extraOverrides: [
         focuserStateProvider.overrideWith(
           (ref) => _ConnectedFocuserNotifier(ref, maxPosition: 1000),
@@ -224,7 +224,7 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const ConnectedDeviceCard(type: ConnectedDeviceType.rotator),
+      const ConnectedDeviceCard(type: DeviceType.rotator),
       extraOverrides: [
         rotatorStateProvider.overrideWith(_ConnectedRotatorNotifier.new),
         equipmentRotatorCapabilitiesProvider('rotator-1').overrideWith(
@@ -269,7 +269,7 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const ConnectedDeviceCard(type: ConnectedDeviceType.dome),
+      const ConnectedDeviceCard(type: DeviceType.dome),
       backend: backend,
       extraOverrides: [
         domeStateProvider.overrideWith(_ConnectedDomeNotifier.new),
