@@ -22,6 +22,10 @@ typedef OnboardingCaptureDirectoryValidator = Future<String?> Function(
 
 typedef OnboardingCaptureDirectoryWriter = Future<void> Function(String path);
 
+/// Makes the folder a first run suggests and returns its path, or null where
+/// there is no sensible default (no home directory, a phone).
+typedef OnboardingDefaultCaptureDirectory = Future<String?> Function();
+
 Future<String?> _pickCaptureDirectory(
   BuildContext context, {
   required bool isRemote,
@@ -69,6 +73,44 @@ String describeCaptureDirWriteFailure(FileSystemException error) {
       : 'Not writable: $reason';
 }
 
+/// The pictures folder the XDG user-dirs file in [configDir] names, if any.
+String? _xdgPicturesDir(String home, String configDir) {
+  final file = File('$configDir/user-dirs.dirs');
+  if (!file.existsSync()) return null;
+  final match = RegExp(r'^XDG_PICTURES_DIR="(.+)"', multiLine: true)
+      .firstMatch(file.readAsStringSync());
+  return match?.group(1)?.replaceFirst(r'$HOME', home);
+}
+
+/// Makes `Skotiq` inside the pictures folder of [home] (inside [home] itself
+/// when it has none) and returns its path. [configDir] is where Linux keeps
+/// the user-dirs file that can rename the pictures folder.
+@visibleForTesting
+Future<String> makeCaptureDirectoryIn(String home, {String? configDir}) async {
+  final sep = Platform.pathSeparator;
+  final pictures = (configDir == null ? null : _xdgPicturesDir(home, configDir)) ??
+      '$home${sep}Pictures';
+  final parent = await Directory(pictures).exists() ? pictures : home;
+  final folder = await Directory('$parent${sep}Skotiq').create(recursive: true);
+  return folder.path;
+}
+
+/// The capture folder a first run on this computer starts with, made if it is
+/// not there yet. Null where there is no sensible default (no home directory,
+/// a phone).
+Future<String?> prepareDefaultCaptureDirectory() async {
+  if (Platform.isAndroid || Platform.isIOS) return null;
+  final env = Platform.environment;
+  final home = env[Platform.isWindows ? 'USERPROFILE' : 'HOME'];
+  if (home == null || home.trim().isEmpty) return null;
+  return makeCaptureDirectoryIn(
+    home,
+    configDir: Platform.isLinux
+        ? env['XDG_CONFIG_HOME'] ?? '$home/.config'
+        : null,
+  );
+}
+
 Future<String?> _validateCaptureDirectory(String path) async {
   if (path.trim().isEmpty) return 'Pick a folder to continue.';
   final dir = Directory(path);
@@ -94,6 +136,12 @@ final onboardingCaptureDirectoryValidatorProvider =
     Provider<OnboardingCaptureDirectoryValidator>(
   (ref) => _validateCaptureDirectory,
 );
+
+/// No suggestion unless the app installs [prepareDefaultCaptureDirectory]
+/// (see `appProviderOverrides`), so a test never makes folders in the home
+/// directory of the machine it runs on.
+final onboardingDefaultCaptureDirectoryProvider =
+    Provider<OnboardingDefaultCaptureDirectory>((ref) => () async => null);
 
 final onboardingCaptureDirectoryWriterProvider =
     Provider<OnboardingCaptureDirectoryWriter>((ref) {
@@ -188,9 +236,38 @@ class _OnboardingCaptureDirStepState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final path = ref.read(onboardingDraftProvider).captureDirectory;
-      if (path == null || path.trim().isEmpty) return;
+      if (path == null || path.trim().isEmpty) {
+        unawaited(_suggestDefault());
+        return;
+      }
       unawaited(_verify(path.trim()));
     });
+  }
+
+  /// Start a first run with a folder already chosen and checked, as NINA and
+  /// ASIAIR do, instead of an empty box and "Pick a capture folder.". Only on
+  /// this machine: a linked host's folders are the host's to suggest.
+  Future<void> _suggestDefault() async {
+    if (ref.read(isRemoteModeProvider)) return;
+    final String? suggested;
+    try {
+      suggested = await ref.read(onboardingDefaultCaptureDirectoryProvider)();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _check = _FolderCheck.failed;
+        _checkDetail = 'Could not make a Skotiq folder in your pictures '
+            'folder: ${userFacingError(error)}. Pick a folder instead.';
+      });
+      return;
+    }
+    if (suggested == null || !mounted) return;
+    final current = ref.read(onboardingDraftProvider).captureDirectory;
+    if ((current ?? '').trim().isNotEmpty ||
+        _pathController.text.trim().isNotEmpty) {
+      return;
+    }
+    await _commitTypedPath(suggested);
   }
 
   @override

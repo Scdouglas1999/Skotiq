@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
+import '../screens/onboarding/steps/capture_dir_step.dart';
 import '../services/plugin_enablement_wiring.dart';
 import '../services/plugin_node_dispatcher_wiring.dart';
 import '../services/plugin_node_palette_wiring.dart';
@@ -19,4 +20,7 @@ List<Override> appProviderOverrides(AppVersionInfo appVersion) => [
       pluginNodePaletteBlueprintsOverride(),
       // A plugin the user disabled stays disabled across launches.
       pluginEnablementStoreOverride(),
+      // First-run setup starts with a capture folder made and checked.
+      onboardingDefaultCaptureDirectoryProvider
+          .overrideWithValue(prepareDefaultCaptureDirectory),
     ];
