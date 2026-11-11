@@ -12,12 +12,14 @@
 //    that value, as a rig that has lost the star.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/guiding/widgets/guide_graph_advanced.dart';
+import 'package:skotiq_app/screens/guiding/widgets/guide_star_view.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 Widget _host(Widget child) => MaterialApp(
-  theme: SkotiqTheme.dark,
-  home: Scaffold(body: SizedBox(width: 600, height: 320, child: child)),
-);
+      theme: SkotiqTheme.dark,
+      home: Scaffold(body: SizedBox(width: 600, height: 320, child: child)),
+    );
 
 void main() {
   group('GuideGraphAdvanced RMS readouts', () {

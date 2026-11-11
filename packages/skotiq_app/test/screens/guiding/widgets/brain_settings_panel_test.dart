@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/guiding/widgets/brain_settings_panel.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
-  theme: SkotiqTheme.dark,
-  home: Scaffold(body: SizedBox(width: 520, height: 600, child: child)),
-);
+      theme: SkotiqTheme.dark,
+      home: Scaffold(body: SizedBox(width: 520, height: 600, child: child)),
+    );
 
 void main() {
   testWidgets('edits stay local until Apply and writes are ordered', (

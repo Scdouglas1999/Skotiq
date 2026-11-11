@@ -1,11 +1,8 @@
-import '../../theme/skotiq_chart_colors.dart';
-import '../../theme/skotiq_tokens.dart';
-import '../../theme/skotiq_typography.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../../theme/skotiq_colors.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// A parameter value in the PHD2 Brain
 class BrainParam {
@@ -49,7 +46,7 @@ class BrainSettingsPanel extends StatefulWidget {
   /// local drafts while the user types so partial numbers and rapid keystrokes
   /// never become out-of-order hardware commands.
   final Future<void> Function(String axis, String name, double value)?
-  onParamChanged;
+      onParamChanged;
 
   /// Callback when Apply is pressed
   final Future<void> Function()? onApply;

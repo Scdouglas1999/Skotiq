@@ -1,10 +1,8 @@
-import '../../theme/skotiq_tokens.dart';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../../theme/skotiq_colors.dart';
-import '../../theme/skotiq_typography.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Widget that displays the PHD2 guide star subframe image
 ///

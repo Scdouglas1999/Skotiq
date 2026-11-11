@@ -1,9 +1,5 @@
-import '../../theme/skotiq_tokens.dart';
 import 'package:flutter/material.dart';
-
-import '../../theme/skotiq_colors.dart';
-import '../../theme/skotiq_typography.dart';
-import '../../utils/touch_target.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// A single guide data point for the graph
 class GuideDataPoint {
@@ -585,8 +581,8 @@ class _GraphPainter extends CustomPainter {
     for (int i = 0; i < numLabels; i++) {
       // i == 0 is the left edge (oldest, -totalSeconds); the last index is the
       // right edge (newest, 0s).
-      final secondsAgo = (totalSeconds * (numLabels - 1 - i) / (numLabels - 1))
-          .round();
+      final secondsAgo =
+          (totalSeconds * (numLabels - 1 - i) / (numLabels - 1)).round();
       final label = secondsAgo == 0 ? '0s' : '-${_formatElapsed(secondsAgo)}';
 
       textPainter.text = TextSpan(
@@ -637,13 +633,12 @@ class _GraphPainter extends CustomPainter {
 
       final timeFraction =
           point.timestamp.difference(startTime).inMilliseconds /
-          timeScale.duration.inMilliseconds;
+              timeScale.duration.inMilliseconds;
       final x = graphRect.left + graphRect.width * timeFraction.clamp(0.0, 1.0);
 
       final error = isRa ? point.raError : point.decError;
       final errorFraction = (error / yScale.arcsec).clamp(-1.0, 1.0);
-      final y =
-          graphRect.top +
+      final y = graphRect.top +
           graphRect.height / 2 -
           (errorFraction * graphRect.height / 2);
 

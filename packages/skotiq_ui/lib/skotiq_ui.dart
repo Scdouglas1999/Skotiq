@@ -68,11 +68,6 @@ export 'src/widgets/empty_state.dart';
 // The one V-curve chart (autofocus overlay + focuser backlash calibration)
 export 'src/widgets/focus/v_curve_chart.dart';
 
-// PHD2 Widgets
-export 'src/widgets/phd2/guide_star_view.dart';
-export 'src/widgets/phd2/guide_graph_advanced.dart';
-export 'src/widgets/phd2/brain_settings_panel.dart';
-
 // Observatory wave 2
 export 'src/components/skotiq_panel.dart';
 export 'src/components/readout.dart';

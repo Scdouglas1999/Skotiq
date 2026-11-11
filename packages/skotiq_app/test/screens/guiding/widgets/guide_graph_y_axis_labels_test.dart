@@ -14,6 +14,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/guiding/widgets/guide_graph_advanced.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Canvas stand-in that records every paragraph the painter draws.
@@ -82,8 +83,7 @@ void main() {
         expect(
           labels[i].top,
           greaterThanOrEqualTo(labels[i - 1].bottom),
-          reason:
-              'Y-axis label $i overlaps label ${i - 1} at ${height}px '
+          reason: 'Y-axis label $i overlaps label ${i - 1} at ${height}px '
               '(${labels.map((r) => r.top.toStringAsFixed(1)).join(", ")}).',
         );
       }

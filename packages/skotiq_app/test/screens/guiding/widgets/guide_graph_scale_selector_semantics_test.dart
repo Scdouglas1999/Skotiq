@@ -12,6 +12,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/guiding/widgets/guide_graph_advanced.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 Future<void> _pumpGraph(WidgetTester tester, {double width = 900}) async {

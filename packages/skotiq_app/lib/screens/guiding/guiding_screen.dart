@@ -13,6 +13,9 @@ import 'package:skotiq_app/widgets/phd2/guide_target_display.dart';
 import 'package:skotiq_app/utils/phd2_helper.dart';
 import 'package:skotiq_app/utils/confirm_dialog.dart';
 import '../../widgets/tutorial_keys/guiding_keys.dart';
+import 'widgets/brain_settings_panel.dart';
+import 'widgets/guide_graph_advanced.dart';
+import 'widgets/guide_star_view.dart';
 
 part 'guiding_screen_parts/state_fields.dart';
 part 'guiding_screen_parts/desktop_sections.dart';
