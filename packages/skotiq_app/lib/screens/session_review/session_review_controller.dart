@@ -177,7 +177,6 @@ class SessionReviewController extends StateNotifier<SessionReviewState> {
     }
   }
 
-  /// Flip the accept/reject flag for a single sub and refresh the list.
   Future<void> setAccepted(int imageId, bool accepted) async {
     if (accepted) {
       await _images.acceptImage(imageId);
@@ -286,8 +285,6 @@ class SessionReviewController extends StateNotifier<SessionReviewState> {
       return null;
     }
   }
-
-  // Smart morning report (Pillar 5) — data backbone + finishing actions
 
   /// Load (or refresh) the smart-report backbone the narrative + workbench
   /// panels read: the Night Doctor [NightReport], the reviewed master's

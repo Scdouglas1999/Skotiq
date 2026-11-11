@@ -74,13 +74,11 @@ class NarrativeView extends ConsumerWidget {
           _CalibrationRecordDisagreement(master: state.reviewedMaster),
           const SizedBox(height: SkotiqTokens.spaceLg),
 
-          // ── Proof it's optimal: integration-improvement curve. ───────────
           const SectionTitle(title: 'How deep is deep enough?'),
           const SizedBox(height: SkotiqTokens.spaceSm),
           ImprovementCurvePanel(curve: state.improvementCurve),
           const SizedBox(height: SkotiqTokens.spaceLg),
 
-          // ── What I fixed / found: the ranked finding cards. ──────────────
           if (report != null && report.findings.isNotEmpty) ...[
             const SectionTitle(title: 'What I fixed and found'),
             const SizedBox(height: SkotiqTokens.spaceSm),
@@ -93,7 +91,6 @@ class NarrativeView extends ConsumerWidget {
             const SizedBox(height: SkotiqTokens.spaceLg),
           ],
 
-          // ── Multi-night growth curve. ────────────────────────────────────
           const SectionTitle(title: 'This project over time'),
           const SizedBox(height: SkotiqTokens.spaceSm),
           GrowthCurvePanel(
@@ -102,7 +99,6 @@ class NarrativeView extends ConsumerWidget {
           ),
           const SizedBox(height: SkotiqTokens.spaceLg),
 
-          // ── Calibrated / annotated detail row. ──────────────────────────
           const SectionTitle(title: 'Calibrated & annotated'),
           const SizedBox(height: SkotiqTokens.spaceSm),
           _CalibratedAnnotatedRow(
