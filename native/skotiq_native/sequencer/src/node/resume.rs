@@ -130,36 +130,33 @@ fn collect_bursts(node: &dyn Node, out: &mut HashSet<NodeId>) {
     }
 }
 
-/// The finished steps a resume does not run again: those that took frames
-/// (a burst, or a container whose subtree holds one). Every other finished
-/// step runs again, because what it did may not hold after the stop: the
-/// stop can park the mount and stop guiding, so unparking, slewing,
-/// centering and starting the guider are repeated before imaging continues.
-pub fn finished_imaging(root: &dyn Node, completed: &HashSet<NodeId>) -> Vec<NodeId> {
-    let mut out = Vec::new();
-    collect_finished_imaging(root, completed, &mut out);
+/// The steps whose progress a resume keeps: those that take frames (a burst,
+/// or a container whose subtree holds one). A resume skips them when they
+/// finished and continues their loops from the passes they finished. Every
+/// other step runs again from its start, because what it did may not hold
+/// after the stop: the stop can park the mount and stop guiding, so
+/// unparking, slewing, centering and starting the guider are repeated before
+/// imaging continues.
+pub fn imaging_steps(root: &dyn Node) -> HashSet<NodeId> {
+    let mut out = HashSet::new();
+    collect_imaging_steps(root, &mut out);
     out
 }
 
-fn collect_finished_imaging(node: &dyn Node, completed: &HashSet<NodeId>, out: &mut Vec<NodeId>) {
-    if completed.contains(node.id()) && takes_frames(node) {
-        out.push(node.id().clone());
-        return;
-    }
-    for child in node.children() {
-        collect_finished_imaging(child.as_ref(), completed, out);
-    }
-}
-
-fn takes_frames(node: &dyn Node) -> bool {
-    matches!(
+/// Whether `node` takes frames; collects it and every descendant that does.
+fn collect_imaging_steps(node: &dyn Node, out: &mut HashSet<NodeId>) -> bool {
+    let mut takes_frames = matches!(
         node.node_type(),
         NodeType::TakeExposure(_)
             | NodeType::SmartExposure(_)
             | NodeType::SciencePhotometry(_)
             | NodeType::FlatWizard(_)
-    ) || node
-        .children()
-        .iter()
-        .any(|child| takes_frames(child.as_ref()))
+    );
+    for child in node.children() {
+        takes_frames |= collect_imaging_steps(child.as_ref(), out);
+    }
+    if takes_frames {
+        out.insert(node.id().clone());
+    }
+    takes_frames
 }

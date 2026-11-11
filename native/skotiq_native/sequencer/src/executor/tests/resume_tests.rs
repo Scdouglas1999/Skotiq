@@ -11,7 +11,7 @@ const FRAMES: u32 = 8;
 const SUB_SECS: f64 = 0.3;
 
 /// The shape the app builds: a Count loop at the root around the plan's
-/// steps, here a wait and one burst of darks.
+/// steps, here a setup group with a wait in it and one burst of darks.
 fn app_built_plan(loop_passes: u32) -> SequenceDefinition {
     let mut sequence = SequenceDefinition::new("Stop and recover".to_string());
     sequence.nodes.push(crate::NodeDefinition {
@@ -24,7 +24,20 @@ fn app_built_plan(loop_passes: u32) -> SequenceDefinition {
             horizon_profile: None,
         }),
         enabled: true,
-        children: vec!["wait".to_string(), "frames".to_string()],
+        children: vec!["setup".to_string(), "frames".to_string()],
+    });
+    // The app's instruction groups run as one-pass loops.
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "setup".to_string(),
+        name: "Setup".to_string(),
+        node_type: NodeType::Loop(LoopConfig {
+            iterations: Some(1),
+            condition: LoopCondition::Count,
+            condition_value: None,
+            horizon_profile: None,
+        }),
+        enabled: true,
+        children: vec!["wait".to_string()],
     });
     sequence.nodes.push(crate::NodeDefinition {
         id: "wait".to_string(),

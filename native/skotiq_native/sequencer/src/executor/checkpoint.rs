@@ -224,14 +224,19 @@ impl SequenceExecutor {
         // resume idempotent — the executor still walks the full tree but
         // short-circuits already-Success nodes.
         if let Some(ref mut root) = self.root_node {
-            let completed: std::collections::HashSet<_> =
-                checkpoint.get_completed_nodes().into_iter().collect();
-            for node_id in crate::node::resume::finished_imaging(root.as_ref(), &completed) {
-                root.mark_completed(&node_id);
+            let imaging = crate::node::resume::imaging_steps(root.as_ref());
+            for node_id in checkpoint.get_completed_nodes() {
+                if imaging.contains(&node_id) {
+                    root.mark_completed(&node_id);
+                }
             }
-            // restore each Loop node's current_iteration so a resumed
-            // Count loop continues from where it stopped.
-            root.restore_loop_iterations(&checkpoint.loop_iterations);
+            let passes = checkpoint
+                .loop_iterations
+                .iter()
+                .filter(|(id, _)| imaging.contains(*id))
+                .map(|(id, passes)| (id.clone(), *passes))
+                .collect();
+            root.restore_loop_iterations(&passes);
         }
 
         if let Some(snapshot) = checkpoint.trigger_state.as_ref() {
