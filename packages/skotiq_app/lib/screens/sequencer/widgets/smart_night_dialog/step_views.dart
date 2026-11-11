@@ -121,10 +121,15 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
     _ensureWindowInitialised();
     final start = _windowStart;
     final end = _windowEnd;
+    final draftOffer = _buildDraftOffer(colors);
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (draftOffer != null) ...[
+            draftOffer,
+            const SizedBox(height: SkotiqTokens.spaceLg),
+          ],
           Text(
             'Tonight\'s dark window',
             style: TextStyle(
@@ -242,6 +247,30 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
         ],
       ),
     );
+  }
+
+  /// The offer to pick up tonight's saved draft for the active profile, or
+  /// null when there is none or the operator has already answered.
+  Widget? _buildDraftOffer(SkotiqColors colors) {
+    if (_draftOfferAnswered) return null;
+    final lookup = _draftLookup();
+    if (lookup == null) return null;
+    return ref.watch(pendingSmartNightDraftProvider(lookup)).when(
+          loading: () => null,
+          error: (error, _) => SkotiqBanner(
+            tone: BannerTone.warning,
+            title: 'The plan saved earlier tonight could not be read.',
+            message: '${userFacingError(error)} Build a new plan below.',
+          ),
+          data: (draft) => draft == null
+              ? null
+              : _DraftOfferCard(
+                  draft: draft,
+                  colors: colors,
+                  onContinue: () => _continueDraft(draft),
+                  onStartOver: () => _discardDraft(draft, lookup),
+                ),
+        );
   }
 
   Widget _buildEquipmentStep(SkotiqColors colors) {
@@ -836,13 +865,17 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                 _SummaryRow(
                   icon: LucideIcons.camera,
                   label: 'Total integration',
-                  value: DurationFormat.of(Duration(seconds: plan.totalIntegrationSecs.round()), style: DurationStyle.coarse),
+                  value: DurationFormat.of(
+                      Duration(seconds: plan.totalIntegrationSecs.round()),
+                      style: DurationStyle.coarse),
                   colors: colors,
                 ),
                 _SummaryRow(
                   icon: LucideIcons.clock,
                   label: 'Estimated wall-clock',
-                  value: DurationFormat.of(Duration(seconds: plan.estimatedWallClockSecs.round()), style: DurationStyle.coarse),
+                  value: DurationFormat.of(
+                      Duration(seconds: plan.estimatedWallClockSecs.round()),
+                      style: DurationStyle.coarse),
                   colors: colors,
                 ),
                 _SummaryRow(

@@ -76,6 +76,25 @@ void main() {
     );
   });
 
+  test('discard deletes only that draft', () async {
+    final kept = await service.savePending(
+      profileId: 'rig-a',
+      astronomicalDay: DateTime.utc(2026, 5, 20),
+      plan: testSmartNightPlan('M51'),
+    );
+    final dropped = await service.savePending(
+      profileId: 'rig-a',
+      astronomicalDay: DateTime.utc(2026, 5, 21),
+      plan: testSmartNightPlan('M101'),
+    );
+
+    await service.discard(dropped.id);
+    await service.discard('no-such-draft');
+
+    expect(await service.loadById(dropped.id), isNull);
+    expect(await service.loadById(kept.id), isNotNull);
+  });
+
   test('watchAll emits the store again after each change', () async {
     final seen = <int>[];
     final sub = service.watchAll().listen((drafts) => seen.add(drafts.length));

@@ -119,6 +119,15 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
   DateTime? _twilightStart;
   DateTime? _twilightEnd;
 
+  /// Start of the whole night the window belongs to. Drafts are filed under
+  /// it, so a draft saved at dusk is found again after midnight, when the
+  /// remaining window starts on the next calendar day.
+  DateTime? _nightStart;
+
+  /// Set once the operator has answered the saved-draft offer, or built a
+  /// plan of their own in this dialog.
+  bool _draftOfferAnswered = false;
+
   /// User-selected target IDs. Empty → auto-pick top N by score.
   final Set<int> _selectedTargetIds = <int>{};
   bool _autoSelect = true;
@@ -342,8 +351,15 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
       return;
     }
     try {
+      final service = _buildService();
+      _nightStart = service
+          .calculateWindow(
+            latitudeDeg: location.latitude,
+            longitudeDeg: location.longitude,
+          )
+          .start;
       // A plan built once the night is under way schedules from now.
-      final window = _buildService().calculateRemainingWindow(
+      final window = service.calculateRemainingWindow(
         latitudeDeg: location.latitude,
         longitudeDeg: location.longitude,
       );
@@ -554,17 +570,16 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
         settings: effectiveSettings,
         exposureContext: exposureContext,
       );
-      final draft = await SmartNightDraftService(
-        settingsDao: ref.read(settingsDaoProvider),
-      ).savePending(
-        profileId: activeProfile.id.toString(),
-        astronomicalDay: context.windowStart,
-        plan: plan,
-      );
+      final draft = await ref.read(smartNightDraftServiceProvider).savePending(
+            profileId: activeProfile.id.toString(),
+            astronomicalDay: _nightStart!,
+            plan: plan,
+          );
       if (!_isCurrentAuthority(backend, generation)) return false;
       setState(() {
         _preview = plan;
         _previewDraftId = draft.id;
+        _draftOfferAnswered = true;
       });
       return true;
     } on SmartNightBuildException catch (e) {

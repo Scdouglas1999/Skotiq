@@ -145,6 +145,16 @@ class SmartNightDraftService {
     await _saveAll(drafts);
   }
 
+  /// Removes the draft with [id]; a draft that is already gone is not an error.
+  Future<void> discard(String id) async {
+    final drafts = await loadAll();
+    final before = drafts.length;
+    drafts.removeWhere((d) => d.id == id);
+    if (drafts.length != before) {
+      await _saveAll(drafts);
+    }
+  }
+
   Future<void> cleanupExpiredPending() async {
     final cutoff = _now().subtract(pendingTtl);
     final drafts = await loadAll();

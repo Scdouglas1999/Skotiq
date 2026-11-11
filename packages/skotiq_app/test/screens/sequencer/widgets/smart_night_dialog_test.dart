@@ -36,6 +36,7 @@ Future<ProviderContainer> _pumpDialog(
   List<Override> overrides = const [],
   SmartNightDialog dialog = const SmartNightDialog(),
   Future<AppSettingsState> Function()? settingsLoader,
+  Future<void> Function(ProviderContainer container)? before,
 }) async {
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = const Size(1024, 800);
@@ -56,6 +57,7 @@ Future<ProviderContainer> _pumpDialog(
     ],
   );
   addTearDown(container.dispose);
+  if (before != null) await tester.runAsync(() => before(container));
 
   await tester.pumpWidget(
     UncontrolledProviderScope(
@@ -339,4 +341,132 @@ void main() {
     expect(find.text('Hand-pick from suggestions below'), findsNothing);
     expect(find.text('3. Targets'), findsOneWidget);
   });
+
+  group('a plan saved earlier tonight', () {
+    const profile = EquipmentProfileModel(
+      id: 3,
+      name: 'Test rig',
+      focalLength: 600,
+      aperture: 120,
+      filterNames: ['L', 'R', 'G', 'B'],
+    );
+    const lat = 40.0;
+    const lon = -75.0;
+
+    List<Override> draftOverrides() => [
+          inMemoryDatabaseOverride(),
+          appObserverLocationProvider.overrideWithValue(
+            const LocationSettings(latitude: lat, longitude: lon),
+          ),
+          activeEquipmentProfileProvider.overrideWithValue(profile),
+        ];
+
+    /// Files a draft under tonight's night, as the dialog keys it.
+    Future<SmartNightDraft> saveDraft(ProviderContainer container) {
+      final night = SmartNightService(
+        suggestionService: container.read(targetSuggestionServiceProvider),
+        logging: container.read(loggingServiceProvider),
+      ).calculateWindow(latitudeDeg: lat, longitudeDeg: lon).start;
+      return container.read(smartNightDraftServiceProvider).savePending(
+            profileId: '${profile.id}',
+            astronomicalDay: night,
+            plan: _draftPlan(),
+          );
+    }
+
+    testWidgets('is offered and continues on the Preview step',
+        (tester) async {
+      await _pumpDialog(
+        tester,
+        overrides: draftOverrides(),
+        before: saveDraft,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('You have a plan saved from'), findsOneWidget);
+      expect(find.textContaining('M51 · '), findsOneWidget);
+
+      await tester.tap(find.textContaining('Continue the draft from'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Tonight: 1 target, 1.0h integration'), findsOneWidget);
+      expect(find.textContaining('You have a plan saved from'), findsNothing);
+    });
+
+    testWidgets('Start over deletes it and leaves the new plan to build',
+        (tester) async {
+      late SmartNightDraft draft;
+      final container = await _pumpDialog(
+        tester,
+        overrides: draftOverrides(),
+        before: (c) async => draft = await saveDraft(c),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Start over'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('You have a plan saved from'), findsNothing);
+      expect(find.text('Tonight\'s dark window'), findsOneWidget);
+      final left = await tester.runAsync(
+        () => container.read(smartNightDraftServiceProvider).loadById(draft.id),
+      );
+      expect(left, isNull);
+    });
+
+    testWidgets('is not offered when there is none', (tester) async {
+      await _pumpDialog(tester, overrides: draftOverrides());
+      await tester.pumpAndSettle();
+      expect(find.textContaining('You have a plan saved from'), findsNothing);
+      expect(find.text('Tonight\'s dark window'), findsOneWidget);
+    });
+  });
+}
+
+SmartNightPlan _draftPlan() {
+  final root = InstructionSetNode(id: 'root', name: 'Root', childIds: const []);
+  final now = DateTime.now();
+  return SmartNightPlan(
+    sequence: Sequence(
+      id: 'seq-draft',
+      name: 'Smart Night M51',
+      nodes: {'root': root},
+      rootNodeId: 'root',
+      createdAt: now,
+      modifiedAt: now,
+    ),
+    plannedTargets: [
+      SmartNightPlannedTarget(
+        suggestion: const TargetSuggestion(
+          targetId: 1,
+          targetName: 'M51',
+          raHours: 13.5,
+          decDegrees: 47.2,
+          totalScore: 90,
+          visibility: planetarium.TargetVisibilityInfo(
+            currentAltitude: 60,
+            currentAzimuth: 180,
+            airmass: 1.2,
+            moonDistance: 90,
+          ),
+        ),
+        windowStart: now,
+        windowEnd: now.add(const Duration(hours: 3)),
+        filterPlans: const [
+          SmartNightFilterPlan(filterName: 'L', count: 60, durationSecs: 60),
+        ],
+        integrationSecs: 3600,
+        rationale: 'High altitude',
+      ),
+    ],
+    totalIntegrationSecs: 3600,
+    estimatedWallClockSecs: 4000,
+    warnings: const [],
+    strategy: SmartNightStrategy.autoLrgb,
+    settings: const SmartNightSettings(),
+    context: SmartNightContext(
+      windowStart: now,
+      windowEnd: now.add(const Duration(hours: 3)),
+    ),
+  );
 }
