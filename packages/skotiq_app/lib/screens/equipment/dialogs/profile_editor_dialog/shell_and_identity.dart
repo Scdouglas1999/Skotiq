@@ -76,8 +76,6 @@ extension _ProfileEditorShellAndIdentity on _ProfileEditorDialogState {
     );
   }
 
-  // Section 1: profile identity
-
   Widget _buildIdentitySection(SkotiqColors colors, ThemeData theme) {
     return _SectionBlock(
       title: 'Profile identity',
@@ -133,7 +131,6 @@ extension _ProfileEditorShellAndIdentity on _ProfileEditorDialogState {
               runSpacing: SkotiqTokens.spaceSm,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                // None option
                 _ColorOption(
                   color: null,
                   isSelected: _selectedColor == null,

@@ -463,7 +463,6 @@ class DepthLockCurveGeometry {
   double yFor(double score) =>
       plot.bottom - (maxScore <= 0 ? 0 : score / maxScore) * plot.height;
 
-  /// The point whose x is nearest [dx].
   int nearestIndex(double dx) {
     var best = 0;
     var bestDistance = double.infinity;

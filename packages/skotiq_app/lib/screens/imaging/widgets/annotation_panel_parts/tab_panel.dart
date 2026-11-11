@@ -380,7 +380,6 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
 
     return Column(
       children: [
-        // Toolbar row with actions
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
@@ -390,7 +389,6 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
           ),
           child: Row(
             children: [
-              // Object count badge
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: SkotiqDecorations.tintedBadge(
@@ -404,7 +402,6 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
                 ),
               ),
               const Spacer(),
-              // Sort menu
               PopupMenuButton<AnnotationPanelSortMode>(
                 tooltip: 'Sort objects',
                 color: widget.colors.surfaceElevated,
@@ -450,7 +447,6 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
                 ),
               ),
               const SizedBox(width: 4),
-              // Re-annotate button
               _isReAnnotating
                   ? Padding(
                       padding: EdgeInsets.all(4),
@@ -478,7 +474,6 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
                       ),
                     ),
               const SizedBox(width: 4),
-              // Save annotated image button
               _isSaving
                   ? Padding(
                       padding: EdgeInsets.all(4),
@@ -510,7 +505,6 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
                       ),
                     ),
               const SizedBox(width: 4),
-              // Export menu
               PopupMenuButton<String>(
                 tooltip: 'Export annotations',
                 color: widget.colors.surfaceElevated,
@@ -572,7 +566,6 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
                 ),
               ),
               const SizedBox(width: 4),
-              // Presets menu
               PopupMenuButton<String>(
                 tooltip: 'Annotation presets',
                 color: widget.colors.surfaceElevated,
@@ -703,7 +696,6 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
           ),
         ),
 
-        // Search bar
         AnnotationSearchBar(
           onChanged: (value) => setState(() => _searchQuery = value),
         ),
@@ -910,7 +902,6 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
           ),
         ),
 
-        // Objects list
         Expanded(
           child: filteredObjects.isEmpty
               ? AnnotationEmptyState(

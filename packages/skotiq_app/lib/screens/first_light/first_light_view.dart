@@ -11,7 +11,6 @@ import '../../widgets/narrator/narrator_feed.dart'
 import 'first_light_format.dart';
 import 'widgets/transient_candidate_card.dart';
 
-/// Filters for the First Light candidate list.
 enum FirstLightFilter {
   all('All'),
   unnamed('Unnamed'),

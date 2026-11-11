@@ -3,7 +3,6 @@
 part of '../connected_device_card.dart';
 
 extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
-  // Dialogs
 
   void _showMoveDialog(BuildContext context) async {
     final focuserState = ref.read(focuserStateProvider);

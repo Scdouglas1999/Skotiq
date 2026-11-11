@@ -30,11 +30,7 @@ part 'equipment_screen/profile_undo.dart';
 part 'equipment_screen/progress_dashboard.dart';
 part 'equipment_screen/sidebar_onboarding.dart';
 
-// Providers for equipment screen state
-
-/// Provider for currently selected profile in the equipment screen
 final selectedEquipmentProfileIdProvider = StateProvider<int?>((ref) {
-  // Default to the active profile
   final activeProfile = ref.watch(activeProfileProvider).valueOrNull;
   return activeProfile?.id;
 });
@@ -61,8 +57,6 @@ const EdgeInsets _bodyPadding = EdgeInsets.symmetric(
   horizontal: SkotiqTokens.space2xl,
   vertical: SkotiqTokens.spaceXl,
 );
-
-// Equipment screen
 
 class EquipmentScreen extends ConsumerStatefulWidget {
   const EquipmentScreen({super.key});
@@ -133,7 +127,6 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen> {
     // mobile first-run onboarding is unchanged (isRemoteMode false there).
     final firstRun = profiles.isEmpty && !isRemoteMode;
 
-    // Get selected profile
     final selectedProfile = selectedProfileId != null
         ? profiles.where((p) => p.id == selectedProfileId).firstOrNull
         : null;
@@ -290,8 +283,6 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen> {
     ref.invalidate(equipmentProfilesProvider);
   }
 
-  // Profile operations
-
   Future<void> _showProfileEditor(
       BuildContext context, EquipmentProfileModel? profile) async {
     final saved = await ProfileEditorDialog.show(context, profile: profile);
@@ -379,7 +370,6 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen> {
     final authority = ref.read(backendProvider);
     final generation = ++_profileOperationGeneration;
     try {
-      // Get the source profile to derive a name for the copy
       final profiles = ref.read(sortedProfilesProvider);
       final sourceProfile =
           profiles.where((profile) => profile.id == profileId).firstOrNull;
@@ -392,7 +382,6 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen> {
           .duplicateProfile(profileId, newName);
       if (!_isCurrentProfileOperation(generation, authority)) return;
       _bumpProfileMutationEpoch();
-      // Select the newly duplicated profile
       ref.read(selectedEquipmentProfileIdProvider.notifier).state = newId;
       if (!mounted) return;
       context.showSuccessSnackBar(
@@ -440,7 +429,6 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen> {
       _bumpProfileMutationEpoch();
       final epochAtDelete = ref.read(profileMutationEpochProvider);
 
-      // If we deleted the selected profile, select another one
       final selectedId = ref.read(selectedEquipmentProfileIdProvider);
       if (selectedId == profileId) {
         final profiles = ref.read(sortedProfilesProvider);
@@ -514,7 +502,6 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen> {
         throw StateError('The profile list changed before reordering.');
       }
 
-      // Build reordered list
       final reordered = [...profiles];
       final item = reordered.removeAt(oldIndex);
       if (newIndex < 0 || newIndex > reordered.length) {
@@ -543,8 +530,6 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen> {
       context.showErrorSnackBar('Failed to reorder: $e');
     }
   }
-
-  // Device connection operations
 
   /// Delegates to the shared sweep so the command palette's "Connect all"
   /// and this button cannot drift apart about which slots the sweep covers.
@@ -575,8 +560,6 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen> {
       );
     }
   }
-
-  // Settings
 
   void _showSettings(BuildContext context) {
     // On a phone this becomes a full-screen route (settings is content-heavy);

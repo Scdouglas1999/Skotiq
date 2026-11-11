@@ -130,7 +130,6 @@ class _IndiServerDialogState extends ConsumerState<IndiServerDialog> {
     });
 
     try {
-      // Real, awaited discovery probe against the entered address.
       final deviceService = ref.read(deviceServiceProvider);
       final devices =
           await deviceService.discoverIndiAtAddress(inputs.host, inputs.port);

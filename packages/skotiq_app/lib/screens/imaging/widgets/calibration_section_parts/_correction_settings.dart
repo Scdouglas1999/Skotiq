@@ -156,7 +156,6 @@ class _CorrectionSettings extends ConsumerWidget {
           },
         ),
         const SizedBox(height: 6),
-        // Kernel.
         _ResponsiveDropdownSetting(
           label: 'Kernel size',
           colors: colors,

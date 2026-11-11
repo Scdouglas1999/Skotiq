@@ -16,7 +16,6 @@ class TransientSubmitDialog extends StatelessWidget {
 
   final TransientDetectionRow detection;
 
-  /// Open the submit dialog for [detection].
   static Future<void> show(
     BuildContext context,
     TransientDetectionRow detection,

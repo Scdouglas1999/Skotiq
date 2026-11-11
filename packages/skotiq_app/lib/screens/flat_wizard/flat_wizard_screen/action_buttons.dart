@@ -137,7 +137,6 @@ class _ActionButtons extends ConsumerWidget {
     final authority = ref.read(backendProvider);
 
     try {
-      // Ensure a save path is set — prompt for one if missing.
       if (state.globalSettings.savePath == null ||
           state.globalSettings.savePath!.isEmpty) {
         final result = await SavePathDialog.show(

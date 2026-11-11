@@ -37,7 +37,6 @@ class _FlatWizardScreenState extends ConsumerState<FlatWizardScreen>
         initialIndex: ref.read(flatWizardProvider).mode.index);
     _tabController.addListener(_onTabChanged);
 
-    // Load filters on first build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(flatWizardProvider.notifier).loadFiltersFromWheel();
     });
@@ -101,7 +100,6 @@ class _FlatWizardScreenState extends ConsumerState<FlatWizardScreen>
           ],
         ),
 
-        // Split view content
         Expanded(
           child: FlatWizardSplitView(
             controlsPanel: Column(children: [

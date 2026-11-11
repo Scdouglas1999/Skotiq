@@ -255,7 +255,6 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
               ),
             ),
 
-          // Guiding graph with real data
           CompactGuidingGraph(
             colors: widget.colors,
             data: ref.watch(guideGraphProvider),
@@ -264,7 +263,6 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
           ),
           const SizedBox(height: 16),
 
-          // RMS Stats
           Row(
             children: [
               GuideStat(label: 'RA RMS', value: rmsRa, colors: widget.colors),
@@ -298,7 +296,6 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
             const SizedBox(height: 20),
           ],
 
-          // Control Section
           PanelSection(
             title: 'Control',
             colors: widget.colors,
@@ -367,7 +364,6 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
           ),
           const SizedBox(height: 20),
 
-          // Built-in Guider Configuration (only when built-in guider is active)
           if (isBuiltinGuider) ...[
             _BuiltinGuiderConfigSection(
               colors: widget.colors,
@@ -378,7 +374,6 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
             const SizedBox(height: 20),
           ],
 
-          // Dithering Settings
           PanelSection(
             title: 'Dither settings',
             colors: widget.colors,

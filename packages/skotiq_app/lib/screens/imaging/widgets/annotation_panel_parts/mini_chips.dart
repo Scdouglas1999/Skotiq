@@ -36,7 +36,6 @@ class AnnotationMiniChips extends ConsumerWidget {
         return aMag.compareTo(bMag);
       });
 
-    // Take the 5 brightest non-star objects
     final topObjects = visibleObjects.take(5).toList();
     if (topObjects.isEmpty) return const SizedBox.shrink();
 
@@ -51,7 +50,6 @@ class AnnotationMiniChips extends ConsumerWidget {
             return GestureDetector(
               onTap: () {
                 ref.read(selectedAnnotationObjectProvider.notifier).state = obj;
-                // Switch to the annotations tab when a chip is tapped
                 ref.read(selectedImagingPanelProvider.notifier).state =
                     ImagingSidePanel.annotationsSectionIndex;
               },

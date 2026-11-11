@@ -68,7 +68,6 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
     final isConnected =
         cameraState.connectionState == DeviceConnectionState.connected;
 
-    // Watch camera capabilities to gate UI features
     final capabilitiesAsync =
         ref.watch(cameraCapabilitiesProvider(cameraState.deviceId ?? ''));
     final capabilities = capabilitiesAsync.valueOrNull;
@@ -107,12 +106,10 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
     final canSetOffset =
         capabilities?.canSetOffset ?? (cameraState.offset != null);
 
-    // Get binning options based on camera capabilities
     final binningOptions = ref.watch(
       cameraBinningOptionsProvider(cameraState.deviceId ?? ''),
     );
 
-    // Ensure current binning value is valid for available options
     final currentBinning = binningOptions.contains(exposureSettings.binning)
         ? exposureSettings.binning
         : binningOptions.first;
@@ -121,7 +118,6 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Connection status
         if (!isConnected)
           Container(
             padding: const EdgeInsets.all(12),
@@ -146,14 +142,12 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
             ),
           ),
 
-        // Cooling Section - show if camera supports cooling or while loading capabilities
         if (showCoolingSection)
           PanelSection(
             title: 'Cooling',
             colors: widget.colors,
             child: Column(
               children: [
-                // Current temperature display
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -227,7 +221,6 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                   ),
                 const SizedBox(height: 16),
 
-                // Target temperature slider
                 SliderRowInteractive(
                   label: 'Target temperature',
                   value: targetTemp.clamp(coolerMinTempC, coolerMaxTempC),
@@ -274,13 +267,11 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                             );
 
                             if (_isCurrentAuthority(authority)) {
-                              // Update settings state
                               ref.read(coolingSettingsProvider.notifier).state =
                                   coolingSettings.copyWith(
                                 enabled: true,
                                 targetTemp: targetTemp,
                               );
-                              // Update camera state
                               ref
                                   .read(cameraStateProvider.notifier)
                                   .setCooling(true);
@@ -355,7 +346,6 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
               ],
             ),
           ),
-        // Show "not supported" message when camera is connected and capabilities confirm no cooling support
         if (isConnected &&
             !capabilitiesLoading &&
             !capabilitiesAsync.hasError &&
@@ -373,7 +363,6 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
           ),
         const SizedBox(height: 20),
 
-        // Sensor Settings
         PanelSection(
           title: 'Sensor',
           colors: widget.colors,
@@ -476,14 +465,12 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
         ),
         const SizedBox(height: 20),
 
-        // Gain/Offset - only show if camera supports these features
         if (canSetGain || canSetOffset)
           PanelSection(
             title: 'Gain / Offset',
             colors: widget.colors,
             child: Column(
               children: [
-                // Only show gain control if camera supports it
                 if (canSetGain)
                   InputRowEditable(
                     label:
@@ -494,7 +481,6 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                     onChanged: (value) {
                       final parsed = int.tryParse(value);
                       if (parsed != null && parsed >= 0) {
-                        // Clamp to valid range if capabilities available
                         final clamped = capabilities?.gainMin != null
                             ? parsed.clamp(
                                 capabilities!.gainMin!, capabilities.gainMax!)
@@ -506,7 +492,6 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                     },
                   ),
                 if (canSetGain && canSetOffset) const SizedBox(height: 12),
-                // Only show offset control if camera supports it
                 if (canSetOffset)
                   InputRowEditable(
                     label:
@@ -517,7 +502,6 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                     onChanged: (value) {
                       final parsed = int.tryParse(value);
                       if (parsed != null && parsed >= 0) {
-                        // Clamp to valid range if capabilities available
                         final clamped = capabilities?.offsetMin != null
                             ? parsed.clamp(capabilities!.offsetMin!,
                                 capabilities.offsetMax!)

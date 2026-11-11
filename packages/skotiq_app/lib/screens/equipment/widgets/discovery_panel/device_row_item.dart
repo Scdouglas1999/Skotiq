@@ -1,6 +1,5 @@
 part of '../discovery_panel.dart';
 
-/// Individual device row in the discovery panel with assign dropdown
 class _DeviceRowItem extends ConsumerStatefulWidget {
   final UnifiedDevice device;
   final DeviceType deviceType;
@@ -36,7 +35,6 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
     final c = connectedId.trim().toLowerCase();
     final d = discoveredId.trim().toLowerCase();
     if (c == d) return true;
-    // Normalize and compare
     final normC = c.replaceAll(RegExp(r'[^a-z0-9]'), '');
     final normD = d.replaceAll(RegExp(r'[^a-z0-9]'), '');
     if (normC == normD) return true;
@@ -244,7 +242,6 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
     return items;
   }
 
-  /// The row's leading glyph, keyed off the device class.
   IconData get _typeIcon => switch (widget.deviceType) {
         DeviceType.camera => LucideIcons.camera,
         DeviceType.mount => LucideIcons.compass,
@@ -268,7 +265,6 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
     });
     final colors = SkotiqColors.of(context);
 
-    // Watch device states to react to connection changes
     ref.watch(cameraStateProvider);
     ref.watch(mountStateProvider);
     ref.watch(focuserStateProvider);
@@ -430,7 +426,6 @@ class _AddToProfileButtonState extends State<_AddToProfileButton> {
   }
 }
 
-/// The discovery row's leading glyph size.
 const double _discoveryRowIconSize = 15.0;
 
 /// Gap between the row's two actions (mockup: 6).

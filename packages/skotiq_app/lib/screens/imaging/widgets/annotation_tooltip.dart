@@ -150,7 +150,6 @@ class _AnnotationOverlayWrapperState
   }
 
   void _onIdentifyAt(double x, double y) async {
-    // Use annotation service to identify object at position
     final annotationService = ref.read(annotationServiceProvider);
     final annotation = ref.read(currentAnnotationProvider);
     final settings = ref.read(annotationSettingsProvider).valueOrNull;
@@ -247,7 +246,6 @@ class _AnnotationOverlayWrapperState
   void _onObjectSelectedFromPanel(CelestialObjectAnnotation object) {
     ref.read(selectedAnnotationObjectProvider.notifier).state = object;
 
-    // Trigger pulse animation on the marker
     ref.read(annotationPulseObjectProvider.notifier).state = object.id;
 
     final imagePoint = Offset(object.x, object.y);
@@ -297,7 +295,6 @@ class _AnnotationOverlayWrapperState
           onObjectHovered: _onObjectHovered,
           onObjectUnhovered: _onObjectUnhovered,
         ),
-        // Object info tooltip
         if (_selectedObject != null && _tooltipPosition != null)
           Positioned(
             left: _tooltipPosition!.dx,
@@ -308,7 +305,6 @@ class _AnnotationOverlayWrapperState
               onMoreInfo: _isHoverTooltip ? null : _showMoreInfo,
             ),
           ),
-        // Objects sidebar panel
         if (isPanelVisible)
           Positioned(
             top: 0,

@@ -29,8 +29,6 @@ extension _ImagingScreenActions on _ImagingScreenState {
         source: 'ImagingScreen');
   }
 
-  // CAPTURE ACTIONS
-
   Future<void> _takeSnapshot() async {
     if (_isSingleCapture || _isLooping || _isStoppingCapture) return;
 

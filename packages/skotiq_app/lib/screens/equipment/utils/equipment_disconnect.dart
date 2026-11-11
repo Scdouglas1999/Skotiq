@@ -81,7 +81,6 @@ List<EquipmentDisconnectTarget> equipmentDisconnectTargets(WidgetRef ref) {
   ];
 }
 
-/// Returns true when [state] means there is nothing useful to disconnect.
 bool equipmentDisconnectShouldSkip(DeviceConnectionState state) =>
     state == DeviceConnectionState.disconnected;
 

@@ -86,7 +86,6 @@ final _nearbyGuideStarsProvider =
   ];
 });
 
-/// The framing guide-star finder overlay widget.
 class GuideStarOverlay extends ConsumerWidget {
   /// FOV width in degrees of the imaging frame the candidates must fall in.
   final double fovWidthDeg;

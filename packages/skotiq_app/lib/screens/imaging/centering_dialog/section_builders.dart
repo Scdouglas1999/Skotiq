@@ -88,7 +88,6 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Image
             Center(
               child: _CenteringImageWidget(
                 imageData: imageData.displayData,
@@ -97,7 +96,6 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
               ),
             ),
 
-            // Crosshair overlay
             if (ref.watch(imagingViewerStateProvider).showCrosshair)
               Positioned.fill(
                 child: CustomPaint(
@@ -120,7 +118,6 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
               ),
             ),
 
-            // Image info badge
             Positioned(
               left: 8,
               bottom: 8,

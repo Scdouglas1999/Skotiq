@@ -26,9 +26,6 @@ part 'connected_device_card/dialogs_and_settings.dart';
 part 'connected_device_card/helper_widgets.dart';
 part 'connected_device_card/motion_dialogs.dart';
 
-// Device type enum
-
-/// Device types supported by the ConnectedDeviceCard
 enum ConnectedDeviceType {
   camera,
   mount,
@@ -199,8 +196,6 @@ String _getDeviceDisplayName(
   }
   return fallback;
 }
-
-// Connected device card widget
 
 /// A card widget for displaying connected device status, metrics, and quick actions.
 ///
@@ -484,7 +479,6 @@ class _ConnectedDeviceCardState extends ConsumerState<ConnectedDeviceCard>
     }
   }
 
-  /// The profile slot this card's device occupies.
   ProfileDeviceSlot? get _profileSlot => switch (widget.type) {
         ConnectedDeviceType.camera => ProfileDeviceSlot.camera,
         ConnectedDeviceType.mount => ProfileDeviceSlot.mount,
@@ -517,22 +511,18 @@ class _ConnectedDeviceCardState extends ConsumerState<ConnectedDeviceCard>
 
           const SizedBox(height: SkotiqTokens.spaceMd),
 
-          // Primary readouts
           _buildMetricsRow(colors),
 
           // Troubleshooter-backed error subtitle + Diagnose affordance, shown
           // only when the device is in an error state.
           _buildErrorSubtitle(colors, connectionState),
 
-          // "Connected but not saved to the profile" notice.
           _buildSessionOnlyNotice(colors, connectionState),
 
           const SizedBox(height: SkotiqTokens.spaceMd),
 
-          // Quick actions
           _buildActionsRow(colors),
 
-          // Expanded telemetry
           SizeTransition(
             sizeFactor: _expandAnimation,
             child: _buildExpandedContent(colors),

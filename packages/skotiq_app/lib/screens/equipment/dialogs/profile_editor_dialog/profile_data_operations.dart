@@ -210,7 +210,6 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
         source: 'ProfileEditorDialog',
         fields: {'error': error.toString(), 'stack': stack.toString()},
       );
-      // Fall back to state if hardware query fails
       filterNames = filterWheelState.filterNames;
     }
 
@@ -220,12 +219,10 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
       return;
     }
     setState(() {
-      // Clear existing filters
       for (final pair in _filterControllers) {
         pair.dispose();
       }
       _filterControllers.clear();
-      // Add filters from connected wheel
       for (final name in filterNames) {
         _filterControllers.add(_FilterControllerPair(
           nameController: TextEditingController(text: name),
@@ -249,7 +246,6 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
     final coverCalibratorState = ref.read(coverCalibratorStateProvider);
 
     setState(() {
-      // Camera
       if (_cameraId == null &&
           cameraState.connectionState == DeviceConnectionState.connected) {
         _cameraId = cameraState.deviceId;
@@ -259,7 +255,6 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
         }
       }
 
-      // Mount
       if (_mountId == null &&
           mountState.connectionState == DeviceConnectionState.connected) {
         _mountId = mountState.deviceId;
@@ -269,7 +264,6 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
         }
       }
 
-      // Focuser
       if (_focuserId == null &&
           focuserState.connectionState == DeviceConnectionState.connected) {
         _focuserId = focuserState.deviceId;
@@ -279,7 +273,6 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
         }
       }
 
-      // Filter Wheel
       if (_filterWheelId == null &&
           filterWheelState.connectionState == DeviceConnectionState.connected) {
         _filterWheelId = filterWheelState.deviceId;
@@ -287,14 +280,12 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
           _filterWheelNameController.text =
               filterWheelState.deviceName ?? filterWheelState.deviceId ?? '';
         }
-        // Also populate filters
         if (_filterControllers.isEmpty &&
             filterWheelState.filterNames.isNotEmpty) {
           _autoDetectFilters();
         }
       }
 
-      // Guider
       if (_guiderId == null &&
           guiderState.connectionState == DeviceConnectionState.connected) {
         _guiderId = guiderState.deviceId;
@@ -304,7 +295,6 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
         }
       }
 
-      // Rotator
       if (_rotatorId == null &&
           rotatorState.connectionState == DeviceConnectionState.connected) {
         _rotatorId = rotatorState.deviceId;
@@ -655,7 +645,6 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
       var makesDefault = _isDefault;
 
       if (widget.profile != null) {
-        // Update existing profile
         final existingProfile = await dao.getProfileById(widget.profile!.id!);
         if (existingProfile == null) {
           throw Exception('Profile not found');
@@ -715,14 +704,12 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
         await dao.updateProfile(updated);
         savedProfileId = existingProfile.id;
 
-        // Handle isDefault
         if (makesDefault && !existingProfile.isDefault) {
           await dao.setDefaultProfile(existingProfile.id, makeActive: true);
         } else if (!makesDefault && existingProfile.isDefault) {
           await dao.clearDefaultProfile();
         }
       } else {
-        // Create new profile
         final companion = EquipmentProfilesCompanion(
           name: Value(parsed.name),
           profileIcon: Value(_selectedIcon.isEmpty ? null : _selectedIcon),
@@ -775,7 +762,6 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
         final newId = await dao.createProfile(companion);
         savedProfileId = newId;
 
-        // Set as default if requested
         if (_isDefault) {
           await dao.setDefaultProfile(newId, makeActive: true);
         }

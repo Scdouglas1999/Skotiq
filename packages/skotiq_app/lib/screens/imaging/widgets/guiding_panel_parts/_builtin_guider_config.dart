@@ -21,7 +21,6 @@ class _BuiltinGuiderConfigSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header with collapse toggle
         GestureDetector(
           onTap: onToggle,
           child: MouseRegion(
@@ -96,7 +95,6 @@ class _BuiltinGuiderConfigSection extends ConsumerWidget {
   }
 }
 
-/// The actual config form with editable fields.
 class _BuiltinGuiderConfigForm extends ConsumerStatefulWidget {
   final SkotiqColors colors;
   final BuiltinGuiderConfig config;

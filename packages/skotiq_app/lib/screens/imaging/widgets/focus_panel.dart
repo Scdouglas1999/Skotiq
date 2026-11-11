@@ -171,7 +171,6 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Connection status
           if (!isConnected)
             Container(
               padding: const EdgeInsets.all(12),
@@ -196,13 +195,11 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
               ),
             ),
 
-          // Manual Focus Section
           PanelSection(
             title: 'Manual focus',
             colors: widget.colors,
             child: Column(
               children: [
-                // Position display
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -260,7 +257,6 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
                   ),
                 const SizedBox(height: SkotiqTokens.spaceMd),
 
-                // Movement buttons - using shared FocuserControls widget
                 const FocuserControls(
                   compact: true,
                   showAutofocus: false,
@@ -325,7 +321,6 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
           ),
           const SizedBox(height: SidePanel.sectionGap),
 
-          // Autofocus Section
           PanelSection(
             title: 'Autofocus',
             colors: widget.colors,

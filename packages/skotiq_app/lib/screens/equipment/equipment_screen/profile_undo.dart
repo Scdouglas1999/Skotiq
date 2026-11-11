@@ -1,4 +1,3 @@
-// Undo for a deleted equipment profile.
 part of '../equipment_screen.dart';
 
 /// Restore a profile the user just deleted, from the snackbar's Undo action.

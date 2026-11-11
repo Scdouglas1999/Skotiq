@@ -55,7 +55,6 @@ class FlatWizardSplitView extends StatelessWidget {
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Controls panel (left)
             SizedBox(
               width: controlsPixelWidth,
               child: Container(
@@ -69,7 +68,6 @@ class FlatWizardSplitView extends StatelessWidget {
               ),
             ),
 
-            // Preview panel (right)
             Expanded(
               child: Container(
                 color: colors.background,

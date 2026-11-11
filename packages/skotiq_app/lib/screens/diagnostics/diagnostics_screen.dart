@@ -50,7 +50,6 @@ class _DiagnosticsTabContentState extends ConsumerState<DiagnosticsTabContent> {
     final sessionsAsync = ref.watch(allSessionsProvider);
     final l10n = context.l10n;
 
-    // Auto-select current session if none selected
     final sessionState = ref.watch(sessionStateProvider);
     if (_selectedSessionId == null && sessionState.dbSessionId != null) {
       _selectedSessionId = sessionState.dbSessionId;
@@ -124,7 +123,6 @@ class _DiagnosticsTabContentState extends ConsumerState<DiagnosticsTabContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           if (isPhone) ...[
             if (widget.showTitle) ...[
               titleRow,
@@ -163,7 +161,6 @@ class _DiagnosticsTabContentState extends ConsumerState<DiagnosticsTabContent> {
           // popover.
           const SizedBox(height: SkotiqTokens.spaceLg),
 
-          // Main content
           Expanded(
             child: _selectedSessionId == null
                 // Scroll-wrap so the centered empty state never overflows when

@@ -16,7 +16,6 @@ class OpticalConfigPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
 
-    // Watch optical config from provider
     final opticalConfig = ref.watch(opticalConfigProvider);
     final activeProfile = ref.watch(activeEquipmentProfileProvider);
 
@@ -137,7 +136,6 @@ class OpticalConfigPanel extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Telescope info
         if (config.telescopeName != null) ...[
           Row(
             children: [
@@ -157,7 +155,6 @@ class OpticalConfigPanel extends ConsumerWidget {
           const SizedBox(height: 4),
         ],
 
-        // Optical specs
         Text(
           _formatOpticalSpecs(config),
           style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
@@ -165,7 +162,6 @@ class OpticalConfigPanel extends ConsumerWidget {
 
         const SizedBox(height: 12),
 
-        // Camera info
         if (config.cameraName != null) ...[
           Row(
             children: [
@@ -185,7 +181,6 @@ class OpticalConfigPanel extends ConsumerWidget {
           const SizedBox(height: 4),
         ],
 
-        // Sensor specs
         if (config.sensorWidth != null && config.sensorHeight != null)
           Text(
             _formatSensorSpecs(config),
@@ -197,7 +192,6 @@ class OpticalConfigPanel extends ConsumerWidget {
         Divider(color: colors.border, height: 1),
         const SizedBox(height: 12),
 
-        // FOV and Scale
         _buildMetricRow(
           'FOV',
           config.fovString ?? kReadoutUnknown,
@@ -212,7 +206,6 @@ class OpticalConfigPanel extends ConsumerWidget {
 
         const SizedBox(height: 16),
 
-        // Profile switcher
         _ProfileSwitcher(currentProfile: profile),
       ],
     );

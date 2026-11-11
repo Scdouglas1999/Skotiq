@@ -31,7 +31,6 @@ import '../../widgets/tutorial_keys/imaging_keys.dart';
 
 part 'imaging_screen/imaging_screen_actions.dart';
 
-/// Provider to check if annotation catalog is installed
 final annotationCatalogInstalledProvider = FutureProvider<bool>((ref) async {
   final status = await CatalogManager.instance.getAnnotationCatalogStatus();
   return status.isInstalled;
@@ -62,7 +61,6 @@ class ImagingScreen extends ConsumerStatefulWidget {
 }
 
 class _ImagingScreenState extends ConsumerState<ImagingScreen> {
-  /// Which top-level tab is showing.
   ImagingTab _tab = ImagingTab.liveView;
 
   /// The page header's `panel-right` toggle.
@@ -139,7 +137,6 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Sync snapshot exposure defaults from the active equipment profile
     ref.watch(syncExposureFromProfileProvider);
 
     // The loop and any exposure in flight decide what Snapshot and Loop
@@ -653,7 +650,6 @@ class _SheetSnapshotButton extends ConsumerWidget {
   }
 }
 
-/// The sheet's Loop button.
 class _SheetLoopButton extends ConsumerWidget {
   const _SheetLoopButton({
     required this.isLooping,

@@ -107,14 +107,12 @@ class _ImagePreview extends StatelessWidget {
         flush: true,
         child: Stack(
           children: [
-            // Image or empty state
             Positioned.fill(
               child: imageResult != null
                   ? _buildImage(imageResult, colors)
                   : _buildEmptyState(),
             ),
 
-            // Histogram overlay (top right)
             if (showHistogram && imageResult != null)
               Positioned(
                 top: SkotiqTokens.spaceMd,
@@ -127,8 +125,6 @@ class _ImagePreview extends StatelessWidget {
     );
   }
 
-  /// Extract CapturedImageResult from the dynamic imageData field.
-  /// Returns null if no valid image data is available.
   CapturedImageResult? _extractImageResult() {
     if (imageData == null) return null;
     if (imageData is CapturedImageResult) {
@@ -305,7 +301,6 @@ class _HistogramPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Draw background
     canvas.drawRect(
       Rect.fromLTWH(0, 0, size.width, size.height),
       Paint()..color = backgroundColor,

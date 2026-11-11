@@ -13,7 +13,6 @@ import '../dialogs/fujifilm_disclaimer_dialog.dart';
 
 part 'discovery_panel/device_row_item.dart';
 
-/// Action for assigning a device to a profile
 class AssignAction {
   final int profileId;
   final DeviceType deviceType;
@@ -39,7 +38,6 @@ final discoveryScanRequestProvider = StateProvider<int>((ref) => 0);
 /// A collapsible panel at the bottom of the equipment screen for discovering devices.
 /// Shows available backends, discovered devices grouped by type, and connection controls.
 class DiscoveryPanel extends ConsumerStatefulWidget {
-  /// Optional callback when a device is assigned to a profile
   final ValueChanged<(DeviceInfo, int)>? onAssignDevice;
 
   const DiscoveryPanel({super.key, this.onAssignDevice});

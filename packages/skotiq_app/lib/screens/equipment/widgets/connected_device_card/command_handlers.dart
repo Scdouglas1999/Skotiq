@@ -12,8 +12,6 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     );
   }
 
-  // Action handlers
-
   Future<void> _handleDisconnect() async {
     // Disconnecting a camera whose TEC is still active cuts cooler power
     // abruptly — gate with the shared cooled-camera confirm. Confirm BEFORE
@@ -76,7 +74,6 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     final backend = ref.read(backendProvider);
     final deviceService = ref.read(deviceServiceProvider);
     final deviceId = ref.read(cameraStateProvider).deviceId;
-    // Cancel any in-progress warm-up before cooling
     deviceService.cancelWarmCamera(restorePriorSetting: false);
     try {
       await deviceService.setCameraCooling(
@@ -146,8 +143,6 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
                         });
                         try {
                           final deviceService = ref.read(deviceServiceProvider);
-                          // Cancel any in-progress warm-up before cooling, then
-                          // drive the cooler to the requested setpoint.
                           deviceService.cancelWarmCamera(
                               restorePriorSetting: false);
                           await deviceService.setCameraCooling(
@@ -443,8 +438,6 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
       identical(ref.read(backendProvider), backend) &&
       identical(ref.read(mountCommandServiceProvider), service);
 
-  // Dome action handlers
-
   bool _hasCurrentDomeAuthority(
     SkotiqBackend backend,
     String deviceId,
@@ -572,8 +565,6 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
   void _handleSafetyCancelSnooze() {
     ref.read(equipmentSafetyCancelSnoozeActionProvider)();
   }
-
-  // Cover calibrator action handlers
 
   Future<void> _handleCoverToggle(bool isOpen) async {
     final coverState = ref.read(coverCalibratorStateProvider);

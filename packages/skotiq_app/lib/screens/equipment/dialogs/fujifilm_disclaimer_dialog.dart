@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const _prefKey = 'fujifilm_disclaimer_acknowledged';
 
-/// Check if a device ID or name indicates a Fujifilm camera.
 bool isFujifilmDevice(String deviceId, String deviceName) {
   final idLower = deviceId.toLowerCase();
   final nameLower = deviceName.toLowerCase();

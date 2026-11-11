@@ -13,7 +13,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../analytics/widgets/adaptive_chart_container.dart';
 
-/// Altitude chart widget showing target visibility over time
 class AltitudeChart extends ConsumerStatefulWidget {
   final double raHours;
   final double decDegrees;
@@ -272,7 +271,6 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
       time = time.add(interval);
     }
 
-    // Calculate current altitude
     final (currentAlt, _) = AstronomyCalculations.objectAltAz(
       raDeg: raDeg,
       decDeg: decDeg,
@@ -312,7 +310,6 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header with toggle
         Row(
           children: [
             Icon(LucideIcons.trendingUp, size: 14, color: colors.textMuted),
@@ -327,7 +324,6 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
               ),
             ),
             const Spacer(),
-            // Airmass toggle
             GestureDetector(
               onTap: () => setState(() => _showAirmass = !_showAirmass),
               child: Row(
@@ -350,11 +346,9 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
         ),
         const SizedBox(height: 8),
 
-        // Current values
         _buildCurrentValues(colors),
         const SizedBox(height: 8),
 
-        // Chart
         if (_altitudeData.isEmpty)
           _buildNoLocationWarning(colors)
         else
@@ -362,7 +356,6 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
 
         const SizedBox(height: 8),
 
-        // Rise/Transit/Set times
         if (_visibility != null) _buildVisibilityInfo(colors),
       ],
     );
@@ -716,7 +709,6 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
           border: Border.all(color: colors.border.withValues(alpha: 0.5)),
         ),
         lineBarsData: [
-          // Altitude curve
           if (!_showAirmass)
             LineChartBarData(
               spots: _altitudeData,
@@ -738,7 +730,6 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
                 ),
               ),
             ),
-          // Airmass curve
           if (_showAirmass && _airmassData.isNotEmpty)
             LineChartBarData(
               spots: _airmassData,
@@ -771,7 +762,6 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
                   labelResolver: (_) => 'Now',
                 ),
               ),
-            // Twilight markers
             if (_twilight?.astronomicalDusk != null)
               _twilightLine(
                 _twilight!.astronomicalDusk!,
@@ -786,7 +776,6 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
               ),
           ],
           horizontalLines: [
-            // Horizon line
             if (!_showAirmass)
               HorizontalLine(
                 y: 0,

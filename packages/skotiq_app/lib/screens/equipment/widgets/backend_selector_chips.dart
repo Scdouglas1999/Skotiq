@@ -8,19 +8,15 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 /// Shows all available backends for a device, with the recommended one
 /// marked with a star icon. The selected backend is highlighted.
 class BackendSelectorChips extends StatelessWidget {
-  /// List of available backends for this device
   final List<DriverType> availableBackends;
 
-  /// Currently selected backend
   final DriverType selectedBackend;
 
   /// The recommended backend (usually Native or best available)
   final DriverType recommendedBackend;
 
-  /// Called when user selects a different backend
   final ValueChanged<DriverType> onBackendSelected;
 
-  /// Whether the selector is enabled
   final bool isEnabled;
 
   /// Current platform for launch-time backend availability checks.

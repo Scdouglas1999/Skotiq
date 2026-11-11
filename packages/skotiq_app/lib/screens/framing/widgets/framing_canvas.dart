@@ -465,7 +465,6 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
           color: widget.colors.background,
           child: Stack(
             children: [
-              // Survey image background
               if (widget.framingState.surveyImage != null)
                 Positioned.fill(
                   child: CustomPaint(
@@ -496,7 +495,6 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
                   ),
                 )
               else
-                // Static star field backdrop
                 CustomPaint(
                   painter: FramingStarBackgroundPainter(colors: widget.colors),
                   size: Size.infinite,
@@ -516,7 +514,6 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
               // chrome) by FramingHipsLayerWiring.
               const Positioned.fill(child: HipsTileLayer()),
 
-              // Grid overlay
               if (widget.framingState.showGrid)
                 CustomPaint(
                   painter: FramingGridPainter(
@@ -655,7 +652,6 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
                 );
               }(),
 
-              // Crosshairs
               if (ref.watch(imagingViewerStateProvider).showCrosshair)
                 Center(
                   child: CustomPaint(
@@ -731,7 +727,6 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
                 ),
               ),
 
-              // Zoom controls
               Positioned(
                 bottom: 16,
                 right: 16,
@@ -748,7 +743,6 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
                 ),
               ),
 
-              // Scale indicator
               Positioned(
                 bottom: 16,
                 left: 16,
@@ -760,7 +754,6 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
                 ),
               ),
 
-              // Error overlay
               if (widget.framingState.imageError != null)
                 Center(
                   child: Container(
