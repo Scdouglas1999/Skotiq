@@ -1,26 +1,8 @@
 import 'dart:math' as math;
 import '../celestial_object.dart';
-import 'catalog_manager.dart';
+import 'open_ngc_catalog.dart';
 import 'glade_plus_catalog.dart';
 import 'hyperleda_catalog.dart';
-
-/// Unified object type for annotation catalog
-enum AnnotationObjectType {
-  galaxy,
-  nebula,
-  planetaryNebula,
-  openCluster,
-  globularCluster,
-  starCluster,
-  hiiRegion,
-  darkNebula,
-  emissionNebula,
-  reflectionNebula,
-  supernovaRemnant,
-  doubleStar,
-  asterism,
-  other,
-}
 
 /// Unified annotation object combining data from multiple catalogs
 class AnnotationObject {
@@ -29,7 +11,7 @@ class AnnotationObject {
   final List<String> alternateNames; // Other catalog designations
   final double ra; // Right ascension in degrees
   final double dec; // Declination in degrees
-  final AnnotationObjectType type;
+  final DsoType type;
   final double? magnitude;
   final double? majorAxis; // arcminutes
   final double? minorAxis; // arcminutes
@@ -58,25 +40,22 @@ class AnnotationObject {
     required this.source,
   });
 
-  /// Create from OpenNGC data
-  factory AnnotationObject.fromOpenNgc(OpenNgcData dso) {
-    final altNames = <String>[];
-    if (dso.messier != null) altNames.add(dso.messier!);
-    if (dso.commonNames != null) {
-      altNames.addAll(dso.commonNames!.split(',').map((s) => s.trim()));
-    }
-    if (dso.ngcId != null) altNames.add(dso.ngcId!);
-
+  /// Create from an OpenNGC object.
+  factory AnnotationObject.fromDso(DeepSkyObject dso) {
     return AnnotationObject(
-      id: 'ngc_${dso.name}',
-      primaryName: dso.displayName,
-      alternateNames: altNames,
-      ra: dso.ra,
-      dec: dso.dec,
-      type: _inferTypeFromOpenNgc(dso.type),
+      id: 'ngc_${dso.id}',
+      primaryName: dso.name,
+      alternateNames: [
+        if (dso.messierNumber != null) dso.messierNumber!,
+        if (dso.commonNames != null)
+          for (final name in dso.commonNames!.split(',')) name.trim(),
+      ],
+      ra: dso.coordinates.raDegrees,
+      dec: dso.coordinates.dec,
+      type: dso.type,
       magnitude: dso.magnitude,
-      majorAxis: dso.majorAxis,
-      minorAxis: dso.minorAxis,
+      majorAxis: dso.sizeArcMin,
+      minorAxis: dso.minorAxisArcMin,
       positionAngle: dso.positionAngle,
       constellation: dso.constellation,
       source: 'OpenNGC',
@@ -98,7 +77,7 @@ class AnnotationObject {
       alternateNames: altNames,
       ra: galaxy.ra,
       dec: galaxy.dec,
-      type: AnnotationObjectType.galaxy,
+      type: DsoType.galaxy,
       magnitude: galaxy.magnitude,
       majorAxis: galaxy.majorAxis,
       minorAxis: galaxy.minorAxis,
@@ -118,7 +97,7 @@ class AnnotationObject {
       alternateNames: const [],
       ra: galaxy.ra,
       dec: galaxy.dec,
-      type: AnnotationObjectType.galaxy,
+      type: DsoType.galaxy,
       magnitude: galaxy.magnitude,
       distance: galaxy.distance,
       redshift: galaxy.redshift,
@@ -164,64 +143,11 @@ class AnnotationObject {
     );
   }
 
-  static AnnotationObjectType _inferTypeFromOpenNgc(String typeCode) =>
-      switch (dsoTypeFromOpenNgcCode(typeCode)) {
-        DsoType.galaxy ||
-        DsoType.galaxyPair ||
-        DsoType.galaxyTriplet ||
-        DsoType.galaxyGroup => AnnotationObjectType.galaxy,
-        DsoType.planetaryNebula => AnnotationObjectType.planetaryNebula,
-        DsoType.openCluster => AnnotationObjectType.openCluster,
-        DsoType.globularCluster => AnnotationObjectType.globularCluster,
-        DsoType.clusterWithNebulosity => AnnotationObjectType.starCluster,
-        DsoType.hiiRegion => AnnotationObjectType.hiiRegion,
-        DsoType.darkNebula => AnnotationObjectType.darkNebula,
-        DsoType.emissionNebula => AnnotationObjectType.emissionNebula,
-        DsoType.reflectionNebula => AnnotationObjectType.reflectionNebula,
-        DsoType.nebula => AnnotationObjectType.nebula,
-        DsoType.supernova => AnnotationObjectType.supernovaRemnant,
-        DsoType.doubleStar => AnnotationObjectType.doubleStar,
-        DsoType.association => AnnotationObjectType.asterism,
-        DsoType.star ||
-        DsoType.nova ||
-        DsoType.starCloud ||
-        DsoType.asterism ||
-        DsoType.other => AnnotationObjectType.other,
-      };
-
-  /// Get object type description
-  String get typeDescription {
-    switch (type) {
-      case AnnotationObjectType.galaxy:
-        return morphology != null ? '$morphology Galaxy' : 'Galaxy';
-      case AnnotationObjectType.nebula:
-        return 'Nebula';
-      case AnnotationObjectType.planetaryNebula:
-        return 'Planetary Nebula';
-      case AnnotationObjectType.openCluster:
-        return 'Open Cluster';
-      case AnnotationObjectType.globularCluster:
-        return 'Globular Cluster';
-      case AnnotationObjectType.starCluster:
-        return 'Star Cluster';
-      case AnnotationObjectType.hiiRegion:
-        return 'HII Region';
-      case AnnotationObjectType.darkNebula:
-        return 'Dark Nebula';
-      case AnnotationObjectType.emissionNebula:
-        return 'Emission Nebula';
-      case AnnotationObjectType.reflectionNebula:
-        return 'Reflection Nebula';
-      case AnnotationObjectType.supernovaRemnant:
-        return 'Supernova Remnant';
-      case AnnotationObjectType.doubleStar:
-        return 'Double Star';
-      case AnnotationObjectType.asterism:
-        return 'Asterism';
-      case AnnotationObjectType.other:
-        return 'Deep Sky Object';
-    }
-  }
+  /// The object type in words; a galaxy with a known morphology leads with
+  /// it ("SBc Galaxy").
+  String get typeDescription => type.isGalaxy && morphology != null
+      ? '$morphology Galaxy'
+      : type.displayName;
 
   /// Get size string
   String? get sizeString {
@@ -235,7 +161,7 @@ class AnnotationObject {
   /// Get distance string
   String? get distanceString {
     if (distance == null) return null;
-    if (type == AnnotationObjectType.galaxy) {
+    if (type.isGalaxy) {
       if (distance! < 1) {
         return '${(distance! * 1000).toStringAsFixed(0)} kpc';
       }
@@ -251,12 +177,12 @@ class AnnotationObject {
 
 /// Unified annotation catalog combining HyperLEDA and OpenNGC
 class AnnotationCatalog {
-  final OpenNgcCatalogLoader? _ngcLoader;
+  final OpenNgcDsoCatalog? _ngcLoader;
   final HyperLedaCatalogLoader? _ledaLoader;
   final GladePlusCatalogLoader? _gladeLoader;
 
   AnnotationCatalog({
-    OpenNgcCatalogLoader? ngcLoader,
+    OpenNgcDsoCatalog? ngcLoader,
     HyperLedaCatalogLoader? ledaLoader,
     GladePlusCatalogLoader? gladeLoader,
   }) : _ngcLoader = ngcLoader,
@@ -283,7 +209,7 @@ class AnnotationCatalog {
     required double dec,
     required double radiusDegrees,
     double? maxMagnitude,
-    Set<AnnotationObjectType>? typeFilter,
+    Set<DsoType>? typeFilter,
   }) async {
     // Merge order is priority order: OpenNGC carries the better names and
     // sizes for bright objects, so it lands first and the galaxy catalogs
@@ -303,14 +229,14 @@ class AnnotationCatalog {
     }
 
     if (_ngcLoader != null) {
-      final dsos = await _ngcLoader.searchNearby(
-        ra: ra,
-        dec: dec,
+      final dsos = await _ngcLoader.near(
+        raDegrees: ra,
+        decDegrees: dec,
         radiusDegrees: radiusDegrees,
         maxMagnitude: maxMagnitude,
       );
       for (final dso in dsos) {
-        merge(AnnotationObject.fromOpenNgc(dso));
+        merge(AnnotationObject.fromDso(dso));
       }
     }
 
@@ -386,9 +312,9 @@ class AnnotationCatalog {
     return closest;
   }
 
-  /// Drop whatever the backing loaders have cached.
+  /// Drop whatever the galaxy loaders have cached. The OpenNGC reader is the
+  /// catalog manager's and is replaced by it when the file changes.
   void clearCache() {
-    _ngcLoader?.clearCache();
     _ledaLoader?.clearCache();
     _gladeLoader?.clearCache();
   }

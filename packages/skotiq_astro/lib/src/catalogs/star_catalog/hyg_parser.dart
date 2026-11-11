@@ -1,14 +1,12 @@
 part of '../star_catalog.dart';
 
-Future<List<Star>> _loadStarsInIsolate(_LoadStarsArgs args) async {
-  final file = File(args.path);
-  if (!file.existsSync()) return [];
+typedef _StarLoad = ({List<Star> stars, CatalogNameKeys nameKeys});
 
+Future<_StarLoad> _loadStarsInIsolate(String path) async {
   final rows = <_HygRow>[];
-  final stream = file
-      .openRead()
-      .transform(utf8.decoder)
-      .transform(const LineSplitter());
+  final stream = File(
+    path,
+  ).openRead().transform(utf8.decoder).transform(const LineSplitter());
 
   var isHeader = true;
   await for (final line in stream) {
@@ -19,15 +17,12 @@ Future<List<Star>> _loadStarsInIsolate(_LoadStarsArgs args) async {
 
     try {
       final row = _parseHygLine(line);
-      if (row != null && (row.star.magnitude ?? 99) <= args.magnitudeLimit) {
-        rows.add(row);
-      }
+      if (row != null) rows.add(row);
     } catch (e) {
       // HYG CSV contains ~120k rows; a single malformed line (truncated
       // export, encoding glitch, unexpected NaN in a numeric column) must not
-      // abort the whole load — the catalog is still useful with one row
-      // missing. FINE surfaces a systemic format change (e.g. an upstream
-      // column reorder) without spamming the user.
+      // abort the whole load. FINE surfaces a systemic format change (e.g. an
+      // upstream column reorder) without spamming the user.
       developer.log(
         'HYG line parse failed; skipping: $e',
         name: 'HygStarCatalog',
@@ -37,12 +32,33 @@ Future<List<Star>> _loadStarsInIsolate(_LoadStarsArgs args) async {
   }
 
   _nameComponentStars(rows);
-  final stars = [for (final row in rows) row.star];
+  rows.sort(
+    (a, b) => (a.star.magnitude ?? 99).compareTo(b.star.magnitude ?? 99),
+  );
 
-  // Sort by magnitude (brightest first)
-  stars.sort((a, b) => (a.magnitude ?? 99).compareTo(b.magnitude ?? 99));
-
-  return stars;
+  final stars = <Star>[];
+  final lower = <String>[];
+  final normalized = <String>[];
+  for (final row in rows) {
+    final star = row.star;
+    stars.add(star);
+    final id = star.id.toLowerCase();
+    CatalogNameKeys.add(
+      lower,
+      normalized,
+      // Name search matches a star by proper name and catalog number only.
+      // A Bayer or Flamsteed name ends in its constellation, so "andromeda"
+      // would list twenty stars of Andromeda under M31.
+      [if (row.proper) star.name],
+      lowerOnly: [id, ...star.catalogIds],
+      alreadyNormalized: [
+        id,
+        for (final other in star.catalogIds)
+          other.toLowerCase().replaceAll(' ', ''),
+      ],
+    );
+  }
+  return (stars: stars, nameKeys: CatalogNameKeys(lower, normalized));
 }
 
 /// Name the unnamed secondary components of a multiple star after their
@@ -88,12 +104,14 @@ void _nameComponentStars(List<_HygRow> rows) {
         spectralType: s.spectralType,
         constellation: s.constellation,
         colorIndex: s.colorIndex,
+        distanceParsecs: s.distanceParsecs,
         catalogIds: s.catalogIds,
       ),
       hygId: row.hygId,
       comp: row.comp,
       compPrimary: row.compPrimary,
       named: true,
+      proper: false,
     );
   }
 }
@@ -119,7 +137,7 @@ String _componentLetter(int comp) {
 /// 17:x, 18:y, 19:z, 20:vx, 21:vy, 22:vz, 23:rarad, 24:decrad,
 /// 25:pmrarad, 26:pmdecrad, 27:bayer, 28:flam, 29:con, ...
 _HygRow? _parseHygLine(String line) {
-  final parts = _parseCsvLine(line);
+  final parts = splitCsvLine(line);
   if (parts.length < 30) return null;
 
   final hygId = int.tryParse(parts[0]) ?? 0;
@@ -249,6 +267,7 @@ _HygRow? _parseHygLine(String line) {
       magnitude: magnitude,
       spectralType: spectralType?.isNotEmpty == true ? spectralType : null,
       colorIndex: colorIndex,
+      distanceParsecs: double.tryParse(parts[9]),
       constellation: constellation?.isNotEmpty == true ? constellation : null,
       catalogIds: catalogIds,
     ),
@@ -256,6 +275,7 @@ _HygRow? _parseHygLine(String line) {
     comp: comp,
     compPrimary: compPrimary,
     named: named,
+    proper: properName.isNotEmpty,
   );
 }
 
@@ -270,27 +290,4 @@ double _requireSkyAngle(String raw, String column) {
     throw FormatException('HYG $column column is not a finite number', raw);
   }
   return value;
-}
-
-/// Parse a CSV line handling quoted fields
-List<String> _parseCsvLine(String line) {
-  final parts = <String>[];
-  var current = StringBuffer();
-  var inQuotes = false;
-
-  for (var i = 0; i < line.length; i++) {
-    final char = line[i];
-
-    if (char == '"') {
-      inQuotes = !inQuotes;
-    } else if (char == ',' && !inQuotes) {
-      parts.add(current.toString().trim());
-      current = StringBuffer();
-    } else {
-      current.write(char);
-    }
-  }
-
-  parts.add(current.toString().trim());
-  return parts;
 }

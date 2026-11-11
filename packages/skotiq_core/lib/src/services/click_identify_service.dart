@@ -109,36 +109,36 @@ extension ClickIdentifyService on AnnotationService {
           final distA = AstronomyCalculations.angularSeparation(
             ra1Deg: ra,
             dec1Deg: dec,
-            ra2Deg: a.ra,
-            dec2Deg: a.dec,
+            ra2Deg: a.coordinates.raDegrees,
+            dec2Deg: a.coordinates.dec,
           );
           final distB = AstronomyCalculations.angularSeparation(
             ra1Deg: ra,
             dec1Deg: dec,
-            ra2Deg: b.ra,
-            dec2Deg: b.dec,
+            ra2Deg: b.coordinates.raDegrees,
+            dec2Deg: b.coordinates.dec,
           );
           return distA < distB ? a : b;
         });
 
         result = ObjectData(
-          description: closest.typeDescription,
-          objectClass: closest.typeDescription,
+          description: closest.type.displayName,
+          objectClass: closest.type.displayName,
           catalogIds: {
-            'Name': closest.displayName,
-            if (closest.messier != null)
-              'M': closest.messier!.replaceAll('M', ''),
-            if (closest.name.startsWith('NGC'))
-              'NGC': closest.name.replaceAll('NGC', '').trim(),
-            if (closest.name.startsWith('IC'))
-              'IC': closest.name.replaceAll('IC', '').trim(),
+            'Name': closest.name,
+            if (closest.messierNumber != null)
+              'M': closest.messierNumber!.replaceAll('M', ''),
+            if (closest.id.startsWith('NGC'))
+              'NGC': closest.id.replaceAll('NGC', '').trim(),
+            if (closest.id.startsWith('IC'))
+              'IC': closest.id.replaceAll('IC', '').trim(),
           },
           lastUpdated: DateTime.now(),
           dataSource: 'Local Catalog',
         );
 
         _logger.debug(
-          'Found in local DSO catalog: ${closest.displayName}',
+          'Found in local DSO catalog: ${closest.name}',
           source: 'Annotation',
         );
       }
@@ -164,14 +164,14 @@ extension ClickIdentifyService on AnnotationService {
             final distA = AstronomyCalculations.angularSeparation(
               ra1Deg: ra,
               dec1Deg: dec,
-              ra2Deg: a.ra,
-              dec2Deg: a.dec,
+              ra2Deg: a.coordinates.raDegrees,
+              dec2Deg: a.coordinates.dec,
             );
             final distB = AstronomyCalculations.angularSeparation(
               ra1Deg: ra,
               dec1Deg: dec,
-              ra2Deg: b.ra,
-              dec2Deg: b.dec,
+              ra2Deg: b.coordinates.raDegrees,
+              dec2Deg: b.coordinates.dec,
             );
             return distA < distB ? a : b;
           });
@@ -180,11 +180,11 @@ extension ClickIdentifyService on AnnotationService {
             description: 'Star',
             objectClass: 'Star',
             spectralType: _parseSpectralType(closest.spectralType),
-            distance: closest.distance,
+            distance: closest.distanceParsecs,
             catalogIds: {
               'Name': closest.name,
-              if (closest.hipId != null) 'HIP': closest.hipId.toString(),
-              if (closest.hdId != null) 'HD': closest.hdId.toString(),
+              if (closest.catalogNumber('HIP') case final hip?) 'HIP': '$hip',
+              if (closest.catalogNumber('HD') case final hd?) 'HD': '$hd',
             },
             lastUpdated: DateTime.now(),
             dataSource: 'Local Catalog',

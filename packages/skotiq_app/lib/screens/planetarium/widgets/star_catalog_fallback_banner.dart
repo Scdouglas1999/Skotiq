@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart'
     show HostDataDispatch, backendProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show HygStarCatalog;
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
 import '../../settings/catalog_settings_screen.dart';
@@ -22,7 +23,7 @@ class StarCatalogFallbackBanner extends ConsumerWidget {
     if (!ref.watch(starCatalogFallbackProvider)) {
       return const SizedBox.shrink();
     }
-    final count = ref.watch(fallbackStarCountProvider);
+    final count = HygStarCatalog.fallbackStarCount;
     // Catalogs live on each machine. A linked client draws its sky from its
     // own catalog folder, so a fresh one shows the built-in list while the
     // host it is linked to has the full sky.
@@ -63,9 +64,6 @@ class StarCatalogFallbackBanner extends ConsumerWidget {
           child: const CatalogSettingsScreen(),
         ),
       ),
-    ).then((_) {
-      ref.invalidate(starCatalogProvider);
-      ref.invalidate(starsProvider);
-    });
+    );
   }
 }

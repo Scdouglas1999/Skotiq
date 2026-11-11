@@ -4,7 +4,7 @@ import 'package:skotiq_core/src/services/master_annotation_service.dart';
 import 'package:skotiq_core/src/services/wcs_overlay.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
-OpenNgcData _dso({
+DeepSkyObject _dso({
   required String name,
   required String type,
   required double raDeg,
@@ -13,18 +13,19 @@ OpenNgcData _dso({
   double? positionAngle,
   String? messier,
   String? commonNames,
-}) => OpenNgcData(
-  name: name,
-  type: type,
-  ra: raDeg,
-  dec: decDeg,
+}) => DeepSkyObject(
+  id: name,
+  // The reader's display name: Messier, then first common name, then the id.
+  name: messier ?? commonNames?.split(',').first.trim() ?? name,
+  coordinates: CelestialCoordinate(ra: raDeg / 15.0, dec: decDeg),
+  type: dsoTypeFromOpenNgcCode(type),
   magnitude: 9.0,
-  majorAxis: majorAxis,
-  minorAxis: majorAxis,
+  sizeArcMin: majorAxis,
+  minorAxisArcMin: majorAxis,
   positionAngle: positionAngle,
-  messier: messier,
+  catalogIds: [if (messier != null) messier],
   commonNames: commonNames,
-  constellation: 'And',
+  constellation: 'Andromeda',
 );
 
 Star _star(String id, String name, double raDeg, double decDeg) => Star(
@@ -68,7 +69,7 @@ void main() {
                 decDeg: gDec,
                 majorAxis: 4.0, // arcmin
                 positionAngle: 45.0,
-                messier: '110',
+                messier: 'M110',
               ),
             ],
         starSearch: (_, __, {maxMagnitude}) async => const [],

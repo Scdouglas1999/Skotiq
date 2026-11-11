@@ -143,7 +143,7 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
           child: const CatalogSettingsScreen(),
         ),
       ),
-    ).then((_) => ref.invalidate(annotationCatalogInstalledProvider));
+    );
   }
 
   void _onObjectSelected(CelestialObjectAnnotation object) {

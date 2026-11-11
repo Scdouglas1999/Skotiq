@@ -420,8 +420,8 @@ class PhotometricCatalogService {
       }
       stars.add(
         PhotometricCatalogStar(
-          raDegrees: star.ra,
-          decDegrees: star.dec,
+          raDegrees: star.coordinates.raDegrees,
+          decDegrees: star.coordinates.dec,
           magV: magV,
           colorIndexBv: bv,
         ),

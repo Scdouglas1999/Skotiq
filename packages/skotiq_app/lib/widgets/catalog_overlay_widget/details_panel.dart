@@ -69,7 +69,7 @@ class CatalogOverlayDetailsPanel extends ConsumerWidget {
               ),
             const SizedBox(height: 12),
             _row(colors, 'Catalog', object.source),
-            _row(colors, 'Type', _kindName(object.kind)),
+            _row(colors, 'Type', object.type.displayName),
             _row(colors, 'RA', _formatRA(object.raHours)),
             _row(colors, 'Dec', _formatDec(object.decDegrees)),
             if (object.magnitude != null)
@@ -135,27 +135,6 @@ class CatalogOverlayDetailsPanel extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  static String _kindName(CatalogOverlayKind kind) {
-    switch (kind) {
-      case CatalogOverlayKind.star:
-        return 'Star';
-      case CatalogOverlayKind.galaxy:
-        return 'Galaxy';
-      case CatalogOverlayKind.openCluster:
-        return 'Open cluster';
-      case CatalogOverlayKind.globularCluster:
-        return 'Globular cluster';
-      case CatalogOverlayKind.nebula:
-        return 'Nebula';
-      case CatalogOverlayKind.planetaryNebula:
-        return 'Planetary nebula';
-      case CatalogOverlayKind.supernovaRemnant:
-        return 'Supernova remnant';
-      case CatalogOverlayKind.other:
-        return 'Other';
-    }
   }
 
   static String _formatRA(double raHours) =>

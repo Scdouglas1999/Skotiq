@@ -35,7 +35,7 @@ void main() {
     return file.path;
   }
 
-  test('the rendered star list and starsProvider are the same list', () async {
+  test('the star list and the star index come from one parse', () async {
     final path = await writeCatalog();
     final catalog = _CountingCatalog(path);
     final container = ProviderContainer(
@@ -44,13 +44,8 @@ void main() {
     addTearDown(container.dispose);
 
     final rendered = await container.read(loadedStarsProvider.future);
-    final legacy = await container.read(starsProvider.future);
+    await container.read(starSpatialIndexProvider.future);
 
-    expect(
-      identical(rendered, legacy),
-      isTrue,
-      reason: 'a second parse would produce a second list',
-    );
     expect(catalog.loadCalls, 1);
     expect(rendered, hasLength(1));
   });
@@ -62,38 +57,41 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    final rendered = await container.read(loadedStarsProvider.future);
+    await container.read(loadedStarsProvider.future);
 
     expect(container.read(starCatalogFallbackProvider), isTrue);
-    expect(
-      container.read(starCatalogLoadOutcomeProvider),
-      StarCatalogLoadOutcome.fileMissing,
-    );
-    expect(
-      identical(rendered, await container.read(starsProvider.future)),
-      isTrue,
-      reason: 'the banner and the sky must be reading one catalog',
-    );
+    expect(catalog.loadOutcome, StarCatalogLoadOutcome.fileMissing);
   });
 
-  test('the depth the renderer needs is the depth that is loaded', () {
-    final container = ProviderContainer();
+  test('the depth the renderer needs is the depth it is given', () async {
+    final path = await writeCatalog();
+    final file = File(path);
+    final lines = await file.readAsLines();
+    final faint = lines[1].split(',')
+      ..[0] = '2'
+      ..[1] = '2'
+      ..[13] = '12.5';
+    await file.writeAsString('${lines.join('\n')}\n${faint.join(',')}\n');
+    final container = ProviderContainer(
+      overrides: [starCatalogProvider.overrideWithValue(HygStarCatalog(path))],
+    );
     addTearDown(container.dispose);
 
-    // The renderer's deep-zoom limit. Loading shallower would silently thin the
-    // sky at narrow FOV; deeper costs memory nothing draws.
-    expect(container.read(starCatalogProvider).magnitudeLimit, 12.0);
+    // Magnitude 12 is the renderer's deep-zoom limit. Shallower would thin
+    // the sky at narrow FOV; deeper costs memory nothing draws.
+    final stars = await container.read(loadedStarsProvider.future);
+    expect(stars.map((s) => s.magnitude), [2.5]);
   });
 }
 
 class _CountingCatalog extends HygStarCatalog {
-  _CountingCatalog(String path) : super(catalogPath: path);
+  _CountingCatalog(super.path);
 
   int loadCalls = 0;
 
   @override
-  Future<List<Star>> loadObjects() {
+  Future<List<Star>> load() {
     loadCalls++;
-    return super.loadObjects();
+    return super.load();
   }
 }

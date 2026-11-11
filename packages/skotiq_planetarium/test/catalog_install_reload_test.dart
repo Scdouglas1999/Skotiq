@@ -32,10 +32,12 @@ void main() {
     expect(await container.read(loadedDsosProvider.future), isEmpty);
 
     // The download lands the OpenNGC file and reports completion.
-    await File(
-      '../skotiq_astro/test/fixtures/target_search_ngc.csv',
-    ).copy(CatalogManager.instance.dsoCatalogPath);
-    await container.read(catalogStateProvider.notifier).refreshStatus();
+    await CatalogManager.instance.installFromFile(
+      SkyCatalog.dso,
+      File('../skotiq_astro/test/fixtures/target_search_ngc.csv'),
+    );
+    // The provider hears about the install on the manager's change stream.
+    await Future<void>.delayed(Duration.zero);
 
     final dsos = await container.read(loadedDsosProvider.future);
     expect(dsos.map((d) => d.id), contains('NGC224'));

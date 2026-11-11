@@ -67,10 +67,10 @@ void main() {
     await for (final entity in catalogDirectory.list()) {
       await entity.delete(recursive: true);
     }
-    await File(CatalogManager.instance.starCatalogPath).writeAsString(
+    await File(CatalogManager.instance.pathOf(SkyCatalog.stars)).writeAsString(
       'id,proper,ra,dec,mag\n1,Polaris,2.5,89.2,1.9\n',
     );
-    await File(CatalogManager.instance.dsoCatalogPath).writeAsString(
+    await File(CatalogManager.instance.pathOf(SkyCatalog.dso)).writeAsString(
       'Name,RA,Dec,V-Mag\nNGC224,00:42:44,+41:16:09,3.4\n',
     );
   });

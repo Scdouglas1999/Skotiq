@@ -40,11 +40,10 @@ void main() {
     );
     // Minimum fixture CatalogManager reports as an installed "Complete"
     // package: a non-empty catalog file plus its metadata sidecar.
-    await File(p.join(catalogDirectory.path, hygStarCatalog.fileName))
+    await File(p.join(catalogDirectory.path, SkyCatalog.stars.fileName))
         .writeAsString('id,proper,ra,dec,mag\n1,Fixture,0,0,1.0\n');
     await File(p.join(catalogDirectory.path, 'stars_metadata.json'))
         .writeAsString(jsonEncode({
-      'package': CatalogPackage.complete.name,
       'version': '4.2',
       'objectCount': 119626,
       'installedDate': DateTime(2026, 8, 3).toIso8601String(),

@@ -49,15 +49,15 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
               'Combined Hipparcos, Yale, and Gliese star catalogs with ~120000 stars',
           sourceUrl: 'github.com/astronexus/HYG-Database',
           status: _starStatus,
-          type: 'stars',
+          catalog: SkyCatalog.stars,
           icon: SkotiqIcons.star,
           usedFor: 'Draws the star field in the planetarium and finder.',
           // The version the resolver would actually download, not a literal
           // that has to be remembered when the asset rolls. A hardcoded '4.2'
           // here outlived the move to hyg_v44 and made the newest fetchable
           // catalog advertise an update to a version the app cannot get.
-          latestVersion: hygStarCatalog.version,
-          rigStatus: isRemote ? _rigStatusFor('stars') : null,
+          latestVersion: SkyCatalog.stars.version,
+          rigStatus: isRemote ? _rigStatusFor(SkyCatalog.stars) : null,
         ),
         const SizedBox(height: 16),
 
@@ -69,14 +69,14 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
               'Open source NGC/IC deep sky catalog with ~13000 objects',
           sourceUrl: 'github.com/mattiaverga/OpenNGC',
           status: _dsoStatus,
-          type: 'dso',
+          catalog: SkyCatalog.dso,
           // KEEP MATERIAL: no clean Lucide "out-of-focus disc" glyph
           // (icon-migration-map.md flagged exception).
           icon: SkotiqIcons.target,
           usedFor:
               'Powers deep-sky target search, framing, and on-image NGC/IC labels.',
-          latestVersion: openNgcCatalog.version,
-          rigStatus: isRemote ? _rigStatusFor('dso') : null,
+          latestVersion: SkyCatalog.dso.version,
+          rigStatus: isRemote ? _rigStatusFor(SkyCatalog.dso) : null,
         ),
         const SizedBox(height: 32),
 
@@ -266,8 +266,7 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
                       icon: SkotiqIcons.delete,
                       variant: ButtonVariant.destructive,
                       onPressed: _isDownloading ? null : _deleteCatalogs,
-                      isLoading:
-                          _deleteTarget == _CatalogDeleteTarget.starAndDso,
+                      isLoading: _deleting.contains(SkyCatalog.stars),
                     ),
                   ],
                 ],
@@ -287,8 +286,7 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
                       icon: SkotiqIcons.delete,
                       variant: ButtonVariant.destructive,
                       onPressed: _isDownloading ? null : _deleteCatalogs,
-                      isLoading:
-                          _deleteTarget == _CatalogDeleteTarget.starAndDso,
+                      isLoading: _deleting.contains(SkyCatalog.stars),
                     ),
                 ],
               ),
@@ -299,7 +297,7 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
   Widget _buildAnnotationCatalogSection(BuildContext context, bool isRemote) {
     final colors = context.skotiqColors;
     final isInstalled = _annotationStatus?.isInstalled ?? false;
-    final rigStatus = isRemote ? _rigStatusFor('annotation') : null;
+    final rigStatus = isRemote ? _rigStatusFor(SkyCatalog.annotation) : null;
 
     return SkotiqPanel(
       child: Column(
@@ -400,7 +398,7 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
                 _buildStatusChip(
                   context: context,
                   label: 'Size',
-                  value: _formatBytes(_annotationStatus!.fileSizeBytes),
+                  value: _formatBytes(_annotationStatus!.sizeBytes),
                 ),
                 // No "Package" chip here either — see the note on the shared
                 // installed-catalog card in card_builders.dart. The download
@@ -408,11 +406,11 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
                 // off the legacy sidecar labels the user's install with
                 // something they can no longer choose and that never described
                 // the bytes on disk.
-                if (_annotationStatus!.installedDate != null)
+                if (_annotationStatus!.installedAt != null)
                   _buildStatusChip(
                     context: context,
                     label: 'Installed',
-                    value: _formatDate(_annotationStatus!.installedDate!),
+                    value: _formatDate(_annotationStatus!.installedAt!),
                   ),
               ],
             ),
@@ -462,7 +460,9 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
                 label: 'Import CSV',
                 icon: SkotiqIcons.folderOpen,
                 variant: ButtonVariant.secondary,
-                onPressed: _isDownloading ? null : _importAnnotationCatalog,
+                onPressed: _isDownloading
+                    ? null
+                    : () => _importCatalog(SkyCatalog.annotation),
               ),
             ),
           ] else ...[
@@ -473,7 +473,7 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
                 icon: SkotiqIcons.delete,
                 variant: ButtonVariant.destructive,
                 onPressed: _isDownloading ? null : _deleteAnnotationCatalog,
-                isLoading: _deleteTarget == _CatalogDeleteTarget.annotation,
+                isLoading: _deleting.contains(SkyCatalog.annotation),
               ),
             ),
           ],

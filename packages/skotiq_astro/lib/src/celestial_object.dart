@@ -21,6 +21,10 @@ class Star implements CelestialObject {
   final String? spectralType;
   final String? constellation;
   final double? colorIndex;
+
+  /// Distance in parsecs as the catalog states it (HYG writes 100000 for
+  /// "unknown").
+  final double? distanceParsecs;
   final List<String> catalogIds;
 
   const Star({
@@ -31,9 +35,25 @@ class Star implements CelestialObject {
     this.spectralType,
     this.constellation,
     this.colorIndex,
+    this.distanceParsecs,
     this.catalogIds = const [],
   });
 
+  /// What to call this star in a list or on an image: its name, or for a
+  /// star with none its first catalog designation ("HIP 3293").
+  String get label =>
+      name == id && catalogIds.isNotEmpty ? catalogIds.first : name;
+
+  /// The number of this star in [catalog] ("HIP", "HD", "HR"), from
+  /// [catalogIds].
+  int? catalogNumber(String catalog) {
+    for (final id in catalogIds) {
+      if (id.startsWith('$catalog ')) {
+        return int.tryParse(id.substring(catalog.length + 1));
+      }
+    }
+    return null;
+  }
 }
 
 /// What kind of solar-system body a [SolarSystemBody] is.

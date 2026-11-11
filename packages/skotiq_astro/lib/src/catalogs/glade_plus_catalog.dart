@@ -1,5 +1,6 @@
 import 'dart:isolate';
 
+import '../util/csv_line.dart';
 import 'catalog_region_scan.dart';
 
 /// GLADE+ catalog data for deep galaxy annotation
@@ -22,7 +23,7 @@ class GladePlusData {
   });
 
   factory GladePlusData.fromCsvLine(String line) {
-    final parts = _parseCsvLine(line);
+    final parts = splitCsvLine(line);
     if (parts.length < 5) {
       throw const FormatException('Invalid GLADE+ line: insufficient columns');
     }
@@ -42,29 +43,6 @@ class GladePlusData {
       redshift: redshift,
       distance: distance,
     );
-  }
-
-  static List<String> _parseCsvLine(String line) {
-    // Downloaded GLADE+ rows are numeric and normally have no quoted cells.
-    // Avoid allocating a StringBuffer and a one-character String per byte.
-    if (!line.contains('"')) return line.split(',');
-    final result = <String>[];
-    var inQuotes = false;
-    var current = StringBuffer();
-
-    for (var i = 0; i < line.length; i++) {
-      final char = line[i];
-      if (char == '"') {
-        inQuotes = !inQuotes;
-      } else if (char == ',' && !inQuotes) {
-        result.add(current.toString().trim());
-        current = StringBuffer();
-      } else {
-        current.write(char);
-      }
-    }
-    result.add(current.toString().trim());
-    return result;
   }
 
   static double? _parseRedshift(double? velocity) {

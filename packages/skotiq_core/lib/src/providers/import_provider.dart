@@ -54,9 +54,7 @@ final sequenceImporterProvider = Provider<SequenceImporter>((ref) {
               })
               .toList(growable: false);
         })
-      : ResolverCatalogLookup(
-          () => OpenNgcDsoCatalog(magnitudeLimit: 16.0).loadObjects(),
-        );
+      : ResolverCatalogLookup(() => CatalogManager.instance.dsos.load());
   return SequenceImporter(
     astrobin: AstrobinImporter(
       catalog: OnlineFallbackLookup(

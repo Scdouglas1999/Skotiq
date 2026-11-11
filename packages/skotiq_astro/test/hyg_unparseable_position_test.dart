@@ -47,10 +47,7 @@ void main() {
   Future<List<Star>> loadFrom(List<String> rows) async {
     final file = File('${tempDir.path}/hyg.csv');
     await file.writeAsString([_header, ...rows].join('\n'));
-    return HygStarCatalog(
-      catalogPath: file.path,
-      magnitudeLimit: 15,
-    ).loadObjects();
+    return HygStarCatalog(file.path).load();
   }
 
   test('a row with an unparseable RA is skipped, not placed at 0h', () async {

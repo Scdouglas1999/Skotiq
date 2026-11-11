@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:math' as math;
 
+import '../util/csv_line.dart';
 import 'catalog_region_scan.dart';
 
 /// HyperLEDA catalog data for deep galaxy annotation
@@ -37,7 +38,7 @@ class HyperLedaData {
   /// Parse a line from the HyperLEDA CSV export
   /// Expected format: pgc,objname,al2000,de2000,bt,logd25,logr25,pa,t,v,modbest
   factory HyperLedaData.fromCsvLine(String line) {
-    final parts = _parseCsvLine(line);
+    final parts = splitCsvLine(line);
     if (parts.length < 11) {
       throw const FormatException(
         'Invalid HyperLEDA line: insufficient columns',
@@ -59,26 +60,6 @@ class HyperLedaData {
       redshift: _parseRedshift(parts[9]),
       distance: _parseDistance(parts[10]),
     );
-  }
-
-  static List<String> _parseCsvLine(String line) {
-    final result = <String>[];
-    var inQuotes = false;
-    var current = StringBuffer();
-
-    for (var i = 0; i < line.length; i++) {
-      final char = line[i];
-      if (char == '"') {
-        inQuotes = !inQuotes;
-      } else if (char == ',' && !inQuotes) {
-        result.add(current.toString().trim());
-        current = StringBuffer();
-      } else {
-        current.write(char);
-      }
-    }
-    result.add(current.toString().trim());
-    return result;
   }
 
   static double? _parseLogD25(String value) {

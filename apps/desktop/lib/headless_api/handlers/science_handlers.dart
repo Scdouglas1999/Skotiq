@@ -7,7 +7,7 @@ import 'package:skotiq_app/services/observation_report_service.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' show apiReadFitsFile;
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_astro/skotiq_astro.dart'
-    show CatalogManager, HygStarData, airmassForTrueAltitude;
+    show CatalogManager, Star, airmassForTrueAltitude;
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
@@ -621,15 +621,15 @@ class ScienceHandlers implements RouteSource {
     );
 
     final fits = await apiReadFitsFile(filePath: image.filePath);
-    final projectedCatalog = <({double x, double y, HygStarData star})>[];
+    final projectedCatalog = <({double x, double y, Star star})>[];
     for (final catalogStar in catalogStars) {
       if (catalogStar.magnitude == null || !catalogStar.magnitude!.isFinite) {
         continue;
       }
       final projected = _skyToPixel(
         wcs: wcs,
-        ra: catalogStar.ra,
-        dec: catalogStar.dec,
+        ra: catalogStar.coordinates.raDegrees,
+        dec: catalogStar.coordinates.dec,
         width: fits.width.toDouble(),
         height: fits.height.toDouble(),
       );
@@ -699,8 +699,8 @@ class ScienceHandlers implements RouteSource {
         CatalogStarMatch(
           x: star.x,
           y: star.y,
-          raDegrees: matchedStar.ra,
-          decDegrees: matchedStar.dec,
+          raDegrees: matchedStar.coordinates.raDegrees,
+          decDegrees: matchedStar.coordinates.dec,
           catalogMagV: catalogV,
           catalogMagB: catalogB,
           instrumentalFlux: star.flux,

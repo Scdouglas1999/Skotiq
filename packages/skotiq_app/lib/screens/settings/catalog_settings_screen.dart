@@ -1,10 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:file_selector/file_selector.dart';
@@ -25,12 +25,9 @@ part 'catalog_settings_screen/view_builders.dart';
 const String _logSource = 'CatalogSettings';
 
 typedef CatalogCsvPicker = Future<XFile?> Function(String confirmButtonText);
-typedef CatalogCsvImporter = Future<bool> Function(
+typedef CatalogCsvImporter = Future<void> Function(
   String sourcePath,
-  String type,
-);
-typedef AnnotationCatalogCsvImporter = Future<bool> Function(
-  String sourcePath,
+  SkyCatalog catalog,
 );
 
 Future<XFile?> _pickCatalogCsv(String confirmButtonText) {
@@ -47,27 +44,18 @@ Future<XFile?> _pickCatalogCsv(String confirmButtonText) {
 final catalogCsvPickerProvider =
     Provider<CatalogCsvPicker>((ref) => _pickCatalogCsv);
 
+/// Installs a picked CSV as [catalog]; throws with the reason when it cannot.
 final catalogCsvImporterProvider = Provider<CatalogCsvImporter>((ref) {
-  return (sourcePath, type) => CatalogManager.instance.importCatalog(
-        sourcePath: sourcePath,
-        type: type,
+  return (sourcePath, catalog) => CatalogManager.instance.installFromFile(
+        catalog,
+        File(sourcePath),
+        tier: AnnotationPackage.standard,
       );
 });
 
-final annotationCatalogCsvImporterProvider =
-    Provider<AnnotationCatalogCsvImporter>((ref) {
-  return (sourcePath) => CatalogManager.instance.importAnnotationCatalog(
-        sourcePath: sourcePath,
-        package: AnnotationPackage.standard,
-      );
-});
-
-final catalogDeleteActionProvider = Provider<Future<void> Function()>(
-  (ref) => CatalogManager.instance.deleteCatalogs,
-);
-
-final annotationCatalogDeleteActionProvider = Provider<Future<void> Function()>(
-  (ref) => CatalogManager.instance.deleteAnnotationCatalog,
+final catalogUninstallProvider =
+    Provider<Future<void> Function(SkyCatalog catalog)>(
+  (ref) => CatalogManager.instance.uninstall,
 );
 
 /// Screen for managing astronomical catalog downloads and settings
@@ -108,9 +96,11 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
   int _importGeneration = 0;
   int _statusGeneration = 0;
   bool _deleteConfirmationOpen = false;
-  _CatalogDeleteTarget? _deleteTarget;
 
-  bool get _isDeleting => _deleteTarget != null;
+  /// The catalogs a running delete is removing.
+  List<SkyCatalog> _deleting = const [];
+
+  bool get _isDeleting => _deleting.isNotEmpty;
 
   /// Set when the user taps Cancel; polled by the in-flight download.
   bool _cancelRequested = false;
@@ -118,10 +108,6 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
   double _downloadProgress = 0;
   String _currentDownload = '';
 
-  /// The single dataset every install delivers. There is no tier to pick —
-  /// see [CatalogPackage]; the selector that used to set this downloaded the
-  /// same bytes whichever option was clicked.
-  static const CatalogPackage _installedPackage = CatalogPackage.complete;
   AnnotationPackage _selectedAnnotationPackage = AnnotationPackage.standard;
 
   StreamSubscription<DownloadProgress>? _progressSub;
@@ -211,9 +197,9 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
       final backend = ref.read(backendProvider);
       final rig = backend.remoteHost?.catalogs;
       final statuses = await Future.wait<CatalogStatus>([
-        CatalogManager.instance.getStarCatalogStatus(),
-        CatalogManager.instance.getDsoCatalogStatus(),
-        CatalogManager.instance.getAnnotationCatalogStatus(),
+        CatalogManager.instance.status(SkyCatalog.stars),
+        CatalogManager.instance.status(SkyCatalog.dso),
+        CatalogManager.instance.status(SkyCatalog.annotation),
       ]);
 
       RemoteCatalogStatusResponse? rigCatalogs;
@@ -235,10 +221,6 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
           _rigCatalogError = rigError;
           _isLoading = false;
         });
-        // Keep the shared catalog-state provider (planner empty-state, "needs
-        // download" gating) consistent with what this screen just observed —
-        // covers deletes/imports that don't flow through the download stream.
-        unawaited(ref.read(catalogStateProvider.notifier).refreshStatus());
       }
     } catch (e) {
       if (mounted && generation == _statusGeneration) {
@@ -263,38 +245,26 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
       _recomputeDownloading();
     });
 
-    _logOutcome(
-      'Catalog download started',
-      fields: {'package': _installedPackage.name, 'catalogs': 'stars+dso'},
-    );
+    _logOutcome('Catalog download started', fields: {'catalogs': 'stars+dso'});
     try {
-      final starSuccess = await CatalogManager.instance.downloadStarCatalog(
-        package: _installedPackage,
-        isCancelled: () async => _cancelRequested,
-      );
-      if (_cancelRequested) return _onDownloadCancelled();
-      if (!starSuccess) {
-        throw Exception('Star catalog download failed');
-      }
-
-      final dsoSuccess = await CatalogManager.instance.downloadDsoCatalog(
-        package: _installedPackage,
-        isCancelled: () async => _cancelRequested,
-      );
-      if (_cancelRequested) return _onDownloadCancelled();
-      if (!dsoSuccess) {
-        throw Exception('DSO catalog download failed');
+      for (final catalog in const [SkyCatalog.stars, SkyCatalog.dso]) {
+        await CatalogManager.instance.install(
+          catalog,
+          isCancelled: () async => _cancelRequested,
+        );
       }
 
       _logOutcome(
         'Catalog download completed',
-        fields: {'package': _installedPackage.name, 'catalogs': 'stars+dso'},
+        fields: {'catalogs': 'stars+dso'},
       );
       await _loadCatalogStatus();
 
       if (mounted) {
         context.showSuccessSnackBar('Catalogs downloaded successfully!');
       }
+    } on CatalogCancelled {
+      await _onDownloadCancelled();
     } catch (e) {
       _showError('Download failed: $e');
     } finally {
@@ -325,39 +295,47 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
   }
 
   @override
-  Future<void> _importCatalog(String type) async {
+  Future<void> _importCatalog(SkyCatalog catalog) async {
     if (_isDownloading) return;
+    final isAnnotation = catalog == SkyCatalog.annotation;
     final generation = ++_importGeneration;
     setState(() {
       _methodRunning = true;
-      _currentDownload = type == 'stars' ? 'Star catalog' : 'DSO catalog';
+      _currentDownload = switch (catalog) {
+        SkyCatalog.stars => 'Star catalog',
+        SkyCatalog.dso => 'DSO catalog',
+        SkyCatalog.annotation => 'GLADE+ galaxy catalog',
+      };
       _downloadStatus = 'Selecting a CSV file...';
       _downloadProgress = 0;
       _recomputeDownloading();
     });
 
     try {
-      final result = await ref.read(catalogCsvPickerProvider)('Select');
+      final result = await ref.read(catalogCsvPickerProvider)(
+        isAnnotation ? 'Import' : 'Select',
+      );
       if (result == null || !_isCurrentImport(generation)) return;
 
       setState(() {
-        _downloadStatus = 'Importing catalog...';
+        _downloadStatus = isAnnotation
+            ? 'Importing annotation catalog...'
+            : 'Importing catalog...';
       });
 
-      final success =
-          await ref.read(catalogCsvImporterProvider)(result.path, type);
+      await ref.read(catalogCsvImporterProvider)(result.path, catalog);
       if (!_isCurrentImport(generation)) return;
 
-      if (success) {
-        // Logged before the status refresh: the outcome is already known, and
-        // a slow/failed refresh must not cost the record of it.
-        _logOutcome('Catalog imported', fields: {'type': type});
-        await _loadCatalogStatus();
-        if (mounted && _isCurrentImport(generation)) {
-          context.showSuccessSnackBar('Catalog imported successfully!');
-        }
-      } else {
-        _showError('Failed to import catalog');
+      // Logged before the status refresh: the outcome is already known, and
+      // a slow/failed refresh must not cost the record of it.
+      _logOutcome('Catalog imported', fields: {'type': catalog.name});
+      await _loadCatalogStatus();
+      if (mounted && _isCurrentImport(generation)) {
+        context.showSuccessSnackBar(
+          isAnnotation
+              ? 'GLADE+ catalog imported successfully!'
+              : 'Catalog imported successfully!',
+        );
       }
     } catch (e) {
       if (_isCurrentImport(generation)) {
@@ -387,8 +365,7 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
     );
     if (!confirm || !mounted) return;
     await _runDeletion(
-      target: _CatalogDeleteTarget.starAndDso,
-      delete: ref.read(catalogDeleteActionProvider),
+      const [SkyCatalog.stars, SkyCatalog.dso],
       successMessage: 'Star and deep-sky catalogs deleted',
     );
   }
@@ -415,20 +392,32 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
     }
   }
 
-  Future<void> _runDeletion({
-    required _CatalogDeleteTarget target,
-    required Future<void> Function() delete,
+  Future<void> _runDeletion(
+    List<SkyCatalog> catalogs, {
     required String successMessage,
   }) async {
     if (_isDownloading || _isDeleting) return;
     setState(() {
-      _deleteTarget = target;
+      _deleting = catalogs;
       _methodRunning = true;
       _recomputeDownloading();
     });
     try {
-      await delete();
-      _logOutcome('Catalogs deleted', fields: {'target': target.name});
+      // Every catalog is attempted before the first failure is reported.
+      final uninstall = ref.read(catalogUninstallProvider);
+      Object? firstError;
+      for (final catalog in catalogs) {
+        try {
+          await uninstall(catalog);
+        } catch (e) {
+          firstError ??= e;
+        }
+      }
+      if (firstError != null) throw firstError;
+      _logOutcome(
+        'Catalogs deleted',
+        fields: {'target': catalogs.map((c) => c.name).join('+')},
+      );
       if (!mounted) return;
       await _loadCatalogStatus();
       if (mounted) context.showInfoSnackBar(successMessage);
@@ -437,7 +426,7 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
     } finally {
       if (mounted) {
         setState(() {
-          _deleteTarget = null;
+          _deleting = const [];
           _methodRunning = false;
           _recomputeDownloading();
         });
@@ -465,11 +454,11 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
   /// The appliance's status for [type] (`stars`, `dso`, `annotation`), or null
   /// when this is a local session or the appliance could not be asked. A rig
   /// that answered but does not list the catalog is reporting it missing.
-  String? _rigStatusFor(String type) {
+  String? _rigStatusFor(SkyCatalog wanted) {
     final catalogs = _rigCatalogs?.catalogs;
     if (catalogs == null) return null;
     for (final catalog in catalogs) {
-      if (catalog.name.toLowerCase() == type) {
+      if (catalog.name.toLowerCase() == wanted.name) {
         return catalog.status.toLowerCase();
       }
     }
@@ -477,8 +466,8 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
   }
 
   bool get _rigMissingImagingCatalogs {
-    for (final type in const ['stars', 'dso']) {
-      final status = _rigStatusFor(type);
+    for (final catalog in const [SkyCatalog.stars, SkyCatalog.dso]) {
+      final status = _rigStatusFor(catalog);
       if (status != null && !_CatalogCardBuilders._rigHasCatalog(status)) {
         return true;
       }
@@ -596,15 +585,11 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
       fields: {'package': _selectedAnnotationPackage.name},
     );
     try {
-      final success = await CatalogManager.instance.downloadAnnotationCatalog(
-        package: _selectedAnnotationPackage,
+      await CatalogManager.instance.install(
+        SkyCatalog.annotation,
+        tier: _selectedAnnotationPackage,
         isCancelled: () async => _cancelRequested,
       );
-
-      if (_cancelRequested) return _onDownloadCancelled();
-      if (!success) {
-        throw Exception('Annotation catalog download failed');
-      }
 
       _logOutcome(
         'Annotation catalog download completed',
@@ -615,58 +600,12 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
       if (mounted) {
         context.showSuccessSnackBar('GLADE+ catalog downloaded successfully!');
       }
+    } on CatalogCancelled {
+      await _onDownloadCancelled();
     } catch (e) {
       _showError('Download failed: $e');
     } finally {
       if (mounted) {
-        setState(() {
-          _methodRunning = false;
-          _recomputeDownloading();
-        });
-      }
-    }
-  }
-
-  Future<void> _importAnnotationCatalog() async {
-    if (_isDownloading) return;
-    final generation = ++_importGeneration;
-    setState(() {
-      _methodRunning = true;
-      _currentDownload = 'GLADE+ galaxy catalog';
-      _downloadStatus = 'Selecting a CSV file...';
-      _downloadProgress = 0;
-      _recomputeDownloading();
-    });
-
-    try {
-      final result = await ref.read(catalogCsvPickerProvider)('Import');
-      if (result == null || !_isCurrentImport(generation)) return;
-
-      setState(() {
-        _downloadStatus = 'Importing annotation catalog...';
-      });
-
-      final success =
-          await ref.read(annotationCatalogCsvImporterProvider)(result.path);
-      if (!_isCurrentImport(generation)) return;
-
-      if (success) {
-        _logOutcome('Catalog imported', fields: {'type': 'annotation'});
-        await _loadCatalogStatus();
-        if (mounted && _isCurrentImport(generation)) {
-          context.showSuccessSnackBar(
-            'GLADE+ catalog imported successfully!',
-          );
-        }
-      } else {
-        _showError('Failed to import annotation catalog');
-      }
-    } catch (e) {
-      if (_isCurrentImport(generation)) {
-        _showError('Import failed: $e');
-      }
-    } finally {
-      if (_isCurrentImport(generation)) {
         setState(() {
           _methodRunning = false;
           _recomputeDownloading();
@@ -684,8 +623,7 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
     );
     if (!confirm || !mounted) return;
     await _runDeletion(
-      target: _CatalogDeleteTarget.annotation,
-      delete: ref.read(annotationCatalogDeleteActionProvider),
+      const [SkyCatalog.annotation],
       successMessage: 'Annotation catalog deleted',
     );
   }
@@ -695,8 +633,6 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 }
-
-enum _CatalogDeleteTarget { starAndDso, annotation }
 
 /// The note above the catalog cards on a linked client: what the rig lacks,
 /// and which lookups use this device's own catalogs.

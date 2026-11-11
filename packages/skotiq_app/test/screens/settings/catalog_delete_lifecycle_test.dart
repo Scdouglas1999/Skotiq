@@ -42,7 +42,7 @@ void main() {
     await for (final entity in catalogDirectory.list()) {
       await entity.delete(recursive: true);
     }
-    await File(CatalogManager.instance.starCatalogPath).writeAsString(
+    await File(CatalogManager.instance.pathOf(SkyCatalog.stars)).writeAsString(
       'id,proper,ra,dec,mag\n1,Polaris,2.5,89.2,1.9\n',
     );
   });
@@ -62,8 +62,8 @@ void main() {
       size: const Size(1000, 1800),
       settle: false,
       extraOverrides: [
-        catalogDeleteActionProvider.overrideWithValue(() async {
-          deleteCalls++;
+        catalogUninstallProvider.overrideWithValue((catalog) async {
+          if (catalog == SkyCatalog.stars) deleteCalls++;
           throw StateError('catalog file is locked');
         }),
       ],

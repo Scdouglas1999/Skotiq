@@ -25,10 +25,7 @@ void main() {
   Future<List<Star>> loadFrom(String csv) async {
     final file = File('${tempDir.path}/hyg.csv');
     await file.writeAsString(csv);
-    return HygStarCatalog(
-      catalogPath: file.path,
-      magnitudeLimit: 15,
-    ).loadObjects();
+    return HygStarCatalog(file.path).load();
   }
 
   // Header plus the real HYG id-0 Sun row, then a genuine star (Sirius-like).

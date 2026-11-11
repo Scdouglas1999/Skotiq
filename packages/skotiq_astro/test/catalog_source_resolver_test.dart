@@ -9,92 +9,24 @@ import 'package:test/test.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 void main() {
-  group('catalogDownloadCandidates ordering', () {
-    const base = 'https://example.com/releases/catalogs-v1';
-
-    test('GitHub release asset is first, upstream fallback is second', () {
-      final candidates = catalogDownloadCandidates(
-        githubAssetName: 'thing.csv.gz',
-        upstreamUrl: 'https://upstream.example/thing.csv.gz',
-        baseUrl: base,
-      );
-      expect(candidates, [
-        '$base/thing.csv.gz',
-        'https://upstream.example/thing.csv.gz',
-      ]);
-    });
-
-    test('trailing slash on base is normalized (no double slash)', () {
-      final candidates = catalogDownloadCandidates(
-        githubAssetName: 'thing.csv',
-        upstreamUrl: 'https://upstream.example/thing.csv',
-        baseUrl: '$base/',
-      );
-      expect(candidates.first, '$base/thing.csv');
-    });
-
-    test('empty asset name collapses to just the upstream fallback', () {
-      final candidates = catalogDownloadCandidates(
-        githubAssetName: '',
-        upstreamUrl: 'https://upstream.example/dynamic',
-        baseUrl: base,
-      );
-      expect(candidates, ['https://upstream.example/dynamic']);
-    });
-
-    test('empty base collapses to just the upstream fallback', () {
-      final candidates = catalogDownloadCandidates(
-        githubAssetName: 'thing.csv',
-        upstreamUrl: 'https://upstream.example/thing.csv',
-        baseUrl: '',
-      );
-      expect(candidates, ['https://upstream.example/thing.csv']);
-    });
-
-    test('duplicate primary/upstream is de-duped', () {
-      const same = '$base/thing.csv';
-      final candidates = catalogDownloadCandidates(
-        githubAssetName: 'thing.csv',
-        upstreamUrl: same,
-        baseUrl: base,
-      );
-      expect(candidates, [same]);
-    });
-
-    test('a source with neither asset nor upstream yields no candidates', () {
-      expect(
-        catalogDownloadCandidates(
-          githubAssetName: '',
-          upstreamUrl: '',
-          baseUrl: base,
-        ),
-        isEmpty,
-      );
-    });
-  });
-
-  group('resolveCatalogDownloadCandidates for the real catalog sources', () {
+  group('download candidates', () {
     test('HYG: GitHub v44 asset primary, Codeberg /media/ v44 fallback', () {
-      final candidates = resolveCatalogDownloadCandidates(
-        hygStarCatalog,
+      final candidates = SkyCatalog.stars.downloadCandidates(
         baseUrl: kCatalogReleaseBaseUrl,
       );
       expect(candidates.length, 2);
-      // Primary is the immutable release asset.
       expect(candidates.first, '$kCatalogReleaseBaseUrl/hyg_v44.csv.gz');
-      // Fallback is the v44 /media/ (LFS content) URL, NOT /raw/.
+      // /raw/ returns a 133-byte LFS pointer, not the file.
       expect(candidates[1], contains('/media/'));
       expect(candidates[1], contains('hyg_v44.csv.gz'));
       expect(candidates[1], isNot(contains('/raw/')));
-      // The dead v42 reference must be gone from every candidate.
       for (final url in candidates) {
         expect(url, isNot(contains('v42')));
       }
     });
 
     test('OpenNGC: GitHub asset primary, raw.githubusercontent fallback', () {
-      final candidates = resolveCatalogDownloadCandidates(
-        openNgcCatalog,
+      final candidates = SkyCatalog.dso.downloadCandidates(
         baseUrl: kCatalogReleaseBaseUrl,
       );
       expect(candidates.length, 2);
@@ -103,14 +35,39 @@ void main() {
     });
 
     test('a configured override base repoints the primary candidate', () {
-      const override = 'https://mirror.internal/catalogs';
-      final candidates = resolveCatalogDownloadCandidates(
-        hygStarCatalog,
-        baseUrl: override,
+      const override = 'https://mirror.example/catalogs';
+      final candidates = SkyCatalog.stars.downloadCandidates(
+        baseUrl: '$override/',
       );
+      // A trailing slash on the base must not produce a double slash.
       expect(candidates.first, '$override/hyg_v44.csv.gz');
-      // Upstream fallback is unaffected by the override.
-      expect(candidates.last, hygStarCatalog.downloadUrl);
+      expect(candidates.last, SkyCatalog.stars.upstreamUrl);
+    });
+
+    test('an empty base collapses to just the upstream fallback', () {
+      expect(SkyCatalog.dso.downloadCandidates(baseUrl: ''), [
+        SkyCatalog.dso.upstreamUrl,
+      ]);
+    });
+
+    test('GLADE+ has no release asset: one TAP query per tier', () {
+      for (final tier in AnnotationPackage.values) {
+        expect(
+          SkyCatalog.annotation.downloadCandidates(
+            baseUrl: kCatalogReleaseBaseUrl,
+            tier: tier,
+          ),
+          [gladePlusUrl(tier)],
+        );
+      }
+      expect(
+        gladePlusUrl(AnnotationPackage.complete),
+        isNot(contains('WHERE')),
+      );
+      expect(
+        Uri.decodeComponent(gladePlusUrl(AnnotationPackage.essential)),
+        contains('"Bmag" <= 14.0'),
+      );
     });
   });
 
@@ -133,7 +90,7 @@ void main() {
     test('the real HYG hash rejects unrelated bytes', () {
       // Guards against a wrong-payload candidate (or a hash-of-decompressed vs
       // hash-of-compressed mixup) silently installing.
-      expect(catalogBytesMatchSha256(hygStarCatalog.sha256, bytes), isFalse);
+      expect(catalogBytesMatchSha256(SkyCatalog.stars.sha256, bytes), isFalse);
     });
 
     test('hash comparison is case-insensitive', () {
@@ -144,27 +101,25 @@ void main() {
         'GLADE+)', () {
       expect(catalogBytesMatchSha256('', bytes), isTrue);
       expect(catalogSha256Matches('', 'anything'), isTrue);
-      expect(gladePlusCatalog.sha256, isEmpty);
+      expect(SkyCatalog.annotation.sha256, isEmpty);
     });
   });
 
   group('catalog source constants', () {
     test('HYG carries the exact published as-downloaded (gzipped) hash', () {
       expect(
-        hygStarCatalog.sha256,
+        SkyCatalog.stars.sha256,
         '00b349893b9a53106dd488d8371e8d2fa586043e500bb3cdb8bff3931682197d',
       );
-      expect(hygStarCatalog.isGzipped, isTrue);
-      expect(hygStarCatalog.githubAssetName, 'hyg_v44.csv.gz');
+      expect(SkyCatalog.stars.githubAssetName, 'hyg_v44.csv.gz');
     });
 
     test('OpenNGC carries the exact published hash and is not gzipped', () {
       expect(
-        openNgcCatalog.sha256,
+        SkyCatalog.dso.sha256,
         '840fe0c9ee1332e551b2e722a0e92726cd7b157914a3d2177602832aadd3aa9e',
       );
-      expect(openNgcCatalog.isGzipped, isFalse);
-      expect(openNgcCatalog.githubAssetName, 'NGC.csv');
+      expect(SkyCatalog.dso.githubAssetName, 'NGC.csv');
     });
   });
 }

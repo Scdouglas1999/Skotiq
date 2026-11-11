@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_astro/skotiq_astro.dart';
 import '../../services/manual_capture_controller.dart';
 import '../../utils/snackbar_helper.dart';
 import '../../utils/transient_bottom_inset.dart';
@@ -30,11 +29,6 @@ import 'widgets/stacking_panel.dart';
 import '../../widgets/tutorial_keys/imaging_keys.dart';
 
 part 'imaging_screen/imaging_screen_actions.dart';
-
-final annotationCatalogInstalledProvider = FutureProvider<bool>((ref) async {
-  final status = await CatalogManager.instance.getAnnotationCatalogStatus();
-  return status.isInstalled;
-});
 
 /// The Imaging screen's top-level tabs (06 §Imaging).
 enum ImagingTab {
