@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:ui' show Locale;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// bridge-boundary: sequencer_handlers
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';

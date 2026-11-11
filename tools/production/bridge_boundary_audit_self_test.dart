@@ -6,7 +6,8 @@ import 'dart:io';
 /// Builds synthetic workspaces in a temp dir and asserts the audit:
 ///  - exempts skotiq_core / skotiq_bridge,
 ///  - flags an un-whitelisted importer as a violation,
-///  - honours the whitelist,
+///  - honours a marked import whose id is whitelisted, wherever the file is,
+///  - reports unused whitelist ids, unknown ids and unmarked imports,
 ///  - extracts `show` and prefixed (`as`) symbols.
 Future<void> main() async {
   final repoRoot = Directory.current;
@@ -96,14 +97,20 @@ Future<void> main() async {
       'show symbol should be extracted, got $guideSymbols',
     );
 
-    // --- Whitelist honoured: add guide_health_card to the whitelist. ---
+    // --- Whitelist honoured: mark the guide_health_card import and list
+    // its id. The exception is attached to the import, not the path. ---
+    await _writeFile(
+      temp,
+      'packages/skotiq_app/lib/widgets/guide_health_card.dart',
+      '// bridge-boundary: guide_health\n'
+          "import 'package:skotiq_bridge/skotiq_bridge.dart' show Phd2State;\n"
+          'Phd2State? state;\n',
+    );
     await _writeFile(temp, 'wl.json', '''
 {
   "allow": [
-    {
-      "file": "packages/skotiq_app/lib/widgets/guide_health_card.dart",
-      "reason": "thin UI data type"
-    }
+    {"id": "guide_health", "reason": "thin UI data type"},
+    {"id": "nobody_uses_this", "reason": "left behind"}
   ]
 }
 ''');
@@ -126,6 +133,61 @@ Future<void> main() async {
     _expect(
       report['whitelistedCount'] == 1,
       'whitelisted file should be counted as an exception',
+    );
+
+    _expect(
+      (report['unusedWhitelistIds'] as List).single == 'nobody_uses_this',
+      'an id no import carries should be reported as prunable',
+    );
+
+    // --- Moving the marked file keeps its exception with no whitelist
+    // edit. ---
+    final moved = File(
+      '${temp.path}/packages/skotiq_app/lib/widgets/guide_health_card.dart',
+    );
+    await _writeFile(
+      temp,
+      'packages/skotiq_ui/lib/src/guide/health_card.dart',
+      moved.readAsStringSync(),
+    );
+    moved.deleteSync();
+    await _runAudit(
+      script,
+      temp,
+      allowFailure: true,
+      extraArgs: ['--whitelist', 'wl.json'],
+    );
+    report = _readJson(temp);
+    _expect(
+      report['violationCount'] == 1 && report['whitelistedCount'] == 1,
+      'a moved file should keep its exception',
+    );
+
+    // --- A marker with an id the whitelist does not hold is a violation,
+    // and so is a second, unmarked bridge import in a marked file. ---
+    await _writeFile(
+      temp,
+      'packages/skotiq_ui/lib/src/guide/health_card.dart',
+      '// bridge-boundary: guide_health\n'
+          "import 'package:skotiq_bridge/skotiq_bridge.dart' show Phd2State;\n"
+          "import 'package:skotiq_bridge/src/api.dart' as api;\n",
+    );
+    await _writeFile(
+      temp,
+      'packages/skotiq_app/lib/widgets/other_card.dart',
+      '// bridge-boundary: not_reviewed\n'
+          "import 'package:skotiq_bridge/skotiq_bridge.dart' show Phd2State;\n",
+    );
+    await _runAudit(
+      script,
+      temp,
+      allowFailure: true,
+      extraArgs: ['--whitelist', 'wl.json'],
+    );
+    report = _readJson(temp);
+    _expect(
+      report['violationCount'] == 3 && report['whitelistedCount'] == 0,
+      'unknown ids and unmarked imports should be violations',
     );
 
     stdout.writeln('Bridge boundary audit self-test passed.');

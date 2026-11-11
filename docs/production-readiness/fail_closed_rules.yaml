@@ -1,7 +1,9 @@
 # Fail-Closed Policy Rules
 #
 # Declarative rule set for tools/production/fail_closed_check.dart.
-# Each rule applies one regex to all files matching one glob.
+# Each rule applies one regex to a set of files, chosen by a path glob, by
+# the declaration the rule is about, or both. A matched Dart file stands for
+# its whole library: every `part` file of that library is checked too.
 #
 # Field semantics:
 #   id                : stable rule identifier (used in violation output).
@@ -10,6 +12,12 @@
 #                       chars except `/`), `**` (any chars including `/`),
 #                       `?` (single char). Tested against forward-slash form
 #                       of every file under the workspace.
+#   declares          : name of a class/mixin/enum/extension declared in
+#                       runtime code (docs/production-readiness/
+#                       audit-scope.yaml). The rule follows the declaration,
+#                       so moving or renaming its file needs no edit here.
+#                       Prefer this over `glob` when the rule is about one
+#                       type.
 #   forbidden_pattern : Dart RegExp that, when matched in a file, fails the
 #                       gate.
 #   case_sensitive    : optional; default true.
@@ -19,8 +27,9 @@
 #                       being enforced. Informational only — used in the
 #                       audit report so a reviewer knows the rule's age.
 #   require_present   : optional; if true, the rule fails when ZERO files
-#                       match the glob (catches accidental file deletions
-#                       breaking previous regression pins).
+#                       match (the declaration was renamed or deleted, or the
+#                       glob went stale), instead of silently checking
+#                       nothing.
 #
 # Notes:
 # - `catch (_)` and `e.toString()` are policed only on the headless API
@@ -31,28 +40,28 @@
 rules:
   - id: bridge_unimplemented
     description: Disallow UnimplementedError in production backend paths
-    glob: packages/skotiq_bridge/lib/src/bridge_stub.dart
+    declares: NativeBridge
     forbidden_pattern: 'UnimplementedError\('
     require_present: true
     since_version: 2.5.0
 
   - id: ffi_backend_unimplemented
     description: Disallow UnimplementedError in production backend paths
-    glob: packages/skotiq_core/lib/src/backend/ffi_backend.dart
+    declares: FfiBackend
     forbidden_pattern: 'UnimplementedError\('
     require_present: true
     since_version: 2.5.0
 
   - id: network_backend_unimplemented
     description: Disallow UnimplementedError in production backend paths
-    glob: packages/skotiq_core/lib/src/backend/network_backend.dart
+    declares: NetworkBackend
     forbidden_pattern: 'UnimplementedError\('
     require_present: true
     since_version: 2.5.0
 
   - id: bridge_stub_noop_log
     description: Disallow sequencer checkpoint no-op stub logging
-    glob: packages/skotiq_bridge/lib/src/bridge_stub.dart
+    declares: NativeBridge
     forbidden_pattern: 'sequencer.*no-op in stub mode'
     case_sensitive: false
     require_present: true
@@ -60,7 +69,7 @@ rules:
 
   - id: focuser_halt_noop
     description: Disconnected backend focuserHalt must not be a no-op
-    glob: packages/skotiq_core/lib/src/backend/disconnected_backend.dart
+    declares: DisconnectedBackend
     forbidden_pattern: 'Future<void>\s+focuserHalt\s*\([^)]*\)\s*async\s*\{\s*\}'
     multi_line: true
     require_present: true
@@ -68,7 +77,7 @@ rules:
 
   - id: autofocus_cancel_noop
     description: Disconnected backend autofocusCancel must not be a no-op
-    glob: packages/skotiq_core/lib/src/backend/disconnected_backend.dart
+    declares: DisconnectedBackend
     forbidden_pattern: 'Future<void>\s+autofocusCancel\s*\([^)]*\)\s*async\s*\{\s*\}'
     multi_line: true
     require_present: true
@@ -76,7 +85,7 @@ rules:
 
   - id: targets_dao_return_all
     description: Targets DAO must not return all targets for observability filtering
-    glob: packages/skotiq_core/lib/src/database/daos/targets_dao.dart
+    declares: TargetsDao
     forbidden_pattern: 'For now,\s*return all targets'
     case_sensitive: false
     require_present: true
@@ -86,8 +95,9 @@ rules:
     description: >-
       Handlers must not return HTTP 200 with `'status': 'failed'` literal — use
       the HandlerFailure helper that sets a non-2xx status code.
-    glob: apps/desktop/lib/headless_api/handlers/**.dart
+    glob: '**/lib/headless_api/handlers/**.dart'
     forbidden_pattern: "['\"]status['\"]\\s*:\\s*['\"]failed['\"]"
+    require_present: true
     since_version: 2.5.0
 
   - id: handlers_empty_catch
@@ -96,8 +106,9 @@ rules:
       the headless contract that errors propagate as 5xx. Best-effort fallbacks
       that truly need to swallow MUST use `catch (Object _)` with a `Why:`
       comment, so the intent is explicit and reviewers can audit.
-    glob: apps/desktop/lib/headless_api/handlers/**.dart
+    glob: '**/lib/headless_api/handlers/**.dart'
     forbidden_pattern: 'catch\s*\(\s*_\s*\)'
+    require_present: true
     since_version: 2.5.0
 
   - id: handlers_e_tostring
@@ -105,14 +116,16 @@ rules:
       Returning `e.toString()` in headless JSON bodies leaks stack traces and
       runtime types to the network. Use the HandlerFailure helper from
       validation.dart instead.
-    glob: apps/desktop/lib/headless_api/handlers/**.dart
+    glob: '**/lib/headless_api/handlers/**.dart'
     forbidden_pattern: '\be\.toString\(\)'
+    require_present: true
     since_version: 2.5.0
 
   - id: pairing_default_admin_scope
     description: >-
       Paired session tokens must default to control scope, not admin. Admin is
       only granted when the operator explicitly requests it during verify.
-    glob: apps/desktop/lib/headless_api_server.dart
+    declares: HeadlessApiServer
     forbidden_pattern: '_pairedSessionTokens\[token\]\s*=\s*HeadlessTokenScope\.admin'
+    require_present: true
     since_version: 2.6.0

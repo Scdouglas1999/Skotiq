@@ -74,49 +74,6 @@ jobs:
       - name: Bootstrap workspace
         run: melos bootstrap
 
-      # regression-pin: --min-files asserts the auditor still walks the
-      # whole runtime tree. Raise the baseline whenever a new top-level
-      # package or native crate is added; never lower it without justifying
-      # which runtime files were legitimately removed.
-      # Baselines: placeholder=797 (current 839), behavioral=796 (current 838),
-      # fail_closed=1337 (current 1408). Each is current * 0.95 floored, so
-      # routine deletions do not break CI but a glob/exclude regression does.
-      - name: Placeholder/Stub Audit Gate (fail on new vs baseline, direct)
-        # Direct invocation with the --min-files regression-pin. Compares
-        # against the triaged baseline (docs/production-readiness/
-        # highrisk-baseline.txt) by path+content signature, so unrelated
-        # line drift cannot trip the gate but any NEW high-risk marker does.
-        # History: this step previously ran --fail-on-any-highrisk against a
-        # line-scoped allowlist that was pruned from the public tree in
-        # 3a25ef6e; the absolute-zero policy was aspirational (the triaged
-        # baseline has ~160 reviewed entries, mostly fail-loud documentation
-        # comments and audited Rust unwrap_or_default defaults) and the gate
-        # had never passed. Baseline-compare is the enforced policy.
-        run: dart run tools/production/placeholder_audit.dart --fail-on-new-highrisk --compare-highrisk-baseline docs/production-readiness/highrisk-baseline.txt --min-files 797
-
-      - name: Placeholder/Stub Audit Gate (fail on new vs baseline)
-        # melos script wraps `--fail-on-new-highrisk
-        # --compare-highrisk-baseline docs/production-readiness/highrisk-baseline.txt`
-        # so a regression against the recorded baseline trips CI even when
-        # the absolute-zero policy above is later relaxed.
-        run: melos run audit:placeholders
-
-      - name: Fail-Closed Policy Gate (direct, with --min-files regression-pin)
-        # required check. Direct invocation pins
-        # --min-files 1337 so a scope regression (e.g., a glob change that
-        # excludes a package) trips the gate even if no new violations land.
-        run: dart run tools/production/fail_closed_check.dart --min-files 1337
-
-      - name: Fail-Closed Policy Gate (melos wrapper)
-        # required check. Belt-and-braces invocation via
-        # melos so the documented developer-facing command
-        # (`melos run audit:fail-closed`) is exercised on every PR. If the
-        # two invocations diverge in flags, this step catches it.
-        run: melos run audit:fail-closed
-
-      - name: Behavioral Audit Gate
-        run: dart run tools/production/behavioral_audit.dart --register docs/production-readiness/behavioral-audit-register.md --fail-on-unregistered --fail-on-open --report .behavioral_audit_hits.txt --min-files 796
-
       - name: UI design token audit
         run: |
           python3 docs/design/overhaul/tools/audit_ui_tokens.py
@@ -138,11 +95,9 @@ jobs:
         run: melos run audit:version-consistency:self-test
 
       - name: Analyze code (production gate)
-        # required check. analyzer_rollup is the
-        # `melos run analyze:production` zero-error gate (see melos.yaml).
-        # Equivalent to `flutter analyze` per-package with a hard production
-        # policy applied (docs/production-readiness/analyzer-policy.yaml).
-        run: dart run tools/production/analyzer_rollup.dart --policy docs/production-readiness/analyzer-policy.yaml --critical-codes docs/production-readiness/critical-warning-codes.txt --report docs/production-readiness/analyzer-rollup.json
+        # Zero analyzer errors and critical warnings in production code
+        # (docs/production-readiness/analyzer-policy.yaml).
+        run: melos run analyze:production
 
   launch-gate:
     name: Launch Gate
@@ -165,16 +120,23 @@ jobs:
       - name: Bootstrap workspace
         run: melos bootstrap
 
-      - name: Launch Analyzer Gate (zero production warnings)
-        run: dart run tools/production/analyzer_rollup.dart --policy docs/production-readiness/analyzer-policy.yaml --critical-codes docs/production-readiness/critical-warning-codes.txt --report docs/production-readiness/analyzer-rollup.json
-
-      # regression-pin: keep --min-files in sync with the analyze job
-      # above. If you raise one baseline, raise both.
+      # The runtime audit gates. Each runs once, through its melos script, so
+      # CI and the documented developer command are the same command. What
+      # they scan is defined in docs/production-readiness/audit-scope.yaml;
+      # a package or crate that falls out of that scope fails the gate, so
+      # there is no file-count floor to maintain here. How to reconcile them
+      # after moving or deleting code: docs/ci-gates.md.
       - name: Runtime Placeholder Gate
-        run: dart run tools/production/placeholder_audit.dart --fail-on-new-highrisk --compare-highrisk-baseline docs/production-readiness/highrisk-baseline.txt --min-files 797
+        run: melos run audit:placeholders
 
       - name: Runtime Behavioral Gate
-        run: dart run tools/production/behavioral_audit.dart --register docs/production-readiness/behavioral-audit-register.md --fail-on-unregistered --fail-on-open --report .behavioral_audit_hits.txt --min-files 796
+        run: melos run audit:behavioral
+
+      - name: Fail-Closed Policy Gate
+        run: melos run audit:fail-closed
+
+      - name: Audit Gate Self-Tests
+        run: melos run audit:gates:self-test
 
       # skotiq_core is the only Dart package that may import
       # package:skotiq_bridge. The audit fails closed (exit 1) on any

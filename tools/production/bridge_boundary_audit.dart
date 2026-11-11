@@ -12,8 +12,11 @@ import 'dart:io';
 /// This audit scans `lib/` and `bin/` (excluding `test/`) under every workspace
 /// root for `import`/`export 'package:skotiq_bridge/...'`. Files inside the
 /// two allowed packages (`skotiq_core`, `skotiq_bridge`) are exempt.
-/// Any other importer is a boundary violation unless it is listed in the
-/// whitelist data file (a pragmatic, reviewed exception).
+/// Any other import is a boundary violation unless it carries a reviewed
+/// exception: a `// bridge-boundary: <id>` comment directly above the import,
+/// with `<id>` listed (and justified) in the whitelist data file. The
+/// exception is attached to the import, so it follows the code when a file
+/// moves or is renamed; an id no import uses is reported as prunable.
 ///
 /// It complements `dependency_hygiene.dart`, which only verifies that imported
 /// packages are *declared* in pubspec — that check would happily allow a UI
@@ -39,6 +42,8 @@ final _bridgeImportPattern = RegExp(
   r'''(?:import|export)\s+['"]package:skotiq_bridge/[^'"]+['"]''',
 );
 
+final _markerPattern = RegExp(r'^\s*//\s*bridge-boundary:\s*([\w.-]+)\s*$');
+
 void main(List<String> args) {
   final failOnViolation = !args.contains('--no-fail-on-violation');
   final root = _argValue(args, '--root') ?? Directory.current.path;
@@ -59,20 +64,34 @@ void main(List<String> args) {
 
   final violations = <_Violation>[];
   final whitelisted = <_Violation>[];
+  final usedIds = <String>{};
   for (final importer in importers) {
-    final entry = whitelist[importer.relativePath];
+    // Every bridge import in the file needs its own reviewed exception.
+    final reasons = <String>[];
+    var allowed = true;
+    for (final id in importer.markerIds) {
+      final reason = id == null ? null : whitelist[id];
+      if (reason == null) {
+        allowed = false;
+      } else {
+        usedIds.add(id!);
+        reasons.add(reason);
+      }
+    }
     final v = _Violation(
       file: importer.relativePath,
       symbols: importer.symbols,
-      whitelisted: entry != null,
-      reason: entry,
+      whitelisted: allowed,
+      reason: allowed ? reasons.toSet().join(' ') : null,
     );
-    if (entry != null) {
+    if (allowed) {
       whitelisted.add(v);
     } else {
       violations.add(v);
     }
   }
+  final unusedIds = whitelist.keys.where((id) => !usedIds.contains(id)).toList()
+    ..sort();
 
   violations.sort((a, b) => a.file.compareTo(b.file));
   whitelisted.sort((a, b) => a.file.compareTo(b.file));
@@ -90,6 +109,7 @@ void main(List<String> args) {
     'importerCount': importers.length,
     'violationCount': violations.length,
     'whitelistedCount': whitelisted.length,
+    'unusedWhitelistIds': unusedIds,
     'violations': violations.map((v) => v.toJson()).toList(),
     'whitelisted': whitelisted.map((v) => v.toJson()).toList(),
   };
@@ -112,6 +132,12 @@ void main(List<String> args) {
   stdout.writeln('Bridge importers (outside core/bridge): ${importers.length}');
   stdout.writeln('Whitelisted exceptions: ${whitelisted.length}');
   stdout.writeln('Violations: ${violations.length}');
+  if (unusedIds.isNotEmpty) {
+    stdout.writeln(
+      'Prunable: no import uses these whitelist ids; delete their entries: '
+      '${unusedIds.join(', ')}',
+    );
+  }
   stdout.writeln('JSON: $_jsonOutputPath');
   stdout.writeln('Markdown: $_markdownOutputPath');
 
@@ -121,8 +147,9 @@ void main(List<String> args) {
   }
 
   stderr.writeln(
-    'Bridge boundary violations (move behind a skotiq_core '
-    'backend/role seam, or add to the whitelist with a reason):',
+    'Bridge boundary violations (move behind a skotiq_core backend/role '
+    'seam, or put `// bridge-boundary: <id>` above the import and add '
+    '<id> with a reason to the whitelist):',
   );
   for (final v in violations) {
     stderr.writeln('  ${v.file} -> ${v.symbols.join(', ')}');
@@ -164,7 +191,11 @@ List<_Importer> _findBridgeImporters(String root) {
             continue;
           }
           importers.add(
-            _Importer(relativePath: rel, symbols: _extractSymbols(contents)),
+            _Importer(
+              relativePath: rel,
+              symbols: _extractSymbols(contents),
+              markerIds: _markerIds(contents),
+            ),
           );
         }
       }
@@ -222,6 +253,22 @@ List<String> _extractSymbols(String contents) {
   return sorted;
 }
 
+/// The exception id written above each bridge import, null where there is
+/// none.
+List<String?> _markerIds(String contents) {
+  final lines = contents.split('\n');
+  final ids = <String?>[];
+  for (var i = 0; i < lines.length; i++) {
+    if (!_bridgeImportPattern.hasMatch(lines[i])) {
+      continue;
+    }
+    final marker = i == 0 ? null : _markerPattern.firstMatch(lines[i - 1]);
+    ids.add(marker?.group(1));
+  }
+  return ids;
+}
+
+/// Exception id -> reason.
 Map<String, String> _loadWhitelist(String path) {
   final file = File(path);
   if (!file.existsSync()) {
@@ -231,8 +278,8 @@ Map<String, String> _loadWhitelist(String path) {
   final result = <String, String>{};
   if (decoded is Map && decoded['allow'] is List) {
     for (final entry in decoded['allow'] as List) {
-      if (entry is Map && entry['file'] is String) {
-        result[_normalize(entry['file'] as String)] =
+      if (entry is Map && entry['id'] is String) {
+        result[entry['id'] as String] =
             (entry['reason'] as String?) ?? 'no reason given';
       }
     }
@@ -327,8 +374,13 @@ String _normalize(String path) => path.replaceAll('\\', '/');
 class _Importer {
   final String relativePath;
   final List<String> symbols;
+  final List<String?> markerIds;
 
-  const _Importer({required this.relativePath, required this.symbols});
+  const _Importer({
+    required this.relativePath,
+    required this.symbols,
+    required this.markerIds,
+  });
 }
 
 class _Violation {

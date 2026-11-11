@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+// bridge-boundary: headless_validation
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_error;
 import 'package:shelf/shelf.dart';
 

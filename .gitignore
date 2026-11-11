@@ -64,9 +64,11 @@ __pycache__/
 # bare directory ignore) so the negations below can take effect.
 /docs/production-readiness/*
 !/docs/production-readiness/analyzer-policy.yaml
+!/docs/production-readiness/audit-scope.yaml
 !/docs/production-readiness/critical-warning-codes.txt
 !/docs/production-readiness/highrisk-baseline.txt
 !/docs/production-readiness/behavioral-audit-register.md
+!/docs/production-readiness/behavioral-audit-register.sites.tsv
 !/docs/production-readiness/fail_closed_rules.yaml
 /docs/science_mockups/
 # Internal audit / planning / release-inventory docs (kept locally, not public)

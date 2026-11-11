@@ -1,20 +1,22 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'src/audit_scope.dart';
+
 const _jsonOutputPath = 'docs/production-readiness/fail-closed-audit.json';
 const _markdownOutputPath = 'docs/production-readiness/fail-closed-audit.md';
 const _defaultRulesPath = 'docs/production-readiness/fail_closed_rules.yaml';
-const _scanRoots = <String>[
-  'apps',
-  'packages',
-  'native/skotiq_native',
-  'tools',
-];
 
 class _Rule {
   final String id;
   final String description;
+
+  /// Path glob; empty when the rule targets a declaration only.
   final String glob;
+
+  /// Name of a class/mixin/enum/extension declared in runtime code. The rule
+  /// applies to the library that declares it, wherever that file lives.
+  final String? declares;
   final RegExp pattern;
   final String? sinceVersion;
   // require_present: true means the rule fails closed if ZERO files match
@@ -26,6 +28,7 @@ class _Rule {
     required this.id,
     required this.description,
     required this.glob,
+    required this.declares,
     required this.pattern,
     this.sinceVersion,
     this.requirePresent = false,
@@ -33,30 +36,49 @@ class _Rule {
 }
 
 void main(List<String> args) {
-  final rulesPath = _argValue(args, '--rules') ?? _defaultRulesPath;
-  // regression-pin: CI passes --min-files <N> so an accidental scope
-  // shrink (e.g., a glob change that excludes a package, or a vendored
-  // directory accidentally entering the exclude list) trips the gate instead
-  // of silently reducing coverage.
-  final assertMinFiles = _argValue(args, '--min-files');
+  final rulesPath = argValue(args, '--rules') ?? _defaultRulesPath;
   final rules = _loadRules(rulesPath);
+  final scope = AuditScope.fromArgs(args);
 
   final violations = <Map<String, Object?>>[];
-  final workspaceRoot = _normalize(Directory.current.absolute.path);
-
-  // Build the candidate file list once. Globs are matched against repo-rel
-  // forward-slash paths.
-  final allFiles = _collectFiles(workspaceRoot);
+  final allFiles = scope.policyFiles();
+  final libraries = _DartLibraries();
+  final runtimeDart = [
+    for (final path in allFiles)
+      if (path.endsWith('.dart') && scope.isRuntimePath(path)) path,
+  ];
 
   for (final rule in rules) {
-    final globRegex = _globToRegExp(rule.glob);
-    final matched = allFiles.where((path) => globRegex.hasMatch(path)).toList();
+    final seeds = <String>{};
+    if (rule.glob.isNotEmpty) {
+      final globRegex = globToRegExp(rule.glob);
+      seeds.addAll(allFiles.where(globRegex.hasMatch));
+    }
+    if (rule.declares != null) {
+      final declaration = RegExp(
+        r'^\s*(?:(?:abstract|base|final|sealed|interface|mixin)\s+)*'
+        '(?:class|mixin|enum|extension)\\s+${RegExp.escape(rule.declares!)}\\b',
+        multiLine: true,
+      );
+      seeds.addAll(
+        runtimeDart.where(
+          (path) => declaration.hasMatch(libraries.contentOf(path) ?? ''),
+        ),
+      );
+    }
+    // A rule about a Dart library is about all of it: the file that matched
+    // plus every `part` of the same library.
+    final matched = <String>{
+      for (final path in seeds) ...libraries.libraryFilesOf(path),
+    }.toList()..sort();
     if (matched.isEmpty) {
       if (rule.requirePresent) {
         violations.add({
           'id': rule.id,
           'description': '[MISSING FILE] ${rule.description}',
-          'path': rule.glob,
+          'path': rule.declares != null
+              ? 'declaration of ${rule.declares}'
+              : rule.glob,
           'line': null,
           'sinceVersion': rule.sinceVersion,
         });
@@ -81,17 +103,12 @@ void main(List<String> args) {
         });
         continue;
       }
-      final matches = rule.pattern.allMatches(content).toList();
-      if (matches.isEmpty) {
-        continue;
-      }
-      for (final match in matches) {
-        final line = _lineFromOffset(content, match.start);
+      for (final match in rule.pattern.allMatches(content)) {
         violations.add({
           'id': rule.id,
           'description': rule.description,
           'path': path,
-          'line': line,
+          'line': _lineFromOffset(content, match.start),
           'sinceVersion': rule.sinceVersion,
         });
       }
@@ -121,19 +138,12 @@ void main(List<String> args) {
   stdout.writeln('Scanned ${allFiles.length} files');
   stdout.writeln('Violations: ${violations.length}');
 
-  // Coverage assertion is evaluated before the violation exit so a scope
-  // regression is reported even when the rules happen to match nothing on
-  // the shrunken file list.
-  if (assertMinFiles != null) {
-    final required = int.tryParse(assertMinFiles);
-    if (required == null) {
-      stderr.writeln('Invalid --min-files value: $assertMinFiles');
-      exit(2);
-    }
-    if (allFiles.length < required) {
-      stderr.writeln(
-        'Fail-closed check scanned ${allFiles.length} files; required >= $required',
-      );
+  // Scope is checked before the violation exit so a shrunken file list is
+  // reported even when the rules happen to match nothing on it.
+  scope.assertCoverage('Fail-closed check', allFiles, args);
+  for (final root in scope.policyRoots) {
+    if (!allFiles.any((path) => path.startsWith('$root/'))) {
+      stderr.writeln('Fail-closed check found no files under $root');
       exit(1);
     }
   }
@@ -150,19 +160,6 @@ void main(List<String> args) {
     stderr.writeln('  ${_violationDisplay(violation)}');
   }
   exit(1);
-}
-
-String? _argValue(List<String> args, String key) {
-  for (var i = 0; i < args.length; i++) {
-    final arg = args[i];
-    if (arg == key && i + 1 < args.length) {
-      return args[i + 1];
-    }
-    if (arg.startsWith('$key=')) {
-      return arg.substring(key.length + 1);
-    }
-  }
-  return null;
 }
 
 int _lineFromOffset(String content, int offset) {
@@ -209,108 +206,74 @@ String _violationDisplay(Map<String, Object?> violation) {
   return '[$id] $desc ($loc)';
 }
 
-List<String> _collectFiles(String workspaceRoot) {
-  final out = <String>[];
-  for (final root in _scanRoots) {
-    final dir = Directory(root);
-    if (!dir.existsSync()) {
-      continue;
+/// Resolves Dart `part` / `part of` directives so a rule can cover a whole
+/// library from any one of its files.
+class _DartLibraries {
+  final _content = <String, String?>{};
+  static final _part = RegExp(
+    r"""^\s*part\s+['"]([^'"]+)['"]\s*;""",
+    multiLine: true,
+  );
+  static final _partOf = RegExp(
+    r"""^\s*part\s+of\s+['"]([^'"]+)['"]\s*;""",
+    multiLine: true,
+  );
+
+  String? contentOf(String path) => _content.putIfAbsent(path, () {
+    try {
+      return File(path).readAsStringSync();
+    } on FileSystemException {
+      return null;
     }
-    for (final entity in dir.listSync(recursive: true, followLinks: false)) {
-      if (entity is! File) {
-        continue;
+  });
+
+  Set<String> libraryFilesOf(String path) {
+    if (!path.endsWith('.dart')) {
+      return {path};
+    }
+    var root = path;
+    final visited = <String>{};
+    while (visited.add(root)) {
+      final parent = _partOf.firstMatch(contentOf(root) ?? '');
+      if (parent == null) {
+        break;
       }
-      final rel = _toWorkspaceRelative(entity.path, workspaceRoot);
-      if (_isExcluded(rel)) {
-        continue;
+      final resolved = _resolve(root, parent.group(1)!);
+      if (contentOf(resolved) == null) {
+        break;
       }
-      out.add(rel);
+      root = resolved;
     }
-  }
-  out.sort();
-  return out;
-}
-
-bool _isExcluded(String path) {
-  // Skip generated, vendored, or build output. These mirror the excludes
-  // used by behavioral_audit / placeholder_audit.
-  const excludedSegments = <String>{
-    '.dart_tool',
-    '.git',
-    '.worktrees',
-    'build',
-    'target',
-    'coverage',
-    'generated',
-    'frb_dump',
-  };
-  final segments = path.split('/');
-  for (final seg in segments) {
-    if (excludedSegments.contains(seg)) {
-      return true;
-    }
-  }
-  if (path.contains('/frb_generated.')) {
-    return true;
-  }
-  return false;
-}
-
-String _normalize(String path) =>
-    path.replaceAll('\\', '/').replaceAll(RegExp(r'/+'), '/');
-
-String _toWorkspaceRelative(String path, String workspaceRoot) {
-  final absolute = _normalize(File(path).absolute.path);
-  final lowerAbsolute = absolute.toLowerCase();
-  final lowerRoot = workspaceRoot.toLowerCase();
-  if (lowerAbsolute.startsWith(lowerRoot)) {
-    final start = workspaceRoot.endsWith('/')
-        ? workspaceRoot.length
-        : workspaceRoot.length + 1;
-    if (absolute.length >= start) {
-      return absolute.substring(start);
-    }
-  }
-  return _normalize(path);
-}
-
-// ---------------------------------------------------------------------------
-// Glob → RegExp
-//
-// Supports `**` (any chars including `/`), `*` (any chars except `/`),
-// `?` (single char), and bracket character classes. No brace expansion.
-// ---------------------------------------------------------------------------
-RegExp _globToRegExp(String glob) {
-  final buf = StringBuffer('^');
-  var i = 0;
-  while (i < glob.length) {
-    final c = glob[i];
-    if (c == '*') {
-      if (i + 1 < glob.length && glob[i + 1] == '*') {
-        buf.write('.*');
-        i += 2;
-        continue;
+    final out = <String>{};
+    void addParts(String file) {
+      if (!out.add(file)) {
+        return;
       }
-      buf.write('[^/]*');
-      i++;
-      continue;
+      for (final match in _part.allMatches(contentOf(file) ?? '')) {
+        final part = _resolve(file, match.group(1)!);
+        if (contentOf(part) != null) {
+          addParts(part);
+        }
+      }
     }
-    if (c == '?') {
-      buf.write('[^/]');
-      i++;
-      continue;
-    }
-    if (RegExp(r'[.\\+(){}|^$]').hasMatch(c)) {
-      buf.write('\\');
-      buf.write(c);
-      i++;
-      continue;
-    }
-    buf.write(c);
-    i++;
+
+    addParts(root);
+    return out..add(path);
   }
-  buf.write(r'$');
-  return RegExp(buf.toString());
+
+  static String _resolve(String from, String uri) {
+    final segments = from.split('/')..removeLast();
+    for (final segment in uri.split('/')) {
+      if (segment == '..') {
+        if (segments.isNotEmpty) {
+          segments.removeLast();
+        }
+      } else if (segment != '.' && segment.isNotEmpty) {
+        segments.add(segment);
+      }
+    }
+    return segments.join('/');
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -328,6 +291,7 @@ RegExp _globToRegExp(String glob) {
 //       description: >-
 //         folded scalar across multiple lines
 //       glob: path/to/**
+//       declares: ClassName
 //       forbidden_pattern: 'regex'
 //       case_sensitive: false
 //       multi_line: true
@@ -403,11 +367,9 @@ List<_Rule> _loadRules(String path) {
     // Continuation of a folded scalar (`>-`): collect lines that are indented
     // deeper than the key.
     if (currentFoldedKey != null) {
-      // Folded continuation lines are indented more than the key. The first
-      // non-empty line not deeper than indent 6 (`      `) terminates the
-      // folded block.
-      if (indent >= 8) {
-        currentFoldedValue = '${currentFoldedValue ?? ''} ${trimmed}'.trim();
+      // Rule keys sit at indent 4; anything deeper continues the scalar.
+      if (indent > 4) {
+        currentFoldedValue = '${currentFoldedValue ?? ''} $trimmed'.trim();
         continue;
       } else {
         // Terminate folded scalar and re-process this line as a new key.
@@ -477,11 +439,13 @@ _Rule _buildRule(String rulesPath, Map<String, dynamic> map) {
   final id = (map['id'] ?? '').toString();
   final description = (map['description'] ?? '').toString();
   final glob = (map['glob'] ?? '').toString();
+  final declares = map['declares']?.toString();
   final patternStr = (map['forbidden_pattern'] ?? '').toString();
-  if (id.isEmpty || glob.isEmpty || patternStr.isEmpty) {
+  if (id.isEmpty || (glob.isEmpty && declares == null) || patternStr.isEmpty) {
     stderr.writeln(
-      'Invalid rule in $rulesPath: id, glob, and forbidden_pattern are required '
-      '(got id="$id" glob="$glob" pattern="$patternStr").',
+      'Invalid rule in $rulesPath: id, forbidden_pattern, and one of glob or '
+      'declares are required '
+      '(got id="$id" glob="$glob" declares="$declares" pattern="$patternStr").',
     );
     exit(2);
   }
@@ -506,6 +470,7 @@ _Rule _buildRule(String rulesPath, Map<String, dynamic> map) {
     id: id,
     description: description.isEmpty ? id : description,
     glob: glob,
+    declares: declares,
     pattern: regex,
     sinceVersion: map['since_version']?.toString(),
     requirePresent: requirePresent,

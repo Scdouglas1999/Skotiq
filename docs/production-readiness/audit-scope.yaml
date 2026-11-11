@@ -1,0 +1,66 @@
+# What the production audit gates scan.
+#
+# This is the only place the shape of the source tree is written down.
+# behavioral_audit, placeholder_audit, fail_closed_check and analyzer_rollup
+# (tools/production/) all read it, so a new package location or a renamed
+# crate is one edit here.
+#
+# Globs: `*` matches within one path segment, `**` matches across segments.
+# Paths are relative to the repository root with forward slashes.
+
+# Shipped code. The behavioral, placeholder and analyzer gates judge these
+# files; fail-closed rules that name a declaration look for it here.
+runtime:
+  include:
+    - apps/*/lib/**
+    - packages/*/lib/**
+    - native/skotiq_native/**/src/**
+  # Directory names, matched against whole path segments.
+  exclude_dirs:
+    - .dart_tool
+    - .git
+    - .worktrees
+    - build
+    - target
+    - coverage
+    - generated
+    - frb_dump
+    - test
+    - tests
+    - example
+    - samples
+  exclude_globs:
+    - '**/frb_generated.*'
+
+# Everything a fail-closed rule glob may target (tests and tools included).
+policy:
+  roots:
+    - apps
+    - packages
+    - native/skotiq_native
+    - tools
+  exclude_dirs:
+    - .dart_tool
+    - .git
+    - .worktrees
+    - build
+    - target
+    - coverage
+    - generated
+    - frb_dump
+  exclude_globs:
+    - '**/frb_generated.*'
+
+# Scope floor. Every Dart package (pubspec.yaml next to lib/) and Rust crate
+# (Cargo.toml next to src/) in the repository must contribute at least one
+# scanned runtime file, or be listed here. A package that falls out of the
+# include globs fails every gate instead of silently shrinking coverage.
+coverage:
+  out_of_scope:
+    # Hub server: deployed separately, has its own CI job.
+    - server/skotiq_hub
+    # Vendored icon font package.
+    - third_party/lucide_icons
+    # Developer tools, not shipped in the app.
+    - tools/skotiq_relay
+    - tools/update_server
