@@ -31,6 +31,7 @@ Future<void> _pumpBody(
             activeRun: null,
             targetAsync: const AsyncData<TargetSuggestion?>(null),
             onGo: () async {},
+            onCancel: () {},
             onReset: () {},
             onRefreshPick: () {},
             morningSessionAsync: morningSessionAsync,

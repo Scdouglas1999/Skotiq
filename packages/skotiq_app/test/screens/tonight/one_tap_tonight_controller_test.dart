@@ -215,4 +215,101 @@ void main() {
     await first;
     expect(controller.state.phase, OneTapPhase.running);
   });
+
+  test('planning that never answers ends failed with a plain reason',
+      () async {
+    var ranCalled = false;
+    final controller = OneTapTonightController(
+      pick: () async => suggestion(),
+      frame: (_) {},
+      plan: (_) => Completer<SingleTargetSequenceResult>().future,
+      run: (_) async => ranCalled = true,
+      planTimeout: const Duration(milliseconds: 20),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.go();
+
+    expect(controller.state.phase, OneTapPhase.failed);
+    expect(controller.state.error, contains('Planning the night'));
+    expect(controller.state.error, contains('try again'));
+    expect(ranCalled, isFalse);
+  });
+
+  test('cancel while planning returns to idle and the late plan never runs',
+      () async {
+    final planGate = Completer<SingleTargetSequenceResult>();
+    var ranCalled = false;
+    final controller = OneTapTonightController(
+      pick: () async => suggestion(),
+      frame: (_) {},
+      plan: (_) => planGate.future,
+      run: (_) async => ranCalled = true,
+    );
+    addTearDown(controller.dispose);
+
+    final chain = controller.go();
+    await Future<void>.delayed(Duration.zero);
+    expect(controller.state.phase, OneTapPhase.planning);
+    expect(controller.state.canCancel, isTrue);
+
+    controller.cancel();
+    expect(controller.state.phase, OneTapPhase.idle);
+    expect(controller.state.error, isNull);
+
+    planGate.complete(result(suggestion()));
+    await chain;
+    expect(ranCalled, isFalse);
+    expect(controller.state.phase, OneTapPhase.idle);
+  });
+
+  test('a run that is starting cannot be canceled from here', () async {
+    final runGate = Completer<void>();
+    final controller = OneTapTonightController(
+      pick: () async => suggestion(),
+      frame: (_) {},
+      plan: (t) async => result(t),
+      run: (_) => runGate.future,
+    );
+    addTearDown(controller.dispose);
+
+    final chain = controller.go();
+    await Future<void>.delayed(Duration.zero);
+    expect(controller.state.phase, OneTapPhase.starting);
+    expect(controller.state.canCancel, isFalse);
+
+    controller.cancel();
+    expect(controller.state.phase, OneTapPhase.starting);
+
+    runGate.complete();
+    await chain;
+    expect(controller.state.phase, OneTapPhase.running);
+  });
+
+  test('a new tap after a cancel runs a fresh chain', () async {
+    final firstPlan = Completer<SingleTargetSequenceResult>();
+    var plans = 0;
+    final controller = OneTapTonightController(
+      pick: () async => suggestion(),
+      frame: (_) {},
+      plan: (t) {
+        plans++;
+        return plans == 1 ? firstPlan.future : Future.value(result(t));
+      },
+      run: (_) async {},
+    );
+    addTearDown(controller.dispose);
+
+    final abandoned = controller.go();
+    await Future<void>.delayed(Duration.zero);
+    controller.cancel();
+
+    await controller.go();
+    expect(controller.state.phase, OneTapPhase.running);
+
+    firstPlan.complete(result(suggestion()));
+    await abandoned;
+    expect(controller.state.phase, OneTapPhase.running);
+    expect(plans, 2);
+  });
 }

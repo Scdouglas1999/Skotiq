@@ -134,6 +134,7 @@ class _TonightScreenState extends ConsumerState<TonightScreen> {
               activeRun: activeRun,
               targetAsync: targetAsync,
               onGo: controller.go,
+              onCancel: controller.cancel,
               onReset: controller.reset,
               onRefreshPick: () => ref.invalidate(oneTapTargetProvider),
               morningSessionAsync: morningSessionAsync,
@@ -174,6 +175,7 @@ class TonightBodyView extends StatelessWidget {
   final TonightActiveRun? activeRun;
   final AsyncValue<TargetSuggestion?> targetAsync;
   final Future<void> Function() onGo;
+  final VoidCallback onCancel;
   final VoidCallback onReset;
   final VoidCallback onRefreshPick;
   final AsyncValue<int?> morningSessionAsync;
@@ -186,6 +188,7 @@ class TonightBodyView extends StatelessWidget {
     required this.activeRun,
     required this.targetAsync,
     required this.onGo,
+    required this.onCancel,
     required this.onReset,
     required this.onRefreshPick,
     required this.morningSessionAsync,
@@ -230,6 +233,7 @@ class TonightBodyView extends StatelessWidget {
         activeRun: activeRun,
         targetAsync: targetAsync,
         onGo: onGo,
+        onCancel: onCancel,
         onReset: onReset,
       ),
       if (state.error != null) ...[
@@ -422,6 +426,7 @@ class _PrimaryAction extends StatelessWidget {
   final TonightActiveRun? activeRun;
   final AsyncValue<TargetSuggestion?> targetAsync;
   final Future<void> Function() onGo;
+  final VoidCallback onCancel;
   final VoidCallback onReset;
 
   const _PrimaryAction({
@@ -430,6 +435,7 @@ class _PrimaryAction extends StatelessWidget {
     required this.activeRun,
     required this.targetAsync,
     required this.onGo,
+    required this.onCancel,
     required this.onReset,
   });
 
@@ -488,13 +494,29 @@ class _PrimaryAction extends StatelessWidget {
       );
     }
 
-    return SkotiqButton(
+    final go = SkotiqButton(
       label: _label(state.phase),
       icon: state.isBusy ? null : LucideIcons.play,
       variant: ButtonVariant.primary,
       size: ButtonSize.large,
       isLoading: state.isBusy,
       onPressed: (hasPick && !state.isBusy) ? onGo : null,
+    );
+    if (!state.canCancel) return go;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        go,
+        const SizedBox(height: SkotiqTokens.spaceSm),
+        Center(
+          child: SkotiqButton(
+            label: 'Cancel',
+            variant: ButtonVariant.ghost,
+            size: ButtonSize.small,
+            onPressed: onCancel,
+          ),
+        ),
+      ],
     );
   }
 

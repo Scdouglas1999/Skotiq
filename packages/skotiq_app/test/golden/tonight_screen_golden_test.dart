@@ -78,6 +78,7 @@ void main() {
                         activeRun: null,
                         targetAsync: const AsyncData(seededTarget),
                         onGo: () async {},
+                        onCancel: () {},
                         onReset: () {},
                         onRefreshPick: () {},
                         morningSessionAsync: const AsyncData(null),
