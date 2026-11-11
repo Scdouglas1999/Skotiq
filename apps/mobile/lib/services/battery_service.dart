@@ -30,7 +30,6 @@ import 'dart:developer' as developer;
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Immutable snapshot of the phone's battery state.
 class PhoneBatteryState {
   /// Battery percentage, 0–100. -1 when the platform reports unknown.
   final int level;

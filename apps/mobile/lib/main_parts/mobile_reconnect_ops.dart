@@ -364,7 +364,6 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         }
       }
 
-      // Test connection first
       final isReachable = await EnhancedSkotiqDiscovery.testServerConnection(
         enrichedServer.host,
         enrichedServer.webPort,
@@ -470,7 +469,6 @@ mixin _MobileReconnectOps on _MobileConnectionState {
           );
         }
 
-        // Start monitoring the WS heartbeat
         _startConnectionMonitor();
 
         // Register this device's push token (APNs/FCM) with the desktop so it
@@ -552,7 +550,6 @@ mixin _MobileReconnectOps on _MobileConnectionState {
     if (_checkpointChecked) return;
     _checkpointChecked = true;
 
-    // Schedule the check for after the current frame
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         final executor = ref.read(sequenceExecutorProvider);
@@ -567,7 +564,6 @@ mixin _MobileReconnectOps on _MobileConnectionState {
           await executor.initializeCheckpoints(docsDir.path);
         }
 
-        // Get checkpoint info
         final info = await executor.getCheckpointInfo();
         if (info == null || !info.canResume) return;
         if (!context.mounted) return;
