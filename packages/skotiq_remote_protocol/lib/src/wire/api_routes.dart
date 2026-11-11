@@ -137,12 +137,25 @@ final ApiRouteIndex apiRouteIndex = ApiRouteIndex([
 
 /// The `METHOD /path` list `GET /api/info` advertises: the API routes and
 /// the WebSocket upgrades, without the browser pages.
-final List<String> advertisedApiEndpoints = List.unmodifiable([
-  for (final endpoint in apiEndpoints)
-    if (endpoint.route.method == ApiMethod.ws ||
-        endpoint.route.path.startsWith('/api/'))
-      endpoint.route.signature,
-]);
+///
+/// Sorted by path, then method. [apiEndpoints] is in match order, which
+/// changes whenever a route moves between groups; a client that diffs or
+/// caches this list should not see that.
+final List<String> advertisedApiEndpoints = () {
+  final routes =
+      [
+        for (final endpoint in apiEndpoints)
+          if (endpoint.route.method == ApiMethod.ws ||
+              endpoint.route.path.startsWith('/api/'))
+            endpoint.route,
+      ]..sort((a, b) {
+        final byPath = a.path.compareTo(b.path);
+        return byPath != 0 ? byPath : a.signature.compareTo(b.signature);
+      });
+  return List<String>.unmodifiable([
+    for (final route in routes) route.signature,
+  ]);
+}();
 
 /// The paths served without a token, sorted. A page root (`/dashboard`)
 /// stands for everything under it.
