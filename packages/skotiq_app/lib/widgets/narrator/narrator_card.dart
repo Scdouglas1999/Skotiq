@@ -24,7 +24,6 @@ import 'narrator_detail_sheet.dart';
 class NarratorVisuals {
   const NarratorVisuals._();
 
-  /// The lucide category icon for [category].
   static IconData iconFor(NarratorCategory category) {
     return switch (category) {
       NarratorCategory.discovery => LucideIcons.sparkles,
@@ -401,7 +400,6 @@ class NarratorEvidenceViz extends StatelessWidget {
   }
 }
 
-/// Small rounded value chip used as a sparkline fallback.
 class _MiniChip extends StatelessWidget {
   final String text;
   final Color color;

@@ -15,7 +15,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../help/field_help_label.dart';
 
-/// Whether the editor is creating/editing a telescope or a camera preset.
 enum HardwarePresetKind { telescope, camera }
 
 /// Form dialog to create a new hardware preset or edit an existing one.
@@ -87,16 +86,13 @@ class HardwarePresetEditorDialog extends ConsumerStatefulWidget {
 
 class _HardwarePresetEditorDialogState
     extends ConsumerState<HardwarePresetEditorDialog> {
-  // Shared identity fields.
   late final TextEditingController _brand;
   late final TextEditingController _model;
 
-  // Telescope fields.
   late final TextEditingController _focalLength;
   late final TextEditingController _aperture;
   late OpticalDesign _design;
 
-  // Camera fields.
   late final TextEditingController _pixelSize;
   late final TextEditingController _sensorWidth;
   late final TextEditingController _sensorHeight;
@@ -222,8 +218,6 @@ class _HardwarePresetEditorDialogState
     );
   }
 
-  // Telescope form.
-
   Widget _buildTelescopeForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -279,8 +273,6 @@ class _HardwarePresetEditorDialogState
       ],
     );
   }
-
-  // Camera form.
 
   Widget _buildCameraForm() {
     return Column(
@@ -435,8 +427,6 @@ class _HardwarePresetEditorDialogState
     );
   }
 
-  // Shared field builders.
-
   Widget _identityFields() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -549,8 +539,6 @@ class _HardwarePresetEditorDialogState
       setState(() => _errors.remove(fieldKey));
     }
   }
-
-  // Validation + persistence.
 
   Future<void> _save() async {
     final errors = <String, String>{};
@@ -676,7 +664,6 @@ class _HardwarePresetEditorDialogState
       return;
     }
 
-    // Camera mode.
     final pixelSize =
         requirePositiveDouble(_pixelSize, 'pixelSize', 'Pixel size');
     final sensorWidth =

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-// Import mobile-specific widgets
 import 'sequence_progress_card.dart';
 
 /// Overlay widget that displays mobile sequence progress only while a sequence
@@ -25,8 +24,6 @@ class MobileSequenceOverlay extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final executionState = ref.watch(sequenceExecutionStateProvider);
 
-    // Only show while running / paused. Idle and the terminal completed /
-    // failed states hide the overlay.
     final isActive = executionState == SequenceExecutionState.running ||
         executionState == SequenceExecutionState.paused;
     if (!isActive) {
@@ -42,7 +39,6 @@ class MobileSequenceOverlay extends ConsumerWidget {
         children: [
           const Spacer(),
 
-          // Progress card (non-interactive — taps pass through to the tree).
           const IgnorePointer(
             ignoring: true,
             child: SequenceProgressCard(),
