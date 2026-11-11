@@ -7,6 +7,8 @@ import '../backend/bridge_event_mapper.dart';
 import '../models/backend/event_types.dart' as core;
 import '../models/backend/host_runtime_update.dart' show isHostSyncEnvelope;
 import '../services/device_service_lifecycle.dart';
+import '../services/notification/event_classifier.dart'
+    show kQualityProblemContinuesNote;
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'host_mutation_event_provider.dart';
@@ -262,6 +264,7 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
       }
 
       final message = _extractEventMessage(event);
+      if (_isAnnouncedRunWarning(event, message)) return;
       final title = _eventTitle(event);
 
       final now = DateTime.now();
@@ -326,6 +329,15 @@ bool _isOperatorStopNotice(core.SkotiqEvent event) {
       '';
   return isSequenceCancelledNotice(message);
 }
+
+/// True for the run's Warning about a quality problem it carries on through.
+/// The notification router announces that problem from its decision row and
+/// Tonight lists it with the run's warnings; a toast here made one problem
+/// three notices with the same words.
+bool _isAnnouncedRunWarning(core.SkotiqEvent event, String message) =>
+    event.category == core.EventCategory.sequencer &&
+    event.severity == core.EventSeverity.warning &&
+    message.trimRight().endsWith(kQualityProblemContinuesNote);
 
 /// Extract a human-readable message from a SkotiqEvent's data map.
 String _extractEventMessage(core.SkotiqEvent event) {

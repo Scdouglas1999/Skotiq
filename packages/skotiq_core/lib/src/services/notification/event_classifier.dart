@@ -51,6 +51,14 @@ const String kImageGradingRejectStreakSummary =
 const String kQualityProblemContinuedSummary =
     'Problem noticed — the run continues';
 
+/// How the run's Warning for that same problem ends
+/// (`QUALITY_PROBLEM_CONTINUES_NOTE` in the native executor). The problem is
+/// announced from the decision row and listed with the run's warnings, so the
+/// Warning itself is not toasted again.
+const String kQualityProblemContinuesNote =
+    'The run continues. To have problems like this stop the run instead, turn '
+    'on Stop the run for quality problems in Settings > Sequencer.';
+
 /// The result of classifying a single backend event: the semantic
 /// [NotificationCategory], the context key/value pairs the templates need,
 /// and the event's [EventSeverity] (carried through unchanged, except for a

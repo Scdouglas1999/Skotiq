@@ -542,6 +542,13 @@ pub(crate) fn autofocus_failure_continuation(
 /// text verbatim.
 pub const QUALITY_PROBLEM_CONTINUED_SUMMARY: &str = "Problem noticed — the run continues";
 
+/// How the run's Warning for such a problem ends. The app raises the problem's
+/// notice from the decision row and lists the Warning with the run's warnings,
+/// so it does not toast a Warning ending in these words a second time; it
+/// matches the text verbatim.
+pub const QUALITY_PROBLEM_CONTINUES_NOTE: &str = "The run continues. To have problems like this \
+     stop the run instead, turn on Stop the run for quality problems in Settings > Sequencer.";
+
 /// The continuation record for a quality problem the run carries on through
 /// (see [`crate::triggers::TriggerState::stops_on_quality_problems`]). `source`
 /// names what noticed it ("Center 'M31'", "Post-flip recenter"), `problem`
@@ -566,10 +573,7 @@ pub(crate) fn quality_problem_continuation(
             QUALITY_PROBLEM_CONTINUED_SUMMARY.to_string(),
             details,
         ),
-        operator_message: format!(
-            "{source}: {problem} The run continues. To have problems like this stop the run \
-             instead, turn on Stop the run for quality problems in Settings > Sequencer."
-        ),
+        operator_message: format!("{source}: {problem} {QUALITY_PROBLEM_CONTINUES_NOTE}"),
     }
 }
 
