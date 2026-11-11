@@ -65,8 +65,6 @@ use crate::robust_stats::{median_in_place, MAD_TO_SIGMA};
 use crate::{ImageData, PixelType};
 use rayon::prelude::*;
 
-// Public configuration types
-
 /// How the surviving (non-rejected) samples are combined into the output pixel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Combine {
@@ -171,7 +169,6 @@ impl Reject {
 /// integration: F32 master, weighted mean, Winsorized-σ rejection, all maps on.
 #[derive(Debug, Clone)]
 pub struct IntegrationConfig {
-    /// How survivors are combined.
     pub combine: Combine,
     /// Which rejection algorithm runs per pixel.
     pub reject: Reject,
@@ -249,7 +246,6 @@ pub struct IntegrationOutput {
     /// or `None` when `generate_weight_map` was false. Each value is the sum of
     /// the weights that survived rejection at that pixel/channel.
     pub weight_map: Option<ImageData>,
-    /// Aggregate statistics.
     pub stats: IntegrationStats,
 }
 
@@ -284,8 +280,6 @@ pub enum IntegrationError {
     #[error("output pixel type {0:?} is not supported; use F32 or U16")]
     UnsupportedOutputType(PixelType),
 }
-
-// Public entry point
 
 /// Integrate a population of aligned, normalized, weighted frames into a single
 /// master with per-pixel rejection.
@@ -559,8 +553,6 @@ fn integrate_columns_weighted(
     })
 }
 
-// Per-pixel column combination
-
 /// One weighted sample for a single output pixel/channel.
 #[derive(Debug, Clone, Copy)]
 struct Sample {
@@ -670,8 +662,6 @@ fn apply_rejection(samples: &mut Vec<Sample>, reject: Reject, iteration_limit: u
     }
     (before - samples.len()) as u32
 }
-
-// Rejection algorithms (batch, order-independent)
 
 /// Iterated sigma clipping. When `winsorize` is true the σ estimate is computed
 /// on the *Winsorized* set (outliers clamped to the current bound) rather than
@@ -946,8 +936,6 @@ fn min_max_clip(samples: &mut Vec<Sample>, n_low: usize, n_high: usize) {
     *samples = keep;
 }
 
-// Estimators
-
 /// Reliability-weighted mean of the samples. Returns 0 for an empty set.
 fn weighted_mean(samples: &[Sample]) -> f64 {
     let mut sw = 0.0;
@@ -1054,8 +1042,6 @@ fn winsorized_mean_sigma(samples: &[Sample], low: f64, high: f64) -> (f64, f64) 
         .collect();
     weighted_mean_sigma(&winsorized)
 }
-
-// Output finalization
 
 /// Pack the f64 accumulator into the requested output [`ImageData`]. For `F32`
 /// the linear values are stored verbatim (archival, no quantisation). For `U16`

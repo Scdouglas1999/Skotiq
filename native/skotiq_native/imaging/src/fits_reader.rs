@@ -34,7 +34,6 @@ impl SampleEncoding {
         })
     }
 
-    /// Bytes one stored sample occupies.
     pub fn bytes_per_sample(&self) -> usize {
         (self.bitpix.unsigned_abs() / 8) as usize
     }

@@ -252,7 +252,6 @@ impl FitsHeader {
     }
 }
 
-/// FITS file reading errors
 #[derive(Debug)]
 pub enum FitsError {
     Io(std::io::Error),
@@ -301,14 +300,12 @@ impl From<std::io::Error> for FitsError {
     }
 }
 
-/// Read a FITS file from disk
 pub fn read_fits(path: &Path) -> Result<(ImageData, FitsHeader), FitsError> {
     let file = File::open(path)?;
     let mut reader = BufReader::new(file);
     read_fits_from_reader(&mut reader)
 }
 
-/// Read FITS from memory buffer
 pub fn read_fits_from_bytes(bytes: &[u8]) -> Result<(ImageData, FitsHeader), FitsError> {
     let mut reader = std::io::Cursor::new(bytes);
     read_fits_from_reader(&mut reader)
@@ -732,7 +729,6 @@ fn parse_fits_value(s: &str) -> Result<FitsValue, FitsError> {
         ));
     }
 
-    // Check for boolean
     if value_part == "T" {
         return Ok(FitsValue::Boolean(true));
     }
@@ -740,12 +736,10 @@ fn parse_fits_value(s: &str) -> Result<FitsValue, FitsError> {
         return Ok(FitsValue::Boolean(false));
     }
 
-    // Try to parse as integer
     if let Ok(i) = value_part.parse::<i64>() {
         return Ok(FitsValue::Integer(i));
     }
 
-    // Try to parse as float
     if let Ok(f) = value_part
         .replace('D', "E")
         .replace('d', "e")
@@ -754,7 +748,6 @@ fn parse_fits_value(s: &str) -> Result<FitsValue, FitsError> {
         return Ok(FitsValue::Float(f));
     }
 
-    // Default to string
     Ok(FitsValue::String(value_part.to_string()))
 }
 
@@ -821,7 +814,6 @@ pub fn write_fits(path: &Path, image: &ImageData, header: &FitsHeader) -> Result
     let file = File::create(path)?;
     let mut writer = BufWriter::new(file);
 
-    // Determine BITPIX based on pixel type
     let bitpix: i32 = match image.pixel_type {
         PixelType::U8 => 8,
         PixelType::U16 => 16,
@@ -923,7 +915,6 @@ pub fn write_fits(path: &Path, image: &ImageData, header: &FitsHeader) -> Result
         write_text_card(&mut writer, "HISTORY", text)?;
     }
 
-    // Write END keyword
     write_end_card(&mut writer)?;
 
     // Pad header to 2880-byte boundary
@@ -1428,7 +1419,6 @@ impl WcsInfo {
         // Convert pixel scale from arcsec/pixel to deg/pixel
         let scale_deg = pixel_scale / 3600.0;
 
-        // Convert rotation to radians
         let rot_rad = rotation.to_radians();
         let cos_rot = rot_rad.cos();
         let sin_rot = rot_rad.sin();
@@ -1550,7 +1540,6 @@ pub fn calculate_airmass(altitude_degrees: f64) -> Result<f64, FitsError> {
     Ok(airmass)
 }
 
-/// Image validation result
 #[derive(Debug, Clone)]
 pub struct ImageValidation {
     pub is_valid: bool,
@@ -1586,7 +1575,6 @@ pub fn validate_image(
 ) -> ImageValidation {
     let mut validation = ImageValidation::valid();
 
-    // Check dimensions match expected
     if let Some(width) = expected_width {
         if image.width != width {
             validation.add_error(format!(
@@ -1605,13 +1593,11 @@ pub fn validate_image(
         }
     }
 
-    // Check for zero dimensions
     if image.width == 0 || image.height == 0 {
         validation.add_error("Image has zero dimensions".to_string());
         return validation;
     }
 
-    // Check data size matches dimensions
     let pixel_size = match image.pixel_type {
         PixelType::U8 => 1,
         PixelType::U16 => 2,
@@ -1820,7 +1806,6 @@ fn infer_full_scale_from_frame(
     (count_at_max >= min_pile_up).then_some(full_scale)
 }
 
-/// Comprehensive image validation options
 #[derive(Debug, Clone)]
 pub struct ImageValidationOptions {
     /// Expected image width (None to skip check)
@@ -1935,7 +1920,6 @@ pub fn validate_image_comprehensive(
 ) -> ImageValidation {
     let mut validation = ImageValidation::valid();
 
-    // Check dimensions match expected
     if let Some(width) = options.expected_width {
         if image.width != width {
             validation.add_error(format!(
@@ -1954,14 +1938,12 @@ pub fn validate_image_comprehensive(
         }
     }
 
-    // Check for zero dimensions
     if image.width == 0 || image.height == 0 {
         validation.add_error("Image has zero dimensions".to_string());
         tracing::error!("[IMAGE_VALIDATION] REJECTED: Image has zero dimensions");
         return validation;
     }
 
-    // Check data size matches dimensions
     let pixel_size = match image.pixel_type {
         PixelType::U8 => 1,
         PixelType::U16 => 2,
@@ -1984,7 +1966,6 @@ pub fn validate_image_comprehensive(
         );
     }
 
-    // For 16-bit images, perform comprehensive validation
     if image.pixel_type == PixelType::U16 && !image.data.is_empty() {
         let pixels: Vec<u16> = image
             .data
@@ -2229,7 +2210,6 @@ pub fn validate_image_comprehensive(
         }
     }
 
-    // Log final validation result
     if validation.is_valid {
         if validation.warnings.is_empty() {
             tracing::debug!("[IMAGE_VALIDATION] PASSED: Image validated successfully");
@@ -2271,7 +2251,6 @@ pub fn validate_image_comprehensive(
 pub fn validate_fits_header(header: &FitsHeader) -> ImageValidation {
     let mut validation = ImageValidation::valid();
 
-    // Required keywords
     let required = vec!["SIMPLE", "BITPIX", "NAXIS", "NAXIS1", "NAXIS2"];
     for keyword in required {
         if header.get(keyword).is_none() {
@@ -2279,7 +2258,6 @@ pub fn validate_fits_header(header: &FitsHeader) -> ImageValidation {
         }
     }
 
-    // Recommended for astrophotography
     let recommended = vec![
         "DATE-OBS", "EXPTIME", "IMAGETYP", "OBJECT", "TELESCOP", "INSTRUME", "OBSERVER",
     ];
@@ -3131,13 +3109,11 @@ mod tests {
 
     #[test]
     fn test_fits_header_operations() {
-        // Create test image
         let width = 10;
         let height = 10;
         let data: Vec<u16> = (0..100).collect();
         let _image = ImageData::from_u16(width, height, 1, &data);
 
-        // Create header
         let mut header = FitsHeader::new();
         header.set_string("OBJECT", "Test");
         header.set_float("EXPTIME", 60.0);
@@ -3145,7 +3121,6 @@ mod tests {
         header.set_int("GAIN", 100);
         header.set_float("CCD-TEMP", -10.5);
 
-        // Test that header operations work
         assert_eq!(header.get_string("OBJECT"), Some("Test"));
         assert_eq!(header.get_float("EXPTIME"), Some(60.0));
         assert_eq!(header.get_string("IMAGETYP"), Some("Light"));
@@ -3155,7 +3130,6 @@ mod tests {
 
     #[test]
     fn test_fits_complete_metadata() {
-        // Create header with all astrophotography metadata
         let mut header = FitsHeader::new();
         header.set_bool("SIMPLE", true);
         header.set_int("BITPIX", 16);
@@ -3200,7 +3174,6 @@ mod tests {
         header.set_float("DEC", 41.27);
         header.set_float("AIRMASS", 1.15);
 
-        // Validate header completeness
         let validation = validate_fits_header(&header);
         assert!(validation.is_valid, "Complete header should be valid");
         assert!(
@@ -3208,7 +3181,6 @@ mod tests {
             "Complete header should have no warnings"
         );
 
-        // Verify all values
         assert_eq!(
             header.get_string("DATE-OBS"),
             Some("2025-01-15T22:30:45.123")
@@ -3222,13 +3194,11 @@ mod tests {
 
     #[test]
     fn test_fits_round_trip() {
-        // Create test image
         let width = 100;
         let height = 100;
         let data: Vec<u16> = (0..10000).map(|i| (i % 65535) as u16).collect();
         let _image = ImageData::from_u16(width, height, 1, &data);
 
-        // Create header with metadata
         let mut header = FitsHeader::new();
         header.set_bool("SIMPLE", true);
         header.set_int("BITPIX", 16);
@@ -3241,11 +3211,9 @@ mod tests {
         header.set_string("IMAGETYP", "Light");
         header.set_float("AIRMASS", 1.2);
 
-        // Validate the header
         let validation = validate_fits_header(&header);
         assert!(validation.is_valid, "Header should be valid");
 
-        // Verify specific keywords exist
         assert!(header.get("OBJECT").is_some());
         assert!(header.get("EXPTIME").is_some());
         assert!(header.get("DATE-OBS").is_some());
@@ -3429,8 +3397,6 @@ mod tests {
         bytes.extend(std::iter::repeat_n(0u8, pad));
         bytes
     }
-
-    // BSCALE/BZERO round-trip
 
     #[test]
     fn test_decode_strips_bscale_bzero_from_header() {

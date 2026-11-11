@@ -42,7 +42,6 @@ fn main() {
     });
     println!("cargo:rustc-env=SKOTIQ_VERSION={}", skotiq_version);
 
-    // Platform-specific library configuration
     #[cfg(target_os = "windows")]
     {
         // Windows: use bundled libraw.dll/.lib

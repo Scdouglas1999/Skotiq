@@ -737,7 +737,6 @@ mod tests {
     fn too_few_stars_is_an_error() {
         let a = [3.0, 3.1, 2.7];
         let b = [0.2, 0.0, -0.3];
-        // MIN_MATCHED_STARS - 1 stars.
         let stars = synth_stars(MIN_MATCHED_STARS - 1, &a, &b, 0.0, 7);
         assert_eq!(stars.len(), MIN_MATCHED_STARS - 1);
         let err = solve_color_calibration(&stars, 3, 0.65).unwrap_err();

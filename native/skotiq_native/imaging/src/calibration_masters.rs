@@ -58,7 +58,6 @@ use rayon::prelude::*;
 /// Errors specific to master-flat / cosmetic-correction construction.
 #[derive(Debug, Clone)]
 pub enum MasterCalibrationError {
-    /// No flat frames were supplied.
     EmptyFlatStack,
     /// A pedestal frame (bias / dark-flat) did not match the flat geometry.
     Calibration(CalibrationError),
@@ -66,11 +65,8 @@ pub enum MasterCalibrationError {
     /// dimensions, unsupported pixel type, degenerate flat mean, …). The
     /// inner string is the combiner's own diagnostic.
     Combine(String),
-    /// A frame had an unsupported pixel type for the requested operation.
     UnsupportedPixelType { pixel_type: PixelType },
-    /// The frame buffer length did not match its declared dimensions.
     BufferLengthMismatch { expected: usize, actual: usize },
-    /// A configuration value was outside its valid range.
     InvalidParameter(String),
 }
 
@@ -108,8 +104,6 @@ impl From<CalibrationError> for MasterCalibrationError {
         MasterCalibrationError::Calibration(e)
     }
 }
-
-// Master flat
 
 /// Configuration for [`build_master_flat`].
 #[derive(Debug, Clone, Copy)]
@@ -325,8 +319,6 @@ pub fn flat_bands(image: &ImageData) -> Option<String> {
     (!found.is_empty()).then(|| found.join("; "))
 }
 
-// Defect map from a master dark
-
 /// Sigma multiplier for the master-dark hot/cold outlier test. A pixel whose
 /// dark level deviates from the frame median by more than this many robust σ
 /// (estimated from the MAD) is flagged defective. 5σ on a MAD-derived sigma is
@@ -415,8 +407,6 @@ pub fn build_defect_map_from_master_dark(
     Ok(map)
 }
 
-// Transient cosmetic correction (self-derived, no master dark)
-
 /// Configuration for [`cosmetic_correct_transient`].
 #[derive(Debug, Clone, Copy)]
 pub struct CosmeticConfig {
@@ -455,7 +445,6 @@ pub struct CosmeticReport {
 }
 
 impl CosmeticReport {
-    /// Total pixels repaired across both polarities.
     pub fn total(&self) -> u32 {
         self.hot_repaired + self.cold_repaired
     }
@@ -702,8 +691,6 @@ mod tests {
         ImageData::from_u16(width, height, 1, &vec![value; (width * height) as usize])
     }
 
-    // Master flat
-
     #[test]
     fn master_flat_normalizes_vignette_to_unit_mean() {
         // A stack of identical vignetted flats must combine to a master whose
@@ -815,8 +802,6 @@ mod tests {
         assert!(matches!(err, MasterCalibrationError::Calibration(_)));
     }
 
-    // Defect map from master dark
-
     #[test]
     fn defect_map_from_master_dark_flags_hot_and_cold() {
         let w = 20u32;
@@ -846,8 +831,6 @@ mod tests {
             Err(MasterCalibrationError::UnsupportedPixelType { .. })
         ));
     }
-
-    // Transient cosmetic correction
 
     #[test]
     fn cosmetic_correction_detects_and_repairs_hot_pixel() {
