@@ -118,6 +118,10 @@ final class RemoteHostCalibrationLibrary implements CalibrationLibrary {
 
   @override
   HostFileDownload masterFileDownload(CalibrationMasterRecord record) =>
-      (localPath, {onProgress}) =>
-          _host.downloadDark(record.id, localPath, onProgress: onProgress);
+      (localPath, {onProgress}) => _host.downloadCalibrationMaster(
+        type: calibrationMasterTypeWireName(record.type),
+        id: record.id,
+        localPath: localPath,
+        onProgress: onProgress,
+      );
 }

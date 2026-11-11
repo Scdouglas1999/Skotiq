@@ -74,6 +74,20 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
     return CalibrationMasterRecord.fromJson(response);
   }
 
+  /// GET `/api/calibration-library/<type>/<id>/file` — stream one master's
+  /// file to [localPath]. [type] is the wire name (`dark`/`bias`/`flat`/
+  /// `defectMap`).
+  Future<void> downloadCalibrationMaster({
+    required String type,
+    required int id,
+    required String localPath,
+    void Function(double)? onProgress,
+  }) => _downloadToFile(
+    'calibration-library/$type/$id/file',
+    localPath,
+    onProgress: onProgress,
+  );
+
   /// DELETE `/api/calibration-library/<type>/<id>[?deleteFile=true]` — remove
   /// one master from the appliance library, optionally deleting the on-disk
   /// artifact(s) too.
@@ -162,24 +176,6 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
       params.isEmpty ? null : params,
     );
     return _rowsFromJson(response['darks'], RemoteDarkLibraryEntry.fromJson);
-  }
-
-  /// GET `/api/calibration/darks/{id}/download` — stream the on-disk
-  /// dark/master file for entry [id] to [localPath] so a paired device can
-  /// pull a calibration frame off the appliance.
-  Future<void> downloadDark(
-    int id,
-    String localPath, {
-    void Function(double)? onProgress,
-  }) {
-    if (id <= 0) {
-      throw ArgumentError.value(id, 'id', 'must be positive');
-    }
-    return _downloadToFile(
-      'calibration/darks/$id/download',
-      localPath,
-      onProgress: onProgress,
-    );
   }
 
   /// POST /api/calibration/darks — register an already-on-disk file.

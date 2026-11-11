@@ -549,9 +549,10 @@ class CalibrationLibraryPanelState
     setState(() => _downloadingId = record.id);
     try {
       final name = (record.filePath ?? '').split(RegExp(r'[/\\]')).last;
+      final key = '${calibrationMasterTypeWireName(record.type)}-${record.id}';
       final outcome = await downloadFileToDevice(
-        fileName: name.isEmpty ? 'dark-${record.id}.fits' : name,
-        tempKey: 'dark-${record.id}',
+        fileName: name.isEmpty ? '$key.fits' : name,
+        tempKey: key,
         fetch: (localPath, onProgress) =>
             download(localPath, onProgress: onProgress),
       );

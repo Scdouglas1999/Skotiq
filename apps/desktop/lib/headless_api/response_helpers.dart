@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 
@@ -295,4 +297,63 @@ String safeAttachmentFilename(String fileName, {String fallback = 'download'}) {
   final withoutDots = sanitized.replaceAll(RegExp(r'^\.+'), '');
   final result = withoutDots.isEmpty ? fallback : withoutDots;
   return result.length <= 120 ? result : result.substring(result.length - 120);
+}
+
+/// [file] on this host as a download named after it: the whole file, or the
+/// byte range the request asks for (RFC 7233). The validator for `If-Range`
+/// is [etagKey] with the file's modification time.
+///
+/// The caller has checked that the file exists; a file this server may not
+/// read answers 403, one it cannot stat 500.
+Future<Response> fileDownloadResponse(
+  Request request,
+  File file, {
+  required String etagKey,
+}) async {
+  final int fileLength;
+  final DateTime mtime;
+  try {
+    fileLength = await file.length();
+    mtime = await file.lastModified();
+  } on PathAccessException {
+    return jsonForbidden({'error': 'permission_denied', 'path': file.path});
+  } on FileSystemException catch (e) {
+    return jsonInternalServerError({'error': 'stat_failed', 'detail': e.message});
+  }
+
+  final fileName = p.basename(file.path);
+  final lower = fileName.toLowerCase();
+  final contentType = lower.endsWith('.fits') || lower.endsWith('.fit')
+      ? 'application/fits'
+      : lower.endsWith('.xisf')
+          ? 'application/x-xisf'
+          : 'application/octet-stream';
+  final etag = '"$etagKey-${mtime.millisecondsSinceEpoch}"';
+  final rangeHeader = request.headers['range'];
+  final ifRange = request.headers['if-range'];
+  if (rangeHeader == null || (ifRange != null && ifRange != etag)) {
+    return attachmentResponse(
+      file.openRead(),
+      fileName: fileName,
+      contentType: contentType,
+      contentLength: fileLength,
+      headers: {'accept-ranges': 'bytes', 'etag': etag},
+    );
+  }
+
+  final ({int start, int end}) range;
+  try {
+    range = parseRangeHeader(rangeHeader, fileLength);
+  } on FormatException catch (e) {
+    return rangeNotSatisfiableResponse(fileLength, reason: e.message);
+  }
+  return partialContentResponse(
+    file.openRead(range.start, range.end + 1),
+    start: range.start,
+    end: range.end,
+    totalLength: fileLength,
+    contentType: contentType,
+    fileName: fileName,
+    headers: {'etag': etag},
+  );
 }

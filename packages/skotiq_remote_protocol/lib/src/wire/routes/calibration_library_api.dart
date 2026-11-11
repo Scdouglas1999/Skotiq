@@ -45,6 +45,14 @@ enum CalibrationLibraryApi implements ApiEndpoint {
       rate: ApiRateTier.control,
     ),
   ),
+  download(
+    ApiRoute.get(
+      '/api/calibration-library/<type>/<id>/file',
+      resource: ApiResource.calibration,
+      timeout: ApiTimeout.slowRead,
+      bucket: ApiBucket.imageDownload,
+    ),
+  ),
   delete(
     ApiRoute.delete(
       '/api/calibration-library/<type>/<id>',
