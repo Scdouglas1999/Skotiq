@@ -111,6 +111,20 @@ void main() {
       expect(sequence().nodes['t']!.name, 'M34');
     });
 
+    test('a filter step named for its filter follows a new filter', () {
+      editor().createSequence();
+      final change = FilterChangeNode(id: 'f', filterName: 'Lum');
+      add(change);
+      editor().updateNode(change.copyWith(filterName: 'L'));
+      expect(sequence().nodes['f']!.name, 'Filter: L');
+
+      final renamed = sequence().nodes['f']! as FilterChangeNode;
+      editor().updateNode(renamed.copyWith(name: 'Luminance'));
+      editor().updateNode((sequence().nodes['f']! as FilterChangeNode)
+          .copyWith(filterName: 'R'));
+      expect(sequence().nodes['f']!.name, 'Luminance');
+    });
+
     test('keeps a name the operator gave it', () {
       editor().createSequence();
       add(TargetHeaderNode(

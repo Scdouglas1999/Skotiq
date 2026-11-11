@@ -1610,6 +1610,7 @@ abstract final class NodeKinds {
     filters: (node) => [node.filterName],
     renameFilter: (node, rename) =>
         node.copyWith(filterName: rename(node.filterName)),
+    autoName: (node) => 'Filter: ${node.filterName}',
     requiredDevices: const {DeviceType.filterWheel},
     create: () => FilterChangeNode(filterName: ''),
     fields: [_filterName, _filterPosition],

@@ -178,6 +178,7 @@ class _DomeProperties extends ConsumerWidget {
           colors: colors,
           label: 'Shutter only',
           child: NodeToggleSwitch(
+            label: 'Shutter only',
             colors: colors,
             value: shutterOnly,
             onChanged: (value) {

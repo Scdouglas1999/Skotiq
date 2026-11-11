@@ -719,12 +719,12 @@ class _ExposureRecommendationCard extends StatelessWidget {
               color: colors.textSecondary,
             ),
           ),
+          // Whole sentences: the inspector scrolls, and the reason is the
+          // point of the card ("The sky alone wo…" said nothing).
           if (recommendation.rationale.isNotEmpty) ...[
             const SizedBox(height: 2),
             Text(
               recommendation.rationale,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: Responsive.fontSize(context, 11),
                 color: colors.textMuted,
@@ -735,8 +735,6 @@ class _ExposureRecommendationCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               recommendation.caveats.first,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: Responsive.fontSize(context, 11),
                 color: colors.warning,

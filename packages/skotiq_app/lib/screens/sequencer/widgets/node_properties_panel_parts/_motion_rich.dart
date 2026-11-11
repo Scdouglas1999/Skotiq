@@ -17,6 +17,7 @@ class _CenterProperties extends ConsumerWidget {
           colors: colors,
           label: 'Use target coordinates',
           child: NodeToggleSwitch(
+            label: 'Use target coordinates',
             colors: colors,
             value: node.useTargetCoords,
             onChanged: (value) {
@@ -456,6 +457,7 @@ class _RotatorProperties extends ConsumerWidget {
           colors: colors,
           label: 'Relative movement',
           child: NodeToggleSwitch(
+            label: 'Relative movement',
             colors: colors,
             value: node.relative,
             onChanged: (value) {
@@ -497,6 +499,7 @@ class _SlewProperties extends ConsumerWidget {
           colors: colors,
           label: 'Use target coordinates',
           child: NodeToggleSwitch(
+            label: 'Use target coordinates',
             colors: colors,
             value: node.useTargetCoords,
             onChanged: (value) {

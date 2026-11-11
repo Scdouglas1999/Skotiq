@@ -97,6 +97,7 @@ class _DitherProperties extends ConsumerWidget {
           colors: colors,
           label: 'RA only',
           child: NodeToggleSwitch(
+            label: 'RA only',
             colors: colors,
             value: node.raOnly,
             onChanged: (value) {

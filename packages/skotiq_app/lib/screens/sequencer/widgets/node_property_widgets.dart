@@ -658,11 +658,17 @@ class NodeToggleSwitch extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
 
+  /// The switch's accessible name: the label of the row it sits in. The row's
+  /// text is a separate node, so without it a screen reader or the keyboard
+  /// finds an unnamed toggle.
+  final String? label;
+
   const NodeToggleSwitch({
     super.key,
     required this.colors,
     required this.value,
     required this.onChanged,
+    this.label,
   });
 
   @override
@@ -672,9 +678,12 @@ class NodeToggleSwitch extends StatelessWidget {
     // whole 300 px column — a 200 px switch reads as a progress bar.
     return Align(
       alignment: Alignment.centerRight,
-      child: SkotiqSwitch(
-        value: value,
-        onChanged: onChanged,
+      child: Semantics(
+        label: label,
+        child: SkotiqSwitch(
+          value: value,
+          onChanged: onChanged,
+        ),
       ),
     );
   }
