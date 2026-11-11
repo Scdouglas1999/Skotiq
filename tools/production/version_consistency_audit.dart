@@ -3,9 +3,9 @@ import 'dart:io';
 
 /// Version-consistency gate.
 ///
-/// A published release is identified by its version string in three places that
-/// must agree, or an OTA package, an artifact filename, and the binary-reported
-/// version can silently denote different releases:
+/// A published release is identified by its version string in four places that
+/// must agree, or an OTA package, an artifact filename, the installer, and the
+/// binary-reported version can silently denote different releases:
 ///
 ///   * `version.yaml`            — single source of truth read by the OTA
 ///     package builder (`scripts/build_update_package.ps1`) and the Linux
@@ -13,6 +13,8 @@ import 'dart:io';
 ///   * `apps/desktop/pubspec.yaml` — the desktop binary's reported version and
 ///     the version the release workflow validates the git tag against.
 ///   * `apps/mobile/pubspec.yaml`  — the mobile companion's reported version.
+///   * `apps/desktop/installer/installer.iss` — the version the Windows
+///     installer shows and registers (`MyAppVersion`; it has no build number).
 ///
 /// This audit fails closed (exit 1) when those version strings disagree, when
 /// their build numbers disagree, or when the OTA package builder no longer
@@ -21,6 +23,7 @@ import 'dart:io';
 const _versionYamlPath = 'version.yaml';
 const _desktopPubspecPath = 'apps/desktop/pubspec.yaml';
 const _mobilePubspecPath = 'apps/mobile/pubspec.yaml';
+const _installerPath = 'apps/desktop/installer/installer.iss';
 const _otaScriptPath = 'scripts/build_update_package.ps1';
 
 Future<void> main(List<String> args) async {
@@ -45,19 +48,25 @@ Future<void> main(List<String> args) async {
     path: _mobilePubspecPath,
     issues: issues,
   );
+  final installer = _VersionSource.fromInstaller(
+    root: root,
+    path: _installerPath,
+    issues: issues,
+  );
 
-  // Version-string agreement across the three declared sources.
+  // Version-string agreement across the declared sources.
   final versions = <String, String?>{
     _versionYamlPath: versionYaml.version,
     _desktopPubspecPath: desktop.version,
     _mobilePubspecPath: mobile.version,
+    _installerPath: installer.version,
   };
   final distinctVersions = versions.values.whereType<String>().toSet();
   if (distinctVersions.length > 1) {
     issues.add(
       'Version strings disagree across release sources: '
       '${versions.entries.map((e) => '${e.key}=${e.value ?? '<missing>'}').join(', ')}. '
-      'Reconcile all three to a single version.',
+      'Reconcile them to the version in $_versionYamlPath.',
     );
   }
 
@@ -116,6 +125,7 @@ Future<void> main(List<String> args) async {
       _versionYamlPath: versionYaml.toJson(),
       _desktopPubspecPath: desktop.toJson(),
       _mobilePubspecPath: mobile.toJson(),
+      _installerPath: installer.toJson(),
       _otaScriptPath: ota.toJson(),
     },
     'distinctVersions': distinctVersions.toList()..sort(),
@@ -138,6 +148,7 @@ Future<void> main(List<String> args) async {
   stdout.writeln('version.yaml: ${versionYaml.summary}');
   stdout.writeln('desktop pubspec: ${desktop.summary}');
   stdout.writeln('mobile pubspec: ${mobile.summary}');
+  stdout.writeln('installer: version=${installer.version ?? '<unparsed>'}');
   stdout.writeln('OTA builder: ${ota.summary}');
   for (final issue in issues) {
     stdout.writeln('  - $issue');
@@ -148,7 +159,7 @@ Future<void> main(List<String> args) async {
   }
 }
 
-/// A declared version source (version.yaml or a pubspec.yaml).
+/// A declared version source (version.yaml, a pubspec.yaml or installer.iss).
 class _VersionSource {
   final String path;
   final bool exists;
@@ -239,6 +250,37 @@ class _VersionSource {
       exists: true,
       version: version,
       buildNumber: buildRaw == null ? null : int.tryParse(buildRaw),
+    );
+  }
+
+  /// Parses the Inno Setup script: `#define MyAppVersion "5.0.0"`.
+  factory _VersionSource.fromInstaller({
+    required Directory root,
+    required String path,
+    required List<String> issues,
+  }) {
+    final file = File('${root.path}/$path');
+    if (!file.existsSync()) {
+      issues.add('Missing required version source: $path');
+      return _VersionSource(
+        path: path,
+        exists: false,
+        version: null,
+        buildNumber: null,
+      );
+    }
+    final version = _firstGroup(
+      RegExp(r'^#define\s+MyAppVersion\s+"([^"]+)"', multiLine: true),
+      file.readAsStringSync(),
+    );
+    if (version == null) {
+      issues.add('$path does not declare a parseable `MyAppVersion`.');
+    }
+    return _VersionSource(
+      path: path,
+      exists: true,
+      version: version,
+      buildNumber: null,
     );
   }
 

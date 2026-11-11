@@ -86,7 +86,7 @@ scripts:
 
   audit:version-consistency:
     run: dart run tools/production/version_consistency_audit.dart
-    description: Fail when version.yaml, the desktop pubspec, and the mobile pubspec disagree on version/build, or when the OTA package builder stops sourcing its version from version.yaml
+    description: Fail when version.yaml, the desktop pubspec, the mobile pubspec, and installer.iss disagree on version/build, or when the OTA package builder stops sourcing its version from version.yaml
   audit:version-consistency:self-test:
     run: dart run tools/production/version_consistency_audit_self_test.dart
     description: Self-test the version consistency gate against aligned and mismatched temporary fixtures
