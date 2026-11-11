@@ -2,9 +2,6 @@
 
 use super::*;
 
-// Types and constants from SVBCameraSDK.h.
-
-/// SVBony error codes
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SvbError {
@@ -99,7 +96,6 @@ impl SvbError {
     }
 }
 
-/// SVBony image types
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SvbImgType {
@@ -147,7 +143,6 @@ pub(crate) fn container_max_adu(image_type: SvbImgType, bit_depth: u32) -> u32 {
     }
 }
 
-/// SVBony control types for camera settings
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SvbControlType {
@@ -206,7 +201,6 @@ pub(crate) struct SvbCameraPropertyEx {
     pub(crate) unused: [c_int; 64],
 }
 
-/// Control caps structure
 #[repr(C)]
 #[derive(Debug)]
 pub(crate) struct SvbControlCaps {

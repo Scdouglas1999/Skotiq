@@ -2,7 +2,6 @@
 
 use super::*;
 
-/// Discovered SVBony camera info
 #[derive(Debug, Clone)]
 pub struct SvbonyDiscoveryInfo {
     pub camera_id: i32,
@@ -12,7 +11,6 @@ pub struct SvbonyDiscoveryInfo {
     pub discovery_index: usize,
 }
 
-/// Discover connected SVBony cameras
 pub async fn discover_devices() -> Result<Vec<SvbonyDiscoveryInfo>, DriverError> {
     // If SDK is not available, return empty list (not error)
     let sdk = match SvbonySdk::lock().await {
@@ -59,7 +57,6 @@ pub async fn discover_devices() -> Result<Vec<SvbonyDiscoveryInfo>, DriverError>
     Ok(devices)
 }
 
-/// Check if SDK is available
 pub fn is_sdk_available() -> bool {
     SvbonySdk::is_available()
 }
