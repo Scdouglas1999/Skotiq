@@ -1,9 +1,12 @@
 part of '../equipment_models.dart';
 
 /// Focuser state
-class FocuserState extends Equatable {
+class FocuserState extends Equatable implements DeviceSlotState<FocuserState> {
+  @override
   final DeviceConnectionState connectionState;
+  @override
   final String? deviceId;
+  @override
   final String? deviceName;
   final int? position;
   final int? maxPosition;
@@ -12,9 +15,11 @@ class FocuserState extends Equatable {
   final bool hasTemperature;
   final double? temperature;
   final bool isMoving;
+  @override
   final DeviceError? lastError;
 
   /// Whether auto-reconnection is enabled for this device.
+  @override
   final bool autoReconnectEnabled;
 
   const FocuserState({
@@ -35,6 +40,7 @@ class FocuserState extends Equatable {
   bool get hasError => lastError != null;
   FocuserState clearError() => copyWith(clearError: true);
 
+  @override
   FocuserState copyWith({
     DeviceConnectionState? connectionState,
     String? deviceId,
@@ -84,16 +90,22 @@ class FocuserState extends Equatable {
 }
 
 /// Filter wheel state
-class FilterWheelState extends Equatable {
+class FilterWheelState extends Equatable
+    implements DeviceSlotState<FilterWheelState> {
+  @override
   final DeviceConnectionState connectionState;
+  @override
   final String? deviceId;
+  @override
   final String? deviceName;
   final int? currentPosition;
   final List<String> filterNames;
   final bool isMoving;
+  @override
   final DeviceError? lastError;
 
   /// Whether auto-reconnection is enabled for this device.
+  @override
   final bool autoReconnectEnabled;
 
   const FilterWheelState({
@@ -119,6 +131,7 @@ class FilterWheelState extends Equatable {
   bool get hasError => lastError != null;
   FilterWheelState clearError() => copyWith(clearError: true);
 
+  @override
   FilterWheelState copyWith({
     DeviceConnectionState? connectionState,
     String? deviceId,
@@ -156,9 +169,12 @@ class FilterWheelState extends Equatable {
 }
 
 /// Guider state
-class GuiderState extends Equatable {
+class GuiderState extends Equatable implements DeviceSlotState<GuiderState> {
+  @override
   final DeviceConnectionState connectionState;
+  @override
   final String? deviceId;
+  @override
   final String? deviceName;
   final bool isGuiding;
   final bool isCalibrating;
@@ -171,9 +187,11 @@ class GuiderState extends Equatable {
   /// profile, or the scale has not been read yet); guide errors are then only
   /// known in pixels.
   final double? pixelScaleArcsecPerPixel;
+  @override
   final DeviceError? lastError;
 
   /// Whether auto-reconnection is enabled for this device.
+  @override
   final bool autoReconnectEnabled;
 
   const GuiderState({
@@ -193,6 +211,7 @@ class GuiderState extends Equatable {
   bool get hasError => lastError != null;
   GuiderState clearError() => copyWith(clearError: true);
 
+  @override
   GuiderState copyWith({
     DeviceConnectionState? connectionState,
     String? deviceId,

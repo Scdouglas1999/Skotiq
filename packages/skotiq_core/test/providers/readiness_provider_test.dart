@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/src/models/backend/device_types.dart';
 import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
 import 'package:skotiq_core/src/models/plate_solver.dart';
 import 'package:skotiq_core/src/models/readiness/readiness_models.dart';
@@ -121,11 +122,11 @@ ProviderContainer _container({
   List<String> offlineProfileDevices = const <String>[],
   // Default = a populated profile (camera, mount, focuser, guider) so the
   // happy path is a real pass, not the vacuous one an empty profile produced.
-  List<ProfileDeviceSlot> assignedProfileSlots = const [
-    ProfileDeviceSlot.camera,
-    ProfileDeviceSlot.mount,
-    ProfileDeviceSlot.focuser,
-    ProfileDeviceSlot.guider,
+  List<DeviceType> assignedProfileSlots = const [
+    DeviceType.camera,
+    DeviceType.mount,
+    DeviceType.focuser,
+    DeviceType.guider,
   ],
 }) {
   final container = ProviderContainer(
@@ -143,7 +144,7 @@ ProviderContainer _container({
       offlineProfileDeviceNamesProvider.overrideWithValue(
         offlineProfileDevices,
       ),
-      assignedProfileDeviceSlotsProvider.overrideWithValue(
+      assignedProfileDeviceTypesProvider.overrideWithValue(
         assignedProfileSlots,
       ),
       cameraStateProvider.overrideWith(
@@ -502,7 +503,7 @@ void main() {
       final container = _container(
         camera: _disconnected,
         mount: _disconnected,
-        assignedProfileSlots: const <ProfileDeviceSlot>[],
+        assignedProfileSlots: const <DeviceType>[],
       );
       final report = await _resolveReport(container);
 
@@ -521,8 +522,8 @@ void main() {
         'every device is connected', () async {
       final container = _container(
         assignedProfileSlots: const [
-          ProfileDeviceSlot.camera,
-          ProfileDeviceSlot.mount,
+          DeviceType.camera,
+          DeviceType.mount,
         ],
       );
       final report = await _resolveReport(container);

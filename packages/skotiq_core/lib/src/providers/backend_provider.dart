@@ -12,7 +12,7 @@ import '../backend/disconnected_backend.dart';
 import '../backend/network_backend.dart';
 import '../models/sequence/sequence_models.dart';
 import 'database_provider.dart';
-import 'equipment/equipment_state_reset.dart';
+import 'equipment/device_slots.dart';
 import 'sequence/sequence_progress.dart';
 import '../services/device_service_lifecycle.dart';
 import '../services/remote_sequence_editor_sync_lifecycle.dart';

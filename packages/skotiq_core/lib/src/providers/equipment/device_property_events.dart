@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../provider_reader.dart';
 import 'camera_state_provider.dart';
-import 'device_type_registry.dart';
+import 'device_slots.dart';
 import 'dome_state_provider.dart';
 import 'filter_wheel_state_provider.dart';
 import 'focuser_state_provider.dart';

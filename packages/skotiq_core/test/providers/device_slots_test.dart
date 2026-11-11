@@ -4,16 +4,8 @@ import 'package:skotiq_core/skotiq_core.dart';
 
 import '../harness/in_memory_database.dart';
 
-// Parity pins for the one device-type table
-// (`providers/equipment/device_type_registry.dart`).
-//
-// Every expectation below was read off the copies the registry replaced —
-// `remote_sync_handler._parseDeviceType` / `._readDeviceNotifier` and the four
-// eleven-case switches in `device_service/event_handling.dart`
-// (`_applyDeviceConnected`, `_applyDeviceConnecting`, `_handleDeviceError`,
-// `_handleDeviceDisconnected`) plus `connections._slotDeviceIdFor`. If a
-// future edit changes what parses or which card a type lands on, one of these
-// fails rather than a device silently never appearing.
+// The device table (`providers/equipment/device_slots.dart`): wire names,
+// the slot each type reads and drives, and that no type is missing.
 
 /// Mirrors the shape of the notifier fakes real widget suites install: the
 /// state object is honest, every notifier getter is not.

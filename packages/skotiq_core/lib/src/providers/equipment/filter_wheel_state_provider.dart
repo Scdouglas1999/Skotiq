@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../models/backend/device_types.dart';
 import '../../models/equipment/equipment_models.dart';
 import 'device_connection_notifier.dart';
 import '../../services/device_service.dart';
 import '../profiles_provider.dart';
-import 'equipment_retry_defaults.dart';
 
 // Note: All async callbacks and stream listeners check `mounted`
 // before updating state to prevent updates after disposal.
@@ -16,22 +16,12 @@ final filterWheelStateProvider =
       return FilterWheelStateNotifier(ref);
     });
 
-class FilterWheelStateNotifier extends StateNotifier<FilterWheelState>
-    implements DeviceConnectionNotifier {
-  @override
-  DeviceConnectionState get connectionState => state.connectionState;
-
-  @override
-  String? get deviceId => state.deviceId;
-
-  final Ref _ref;
-  int _retryAttempts = 0;
-  int _connectionRevision = 0;
-
-  FilterWheelStateNotifier(this._ref) : super(const FilterWheelState()) {
+class FilterWheelStateNotifier extends DeviceSlotNotifier<FilterWheelState> {
+  FilterWheelStateNotifier(Ref ref)
+    : super(ref, DeviceType.filterWheel, const FilterWheelState()) {
     // Watch for profile changes and re-sync filter names when the active
     // profile's filter names are updated (e.g. user edits profile and saves).
-    _ref.listen<EquipmentProfileModel?>(activeEquipmentProfileProvider, (
+    ref.listen<EquipmentProfileModel?>(activeEquipmentProfileProvider, (
       previous,
       next,
     ) {
@@ -62,65 +52,17 @@ class FilterWheelStateNotifier extends StateNotifier<FilterWheelState>
     return true;
   }
 
-  Future<void> connect(
-    String deviceId, {
-    int maxRetries = kDefaultMaxRetries,
-  }) async {
-    final revision = ++_connectionRevision;
-    _retryAttempts = 0;
-    _setConnectingState(deviceId, deviceId);
-    await _connectWithRetry(deviceId, maxRetries, revision);
-  }
-
-  Future<void> _connectWithRetry(
-    String deviceId,
-    int maxRetries,
-    int revision,
-  ) async {
-    try {
-      final deviceService = _ref.read(deviceServiceProvider);
-      // DeviceService.connectFilterWheel handles:
-      // 1. Connecting to the hardware
-      // 2. Populating filter names from the driver
-      // 3. Syncing profile/session filter names to the driver
-      await deviceService.connectFilterWheel(deviceId);
-      if (!_isCurrentConnection(deviceId, revision)) return;
-      _retryAttempts = 0;
-    } catch (e) {
-      if (!_isCurrentAttempt(deviceId, revision)) return;
-      _retryAttempts++;
-      final error = DeviceError.fromException(
-        e,
-        deviceId: deviceId,
-        retryAttempts: _retryAttempts,
-      );
-
-      if (error.recoverable && _retryAttempts < maxRetries) {
-        state = state.copyWith(lastError: error);
-        await Future.delayed(kDefaultRetryDelay * _retryAttempts);
-        if (!_isCurrentAttempt(deviceId, revision)) return;
-        _setConnectingState(deviceId, deviceId);
-        await _connectWithRetry(deviceId, maxRetries, revision);
-      } else {
-        state = state.copyWith(
-          connectionState: DeviceConnectionState.error,
-          lastError: error,
-        );
-      }
-    }
-  }
-
   /// Re-sync filter names to the native driver when the active profile changes
   /// while the filter wheel is already connected.
   ///
-  /// Called by the _ref.listen callback in the constructor when profile filter
+  /// Called by the ref.listen callback in the constructor when profile filter
   /// names are updated (e.g., user edits profile and saves).
   ///
-  /// Initial sync on connection is handled by DeviceService.connectFilterWheel.
+  /// Initial sync on connection is handled by DeviceService.connect.
   Future<void> _syncProfileFilterNamesToDriver(String deviceId) async {
     try {
       // Priority 1: Check active profile filter names
-      final activeProfile = _ref.read(activeEquipmentProfileProvider);
+      final activeProfile = ref.read(activeEquipmentProfileProvider);
       if (activeProfile != null && activeProfile.filterNames.isNotEmpty) {
         final profileFilterNames = activeProfile.filterNames;
         final driverNames = state.filterNames;
@@ -148,7 +90,7 @@ class FilterWheelStateNotifier extends StateNotifier<FilterWheelState>
               : profileFilterNames;
         }
 
-        await _ref.read(deviceServiceProvider).setFilterWheelNames(syncedNames);
+        await ref.read(deviceServiceProvider).setFilterWheelNames(syncedNames);
         developer.log(
           'FilterWheelStateNotifier: Profile filter names synced successfully',
           name: 'FilterWheelStateNotifier',
@@ -158,7 +100,7 @@ class FilterWheelStateNotifier extends StateNotifier<FilterWheelState>
       }
 
       // Priority 2: Check session filter names
-      final sessionFilterNames = _ref.read(sessionFilterNamesProvider);
+      final sessionFilterNames = ref.read(sessionFilterNamesProvider);
       if (sessionFilterNames != null && sessionFilterNames.isNotEmpty) {
         final driverNames = state.filterNames;
         developer.log(
@@ -180,7 +122,7 @@ class FilterWheelStateNotifier extends StateNotifier<FilterWheelState>
               : sessionFilterNames;
         }
 
-        await _ref.read(deviceServiceProvider).setFilterWheelNames(syncedNames);
+        await ref.read(deviceServiceProvider).setFilterWheelNames(syncedNames);
         developer.log(
           'FilterWheelStateNotifier: Session filter names synced successfully',
           name: 'FilterWheelStateNotifier',
@@ -206,39 +148,6 @@ class FilterWheelStateNotifier extends StateNotifier<FilterWheelState>
     }
   }
 
-  Future<void> retryConnection() async {
-    if (state.deviceId != null) {
-      await connect(state.deviceId!);
-    }
-  }
-
-  void clearError() {
-    state = state.clearError();
-  }
-
-  Future<void> disconnect() async {
-    if (state.deviceId == null) return;
-    final revision = ++_connectionRevision;
-    final deviceService = _ref.read(deviceServiceProvider);
-    await deviceService.disconnectFilterWheel();
-    if (mounted && revision == _connectionRevision) setDisconnected();
-  }
-
-  @override
-  void setConnecting(String deviceId, [String? deviceName]) {
-    _setConnectingState(deviceId, deviceName);
-  }
-
-  void _setConnectingState(String deviceId, [String? deviceName]) {
-    // Preserve `lastError` across Connecting; see camera
-    // provider for the full rationale.
-    state = state.copyWith(
-      connectionState: DeviceConnectionState.connecting,
-      deviceId: deviceId,
-      deviceName: deviceName ?? state.deviceName ?? deviceId,
-    );
-  }
-
   @override
   void setConnected({List<String>? filterNames}) {
     state = state.copyWith(
@@ -250,25 +159,6 @@ class FilterWheelStateNotifier extends StateNotifier<FilterWheelState>
 
   void setDeviceName(String deviceName) {
     state = state.copyWith(deviceName: deviceName);
-  }
-
-  @override
-  void setDisconnected() {
-    final preservedAutoReconnect = state.autoReconnectEnabled;
-    state = FilterWheelState(autoReconnectEnabled: preservedAutoReconnect);
-  }
-
-  bool _isCurrentConnection(String deviceId, int revision) =>
-      mounted && revision == _connectionRevision && state.deviceId == deviceId;
-
-  bool _isCurrentAttempt(String deviceId, int revision) =>
-      mounted &&
-      revision == _connectionRevision &&
-      (state.deviceId == null || state.deviceId == deviceId);
-
-  /// Enable or disable auto-reconnection for the filter wheel.
-  void setAutoReconnect(bool enabled) {
-    state = state.copyWith(autoReconnectEnabled: enabled);
   }
 
   void updatePosition(int position) {
@@ -283,14 +173,6 @@ class FilterWheelStateNotifier extends StateNotifier<FilterWheelState>
 
   void setMoving(bool moving) {
     state = state.copyWith(isMoving: moving);
-  }
-
-  @override
-  void setError(Object error) {
-    state = state.copyWith(
-      connectionState: DeviceConnectionState.error,
-      lastError: DeviceError.fromException(error, deviceId: state.deviceId),
-    );
   }
 
   /// Set session-level filter names (without requiring an equipment profile).
@@ -308,7 +190,7 @@ class FilterWheelStateNotifier extends StateNotifier<FilterWheelState>
     bool syncToDriver = true,
   }) async {
     // Store in the session provider
-    _ref.read(sessionFilterNamesProvider.notifier).state = names;
+    ref.read(sessionFilterNamesProvider.notifier).state = names;
 
     // Optionally sync to driver if connected
     if (syncToDriver &&
@@ -320,7 +202,7 @@ class FilterWheelStateNotifier extends StateNotifier<FilterWheelState>
           name: 'FilterWheelStateNotifier',
           level: 800,
         );
-        await _ref.read(deviceServiceProvider).setFilterWheelNames(names);
+        await ref.read(deviceServiceProvider).setFilterWheelNames(names);
         developer.log(
           'FilterWheelStateNotifier: Session filter names synced to driver',
           name: 'FilterWheelStateNotifier',
@@ -347,7 +229,7 @@ class FilterWheelStateNotifier extends StateNotifier<FilterWheelState>
   /// This will cause the filter wheel to fall back to profile names (if available)
   /// or driver-reported names on the next connection.
   void clearSessionFilterNames() {
-    _ref.read(sessionFilterNamesProvider.notifier).state = null;
+    ref.read(sessionFilterNamesProvider.notifier).state = null;
   }
 }
 

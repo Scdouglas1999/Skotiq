@@ -6,6 +6,7 @@ import 'package:logging/logging.dart';
 import '../backend/network_backend.dart';
 import '../database/database.dart';
 import '../models/backend/device_capabilities.dart';
+import '../models/backend/device_types.dart' show DeviceType;
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/equipment_profile.dart' as remote_profile;
 import '../models/backend/host_mutation_event.dart';

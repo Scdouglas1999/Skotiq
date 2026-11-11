@@ -21,4 +21,5 @@ export 'equipment/rotator_state_provider.dart';
 export 'equipment/safety_monitor_state_provider.dart';
 export 'equipment/switch_state_provider.dart';
 export 'equipment/weather_state_provider.dart';
-export 'equipment/equipment_state_reset.dart';
+export 'equipment/device_connection_notifier.dart';
+export 'equipment/device_slots.dart';

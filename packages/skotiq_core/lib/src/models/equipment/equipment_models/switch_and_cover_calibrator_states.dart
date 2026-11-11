@@ -13,9 +13,12 @@ part of '../equipment_models.dart';
 /// name/state lists remain convenient for compact telemetry, while the
 /// capability lists let the Equipment screen render a slider for analog
 /// channels and keep read-only channels visibly non-interactive.
-class SwitchState extends Equatable {
+class SwitchState extends Equatable implements DeviceSlotState<SwitchState> {
+  @override
   final DeviceConnectionState connectionState;
+  @override
   final String? deviceId;
+  @override
   final String? deviceName;
 
   /// Total number of channels reported by the driver (0 when unknown).
@@ -51,9 +54,11 @@ class SwitchState extends Equatable {
   /// dim/age the channel labels when polling is stale.
   final DateTime? lastChannelRefresh;
 
+  @override
   final DeviceError? lastError;
 
   /// Whether auto-reconnection is enabled for this device.
+  @override
   final bool autoReconnectEnabled;
 
   const SwitchState({
@@ -78,6 +83,7 @@ class SwitchState extends Equatable {
   bool get hasError => lastError != null;
   SwitchState clearError() => copyWith(clearError: true);
 
+  @override
   SwitchState copyWith({
     DeviceConnectionState? connectionState,
     String? deviceId,
@@ -146,17 +152,23 @@ enum CoverStatus { notPresent, closed, moving, open, unknown, error }
 /// Calibrator (flat light) status
 enum CalibratorStatus { notPresent, off, notReady, ready, unknown, error }
 
-class CoverCalibratorState extends Equatable {
+class CoverCalibratorState extends Equatable
+    implements DeviceSlotState<CoverCalibratorState> {
+  @override
   final DeviceConnectionState connectionState;
+  @override
   final String? deviceId;
+  @override
   final String? deviceName;
   final CoverStatus coverStatus;
   final CalibratorStatus calibratorStatus;
   final int brightness;
   final int maxBrightness;
+  @override
   final DeviceError? lastError;
 
   /// Whether auto-reconnection is enabled for this device.
+  @override
   final bool autoReconnectEnabled;
 
   const CoverCalibratorState({
@@ -181,6 +193,7 @@ class CoverCalibratorState extends Equatable {
 
   CoverCalibratorState clearError() => copyWith(clearError: true);
 
+  @override
   CoverCalibratorState copyWith({
     DeviceConnectionState? connectionState,
     String? deviceId,

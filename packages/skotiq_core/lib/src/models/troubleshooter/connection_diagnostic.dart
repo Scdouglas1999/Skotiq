@@ -364,34 +364,6 @@ String _headlineFor(DiagnosticCategory category, {required String error}) {
   }
 }
 
-/// A short, friendly noun for the device, e.g. "camera", "mount".
-String _deviceNoun(DeviceType deviceType) {
-  switch (deviceType) {
-    case DeviceType.camera:
-      return 'camera';
-    case DeviceType.mount:
-      return 'mount';
-    case DeviceType.focuser:
-      return 'focuser';
-    case DeviceType.filterWheel:
-      return 'filter wheel';
-    case DeviceType.guider:
-      return 'guide camera';
-    case DeviceType.dome:
-      return 'dome';
-    case DeviceType.rotator:
-      return 'rotator';
-    case DeviceType.weather:
-      return 'weather station';
-    case DeviceType.safetyMonitor:
-      return 'safety monitor';
-    case DeviceType.switch_:
-      return 'switch device';
-    case DeviceType.coverCalibrator:
-      return 'cover/calibrator';
-  }
-}
-
 /// Friendly name for the driver protocol.
 String _driverNoun(DriverType driverType) {
   switch (driverType) {
@@ -414,7 +386,7 @@ String _plainLanguageFor(
   required DriverType driverType,
   required String error,
 }) {
-  final device = _deviceNoun(deviceType);
+  final device = deviceType.noun;
   final driver = _driverNoun(driverType);
   switch (category) {
     case DiagnosticCategory.usb:
@@ -491,7 +463,7 @@ List<RemediationStep> _usbSteps({
   required DeviceType deviceType,
   required DriverType driverType,
 }) {
-  final device = _deviceNoun(deviceType);
+  final device = deviceType.noun;
   final steps = <RemediationStep>[
     RemediationStep(
       instruction:
@@ -569,7 +541,7 @@ List<RemediationStep> _driverSteps({
   required DeviceType deviceType,
   required DriverType driverType,
 }) {
-  final device = _deviceNoun(deviceType);
+  final device = deviceType.noun;
   final driver = _driverNoun(driverType);
   final steps = <RemediationStep>[
     RemediationStep(
@@ -639,7 +611,7 @@ List<RemediationStep> _permissionSteps({
   required DeviceType deviceType,
   required DriverType driverType,
 }) {
-  final device = _deviceNoun(deviceType);
+  final device = deviceType.noun;
   final steps = <RemediationStep>[
     RemediationStep(
       instruction: 'Close any other program that may be using the $device',
@@ -796,7 +768,7 @@ List<RemediationStep> _configurationSteps({
   final firstParty = _firstPartySetupSteps(error);
   if (firstParty != null) return firstParty;
 
-  final device = _deviceNoun(deviceType);
+  final device = deviceType.noun;
   final driver = _driverNoun(driverType);
   final steps = <RemediationStep>[
     RemediationStep(
@@ -846,7 +818,7 @@ List<RemediationStep> _unknownSteps({
   required DeviceType deviceType,
   required DriverType driverType,
 }) {
-  final device = _deviceNoun(deviceType);
+  final device = deviceType.noun;
   final driver = _driverNoun(driverType);
   return <RemediationStep>[
     RemediationStep(

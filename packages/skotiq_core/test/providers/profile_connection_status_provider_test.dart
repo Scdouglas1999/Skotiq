@@ -2,6 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/src/database/database.dart';
+import 'package:skotiq_core/src/models/backend/device_types.dart';
 import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
@@ -76,7 +77,7 @@ void main() {
       expect(status.hasConnectedCore, isTrue);
       expect(status.hasDisconnectedCore, isFalse);
       expect(
-        status[ProfileDeviceSlot.camera].profileState,
+        status[DeviceType.camera].profileState,
         DeviceConnectionState.connected,
       );
       expect(status.hasMismatch, isFalse);
@@ -127,9 +128,9 @@ void main() {
 
       expect(status.coreTotalCount, 5);
       expect(status.coreConnectedCount, 5);
-      expect(status[ProfileDeviceSlot.guider].matchesProfile, isTrue);
+      expect(status[DeviceType.guider].matchesProfile, isTrue);
       expect(
-        status[ProfileDeviceSlot.guider].profileState,
+        status[DeviceType.guider].profileState,
         DeviceConnectionState.connected,
       );
       // The same PHD2 guider under different representations is NOT a mismatch.
@@ -202,7 +203,7 @@ void main() {
         ),
       );
 
-      // Camera precedes Mount in ProfileDeviceSlot declaration order.
+      // Camera precedes Mount in DeviceType declaration order.
       expect(status.mismatchedDeviceNames, ['Camera', 'Mount']);
     });
 

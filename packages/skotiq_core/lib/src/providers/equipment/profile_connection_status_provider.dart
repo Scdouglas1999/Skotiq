@@ -1,51 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../models/backend/device_types.dart';
 import '../../models/equipment/equipment_models.dart';
 import '../../utils/device_id.dart';
 import '../profiles_provider.dart';
-import 'camera_state_provider.dart';
-import 'cover_calibrator_state_provider.dart';
-import 'dome_state_provider.dart';
-import 'filter_wheel_state_provider.dart';
-import 'focuser_state_provider.dart';
-import 'guider_state_provider.dart';
-import 'mount_state_provider.dart';
-import 'rotator_state_provider.dart';
-import 'safety_monitor_state_provider.dart';
-import 'switch_state_provider.dart';
-import 'weather_state_provider.dart';
-
-/// The device slots a profile can assign, in canonical display order.
-///
-/// The first six (camera → rotator) are the "core" imaging-chain devices that
-/// the profile sidebar surfaces as connection dots and a `connected/total`
-/// count. The remaining five (dome → cover calibrator) are auxiliary devices
-/// that only participate in the equipment-screen mismatch banner. [isCore]
-/// distinguishes the two groups so each consumer reads the rollup it needs.
-enum ProfileDeviceSlot {
-  camera('Camera', isCore: true),
-  mount('Mount', isCore: true),
-  focuser('Focuser', isCore: true),
-  filterWheel('Filter Wheel', isCore: true),
-  guider('Guider', isCore: true),
-  rotator('Rotator', isCore: true),
-  dome('Dome', isCore: false),
-  weather('Weather Station', isCore: false),
-  safetyMonitor('Safety Monitor', isCore: false),
-  switchDevice('Switch', isCore: false),
-  coverCalibrator('Cover Calibrator', isCore: false);
-
-  const ProfileDeviceSlot(this.displayName, {required this.isCore});
-
-  /// The human-readable device label used by the sidebar tooltip and the
-  /// mismatch banner's device list.
-  final String displayName;
-
-  /// Whether this slot is part of the imaging-chain "core" set surfaced by the
-  /// profile sidebar (dots + `connected/total`). Auxiliary slots are
-  /// `false` and only feed the mismatch banner.
-  final bool isCore;
-}
+import 'device_slots.dart';
 
 /// The computed status of a single device slot for one profile.
 ///
@@ -54,13 +13,13 @@ enum ProfileDeviceSlot {
 /// collapse + the legacy fuzzy fallback); nothing here re-implements matching.
 class ProfileDeviceConnection {
   const ProfileDeviceConnection({
-    required this.slot,
+    required this.type,
     required this.profileId,
     required this.connectedId,
     required this.connectedState,
   });
 
-  final ProfileDeviceSlot slot;
+  final DeviceType type;
 
   /// The device id the profile assigned to this slot, or `null` if the slot is
   /// unassigned.
@@ -123,7 +82,7 @@ class ProfileDeviceConnection {
     final cid = connectedId;
     if (pid == null || pid.isEmpty) return false;
     if (cid == null || cid.isEmpty) return false;
-    if (slot == ProfileDeviceSlot.guider) {
+    if (type == DeviceType.guider) {
       return canonicalGuiderId(cid) != canonicalGuiderId(pid);
     }
     return cid != pid;
@@ -144,25 +103,25 @@ class ProfileConnectionStatus {
   /// status they expect.
   final int? profileId;
 
-  /// One entry per [ProfileDeviceSlot], in declaration order.
+  /// One entry per device slot, in [deviceSlots] order.
   final List<ProfileDeviceConnection> connections;
 
-  ProfileDeviceConnection operator [](ProfileDeviceSlot slot) =>
-      connections.firstWhere((c) => c.slot == slot);
+  ProfileDeviceConnection operator [](DeviceType type) =>
+      connections.firstWhere((c) => c.type == type);
 
   // Sidebar rollups (core slots only)
 
   /// Number of assigned core slots (the denominator of the sidebar's
   /// `connected/total` badge).
   int get coreTotalCount =>
-      connections.where((c) => c.slot.isCore && c.isAssigned).length;
+      connections.where((c) => c.type.slot.isCore && c.isAssigned).length;
 
   /// Number of assigned core slots whose matched device is `connected` (the
   /// numerator of the sidebar badge).
   int get coreConnectedCount => connections
       .where(
         (c) =>
-            c.slot.isCore &&
+            c.type.slot.isCore &&
             c.isAssigned &&
             c.profileState == DeviceConnectionState.connected,
       )
@@ -172,7 +131,7 @@ class ProfileConnectionStatus {
   /// Drives the sidebar footer's "Disconnect All" affordance.
   bool get hasConnectedCore => connections.any(
     (c) =>
-        c.slot.isCore &&
+        c.type.slot.isCore &&
         c.isAssigned &&
         c.profileState == DeviceConnectionState.connected,
   );
@@ -184,25 +143,25 @@ class ProfileConnectionStatus {
   /// count as "disconnected" for the purpose of offering Connect All.
   bool get hasDisconnectedCore => connections.any(
     (c) =>
-        c.slot.isCore &&
+        c.type.slot.isCore &&
         c.isAssigned &&
         c.profileState != DeviceConnectionState.connected,
   );
 
   /// The per-slot `profileState` for every assigned core slot, in display
   /// order. Used to build the sidebar's connection dots.
-  Map<ProfileDeviceSlot, DeviceConnectionState> get coreSlotStates => {
+  Map<DeviceType, DeviceConnectionState> get coreSlotStates => {
     for (final c in connections)
-      if (c.slot.isCore && c.isAssigned) c.slot: c.profileState,
+      if (c.type.slot.isCore && c.isAssigned) c.type: c.profileState,
   };
 
   // Banner rollups (all slots)
 
   /// The display names of every slot flagged as a mismatch by the banner
-  /// rule, in [ProfileDeviceSlot] declaration order.
+  /// rule, in [deviceSlots] order.
   List<String> get mismatchedDeviceNames => connections
       .where((c) => c.isMismatch)
-      .map((c) => c.slot.displayName)
+      .map((c) => c.type.displayName)
       .toList(growable: false);
 
   /// Whether any slot is a mismatch (banner rule).
@@ -226,86 +185,17 @@ final profileConnectionStatusProvider =
       ref,
       profile,
     ) {
-      final camera = ref.watch(cameraStateProvider);
-      final mount = ref.watch(mountStateProvider);
-      final focuser = ref.watch(focuserStateProvider);
-      final filterWheel = ref.watch(filterWheelStateProvider);
-      final guider = ref.watch(guiderStateProvider);
-      final rotator = ref.watch(rotatorStateProvider);
-      final dome = ref.watch(domeStateProvider);
-      final weather = ref.watch(weatherStateProvider);
-      final safetyMonitor = ref.watch(safetyMonitorStateProvider);
-      final switchDevice = ref.watch(switchStateProvider);
-      final coverCalibrator = ref.watch(coverCalibratorStateProvider);
+      ProfileDeviceConnection connectionOf(DeviceSlot slot) {
+        final state = ref.watch(slot.state);
+        return ProfileDeviceConnection(
+          type: slot.type,
+          profileId: profile.deviceIdFor(slot.type),
+          connectedId: state.deviceId,
+          connectedState: state.connectionState,
+        );
+      }
 
-      final connections = <ProfileDeviceConnection>[
-        ProfileDeviceConnection(
-          slot: ProfileDeviceSlot.camera,
-          profileId: profile.cameraId,
-          connectedId: camera.deviceId,
-          connectedState: camera.connectionState,
-        ),
-        ProfileDeviceConnection(
-          slot: ProfileDeviceSlot.mount,
-          profileId: profile.mountId,
-          connectedId: mount.deviceId,
-          connectedState: mount.connectionState,
-        ),
-        ProfileDeviceConnection(
-          slot: ProfileDeviceSlot.focuser,
-          profileId: profile.focuserId,
-          connectedId: focuser.deviceId,
-          connectedState: focuser.connectionState,
-        ),
-        ProfileDeviceConnection(
-          slot: ProfileDeviceSlot.filterWheel,
-          profileId: profile.filterWheelId,
-          connectedId: filterWheel.deviceId,
-          connectedState: filterWheel.connectionState,
-        ),
-        ProfileDeviceConnection(
-          slot: ProfileDeviceSlot.guider,
-          profileId: profile.guiderId,
-          connectedId: guider.deviceId,
-          connectedState: guider.connectionState,
-        ),
-        ProfileDeviceConnection(
-          slot: ProfileDeviceSlot.rotator,
-          profileId: profile.rotatorId,
-          connectedId: rotator.deviceId,
-          connectedState: rotator.connectionState,
-        ),
-        ProfileDeviceConnection(
-          slot: ProfileDeviceSlot.dome,
-          profileId: profile.domeId,
-          connectedId: dome.deviceId,
-          connectedState: dome.connectionState,
-        ),
-        ProfileDeviceConnection(
-          slot: ProfileDeviceSlot.weather,
-          profileId: profile.weatherId,
-          connectedId: weather.deviceId,
-          connectedState: weather.connectionState,
-        ),
-        ProfileDeviceConnection(
-          slot: ProfileDeviceSlot.safetyMonitor,
-          profileId: profile.safetyMonitorId,
-          connectedId: safetyMonitor.deviceId,
-          connectedState: safetyMonitor.connectionState,
-        ),
-        ProfileDeviceConnection(
-          slot: ProfileDeviceSlot.switchDevice,
-          profileId: profile.switchId,
-          connectedId: switchDevice.deviceId,
-          connectedState: switchDevice.connectionState,
-        ),
-        ProfileDeviceConnection(
-          slot: ProfileDeviceSlot.coverCalibrator,
-          profileId: profile.coverCalibratorId,
-          connectedId: coverCalibrator.deviceId,
-          connectedState: coverCalibrator.connectionState,
-        ),
-      ];
+      final connections = [for (final slot in deviceSlots) connectionOf(slot)];
 
       return ProfileConnectionStatus(
         profileId: profile.id,
@@ -325,17 +215,15 @@ final profileConnectionStatusProvider =
 /// is already a BLOCKED readiness item, and repeating it per device card would
 /// be noise. This answers the narrower question of which devices the operator
 /// connected *outside* the profile they are running.
-final sessionOnlyConnectedSlotsProvider = Provider<Set<ProfileDeviceSlot>>((
-  ref,
-) {
+final sessionOnlyConnectedSlotsProvider = Provider<Set<DeviceType>>((ref) {
   final profile = ref.watch(activeEquipmentProfileProvider);
-  if (profile == null) return const <ProfileDeviceSlot>{};
+  if (profile == null) return const <DeviceType>{};
   final status = ref.watch(profileConnectionStatusProvider(profile));
-  return <ProfileDeviceSlot>{
+  return <DeviceType>{
     for (final connection in status.connections)
       if (connection.connectedState == DeviceConnectionState.connected &&
           !connection.matchesProfile)
-        connection.slot,
+        connection.type,
   };
 });
 
@@ -347,15 +235,13 @@ final sessionOnlyConnectedSlotsProvider = Provider<Set<ProfileDeviceSlot>>((
 /// and readiness must not read the second as a green row.
 ///
 /// Empty when there is no active profile.
-final assignedProfileDeviceSlotsProvider = Provider<List<ProfileDeviceSlot>>((
-  ref,
-) {
+final assignedProfileDeviceTypesProvider = Provider<List<DeviceType>>((ref) {
   final profile = ref.watch(activeEquipmentProfileProvider);
-  if (profile == null) return const <ProfileDeviceSlot>[];
+  if (profile == null) return const <DeviceType>[];
   final status = ref.watch(profileConnectionStatusProvider(profile));
-  return <ProfileDeviceSlot>[
+  return <DeviceType>[
     for (final connection in status.connections)
-      if (connection.isAssigned) connection.slot,
+      if (connection.isAssigned) connection.type,
   ];
 });
 
@@ -379,6 +265,6 @@ final offlineProfileDeviceNamesProvider = Provider<List<String>>((ref) {
     for (final connection in status.connections)
       if (connection.isAssigned &&
           connection.profileState != DeviceConnectionState.connected)
-        connection.slot.displayName,
+        connection.type.displayName,
   ];
 });

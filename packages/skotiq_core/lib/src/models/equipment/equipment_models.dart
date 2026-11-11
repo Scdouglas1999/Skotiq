@@ -15,6 +15,25 @@ part 'equipment_models/switch_and_cover_calibrator_states.dart';
 /// Base device state
 enum DeviceConnectionState { disconnected, connecting, connected, error }
 
+/// The connection half that every device state carries, so one notifier base
+/// and one device table can read and write it without knowing the device.
+abstract interface class DeviceSlotState<S> {
+  DeviceConnectionState get connectionState;
+  String? get deviceId;
+  String? get deviceName;
+  DeviceError? get lastError;
+  bool get autoReconnectEnabled;
+
+  S copyWith({
+    DeviceConnectionState? connectionState,
+    String? deviceId,
+    String? deviceName,
+    DeviceError? lastError,
+    bool? autoReconnectEnabled,
+    bool clearError,
+  });
+}
+
 /// Device error types for categorized error handling
 enum DeviceErrorType {
   /// Connection to device failed
