@@ -371,7 +371,7 @@ extension _DeviceServiceProfileConnections on DeviceService {
     final label = type.slot.noun;
     final recorded = _ref
         .read(deviceConnectionProgressProvider)
-        .byDeviceType[label];
+        .byDevice[label];
     if (recorded == null ||
         recorded.status != DeviceConnectProgressStatus.failed ||
         recorded.deviceId != deviceId) {
@@ -380,7 +380,7 @@ extension _DeviceServiceProfileConnections on DeviceService {
     await _retryFailedConnects(only: label);
     final outcome = _ref
         .read(deviceConnectionProgressProvider)
-        .byDeviceType[label];
+        .byDevice[label];
     if (outcome?.status == DeviceConnectProgressStatus.failed) {
       throw outcome!.error ??
           StateError(outcome.errorMessage ?? 'The $label did not connect.');
@@ -388,13 +388,17 @@ extension _DeviceServiceProfileConnections on DeviceService {
   }
 
   /// Try the devices that failed in the last sweep again, or only the one
-  /// recorded as [only]; the ones that connected are left alone.
+  /// recorded as [only] (a guider with its guide camera); the ones that
+  /// connected are left alone.
   Future<ConnectSweepResult> _retryFailedConnects({String? only}) {
     final last = _ref.read(deviceConnectionProgressProvider);
+    final labels = only == null
+        ? null
+        : {only, if (only == DeviceType.guider.slot.noun) guideCameraLabel};
     final failed = [
       for (final event in last.byDeviceType.values)
         if (event.status == DeviceConnectProgressStatus.failed &&
-            (only == null || event.deviceType == only))
+            (labels == null || labels.contains(event.deviceType)))
           event,
     ];
     // The guide camera first: the built-in guider takes its frames there.
@@ -452,12 +456,6 @@ extension _DeviceServiceProfileConnections on DeviceService {
       progress.endSweep();
     }
     final outcome = _ref.read(deviceConnectionProgressProvider);
-    return (
-      connected: outcome.connectedCount,
-      failures: [
-        for (final event in outcome.byDeviceType.values)
-          if (event.status == DeviceConnectProgressStatus.failed) event,
-      ],
-    );
+    return (connected: outcome.connectedCount, failures: outcome.failures);
   }
 }

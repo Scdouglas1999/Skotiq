@@ -58,6 +58,15 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
                   ),
                 ),
               ),
+              if (widget.detail case final detail?)
+                Text(
+                  detail,
+                  style: SkotiqTypography.caption.copyWith(
+                    color: colors.textMuted,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
             ],
           ),
         ),
