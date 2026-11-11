@@ -1,5 +1,5 @@
 import 'dart:math' as math;
-import 'dart:ui' show PathMetric;
+import 'dart:ui' as ui show PathMetric, PointMode;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -157,8 +157,9 @@ class ChartAxis {
   /// and after every value in the hover readout: ` px`, `"`, ` °C`.
   final String unit;
 
-  /// A caption under the horizontal axis. Value axes carry their unit on the
-  /// scale instead, where it costs no width.
+  /// What the axis measures, as a caption: under the plot for the
+  /// horizontal axis, above its scale for a value axis. A value axis with a
+  /// unit needs no title; the unit on the scale says it.
   final String? title;
 
   /// How a tick or a hovered value prints. Null prints a number at the
@@ -665,7 +666,10 @@ class ChartLayout {
         : rightLabelWidth + gap;
     final bottom =
         labelHeight + gap + (x.title == null ? 0 : labelHeight + gap);
-    final top = (labelHeight / 2).ceilToDouble();
+    final valueTitled = y.title != null || y2?.title != null;
+    final top =
+        (labelHeight / 2).ceilToDouble() +
+        (valueTitled ? labelHeight + gap : 0);
     return Rect.fromLTRB(
       left,
       top,
@@ -777,12 +781,13 @@ class _Frame {
     final range = layout.valueRange(axis);
     if (range == null) return const <(double, String)>[];
     final values = range.ticks.values;
+    final top = config.inverted ? 0 : values.length - 1;
     return <(double, String)>[
       for (var i = 0; i < values.length; i++)
         if (values[i] >= range.min - 1e-9 && values[i] <= range.max + 1e-9)
           (
             values[i],
-            i == values.length - 1 && config.unit.isNotEmpty
+            i == top && config.unit.isNotEmpty
                 ? '${layout.valueLabel(values[i], axis)}${config.unit}'
                 : layout.valueLabel(values[i], axis),
           ),
@@ -905,6 +910,13 @@ class _ChartPainter extends CustomPainter {
         Offset(plot.center.dx - tp.width / 2, size.height - tp.height),
       );
     }
+    final leftTitle = layout.y.title;
+    if (leftTitle != null) labels.of(leftTitle).paint(canvas, Offset.zero);
+    final rightTitle = layout.y2?.title;
+    if (rightTitle != null) {
+      final tp = labels.of(rightTitle);
+      tp.paint(canvas, Offset(size.width - tp.width, 0));
+    }
 
     canvas.drawLine(plot.bottomLeft, plot.bottomRight, axisLine);
     canvas.drawLine(plot.topLeft, plot.bottomLeft, axisLine);
@@ -939,13 +951,18 @@ class _ChartPainter extends CustomPainter {
       b = Offset(plot.right, y);
     }
     if (rule.dashed) {
-      _dashed(
-        canvas,
-        Path()
-          ..moveTo(a.dx, a.dy)
-          ..lineTo(b.dx, b.dy),
-        paint,
-      );
+      // A rule is straight, so its dashes are plain points along it; one
+      // drawPoints call costs what a solid line does, where measuring and
+      // cutting a path cost four times the whole series.
+      final length = (b - a).distance;
+      final step = (b - a) / length;
+      final ends = <Offset>[
+        for (var d = 0.0; d < length; d += _dash * 2) ...<Offset>[
+          a + step * d,
+          a + step * math.min(d + _dash, length),
+        ],
+      ];
+      canvas.drawPoints(ui.PointMode.lines, ends, paint);
     } else {
       canvas.drawLine(a, b, paint);
     }
@@ -1140,7 +1157,7 @@ class _ChartPainter extends CustomPainter {
   }
 
   static void _dashed(Canvas canvas, Path path, Paint paint) {
-    for (final PathMetric metric in path.computeMetrics()) {
+    for (final ui.PathMetric metric in path.computeMetrics()) {
       var distance = 0.0;
       while (distance < metric.length) {
         canvas.drawPath(metric.extractPath(distance, distance + _dash), paint);

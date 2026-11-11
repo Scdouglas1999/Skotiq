@@ -111,6 +111,20 @@ void main() {
       ]);
     });
 
+    test('log ticks sit at 1, 2 and 5 per decade', () {
+      expect(ChartScale.logTicks(0.08, 3.2), <double>[0.1, 0.2, 0.5, 1, 2]);
+      expect(ChartScale.logTicks(0.001, 1000, maxTicks: 7), <double>[
+        0.001,
+        0.01,
+        0.1,
+        1,
+        10,
+        100,
+        1000,
+      ]);
+      expect(ChartScale.logTicks(1.2, 1.4), <double>[1.2, 1.4]);
+    });
+
     test('elapsed labels pick the unit from the size', () {
       expect(ChartScale.elapsedLabel(45), '45s');
       expect(ChartScale.elapsedLabel(720), '12m');

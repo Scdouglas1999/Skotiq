@@ -155,6 +155,34 @@ abstract final class ChartScale {
     return fixed == 0 ? 0 : fixed;
   }
 
+  /// Values at 1, 2 and 5 times each power of ten inside [lo]..[hi], for an
+  /// axis drawn on a logarithmic scale; thinned to the powers of ten when
+  /// there are more than [maxTicks]. A range that holds none gets its ends.
+  static List<double> logTicks(double lo, double hi, {int maxTicks = 6}) {
+    if (!(lo > 0) || !(hi > lo)) return <double>[lo];
+    List<double> at(List<double> mantissas) => <double>[
+      for (
+        var e = (math.log(lo) / math.ln10).floor();
+        e <= (math.log(hi) / math.ln10).ceil();
+        e++
+      )
+        for (final m in mantissas)
+          if (m * math.pow(10, e) >= lo * (1 - 1e-9) &&
+              m * math.pow(10, e) <= hi * (1 + 1e-9))
+            double.parse((m * math.pow(10, e)).toStringAsPrecision(6)),
+    ];
+    for (final mantissas in const <List<double>>[
+      <double>[1, 2, 5],
+      <double>[1, 3],
+      <double>[1],
+    ]) {
+      final ticks = at(mantissas);
+      if (ticks.length >= 2 && ticks.length <= maxTicks) return ticks;
+    }
+    final decades = at(const <double>[1]);
+    return decades.length >= 2 ? decades : <double>[lo, hi];
+  }
+
   static const List<int> _clockSteps = <int>[
     1, 2, 5, 10, 15, 30, 60, 120, 180, 240, 360, 720, 1440, //
   ];
