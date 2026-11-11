@@ -389,14 +389,6 @@ class LiveStackingBroadcastService {
     _state = _state.copyWith(viewerCount: _state.viewerCount + 1);
   }
 
-  /// Reset the viewer count. Called on a fixed cadence by the
-  /// dashboard panel's refresh timer so the displayed count tracks
-  /// recent activity rather than lifetime hits.
-  void resetViewerCount() {
-    if (!_state.active) return;
-    _state = _state.copyWith(viewerCount: 0);
-  }
-
   /// Update the broadcast's current-target metadata. Called by the
   /// dashboard's frame-accepted listener so the watermark / `/info`
   /// JSON always reflect the live target name.

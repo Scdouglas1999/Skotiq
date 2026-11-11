@@ -289,13 +289,6 @@ class DarkLibraryService {
   /// Watch all entries (reactive stream).
   Stream<List<DarkLibraryEntry>> watchAllEntries() => _dao.watchAllEntries();
 
-  /// Watch entries of a specific frame type.
-  Stream<List<DarkLibraryEntry>> watchEntriesByType(String frameType) =>
-      _dao.watchEntriesByFrameType(frameType);
-
-  /// Get library statistics.
-  Future<DarkLibraryStats> getLibraryStats() => _dao.getStats();
-
   /// Get distinct parameter groups present in the library.
   Future<List<DarkGroupKey>> getDistinctGroups() => _dao.getDistinctGroups();
 

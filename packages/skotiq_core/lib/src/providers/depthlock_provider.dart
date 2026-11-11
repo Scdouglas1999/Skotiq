@@ -75,17 +75,6 @@ final depthLockGoalsForFilterProvider =
           .toList(growable: false);
     });
 
-/// Goals anchored on [targetId], for the overlays the imaging preview draws
-/// over the frame the operator is looking at.
-final depthLockGoalsForTargetProvider =
-    Provider.family<List<DepthLockGoal>, String>((ref, targetId) {
-      final goals = ref.watch(depthLockGoalsProvider).valueOrNull;
-      if (goals == null) return const <DepthLockGoal>[];
-      return goals
-          .where((goal) => goal.definition.targetId == targetId)
-          .toList(growable: false);
-    });
-
 /// Holds the goal list and performs the mutations against the backend.
 ///
 /// Errors are rethrown exactly as the backend raised them: a DepthLock refusal

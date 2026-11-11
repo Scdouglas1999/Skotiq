@@ -134,15 +134,6 @@ final allDbSequencesProvider = StreamProvider<List<db.Sequence>>((ref) {
   return ref.watch(sequencesDaoProvider).watchAllSequences();
 });
 
-/// Watch all sequence templates (database entities)
-final allDbTemplatesProvider = StreamProvider<List<db.Sequence>>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return _pollRemoteSequenceRows(backend, templates: true);
-  }
-  return ref.watch(sequencesDaoProvider).watchAllTemplates();
-});
-
 /// Watch all imaging sessions
 final allSessionsProvider = StreamProvider<List<db.ImagingSession>>((ref) {
   final backend = ref.watch(backendProvider);

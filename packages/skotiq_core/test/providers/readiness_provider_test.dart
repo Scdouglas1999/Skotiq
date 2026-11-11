@@ -213,7 +213,10 @@ void main() {
         isNotNull,
         reason: 'a blocked critical-devices item must offer a remediation',
       );
-      expect(container.read(readinessOverallProvider), ReadinessLevel.blocked);
+      expect(
+        container.read(readinessReportProvider).overall,
+        ReadinessLevel.blocked,
+      );
     });
 
     test('no equipment profile -> overall blocked (fail-closed)', () async {
@@ -244,7 +247,10 @@ void main() {
           reason: 'ready items expose no remediation route',
         );
       }
-      expect(container.read(readinessOverallProvider), ReadinessLevel.ready);
+      expect(
+        container.read(readinessReportProvider).overall,
+        ReadinessLevel.ready,
+      );
     });
 
     test('plate-solver detection in loading state -> plateSolver caution, '
@@ -262,7 +268,10 @@ void main() {
       // The plate-solver item is the only non-green signal, and it is a
       // caution (not blocked), so the whole report is caution — never green.
       expect(report.overall, ReadinessLevel.caution);
-      expect(container.read(readinessOverallProvider), ReadinessLevel.caution);
+      expect(
+        container.read(readinessReportProvider).overall,
+        ReadinessLevel.caution,
+      );
     });
 
     test('plate-solver detection error -> plateSolver caution', () async {
@@ -451,15 +460,6 @@ void main() {
         expect(report.overall, ReadinessLevel.caution);
       },
     );
-
-    test('readinessOverallProvider mirrors report.overall', () async {
-      final container = _container(camera: _disconnected);
-      await _resolveReport(container);
-      expect(
-        container.read(readinessOverallProvider),
-        container.read(readinessReportProvider).overall,
-      );
-    });
 
     // No-hardware campaign 2026-07-29: the profile's guider failed to connect
     // on every launch and the readiness rail read "Ready to image / 2 items to

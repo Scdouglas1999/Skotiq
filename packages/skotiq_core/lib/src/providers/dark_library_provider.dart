@@ -136,19 +136,6 @@ DarkLibraryStats _statsFromEntries(List<DarkLibraryEntry> entries) {
   );
 }
 
-/// Whether auto-dark-subtraction is enabled.
-///
-/// Reads the calibration store, not the `dark_library.auto_subtract` key: the
-/// calibration pipeline (`imaging_service.dart`) consults only
-/// `calibrationSettingsProvider.autoCalibrate`, so anything else here would be
-/// a dead write with a live-looking toggle. The legacy
-/// `dark_library.auto_subtract` key migrates once via
-/// [migrateLegacyDarkLibrarySettings].
-final autoDarkSubtractEnabledProvider = Provider<bool>((ref) {
-  // Watch calibration settings so dark-library UI updates reactively.
-  return ref.watch(calibrationSettingsProvider.select((s) => s.autoCalibrate));
-});
-
 /// Settings key for the dark-library exposure-match tolerance (seconds).
 ///
 /// Default written into `app_settings` is `0.5`. See [DarkLibraryMatchTolerances]

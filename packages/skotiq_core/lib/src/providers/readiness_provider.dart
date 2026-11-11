@@ -117,11 +117,3 @@ final readinessReportProvider = Provider<ReadinessReport>((ref) {
   );
 });
 
-/// Cheap selector for the top-line readiness level.
-///
-/// Watch this from chips/pills/badges that only need the traffic-light color
-/// and label — it rebuilds only when the *overall* level changes, not on every
-/// per-item detail tweak that leaves [ReadinessReport.overall] unchanged.
-final readinessOverallProvider = Provider<ReadinessLevel>((ref) {
-  return ref.watch(readinessReportProvider).overall;
-});

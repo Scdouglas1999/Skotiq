@@ -42,19 +42,6 @@ void main() {
       await database.close();
     });
 
-    test('autoDarkSubtractEnabledProvider reads calibrationSettings', () async {
-      // This provider and the calibration pipeline share one backing value:
-      // `dark_library.auto_subtract` and `calibration.auto_calibrate` must not
-      // diverge.
-      final notifier = container.read(calibrationSettingsProvider.notifier);
-      await notifier.setAutoCalibrate(true);
-
-      expect(container.read(autoDarkSubtractEnabledProvider), isTrue);
-
-      await notifier.setAutoCalibrate(false);
-      expect(container.read(autoDarkSubtractEnabledProvider), isFalse);
-    });
-
     test(
       'legacy dark_library.auto_subtract migrates into calibration on load',
       () async {
