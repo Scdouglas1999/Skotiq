@@ -372,6 +372,17 @@ void main(List<String> args) async {
   // a silent death.
   ShellExit.register(lastGasp.recordCleanExit);
 
+  // The window is prepared while the host start-up's core steps run, so
+  // neither waits for the other. It is NOT shown yet: showing a
+  // TitleBarStyle.hidden surface before runApp paints leaves a black,
+  // undraggable window on Linux (no Flutter chrome / DragToMoveArea yet). The
+  // GTK runner also defers gtk_widget_show until first-frame for the same
+  // reason.
+  final windowReady = windowManager.waitUntilReadyToShow(
+    windowOptions,
+    () async {},
+  );
+
   // A host runs the shared host start-up; a linked client owns no hardware
   // and needs only its catalogs.
   final host = remoteTarget != null
@@ -393,11 +404,7 @@ void main(List<String> args) async {
 
   final shouldMinimize = await shouldStartMinimized(container);
 
-  // Prepare the window but do NOT show it yet. Showing a TitleBarStyle.hidden
-  // surface before runApp paints leaves a black, undraggable window on Linux
-  // (no Flutter chrome / DragToMoveArea yet). The GTK runner also defers
-  // gtk_widget_show until first-frame for the same reason.
-  await windowManager.waitUntilReadyToShow(windowOptions, () async {});
+  await windowReady;
 
   // Remote-client mode: connect to the headless rig now that the container is
   // live, then invalidate the host-backed providers so they re-fetch against

@@ -181,7 +181,9 @@ Relay mode (`--relay-url` / `SKOTIQ_RELAY_URL`,
 `apps/desktop/lib/headless/headless_relay_bootstrap.dart`) is an **opt-in,
 additive** outbound uplink for reaching the rig from outside the LAN (e.g. from
 a phone on cellular). It is off unless a relay URL is supplied, and it never
-throws — a misconfigured relay must not stop the daemon coming up.
+throws — a misconfigured relay must not stop the host coming up. The daemon
+and the desktop GUI both honor it; in the GUI the uplink runs while Remote
+Access is on and follows the server through a restart.
 
 The relay proxies the local **loopback** port outward. A minted appliance id +
 secret persist in `relay_credentials.json`; the secret authenticates the

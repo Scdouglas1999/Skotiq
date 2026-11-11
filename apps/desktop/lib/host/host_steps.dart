@@ -161,6 +161,8 @@ final List<HostStartupStep> hostStartupSteps = [
   HostStartupStep(
     name: 'update receiver',
     phase: _services,
+    // A port that is slow to bind must not hold the GUI's Darkroom work.
+    waitedFor: {_daemon},
     run: _startUpdateReceiver,
   ),
   HostStartupStep(

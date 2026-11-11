@@ -308,8 +308,8 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
     // connect-triggered rescan clears each stale bucket and re-filters by
     // DriverType, which drops the host's devices and makes the whole list
     // vanish. Collapse to a single bucket so the full remote list is always
-    // merged and rebuilt as one unit. (Mirrors AutoDiscoveryLauncher, which
-    // also short-circuits on isRemoteModeProvider.)
+    // merged and rebuilt as one unit. (The scan at launch is a host start-up
+    // step and never runs on a client.)
     if (_ref.read(isRemoteModeProvider)) {
       return const [DriverType.native];
     }
