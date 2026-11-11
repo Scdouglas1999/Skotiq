@@ -140,19 +140,19 @@ class Job {
   }
 
   /// Wire-format JSON used by REST responses and WS event payloads.
-  Map<String, Object?> toJson() => {
-    'jobId': jobId,
-    'operation': operation,
-    if (deviceId != null) 'deviceId': deviceId,
-    if (commandId != null) 'commandId': commandId,
-    'state': state.wireName,
-    'createdAt': createdAt.toUtc().toIso8601String(),
-    'updatedAt': updatedAt.toUtc().toIso8601String(),
-    if (progress != null) 'progress': progress,
-    if (progressMessage != null) 'progressMessage': progressMessage,
-    if (result != null) 'result': result,
-    if (error != null) 'error': error,
-  };
+  Map<String, Object?> toJson() => RemoteJob(
+    jobId: jobId,
+    operation: operation,
+    deviceId: deviceId,
+    commandId: commandId,
+    state: state.wireName,
+    createdAt: createdAt,
+    updatedAt: updatedAt,
+    progress: progress,
+    progressMessage: progressMessage,
+    result: result,
+    error: error,
+  ).toJson();
 }
 
 /// Caller-side sink the work callback writes progress updates to.
