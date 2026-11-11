@@ -40,7 +40,6 @@ List<String> argumentsWithoutRole(List<String> args) => [
       arg,
 ];
 
-/// The command line arguments for the next process.
 @visibleForTesting
 List<String> relaunchArguments(List<String> args, int currentPid) => [
   ...argumentsWithoutRole(args),

@@ -169,16 +169,12 @@ class AnalyticsHandlers implements RouteSource {
     };
   }
 
-  // Get all sessions
-
   Future<Response> handleGetAllSessions(Request request) async {
     final database = container.read(databaseProvider);
     final sessions = await database.sessionsDao.getAllSessions();
 
     return jsonOk({"sessions": await _sessionsToJson(database, sessions)});
   }
-
-  // Get Session By ID
 
   Future<Response> handleGetSessionById(Request request, String id) async {
     final sessionId = _parsePathId(id, 'id');
@@ -197,8 +193,6 @@ class AnalyticsHandlers implements RouteSource {
     });
   }
 
-  // Get active session
-
   Future<Response> handleGetActiveSession(Request request) async {
     final database = container.read(databaseProvider);
     final activeSessions = await database.sessionsDao.getActiveSessions();
@@ -213,8 +207,6 @@ class AnalyticsHandlers implements RouteSource {
       "session": _sessionToJson(active, await _gradingFor(database, active.id)),
     });
   }
-
-  // Get recent sessions
 
   Future<Response> handleGetRecentSessions(Request request) async {
     // Absent → 10. A supplied limit must be a positive, bounded whole number so
@@ -233,8 +225,6 @@ class AnalyticsHandlers implements RouteSource {
 
     return jsonOk({"sessions": await _sessionsToJson(database, sessions)});
   }
-
-  // Create session
 
   Future<Response> handleCreateSession(Request request) async {
     _logInfo('[API] POST /api/sessions');
@@ -318,15 +308,12 @@ class AnalyticsHandlers implements RouteSource {
     return jsonOk({"status": "created", "id": id});
   }
 
-  // Update session
-
   Future<Response> handleUpdateSession(Request request, String id) async {
     _logInfo('[API] PUT /api/sessions/$id');
     final sessionId = _parsePathId(id, 'id');
     final payload = await readJsonObject(request);
     final database = container.read(databaseProvider);
 
-    // Update stats if provided
     if (payload.containsKey('totalExposures') ||
         payload.containsKey('successfulExposures') ||
         payload.containsKey('failedExposures') ||
@@ -354,7 +341,6 @@ class AnalyticsHandlers implements RouteSource {
       );
     }
 
-    // Update notes if provided
     if (payload.containsKey('notes')) {
       await database.sessionsDao.updateNotes(
         sessionId,
@@ -362,7 +348,6 @@ class AnalyticsHandlers implements RouteSource {
       );
     }
 
-    // Update status if provided
     if (payload.containsKey('status')) {
       final status = requireString(payload, 'status');
       if (!const {'active', 'completed', 'aborted', 'error'}.contains(status)) {
@@ -382,8 +367,6 @@ class AnalyticsHandlers implements RouteSource {
     );
     return jsonOk({"status": "updated"});
   }
-
-  // End session
 
   Future<Response> handleEndSession(Request request, String id) async {
     _logInfo('[API] POST /api/sessions/$id/end');
@@ -410,8 +393,6 @@ class AnalyticsHandlers implements RouteSource {
     return jsonOk({"status": "ended"});
   }
 
-  // Delete session
-
   Future<Response> handleDeleteSession(Request request, String id) async {
     _logInfo('[API] DELETE /api/sessions/$id');
     final sessionId = _parsePathId(id, 'id');
@@ -430,8 +411,6 @@ class AnalyticsHandlers implements RouteSource {
     );
     return jsonOk({"status": "deleted"});
   }
-
-  // Get session stats
 
   /// `GET /api/sessions/<id>/stats`
   ///
@@ -460,7 +439,6 @@ class AnalyticsHandlers implements RouteSource {
       return jsonNotFound({"error": "Session not found: $id"});
     }
 
-    // Get images for this session
     final images = await database.imagesDao.getImagesForSession(sessionId);
     // The same read the list surfaces use, rather than a second tally over the
     // rows already in hand: two counters over one fact drift, and this endpoint
@@ -468,7 +446,6 @@ class AnalyticsHandlers implements RouteSource {
     // this call closes.
     final grading = await _gradingFor(database, sessionId);
 
-    // Calculate stats
     int lightCount = 0;
     int darkCount = 0;
     int flatCount = 0;
@@ -536,8 +513,6 @@ class AnalyticsHandlers implements RouteSource {
     });
   }
 
-  // Session science data
-
   Future<Response> handleGetSessionPsfTiles(Request request, String id) async {
     final sessionId = _parsePathId(id, 'id');
     final database = container.read(databaseProvider);
@@ -556,8 +531,6 @@ class AnalyticsHandlers implements RouteSource {
     return jsonOk({'residuals': residuals.map(_residualVectorToJson).toList()});
   }
 
-  // Get analytics summary
-
   Future<Response> handleGetAnalyticsSummary(Request request) async {
     final sessions = await _sessionsInRequestedRange(request);
     final stats = _statisticsForSessions(sessions);
@@ -572,8 +545,6 @@ class AnalyticsHandlers implements RouteSource {
     });
   }
 
-  // Get total integration time
-
   Future<Response> handleGetTotalIntegrationTime(Request request) async {
     final sessions = await _sessionsInRequestedRange(request);
     final stats = _statisticsForSessions(sessions);
@@ -583,8 +554,6 @@ class AnalyticsHandlers implements RouteSource {
       "totalIntegrationHours": stats['totalIntegrationHours'],
     });
   }
-
-  // Get target statistics
 
   Future<Response> handleGetTargetStatistics(
     Request request,
@@ -596,8 +565,6 @@ class AnalyticsHandlers implements RouteSource {
 
     return jsonOk({"stats": stats});
   }
-
-  // Untracked targets cleanup
 
   /// GET /api/analytics/untracked-targets/count
   /// Number of "untracked" library targets (no integration goal, not a
@@ -628,8 +595,6 @@ class AnalyticsHandlers implements RouteSource {
     return jsonOk({"status": "removed", "deleted": deleted});
   }
 
-  // Get sessions for target
-
   Future<Response> handleGetSessionsForTarget(
     Request request,
     String targetId,
@@ -640,8 +605,6 @@ class AnalyticsHandlers implements RouteSource {
 
     return jsonOk({"sessions": await _sessionsToJson(database, sessions)});
   }
-
-  // Helpers
 
   /// Accepted and rejected LIGHT frames per session id, counted from
   /// `captured_images` — the one place the grading verdict is recorded.
@@ -707,7 +670,6 @@ class AnalyticsHandlers implements RouteSource {
     };
   }
 
-  /// The grading verdict for a single session.
   Future<SessionGrading> _gradingFor(
     SkotiqDatabase database,
     int sessionId,

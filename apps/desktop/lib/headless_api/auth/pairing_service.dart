@@ -1,7 +1,6 @@
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
     show PairingDatabase, PairingResult, TokenManager;
 
-/// Outcome of a verify attempt against the [PairingService].
 enum PairingVerifyOutcome { success, invalidCode, codeExpired, codeAlreadyUsed }
 
 class PairingStartResult {
