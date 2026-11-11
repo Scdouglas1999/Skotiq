@@ -74,13 +74,13 @@ void main() {
     expect(find.text('Total: 6'), findsOneWidget);
   });
 
-  testWidgets('an unmeasured frame is badged UNRATED, not GOOD',
+  testWidgets('an unmeasured frame is badged Unrated, not Good',
       (tester) async {
     await tester.pumpWidget(_strip([_frame(id: 9, type: 'dark')]));
     await tester.pump();
 
-    expect(find.text('UNRATED'), findsOneWidget);
-    expect(find.text('GOOD'), findsNothing);
+    expect(find.text('Unrated'), findsOneWidget);
+    expect(find.text('Good'), findsNothing);
     expect(
       find.textContaining('75 score'),
       findsNothing,

@@ -136,3 +136,31 @@ class _DetailRow extends StatelessWidget {
     );
   }
 }
+
+/// A badge over the top edge of a rail tile: the frame's verdict or its HFR.
+class _TileBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _TileBadge({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: SkotiqTypography.caption.copyWith(
+          color: SkotiqColors.dark.textPrimary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}

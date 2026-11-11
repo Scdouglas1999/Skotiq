@@ -442,8 +442,9 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Quality badges are advisory. To reject frames in '
-                        'bulk, use Science ▸ Field quality ▸ Grade frames.',
+                        'Quality badges are advisory. Right-click or long-press '
+                        'a frame to reject it; to reject in bulk, use Science ▸ '
+                        'Field quality ▸ Grade frames.',
                         style: SkotiqTypography.caption.copyWith(
                           color: colors.textMuted,
                         ),

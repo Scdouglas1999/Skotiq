@@ -273,27 +273,35 @@ class _FrameDetailDialogState extends ConsumerState<FrameDetailDialog> {
         const SizedBox(height: SkotiqTokens.spaceMd),
       ],
       for (final (label, value) in rows)
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 3),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 150,
-                child: Text(
-                  label,
-                  style: SkotiqTypography.caption
-                      .copyWith(color: colors.textSecondary),
+        // SelectableText publishes itself as an unnamed read-only text field,
+        // so screen readers heard a column of empty fields; the row names
+        // itself instead and the text stays selectable with the pointer.
+        Semantics(
+          container: true,
+          label: '$label: $value',
+          excludeSemantics: true,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 150,
+                  child: Text(
+                    label,
+                    style: SkotiqTypography.caption
+                        .copyWith(color: colors.textSecondary),
+                  ),
                 ),
-              ),
-              Expanded(
-                child: SelectableText(
-                  value,
-                  style: SkotiqTypography.labelSm
-                      .copyWith(color: colors.textPrimary),
+                Expanded(
+                  child: SelectableText(
+                    value,
+                    style: SkotiqTypography.labelSm
+                        .copyWith(color: colors.textPrimary),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
     ];
