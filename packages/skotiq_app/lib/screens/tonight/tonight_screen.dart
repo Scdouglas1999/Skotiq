@@ -12,6 +12,9 @@ import 'one_tap_target_provider.dart';
 import 'one_tap_tonight_controller.dart';
 import '../settings/settings_sections.dart';
 
+/// The route the one-tap night is served on.
+const String kOneTapTonightRoutePath = '/tonight';
+
 /// The opinionated one-tap "image this target tonight" screen.
 ///
 /// One screen, one decision, one primary action. It picks tonight's best
@@ -53,9 +56,13 @@ class _TonightScreenState extends ConsumerState<TonightScreen> {
       },
       frame: (target) =>
           ref.read(framingProvider.notifier).setTargetSuggestion(target),
+      // An unattended night cools the camera and unparks first, then warms
+      // the camera and parks at the end, as every other "plan this target"
+      // path does.
       plan: (target) => buildPlanTonightTargetSequenceFromSuggestion(
         ref: ref,
         target: target,
+        includeSessionPreamble: true,
       ),
       run: (plan) async {
         // Non-destructive hand-off: takeOwnership stashes any unsaved manual
@@ -109,15 +116,18 @@ class _TonightScreenState extends ConsumerState<TonightScreen> {
           animation: controller,
           builder: (context, _) {
             // Only override GO when a run is live that this controller isn't
-            // itself narrating via [OneTapPhase.running]. Distinguish the copy:
-            // a Smart Night owner is tonight's own plan ("Running tonight"),
-            // anything else is an unrelated sequence.
-            final TonightActiveRun? activeRun =
-                (runActive && controller.state.phase != OneTapPhase.running)
-                    ? (planOwner == ActivePlanOwner.smartNight
-                        ? TonightActiveRun.ours
-                        : TonightActiveRun.other)
-                    : null;
+            // itself narrating: while it is starting the run goes live a
+            // moment before the chain reaches [OneTapPhase.running], and that
+            // run is its own. Distinguish the copy: a Smart Night owner is
+            // tonight's own plan ("Running tonight"), anything else is an
+            // unrelated sequence.
+            final narrating = controller.state.isBusy ||
+                controller.state.phase == OneTapPhase.running;
+            final TonightActiveRun? activeRun = (runActive && !narrating)
+                ? (planOwner == ActivePlanOwner.smartNight
+                    ? TonightActiveRun.ours
+                    : TonightActiveRun.other)
+                : null;
             return TonightBodyView(
               colors: colors,
               state: controller.state,
@@ -182,43 +192,60 @@ class TonightBodyView extends StatelessWidget {
     required this.onRefreshMorningReport,
   });
 
+  /// One decision reads as one column: past this width the card and its
+  /// button stop growing and the page centers them.
+  static const double maxContentWidth = 720;
+
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
-      children: [
-        _Header(colors: colors),
-        const SizedBox(height: SkotiqTokens.spaceLg),
-        _TargetConfirmCard(
-          colors: colors,
-          state: state,
-          targetAsync: targetAsync,
-          onRefreshPick: onRefreshPick,
-        ),
-        const SizedBox(height: SkotiqTokens.spaceLg),
-        _PrimaryAction(
-          colors: colors,
-          state: state,
-          activeRun: activeRun,
-          targetAsync: targetAsync,
-          onGo: onGo,
-          onReset: onReset,
-        ),
-        if (state.error != null) ...[
-          const SizedBox(height: SkotiqTokens.spaceMd),
-          _ErrorBanner(colors: colors, message: state.error!),
-        ],
-        const SizedBox(height: SkotiqTokens.spaceXl),
-        _MorningPayoff(
-          colors: colors,
-          running: state.phase == OneTapPhase.running,
-          sessionAsync: morningSessionAsync,
-          onRetry: onRefreshMorningReport,
-        ),
-        const SizedBox(height: SkotiqTokens.spaceLg),
-        _AdvancedFooter(colors: colors),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final side = ((constraints.maxWidth - maxContentWidth) / 2)
+            .clamp(SkotiqTokens.spaceLg, double.infinity);
+        return ListView(
+          padding: EdgeInsets.symmetric(
+            horizontal: side,
+            vertical: SkotiqTokens.spaceLg,
+          ),
+          children: _children(),
+        );
+      },
     );
+  }
+
+  List<Widget> _children() {
+    return [
+      _Header(colors: colors),
+      const SizedBox(height: SkotiqTokens.spaceLg),
+      _TargetConfirmCard(
+        colors: colors,
+        state: state,
+        targetAsync: targetAsync,
+        onRefreshPick: onRefreshPick,
+      ),
+      const SizedBox(height: SkotiqTokens.spaceLg),
+      _PrimaryAction(
+        colors: colors,
+        state: state,
+        activeRun: activeRun,
+        targetAsync: targetAsync,
+        onGo: onGo,
+        onReset: onReset,
+      ),
+      if (state.error != null) ...[
+        const SizedBox(height: SkotiqTokens.spaceMd),
+        _ErrorBanner(colors: colors, message: state.error!),
+      ],
+      const SizedBox(height: SkotiqTokens.spaceXl),
+      _MorningPayoff(
+        colors: colors,
+        running: state.phase == OneTapPhase.running,
+        sessionAsync: morningSessionAsync,
+        onRetry: onRefreshMorningReport,
+      ),
+      const SizedBox(height: SkotiqTokens.spaceLg),
+      _AdvancedFooter(colors: colors),
+    ];
   }
 }
 
@@ -236,7 +263,7 @@ class _Header extends StatelessWidget {
             Icon(LucideIcons.moonStar, size: 22, color: colors.primary),
             const SizedBox(width: SkotiqTokens.spaceSm),
             Text(
-              'Tonight',
+              "Tonight's best target",
               style: SkotiqTypography.h2.copyWith(color: colors.textPrimary),
             ),
           ],
@@ -434,11 +461,11 @@ class _PrimaryAction extends StatelessWidget {
             ],
           ),
           const SizedBox(height: SkotiqTokens.spaceSm),
-          // The dashboard cockpit is the monitoring surface — hand the user
-          // straight back to it so the GO → watch-it-run loop closes on one
-          // screen instead of bouncing through Imaging.
+          // Tonight is the monitoring surface — hand the user straight back
+          // to it so the GO → watch-it-run loop closes on one screen instead
+          // of bouncing through Imaging.
           SkotiqButton(
-            label: 'Watch on dashboard',
+            label: 'Watch the run on Tonight',
             icon: LucideIcons.layoutDashboard,
             variant: ButtonVariant.outline,
             size: ButtonSize.large,
