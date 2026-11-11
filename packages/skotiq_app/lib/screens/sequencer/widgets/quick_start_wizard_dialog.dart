@@ -185,7 +185,8 @@ class QuickStartWizardDialog extends ConsumerStatefulWidget {
 }
 
 class _QuickStartWizardDialogState
-    extends ConsumerState<QuickStartWizardDialog> {
+    extends ConsumerState<QuickStartWizardDialog>
+    with HostBoundDialogState<QuickStartWizardDialog> {
   int _currentStep = 0;
   static const int _totalSteps = 5;
 
@@ -259,21 +260,19 @@ class _QuickStartWizardDialogState
   Object? _initializationError;
   EquipmentProfileModel? _initializedProfile;
   bool _hasConfiguredFilters = false;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
-  int _authorityGeneration = 0;
+
+  @override
+  String? get hostChangedMessage => null;
+
+  @override
+  void onHostChanged() {
+    _searchDebounce?.cancel();
+    super.onHostChanged();
+  }
 
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (identical(previous, next) || !mounted) return;
-        _authorityGeneration++;
-        _searchDebounce?.cancel();
-        closeAuthorityBoundDialog(context);
-      },
-    );
     _initializeWizard();
   }
 
@@ -312,7 +311,6 @@ class _QuickStartWizardDialogState
 
   @override
   void dispose() {
-    _backendSubscription?.close();
     _targetNameController.dispose();
     _raController.dispose();
     _decController.dispose();
@@ -335,8 +333,6 @@ class _QuickStartWizardDialogState
 
   Future<void> _finishWizard({required bool asTemplate}) async {
     if (_finishingAsTemplate != null) return;
-    final authority = ref.read(backendProvider);
-    final generation = _authorityGeneration;
     final targetName = _targetNameController.text.trim();
     if (targetName.isEmpty) {
       context.showErrorSnackBar('Please enter a target name');
@@ -633,13 +629,13 @@ class _QuickStartWizardDialogState
       try {
         await repository.saveSequence(sequence, isTemplate: true);
       } catch (error) {
-        if (!_isCurrentAuthority(authority, generation)) return;
+        if (host.isStale) return;
         if (!mounted) return;
         setState(() => _finishingAsTemplate = null);
         context.showErrorSnackBar('Could not save template: ${userFacingError(error)}');
         return;
       }
-      if (!_isCurrentAuthority(authority, generation)) return;
+      if (host.isStale) return;
     } else {
       // Completing a wizard expresses intent to create a sequence, but it is
       // not consent to destroy a different draft that was already open. Use
@@ -648,7 +644,7 @@ class _QuickStartWizardDialogState
       try {
         sequenceNotifier.loadSequence(sequence);
       } on UnsavedChangesException catch (error) {
-        if (!_isCurrentAuthority(authority, generation)) return;
+        if (host.isStale) return;
         final discard = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
@@ -679,7 +675,7 @@ class _QuickStartWizardDialogState
             ],
           ),
         );
-        if (!_isCurrentAuthority(authority, generation)) return;
+        if (host.isStale) return;
         if (discard != true) {
           setState(() => _finishingAsTemplate = null);
           return;
@@ -693,12 +689,12 @@ class _QuickStartWizardDialogState
           return;
         }
       } on SequenceLockedException catch (locked) {
-        if (!_isCurrentAuthority(authority, generation)) return;
+        if (host.isStale) return;
         setState(() => _finishingAsTemplate = null);
         context.showErrorSnackBar(locked.message);
         return;
       }
-      if (!_isCurrentAuthority(authority, generation)) return;
+      if (host.isStale) return;
       ref.read(sequencerTabProvider.notifier).state = 0;
     }
 
@@ -712,7 +708,7 @@ class _QuickStartWizardDialogState
         defaultsError = error;
       }
     }
-    if (!_isCurrentAuthority(authority, generation)) return;
+    if (host.isStale) return;
     if (!mounted) return;
 
     if (defaultsError != null) {

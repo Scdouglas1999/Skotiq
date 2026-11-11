@@ -3,15 +3,13 @@ part of '../mosaic_wizard_dialog.dart';
 
 extension _MosaicWizardLogic on _MosaicWizardDialogState {
   Future<void> _probeForInterruptedMosaic() async {
-    final authority = ref.read(backendProvider);
-    final generation = _authorityGeneration;
     try {
       final backend = ref.read(sequencerBackendProvider);
       final hasCheckpoint = await backend.hasCheckpoint();
-      if (!_isCurrentAuthority(authority, generation)) return;
+      if (host.isStale) return;
       if (!hasCheckpoint) return;
       final info = await backend.getCheckpointInfo();
-      if (!_isCurrentAuthority(authority, generation)) return;
+      if (host.isStale) return;
       final isMosaic = info != null &&
           info.canResume &&
           info.sequenceName.startsWith('Mosaic ');
@@ -19,7 +17,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
         setState(() => _resumableMosaicCheckpoint = info);
       }
     } catch (e) {
-      if (mounted && _isCurrentAuthority(authority, generation)) {
+      if (mounted && host.isCurrent) {
         context.showErrorSnackBar(
           'Could not check for interrupted mosaic: ${userFacingError(e)}',
         );
@@ -412,8 +410,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
 
   Future<void> _persistProject() async {
     if (_isCreatingProject) return;
-    final authority = ref.read(backendProvider);
-    if (!authority.runsRigHere) {
+    if (!host.value.runsRigHere) {
       _showMosaicProjectHostOnlyMessage();
       return;
     }
@@ -424,7 +421,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     try {
       final projectId = await controller.createProject(_currentDesign());
       if (!mounted) return;
-      if (!identical(ref.read(backendProvider), authority)) {
+      if (host.isStale) {
         setState(() => _isCreatingProject = false);
         return;
       }
