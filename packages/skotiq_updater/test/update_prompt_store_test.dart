@@ -7,7 +7,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_updater/src/providers/update_provider.dart';
+import 'package:skotiq_updater/src/services/update_notifier.dart';
 import 'package:skotiq_updater/src/services/update_prompt_store.dart';
 import 'package:skotiq_updater/src/services/update_service.dart';
 import 'package:path/path.dart' as p;
@@ -200,6 +200,7 @@ void main() {
     final notifier = UpdateNotifier(
       currentVersion: '7.1.0',
       currentBuildNumber: 28,
+      dataDirectory: () async => dataDir,
       promptStore: slow,
       updateService: UpdateService(
         currentVersion: '7.1.0',

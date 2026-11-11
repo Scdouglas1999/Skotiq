@@ -14,6 +14,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/widgets/about_settings.dart';
+import 'package:skotiq_app/services/app_update.dart';
 // `UpdateSettings` is also the name of a freezed model in skotiq_updater,
 // so the appliance page is imported under a prefix.
 import 'package:skotiq_app/screens/settings/widgets/update_settings.dart'
@@ -30,6 +31,7 @@ class _FakeUpdateNotifier extends UpdateNotifier {
       : super(
           currentVersion: '6.1.0',
           currentBuildNumber: 21,
+          dataDirectory: () async => supportDirectory,
           updateService: UpdateService(
             currentVersion: '6.1.0',
             currentBuildNumber: 21,

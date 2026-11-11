@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
-import '../theme/skotiq_typography.dart';
-import '../components/skotiq_button.dart';
-import '../dialogs/skotiq_dialog.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Dialog shown when an update is available.
 class UpdateAvailableDialog extends StatelessWidget {
@@ -74,9 +70,8 @@ class UpdateAvailableDialog extends StatelessWidget {
     final colors = context.skotiqColors;
 
     return SkotiqDialog(
-      title: requiresManualUpgrade
-          ? 'Manual Update Required'
-          : 'Update Available',
+      title:
+          requiresManualUpgrade ? 'Manual Update Required' : 'Update Available',
       icon: requiresManualUpgrade
           ? LucideIcons.alertTriangle
           : LucideIcons.download,
@@ -416,9 +411,8 @@ class UpdateReadyDialog extends StatelessWidget {
               : (isSessionActive ? 'Restart Anyway' : 'Restart Now'),
           icon: LucideIcons.refreshCw,
           onPressed: onRestartNow,
-          variant: isSessionActive
-              ? ButtonVariant.outline
-              : ButtonVariant.primary,
+          variant:
+              isSessionActive ? ButtonVariant.outline : ButtonVariant.primary,
           size: ButtonSize.medium,
         ),
       ],
@@ -453,7 +447,7 @@ class UpdateReadyDialog extends StatelessWidget {
                     child: Text(
                       installsViaSystemInstaller
                           ? 'An imaging session is in progress. Installing '
-                                'now closes Skotiq and interrupts it.'
+                              'now closes Skotiq and interrupts it.'
                           : 'An imaging session is in progress. It\'s recommended to wait until the session completes before restarting.',
                       style: SkotiqTypography.bodySm.copyWith(
                         color: colors.textSecondary,
@@ -468,7 +462,7 @@ class UpdateReadyDialog extends StatelessWidget {
           Text(
             installsViaSystemInstaller
                 ? 'Android will ask you to confirm, then replace Skotiq. '
-                      'Your data stays where it is.'
+                    'Your data stays where it is.'
                 : 'Skotiq will restart to complete the installation.',
             style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
           ),

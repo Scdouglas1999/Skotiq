@@ -11,6 +11,8 @@ import 'package:skotiq_updater/src/services/update_service.dart';
 import 'package:skotiq_updater/src/services/update_verifier.dart';
 import 'package:path/path.dart' as path;
 
+import 'support/temp_data_directory.dart';
+
 /// PERSIST-001: a LAN push that fully verifies (signature + size + per-file
 /// hashes) must persist `manifest.json` and a matching
 /// `staged_verified.marker` next to `ready.json`, otherwise
@@ -81,6 +83,7 @@ void main() {
     receiver = LanPushReceiver(
       currentVersion: '1.0.0',
       currentBuildNumber: 1,
+      dataDirectory: tempDataDirectory(),
       pushSecret: 'secret',
       verifier: await _verifier(),
       currentPlatform: 'linux',

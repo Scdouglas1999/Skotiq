@@ -9,10 +9,12 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart'
-    show SequenceExecutionState, sequenceExecutionStateProvider;
+    show sequenceExecutionStateProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_updater/skotiq_updater.dart';
 
-import '../../skotiq_updater.dart';
+import '../../services/app_update.dart';
+import 'update_dialogs.dart';
 
 /// Widget that manages the update UI flow.
 ///
@@ -323,12 +325,9 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
   }
 
   void _showUpdateReadyDialog(UpdateState state) {
-    final sequencerState = ref.read(sequenceExecutionStateProvider);
-    final isSessionActive =
-        sequencerState == SequenceExecutionState.running ||
-        sequencerState == SequenceExecutionState.paused ||
-        sequencerState == SequenceExecutionState.stopping ||
-        sequencerState == SequenceExecutionState.recovering;
+    final isSessionActive = isSequenceActiveForUpdate(
+      ref.read(sequenceExecutionStateProvider),
+    );
 
     final dialogContext = _dialogContext();
     if (dialogContext == null) {

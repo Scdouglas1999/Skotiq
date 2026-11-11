@@ -60,7 +60,6 @@ export 'src/dialogs/skotiq_dialog.dart';
 // Widgets
 export 'src/widgets/resizable_panel.dart';
 export 'src/widgets/error_dialog.dart';
-export 'src/widgets/update_dialog.dart';
 export 'src/widgets/accessible_icon_button.dart';
 export 'src/widgets/design_system_gallery.dart';
 export 'src/widgets/design_reference_board.dart';

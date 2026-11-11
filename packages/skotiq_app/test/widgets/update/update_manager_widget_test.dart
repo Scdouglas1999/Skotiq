@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_app/services/app_update.dart';
+import 'package:skotiq_app/widgets/update/update_dialogs.dart';
+import 'package:skotiq_app/widgets/update/update_manager_widget.dart';
 import 'package:skotiq_updater/skotiq_updater.dart';
 
 void main() {
@@ -46,15 +48,16 @@ void main() {
 
 class _TestUpdateNotifier extends UpdateNotifier {
   _TestUpdateNotifier(Directory supportDirectory)
-    : super(
-        currentVersion: '1.0.0',
-        currentBuildNumber: 1,
-        updateService: UpdateService(
+      : super(
           currentVersion: '1.0.0',
           currentBuildNumber: 1,
-          applicationSupportDirectoryProvider: () async => supportDirectory,
-        ),
-      );
+          dataDirectory: () async => supportDirectory,
+          updateService: UpdateService(
+            currentVersion: '1.0.0',
+            currentBuildNumber: 1,
+            applicationSupportDirectoryProvider: () async => supportDirectory,
+          ),
+        );
 
   void emitError(String message) {
     state = state.copyWith(status: UpdateStatus.error, errorMessage: message);

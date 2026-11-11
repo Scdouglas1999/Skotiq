@@ -8,6 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_updater/src/services/lan_push_receiver.dart';
 import 'package:skotiq_updater/src/services/update_verifier.dart';
 
+import 'support/temp_data_directory.dart';
+
 Future<UpdateVerifier> _verifierWithKey() async {
   // startServer refuses to run without a trusted key compiled in. Tests do
   // not get `--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY`, so a freshly
@@ -27,6 +29,7 @@ void main() {
       final receiver = LanPushReceiver(
         currentVersion: '2.0.0',
         currentBuildNumber: 1,
+        dataDirectory: tempDataDirectory(),
         pushSecret: 'secret',
         serverPort: 45691,
         verifier: verifier,
@@ -64,6 +67,7 @@ void main() {
     final receiver = LanPushReceiver(
       currentVersion: '2.0.0',
       currentBuildNumber: 1,
+      dataDirectory: tempDataDirectory(),
       pushSecret: 'secret',
       serverPort: 45692,
       verifier: verifier,
@@ -92,6 +96,7 @@ void main() {
       final receiver = LanPushReceiver(
         currentVersion: '2.0.0',
         currentBuildNumber: 1,
+        dataDirectory: tempDataDirectory(),
         pushSecret: 'secret',
         serverPort: 0,
         verifier: await _verifierWithKey(),

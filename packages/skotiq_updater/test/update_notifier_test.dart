@@ -2,34 +2,25 @@ import 'dart:io';
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_updater/src/models/update_manifest.dart';
 import 'package:skotiq_updater/src/models/update_state.dart';
-import 'package:skotiq_updater/src/providers/update_provider.dart';
+import 'package:skotiq_updater/src/services/update_notifier.dart';
 import 'package:skotiq_updater/src/services/android_installer.dart';
 import 'package:skotiq_updater/src/services/update_controller.dart';
 import 'package:skotiq_updater/src/services/update_service.dart';
 
 class MockUpdateService extends Mock implements UpdateService {}
 
-class MockSkotiqBackend extends Mock implements SkotiqBackend {}
-
-class TestBackendNotifier extends BackendNotifier {
-  TestBackendNotifier(super.ref, SkotiqBackend initial) {
-    state = initial;
-  }
-}
-
-final updateSafetyProbeProvider = FutureProvider<void>((ref) {
-  return defaultUpdateApplySafetyCheck(ref);
-});
-
 void main() {
   late MockUpdateService updateService;
+  late Directory dataDir;
 
   setUp(() {
+    dataDir = Directory.systemTemp.createTempSync('skotiq_update_notifier_');
+    addTearDown(() {
+      if (dataDir.existsSync()) dataDir.deleteSync(recursive: true);
+    });
     updateService = MockUpdateService();
     when(
       () => updateService.verifyPendingInstall(),
@@ -62,6 +53,7 @@ void main() {
     final notifier = UpdateNotifier(
       currentVersion: '2.0.0',
       currentBuildNumber: 41,
+      dataDirectory: () async => dataDir,
       updateService: updateService,
       applySafetyCheck: safetyCheck,
     );
@@ -91,6 +83,7 @@ void main() {
     final notifier = UpdateNotifier(
       currentVersion: '2.0.0',
       currentBuildNumber: 41,
+      dataDirectory: () async => dataDir,
       updateService: updateService,
     );
     await Future<void>.delayed(Duration.zero);
@@ -508,98 +501,6 @@ void main() {
     gate.complete(UpdateCheckResult(hasUpdate: false, currentVersion: '2.0.0'));
     await first;
     expect(controller.hasActiveOperation, isFalse);
-  });
-
-  test(
-    'default safety check checkpoints then blocks active sequence',
-    () async {
-      final backend = MockSkotiqBackend();
-      when(() => backend.saveCheckpoint()).thenAnswer((_) async {});
-
-      final container = ProviderContainer(
-        overrides: [
-          backendProvider.overrideWith(
-            (ref) => TestBackendNotifier(ref, backend),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
-
-      await expectLater(
-        container.read(updateSafetyProbeProvider.future),
-        throwsA(
-          isA<UpdateException>().having(
-            (e) => e.message,
-            'message',
-            contains('running'),
-          ),
-        ),
-      );
-      verify(() => backend.saveCheckpoint()).called(1);
-    },
-  );
-
-  test('default safety check blocks active camera cooler', () async {
-    final backend = MockSkotiqBackend();
-
-    final container = ProviderContainer(
-      overrides: [
-        backendProvider.overrideWith(
-          (ref) => TestBackendNotifier(ref, backend),
-        ),
-      ],
-    );
-    addTearDown(container.dispose);
-
-    final camera = container.read(cameraStateProvider.notifier);
-    camera.setConnecting('cam1', 'Camera');
-    camera.setConnected();
-    camera.setCooling(true);
-
-    await expectLater(
-      container.read(updateSafetyProbeProvider.future),
-      throwsA(
-        isA<UpdateException>().having(
-          (e) => e.message,
-          'message',
-          contains('cooler'),
-        ),
-      ),
-    );
-    verifyNever(() => backend.saveCheckpoint());
-  });
-
-  test('default safety check blocks unparked mount', () async {
-    final backend = MockSkotiqBackend();
-
-    final container = ProviderContainer(
-      overrides: [
-        backendProvider.overrideWith(
-          (ref) => TestBackendNotifier(ref, backend),
-        ),
-      ],
-    );
-    addTearDown(container.dispose);
-
-    final mount = container.read(mountStateProvider.notifier);
-    mount.setConnecting('mount1');
-    mount.setConnected();
-    mount.setParked(false);
-
-    await expectLater(
-      container.read(updateSafetyProbeProvider.future),
-      throwsA(
-        isA<UpdateException>().having(
-          (e) => e.message,
-          'message',
-          contains('parked'),
-        ),
-      ),
-    );
-    verifyNever(() => backend.saveCheckpoint());
   });
 
   test('an Android install refused for missing permission opens the grant '

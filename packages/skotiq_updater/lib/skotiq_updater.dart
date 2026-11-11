@@ -25,11 +25,7 @@ export 'src/services/lan_push_receiver.dart';
 // substitute a fake without touching disk / Process.start.
 export 'src/services/update_controller.dart';
 
-// Providers
-export 'src/providers/update_provider.dart';
-
-// Widgets
-export 'src/widgets/update_manager_widget.dart';
+export 'src/services/update_notifier.dart';
 
 /// Global stream for LAN push update notifications
 /// Used to bridge main.dart's LanPushReceiver with the UI

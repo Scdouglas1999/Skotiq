@@ -10,21 +10,24 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/services/app_update.dart';
+import 'package:skotiq_app/widgets/update/update_manager_widget.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_updater/skotiq_updater.dart';
 
 class _TestNotifier extends UpdateNotifier {
   _TestNotifier(Directory dir)
-    : super(
-        currentVersion: '7.1.0',
-        currentBuildNumber: 28,
-        updateService: UpdateService(
+      : super(
           currentVersion: '7.1.0',
           currentBuildNumber: 28,
-          applicationSupportDirectoryProvider: () async => dir,
-        ),
-        promptStore: UpdatePromptStore(() async => dir),
-      );
+          dataDirectory: () async => dir,
+          updateService: UpdateService(
+            currentVersion: '7.1.0',
+            currentBuildNumber: 28,
+            applicationSupportDirectoryProvider: () async => dir,
+          ),
+          promptStore: UpdatePromptStore(() async => dir),
+        );
 
   @override
   Future<void> checkForUpdates({DateTime? now}) async {}
