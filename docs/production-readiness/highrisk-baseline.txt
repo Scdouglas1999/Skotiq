@@ -217,10 +217,10 @@ packages/skotiq_core/lib/src/providers/remote_sync/equipment_mirror.dart	_fetchC
 packages/skotiq_core/lib/src/services/device_service/connections/imaging_chain.dart	_disconnectCamera	highrisk	1	baseline	// instead of a silent no-op so the equipment screen's bulk-disconnect
 packages/skotiq_core/lib/src/services/notification/transports/email_transport.dart	_runSmtpSession	highrisk	1	baseline	return NotificationResult.ok();
 packages/skotiq_core/lib/src/services/notification/transports/in_app_transport.dart	send	highrisk	1	baseline	return NotificationResult.ok();
-packages/skotiq_core/lib/src/services/notification/transports/in_app_transport.dart	sendWithLink	highrisk	1	baseline	return NotificationResult.ok();
 packages/skotiq_core/lib/src/services/notification/transports/mqtt_transport.dart	-	highrisk	1	baseline	// QoS 2 is intentionally not implemented; a user choice of 2 downgrades to 1
 packages/skotiq_core/lib/src/services/notification/transports/mqtt_transport.dart	_runSession	highrisk	1	baseline	'[Notifications/MQTT] QoS 2 downgraded to QoS 1 (PUBREC/PUBREL not implemented).',
 packages/skotiq_core/lib/src/services/notification/transports/mqtt_transport.dart	_runSession	highrisk	1	baseline	return NotificationResult.ok();
+packages/skotiq_core/lib/src/services/notification/transports/system_push_transport.dart	send	highrisk	1	baseline	if (push == null) return NotificationResult.ok();
 packages/skotiq_core/lib/src/services/notification/transports/system_push_transport.dart	send	highrisk	2	baseline	return NotificationResult.ok();
 packages/skotiq_core/lib/src/services/snippet_file_service.dart	SnippetFileService	highrisk	1	baseline	/// threw UnimplementedError and snippet export was dead on a phone. There the
 packages/skotiq_core/lib/src/utils/export_target.dart	-	highrisk	1	baseline	/// emulator: "Failed to export: UnimplementedError: getSavePath() has not been
