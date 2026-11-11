@@ -673,7 +673,7 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
         _buildChevron(context),
         ExcludeSemantics(
           child: Icon(
-            sequenceNodeIcon(node.iconName),
+            nodeIcon(node.iconName),
             size: _ledgerIconSize,
             color: isMuted
                 ? colors.textMuted

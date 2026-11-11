@@ -66,35 +66,6 @@ class _NarrowNodePaletteRail extends ConsumerWidget {
     required this.onShowFullPalette,
   });
 
-  Color _categoryColor(String name) {
-    switch (name) {
-      case 'Target':
-        return colors.warning;
-      case 'Imaging':
-        return colors.primary;
-      case 'Mount':
-        return colors.info;
-      case 'Focus':
-        return colors.accent;
-      case 'Camera':
-        return colors.primary;
-      case 'Logic':
-        return colors.accent;
-      case 'Timing':
-        return colors.warning;
-      case 'Utilities':
-        return colors.textMuted;
-      case 'Flat Panel':
-        return colors.warning;
-      case 'Dome':
-        return colors.info;
-      case 'Guiding':
-        return colors.primary;
-      default:
-        return colors.textSecondary;
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // The flattening is memoized in a provider, so this rebuild (hover /
@@ -123,8 +94,8 @@ class _NarrowNodePaletteRail extends ConsumerWidget {
                 // the shared palette icon map (no duplicate switch).
                 return _RailDraggable(
                   item: entry.item,
-                  tint: _categoryColor(entry.categoryName),
-                  icon: nodePaletteIconFor(entry.item.icon),
+                  tint: nodePaletteCategoryColor(entry.categoryName, colors),
+                  icon: nodeIcon(entry.item.icon),
                   colors: colors,
                 );
               },
@@ -170,24 +141,12 @@ class _RailDraggable extends ConsumerStatefulWidget {
 class _RailDraggableState extends ConsumerState<_RailDraggable> {
   bool _hovered = false;
 
-  void _addNodeViaDoubleTap() {
-    // Mirrors `_NodePaletteItem._addNode` in node_palette.dart so the rail
-    // double-tap matches the expanded-palette insertion semantics — including
-    // the run-lock guard, since `addNode` throws SequenceLockedException while
-    // the executor owns the tree.
-    if (!ref.read(canEditSequenceProvider)) return;
-    final node = widget.item.createNode();
-    final selectedId = ref.read(selectedNodeIdProvider);
-    final notifier = ref.read(currentSequenceProvider.notifier);
-    notifier.addNode(node, parentId: selectedId);
-    final children = widget.item.createChildren?.call();
-    if (children != null) {
-      for (final c in children) {
-        notifier.addNode(c, parentId: node.id);
-      }
-    }
-    ref.read(selectedNodeIdProvider.notifier).state = node.id;
-  }
+  void _addNodeViaDoubleTap() => insertIntoTree(
+    context,
+    ref,
+    widget.item,
+    parentId: ref.read(selectedNodeIdProvider),
+  );
 
   @override
   Widget build(BuildContext context) {

@@ -110,7 +110,7 @@ AutoCollapsePlan planAutoCollapse({
     if (onBranch.contains(id)) continue;
     if (isShielded(id)) continue;
     final node = sequence.nodes[id];
-    if (node == null || !isSequenceContainer(node)) continue;
+    if (node == null || !node.kind.isContainer) continue;
     if (!isComplete(id)) continue;
     folding.add(id);
   }

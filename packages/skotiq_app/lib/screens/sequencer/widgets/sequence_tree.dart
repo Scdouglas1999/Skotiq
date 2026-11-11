@@ -30,7 +30,9 @@ import 'sequencer_density.dart';
 import 'target_coordinates.dart';
 import 'target_header_card.dart';
 import 'target_queue_panel.dart';
+import 'tree_insert.dart';
 import 'visual_timeline.dart';
+import 'node_appearance.dart';
 
 part 'sequence_tree/auto_collapse.dart';
 part 'sequence_tree/gutter_map.dart';
@@ -104,34 +106,6 @@ final isDraggingNodeProvider = StateProvider.autoDispose<bool>((ref) => false);
 // autoDispose: tab/screen-scoped toggle; default (on) is the right initial
 // state on each visit to the sequencer.
 final followExecutionProvider = StateProvider.autoDispose<bool>((ref) => true);
-
-/// Insert a dragged [snippet] into the tree through [withSequenceMutation]
-/// so a locked-state or unknown-node-type failure surfaces a snackbar/dialog
-/// instead of an uncaught throw. Shared by every drag-drop TemplateSnippet
-/// branch (root target, per-container target, inter-row drop zone) so the
-/// drop path matches the tap path's error handling.
-void insertSnippetGuarded(
-  BuildContext context,
-  WidgetRef ref,
-  TemplateSnippet snippet, {
-  String? parentId,
-  int? index,
-}) {
-  final profile = ref.read(activeEquipmentProfileProvider);
-  withSequenceMutation(
-    context,
-    ref,
-    operationName: 'insert template',
-    action: () async {
-      ref.read(currentSequenceProvider.notifier).insertSnippet(
-            snippet,
-            parentId: parentId,
-            index: index,
-            profileFilterNames: profile?.filterNames,
-          );
-    },
-  );
-}
 
 /// Handle node selection with modifier key support for multi-select.
 /// Ctrl+Click: toggle individual node in multi-selection.
@@ -793,31 +767,8 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
           details.data is NodePaletteItem ||
           details.data is TemplateSnippet ||
           details.data is TargetQueueDragPayload,
-      onAcceptWithDetails: (details) {
-        if (!ref.read(canEditSequenceProvider)) return;
-        final data = details.data;
-        if (data is NodePaletteItem) {
-          final node = data.createNode();
-          final notifier = ref.read(currentSequenceProvider.notifier);
-          notifier.addNode(node);
-          final children = data.createChildren?.call();
-          if (children != null) {
-            for (final child in children) {
-              notifier.addNode(child, parentId: node.id);
-            }
-          }
-          ref.read(selectedNodeIdProvider.notifier).state = node.id;
-        } else if (data is TemplateSnippet) {
-          insertSnippetGuarded(context, ref, data);
-        } else if (data is TargetQueueDragPayload) {
-          // Drag-drop a queued target → append the prebuilt
-          // TargetHeaderNode under the root. Selection follows the
-          // drop so the properties panel reveals the new target.
-          final notifier = ref.read(currentSequenceProvider.notifier);
-          notifier.addNode(data.node);
-          ref.read(selectedNodeIdProvider.notifier).state = data.node.id;
-        }
-      },
+      onAcceptWithDetails: (details) =>
+          insertIntoTree(context, ref, details.data),
       builder: (context, candidateData, rejectedData) {
         final isAccepting = candidateData.isNotEmpty;
 

@@ -74,7 +74,7 @@ class _NodeTreeView extends ConsumerWidget {
     final canMoveDown =
         node.parentId != null && node.orderIndex < siblingCount - 1;
 
-    final isContainer = isSequenceContainer(node);
+    final isContainer = node.kind.isContainer;
 
     final isLedger = density == SequencerDensity.ledger;
 
@@ -138,40 +138,13 @@ class _NodeTreeView extends ConsumerWidget {
     // expanded children DragTarget and the collapsed-header DragTarget so a
     // collapsed container is still a valid drop destination (the dropped
     // node appends at the end of its hidden children).
-    void acceptIntoContainer(Object data) {
-      if (data is String) {
-        ref.read(currentSequenceProvider.notifier).moveNode(
-              data,
-              nodeId,
-              children.length,
-            );
-      } else if (data is FoldDragPayload) {
-        moveFoldGroup(
-          context,
-          ref,
-          memberIds: data.memberIds,
-          parentId: nodeId,
-          index: children.length,
-        );
-      } else if (data is NodePaletteItem) {
-        final newNode = data.createNode();
-        final notifier = ref.read(currentSequenceProvider.notifier);
-        notifier.addNode(newNode, parentId: nodeId);
-        final created = data.createChildren?.call();
-        if (created != null) {
-          for (final child in created) {
-            notifier.addNode(child, parentId: newNode.id);
-          }
-        }
-        ref.read(selectedNodeIdProvider.notifier).state = newNode.id;
-      } else if (data is TemplateSnippet) {
-        insertSnippetGuarded(context, ref, data, parentId: nodeId);
-      } else if (data is TargetQueueDragPayload) {
-        final notifier = ref.read(currentSequenceProvider.notifier);
-        notifier.addNode(data.node, parentId: nodeId);
-        ref.read(selectedNodeIdProvider.notifier).state = data.node.id;
-      }
-    }
+    void acceptIntoContainer(Object data) => insertIntoTree(
+      context,
+      ref,
+      data,
+      parentId: nodeId,
+      index: children.length,
+    );
 
     // The row itself, in whichever density is active. Ledger draws every node
     // — target headers included — as one 28 px line; the other two densities
@@ -344,12 +317,7 @@ class _NodeTreeView extends ConsumerWidget {
     Widget headerRow = baseRow;
     if (isCollapsed && isContainer && !isMobile) {
       headerRow = DragTarget<Object>(
-        onWillAcceptWithDetails: (data) =>
-            data.data is String ||
-            data.data is FoldDragPayload ||
-            data.data is NodePaletteItem ||
-            data.data is TemplateSnippet ||
-            data.data is TargetQueueDragPayload,
+        onWillAcceptWithDetails: (data) => isTreeDropPayload(data.data),
         onAcceptWithDetails: (details) => acceptIntoContainer(details.data),
         builder: (context, candidateData, rejectedData) {
           final isOver = candidateData.isNotEmpty;
@@ -435,61 +403,9 @@ class _NodeTreeView extends ConsumerWidget {
                 left: isRoot || isLedger ? 0 : (isMobile ? 16 : 24),
               ),
               child: DragTarget<Object>(
-                onWillAcceptWithDetails: (data) =>
-                    data.data is String ||
-                    data.data is FoldDragPayload ||
-                    data.data is NodePaletteItem ||
-                    data.data is TemplateSnippet ||
-                    data.data is TargetQueueDragPayload,
-                onAcceptWithDetails: (details) {
-                  final data = details.data;
-                  if (data is TemplateSnippet) {
-                    // Snippet inserts route through the guarded helper so a
-                    // locked-state / unknown-node-type failure surfaces a
-                    // snackbar instead of an uncaught throw.
-                    insertSnippetGuarded(context, ref, data, parentId: nodeId);
-                    return;
-                  }
-                  if (data is String) {
-                    ref.read(currentSequenceProvider.notifier).moveNode(
-                          data,
-                          nodeId,
-                          children.length,
-                        );
-                  } else if (data is FoldDragPayload) {
-                    moveFoldGroup(
-                      context,
-                      ref,
-                      memberIds: data.memberIds,
-                      parentId: nodeId,
-                      index: children.length,
-                    );
-                  } else if (data is NodePaletteItem) {
-                    final newNode = data.createNode();
-                    final notifier = ref.read(currentSequenceProvider.notifier);
-                    notifier.addNode(
-                      newNode,
-                      parentId: nodeId,
-                    );
-                    final children = data.createChildren?.call();
-                    if (children != null) {
-                      for (final child in children) {
-                        notifier.addNode(child, parentId: newNode.id);
-                      }
-                    }
-                    ref.read(selectedNodeIdProvider.notifier).state =
-                        newNode.id;
-                  } else if (data is TargetQueueDragPayload) {
-                    // Drop a queued target into a container — appends
-                    // a fresh TargetHeaderNode at the end. Targets are
-                    // top-level by convention, but the tree allows
-                    // nesting under InstructionSet/RootContainer too.
-                    final notifier = ref.read(currentSequenceProvider.notifier);
-                    notifier.addNode(data.node, parentId: nodeId);
-                    ref.read(selectedNodeIdProvider.notifier).state =
-                        data.node.id;
-                  }
-                },
+                onWillAcceptWithDetails: (data) => isTreeDropPayload(data.data),
+                onAcceptWithDetails: (details) =>
+                    acceptIntoContainer(details.data),
                 builder: (context, candidateData, rejectedData) {
                   final isContainerHovered = candidateData.isNotEmpty;
                   return AnimatedContainer(
@@ -651,7 +567,7 @@ class _NodeTreeView extends ConsumerWidget {
                     node: child,
                     depth: depth + 1,
                     isSelected: false,
-                    isContainer: isSequenceContainer(child),
+                    isContainer: child.kind.isContainer,
                     isCollapsed: false,
                     nodeStatus: null,
                     isDragging: true,

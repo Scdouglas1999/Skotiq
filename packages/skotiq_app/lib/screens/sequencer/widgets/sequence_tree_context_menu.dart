@@ -8,8 +8,10 @@ import '../sequence_fold_model.dart';
 import 'delete_node_confirmation.dart';
 import 'node_palette_empty_state.dart';
 import 'node_palette_search.dart';
-import 'palette_icon_map.dart';
+import 'palette_category_color.dart';
 import 'sequence_tree/fold_group_actions.dart';
+import 'tree_insert.dart';
+import 'node_appearance.dart';
 
 /// Right-click / long-press context menu for nodes in the sequencer tree.
 ///
@@ -854,20 +856,13 @@ class _InsertNodePickerState extends ConsumerState<_InsertNodePicker> {
   }
 
   void _insert(NodePaletteItem item) {
-    final newNode = item.createNode();
-    final notifier = ref.read(currentSequenceProvider.notifier);
-    notifier.addNode(
-      newNode,
+    insertIntoTree(
+      context,
+      ref,
+      item,
       parentId: widget.parentId,
       index: widget.index,
     );
-    final children = item.createChildren?.call();
-    if (children != null) {
-      for (final c in children) {
-        notifier.addNode(c, parentId: newNode.id);
-      }
-    }
-    ref.read(selectedNodeIdProvider.notifier).state = newNode.id;
     widget.onDismiss();
   }
 
@@ -1016,7 +1011,7 @@ class _InsertNodePickerState extends ConsumerState<_InsertNodePicker> {
                                                       SkotiqTokens.radiusMd),
                                             ),
                                             child: Icon(
-                                              nodePaletteIconFor(item.icon),
+                                              nodeIcon(item.icon),
                                               size: 14,
                                               color: categoryColor,
                                             ),

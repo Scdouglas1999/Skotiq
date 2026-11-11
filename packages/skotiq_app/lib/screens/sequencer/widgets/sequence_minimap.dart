@@ -6,9 +6,10 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'sequence_tree.dart'
-    show nodeCategoryTint, revealSequenceRow, treeNodeKeyRegistryProvider;
+    show revealSequenceRow, treeNodeKeyRegistryProvider;
 import 'sequence_tree_shortcuts.dart'
     show VisibleNode, visibleNodeOrderProvider;
+import 'node_appearance.dart';
 
 /// One row of the sequence overview.
 ///

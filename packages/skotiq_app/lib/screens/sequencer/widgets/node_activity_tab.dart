@@ -134,16 +134,8 @@ SubtreeActivity subtreeActivityProgress(
   var ran = progress.nodeStatuses[rootId] != null;
   final visited = <String>{rootId};
 
-  /// Per-pass frames for the three capture node types, mirroring the cases
-  /// `plannedCaptureUnder` counts. Open-ended SmartExposure contributes none
-  /// by definition.
-  int perPassFrames(SequenceNode node) => switch (node) {
-        ExposureNode n => n.count,
-        SciencePhotometryNode n => n.count,
-        SmartExposureNode n =>
-          n.loopUntilStopped ? 0 : n.plans.fold(0, (s, p) => s + p.count),
-        _ => 0,
-      };
+  int perPassFrames(SequenceNode node) =>
+      node.kind.captures(node).fold(0, (sum, run) => sum + run.count);
 
   void visit(SequenceNode node, bool underRepeat) {
     if (!node.isEnabled) return;
@@ -237,18 +229,6 @@ final _subtreeActivityProvider =
   );
 });
 
-/// The node categories the tree treats as containers — the same list
-/// `node_tree_view.dart` uses to decide which rows get children. The
-/// Activity tab keys its subtree section off the identical set so a row and
-/// its inspector agree about what "a container" is.
-bool _isContainerNode(SequenceNode node) =>
-    node is TargetHeaderNode ||
-    node is LoopNode ||
-    node is InstructionSetNode ||
-    node is ParallelNode ||
-    node is ConditionalNode ||
-    node is RecoveryNode;
-
 class NodeActivityTab extends ConsumerWidget {
   final SkotiqColors colors;
   final SequenceNode node;
@@ -303,7 +283,7 @@ class NodeActivityTab extends ConsumerWidget {
         structured != null ||
         tally != null;
 
-    final isContainer = _isContainerNode(node);
+    final isContainer = node.kind.isContainer;
     final subtree = isContainer
         ? ref.watch(_subtreeActivityProvider(node.id).select((s) => s))
         : null;

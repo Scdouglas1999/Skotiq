@@ -454,7 +454,7 @@ class _NodeItemState extends ConsumerState<_NodeItem> {
           // second inset (panel -> well is the deepest nesting there is).
           if (isNested)
             Icon(
-              _getIcon(),
+              nodeIcon(widget.node.iconName),
               size: iconSize,
               color: widget.isSelected
                   ? widget.colors.primary
@@ -473,14 +473,14 @@ class _NodeItemState extends ConsumerState<_NodeItem> {
                   : SkotiqDecorations.well(widget.colors),
               child: _isExecuting
                   ? _SpinningIcon(
-                      icon: _getIcon(),
+                      icon: nodeIcon(widget.node.iconName),
                       color: widget.isSelected
                           ? widget.colors.primary
                           : widget.colors.textSecondary,
                       size: iconSize,
                     )
                   : Icon(
-                      _getIcon(),
+                      nodeIcon(widget.node.iconName),
                       size: iconSize,
                       color: widget.isSelected
                           ? widget.colors.primary

@@ -30,6 +30,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'node_summary.dart';
 import 'node_summary_inline_editors.dart';
+import 'node_appearance.dart';
 
 /// Renders the at-a-glance summary for [node] on a single line.
 ///
@@ -71,7 +72,7 @@ class NodeSummaryLine extends ConsumerWidget {
     if (fragments.isEmpty) return const SizedBox.shrink();
 
     final canEdit = ref.watch(canEditSequenceProvider);
-    final tint = _categoryColor(node.category);
+    final tint = nodeCategoryTint(node.category, colors);
     final mutedColor = mutedColorOverride ?? colors.textMuted;
 
     return Wrap(
@@ -101,32 +102,6 @@ class NodeSummaryLine extends ConsumerWidget {
           },
       ],
     );
-  }
-
-  /// Map [category] to its chip tint, mirroring `sequence_tree`'s
-  /// `_getCategoryColor` exactly so summary chips match their node's color.
-  Color _categoryColor(NodeCategory category) =>
-      categoryColorForTesting(colors, category);
-
-  /// The same mapping as [_categoryColor], reachable from tests so the
-  /// agreement check against `nodeCategoryTint` (which the ledger row's glyph
-  /// tint uses) cannot drift — the two must produce identical tints for every
-  /// category.
-  @visibleForTesting
-  static Color categoryColorForTesting(
-    SkotiqColors colors,
-    NodeCategory category,
-  ) {
-    switch (category) {
-      case NodeCategory.instruction:
-        return colors.primary;
-      case NodeCategory.trigger:
-        return colors.warning;
-      case NodeCategory.logic:
-        return colors.accent;
-      case NodeCategory.target:
-        return colors.warning;
-    }
   }
 }
 
