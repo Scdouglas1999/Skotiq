@@ -699,33 +699,37 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
                 Wrap(
                   spacing: SkotiqTokens.spaceSm,
                   runSpacing: SkotiqTokens.spaceSm,
+                  // Idle offers the ways to start; a running stack offers the
+                  // ways to end or restart it.
                   children: [
-                    SkotiqButton(
-                      label: _startLabel(isRemoteMode, plan),
-                      icon: SkotiqIcons.layers,
-                      isLoading: _isStarting,
-                      onPressed: isRunning || _isStarting
-                          ? null
-                          : isRemoteMode
-                              ? _armHostStack
-                              : plan != null
-                                  ? () => _stackSessionFrames(plan)
-                                  : _stackFromChosenFile,
-                    ),
-                    SkotiqButton(
-                      label: _isStopping ? 'Stopping...' : 'Stop',
-                      icon: SkotiqIcons.stop,
-                      variant: ButtonVariant.secondary,
-                      onPressed: isRunning && !_isStopping && !_isEndingStack
-                          ? _stopStacking
-                          : null,
-                    ),
+                    if (!isRunning)
+                      SkotiqButton(
+                        label: _startLabel(isRemoteMode, plan),
+                        icon: SkotiqIcons.layers,
+                        isLoading: _isStarting,
+                        onPressed: _isStarting
+                            ? null
+                            : isRemoteMode
+                                ? _armHostStack
+                                : plan != null
+                                    ? () => _stackSessionFrames(plan)
+                                    : _stackFromChosenFile,
+                      ),
                     if (!isRemoteMode && plan != null && !isRunning)
                       SkotiqButton(
                         label: 'Choose a file…',
                         icon: SkotiqIcons.folderOpen,
                         variant: ButtonVariant.ghost,
                         onPressed: _isStarting ? null : _stackFromChosenFile,
+                      ),
+                    if (isRunning)
+                      SkotiqButton(
+                        label: _isStopping ? 'Stopping...' : 'Stop',
+                        icon: SkotiqIcons.stop,
+                        variant: ButtonVariant.secondary,
+                        onPressed: !_isStopping && !_isEndingStack
+                            ? _stopStacking
+                            : null,
                       ),
                     if (isRunning)
                       SkotiqButton(

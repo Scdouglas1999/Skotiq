@@ -279,7 +279,7 @@ String flatExposureProgressLine(FlatWizardState state, double remainingSecs) {
   final exposure = state.currentExposureDuration ?? 0;
   final rest = remainingSecs + (target - frame) * exposure;
   final eta = target > frame
-      ? ' · about ${DurationFormat.seconds(rest, style: DurationStyle.coarse)}'
+      ? ' · ≈${DurationFormat.seconds(rest, style: DurationStyle.coarse)}'
           ' to go'
       : '';
   return 'Frame $frame of $target · $left$eta';

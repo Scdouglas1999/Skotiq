@@ -23,7 +23,7 @@ void main() {
         _state(FilterCalibrationStatus.capturing),
         2.7,
       ),
-      'Frame 2 of 30 · 2.7 s left · about 3m to go',
+      'Frame 2 of 30 · 2.7 s left · ≈3m to go',
     );
   });
 
