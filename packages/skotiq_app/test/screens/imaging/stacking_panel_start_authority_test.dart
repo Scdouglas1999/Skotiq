@@ -95,8 +95,8 @@ void main() {
       return picks[pickerCalls++].future;
     });
 
-    await tester.tap(find.text('Start stacking'));
-    await tester.tap(find.text('Start stacking'));
+    await tester.tap(find.text('Start from a file…'));
+    await tester.tap(find.text('Start from a file…'));
     await tester.pump();
     expect(pickerCalls, 1);
     expect(find.text('Starting...'), findsOneWidget);
@@ -105,14 +105,14 @@ void main() {
         as _SwappableBackendNotifier;
     backendNotifier.swap(DisconnectedBackend());
     await tester.pump();
-    expect(find.text('Start stacking'), findsOneWidget);
+    expect(find.text('Start from a file…'), findsOneWidget);
 
     picks.first.complete(XFile('/old-host-reference.fits'));
     await tester.pump();
     await tester.pump();
     expect(harness.stacker.starts, isEmpty);
 
-    await tester.tap(find.text('Start stacking'));
+    await tester.tap(find.text('Start from a file…'));
     await tester.pump();
     expect(pickerCalls, 2);
     picks[1].complete(XFile('/current-host-reference.fits'));
@@ -120,7 +120,7 @@ void main() {
     await tester.pump();
 
     expect(harness.stacker.starts, ['/current-host-reference.fits']);
-    expect(find.text('Start stacking'), findsOneWidget);
+    expect(find.text('Start from a file…'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -129,7 +129,7 @@ void main() {
     final pick = Completer<XFile?>();
     final harness = await _pumpPanel(tester, () => pick.future);
 
-    await tester.tap(find.text('Start stacking'));
+    await tester.tap(find.text('Start from a file…'));
     await tester.pump();
     await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
 
@@ -149,13 +149,13 @@ void main() {
       throw StateError('picker unavailable');
     });
 
-    await tester.tap(find.text('Start stacking'));
+    await tester.tap(find.text('Start from a file…'));
     await tester.pump();
     await tester.pump();
 
     expect(calls, 1);
     expect(find.textContaining('picker unavailable'), findsOneWidget);
-    expect(find.text('Start stacking'), findsOneWidget);
+    expect(find.text('Start from a file…'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
