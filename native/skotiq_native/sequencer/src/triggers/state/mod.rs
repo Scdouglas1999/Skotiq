@@ -335,6 +335,7 @@ impl TriggerState {
         self.latches.autofocus_invalidated = false;
         self.latches.autofocus_invalidation_reason = None;
         self.reset_baseline_temperature();
+        self.forget_focus_compensation_reference();
     }
 
     /// Mark that autofocus was ATTEMPTED at this frame and did not converge.
@@ -357,6 +358,16 @@ impl TriggerState {
         self.latches.last_autofocus_frame = self.latches.completed_exposures;
         self.clear_autofocus_invalidation();
         self.reset_baseline_temperature();
+    }
+
+    /// Temperature compensation measures from the focus an autofocus found,
+    /// even one that landed where the focuser already was. A sweep that did
+    /// not converge returns to the focus it started from, which compensation
+    /// goes on holding.
+    fn forget_focus_compensation_reference(&mut self) {
+        if let Some(compensation) = self.latches.focus_compensation.as_mut() {
+            compensation.forget_reference();
+        }
     }
 
     /// Drop a pending "autofocus is stale" latch WITHOUT claiming an autofocus

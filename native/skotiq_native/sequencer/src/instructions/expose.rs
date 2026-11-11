@@ -395,6 +395,12 @@ pub async fn execute_exposure_with_renderer(
                 }
             };
 
+            // With the train held nothing else moves the focuser, and the
+            // frame starts on focus corrected for the temperature now.
+            if is_light_frame {
+                crate::temperature_compensation::compensate_before_frame(ctx).await;
+            }
+
             // Resume only after the hold and imaging-train gates. Otherwise a
             // pending restart can turn guiding back on during a tracking-limit hold.
             if frame_type_requires_darkness(&config.frame_type) {

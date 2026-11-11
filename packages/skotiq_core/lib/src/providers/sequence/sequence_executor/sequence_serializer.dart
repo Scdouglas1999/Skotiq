@@ -194,6 +194,10 @@ class SequenceSerializer {
       'autofocus_every_minutes': autoFocusEveryMinutes.toString(),
       'autofocus_on_filter_change': autoFocusOnFilterChange.toString(),
       'frame_watch': _frameWatchMetadata(),
+      if (appSettings != null && appSettings.tempCompensation)
+        'temperature_compensation': _temperatureCompensationMetadata(
+          appSettings,
+        ),
     };
 
     return jsonEncode({
@@ -205,6 +209,17 @@ class SequenceSerializer {
       'metadata': metadata,
     });
   }
+
+  /// The operator's temperature compensation, as the JSON string the native
+  /// executor reads from `metadata["temperature_compensation"]`. During a run
+  /// the executor applies it before each light frame and
+  /// `focuserTempCompensationProvider` stands down, so one compensator works
+  /// the focuser at a time, on the same settings.
+  String _temperatureCompensationMetadata(AppSettingsState settings) =>
+      jsonEncode({
+        'steps_per_degree': settings.tempCoefficient,
+        'min_steps': settings.tempCompensationMinSteps.clamp(1, 10000),
+      });
 
   /// The frame watch's settings for this run, as the JSON string the native
   /// executor reads from `metadata["frame_watch"]`: the drift limit, whether

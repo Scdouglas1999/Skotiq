@@ -16,19 +16,17 @@ import 'focuser_temperature_poller.dart';
 /// Equipment → Settings → Focuser) continuously while the focuser is
 /// connected and no sequence is running.
 ///
-/// Sign convention MUST match the executor-authoritative Rust
-/// `execute_temperature_compensation` in
-/// `native/skotiq_native/sequencer/src/temperature_compensation.rs`,
-/// which computes
-/// `new_position = current_position + (temp_now - baseline) * coefficient`.
-/// This provider uses that identical formula
-/// (`target = baseline_position + delta`); a sign flip here makes the two
-/// compensators drive the focuser in opposite directions.
-///
-/// The Rust `temperature_compensation` instruction is the in-sequence
-/// authority, so this provider stands down whenever the sequencer is
-/// executing (running / paused / stopping / recovering). Otherwise two
-/// controllers would issue focuser moves off the same drift.
+/// During a run the executor compensates instead, before each light frame,
+/// with these same settings (the plan carries them, see
+/// `SequenceSerializer`), and from its own reference. This provider stands
+/// down whenever the sequencer is executing (running / paused / stopping /
+/// recovering): two controllers would move the focuser off the same drift,
+/// and only the executor knows when no frame is exposing. Both follow the
+/// rule below and the formula `target = reference_position +
+/// (temp_now - reference_temp) * coefficient`
+/// (`native/skotiq_native/sequencer/src/temperature_compensation.rs`
+/// `FocusCompensation`); a sign flip in either makes the night's focus jump
+/// when a run starts or ends.
 ///
 /// The reference (temperature, position) stays fixed while compensation
 /// works, and a move happens only once the correction owed reaches the
@@ -123,9 +121,9 @@ class FocuserTempCompensator {
     _expectedPosition = position;
   }
 
-  /// Whether the sequencer is actively executing. While it is, the Rust
-  /// `temperature_compensation` instruction owns focuser drift correction;
-  /// this continuous provider must not also issue moves (double-compensation).
+  /// Whether the sequencer is actively executing. While it is, the executor
+  /// owns focuser drift correction; this continuous provider must not also
+  /// issue moves (double-compensation).
   bool get _sequenceActive {
     switch (_ref.read(sequenceExecutionStateProvider)) {
       case SequenceExecutionState.running:
@@ -138,8 +136,8 @@ class FocuserTempCompensator {
       case SequenceExecutionState.failed:
         return false;
       // A failed native stop means the hardware was NOT confirmed stopped, so
-      // the Rust temperature-compensation instruction may still own the
-      // focuser — treat it as active. A pending persistence cleanup
+      // the executor may still be compensating — treat it as active. A
+      // pending persistence cleanup
       // (cleanupFailed) or in-flight finalization both mean the hardware IS
       // stopped, so Dart-side compensation may resume.
       case SequenceExecutionState.stopFailed:
@@ -156,11 +154,10 @@ class FocuserTempCompensator {
       return;
     }
     if (_sequenceActive) {
-      // The Rust temperature_compensation instruction is authoritative while
-      // a sequence runs. Skip Dart-side compensation to avoid two controllers
-      // fighting over the focuser. We deliberately keep the baseline so that
-      // when the sequence ends, the next temperature tick resumes from the
-      // correct reference rather than re-capturing mid-drift.
+      // The executor compensates while a sequence runs. The reference is
+      // kept: if the run moved the focuser, the first reading after it reads
+      // as a move this compensator did not make and becomes the new
+      // reference.
       return;
     }
     if (next.connectionState != DeviceConnectionState.connected) {
@@ -225,13 +222,8 @@ class FocuserTempCompensator {
     if (owed.abs() < settings.tempCompensationMinSteps.clamp(1, 10000)) {
       return;
     }
-    // Sign convention matches the Rust executor exactly:
-    // `new = baseline + (temp_now - baseline_temp) * coefficient`. With the
-    // default negative coefficient, a temperature drop yields a positive
-    // delta and moves the focuser outward. Do NOT flip this sign — the Rust
-    // `temperature_compensation` instruction adds the same delta, and any
-    // disagreement makes the two compensators drive the focuser in opposite
-    // directions.
+    // With the default negative coefficient a temperature drop moves the
+    // focuser outward. The executor's in-run compensator uses the same sign.
     final targetPosition = baseline.position + deltaSteps;
     if (targetPosition < 0) {
       // Refuse impossible commands rather than silently clamping.

@@ -1,6 +1,7 @@
 //! Per-run trigger preparation: clear the previous run's latches, disarm the
 //! triggers this run's hardware cannot act on, carry the settings onto the
-//! reset trigger state, and read the sequence's own autofocus tuning.
+//! reset trigger state, arm temperature compensation from the plan, and read
+//! the sequence's own autofocus tuning.
 
 use super::*;
 
@@ -34,6 +35,20 @@ impl SequenceExecutor {
             }
             manager.reset_for_new_run().await;
             self.settings.project_at_start(&mut manager).await;
+            let compensation = self
+                .sequence
+                .as_ref()
+                .and_then(crate::temperature_compensation::FocusCompensationSettings::for_run);
+            if let Some(settings) = &compensation {
+                tracing::info!(
+                    "Temperature compensation between frames: {} steps/°C, moves of at least {} \
+                     steps",
+                    settings.steps_per_degree,
+                    settings.min_steps
+                );
+            }
+            manager.state().write().await.latches.focus_compensation =
+                compensation.map(crate::temperature_compensation::FocusCompensation::new);
         }
         if self.focuser_id.is_none() {
             let disarmed = {

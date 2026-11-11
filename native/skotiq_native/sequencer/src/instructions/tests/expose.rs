@@ -879,3 +879,70 @@ async fn a_pending_guide_restart_waits_when_the_mount_itself_reads_not_tracking(
     assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 0);
     assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 1);
 }
+
+// Temperature compensation between frames. The capture-telemetry rig's
+// focuser reads 4.25 °C at position 31 705.
+
+/// A light-frame context whose run compensates at the owner's -12.5 steps/°C
+/// and has measured from 5.25 °C at 31 705, so the 4.25 °C now owes 12.5
+/// steps outward.
+async fn compensating_ctx(ops: Arc<ScriptedDomeRotatorOps>) -> InstructionContext {
+    let mut ctx = expose_ctx(ops, None, live_sun_alt() + 5.0).await;
+    ctx.run.rig.focuser_id = Some("focuser-1".to_string());
+    let mut compensation = crate::temperature_compensation::FocusCompensation::new(
+        crate::temperature_compensation::FocusCompensationSettings {
+            steps_per_degree: -12.5,
+            min_steps: 5,
+        },
+    );
+    let _ = compensation.step(5.25, 31_705);
+    ctx.run
+        .trigger_state
+        .as_ref()
+        .unwrap()
+        .write()
+        .await
+        .latches
+        .focus_compensation = Some(compensation);
+    ctx
+}
+
+#[tokio::test]
+async fn a_light_frame_starts_on_focus_corrected_for_the_temperature() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_capture_telemetry());
+    let ctx = compensating_ctx(ops.clone()).await;
+
+    let result = execute_exposure(&one_light(), &ctx, |_, _, _| {}).await;
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(*ops.focuser_moves.lock().unwrap(), vec![31_718]);
+}
+
+/// Darks, flats and bias frames do not depend on focus.
+#[tokio::test]
+async fn a_calibration_frame_does_not_move_the_focuser() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_capture_telemetry());
+    let ctx = compensating_ctx(ops.clone()).await;
+    let dark = ExposureConfig {
+        frame_type: "Dark".to_string(),
+        ..one_light()
+    };
+
+    let result = execute_exposure(&dark, &ctx, |_, _, _| {}).await;
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert!(ops.focuser_moves.lock().unwrap().is_empty());
+}
+
+/// Compensation is off unless the operator turned it on.
+#[tokio::test]
+async fn a_run_without_compensation_leaves_the_focuser_alone() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_capture_telemetry());
+    let mut ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
+    ctx.run.rig.focuser_id = Some("focuser-1".to_string());
+
+    let result = execute_exposure(&one_light(), &ctx, |_, _, _| {}).await;
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert!(ops.focuser_moves.lock().unwrap().is_empty());
+}

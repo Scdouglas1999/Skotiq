@@ -76,6 +76,10 @@ state_part! {
             /// next light frame first centers on the target, because the mount is no
             /// longer where the run left it.
             pub mount_fault_recenter_pending: bool,
+            /// The run's temperature compensation between light frames, when the
+            /// operator turned it on. Its reference is the run's own: a new run
+            /// measures from its first light frame.
+            pub focus_compensation: Option<crate::temperature_compensation::FocusCompensation>,
         }
     }
 }
