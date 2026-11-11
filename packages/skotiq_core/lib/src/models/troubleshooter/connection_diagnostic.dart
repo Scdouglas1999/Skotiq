@@ -86,7 +86,6 @@ class RemediationStep {
 /// headline, a plain-language explanation, an ordered list of remediation
 /// steps, and the raw error carried through verbatim.
 class ConnectionDiagnosis {
-  /// The classified problem category.
   final DiagnosticCategory category;
 
   /// A short, human-readable headline, e.g. "Driver isn't running".
@@ -199,8 +198,6 @@ ConnectionDiagnosis diagnoseConnectionFailure({
     rawError: rawError,
   );
 }
-
-// Classification
 
 bool _containsAny(String haystack, List<String> needles) {
   for (final needle in needles) {

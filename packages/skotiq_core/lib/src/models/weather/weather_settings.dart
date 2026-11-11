@@ -24,7 +24,6 @@ enum RadarProviderType {
   metno,
 }
 
-/// Weather monitoring and safety settings
 @freezed
 abstract class WeatherSettings with _$WeatherSettings {
   const factory WeatherSettings({
@@ -62,7 +61,6 @@ abstract class WeatherSettings with _$WeatherSettings {
     /// Automatically resume imaging when weather clears
     @Default(false) bool autoResumeEnabled,
 
-    /// Preferred radar data provider
     @Default(RadarProviderType.auto) RadarProviderType preferredProvider,
 
     /// How often to refresh radar data in seconds
@@ -72,6 +70,5 @@ abstract class WeatherSettings with _$WeatherSettings {
   factory WeatherSettings.fromJson(Map<String, dynamic> json) =>
       _$WeatherSettingsFromJson(json);
 
-  /// Default weather settings instance
   static WeatherSettings get defaultSettings => const WeatherSettings();
 }

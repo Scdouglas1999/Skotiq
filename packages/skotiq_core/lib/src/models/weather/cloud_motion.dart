@@ -19,7 +19,6 @@ abstract class CloudMotion with _$CloudMotion {
     /// Current distance of nearest significant clouds in kilometers
     required double distanceKm,
 
-    /// When this analysis was performed
     required DateTime calculatedAt,
   }) = _CloudMotion;
 

@@ -3,7 +3,6 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'weather_alert.freezed.dart';
 part 'weather_alert.g.dart';
 
-/// Alert severity level
 enum AlertLevel {
   /// No threats detected, conditions are clear
   clear,
@@ -22,7 +21,6 @@ enum AlertLevel {
 @freezed
 abstract class WeatherAlert with _$WeatherAlert {
   const factory WeatherAlert({
-    /// Alert severity level
     required AlertLevel level,
 
     /// Human-readable alert text
@@ -37,7 +35,6 @@ abstract class WeatherAlert with _$WeatherAlert {
     /// Distance to threatening clouds in kilometers
     required double distanceKm,
 
-    /// When this alert was generated
     required DateTime generatedAt,
   }) = _WeatherAlert;
 

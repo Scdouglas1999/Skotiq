@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 
-/// Target object type
 enum TargetType {
   galaxy,
   nebula,
@@ -61,7 +60,6 @@ extension TargetTypeExtension on TargetType {
   }
 }
 
-/// A celestial target for imaging
 class CelestialTarget extends Equatable {
   final int? id;
   final String name;
@@ -121,7 +119,6 @@ class CelestialTarget extends Equatable {
     return '$sign${degrees.toString().padLeft(2, '0')}° ${minutes.toString().padLeft(2, '0')}\' ${seconds.toString().padLeft(2, '0')}"';
   }
 
-  /// Format total integration time
   String get integrationFormatted {
     final hours = (totalIntegrationSecs / 3600).floor();
     final minutes = ((totalIntegrationSecs % 3600) / 60).floor();
