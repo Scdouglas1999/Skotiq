@@ -40,10 +40,13 @@ extension _DeviceServiceEnvironmentConnections on DeviceService {
   }
 
   Future<void> _bringUpSafetyMonitor(String deviceId) async {
+    _safetyMonitorFailedReads = 0;
     final notifier = _ref.read(safetyMonitorStateProvider.notifier);
     if (_backend is EnvironmentalStatusBackend) {
       final environmental = _backend as EnvironmentalStatusBackend;
-      final isSafe = await environmental.getHardwareSafetyStatus(deviceId);
+      final isSafe = await environmental
+          .getHardwareSafetyStatus(deviceId)
+          .timeout(DeviceService._environmentReadTimeout);
       notifier.updateSafetyStatus(isSafe);
     }
     notifier.setConnected();
@@ -133,14 +136,25 @@ extension _DeviceServiceEnvironmentConnections on DeviceService {
           final isSafe = await environmental
               .getHardwareSafetyStatus(safetyId)
               .timeout(DeviceService._environmentReadTimeout);
+          _safetyMonitorFailedReads = 0;
           if (safety.connectionState == DeviceConnectionState.error) {
             _ref.read(safetyMonitorStateProvider.notifier).setConnected();
+            unawaited(
+              _reconnectCoordinator.onAuthoritativeDeviceConnected(
+                DeviceType.safetyMonitor.name,
+                safetyId,
+              ),
+            );
           }
           _ref
               .read(safetyMonitorStateProvider.notifier)
               .updateSafetyStatus(isSafe);
         } catch (error) {
           _ref.read(safetyMonitorStateProvider.notifier).setError(error);
+          if (++_safetyMonitorFailedReads >=
+              DeviceService._safetyMonitorDropReads) {
+            unawaited(_attemptReconnect(DeviceType.safetyMonitor, safetyId));
+          }
         }
       }
 

@@ -69,6 +69,19 @@ impl DeviceManager {
                 "Native safety monitor not connected",
             )),
             Some(DriverType::Simulator) => {
+                use crate::device_manager::ops::sim_faults;
+                const FAULT_KEY: &str = "safetymonitor.status";
+                if let Err(e) = sim_faults::check(FAULT_KEY).await {
+                    // `unplug`: the monitor's cable or hub dropped.
+                    if sim_faults::take_unplug(FAULT_KEY).is_some() {
+                        crate::api::devices::simulation::get_sim_safety_monitor()
+                            .write()
+                            .await
+                            .status
+                            .connected = false;
+                    }
+                    return Err(DeviceOpError::driver(e));
+                }
                 let safety = crate::api::devices::simulation::get_sim_safety_monitor()
                     .read()
                     .await;

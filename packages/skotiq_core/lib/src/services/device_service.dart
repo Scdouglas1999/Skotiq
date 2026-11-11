@@ -157,6 +157,13 @@ class DeviceService {
   int _filterWheelVerifyGeneration = 0;
   Timer? _environmentPollTimer;
   bool _environmentPollInFlight = false;
+  int _safetyMonitorFailedReads = 0;
+
+  /// Failed safety reads in a row after which the monitor counts as dropped
+  /// and is handed to the reconnect coordinator. Its native heartbeat never
+  /// reports a drop (`HeartbeatConfig::for_safety_monitor`), so this poll is
+  /// the only place a lost monitor shows.
+  static const int _safetyMonitorDropReads = 3;
 
   /// How often environmental / dome telemetry is re-read while a relevant device
   /// is connected.
