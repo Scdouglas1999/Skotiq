@@ -7,40 +7,27 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Efficient astronomy image viewer that supports both color and mono images
 /// with zoom/pan functionality including mousewheel support.
-///
-/// Features:
-/// - GPU-accelerated rendering via ui.Image
-/// - Supports RGBA pixel data (conversion done in Rust for performance)
-/// - Interactive zoom/pan with mousewheel and gesture support
-/// - Configurable min/max zoom levels
 class AstroImageViewer extends StatefulWidget {
   /// The RGBA pixel data (4 bytes per pixel, alpha=255).
   /// Conversion from RGB/grayscale is done in Rust for performance.
   final Uint8List imageData;
 
-  /// Width of the image in pixels
   final int width;
 
-  /// Height of the image in pixels
   final int height;
 
   /// Whether the source image was color (RGB) or mono (grayscale).
   /// Retained for informational purposes; imageData is always RGBA.
   final bool isColor;
 
-  /// Minimum zoom scale
   final double minScale;
 
-  /// Maximum zoom scale
   final double maxScale;
 
-  /// Whether to enable zoom/pan interaction
   final bool enableInteraction;
 
-  /// Filter quality for image scaling
   final FilterQuality filterQuality;
 
-  /// Callback when zoom/pan state changes
   final ValueChanged<TransformationController>? onTransformChanged;
 
   /// Externally owned view transform.
@@ -105,7 +92,6 @@ class _AstroImageViewerState extends State<AstroImageViewer> {
     _decodeImage();
   }
 
-  /// Calculate the scale needed to fit the image within the container
   double _calculateFitScale(
       Size containerSize, int imageWidth, int imageHeight) {
     if (containerSize.isEmpty || imageWidth <= 0 || imageHeight <= 0) {
@@ -116,7 +102,6 @@ class _AstroImageViewerState extends State<AstroImageViewer> {
     return scaleX < scaleY ? scaleX : scaleY;
   }
 
-  /// Set the initial transformation to fit the image in the container
   void _setInitialFitTransform(Size containerSize) {
     if (_decodedImage == null || _initialScaleSet) return;
 
@@ -126,7 +111,6 @@ class _AstroImageViewerState extends State<AstroImageViewer> {
       _decodedImage!.height,
     );
 
-    // Calculate offset to center the scaled image
     final scaledWidth = _decodedImage!.width * fitScale;
     final scaledHeight = _decodedImage!.height * fitScale;
     final offsetX = (containerSize.width - scaledWidth) / 2;
@@ -150,7 +134,6 @@ class _AstroImageViewerState extends State<AstroImageViewer> {
       // A different transform is a different view, so the next layout fits it.
       _initialScaleSet = false;
     }
-    // Only re-decode if the image data actually changed
     if (!identical(widget.imageData, _lastImageData) ||
         widget.width != _lastWidth ||
         widget.height != _lastHeight ||
@@ -177,13 +160,11 @@ class _AstroImageViewerState extends State<AstroImageViewer> {
       return;
     }
 
-    // Cache current params
     _lastImageData = sourceData;
     _lastWidth = width;
     _lastHeight = height;
     _lastIsColor = isColor;
 
-    // Show loading state
     if (mounted && !_isLoading) {
       setState(() => _isLoading = true);
     }
@@ -205,7 +186,6 @@ class _AstroImageViewerState extends State<AstroImageViewer> {
     final image = await completer.future;
 
     if (mounted) {
-      // Dispose old image before replacing
       _decodedImage?.dispose();
       setState(() {
         _decodedImage = image;
@@ -228,10 +208,8 @@ class _AstroImageViewerState extends State<AstroImageViewer> {
     if (!widget.enableInteraction) return;
 
     if (event is PointerScrollEvent) {
-      // Get current scale
       final currentScale = _transformationController.value.getMaxScaleOnAxis();
 
-      // Calculate new scale based on scroll direction
       final delta = event.scrollDelta.dy;
       final scaleFactor = delta > 0 ? 0.9 : 1.1; // Zoom out or in
       final minScale = _effectiveMinScale ?? widget.minScale;
@@ -239,13 +217,10 @@ class _AstroImageViewerState extends State<AstroImageViewer> {
           (currentScale * scaleFactor).clamp(minScale, widget.maxScale);
 
       if (newScale != currentScale) {
-        // Get the focal point in scene coordinates
         final focalPoint = event.localPosition;
 
-        // Calculate the new transformation matrix
         final scaleChange = newScale / currentScale;
 
-        // Create a new matrix that scales around the focal point
         final matrix = Matrix4.identity()
           ..translateByDouble(focalPoint.dx, focalPoint.dy, 0, 1.0)
           ..scaleByDouble(scaleChange, scaleChange, 1.0, 1.0)
@@ -297,7 +272,6 @@ class _AstroImageViewerState extends State<AstroImageViewer> {
       builder: (context, constraints) {
         final containerSize = Size(constraints.maxWidth, constraints.maxHeight);
 
-        // Calculate fit scale for this container
         final fitScale = _calculateFitScale(
           containerSize,
           _decodedImage!.width,
@@ -344,7 +318,6 @@ class _AstroImageViewerState extends State<AstroImageViewer> {
   }
 }
 
-/// Efficient image painter that draws a pre-decoded ui.Image
 class _AstroImagePainter extends CustomPainter {
   final ui.Image image;
   final FilterQuality filterQuality;

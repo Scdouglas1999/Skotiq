@@ -222,8 +222,6 @@ class _FirstLightBody extends ConsumerWidget {
   }
 }
 
-// Intro panel
-
 class _IntroPanel extends ConsumerStatefulWidget {
   const _IntroPanel();
 
@@ -361,8 +359,6 @@ class _IntroPanelState extends ConsumerState<_IntroPanel> {
     );
   }
 }
-
-// Progress panel — vertical stepper
 
 /// One phase row in the running stepper.
 enum _StepStatus { done, active, pending }
@@ -509,8 +505,6 @@ class _StepRow extends StatelessWidget {
     );
   }
 }
-
-// Success panel — preview + annotation summary
 
 class _SuccessPanel extends ConsumerWidget {
   const _SuccessPanel({required this.state});
@@ -775,8 +769,6 @@ class _SolveDetails extends StatelessWidget {
     );
   }
 }
-
-// Failure panel
 
 class _FailurePanel extends StatelessWidget {
   const _FailurePanel({required this.state});

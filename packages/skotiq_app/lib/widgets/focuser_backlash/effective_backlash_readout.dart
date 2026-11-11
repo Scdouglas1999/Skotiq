@@ -33,7 +33,6 @@ class EffectiveBacklashReadout extends ConsumerWidget {
   /// host has no way to write the field.
   final ValueChanged<int>? onUseMeasured;
 
-  /// Show the button that opens the calibration wizard.
   final bool showCalibrateButton;
 
   @override

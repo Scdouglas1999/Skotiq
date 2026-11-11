@@ -247,8 +247,6 @@ class _Body extends StatelessWidget {
   }
 }
 
-// Intro
-
 class _IntroPanel extends StatelessWidget {
   const _IntroPanel({required this.plan, this.note = '', this.problem});
 
@@ -458,8 +456,6 @@ class _DetailRow extends StatelessWidget {
   }
 }
 
-// Progress
-
 class _ProgressPanel extends StatelessWidget {
   const _ProgressPanel({required this.state});
 
@@ -590,8 +586,6 @@ class _StepRow extends StatelessWidget {
     );
   }
 }
-
-// Result — measured, and no-measurable-backlash
 
 class _ResultPanel extends StatelessWidget {
   const _ResultPanel({required this.state, required this.result});
@@ -853,8 +847,6 @@ class _FactRow extends StatelessWidget {
   }
 }
 
-// Refusal
-
 class _RefusalPanel extends StatelessWidget {
   const _RefusalPanel({required this.state, required this.result});
 
@@ -952,8 +944,6 @@ class _FailurePanel extends StatelessWidget {
     );
   }
 }
-
-// The two-curve chart, shared by every surface that has points
 
 /// The two approach curves on shared axes, with a legend.
 ///
@@ -1106,8 +1096,6 @@ class _LegendEntry extends StatelessWidget {
   }
 }
 
-// Settings
-
 /// The operator's tuning for the measurement: the scan's geometry and the
 /// camera it shoots with, with the fit thresholds and limits behind an
 /// 'Advanced' disclosure so the dialog's job stays the start button and the
@@ -1125,10 +1113,8 @@ class _CalibrationSettingsSection extends ConsumerStatefulWidget {
   /// without depending on label text.
   static const String fieldKeyPrefix = 'backlash-calibration-field';
 
-  /// The 'Advanced' disclosure toggle.
   static const String advancedKey = 'backlash-calibration-advanced';
 
-  /// The 'Reset to autofocus settings' button.
   static const String resetKey = 'backlash-calibration-reset';
 
   @override

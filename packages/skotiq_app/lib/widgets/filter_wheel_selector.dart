@@ -4,12 +4,9 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../utils/snackbar_helper.dart';
 
-/// Style options for the filter wheel selector.
 enum FilterSelectorStyle {
-  /// Shows filters as colored circular buttons.
   buttons,
 
-  /// Shows filters in a dropdown menu.
   dropdown
 }
 
@@ -18,13 +15,10 @@ enum FilterSelectorStyle {
 /// This eliminates duplicate filter selection implementations across screens.
 /// Supports both button-based and dropdown-based selection styles.
 class FilterWheelSelector extends ConsumerStatefulWidget {
-  /// The style of filter selection UI to display.
   final FilterSelectorStyle style;
 
-  /// Callback invoked when a filter is selected.
   final void Function(int position, String name)? onFilterSelected;
 
-  /// Whether to use compact sizing.
   final bool compact;
 
   const FilterWheelSelector({
@@ -84,7 +78,6 @@ class _FilterWheelSelectorState extends ConsumerState<FilterWheelSelector> {
             !isMoving &&
             !ref.watch(sessionStateProvider).isAutofocusing;
 
-    // Don't show if no filters configured
     if (filterNames.isEmpty) return const SizedBox.shrink();
 
     if (widget.style == FilterSelectorStyle.dropdown) {
@@ -130,7 +123,6 @@ class _FilterWheelSelectorState extends ConsumerState<FilterWheelSelector> {
       );
     }
 
-    // Button style
     return Wrap(
       spacing: widget.compact ? 4 : 8,
       runSpacing: widget.compact ? 4 : 8,
