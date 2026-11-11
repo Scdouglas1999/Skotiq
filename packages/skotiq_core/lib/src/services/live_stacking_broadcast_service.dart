@@ -375,7 +375,7 @@ class LiveStackingBroadcastService {
       activatedAt: DateTime.now(),
     );
     _logger.info(
-      'Broadcast activated on port ${node.broadcastPort} '
+      'Broadcast activated '
       '(${node.isPublic ? "public" : "private"}, '
       '${node.stackMethod.label})',
       source: 'BroadcastService',

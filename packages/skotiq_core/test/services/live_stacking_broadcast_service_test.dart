@@ -289,65 +289,6 @@ void main() {
       final issues = LiveStackingNoExposureRule().validate(sequence);
       expect(issues, isEmpty);
     });
-
-    test('LiveStackingPortClashRule flags collision with default 8080', () {
-      final ls = LiveStackingNode(broadcastPort: 8080);
-      final root = TargetHeaderNode(
-        targetName: 'M42',
-        raHours: 5.6,
-        decDegrees: -5.2,
-        childIds: [ls.id],
-      );
-      final patched = ls.copyWith(parentId: root.id);
-      final sequence = Sequence.create(
-        id: 's',
-        name: 'Test',
-        nodes: {root.id: root, patched.id: patched},
-        rootNodeId: root.id,
-      );
-      final issues = LiveStackingPortClashRule().validate(sequence);
-      expect(issues.length, 1);
-      expect(issues.first.severity, ValidationSeverity.error);
-      expect(issues.first.title, contains('clashes with main server'));
-    });
-
-    test('LiveStackingPortClashRule flags out-of-range port', () {
-      final ls = LiveStackingNode(broadcastPort: 0);
-      final root = TargetHeaderNode(
-        targetName: 'M42',
-        raHours: 5.6,
-        decDegrees: -5.2,
-        childIds: [ls.id],
-      );
-      final patched = ls.copyWith(parentId: root.id);
-      final sequence = Sequence.create(
-        id: 's',
-        name: 'Test',
-        nodes: {root.id: root, patched.id: patched},
-        rootNodeId: root.id,
-      );
-      final issues = LiveStackingPortClashRule().validate(sequence);
-      expect(issues.any((i) => i.title.contains('out of range')), isTrue);
-    });
-
-    test('LiveStackingPortClashRule passes with default 8081 port', () {
-      final ls = LiveStackingNode(broadcastPort: 8081);
-      final root = TargetHeaderNode(
-        targetName: 'M42',
-        raHours: 5.6,
-        decDegrees: -5.2,
-        childIds: [ls.id],
-      );
-      final patched = ls.copyWith(parentId: root.id);
-      final sequence = Sequence.create(
-        id: 's',
-        name: 'Test',
-        nodes: {root.id: root, patched.id: patched},
-        rootNodeId: root.id,
-      );
-      final issues = LiveStackingPortClashRule().validate(sequence);
-      expect(issues, isEmpty);
-    });
   });
 
   group('LiveStackingNode model', () {

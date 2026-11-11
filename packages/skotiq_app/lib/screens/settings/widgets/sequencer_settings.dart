@@ -38,25 +38,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
           ),
         ),
         SettingRow(
-          icon: LucideIcons.network,
-          title: 'Default broadcast port',
-          subtitle: 'Port used by newly-created LiveStacking nodes. '
-              'Must not clash with the headless API server.',
-          trailing: SettingsNumberInput(
-            authoritativeValue: defaults.livestackingDefaultPort.toDouble(),
-            authorityKey: authority,
-            suffix: '',
-            min: 1,
-            max: 65535,
-            decimals: 0,
-            onChanged: (value) {
-              return notifier.updateLiveStackingDefaults(
-                defaultPort: value.toInt(),
-              );
-            },
-          ),
-        ),
-        SettingRow(
           icon: LucideIcons.layers,
           title: 'Default stack method',
           subtitle: 'Average is fastest; Median + Rejection and Sigma '

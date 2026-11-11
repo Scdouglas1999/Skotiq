@@ -3,9 +3,10 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'app_settings.freezed.dart';
 part 'app_settings.g.dart';
 
-/// Default accent color hex — matches `SkotiqColors.dark.primary` (#E86A6A),
-/// the red. Seeded into `app_settings` at install; migration v62
-/// rewrites the old seed (#6EB3EC) to this on existing installs.
+/// Default accent color hex, the red (#E86A6A), seeded into `app_settings` at
+/// install. Existing installs keep their stored accent: migration v62 moved
+/// the old blue seed (#6EB3EC) to the violet (#A48CF2) that was the default
+/// then.
 const kDefaultAccentColorHex = '#E86A6A';
 
 /// Defines how the safety system behaves when weather/safety devices fail or are unavailable

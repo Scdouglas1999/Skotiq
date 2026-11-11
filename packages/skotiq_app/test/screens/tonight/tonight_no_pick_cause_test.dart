@@ -41,6 +41,7 @@ Future<void> _pumpNoPick(
             activeRun: null,
             targetAsync: const AsyncData<TargetSuggestion?>(null),
             onGo: () async {},
+            onCancel: () {},
             onReset: () {},
             onRefreshPick: () {},
             morningSessionAsync: const AsyncData<int?>(null),

@@ -77,7 +77,8 @@ class MasterAnnotationService {
       return AnnotationLayer(width: width, height: height, items: const []);
     }
 
-    // Search radius: half the field diagonal so corner objects are included.
+    // Search radius: 0.75 x the larger axis, which covers half the diagonal of
+    // any field up to a square one (0.71 x), so corner objects are included.
     final radiusDeg = (fovDeg.abs() * 0.75).clamp(0.02, 30.0);
     final pixelScaleArcsec = wcs.pixelScale; // arcsec / px (|cdelt1| * 3600)
 

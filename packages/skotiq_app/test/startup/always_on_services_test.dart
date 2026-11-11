@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
+import 'package:skotiq_app/services/location_sync_service.dart';
 import 'package:skotiq_app/startup/always_on_services.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
@@ -50,6 +51,9 @@ void main() {
         notificationRouterProvider,
         autofocusPreviewFeederProvider,
         sessionNightSeedProvider,
+        // The daemon serves its native site to linked clients; it has to be
+        // the site its settings hold.
+        locationSyncProvider,
       ]) {
         expect(
           _entry(provider).roles,

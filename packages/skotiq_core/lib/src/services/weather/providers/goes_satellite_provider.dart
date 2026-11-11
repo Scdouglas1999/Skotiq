@@ -91,7 +91,7 @@ class GoesSatelliteProvider extends RadarProvider {
       // automatically returns the most recent imagery
       final now = DateTime.now().toUtc();
 
-      // Round to nearest 5 minutes for consistency
+      // Down to the 5-minute mark: a frame from the future does not exist yet.
       final roundedMinutes = (now.minute ~/ 5) * 5;
       final timestamp = DateTime.utc(
         now.year,
