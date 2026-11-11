@@ -15,13 +15,14 @@ apps/mobile/lib/services/voice_control_service.dart	-	highrisk	1	baseline	/// fa
 native/skotiq_native/alpaca/src/client/config.rs	rand_simple	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/alpaca/src/safetymonitor.rs	get_info	highrisk	1	baseline	driver_info: driver_info.unwrap_or_default(),
 native/skotiq_native/alpaca/src/switch.rs	get_switch_uses_single_query_separator	highrisk	1	baseline	let request_line = request.lines().next().unwrap_or_default().to_string();
-native/skotiq_native/alpaca/src/telescope.rs	capability_or_unsupported	highrisk	1	baseline	Err(error) if error.to_ascii_lowercase().contains("not implemented") => Ok(false),
+native/skotiq_native/alpaca/src/telescope.rs	capability_or_unsupported	highrisk	1	baseline	.contains("not implemented") =>
 native/skotiq_native/alpaca/src/telescope.rs	serve_alpaca_response	highrisk	1	baseline	let request_line = request.lines().next().unwrap_or_default().to_string();
-native/skotiq_native/alpaca/src/telescope.rs	unsupported_capability_is_false_without_masking_other_errors	highrisk	1	baseline	"HTTP error 400: Method not implemented: canfindhome".to_string()
+native/skotiq_native/alpaca/src/telescope.rs	unsupported_capability_is_false_without_masking_other_errors	highrisk	1	baseline	"HTTP error 400: Method not implemented: canfindhome"
+native/skotiq_native/alpaca/src/telescope.rs	unsupported_capability_is_false_without_masking_other_errors	highrisk	1	baseline	message: "Method not implemented: canfindhome".to_string(),
+native/skotiq_native/ascom/src/switch.rs	get_all_switch_states	highrisk	1	baseline	let max_switch = self.max_switch().ok();
 native/skotiq_native/ascom/src/windows/connection.rs	property_reads_surface_it_too	highrisk	1	baseline	description: "Property Gain is not implemented by this camera",
 native/skotiq_native/ascom/src/windows/connection.rs	property_reads_surface_it_too	highrisk	1	baseline	err.contains("Property Gain is not implemented by this camera"),
 native/skotiq_native/ascom/src/windows/connection.rs	scan_registry_path	highrisk	1	baseline	let registry_description = get_driver_description(&key, &prog_id).unwrap_or_default();
-native/skotiq_native/ascom/src/windows/switch.rs	get_all_switch_states	highrisk	1	baseline	let max_switch = self.max_switch().ok();
 native/skotiq_native/bridge/src/api/darkroom/composite_tests.rs	drafted_background	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/bridge/src/api/darkroom/real_master_harness_tests.rs	darkroom_real_composite	highrisk	1	baseline	let steps = recipe["steps"].as_array().cloned().unwrap_or_default();
 native/skotiq_native/bridge/src/api/finishing_analyze.rs	image_to_f64	highrisk	2	baseline	.unwrap_or_default(),
@@ -119,7 +120,6 @@ native/skotiq_native/bridge/src/device_manager/ops/filter_wheel.rs	filter_wheel_
 native/skotiq_native/bridge/src/dispatch/device_common_metadata.rs	-	highrisk	1	baseline	let driver_info = device.driver_info().await.ok();
 native/skotiq_native/bridge/src/dispatch/device_common_metadata.rs	-	highrisk	1	baseline	let driver_version = device.driver_version().await.ok();
 native/skotiq_native/bridge/src/dispatch/device_common_metadata.rs	-	highrisk	1	baseline	let interface_version = device.interface_version().await.ok();
-native/skotiq_native/bridge/src/dispatch/native.rs	connect_native	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/bridge/src/hotplug.rs	current_time_ms	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/bridge/src/hotplug.rs	start_platform_hotplug_listener	highrisk	1	baseline	tracing::debug!("USB hotplug listener is not implemented for this Unix platform yet");
 native/skotiq_native/bridge/src/lib.rs	init_native_internal	highrisk	1	baseline	LOG_DIR.set(log_path.clone()).ok();
@@ -146,15 +146,19 @@ native/skotiq_native/indi/src/client/properties.rs	set_switch_exclusive	highrisk
 native/skotiq_native/indi/src/client/reader.rs	reader_task_with_timeout	highrisk	1	baseline	group: get_attribute(e, "group").unwrap_or_default(),
 native/skotiq_native/indi/src/client/reader.rs	reader_task_with_timeout	highrisk	1	baseline	let text = e.unescape().unwrap_or_default().to_string();
 native/skotiq_native/indi/src/error.rs	fmt	highrisk	1	baseline	.unwrap_or_default();
-native/skotiq_native/native/src/vendor/player_one/camera_ops.rs	download_image	highrisk	1	baseline	let heater_power = self.get_control_int(POAConfig::POA_HEATER_POWER).ok();
-native/skotiq_native/native/src/vendor/player_one/camera_ops.rs	download_image	highrisk	1	baseline	let temperature = self.get_control_float(POAConfig::POA_TEMPERATURE).ok();
-native/skotiq_native/native/src/vendor/player_one/camera_ops.rs	get_status	highrisk	1	baseline	let live_enabled = self.get_control_bool(POAConfig::POA_COOLER).ok();
-native/skotiq_native/native/src/vendor/player_one/camera_ops.rs	get_status	highrisk	1	baseline	let sensor_temp = self.get_control_float(POAConfig::POA_TEMPERATURE).ok();
-native/skotiq_native/native/src/vendor/qhy/camera_ops.rs	download_image	highrisk	1	baseline	let temperature = self.get_control(QhyControl::CONTROL_CURTEMP).ok();
+native/skotiq_native/native/src/catalog.rs	-	highrisk	1	baseline	.unwrap_or_default();
+native/skotiq_native/native/src/catalog.rs	-	highrisk	1	baseline	segments.next().unwrap_or_default(),
+native/skotiq_native/native/src/catalog.rs	port_and_baud	highrisk	1	baseline	let port = port_from_address(segments.next().unwrap_or_default());
+native/skotiq_native/native/src/vendor/player_one/camera_ops.rs	download_image	highrisk	1	baseline	.ok();
+native/skotiq_native/native/src/vendor/player_one/camera_ops.rs	download_image	highrisk	1	baseline	let heater_power = self.get_control_int(&sdk, POAConfig::POA_HEATER_POWER).ok();
+native/skotiq_native/native/src/vendor/player_one/camera_ops.rs	get_status	highrisk	1	baseline	.ok();
+native/skotiq_native/native/src/vendor/player_one/camera_ops.rs	get_status	highrisk	1	baseline	let live_enabled = self.get_control_bool(&sdk, POAConfig::POA_COOLER).ok();
+native/skotiq_native/native/src/vendor/qhy/camera_ops.rs	download_image	highrisk	1	baseline	let temperature = self.get_control(&sdk, QhyControl::CONTROL_CURTEMP).ok();
 native/skotiq_native/native/src/vendor/qhy/camera_ops.rs	get_status	highrisk	1	baseline	.ok();
-native/skotiq_native/native/src/vendor/touptek/camera.rs	-	highrisk	1	baseline	// SAFETY: HOgmacam is a `*mut c_void` opaque camera handle returned by Ogmacam_Open. The struct is always wrapped in `Mutex<HandleWrapper>` in TouptekCamera; the pointer is never dereferenced or modified outside `touptek_mutex().lock().await` + `handle.lock().unwrap()` sections (see all call sites in this module — every SDK call captures the handle value while both locks are held). Marking Send is therefore equivalent to a hand-serialized capability. Sync is intentionally NOT implemented (see comment block below).
+native/skotiq_native/native/src/vendor/skywatcher.rs	tests	highrisk	1	baseline	/// The UDP transport is declared but not implemented: connecting says so
+native/skotiq_native/native/src/vendor/touptek/camera.rs	-	highrisk	1	baseline	// SAFETY: HOgmacam is a `*mut c_void` opaque camera handle returned by Ogmacam_Open. The struct is always wrapped in `Mutex<HandleWrapper>` in TouptekCamera; the pointer is never dereferenced or modified outside `TOUPTEK_SDK_LOCK.lock().await` + `handle.lock().unwrap()` sections (see all call sites in this module — every SDK call captures the handle value while both locks are held). Marking Send is therefore equivalent to a hand-serialized capability. Sync is intentionally NOT implemented (see comment block below).
 native/skotiq_native/native/src/vendor/zwo/camera_ops.rs	download_image	highrisk	1	baseline	.ok();
-native/skotiq_native/native/src/vendor/zwo/camera_ops.rs	get_status	highrisk	1	baseline	let temp = self.read_temperature_celsius_sync().ok();
+native/skotiq_native/native/src/vendor/zwo/camera_ops.rs	get_status	highrisk	1	baseline	let temp = self.read_temperature_celsius_sync(&sdk).ok();
 native/skotiq_native/sequencer/src/device_ops.rs	try_park_with_retry	highrisk	1	baseline	let start = device_ops.mount_get_coordinates(mount_id).await.ok();
 native/skotiq_native/sequencer/src/executor/monitoring.rs	quality_trigger_notice	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/sequencer/src/executor/start.rs	start	highrisk	3	baseline	.unwrap_or_default();
