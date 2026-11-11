@@ -193,13 +193,12 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 1));
 
     final latitudeInput = find.byType(SettingsNumberInput).first;
-    final latitudeWidget = tester.widget<SettingsNumberInput>(latitudeInput);
-    expect(latitudeWidget.controller.text, '42.5',
-        reason: 'Latitude field must render the seeded value');
     final latField = find.descendant(
       of: latitudeInput,
       matching: find.byType(EditableText),
     );
+    expect(tester.widget<EditableText>(latField).controller.text, '42.5',
+        reason: 'Latitude field must render the seeded value');
 
     await tester.enterText(latField, 'abc');
     await tester.pumpAndSettle(const Duration(seconds: 1));
@@ -225,10 +224,13 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 1));
 
     expect(find.byType(LocationSettingsPage), findsOneWidget);
-    final latitudeInput = tester.widget<SettingsNumberInput>(
-      find.byType(SettingsNumberInput).first,
+    final latitudeText = tester.widget<EditableText>(
+      find.descendant(
+        of: find.byType(SettingsNumberInput).first,
+        matching: find.byType(EditableText),
+      ),
     );
-    expect(latitudeInput.controller.text, '0',
+    expect(latitudeText.controller.text, '0',
         reason: 'Default latitude (0.0) must render as "0".');
   });
 

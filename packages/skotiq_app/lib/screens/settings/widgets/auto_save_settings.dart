@@ -31,15 +31,11 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
   // re-seeds the controller from that. Pre-filling here from the un-hydrated
   // service is what put the compiled-in defaults on screen.
   final _sequenceIntervalController = TextEditingController();
-  final _backupIntervalController = TextEditingController();
-  final _maxBackupsController = TextEditingController();
   bool _isSavingNow = false;
 
   @override
   void dispose() {
     _sequenceIntervalController.dispose();
-    _backupIntervalController.dispose();
-    _maxBackupsController.dispose();
     super.dispose();
   }
 
@@ -83,7 +79,7 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
               : 'Could not save backup schedule: $error',
         );
       }
-      if (!wasApplied) rethrow;
+      if (!wasApplied) throw SettingWriteHandled(error);
     }
   }
 
@@ -271,7 +267,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
               title: 'Backup interval',
               subtitle: 'How often to create backups (hours)',
               trailing: SettingsNumberInput(
-                controller: _backupIntervalController,
                 authoritativeValue: config.backupInterval.inHours.toDouble(),
                 authorityKey: service,
                 suffix: 'hrs',
@@ -291,7 +286,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
               title: 'Maximum backups',
               subtitle: 'Number of auto-save backups to retain',
               trailing: SettingsNumberInput(
-                controller: _maxBackupsController,
                 authoritativeValue: config.maxBackups.toDouble(),
                 authorityKey: service,
                 suffix: '',

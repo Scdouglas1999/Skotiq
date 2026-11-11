@@ -356,9 +356,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const HostSettingsNotice(),
                 SettingsScopeNotice(sectionKey: section.key),
                 Expanded(
-                  child: SettingsRowHighlight(
-                    rowTitle: _highlightRow,
-                    child: section.build(true),
+                  child: SettingsFormScope(
+                    isMobile: true,
+                    authority: ref.watch(backendProvider),
+                    child: SettingsRowHighlight(
+                      rowTitle: _highlightRow,
+                      child: section.build(true),
+                    ),
                   ),
                 ),
               ],
@@ -425,9 +429,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       sectionKey: _selectedSection(groups).key,
                     ),
                     Expanded(
-                      child: SettingsRowHighlight(
-                        rowTitle: _highlightRow,
-                        child: _selectedSection(groups).build(false),
+                      child: SettingsFormScope(
+                        isMobile: false,
+                        authority: ref.watch(backendProvider),
+                        child: SettingsRowHighlight(
+                          rowTitle: _highlightRow,
+                          child: _selectedSection(groups).build(false),
+                        ),
                       ),
                     ),
                   ],

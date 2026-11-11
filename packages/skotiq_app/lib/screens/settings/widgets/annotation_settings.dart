@@ -179,7 +179,7 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 min: 50,
                 max: 2000,
                 divisions: 39,
-                label: settings.maxObjectsToDisplay.toString(),
+                format: (value) => value.toInt().toString(),
                 onChanged: (value) =>
                     settingsNotifier.setMaxObjectsToDisplay(value.toInt()),
                 isMobile: isMobile,
@@ -191,22 +191,19 @@ class AnnotationSettingsPage extends ConsumerWidget {
               icon: LucideIcons.grid,
               title: 'Grid overlay',
               subtitle: 'Grid type: pixel, celestial RA/Dec, or off',
-              trailing: SettingsDropdown(
-                value: switch (settings.gridType) {
+              trailing: SettingsChoice<GridType>(
+                value: settings.gridType,
+                values: const [
+                  GridType.none,
+                  GridType.pixel,
+                  GridType.celestial,
+                ],
+                labelOf: (type) => switch (type) {
                   GridType.none => 'Off',
                   GridType.pixel => 'Pixel',
                   GridType.celestial => 'RA/Dec',
                 },
-                items: const ['Off', 'Pixel', 'RA/Dec'],
-                onChanged: (value) {
-                  final type = switch (value) {
-                    'Pixel' => GridType.pixel,
-                    'RA/Dec' => GridType.celestial,
-                    _ => GridType.none,
-                  };
-                  return settingsNotifier.setGridType(type);
-                },
-                isMobile: isMobile,
+                onChanged: settingsNotifier.setGridType,
               ),
               isLast: true,
               isMobile: isMobile,
@@ -229,7 +226,7 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 min: -5,
                 max: 10,
                 divisions: 30,
-                label: settings.minMagnitude.toStringAsFixed(1),
+                format: (value) => value.toStringAsFixed(1),
                 onChanged: (value) => settingsNotifier.setMinMagnitude(value),
                 isMobile: isMobile,
               ),
@@ -245,7 +242,7 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 min: 8,
                 max: 22,
                 divisions: 28,
-                label: settings.magnitudeCutoff.toStringAsFixed(1),
+                format: (value) => value.toStringAsFixed(1),
                 onChanged: (value) =>
                     settingsNotifier.setMagnitudeCutoff(value),
                 isMobile: isMobile,
@@ -353,7 +350,7 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 min: 0.3,
                 max: 1.0,
                 divisions: 14,
-                label: '${(settings.hoverOpacity * 100).toInt()}%',
+                format: (value) => '${(value * 100).toInt()}%',
                 onChanged: (value) => settingsNotifier.setHoverOpacity(value),
                 isMobile: isMobile,
               ),
@@ -369,7 +366,7 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 min: 0.0,
                 max: 0.5,
                 divisions: 10,
-                label: '${(settings.idleOpacity * 100).toInt()}%',
+                format: (value) => '${(value * 100).toInt()}%',
                 onChanged: (value) => settingsNotifier.setIdleOpacity(value),
                 isMobile: isMobile,
               ),
@@ -385,7 +382,7 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 min: 100,
                 max: 1000,
                 divisions: 9,
-                label: '${settings.fadeAnimationMs}ms',
+                format: (value) => '${value.toInt()}ms',
                 onChanged: (value) =>
                     settingsNotifier.setFadeAnimationMs(value.toInt()),
                 isMobile: isMobile,
@@ -423,7 +420,7 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 min: 5,
                 max: 120,
                 divisions: 23,
-                label: '${settings.clickSearchRadiusArcsec.toInt()}"',
+                format: (value) => '${value.toInt()}"',
                 onChanged: (value) =>
                     settingsNotifier.setClickSearchRadius(value),
                 isMobile: isMobile,
@@ -450,7 +447,7 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 min: 0.5,
                 max: 4.0,
                 divisions: 7,
-                label: markerStyle.strokeWidth.toStringAsFixed(1),
+                format: (value) => value.toStringAsFixed(1),
                 onChanged: (value) => markerNotifier.setStrokeWidth(value),
                 isMobile: isMobile,
               ),
@@ -466,7 +463,7 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 min: 8,
                 max: 18,
                 divisions: 10,
-                label: '${markerStyle.labelFontSize.toInt()}px',
+                format: (value) => '${value.toInt()}px',
                 onChanged: (value) => markerNotifier.setLabelFontSize(value),
                 isMobile: isMobile,
               ),

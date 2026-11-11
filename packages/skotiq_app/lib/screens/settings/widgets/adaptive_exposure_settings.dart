@@ -37,7 +37,6 @@ class AdaptiveExposureSettings extends ConsumerStatefulWidget {
 
 class _AdaptiveExposureSettingsState
     extends ConsumerState<AdaptiveExposureSettings> {
-  final _refMagController = TextEditingController();
   final _minSecsController = TextEditingController();
   final _maxSecsController = TextEditingController();
   String? _globalBoundsError;
@@ -45,7 +44,6 @@ class _AdaptiveExposureSettingsState
 
   @override
   void dispose() {
-    _refMagController.dispose();
     _minSecsController.dispose();
     _maxSecsController.dispose();
     super.dispose();
@@ -145,7 +143,6 @@ class _AdaptiveExposureSettingsState
                         'in mag/arcsec²',
                     trailing: SettingsNumberInput(
                       key: const ValueKey('adaptive-reference-mag'),
-                      controller: _refMagController,
                       authoritativeValue: settings.adaptiveExposureReferenceMag,
                       authorityKey: authority,
                       suffix: 'mag',

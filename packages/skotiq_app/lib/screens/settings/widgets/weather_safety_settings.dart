@@ -387,15 +387,13 @@ class WeatherSafetyPolicyRows extends ConsumerWidget {
           icon: LucideIcons.alertTriangle,
           title: 'Safety fail mode',
           subtitle: failMode.description,
-          trailing: settingsTrailingDropdown(
-            context: context,
-            value: failMode.label,
-            items: SafetyFailModeLabels.labels,
+          trailing: settingsTrailingChoice<SafetyFailMode>(
+            value: failMode,
+            values: SafetyFailModeLabels.choices,
+            labelOf: (mode) => mode.label,
             designWidth: 180,
-            isMobile: isMobile,
-            onChanged: (value) => ref
-                .read(appSettingsProvider.notifier)
-                .setSafetyFailMode(SafetyFailModeLabels.fromLabel(value)),
+            onChanged: (mode) =>
+                ref.read(appSettingsProvider.notifier).setSafetyFailMode(mode),
           ),
           isMobile: isMobile,
         ),

@@ -1,19 +1,24 @@
 part of '../settings_widgets.dart';
 
-class SettingsCompactSlider extends StatelessWidget {
+/// A slider for a [SettingRow]'s trailing slot, with the value beside it.
+///
+/// The thumb and the value follow the drag at once. The write is held until
+/// the drag pauses or ends, so a sweep across the track is one write rather
+/// than one per step. A failed write puts the thumb back and says so.
+class SettingsCompactSlider extends StatefulWidget {
   final double value;
-
   final double min;
-
   final double max;
-
   final int divisions;
 
-  final String label;
+  /// What to show beside the slider for a value (unit included).
+  final String Function(double value) format;
 
-  final ValueChanged<double> onChanged;
+  /// May be asynchronous; a failure restores the stored value.
+  final FutureOr<void> Function(double value) onChanged;
 
-  final bool isMobile;
+  /// Overrides the enclosing [SettingsFormScope].
+  final bool? isMobile;
 
   const SettingsCompactSlider({
     super.key,
@@ -21,48 +26,109 @@ class SettingsCompactSlider extends StatelessWidget {
     required this.min,
     required this.max,
     required this.divisions,
-    required this.label,
+    required this.format,
     required this.onChanged,
-    this.isMobile = false,
+    this.isMobile,
   });
+
+  static const Duration writeDelay = Duration(milliseconds: 250);
+
+  @override
+  State<SettingsCompactSlider> createState() => _SettingsCompactSliderState();
+}
+
+class _SettingsCompactSliderState extends State<SettingsCompactSlider> {
+  final SettingsNoticeController _notice = SettingsNoticeController();
+  late double _value = widget.value;
+  late final SettingWriter<double> _writer = SettingWriter<double>(
+    initial: widget.value,
+    onRollback: _onRollback,
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(covariant SettingsCompactSlider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _sync();
+  }
+
+  void _sync() {
+    final show = _writer.accept(
+      widget.value,
+      authority: SettingsFormScope.authorityOf(context),
+    );
+    if (show) _value = widget.value;
+  }
+
+  void _onRollback(double restored, double attempted, Object error) {
+    if (!mounted) return;
+    setState(() => _value = restored);
+    settingsReportRollback(context, _notice, error);
+  }
+
+  void _move(double value, {required bool ended}) {
+    _notice.clear();
+    setState(() => _value = value);
+    _writer.submit(
+      value,
+      widget.onChanged,
+      debounce: ended ? Duration.zero : SettingsCompactSlider.writeDelay,
+    );
+  }
+
+  @override
+  void dispose() {
+    _writer.close();
+    _notice.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-
+    final isMobile = widget.isMobile ?? SettingsFormScope.isMobileOf(context);
     final sliderWidth = isMobile ? 100.0 : 120.0;
-
     final labelWidth = isMobile ? 45.0 : 50.0;
+    final shown = _value.clamp(widget.min, widget.max).toDouble();
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: sliderWidth,
-          child: Slider(
-            value: value,
-            min: min,
-            max: max,
-            divisions: divisions,
-            onChanged: onChanged,
-          ),
-        ),
-        const SizedBox(width: SkotiqTokens.spaceSm),
-        SizedBox(
-          width: labelWidth,
-          child: Text(
-            label,
-            style: (isMobile
-                    ? SkotiqTypography.captionSm
-                    : SkotiqTypography.caption)
-                .copyWith(
-              color: colors.textSecondary,
-              fontWeight: FontWeight.w500,
+    return SettingsFieldNotice(
+      controller: _notice,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: sliderWidth,
+            child: Slider(
+              value: shown,
+              min: widget.min,
+              max: widget.max,
+              divisions: widget.divisions,
+              onChanged: (value) => _move(value, ended: false),
+              onChangeEnd: (value) => _move(value, ended: true),
             ),
-            textAlign: TextAlign.end,
           ),
-        ),
-      ],
+          const SizedBox(width: SkotiqTokens.spaceSm),
+          SizedBox(
+            width: labelWidth,
+            child: Text(
+              widget.format(shown),
+              style: (isMobile
+                      ? SkotiqTypography.captionSm
+                      : SkotiqTypography.caption)
+                  .copyWith(
+                color: colors.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -82,7 +148,7 @@ class ObjectTypeToggle extends StatelessWidget {
 
   final bool isLast;
 
-  final bool isMobile;
+  final bool? isMobile;
 
   const ObjectTypeToggle({
     super.key,
@@ -92,7 +158,7 @@ class ObjectTypeToggle extends StatelessWidget {
     required this.isEnabled,
     required this.onChanged,
     this.isLast = false,
-    this.isMobile = false,
+    this.isMobile,
   });
 
   @override

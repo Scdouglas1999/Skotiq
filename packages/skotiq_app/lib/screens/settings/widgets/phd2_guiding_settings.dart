@@ -22,9 +22,6 @@ class Phd2GuidingSettings extends ConsumerStatefulWidget {
 }
 
 class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
-  final _portController = TextEditingController();
-  final _hostController = TextEditingController();
-
   bool _testing = false;
 
   /// Outcome of the last probe: `null` until one has run.
@@ -35,13 +32,6 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
   /// it still matches the configured endpoint, so an edited host/port can never
   /// display an old "PHD2 answered" against a different address.
   String? _testedEndpoint;
-
-  @override
-  void dispose() {
-    _portController.dispose();
-    _hostController.dispose();
-    super.dispose();
-  }
 
   static String _endpointOf(AppSettingsState settings) {
     final host = settings.phd2Host.trim().isEmpty
@@ -283,7 +273,6 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
                   title: 'Host',
                   subtitle: 'PHD2 server hostname or IP address',
                   trailing: SettingsTextInput(
-                    controller: _hostController,
                     authoritativeValue: settings.phd2Host,
                     authorityKey: authority,
                     hint: 'localhost',
@@ -300,7 +289,6 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
                   title: 'Port',
                   subtitle: 'PHD2 server port (default: 4400)',
                   trailing: SettingsNumberInput(
-                    controller: _portController,
                     authoritativeValue: settings.phd2Port.toDouble(),
                     authorityKey: authority,
                     suffix: '',
