@@ -2,7 +2,6 @@
 
 part of '../../sequence_models.dart';
 
-/// Change filter instruction
 class FilterChangeNode extends SequenceNode {
   final String filterName;
   final int? filterPosition;
@@ -51,7 +50,6 @@ class FilterChangeNode extends SequenceNode {
   List<Object?> get props => [...super.props, filterName, filterPosition];
 }
 
-/// Cool camera instruction
 class CoolCameraNode extends SequenceNode {
   final double targetTemp;
   final double? durationMins;
@@ -100,7 +98,6 @@ class CoolCameraNode extends SequenceNode {
   List<Object?> get props => [...super.props, targetTemp, durationMins];
 }
 
-/// Warm camera instruction
 class WarmCameraNode extends SequenceNode {
   final double ratePerMin;
   final double targetTemp;
@@ -149,7 +146,6 @@ class WarmCameraNode extends SequenceNode {
   List<Object?> get props => [...super.props, ratePerMin, targetTemp];
 }
 
-/// Move rotator instruction
 class RotatorNode extends SequenceNode {
   final double targetAngle;
   final bool relative;
@@ -198,7 +194,6 @@ class RotatorNode extends SequenceNode {
   List<Object?> get props => [...super.props, targetAngle, relative];
 }
 
-/// Park mount instruction
 class ParkNode extends SequenceNode {
   ParkNode({
     super.id,
@@ -235,7 +230,6 @@ class ParkNode extends SequenceNode {
   }
 }
 
-/// Unpark mount instruction
 class UnparkNode extends SequenceNode {
   UnparkNode({
     super.id,
@@ -313,7 +307,6 @@ class HomeMountNode extends SequenceNode {
   }
 }
 
-/// Wait for time instruction
 class WaitTimeNode extends SequenceNode {
   final DateTime? waitUntil;
   final TwilightType? waitForTwilight;
@@ -366,7 +359,6 @@ class WaitTimeNode extends SequenceNode {
   List<Object?> get props => [...super.props, waitUntil, waitForTwilight];
 }
 
-/// Delay instruction
 class DelayNode extends SequenceNode {
   final double seconds;
 
@@ -411,7 +403,6 @@ class DelayNode extends SequenceNode {
   List<Object?> get props => [...super.props, seconds];
 }
 
-/// Notification instruction
 class NotificationNode extends SequenceNode {
   final String title;
   final String message;
@@ -493,7 +484,6 @@ class NotificationNode extends SequenceNode {
   ];
 }
 
-/// Script instruction
 class ScriptNode extends SequenceNode {
   final String scriptPath;
   final List<String> arguments;

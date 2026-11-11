@@ -2,8 +2,6 @@
 
 part of '../sequence_models.dart';
 
-// Sequence
-
 /// Complete sequence.
 ///
 /// **Tree representation contract**:
@@ -204,7 +202,6 @@ abstract class Sequence with _$Sequence {
   }) {
     final base = estimateIntegrationSecs(referenceTime: referenceTime);
 
-    // Walk tree counting overhead-generating operations
     double overheadSecs = 0;
 
     if (rootNodeId != null && nodes[rootNodeId] != null) {
@@ -236,10 +233,8 @@ abstract class Sequence with _$Sequence {
     final node = nodes[nodeId];
     if (node == null || !node.isEnabled) return 0;
 
-    // Leaf node overhead
     final selfOverhead = _nodeOverhead(node, config) * multiplier;
 
-    // Children overhead
     double childrenOverhead = 0;
     int childMultiplier = multiplier;
     if (node is LoopNode) {
@@ -271,7 +266,6 @@ abstract class Sequence with _$Sequence {
       return config.coverMoveSecs;
     }
     if (node is ExposureNode) {
-      // Download overhead per exposure
       return config.downloadOverheadPerExposureSecs * node.count;
     }
     return 0;
@@ -302,7 +296,6 @@ abstract class Sequence with _$Sequence {
       );
     }
 
-    // Walk the tree from root
     return _estimateNodeIntegration(rootNodeId!, referenceTime);
   }
 
@@ -361,7 +354,6 @@ abstract class Sequence with _$Sequence {
       );
     }
 
-    // For exposure nodes, return the direct duration
     if (node is ExposureNode) {
       final duration = node.totalDurationSecs;
       return SequenceEstimate(
@@ -392,7 +384,6 @@ abstract class Sequence with _$Sequence {
       );
     }
 
-    // For nodes with children, sum up children's estimates
     double childrenSecs = 0;
     double childrenSingleIteration = 0;
     bool anyChildUnbounded = false;
@@ -404,11 +395,9 @@ abstract class Sequence with _$Sequence {
       if (childEstimate.isUnbounded) anyChildUnbounded = true;
     }
 
-    // For loop nodes, apply the loop multiplier
     if (node is LoopNode) {
       switch (node.conditionType) {
         case LoopConditionType.count:
-          // Fixed iteration count
           final iterations = node.repeatCount ?? 1;
           return SequenceEstimate(
             estimatedSecs: childrenSecs * iterations,
@@ -424,7 +413,6 @@ abstract class Sequence with _$Sequence {
                 .inSeconds
                 .toDouble();
             if (availableSecs > 0) {
-              // Estimate how many iterations can fit in the time window
               final estimatedIterations =
                   (availableSecs / childrenSingleIteration).floor();
               final estimatedTotal =
@@ -515,10 +503,8 @@ abstract class Sequence with _$Sequence {
       ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
   }
 
-  /// Get node by ID
   SequenceNode? getNode(String id) => nodes[id];
 
-  /// Get root node
   SequenceNode? get rootNode => rootNodeId != null ? nodes[rootNodeId] : null;
 
   /// Get children of a node. See [childrenOf] for the index-backed equivalent;
@@ -585,5 +571,3 @@ abstract class SequenceProgress with _$SequenceProgress {
     return completedExposures / totalExposures;
   }
 }
-
-// Science — SciencePhotometryNode + transparency-adaptive support.

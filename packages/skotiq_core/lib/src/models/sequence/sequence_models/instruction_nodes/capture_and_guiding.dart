@@ -2,9 +2,6 @@
 
 part of '../../sequence_models.dart';
 
-// Instruction nodes
-
-/// Slew to target instruction
 class SlewNode extends SequenceNode {
   final bool useTargetCoords;
   final double? customRa;
@@ -216,7 +213,6 @@ abstract class AdaptiveExposureConfig with _$AdaptiveExposureConfig {
   }
 }
 
-/// Take exposure instruction
 class ExposureNode extends SequenceNode {
   final double durationSecs;
   final int count;
@@ -257,7 +253,6 @@ class ExposureNode extends SequenceNode {
     this.adaptiveExposure,
   });
 
-  /// Get estimated total duration
   double get totalDurationSecs => durationSecs * count;
 
   @override

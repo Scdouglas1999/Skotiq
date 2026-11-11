@@ -92,16 +92,12 @@ class SciencePhotometryNode extends SequenceNode {
   /// differential magnitude against [referenceStars].
   final bool applyDifferential;
 
-  /// Per-frame quality gates.
   final PhotometryQualityGates quality;
 
-  /// Optional gain override.
   final int? gain;
 
-  /// Optional offset override.
   final int? offset;
 
-  /// Binning.
   final BinningMode binning;
 
   SciencePhotometryNode({
