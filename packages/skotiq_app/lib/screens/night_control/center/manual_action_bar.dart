@@ -146,11 +146,6 @@ class _ActionButton extends ConsumerWidget {
     final sub = hideSub ? null : action.sub?.resolve(l10n);
     final reason = action.enabled ? null : action.disabledReason?.resolve(l10n);
     final running = action.running;
-
-    final Color fill;
-    final Color ink;
-    if (running) {
-      fill = colors.warning.withValues(alpha: SkotiqTokens.opacityStatusFill);
     // Outlined while its tab is the one open, so a press visibly lands
     // somewhere: the button and the tab light up together.
     final showing = ref.watch(nightPanelTabProvider) == action.id.panelTab;
@@ -158,6 +153,11 @@ class _ActionButton extends ConsumerWidget {
       'tab': l10n.text(action.id.panelTab.labelKey),
     });
     final note = reason == null ? opens : '$reason · $opens';
+
+    final Color fill;
+    final Color ink;
+    if (running) {
+      fill = colors.warning.withValues(alpha: SkotiqTokens.opacityStatusFill);
       ink = colors.warning;
     } else if (action.enabled) {
       fill = colors.surfaceHover;
@@ -283,6 +283,7 @@ class _HintIcon extends StatelessWidget {
   });
 
   final String message;
+
   final IconData icon;
   final Color color;
   final bool collapsed;

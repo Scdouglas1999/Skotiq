@@ -640,6 +640,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActWhyParked': 'The mount is parked',
     'nightActWhyNotTracking': 'Start tracking first',
     'nightActWhyNoTarget': 'No target with coordinates',
+    'nightActWhyNoSolver': 'No plate solver is set up',
     'nightActWhyRunOwns': 'The run controls this while it is loaded',
     'nightActWhyNoSetpoint': 'The profile has no cooler setpoint',
     'nightActBusySnapshot': 'A snapshot is running',
@@ -647,7 +648,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActBusyAutofocus': 'Autofocus is running',
     'nightActBusySolveSync': 'Solve & sync is running',
     'nightActBusyCenter': 'Centering is running',
-    'nightActWhyNoSolver': 'No plate solver is set up',
     'nightActBusyDither': 'A dither is running',
     'nightActBusyFlip': 'A meridian flip is running',
     'nightActBusyTracking': 'Tracking is changing',
@@ -758,6 +758,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionFilterSlot': '{name} ({slot} of {count})',
     'nightSessionFilterSlotOnly': 'slot {slot} of {count}',
     'nightSessionFocuserMoving': 'moving',
+    'nightSessionFocuserSteps': '{position} steps',
     'nightSessionFocuserPosition': 'position',
     'nightSessionFocuserTemp': 'focuser',
     'nightSessionGuideDec': 'Dec',
@@ -766,7 +767,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionGuideSnr': 'SNR',
     'nightSessionGuiderCalibrating': 'calibrating',
     'nightSessionGuiderGuiding': 'guiding',
-    'nightSessionFocuserSteps': '{position} steps',
     'nightSessionGuiderLooping': 'looping',
     'nightSessionGuiderLostStar': 'star lost',
     'nightSessionGuiderMass': 'mass {mass}',
@@ -930,6 +930,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightPanelPower': 'Power',
     'nightPanelReadout': 'Readout',
     'nightPanelRecentRuns': 'Recent runs',
+    'nightPanelRunTime': 'time',
+    'nightPanelRunTook': 'took',
     'nightPanelReference': 'Reference',
     'nightPanelSafe': 'Safe',
     'nightPanelSavesTo': 'Saves to',
@@ -938,8 +940,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightPanelSessionEmpty': 'No frames in this session yet',
     'nightSessionRejectedLast': 'Last frame rejected',
     'nightSessionRejectedLastReason': 'Last frame rejected: {reason}',
-    'nightPanelRunTime': 'time',
-    'nightPanelRunTook': 'took',
     'nightSessionRejectedInARow': '{count} frames rejected in a row',
     'nightSessionRejectedInARowReason':
         '{count} frames rejected in a row: {reason}',
@@ -1382,6 +1382,11 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeSolveLast': 'Last solve',
     'nightScopeSolveSolving': 'Solving',
     'nightScopeSolveNone': 'No solve yet this session',
+    'nightScopeSolverMissing': 'No plate solver set up',
+    'nightScopeSolverMissingNote':
+        'Solve, Solve & sync and Center need a plate solver (ASTAP or '
+            'Astrometry.net).',
+    'nightScopeSolverSetUp': 'Set up plate solver',
     'nightScopeSolveSolved': 'Solved',
     'nightScopeSolveFailed': 'Solve failed',
     'nightScopeSolveRotation': 'Rotation',
@@ -1392,11 +1397,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeWhySolving': 'A plate solve is running',
     'nightScopeWhyNoFrame': 'Take a frame first',
     'nightScopeSolveSyncCentering': 'Sync the mount between centering slews',
-    'nightScopeSolverMissing': 'No plate solver set up',
-    'nightScopeSolverMissingNote':
-        'Solve, Solve & sync and Center need a plate solver (ASTAP or '
-            'Astrometry.net).',
-    'nightScopeSolverSetUp': 'Set up plate solver',
     'nightScopeSolveSyncCenteringHint':
         "Off keeps the mount's pointing model untouched, but each correction slew then repeats the same error",
     'nightScopeSolveSettings': 'Settings for a solve',
@@ -2240,6 +2240,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActWhyParked': 'La montura está aparcada',
     'nightActWhyNotTracking': 'Activa primero el seguimiento',
     'nightActWhyNoTarget': 'No hay objetivo con coordenadas',
+    'nightActWhyNoSolver': 'No hay ningún resolvedor de placas configurado',
     'nightActWhyRunOwns': 'La sesión controla esto mientras está cargada',
     'nightActWhyNoSetpoint': 'El perfil no tiene temperatura de enfriamiento',
     'nightActBusySnapshot': 'Hay una instantánea en curso',
@@ -2259,7 +2260,6 @@ final Map<String, Map<String, String>> _localizedValues = {
         'Reiniciando el guiado y esperando a que se estabilice',
     'nightActErrSnapshot': 'La instantánea falló: {detail}',
     'nightActErrLoop': 'El bucle se detuvo: {detail}',
-    'nightActWhyNoSolver': 'No hay ningún resolvedor de placas configurado',
     'nightActErrAutofocus': 'El autoenfoque falló: {detail}',
     'nightActErrSolveSync': 'Resolver y sincronizar falló: {detail}',
     'nightActErrCenter': 'El centrado falló: {detail}',
@@ -2360,6 +2360,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionFilterSlot': '{name} ({slot} de {count})',
     'nightSessionFilterSlotOnly': 'posición {slot} de {count}',
     'nightSessionFocuserMoving': 'moviéndose',
+    'nightSessionFocuserSteps': '{position} pasos',
     'nightSessionFocuserPosition': 'posición',
     'nightSessionFocuserTemp': 'enfocador',
     'nightSessionGuideDec': 'Dec',
@@ -2386,7 +2387,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionMetricBgSigma': 'Ruido fondo',
     'nightSessionMetricEcc': 'Exc',
     'nightSessionMetricFwhm': 'FWHM',
-    'nightSessionFocuserSteps': '{position} pasos',
     'nightSessionMetricHfr': 'HFR',
     'nightSessionMetricMedian': 'Mediana',
     'nightSessionMetricOffTarget': 'Desvío',
@@ -2534,6 +2534,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightPanelPower': 'Potencia',
     'nightPanelReadout': 'Lectura',
     'nightPanelRecentRuns': 'Ejecuciones recientes',
+    'nightPanelRunTime': 'hora',
+    'nightPanelRunTook': 'duró',
     'nightPanelReference': 'Referencia',
     'nightPanelSafe': 'Seguro',
     'nightPanelSavesTo': 'Guarda en',
@@ -2560,8 +2562,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSchedulerTitle': 'Planificador',
     'nightSchedulerWaiting':
         'Elige el mejor objetivo cuando el plan llegue a él.',
-    'nightPanelRunTime': 'hora',
-    'nightPanelRunTook': 'duró',
     'nightSchedulerPickAt': 'elección {n} a las {time}',
     'nightSchedulerPicked': 'Elegido {target}',
     'nightSchedulerNoPick':
@@ -3009,6 +3009,11 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeSolveLast': 'Última resolución',
     'nightScopeSolveSolving': 'Resolviendo',
     'nightScopeSolveNone': 'Aún no hay resolución en esta sesión',
+    'nightScopeSolverMissing': 'Sin resolvedor de placas',
+    'nightScopeSolverMissingNote':
+        'Resolver, Resolver y sincronizar y Centrar necesitan un resolvedor '
+            'de placas (ASTAP o Astrometry.net).',
+    'nightScopeSolverSetUp': 'Configurar el resolvedor',
     'nightScopeSolveSolved': 'Resuelta',
     'nightScopeSolveFailed': 'Falló la resolución',
     'nightScopeSolveRotation': 'Rotación',
@@ -3031,11 +3036,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeSolveCenterRuleBlind':
         'Botón Centrar: a menos de {arcsec}" · {attempts} intentos · resolución a ciegas activada',
     'nightScopeSolvePlanCenterRule':
-    'nightScopeSolverMissing': 'Sin resolvedor de placas',
-    'nightScopeSolverMissingNote':
-        'Resolver, Resolver y sincronizar y Centrar necesitan un resolvedor '
-            'de placas (ASTAP o Astrometry.net).',
-    'nightScopeSolverSetUp': 'Configurar el resolvedor',
         'Paso Centrar del plan: a menos de {arcsec}" · {attempts} intentos',
     'nightScopeSolveEditSettings': 'Ajustes del resolvedor…',
     'nightScopeRotation': 'Rotación',

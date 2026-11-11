@@ -182,8 +182,6 @@ void main() {
     expect(find.text('Cooler'), findsNothing);
   });
 
-  testWidgets('an action running in the linked window is named in the hint',
-      (tester) async {
   testWidgets(
       'before a run, an action under way is named, not "Nothing is '
       'running"', (tester) async {
@@ -203,6 +201,8 @@ void main() {
     expect(find.textContaining('Nothing is running'), findsNothing);
   });
 
+  testWidgets('an action running in the linked window is named in the hint',
+      (tester) async {
     await pumpCenter(
       tester,
       [
