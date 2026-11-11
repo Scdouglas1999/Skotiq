@@ -1,0 +1,715 @@
+{
+  "description": "golden",
+  "id": "wire-doc",
+  "metadata": {
+    "autofocus_every_minutes": "60",
+    "autofocus_on_filter_change": "false",
+    "frame_watch": "{\"drift_limit_arcsec\":30.0,\"use_first_frame_reference\":true,\"obstruction_detection\":true,\"learned_horizon\":[]}"
+  },
+  "name": "Every node (wire-doc)",
+  "nodes": [
+    {
+      "children": [
+        "n-TargetHeader",
+        "n-Loop",
+        "n-Parallel",
+        "n-Conditional",
+        "n-Recovery",
+        "n-InstructionSet",
+        "n-TargetScheduler",
+        "n-SlewToTarget",
+        "n-CenterTarget",
+        "n-TakeExposure",
+        "n-SmartExposure",
+        "n-Autofocus",
+        "n-Dither",
+        "n-StartGuiding",
+        "n-StopGuiding",
+        "n-ChangeFilter",
+        "n-CoolCamera",
+        "n-WarmCamera",
+        "n-MoveRotator",
+        "n-Park",
+        "n-Unpark",
+        "n-HomeMount",
+        "n-WaitForTime",
+        "n-Delay",
+        "n-Notification",
+        "n-RunScript",
+        "n-MeridianFlip",
+        "n-OpenDome",
+        "n-CloseDome",
+        "n-ParkDome",
+        "n-PolarAlignment",
+        "n-OpenCover",
+        "n-CloseCover",
+        "n-CalibratorOn",
+        "n-CalibratorOff",
+        "n-LiveStacking",
+        "n-SciencePhotometry",
+        "n-PluginNode"
+      ],
+      "enabled": true,
+      "id": "root",
+      "name": "Root",
+      "node_type": {
+        "condition": "Count",
+        "condition_value": 1,
+        "iterations": 1,
+        "type": "Loop"
+      }
+    },
+    {
+      "children": [],
+      "enabled": false,
+      "id": "n-TargetHeader",
+      "name": "M31 field",
+      "node_type": {
+        "brightness_tier_hint": "medium",
+        "dec_degrees": 41.27,
+        "end_before": 1773549900,
+        "end_when": {
+          "kind": "TimeBefore",
+          "value": 1773550000
+        },
+        "integration_budget": {
+          "per_filter": {
+            "L": {
+              "kind": "Absolute",
+              "value": 3600.0
+            },
+            "R": {
+              "kind": "Ratio",
+              "value": 0.25
+            }
+          },
+          "stop_on_budget_met": false,
+          "total_secs": 7200.0
+        },
+        "max_altitude": 80.0,
+        "min_altitude": 25.0,
+        "mosaic_panel": {
+          "column": 1,
+          "mosaic_name": "M31 2x2",
+          "panel_index": 1,
+          "row": 0,
+          "total_panels": 4
+        },
+        "priority": 3,
+        "ra_hours": 0.712,
+        "rotation": 12.5,
+        "start_after": 1773527400,
+        "start_when": {
+          "kind": "And",
+          "value": [
+            {
+              "kind": "AltitudeAbove",
+              "value": 35.0
+            },
+            {
+              "kind": "HourAngleBetween",
+              "value": {
+                "maxHa": 3.0,
+                "minHa": -2.0
+              }
+            }
+          ]
+        },
+        "target_name": "M31",
+        "trigger_poll_interval_secs": 45,
+        "type": "TargetHeader"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-Loop",
+      "name": "Until dawn",
+      "node_type": {
+        "condition": "UntilTime",
+        "condition_value": 1773549900,
+        "iterations": 7,
+        "type": "Loop"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-Parallel",
+      "name": "Both",
+      "node_type": {
+        "required_successes": 2,
+        "type": "Parallel"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-Conditional",
+      "name": "If safe",
+      "node_type": {
+        "condition": {
+          "type": "SafetyMonitorSafe",
+          "value": null
+        },
+        "safety_monitor_id": "safety-2",
+        "type": "Conditional"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-Recovery",
+      "name": "Recover clouds",
+      "node_type": {
+        "max_retries": 5,
+        "recovery_action": "Continue",
+        "trigger": {
+          "CloudCoverThreshold": {
+            "duration_secs": 90.0,
+            "max_percent": 85.0
+          }
+        },
+        "type": "Recovery"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-InstructionSet",
+      "name": "Group",
+      "node_type": {
+        "condition": "Count",
+        "condition_value": 1,
+        "iterations": 1,
+        "type": "Loop"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-TargetScheduler",
+      "name": "Pick best",
+      "node_type": {
+        "airmass_weight": 0.15,
+        "altitude_weight": 0.3,
+        "brightness_tier_preferences": {
+          "bright_min_score": 35.0,
+          "faint_min_score": 75.0,
+          "medium_min_score": 55.0
+        },
+        "darkness_weight": 0.25,
+        "finish_iteration_on_switch": false,
+        "horizon_profile": {
+          "samples": [
+            {
+              "alt": 12.0,
+              "az": 0.0
+            },
+            {
+              "alt": 20.0,
+              "az": 180.0
+            }
+          ]
+        },
+        "max_conditions_score_age_secs": 450,
+        "min_moon_separation_deg": 40.0,
+        "min_score_to_run": 42.0,
+        "moon_distance_weight": 0.2,
+        "recompute_every_n_exposures": 8,
+        "swap_hysteresis_secs": 240.0,
+        "swap_on_conditions_below": 55.0,
+        "transit_proximity_weight": 0.1,
+        "type": "TargetScheduler"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-SlewToTarget",
+      "name": "Slew custom",
+      "node_type": {
+        "custom_dec": -5.4,
+        "custom_ra": 5.5,
+        "type": "SlewToTarget",
+        "use_target_coords": false
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-CenterTarget",
+      "name": "Center custom",
+      "node_type": {
+        "accuracy_arcsec": 2.5,
+        "custom_dec": -5.3,
+        "custom_ra": 5.6,
+        "exposure_duration": 8.0,
+        "filter": null,
+        "max_attempts": 7,
+        "type": "CenterTarget",
+        "use_target_coords": false
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-TakeExposure",
+      "name": "Ha subs",
+      "node_type": {
+        "adaptive_exposure": {
+          "enabled": true,
+          "max_exposure_secs": 900.0,
+          "min_exposure_secs": 10.0,
+          "per_filter_enabled": {
+            "Ha": true
+          },
+          "per_filter_max_secs": {
+            "Ha": 1200.0
+          },
+          "per_filter_min_secs": {
+            "Ha": 60.0
+          },
+          "reference_sky_brightness_mag": 20.5,
+          "target_snr": 40.0
+        },
+        "binning": "Two",
+        "count": 24,
+        "dither_every": 5,
+        "dither_pixels": 5.0,
+        "dither_ra_only": false,
+        "dither_settle_pixels": 1.5,
+        "dither_settle_time": 30.0,
+        "dither_settle_timeout": 120.0,
+        "duration_secs": 300.0,
+        "filter": "Ha",
+        "filter_index": 4,
+        "frame_type": "Flat",
+        "gain": 120,
+        "offset": 30,
+        "save_to": null,
+        "triggers": [
+          {
+            "action": "Autofocus",
+            "condition": {
+              "HfrAbove": 3.5
+            }
+          }
+        ],
+        "type": "TakeExposure"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-SmartExposure",
+      "name": "LRGB smart",
+      "node_type": {
+        "batch_size": 3,
+        "dither_on_filter_change": true,
+        "integration_budget_secs": 10800.0,
+        "loop_until_stopped": true,
+        "plans": [
+          {
+            "binning": "Two",
+            "count": 30,
+            "dither_every": 4,
+            "duration_secs": 120.0,
+            "filter_index": 0,
+            "filter_name": "L",
+            "gain": 100,
+            "offset": 20
+          },
+          {
+            "binning": "One",
+            "count": 10,
+            "dither_every": null,
+            "duration_secs": 180.0,
+            "filter_index": null,
+            "filter_name": "R",
+            "gain": null,
+            "offset": null
+          }
+        ],
+        "rotate_filters": false,
+        "type": "SmartExposure"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-Autofocus",
+      "name": "Focus custom",
+      "node_type": {
+        "backlash_compensation": 0,
+        "backlash_out_compensation": 0,
+        "binning": "One",
+        "disable_guiding_during_af": false,
+        "exposure_duration": 4.5,
+        "exposures_per_point": 2,
+        "failure_hfr_tolerance_ratio": 1.6,
+        "filter": null,
+        "filter_settings": {},
+        "focuser_settle_time_ms": 500,
+        "inner_crop_ratio": 0.0,
+        "max_duration_secs": 900.0,
+        "measured_backlash_in": null,
+        "method": "Quadratic",
+        "number_of_attempts": 2,
+        "outer_crop_ratio": 1.0,
+        "r_squared_threshold": 0.7,
+        "step_size": 80,
+        "steps_out": 9,
+        "type": "Autofocus",
+        "use_brightest_n_stars": 10
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-Dither",
+      "name": "Dither big",
+      "node_type": {
+        "grid_size": 5,
+        "pattern": "Grid",
+        "pixels": 8.0,
+        "ra_only": true,
+        "settle_pixels": 0.8,
+        "settle_time": 20.0,
+        "settle_timeout": 90.0,
+        "type": "Dither"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-StartGuiding",
+      "name": "Guide",
+      "node_type": {
+        "auto_select_star": false,
+        "settle_pixels": 0.9,
+        "settle_time": 15.0,
+        "settle_timeout": 75.0,
+        "type": "StartGuiding"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-StopGuiding",
+      "name": "Stop guide",
+      "node_type": {
+        "type": "StopGuiding"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-ChangeFilter",
+      "name": "To OIII",
+      "node_type": {
+        "filter_index": 5,
+        "filter_name": "OIII",
+        "type": "ChangeFilter"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-CoolCamera",
+      "name": "Cool deep",
+      "node_type": {
+        "duration_mins": 15.0,
+        "target_temp": -20.0,
+        "type": "CoolCamera"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-WarmCamera",
+      "name": "Warm slow",
+      "node_type": {
+        "rate_per_min": 1.5,
+        "target_temp": 15.0,
+        "type": "WarmCamera"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-MoveRotator",
+      "name": "Rotate",
+      "node_type": {
+        "relative": true,
+        "target_angle": 92.5,
+        "type": "MoveRotator"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-Park",
+      "name": "Park it",
+      "node_type": {
+        "type": "Park"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-Unpark",
+      "name": "Unpark it",
+      "node_type": {
+        "type": "Unpark"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-HomeMount",
+      "name": "Home it",
+      "node_type": {
+        "type": "HomeMount"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-WaitForTime",
+      "name": "Wait dusk",
+      "node_type": {
+        "type": "WaitForTime",
+        "wait_for_twilight": "Nautical",
+        "wait_until": 1773527400
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-Delay",
+      "name": "Pause",
+      "node_type": {
+        "seconds": 42.5,
+        "type": "Delay"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-Notification",
+      "name": "Tell me",
+      "node_type": {
+        "explicit_transports": [
+          "discord",
+          "email"
+        ],
+        "level": "Warning",
+        "message": "Target {target} finished",
+        "title": "Done",
+        "type": "Notification"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-RunScript",
+      "name": "Script",
+      "node_type": {
+        "arguments": [
+          "--fast",
+          "-n",
+          "3"
+        ],
+        "script_path": "/opt/rig/flats.sh",
+        "timeout_secs": 120,
+        "type": "RunScript"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-MeridianFlip",
+      "name": "Flip",
+      "node_type": {
+        "auto_center": false,
+        "failure_action": "AbortAndPark",
+        "guider_settle_pixels": 1.5,
+        "guider_settle_time": 10.0,
+        "guider_settle_timeout": 60.0,
+        "hour_angle_threshold": 0.75,
+        "max_retries": 5,
+        "minutes_before_limit": 12.0,
+        "minutes_past_meridian": 7.0,
+        "pause_before_meridian_minutes": 0.0,
+        "pause_guiding": false,
+        "refocus_after": true,
+        "resume_guiding": false,
+        "retry_delays_secs": [
+          30.0,
+          60.0,
+          120.0
+        ],
+        "settle_time": 20.0,
+        "tracking_limit_policy": "FlipEarly",
+        "tracking_limit_wait_minutes": 0.0,
+        "trigger_method": "HourAngleThreshold",
+        "type": "MeridianFlip"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-OpenDome",
+      "name": "Open",
+      "node_type": {
+        "shutter_only": true,
+        "type": "OpenDome"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-CloseDome",
+      "name": "Close",
+      "node_type": {
+        "shutter_only": true,
+        "type": "CloseDome"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-ParkDome",
+      "name": "Park dome",
+      "node_type": {
+        "shutter_only": true,
+        "type": "ParkDome"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-PolarAlignment",
+      "name": "Polar",
+      "node_type": {
+        "auto_complete_threshold": 30.0,
+        "binning": 1,
+        "exposure_time": 3.5,
+        "gain": 150,
+        "is_north": false,
+        "manual_rotation": true,
+        "offset": 15,
+        "rotate_east": false,
+        "solve_timeout": 60.0,
+        "start_from_current": false,
+        "step_size": 25.0,
+        "type": "PolarAlignment"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-OpenCover",
+      "name": "Open cover",
+      "node_type": {
+        "timeout_secs": 75,
+        "type": "OpenCover"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-CloseCover",
+      "name": "Close cover",
+      "node_type": {
+        "timeout_secs": 80,
+        "type": "CloseCover"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-CalibratorOn",
+      "name": "Panel on",
+      "node_type": {
+        "brightness": 200,
+        "timeout_secs": 40,
+        "type": "CalibratorOn"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-CalibratorOff",
+      "name": "Panel off",
+      "node_type": {
+        "timeout_secs": 35,
+        "type": "CalibratorOff"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-LiveStacking",
+      "name": "Stack live",
+      "node_type": {
+        "auth_token": "secret-token",
+        "broadcast_enabled": false,
+        "broadcast_path": "/live",
+        "broadcast_port": 9090,
+        "max_frames_to_stack": 50,
+        "mode": "record_and_broadcast",
+        "stack_method": "sigma",
+        "thumbnail_height": 1080,
+        "thumbnail_width": 1920,
+        "type": "LiveStacking",
+        "watermark_text": "Backyard"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-SciencePhotometry",
+      "name": "Photometry",
+      "node_type": {
+        "apply_differential": false,
+        "binning": "Two",
+        "count": 120,
+        "exposure_secs": 30.0,
+        "filter": "V",
+        "gain": 100,
+        "max_cadence_gap_secs": 1.5,
+        "offset": 20,
+        "quality": {
+          "max_airmass": 2.0,
+          "max_fwhm_arcsec": 3.5,
+          "min_snr": 75.0,
+          "require_all_refs_visible": false
+        },
+        "reduce_live": false,
+        "reference_stars": [
+          "ref-a",
+          "ref-b"
+        ],
+        "target_designation": "V0376 Per",
+        "type": "SciencePhotometry"
+      }
+    },
+    {
+      "children": [],
+      "enabled": true,
+      "id": "n-PluginNode",
+      "name": "Plugin step",
+      "node_type": {
+        "config_json": "{\"level\":3}",
+        "display_name": "Plugin step",
+        "node_type_id": "flat-panel-sweep",
+        "plugin_id": "com.example.rig",
+        "timeout_secs": 600,
+        "type": "PluginNode"
+      }
+    }
+  ],
+  "root_node_id": "root"
+}

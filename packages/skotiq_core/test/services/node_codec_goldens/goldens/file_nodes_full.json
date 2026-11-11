@@ -1,0 +1,673 @@
+{
+  "n-Autofocus": {
+    "childIds": [],
+    "comment": "focus note",
+    "exposureDuration": 4.5,
+    "exposuresPerPoint": 2,
+    "id": "n-Autofocus",
+    "isEnabled": true,
+    "maxDurationSecs": 900.0,
+    "method": "quadratic",
+    "name": "Focus custom",
+    "nodeType": "Autofocus",
+    "orderIndex": 0,
+    "parentId": null,
+    "stepSize": 80,
+    "stepsOut": 9,
+    "useSettingsDefaults": false
+  },
+  "n-CalibratorOff": {
+    "childIds": [],
+    "comment": "calibrator off note",
+    "id": "n-CalibratorOff",
+    "isEnabled": true,
+    "name": "Panel off",
+    "nodeType": "CalibratorOff",
+    "orderIndex": 0,
+    "parentId": null,
+    "timeoutSecs": 35
+  },
+  "n-CalibratorOn": {
+    "brightness": 200,
+    "childIds": [],
+    "comment": "calibrator on note",
+    "id": "n-CalibratorOn",
+    "isEnabled": true,
+    "name": "Panel on",
+    "nodeType": "CalibratorOn",
+    "orderIndex": 0,
+    "parentId": null,
+    "timeoutSecs": 40
+  },
+  "n-CenterTarget": {
+    "accuracyArcsec": 2.5,
+    "childIds": [],
+    "comment": "center note",
+    "customDec": -5.3,
+    "customRa": 5.6,
+    "exposureDuration": 8.0,
+    "filter": "L",
+    "id": "n-CenterTarget",
+    "isEnabled": true,
+    "maxAttempts": 7,
+    "name": "Center custom",
+    "nodeType": "CenterTarget",
+    "orderIndex": 0,
+    "parentId": null,
+    "useTargetCoords": false
+  },
+  "n-ChangeFilter": {
+    "childIds": [],
+    "comment": "filter note",
+    "filterName": "OIII",
+    "filterPosition": 5,
+    "id": "n-ChangeFilter",
+    "isEnabled": true,
+    "name": "To OIII",
+    "nodeType": "ChangeFilter",
+    "orderIndex": 0,
+    "parentId": null
+  },
+  "n-CloseCover": {
+    "childIds": [],
+    "comment": "close cover note",
+    "id": "n-CloseCover",
+    "isEnabled": true,
+    "name": "Close cover",
+    "nodeType": "CloseCover",
+    "orderIndex": 0,
+    "parentId": null,
+    "timeoutSecs": 80
+  },
+  "n-CloseDome": {
+    "childIds": [],
+    "comment": "close dome note",
+    "id": "n-CloseDome",
+    "isEnabled": true,
+    "name": "Close",
+    "nodeType": "CloseDome",
+    "orderIndex": 0,
+    "parentId": null,
+    "shutterOnly": true
+  },
+  "n-Conditional": {
+    "childIds": [],
+    "comment": "conditional note",
+    "conditionType": "safetyMonitorSafe",
+    "id": "n-Conditional",
+    "isEnabled": true,
+    "name": "If safe",
+    "nodeType": "Conditional",
+    "orderIndex": 0,
+    "parentId": null,
+    "safetyMonitorId": "safety-2",
+    "thresholdTime": "2026-03-14T22:30:00.000Z",
+    "thresholdValue": 1.25
+  },
+  "n-CoolCamera": {
+    "childIds": [],
+    "comment": "cool note",
+    "durationMins": 15.0,
+    "id": "n-CoolCamera",
+    "isEnabled": true,
+    "name": "Cool deep",
+    "nodeType": "CoolCamera",
+    "orderIndex": 0,
+    "parentId": null,
+    "targetTemp": -20.0
+  },
+  "n-Delay": {
+    "childIds": [],
+    "comment": "delay note",
+    "id": "n-Delay",
+    "isEnabled": true,
+    "name": "Pause",
+    "nodeType": "Delay",
+    "orderIndex": 0,
+    "parentId": null,
+    "seconds": 42.5
+  },
+  "n-Dither": {
+    "childIds": [],
+    "comment": "dither note",
+    "gridSize": 5,
+    "id": "n-Dither",
+    "isEnabled": true,
+    "name": "Dither big",
+    "nodeType": "Dither",
+    "orderIndex": 0,
+    "parentId": null,
+    "pattern": "grid",
+    "pixels": 8.0,
+    "raOnly": true,
+    "settlePixels": 0.8,
+    "settleTime": 20.0,
+    "settleTimeout": 90.0
+  },
+  "n-HomeMount": {
+    "childIds": [],
+    "comment": "home note",
+    "id": "n-HomeMount",
+    "isEnabled": true,
+    "name": "Home it",
+    "nodeType": "HomeMount",
+    "orderIndex": 0,
+    "parentId": null
+  },
+  "n-InstructionSet": {
+    "childIds": [],
+    "comment": "set note",
+    "id": "n-InstructionSet",
+    "isEnabled": true,
+    "name": "Group",
+    "nodeType": "InstructionSet",
+    "orderIndex": 0,
+    "parentId": null
+  },
+  "n-LiveStacking": {
+    "authToken": "secret-token",
+    "broadcastEnabled": false,
+    "broadcastPath": "/live",
+    "broadcastPort": 9090,
+    "childIds": [],
+    "comment": "live note",
+    "id": "n-LiveStacking",
+    "isEnabled": true,
+    "maxFramesToStack": 50,
+    "mode": "record_and_broadcast",
+    "name": "Stack live",
+    "nodeType": "LiveStacking",
+    "orderIndex": 0,
+    "parentId": null,
+    "stackMethod": "sigma",
+    "thumbnailHeight": 1080,
+    "thumbnailWidth": 1920,
+    "watermarkText": "Backyard"
+  },
+  "n-Loop": {
+    "childIds": [],
+    "comment": "loop note",
+    "conditionType": "untilTime",
+    "id": "n-Loop",
+    "integrationTimeTarget": 5400.0,
+    "isEnabled": true,
+    "maxSafetyIterations": 99,
+    "name": "Until dawn",
+    "nodeType": "Loop",
+    "orderIndex": 0,
+    "parentId": null,
+    "repeatCount": 7,
+    "repeatUntil": "2026-03-15T04:45:00.000Z",
+    "repeatUntilAltitude": 22.5
+  },
+  "n-MeridianFlip": {
+    "autoCenter": false,
+    "childIds": [],
+    "comment": "flip note",
+    "failureAction": "abortAndPark",
+    "hourAngleThreshold": 0.75,
+    "id": "n-MeridianFlip",
+    "isEnabled": true,
+    "maxRetries": 5,
+    "minutesBeforeLimit": 12.0,
+    "minutesPastMeridian": 7.0,
+    "name": "Flip",
+    "nodeType": "MeridianFlip",
+    "orderIndex": 0,
+    "parentId": null,
+    "pauseGuiding": false,
+    "refocusAfter": true,
+    "resumeGuiding": false,
+    "settleTime": 20.0,
+    "triggerMethod": "hourAngleThreshold",
+    "useGlobalDefaults": false
+  },
+  "n-MoveRotator": {
+    "childIds": [],
+    "comment": "rotator note",
+    "id": "n-MoveRotator",
+    "isEnabled": true,
+    "name": "Rotate",
+    "nodeType": "MoveRotator",
+    "orderIndex": 0,
+    "parentId": null,
+    "relative": true,
+    "targetAngle": 92.5
+  },
+  "n-Notification": {
+    "childIds": [],
+    "comment": "notify note",
+    "explicitTransports": [
+      "discord",
+      "email"
+    ],
+    "id": "n-Notification",
+    "isEnabled": true,
+    "level": "warning",
+    "message": "Target {target} finished",
+    "name": "Tell me",
+    "nodeType": "Notification",
+    "orderIndex": 0,
+    "parentId": null,
+    "title": "Done"
+  },
+  "n-OpenCover": {
+    "childIds": [],
+    "comment": "open cover note",
+    "id": "n-OpenCover",
+    "isEnabled": true,
+    "name": "Open cover",
+    "nodeType": "OpenCover",
+    "orderIndex": 0,
+    "parentId": null,
+    "timeoutSecs": 75
+  },
+  "n-OpenDome": {
+    "childIds": [],
+    "comment": "open dome note",
+    "id": "n-OpenDome",
+    "isEnabled": true,
+    "name": "Open",
+    "nodeType": "OpenDome",
+    "orderIndex": 0,
+    "parentId": null,
+    "shutterOnly": true
+  },
+  "n-Parallel": {
+    "childIds": [],
+    "comment": "parallel note",
+    "id": "n-Parallel",
+    "isEnabled": true,
+    "name": "Both",
+    "nodeType": "Parallel",
+    "orderIndex": 0,
+    "parentId": null,
+    "requiredSuccesses": 2
+  },
+  "n-Park": {
+    "childIds": [],
+    "comment": "park note",
+    "id": "n-Park",
+    "isEnabled": true,
+    "name": "Park it",
+    "nodeType": "Park",
+    "orderIndex": 0,
+    "parentId": null
+  },
+  "n-ParkDome": {
+    "childIds": [],
+    "comment": "park dome note",
+    "id": "n-ParkDome",
+    "isEnabled": true,
+    "name": "Park dome",
+    "nodeType": "ParkDome",
+    "orderIndex": 0,
+    "parentId": null,
+    "shutterOnly": true
+  },
+  "n-PluginNode": {
+    "childIds": [],
+    "comment": "plugin note",
+    "configJson": "{\"level\":3}",
+    "iconHint": "wrench",
+    "id": "n-PluginNode",
+    "isEnabled": true,
+    "name": "Plugin step",
+    "nodeType": "PluginNode",
+    "nodeTypeId": "flat-panel-sweep",
+    "orderIndex": 0,
+    "parentId": null,
+    "pluginId": "com.example.rig",
+    "pluginName": "Example Rig",
+    "timeoutSecs": 600
+  },
+  "n-PolarAlignment": {
+    "binning": 1,
+    "childIds": [],
+    "comment": "polar note",
+    "exposureDuration": 3.5,
+    "gain": 150,
+    "id": "n-PolarAlignment",
+    "isEnabled": true,
+    "isNorth": false,
+    "manualSlew": true,
+    "name": "Polar",
+    "nodeType": "PolarAlignment",
+    "offset": 15,
+    "orderIndex": 0,
+    "parentId": null,
+    "rotationStep": 25.0,
+    "startAltitude": 50.0,
+    "startFromCurrent": false
+  },
+  "n-Recovery": {
+    "childIds": [],
+    "cloudCoverDurationSecs": 90.0,
+    "cloudCoverMaxPercent": 85.0,
+    "cloudCoverageThresholdPercent": 65.0,
+    "cloudMinutesBefore": 15.0,
+    "cloudOpeningMinDurationSecs": 420.0,
+    "comment": "recovery note",
+    "focusDriftMinIncreasingCount": 6,
+    "focusDriftMinTotalIncrease": 0.75,
+    "focusDriftWindowSize": 14,
+    "guidingFailedDurationSecs": 45.0,
+    "hfrConsecutiveFrames": 4,
+    "hfrThresholdPercent": 30.0,
+    "id": "n-Recovery",
+    "isEnabled": true,
+    "maxRetries": 5,
+    "name": "Recover clouds",
+    "nodeType": "Recovery",
+    "orderIndex": 0,
+    "parentId": null,
+    "recoveryAction": "continueExecution",
+    "transparencyBelowThreshold": 0.55,
+    "transparencyDurationSecs": 75.0,
+    "triggerEveryNFrames": 12,
+    "triggerThreshold": 2.5,
+    "triggerType": "cloudCoverThreshold"
+  },
+  "n-RunScript": {
+    "arguments": [
+      "--fast",
+      "-n",
+      "3"
+    ],
+    "childIds": [],
+    "comment": "script note",
+    "id": "n-RunScript",
+    "isEnabled": true,
+    "name": "Script",
+    "nodeType": "RunScript",
+    "orderIndex": 0,
+    "parentId": null,
+    "scriptPath": "/opt/rig/flats.sh",
+    "timeoutSecs": 120
+  },
+  "n-SciencePhotometry": {
+    "applyDifferential": false,
+    "binning": "two",
+    "childIds": [],
+    "comment": "science note",
+    "count": 120,
+    "exposureSecs": 30.0,
+    "filter": "V",
+    "gain": 100,
+    "id": "n-SciencePhotometry",
+    "isEnabled": true,
+    "maxCadenceGapSecs": 1.5,
+    "name": "Photometry",
+    "nodeType": "SciencePhotometry",
+    "offset": 20,
+    "orderIndex": 0,
+    "parentId": null,
+    "quality": {
+      "max_airmass": 2.0,
+      "max_fwhm_arcsec": 3.5,
+      "min_snr": 75.0,
+      "require_all_refs_visible": false
+    },
+    "reduceLive": false,
+    "referenceStars": [
+      "ref-a",
+      "ref-b"
+    ],
+    "targetDesignation": "V0376 Per"
+  },
+  "n-SlewToTarget": {
+    "childIds": [],
+    "comment": "slew note",
+    "customDec": -5.4,
+    "customRa": 5.5,
+    "id": "n-SlewToTarget",
+    "isEnabled": true,
+    "name": "Slew custom",
+    "nodeType": "SlewToTarget",
+    "orderIndex": 0,
+    "parentId": null,
+    "useTargetCoords": false
+  },
+  "n-SmartExposure": {
+    "batchSize": 3,
+    "childIds": [],
+    "comment": "smart note",
+    "ditherOnFilterChange": true,
+    "id": "n-SmartExposure",
+    "integrationBudgetSecs": 10800.0,
+    "isEnabled": true,
+    "loopUntilStopped": true,
+    "name": "LRGB smart",
+    "nodeType": "SmartExposure",
+    "orderIndex": 0,
+    "parentId": null,
+    "plans": [
+      {
+        "binning": "Two",
+        "count": 30,
+        "depth_goal": null,
+        "dither_every": 4,
+        "duration_secs": 120.0,
+        "filter_index": 0,
+        "filter_name": "L",
+        "gain": 100,
+        "offset": 20
+      },
+      {
+        "binning": "One",
+        "count": 10,
+        "depth_goal": null,
+        "dither_every": null,
+        "duration_secs": 180.0,
+        "filter_index": null,
+        "filter_name": "R",
+        "gain": null,
+        "offset": null
+      }
+    ],
+    "rotateFilters": false
+  },
+  "n-StartGuiding": {
+    "autoSelectStar": false,
+    "childIds": [],
+    "comment": "guide note",
+    "id": "n-StartGuiding",
+    "isEnabled": true,
+    "name": "Guide",
+    "nodeType": "StartGuiding",
+    "orderIndex": 0,
+    "parentId": null,
+    "settlePixels": 0.9,
+    "settleTime": 15.0,
+    "settleTimeout": 75.0
+  },
+  "n-StopGuiding": {
+    "childIds": [],
+    "comment": "stop note",
+    "id": "n-StopGuiding",
+    "isEnabled": true,
+    "name": "Stop guide",
+    "nodeType": "StopGuiding",
+    "orderIndex": 0,
+    "parentId": null
+  },
+  "n-TakeExposure": {
+    "adaptiveExposure": {
+      "enabled": true,
+      "max_exposure_secs": 900.0,
+      "min_exposure_secs": 10.0,
+      "per_filter_enabled": {
+        "Ha": true
+      },
+      "per_filter_max_secs": {
+        "Ha": 1200.0
+      },
+      "per_filter_min_secs": {
+        "Ha": 60.0
+      },
+      "reference_sky_brightness_mag": 20.5,
+      "target_snr": 40.0
+    },
+    "binning": "two",
+    "childIds": [],
+    "comment": "exposure note",
+    "count": 24,
+    "ditherEvery": 5,
+    "durationSecs": 300.0,
+    "filter": "Ha",
+    "filterIndex": 4,
+    "frameType": "flat",
+    "gain": 120,
+    "id": "n-TakeExposure",
+    "isEnabled": true,
+    "name": "Ha subs",
+    "nodeType": "TakeExposure",
+    "offset": 30,
+    "orderIndex": 0,
+    "parentId": null,
+    "triggers": [
+      {
+        "action": "Autofocus",
+        "condition": {
+          "HfrAbove": 3.5
+        }
+      }
+    ]
+  },
+  "n-TargetHeader": {
+    "childIds": [],
+    "comment": "north panel",
+    "decDegrees": 41.27,
+    "endBefore": "2026-03-15T04:45:00.000Z",
+    "endWhen": {
+      "kind": "TimeBefore",
+      "value": 1773550000
+    },
+    "id": "n-TargetHeader",
+    "integrationBudget": {
+      "per_filter": {
+        "L": {
+          "kind": "Absolute",
+          "value": 3600.0
+        },
+        "R": {
+          "kind": "Ratio",
+          "value": 0.25
+        }
+      },
+      "stop_on_budget_met": false,
+      "total_secs": 7200.0
+    },
+    "isEnabled": false,
+    "maxAltitude": 80.0,
+    "minAltitude": 25.0,
+    "mosaicPanel": {
+      "column": 1,
+      "mosaic_name": "M31 2x2",
+      "panel_index": 1,
+      "row": 0,
+      "total_panels": 4
+    },
+    "name": "M31 field",
+    "nodeType": "TargetHeader",
+    "orderIndex": 0,
+    "parentId": null,
+    "priority": 3,
+    "raHours": 0.712,
+    "rotation": 12.5,
+    "startAfter": "2026-03-14T22:30:00.000Z",
+    "startWhen": {
+      "kind": "And",
+      "value": [
+        {
+          "kind": "AltitudeAbove",
+          "value": 35.0
+        },
+        {
+          "kind": "HourAngleBetween",
+          "value": {
+            "maxHa": 3.0,
+            "minHa": -2.0
+          }
+        }
+      ]
+    },
+    "targetName": "M31",
+    "triggerPollIntervalSecs": 45
+  },
+  "n-TargetScheduler": {
+    "airmassWeight": 0.15,
+    "altitudeWeight": 0.3,
+    "brightnessTierPreferences": {
+      "bright_min_score": 35.0,
+      "faint_min_score": 75.0,
+      "medium_min_score": 55.0
+    },
+    "childIds": [],
+    "comment": "scheduler note",
+    "darknessWeight": 0.25,
+    "finishIterationOnSwitch": false,
+    "horizonProfile": {
+      "id": 7,
+      "name": "Trees",
+      "samples": [
+        {
+          "alt": 12.0,
+          "az": 0.0
+        },
+        {
+          "alt": 20.0,
+          "az": 180.0
+        }
+      ]
+    },
+    "id": "n-TargetScheduler",
+    "isEnabled": true,
+    "maxConditionsScoreAgeSecs": 450,
+    "minMoonSeparationDeg": 40.0,
+    "minScoreToRun": 42.0,
+    "moonDistanceWeight": 0.2,
+    "name": "Pick best",
+    "nodeType": "TargetScheduler",
+    "orderIndex": 0,
+    "parentId": null,
+    "recomputeEveryNExposures": 8,
+    "swapHysteresisSecs": 240.0,
+    "swapOnConditionsBelow": 55.0,
+    "transitProximityWeight": 0.1
+  },
+  "n-Unpark": {
+    "childIds": [],
+    "comment": "unpark note",
+    "id": "n-Unpark",
+    "isEnabled": true,
+    "name": "Unpark it",
+    "nodeType": "Unpark",
+    "orderIndex": 0,
+    "parentId": null
+  },
+  "n-WaitForTime": {
+    "childIds": [],
+    "comment": "wait note",
+    "id": "n-WaitForTime",
+    "isEnabled": true,
+    "name": "Wait dusk",
+    "nodeType": "WaitForTime",
+    "orderIndex": 0,
+    "parentId": null,
+    "waitForTwilight": "nautical",
+    "waitUntil": "2026-03-14T22:30:00.000Z"
+  },
+  "n-WarmCamera": {
+    "childIds": [],
+    "comment": "warm note",
+    "id": "n-WarmCamera",
+    "isEnabled": true,
+    "name": "Warm slow",
+    "nodeType": "WarmCamera",
+    "orderIndex": 0,
+    "parentId": null,
+    "ratePerMin": 1.5,
+    "targetTemp": 15.0
+  }
+}

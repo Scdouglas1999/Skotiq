@@ -1,0 +1,1234 @@
+[
+  {
+    "changes": [
+      {
+        "describe": "Name: Autofocus → Focus custom",
+        "field": "Name",
+        "new": "Focus custom",
+        "old": "Autofocus"
+      },
+      {
+        "describe": "Comment:  → focus note",
+        "field": "Comment",
+        "new": "focus note",
+        "old": ""
+      },
+      {
+        "describe": "Method: vCurve → quadratic",
+        "field": "Method",
+        "new": "quadratic",
+        "old": "vCurve"
+      },
+      {
+        "describe": "Step size: 100 → 80",
+        "field": "Step size",
+        "new": "80",
+        "old": "100"
+      },
+      {
+        "describe": "Exposure: 3.0s → 4.5s",
+        "field": "Exposure",
+        "new": "4.5s",
+        "old": "3.0s"
+      }
+    ],
+    "label": "Autofocus (quadratic)",
+    "nodeId": "n-Autofocus",
+    "nodeKind": "Autofocus"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Calibrator Off → Panel off",
+        "field": "Name",
+        "new": "Panel off",
+        "old": "Calibrator Off"
+      },
+      {
+        "describe": "Comment:  → calibrator off note",
+        "field": "Comment",
+        "new": "calibrator off note",
+        "old": ""
+      }
+    ],
+    "label": "Calibrator off",
+    "nodeId": "n-CalibratorOff",
+    "nodeKind": "CalibratorOff"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Calibrator On → Panel on",
+        "field": "Name",
+        "new": "Panel on",
+        "old": "Calibrator On"
+      },
+      {
+        "describe": "Comment:  → calibrator on note",
+        "field": "Comment",
+        "new": "calibrator on note",
+        "old": ""
+      }
+    ],
+    "label": "Calibrator on",
+    "nodeId": "n-CalibratorOn",
+    "nodeKind": "CalibratorOn"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Center Target → Center custom",
+        "field": "Name",
+        "new": "Center custom",
+        "old": "Center Target"
+      },
+      {
+        "describe": "Comment:  → center note",
+        "field": "Comment",
+        "new": "center note",
+        "old": ""
+      },
+      {
+        "describe": "Accuracy (arcsec): 5.0 → 2.5",
+        "field": "Accuracy (arcsec)",
+        "new": "2.5",
+        "old": "5.0"
+      },
+      {
+        "describe": "Max attempts: 5 → 7",
+        "field": "Max attempts",
+        "new": "7",
+        "old": "5"
+      }
+    ],
+    "label": "Center (2.5″)",
+    "nodeId": "n-CenterTarget",
+    "nodeKind": "CenterTarget"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Close Dome → Close",
+        "field": "Name",
+        "new": "Close",
+        "old": "Close Dome"
+      },
+      {
+        "describe": "Comment:  → close dome note",
+        "field": "Comment",
+        "new": "close dome note",
+        "old": ""
+      }
+    ],
+    "label": "Close dome",
+    "nodeId": "n-CloseDome",
+    "nodeKind": "CloseDome"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Close Cover → Close cover",
+        "field": "Name",
+        "new": "Close cover",
+        "old": "Close Cover"
+      },
+      {
+        "describe": "Comment:  → close cover note",
+        "field": "Comment",
+        "new": "close cover note",
+        "old": ""
+      }
+    ],
+    "label": "Close dust cover",
+    "nodeId": "n-CloseCover",
+    "nodeKind": "CloseCover"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Conditional → If safe",
+        "field": "Name",
+        "new": "If safe",
+        "old": "Conditional"
+      },
+      {
+        "describe": "Comment:  → conditional note",
+        "field": "Comment",
+        "new": "conditional note",
+        "old": ""
+      },
+      {
+        "describe": "Condition: always → safetyMonitorSafe",
+        "field": "Condition",
+        "new": "safetyMonitorSafe",
+        "old": "always"
+      },
+      {
+        "describe": "Threshold: (none) → 1.25",
+        "field": "Threshold",
+        "new": "1.25",
+        "old": "(none)"
+      },
+      {
+        "describe": "Safety monitor: (default) → safety-2",
+        "field": "Safety monitor",
+        "new": "safety-2",
+        "old": "(default)"
+      }
+    ],
+    "label": "Conditional (safetyMonitorSafe)",
+    "nodeId": "n-Conditional",
+    "nodeKind": "Conditional"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Cool Camera → Cool deep",
+        "field": "Name",
+        "new": "Cool deep",
+        "old": "Cool Camera"
+      },
+      {
+        "describe": "Comment:  → cool note",
+        "field": "Comment",
+        "new": "cool note",
+        "old": ""
+      },
+      {
+        "describe": "Target temp: -10.0C → -20.0C",
+        "field": "Target temp",
+        "new": "-20.0C",
+        "old": "-10.0C"
+      },
+      {
+        "describe": "Duration (min): 10.0 → 15.0",
+        "field": "Duration (min)",
+        "new": "15.0",
+        "old": "10.0"
+      }
+    ],
+    "label": "Cool camera → -20.0C",
+    "nodeId": "n-CoolCamera",
+    "nodeKind": "CoolCamera"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Delay → Pause",
+        "field": "Name",
+        "new": "Pause",
+        "old": "Delay"
+      },
+      {
+        "describe": "Comment:  → delay note",
+        "field": "Comment",
+        "new": "delay note",
+        "old": ""
+      },
+      {
+        "describe": "Seconds: 5.0 → 42.5",
+        "field": "Seconds",
+        "new": "42.5",
+        "old": "5.0"
+      }
+    ],
+    "label": "Delay 42.5s",
+    "nodeId": "n-Delay",
+    "nodeKind": "Delay"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Dither → Dither big",
+        "field": "Name",
+        "new": "Dither big",
+        "old": "Dither"
+      },
+      {
+        "describe": "Comment:  → dither note",
+        "field": "Comment",
+        "new": "dither note",
+        "old": ""
+      },
+      {
+        "describe": "Pixels: 5.0 → 8.0",
+        "field": "Pixels",
+        "new": "8.0",
+        "old": "5.0"
+      },
+      {
+        "describe": "Settle pixels: 1.5 → 0.8",
+        "field": "Settle pixels",
+        "new": "0.8",
+        "old": "1.5"
+      },
+      {
+        "describe": "RA only: false → true",
+        "field": "RA only",
+        "new": "true",
+        "old": "false"
+      },
+      {
+        "describe": "Pattern: random → grid",
+        "field": "Pattern",
+        "new": "grid",
+        "old": "random"
+      },
+      {
+        "describe": "Grid size: 3x3 → 5x5",
+        "field": "Grid size",
+        "new": "5x5",
+        "old": "3x3"
+      }
+    ],
+    "label": "Dither 8.0px",
+    "nodeId": "n-Dither",
+    "nodeKind": "Dither"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Take Exposures → Ha subs",
+        "field": "Name",
+        "new": "Ha subs",
+        "old": "Take Exposures"
+      },
+      {
+        "describe": "Comment:  → exposure note",
+        "field": "Comment",
+        "new": "exposure note",
+        "old": ""
+      },
+      {
+        "describe": "Exposure duration: 60.0s → 300.0s",
+        "field": "Exposure duration",
+        "new": "300.0s",
+        "old": "60.0s"
+      },
+      {
+        "describe": "Frame count: 10 → 24",
+        "field": "Frame count",
+        "new": "24",
+        "old": "10"
+      },
+      {
+        "describe": "Frame type: light → flat",
+        "field": "Frame type",
+        "new": "flat",
+        "old": "light"
+      },
+      {
+        "describe": "Filter: (none) → Ha",
+        "field": "Filter",
+        "new": "Ha",
+        "old": "(none)"
+      },
+      {
+        "describe": "Filter index: (auto) → 4",
+        "field": "Filter index",
+        "new": "4",
+        "old": "(auto)"
+      },
+      {
+        "describe": "Gain: (default) → 120",
+        "field": "Gain",
+        "new": "120",
+        "old": "(default)"
+      },
+      {
+        "describe": "Offset: (default) → 30",
+        "field": "Offset",
+        "new": "30",
+        "old": "(default)"
+      },
+      {
+        "describe": "Binning: one → two",
+        "field": "Binning",
+        "new": "two",
+        "old": "one"
+      },
+      {
+        "describe": "Dither every: 3 → 5",
+        "field": "Dither every",
+        "new": "5",
+        "old": "3"
+      },
+      {
+        "describe": "Triggers: 0 → 1",
+        "field": "Triggers",
+        "new": "1",
+        "old": "0"
+      }
+    ],
+    "label": "Exposure 300s x24 (Ha)",
+    "nodeId": "n-TakeExposure",
+    "nodeKind": "TakeExposure"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Change Filter → To OIII",
+        "field": "Name",
+        "new": "To OIII",
+        "old": "Change Filter"
+      },
+      {
+        "describe": "Comment:  → filter note",
+        "field": "Comment",
+        "new": "filter note",
+        "old": ""
+      },
+      {
+        "describe": "Filter name: L → OIII",
+        "field": "Filter name",
+        "new": "OIII",
+        "old": "L"
+      },
+      {
+        "describe": "Filter position: (by name) → 5",
+        "field": "Filter position",
+        "new": "5",
+        "old": "(by name)"
+      }
+    ],
+    "label": "Filter change → OIII",
+    "nodeId": "n-ChangeFilter",
+    "nodeKind": "ChangeFilter"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Instructions → Group",
+        "field": "Name",
+        "new": "Group",
+        "old": "Instructions"
+      },
+      {
+        "describe": "Comment:  → set note",
+        "field": "Comment",
+        "new": "set note",
+        "old": ""
+      }
+    ],
+    "label": "Group",
+    "nodeId": "n-InstructionSet",
+    "nodeKind": "InstructionSet"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Home mount → Home it",
+        "field": "Name",
+        "new": "Home it",
+        "old": "Home mount"
+      },
+      {
+        "describe": "Comment:  → home note",
+        "field": "Comment",
+        "new": "home note",
+        "old": ""
+      }
+    ],
+    "label": "Home mount",
+    "nodeId": "n-HomeMount",
+    "nodeKind": "HomeMount"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Live Stacking → Stack live",
+        "field": "Name",
+        "new": "Stack live",
+        "old": "Live Stacking"
+      },
+      {
+        "describe": "Comment:  → live note",
+        "field": "Comment",
+        "new": "live note",
+        "old": ""
+      },
+      {
+        "describe": "Mode: Broadcast only → Record + broadcast",
+        "field": "Mode",
+        "new": "Record + broadcast",
+        "old": "Broadcast only"
+      },
+      {
+        "describe": "Stack method: Average → Sigma-clipped",
+        "field": "Stack method",
+        "new": "Sigma-clipped",
+        "old": "Average"
+      },
+      {
+        "describe": "Broadcast port: 8081 → 9090",
+        "field": "Broadcast port",
+        "new": "9090",
+        "old": "8081"
+      },
+      {
+        "describe": "Broadcast enabled: true → false",
+        "field": "Broadcast enabled",
+        "new": "false",
+        "old": "true"
+      },
+      {
+        "describe": "Public access: true → false",
+        "field": "Public access",
+        "new": "false",
+        "old": "true"
+      },
+      {
+        "describe": "Watermark: (none) → Backyard",
+        "field": "Watermark",
+        "new": "Backyard",
+        "old": "(none)"
+      }
+    ],
+    "label": "Live stacking (port 9090, private)",
+    "nodeId": "n-LiveStacking",
+    "nodeKind": "LiveStacking"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Loop → Until dawn",
+        "field": "Name",
+        "new": "Until dawn",
+        "old": "Loop"
+      },
+      {
+        "describe": "Comment:  → loop note",
+        "field": "Comment",
+        "new": "loop note",
+        "old": ""
+      },
+      {
+        "describe": "Loop condition: count → untilTime",
+        "field": "Loop condition",
+        "new": "untilTime",
+        "old": "count"
+      },
+      {
+        "describe": "Repeat count: 1 → 7",
+        "field": "Repeat count",
+        "new": "7",
+        "old": "1"
+      },
+      {
+        "describe": "Repeat until altitude: (none) → 22.5",
+        "field": "Repeat until altitude",
+        "new": "22.5",
+        "old": "(none)"
+      },
+      {
+        "describe": "Integration target (s): (none) → 5400.0",
+        "field": "Integration target (s)",
+        "new": "5400.0",
+        "old": "(none)"
+      }
+    ],
+    "label": "Loop (untilTime)",
+    "nodeId": "n-Loop",
+    "nodeKind": "Loop"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Meridian Flip → Flip",
+        "field": "Name",
+        "new": "Flip",
+        "old": "Meridian Flip"
+      },
+      {
+        "describe": "Comment:  → flip note",
+        "field": "Comment",
+        "new": "flip note",
+        "old": ""
+      },
+      {
+        "describe": "Trigger method: minutesPastMeridian → hourAngleThreshold",
+        "field": "Trigger method",
+        "new": "hourAngleThreshold",
+        "old": "minutesPastMeridian"
+      },
+      {
+        "describe": "Minutes past meridian: 5.0 → 7.0",
+        "field": "Minutes past meridian",
+        "new": "7.0",
+        "old": "5.0"
+      },
+      {
+        "describe": "Pause guiding: true → false",
+        "field": "Pause guiding",
+        "new": "false",
+        "old": "true"
+      }
+    ],
+    "label": "Meridian flip",
+    "nodeId": "n-MeridianFlip",
+    "nodeKind": "MeridianFlip"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Send Notification → Tell me",
+        "field": "Name",
+        "new": "Tell me",
+        "old": "Send Notification"
+      },
+      {
+        "describe": "Comment:  → notify note",
+        "field": "Comment",
+        "new": "notify note",
+        "old": ""
+      },
+      {
+        "describe": "Title:  → Done",
+        "field": "Title",
+        "new": "Done",
+        "old": ""
+      },
+      {
+        "describe": "Message:  → Target {target} finished",
+        "field": "Message",
+        "new": "Target {target} finished",
+        "old": ""
+      },
+      {
+        "describe": "Level: info → warning",
+        "field": "Level",
+        "new": "warning",
+        "old": "info"
+      }
+    ],
+    "label": "Notification \"Done\"",
+    "nodeId": "n-Notification",
+    "nodeKind": "Notification"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Open Dome → Open",
+        "field": "Name",
+        "new": "Open",
+        "old": "Open Dome"
+      },
+      {
+        "describe": "Comment:  → open dome note",
+        "field": "Comment",
+        "new": "open dome note",
+        "old": ""
+      }
+    ],
+    "label": "Open dome",
+    "nodeId": "n-OpenDome",
+    "nodeKind": "OpenDome"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Open Cover → Open cover",
+        "field": "Name",
+        "new": "Open cover",
+        "old": "Open Cover"
+      },
+      {
+        "describe": "Comment:  → open cover note",
+        "field": "Comment",
+        "new": "open cover note",
+        "old": ""
+      }
+    ],
+    "label": "Open dust cover",
+    "nodeId": "n-OpenCover",
+    "nodeKind": "OpenCover"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Parallel → Both",
+        "field": "Name",
+        "new": "Both",
+        "old": "Parallel"
+      },
+      {
+        "describe": "Comment:  → parallel note",
+        "field": "Comment",
+        "new": "parallel note",
+        "old": ""
+      },
+      {
+        "describe": "Required successes: (all) → 2",
+        "field": "Required successes",
+        "new": "2",
+        "old": "(all)"
+      }
+    ],
+    "label": "Parallel",
+    "nodeId": "n-Parallel",
+    "nodeKind": "Parallel"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Park Dome → Park dome",
+        "field": "Name",
+        "new": "Park dome",
+        "old": "Park Dome"
+      },
+      {
+        "describe": "Comment:  → park dome note",
+        "field": "Comment",
+        "new": "park dome note",
+        "old": ""
+      }
+    ],
+    "label": "Park dome",
+    "nodeId": "n-ParkDome",
+    "nodeKind": "ParkDome"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Park Mount → Park it",
+        "field": "Name",
+        "new": "Park it",
+        "old": "Park Mount"
+      },
+      {
+        "describe": "Comment:  → park note",
+        "field": "Comment",
+        "new": "park note",
+        "old": ""
+      }
+    ],
+    "label": "Park mount",
+    "nodeId": "n-Park",
+    "nodeKind": "Park"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Science Photometry → Photometry",
+        "field": "Name",
+        "new": "Photometry",
+        "old": "Science Photometry"
+      },
+      {
+        "describe": "Comment:  → science note",
+        "field": "Comment",
+        "new": "science note",
+        "old": ""
+      },
+      {
+        "describe": "Target designation:  → V0376 Per",
+        "field": "Target designation",
+        "new": "V0376 Per",
+        "old": ""
+      },
+      {
+        "describe": "Filter: Clear → V",
+        "field": "Filter",
+        "new": "V",
+        "old": "Clear"
+      },
+      {
+        "describe": "Exposure (s): 60.0 → 30.0",
+        "field": "Exposure (s)",
+        "new": "30.0",
+        "old": "60.0"
+      },
+      {
+        "describe": "Count: 60 → 120",
+        "field": "Count",
+        "new": "120",
+        "old": "60"
+      },
+      {
+        "describe": "Cadence gap (s): 2.0 → 1.5",
+        "field": "Cadence gap (s)",
+        "new": "1.5",
+        "old": "2.0"
+      },
+      {
+        "describe": "Reference stars:  → ref-a,ref-b",
+        "field": "Reference stars",
+        "new": "ref-a,ref-b",
+        "old": ""
+      }
+    ],
+    "label": "Photometry (V0376 Per, V, 120x30s)",
+    "nodeId": "n-SciencePhotometry",
+    "nodeKind": "SciencePhotometry"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Plugin Node → Plugin step",
+        "field": "Name",
+        "new": "Plugin step",
+        "old": "Plugin Node"
+      },
+      {
+        "describe": "Comment:  → plugin note",
+        "field": "Comment",
+        "new": "plugin note",
+        "old": ""
+      },
+      {
+        "describe": "Config: {} → {\"level\":3}",
+        "field": "Config",
+        "new": "{\"level\":3}",
+        "old": "{}"
+      },
+      {
+        "describe": "Timeout (s): (default) → 600",
+        "field": "Timeout (s)",
+        "new": "600",
+        "old": "(default)"
+      }
+    ],
+    "label": "Plugin: Plugin step (Example Rig)",
+    "nodeId": "n-PluginNode",
+    "nodeKind": "PluginNode"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Polar Alignment → Polar",
+        "field": "Name",
+        "new": "Polar",
+        "old": "Polar Alignment"
+      },
+      {
+        "describe": "Comment:  → polar note",
+        "field": "Comment",
+        "new": "polar note",
+        "old": ""
+      },
+      {
+        "describe": "Exposure: 2.0s → 3.5s",
+        "field": "Exposure",
+        "new": "3.5s",
+        "old": "2.0s"
+      },
+      {
+        "describe": "Start altitude: 45.0° → 50.0°",
+        "field": "Start altitude",
+        "new": "50.0°",
+        "old": "45.0°"
+      },
+      {
+        "describe": "Is north: true → false",
+        "field": "Is north",
+        "new": "false",
+        "old": "true"
+      }
+    ],
+    "label": "Polar alignment",
+    "nodeId": "n-PolarAlignment",
+    "nodeKind": "PolarAlignment"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Recovery → Recover clouds",
+        "field": "Name",
+        "new": "Recover clouds",
+        "old": "Recovery"
+      },
+      {
+        "describe": "Comment:  → recovery note",
+        "field": "Comment",
+        "new": "recovery note",
+        "old": ""
+      },
+      {
+        "describe": "Recovery action: retry → continueExecution",
+        "field": "Recovery action",
+        "new": "continueExecution",
+        "old": "retry"
+      },
+      {
+        "describe": "Max retries: 3 → 5",
+        "field": "Max retries",
+        "new": "5",
+        "old": "3"
+      }
+    ],
+    "label": "Recovery (continueExecution)",
+    "nodeId": "n-Recovery",
+    "nodeKind": "Recovery"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Move Rotator → Rotate",
+        "field": "Name",
+        "new": "Rotate",
+        "old": "Move Rotator"
+      },
+      {
+        "describe": "Comment:  → rotator note",
+        "field": "Comment",
+        "new": "rotator note",
+        "old": ""
+      },
+      {
+        "describe": "Target angle: 0.0° → 92.5°",
+        "field": "Target angle",
+        "new": "92.5°",
+        "old": "0.0°"
+      },
+      {
+        "describe": "Relative: false → true",
+        "field": "Relative",
+        "new": "true",
+        "old": "false"
+      }
+    ],
+    "label": "Rotate to 92.5°",
+    "nodeId": "n-MoveRotator",
+    "nodeKind": "MoveRotator"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Run Script → Script",
+        "field": "Name",
+        "new": "Script",
+        "old": "Run Script"
+      },
+      {
+        "describe": "Comment:  → script note",
+        "field": "Comment",
+        "new": "script note",
+        "old": ""
+      },
+      {
+        "describe": "Script path:  → /opt/rig/flats.sh",
+        "field": "Script path",
+        "new": "/opt/rig/flats.sh",
+        "old": ""
+      },
+      {
+        "describe": "Timeout (s): null → 120",
+        "field": "Timeout (s)",
+        "new": "120",
+        "old": "null"
+      }
+    ],
+    "label": "Script /opt/rig/flats.sh",
+    "nodeId": "n-RunScript",
+    "nodeKind": "RunScript"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Slew to Target → Slew custom",
+        "field": "Name",
+        "new": "Slew custom",
+        "old": "Slew to Target"
+      },
+      {
+        "describe": "Comment:  → slew note",
+        "field": "Comment",
+        "new": "slew note",
+        "old": ""
+      },
+      {
+        "describe": "Uses target coords: true → false",
+        "field": "Uses target coords",
+        "new": "false",
+        "old": "true"
+      },
+      {
+        "describe": "Custom RA: (none) → 5.5",
+        "field": "Custom RA",
+        "new": "5.5",
+        "old": "(none)"
+      },
+      {
+        "describe": "Custom Dec: (none) → -5.4",
+        "field": "Custom Dec",
+        "new": "-5.4",
+        "old": "(none)"
+      }
+    ],
+    "label": "Slew (RA 5.5, Dec -5.4)",
+    "nodeId": "n-SlewToTarget",
+    "nodeKind": "SlewToTarget"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Smart Exposure → LRGB smart",
+        "field": "Name",
+        "new": "LRGB smart",
+        "old": "Smart Exposure"
+      },
+      {
+        "describe": "Comment:  → smart note",
+        "field": "Comment",
+        "new": "smart note",
+        "old": ""
+      },
+      {
+        "describe": "Plan count: 0 → 2",
+        "field": "Plan count",
+        "new": "2",
+        "old": "0"
+      },
+      {
+        "describe": "Rotate filters: true → false",
+        "field": "Rotate filters",
+        "new": "false",
+        "old": "true"
+      },
+      {
+        "describe": "Integration budget (s): 0.0 → 10800.0",
+        "field": "Integration budget (s)",
+        "new": "10800.0",
+        "old": "0.0"
+      },
+      {
+        "describe": "Loop until stopped: false → true",
+        "field": "Loop until stopped",
+        "new": "true",
+        "old": "false"
+      }
+    ],
+    "label": "Smart exposure (2 plans)",
+    "nodeId": "n-SmartExposure",
+    "nodeKind": "SmartExposure"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Start Guiding → Guide",
+        "field": "Name",
+        "new": "Guide",
+        "old": "Start Guiding"
+      },
+      {
+        "describe": "Comment:  → guide note",
+        "field": "Comment",
+        "new": "guide note",
+        "old": ""
+      },
+      {
+        "describe": "Settle pixels: 1.5 → 0.9",
+        "field": "Settle pixels",
+        "new": "0.9",
+        "old": "1.5"
+      },
+      {
+        "describe": "Settle time: 10.0s → 15.0s",
+        "field": "Settle time",
+        "new": "15.0s",
+        "old": "10.0s"
+      },
+      {
+        "describe": "Auto select star: true → false",
+        "field": "Auto select star",
+        "new": "false",
+        "old": "true"
+      }
+    ],
+    "label": "Start guiding",
+    "nodeId": "n-StartGuiding",
+    "nodeKind": "StartGuiding"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Stop Guiding → Stop guide",
+        "field": "Name",
+        "new": "Stop guide",
+        "old": "Stop Guiding"
+      },
+      {
+        "describe": "Comment:  → stop note",
+        "field": "Comment",
+        "new": "stop note",
+        "old": ""
+      }
+    ],
+    "label": "Stop guiding",
+    "nodeId": "n-StopGuiding",
+    "nodeKind": "StopGuiding"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Target → M31 field",
+        "field": "Name",
+        "new": "M31 field",
+        "old": "Target"
+      },
+      {
+        "describe": "Enabled: true → false",
+        "field": "Enabled",
+        "new": false,
+        "old": true
+      },
+      {
+        "describe": "Comment:  → north panel",
+        "field": "Comment",
+        "new": "north panel",
+        "old": ""
+      },
+      {
+        "describe": "Rotation: (none) → 12.50",
+        "field": "Rotation",
+        "new": "12.50",
+        "old": "(none)"
+      },
+      {
+        "describe": "Priority: 0 → 3",
+        "field": "Priority",
+        "new": "3",
+        "old": "0"
+      },
+      {
+        "describe": "Min altitude: (none) → 25",
+        "field": "Min altitude",
+        "new": "25",
+        "old": "(none)"
+      },
+      {
+        "describe": "Max altitude: (none) → 80",
+        "field": "Max altitude",
+        "new": "80",
+        "old": "(none)"
+      },
+      {
+        "describe": "Integration budget: (none) → set",
+        "field": "Integration budget",
+        "new": "set",
+        "old": "(none)"
+      }
+    ],
+    "label": "Target \"M31\"",
+    "nodeId": "n-TargetHeader",
+    "nodeKind": "TargetHeader"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Scheduler → Pick best",
+        "field": "Name",
+        "new": "Pick best",
+        "old": "Scheduler"
+      },
+      {
+        "describe": "Comment:  → scheduler note",
+        "field": "Comment",
+        "new": "scheduler note",
+        "old": ""
+      },
+      {
+        "describe": "Altitude weight: 0.25 → 0.3",
+        "field": "Altitude weight",
+        "new": "0.3",
+        "old": "0.25"
+      },
+      {
+        "describe": "Moon-distance weight: 0.25 → 0.2",
+        "field": "Moon-distance weight",
+        "new": "0.2",
+        "old": "0.25"
+      },
+      {
+        "describe": "Min score: 30.0 → 42.0",
+        "field": "Min score",
+        "new": "42.0",
+        "old": "30.0"
+      }
+    ],
+    "label": "Target scheduler",
+    "nodeId": "n-TargetScheduler",
+    "nodeKind": "TargetScheduler"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Unpark Mount → Unpark it",
+        "field": "Name",
+        "new": "Unpark it",
+        "old": "Unpark Mount"
+      },
+      {
+        "describe": "Comment:  → unpark note",
+        "field": "Comment",
+        "new": "unpark note",
+        "old": ""
+      }
+    ],
+    "label": "Unpark mount",
+    "nodeId": "n-Unpark",
+    "nodeKind": "Unpark"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Wait for Time → Wait dusk",
+        "field": "Name",
+        "new": "Wait dusk",
+        "old": "Wait for Time"
+      },
+      {
+        "describe": "Comment:  → wait note",
+        "field": "Comment",
+        "new": "wait note",
+        "old": ""
+      },
+      {
+        "describe": "Wait until: (none) → 2026-03-14T22:30:00.000Z",
+        "field": "Wait until",
+        "new": "2026-03-14T22:30:00.000Z",
+        "old": "(none)"
+      },
+      {
+        "describe": "Wait for twilight: (none) → nautical",
+        "field": "Wait for twilight",
+        "new": "nautical",
+        "old": "(none)"
+      }
+    ],
+    "label": "Wait until 2026-03-14T22:30:00.000Z",
+    "nodeId": "n-WaitForTime",
+    "nodeKind": "WaitForTime"
+  },
+  {
+    "changes": [
+      {
+        "describe": "Name: Warm Camera → Warm slow",
+        "field": "Name",
+        "new": "Warm slow",
+        "old": "Warm Camera"
+      },
+      {
+        "describe": "Comment:  → warm note",
+        "field": "Comment",
+        "new": "warm note",
+        "old": ""
+      },
+      {
+        "describe": "Rate (C/min): 2.0 → 1.5",
+        "field": "Rate (C/min)",
+        "new": "1.5",
+        "old": "2.0"
+      },
+      {
+        "describe": "Target temp: 20.0C → 15.0C",
+        "field": "Target temp",
+        "new": "15.0C",
+        "old": "20.0C"
+      }
+    ],
+    "label": "Warm camera → 15.0C",
+    "nodeId": "n-WarmCamera",
+    "nodeKind": "WarmCamera"
+  }
+]

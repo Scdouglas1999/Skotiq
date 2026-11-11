@@ -1,0 +1,2028 @@
+{
+  "assets/sample_sequences/dslr_m31_lrgb.json": {
+    "name": "DSLR M31 (Andromeda) - Lights + Flats + Bias",
+    "nodes": {
+      "m31-bias": {
+        "class": "ExposureNode",
+        "nodeType": "TakeExposure",
+        "props": [
+          "m31-bias",
+          "Bias Frames",
+          true,
+          [],
+          "m31-bias-set",
+          0,
+          null,
+          0.001,
+          30,
+          "bias",
+          null,
+          null,
+          null,
+          null,
+          "one",
+          null,
+          [],
+          null
+        ]
+      },
+      "m31-bias-set": {
+        "class": "InstructionSetNode",
+        "nodeType": "InstructionSet",
+        "props": [
+          "m31-bias-set",
+          "Bias Calibration Frames",
+          true,
+          [
+            "m31-bias"
+          ],
+          "m31-root",
+          2,
+          null
+        ]
+      },
+      "m31-center": {
+        "class": "CenterNode",
+        "nodeType": "CenterTarget",
+        "props": [
+          "m31-center",
+          "Plate Solve and Center",
+          true,
+          [],
+          "m31-target",
+          2,
+          null,
+          30.0,
+          5,
+          true,
+          null,
+          null,
+          5.0,
+          null
+        ]
+      },
+      "m31-flats": {
+        "class": "ExposureNode",
+        "nodeType": "TakeExposure",
+        "props": [
+          "m31-flats",
+          "Flat Frames",
+          true,
+          [],
+          "m31-flats-set",
+          0,
+          null,
+          2.0,
+          20,
+          "flat",
+          null,
+          null,
+          null,
+          null,
+          "one",
+          null,
+          [],
+          null
+        ]
+      },
+      "m31-flats-set": {
+        "class": "InstructionSetNode",
+        "nodeType": "InstructionSet",
+        "props": [
+          "m31-flats-set",
+          "Flat Calibration Frames",
+          true,
+          [
+            "m31-flats"
+          ],
+          "m31-root",
+          1,
+          null
+        ]
+      },
+      "m31-focus": {
+        "class": "AutofocusNode",
+        "nodeType": "Autofocus",
+        "props": [
+          "m31-focus",
+          "Initial Focus",
+          true,
+          [],
+          "m31-target",
+          3,
+          null,
+          "vCurve",
+          100,
+          7,
+          1,
+          5.0,
+          true,
+          600.0
+        ]
+      },
+      "m31-light-loop": {
+        "class": "LoopNode",
+        "nodeType": "Loop",
+        "props": [
+          "m31-light-loop",
+          "Light Frames Loop",
+          true,
+          [
+            "m31-lights"
+          ],
+          "m31-target",
+          4,
+          null,
+          "count",
+          1,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "m31-lights": {
+        "class": "ExposureNode",
+        "nodeType": "TakeExposure",
+        "props": [
+          "m31-lights",
+          "M31 Lights (ISO 800)",
+          true,
+          [],
+          "m31-light-loop",
+          0,
+          null,
+          120.0,
+          30,
+          "light",
+          null,
+          null,
+          null,
+          null,
+          "one",
+          1,
+          [],
+          null
+        ]
+      },
+      "m31-root": {
+        "class": "InstructionSetNode",
+        "nodeType": "InstructionSet",
+        "props": [
+          "m31-root",
+          "DSLR M31 LRGB",
+          true,
+          [
+            "m31-target",
+            "m31-flats-set",
+            "m31-bias-set"
+          ],
+          null,
+          0,
+          null
+        ]
+      },
+      "m31-slew": {
+        "class": "SlewNode",
+        "nodeType": "SlewToTarget",
+        "props": [
+          "m31-slew",
+          "Slew to M31",
+          true,
+          [],
+          "m31-target",
+          1,
+          null,
+          true,
+          null,
+          null
+        ]
+      },
+      "m31-target": {
+        "class": "TargetHeaderNode",
+        "nodeType": "TargetHeader",
+        "props": [
+          "m31-target",
+          "M31 Andromeda Galaxy",
+          true,
+          [
+            "m31-unpark",
+            "m31-slew",
+            "m31-center",
+            "m31-focus",
+            "m31-light-loop"
+          ],
+          "m31-root",
+          0,
+          null,
+          "M31 (Andromeda Galaxy)",
+          0.7122,
+          41.269,
+          null,
+          0,
+          25.0,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          30,
+          null,
+          null
+        ]
+      },
+      "m31-unpark": {
+        "class": "UnparkNode",
+        "nodeType": "Unpark",
+        "props": [
+          "m31-unpark",
+          "Unpark Mount",
+          true,
+          [],
+          "m31-target",
+          0,
+          null
+        ]
+      }
+    },
+    "rootNodeId": "m31-root"
+  },
+  "assets/sample_sequences/lunar_terminator.json": {
+    "name": "Lunar Terminator - High Frame Rate",
+    "nodes": {
+      "lunar-exp": {
+        "class": "ExposureNode",
+        "nodeType": "TakeExposure",
+        "props": [
+          "lunar-exp",
+          "Lunar Frames",
+          true,
+          [],
+          "lunar-loop",
+          0,
+          null,
+          0.005,
+          200,
+          "light",
+          null,
+          null,
+          300,
+          30,
+          "one",
+          null,
+          [],
+          null
+        ]
+      },
+      "lunar-loop": {
+        "class": "LoopNode",
+        "nodeType": "Loop",
+        "props": [
+          "lunar-loop",
+          "High-Speed Capture",
+          true,
+          [
+            "lunar-exp"
+          ],
+          "lunar-root",
+          1,
+          null,
+          "count",
+          1,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "lunar-notify": {
+        "class": "NotificationNode",
+        "nodeType": "Notification",
+        "props": [
+          "lunar-notify",
+          "Aim Reminder",
+          true,
+          [],
+          "lunar-root",
+          0,
+          null,
+          "Aim Telescope at Moon",
+          "Manually point the telescope at the lunar terminator and confirm focus before starting. Lunar tracking rate is recommended on the mount.",
+          "info",
+          null
+        ]
+      },
+      "lunar-root": {
+        "class": "InstructionSetNode",
+        "nodeType": "InstructionSet",
+        "props": [
+          "lunar-root",
+          "Lunar Terminator",
+          true,
+          [
+            "lunar-notify",
+            "lunar-loop"
+          ],
+          null,
+          0,
+          null
+        ]
+      }
+    },
+    "rootNodeId": "lunar-root"
+  },
+  "assets/sample_sequences/mono_lrgb_m51.json": {
+    "name": "Mono LRGB M51 (Whirlpool) - L then RGB",
+    "nodes": {
+      "m51-blue-block": {
+        "class": "InstructionSetNode",
+        "nodeType": "InstructionSet",
+        "props": [
+          "m51-blue-block",
+          "Blue Block",
+          true,
+          [
+            "m51-blue-filter",
+            "m51-blue-loop"
+          ],
+          "m51-target",
+          8,
+          null
+        ]
+      },
+      "m51-blue-exp": {
+        "class": "ExposureNode",
+        "nodeType": "TakeExposure",
+        "props": [
+          "m51-blue-exp",
+          "Blue Frames",
+          true,
+          [],
+          "m51-blue-loop",
+          0,
+          null,
+          60.0,
+          20,
+          "light",
+          "B",
+          null,
+          120,
+          30,
+          "one",
+          5,
+          [],
+          null
+        ]
+      },
+      "m51-blue-filter": {
+        "class": "FilterChangeNode",
+        "nodeType": "ChangeFilter",
+        "props": [
+          "m51-blue-filter",
+          "Filter: B",
+          true,
+          [],
+          "m51-blue-block",
+          0,
+          null,
+          "B",
+          null
+        ]
+      },
+      "m51-blue-loop": {
+        "class": "LoopNode",
+        "nodeType": "Loop",
+        "props": [
+          "m51-blue-loop",
+          "Blue Loop (20 x 60s)",
+          true,
+          [
+            "m51-blue-exp"
+          ],
+          "m51-blue-block",
+          1,
+          null,
+          "count",
+          1,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "m51-center": {
+        "class": "CenterNode",
+        "nodeType": "CenterTarget",
+        "props": [
+          "m51-center",
+          "Plate Solve and Center",
+          true,
+          [],
+          "m51-target",
+          2,
+          null,
+          10.0,
+          5,
+          true,
+          null,
+          null,
+          5.0,
+          "Lum"
+        ]
+      },
+      "m51-cool": {
+        "class": "CoolCameraNode",
+        "nodeType": "CoolCamera",
+        "props": [
+          "m51-cool",
+          "Cool to -10 °C",
+          true,
+          [],
+          "m51-root",
+          0,
+          null,
+          -10.0,
+          10.0
+        ]
+      },
+      "m51-focus-init": {
+        "class": "AutofocusNode",
+        "nodeType": "Autofocus",
+        "props": [
+          "m51-focus-init",
+          "Initial Autofocus",
+          true,
+          [],
+          "m51-target",
+          3,
+          null,
+          "vCurve",
+          100,
+          7,
+          1,
+          4.0,
+          true,
+          600.0
+        ]
+      },
+      "m51-green-block": {
+        "class": "InstructionSetNode",
+        "nodeType": "InstructionSet",
+        "props": [
+          "m51-green-block",
+          "Green Block",
+          true,
+          [
+            "m51-green-filter",
+            "m51-green-loop"
+          ],
+          "m51-target",
+          7,
+          null
+        ]
+      },
+      "m51-green-exp": {
+        "class": "ExposureNode",
+        "nodeType": "TakeExposure",
+        "props": [
+          "m51-green-exp",
+          "Green Frames",
+          true,
+          [],
+          "m51-green-loop",
+          0,
+          null,
+          60.0,
+          20,
+          "light",
+          "G",
+          null,
+          120,
+          30,
+          "one",
+          5,
+          [],
+          null
+        ]
+      },
+      "m51-green-filter": {
+        "class": "FilterChangeNode",
+        "nodeType": "ChangeFilter",
+        "props": [
+          "m51-green-filter",
+          "Filter: G",
+          true,
+          [],
+          "m51-green-block",
+          0,
+          null,
+          "G",
+          null
+        ]
+      },
+      "m51-green-loop": {
+        "class": "LoopNode",
+        "nodeType": "Loop",
+        "props": [
+          "m51-green-loop",
+          "Green Loop (20 x 60s)",
+          true,
+          [
+            "m51-green-exp"
+          ],
+          "m51-green-block",
+          1,
+          null,
+          "count",
+          1,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "m51-guide-start": {
+        "class": "StartGuidingNode",
+        "nodeType": "StartGuiding",
+        "props": [
+          "m51-guide-start",
+          "Start Guiding",
+          true,
+          [],
+          "m51-target",
+          4,
+          null,
+          1.5,
+          10.0,
+          60.0,
+          true
+        ]
+      },
+      "m51-guide-stop": {
+        "class": "StopGuidingNode",
+        "nodeType": "StopGuiding",
+        "props": [
+          "m51-guide-stop",
+          "Stop Guiding",
+          true,
+          [],
+          "m51-target",
+          9,
+          null
+        ]
+      },
+      "m51-lum-block": {
+        "class": "InstructionSetNode",
+        "nodeType": "InstructionSet",
+        "props": [
+          "m51-lum-block",
+          "Luminance Block",
+          true,
+          [
+            "m51-lum-filter",
+            "m51-lum-loop"
+          ],
+          "m51-target",
+          5,
+          null
+        ]
+      },
+      "m51-lum-exp": {
+        "class": "ExposureNode",
+        "nodeType": "TakeExposure",
+        "props": [
+          "m51-lum-exp",
+          "Luminance Frames",
+          true,
+          [],
+          "m51-lum-loop",
+          0,
+          null,
+          120.0,
+          40,
+          "light",
+          "Lum",
+          null,
+          120,
+          30,
+          "one",
+          5,
+          [],
+          null
+        ]
+      },
+      "m51-lum-filter": {
+        "class": "FilterChangeNode",
+        "nodeType": "ChangeFilter",
+        "props": [
+          "m51-lum-filter",
+          "Filter: Lum",
+          true,
+          [],
+          "m51-lum-block",
+          0,
+          null,
+          "Lum",
+          null
+        ]
+      },
+      "m51-lum-loop": {
+        "class": "LoopNode",
+        "nodeType": "Loop",
+        "props": [
+          "m51-lum-loop",
+          "Luminance Loop (40 x 120s)",
+          true,
+          [
+            "m51-lum-recovery",
+            "m51-lum-exp"
+          ],
+          "m51-lum-block",
+          1,
+          null,
+          "count",
+          1,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "m51-lum-recovery": {
+        "class": "RecoveryNode",
+        "nodeType": "Recovery",
+        "props": [
+          "m51-lum-recovery",
+          "HFR Autofocus Trigger",
+          true,
+          [
+            "m51-lum-recovery-af"
+          ],
+          "m51-lum-loop",
+          0,
+          null,
+          "autofocus",
+          3,
+          "hfrDegraded",
+          null,
+          15.0,
+          3,
+          25,
+          10,
+          5,
+          0.5,
+          30.0,
+          10.0,
+          70.0,
+          300.0,
+          80.0,
+          60.0,
+          0.7,
+          60.0
+        ]
+      },
+      "m51-lum-recovery-af": {
+        "class": "AutofocusNode",
+        "nodeType": "Autofocus",
+        "props": [
+          "m51-lum-recovery-af",
+          "Recovery Autofocus",
+          true,
+          [],
+          "m51-lum-recovery",
+          0,
+          null,
+          "vCurve",
+          100,
+          7,
+          1,
+          4.0,
+          true,
+          600.0
+        ]
+      },
+      "m51-red-block": {
+        "class": "InstructionSetNode",
+        "nodeType": "InstructionSet",
+        "props": [
+          "m51-red-block",
+          "Red Block",
+          true,
+          [
+            "m51-red-filter",
+            "m51-red-loop"
+          ],
+          "m51-target",
+          6,
+          null
+        ]
+      },
+      "m51-red-exp": {
+        "class": "ExposureNode",
+        "nodeType": "TakeExposure",
+        "props": [
+          "m51-red-exp",
+          "Red Frames",
+          true,
+          [],
+          "m51-red-loop",
+          0,
+          null,
+          60.0,
+          20,
+          "light",
+          "R",
+          null,
+          120,
+          30,
+          "one",
+          5,
+          [],
+          null
+        ]
+      },
+      "m51-red-filter": {
+        "class": "FilterChangeNode",
+        "nodeType": "ChangeFilter",
+        "props": [
+          "m51-red-filter",
+          "Filter: R",
+          true,
+          [],
+          "m51-red-block",
+          0,
+          null,
+          "R",
+          null
+        ]
+      },
+      "m51-red-loop": {
+        "class": "LoopNode",
+        "nodeType": "Loop",
+        "props": [
+          "m51-red-loop",
+          "Red Loop (20 x 60s)",
+          true,
+          [
+            "m51-red-exp"
+          ],
+          "m51-red-block",
+          1,
+          null,
+          "count",
+          1,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "m51-root": {
+        "class": "InstructionSetNode",
+        "nodeType": "InstructionSet",
+        "props": [
+          "m51-root",
+          "Mono LRGB M51",
+          true,
+          [
+            "m51-cool",
+            "m51-target",
+            "m51-warm"
+          ],
+          null,
+          0,
+          null
+        ]
+      },
+      "m51-slew": {
+        "class": "SlewNode",
+        "nodeType": "SlewToTarget",
+        "props": [
+          "m51-slew",
+          "Slew to M51",
+          true,
+          [],
+          "m51-target",
+          1,
+          null,
+          true,
+          null,
+          null
+        ]
+      },
+      "m51-target": {
+        "class": "TargetHeaderNode",
+        "nodeType": "TargetHeader",
+        "props": [
+          "m51-target",
+          "M51 Whirlpool Galaxy",
+          true,
+          [
+            "m51-unpark",
+            "m51-slew",
+            "m51-center",
+            "m51-focus-init",
+            "m51-guide-start",
+            "m51-lum-block",
+            "m51-red-block",
+            "m51-green-block",
+            "m51-blue-block",
+            "m51-guide-stop"
+          ],
+          "m51-root",
+          1,
+          null,
+          "M51 (Whirlpool Galaxy)",
+          13.4982,
+          47.1953,
+          null,
+          0,
+          30.0,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          30,
+          null,
+          null
+        ]
+      },
+      "m51-unpark": {
+        "class": "UnparkNode",
+        "nodeType": "Unpark",
+        "props": [
+          "m51-unpark",
+          "Unpark Mount",
+          true,
+          [],
+          "m51-target",
+          0,
+          null
+        ]
+      },
+      "m51-warm": {
+        "class": "WarmCameraNode",
+        "nodeType": "WarmCamera",
+        "props": [
+          "m51-warm",
+          "Warm Camera",
+          true,
+          [],
+          "m51-root",
+          2,
+          null,
+          2.0,
+          20.0
+        ]
+      }
+    },
+    "rootNodeId": "m51-root"
+  },
+  "assets/sample_sequences/narrowband_ngc7000_sho.json": {
+    "name": "Narrowband NGC 7000 (North America Nebula) - SHO",
+    "nodes": {
+      "ngc7000-center": {
+        "class": "CenterNode",
+        "nodeType": "CenterTarget",
+        "props": [
+          "ngc7000-center",
+          "Plate Solve and Center",
+          true,
+          [],
+          "ngc7000-target",
+          2,
+          null,
+          15.0,
+          5,
+          true,
+          null,
+          null,
+          10.0,
+          "Ha"
+        ]
+      },
+      "ngc7000-cool": {
+        "class": "CoolCameraNode",
+        "nodeType": "CoolCamera",
+        "props": [
+          "ngc7000-cool",
+          "Cool to -15 °C",
+          true,
+          [],
+          "ngc7000-root",
+          0,
+          null,
+          -15.0,
+          10.0
+        ]
+      },
+      "ngc7000-guide-start": {
+        "class": "StartGuidingNode",
+        "nodeType": "StartGuiding",
+        "props": [
+          "ngc7000-guide-start",
+          "Start Guiding",
+          true,
+          [],
+          "ngc7000-target",
+          3,
+          null,
+          1.5,
+          10.0,
+          60.0,
+          true
+        ]
+      },
+      "ngc7000-guide-stop": {
+        "class": "StopGuidingNode",
+        "nodeType": "StopGuiding",
+        "props": [
+          "ngc7000-guide-stop",
+          "Stop Guiding",
+          true,
+          [],
+          "ngc7000-target",
+          8,
+          null
+        ]
+      },
+      "ngc7000-ha-block": {
+        "class": "InstructionSetNode",
+        "nodeType": "InstructionSet",
+        "props": [
+          "ngc7000-ha-block",
+          "Ha Block",
+          true,
+          [
+            "ngc7000-ha-filter",
+            "ngc7000-ha-focus",
+            "ngc7000-ha-loop"
+          ],
+          "ngc7000-target",
+          6,
+          null
+        ]
+      },
+      "ngc7000-ha-exp": {
+        "class": "ExposureNode",
+        "nodeType": "TakeExposure",
+        "props": [
+          "ngc7000-ha-exp",
+          "Ha Frames",
+          true,
+          [],
+          "ngc7000-ha-loop",
+          0,
+          null,
+          300.0,
+          60,
+          "light",
+          "Ha",
+          null,
+          120,
+          30,
+          "one",
+          3,
+          [],
+          null
+        ]
+      },
+      "ngc7000-ha-filter": {
+        "class": "FilterChangeNode",
+        "nodeType": "ChangeFilter",
+        "props": [
+          "ngc7000-ha-filter",
+          "Filter: Ha",
+          true,
+          [],
+          "ngc7000-ha-block",
+          0,
+          null,
+          "Ha",
+          null
+        ]
+      },
+      "ngc7000-ha-focus": {
+        "class": "AutofocusNode",
+        "nodeType": "Autofocus",
+        "props": [
+          "ngc7000-ha-focus",
+          "Autofocus (Ha)",
+          true,
+          [],
+          "ngc7000-ha-block",
+          1,
+          null,
+          "vCurve",
+          100,
+          7,
+          1,
+          6.0,
+          true,
+          600.0
+        ]
+      },
+      "ngc7000-ha-loop": {
+        "class": "LoopNode",
+        "nodeType": "Loop",
+        "props": [
+          "ngc7000-ha-loop",
+          "Ha Loop (60 x 300s)",
+          true,
+          [
+            "ngc7000-ha-exp"
+          ],
+          "ngc7000-ha-block",
+          2,
+          null,
+          "count",
+          1,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "ngc7000-meridian-flip": {
+        "class": "MeridianFlipNode",
+        "nodeType": "MeridianFlip",
+        "props": [
+          "ngc7000-meridian-flip",
+          "Meridian Flip Watchdog",
+          true,
+          [],
+          "ngc7000-target",
+          4,
+          null,
+          "minutesPastMeridian",
+          5.0,
+          10.0,
+          0.5,
+          true,
+          true,
+          true,
+          15.0,
+          true,
+          3,
+          "pauseAndAlert",
+          false
+        ]
+      },
+      "ngc7000-oiii-block": {
+        "class": "InstructionSetNode",
+        "nodeType": "InstructionSet",
+        "props": [
+          "ngc7000-oiii-block",
+          "OIII Block",
+          true,
+          [
+            "ngc7000-oiii-filter",
+            "ngc7000-oiii-focus",
+            "ngc7000-oiii-loop"
+          ],
+          "ngc7000-target",
+          7,
+          null
+        ]
+      },
+      "ngc7000-oiii-exp": {
+        "class": "ExposureNode",
+        "nodeType": "TakeExposure",
+        "props": [
+          "ngc7000-oiii-exp",
+          "OIII Frames",
+          true,
+          [],
+          "ngc7000-oiii-loop",
+          0,
+          null,
+          300.0,
+          60,
+          "light",
+          "OIII",
+          null,
+          120,
+          30,
+          "one",
+          3,
+          [],
+          null
+        ]
+      },
+      "ngc7000-oiii-filter": {
+        "class": "FilterChangeNode",
+        "nodeType": "ChangeFilter",
+        "props": [
+          "ngc7000-oiii-filter",
+          "Filter: OIII",
+          true,
+          [],
+          "ngc7000-oiii-block",
+          0,
+          null,
+          "OIII",
+          null
+        ]
+      },
+      "ngc7000-oiii-focus": {
+        "class": "AutofocusNode",
+        "nodeType": "Autofocus",
+        "props": [
+          "ngc7000-oiii-focus",
+          "Autofocus (OIII)",
+          true,
+          [],
+          "ngc7000-oiii-block",
+          1,
+          null,
+          "vCurve",
+          100,
+          7,
+          1,
+          8.0,
+          true,
+          600.0
+        ]
+      },
+      "ngc7000-oiii-loop": {
+        "class": "LoopNode",
+        "nodeType": "Loop",
+        "props": [
+          "ngc7000-oiii-loop",
+          "OIII Loop (60 x 300s)",
+          true,
+          [
+            "ngc7000-oiii-exp"
+          ],
+          "ngc7000-oiii-block",
+          2,
+          null,
+          "count",
+          1,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "ngc7000-root": {
+        "class": "InstructionSetNode",
+        "nodeType": "InstructionSet",
+        "props": [
+          "ngc7000-root",
+          "Narrowband NGC 7000 SHO",
+          true,
+          [
+            "ngc7000-cool",
+            "ngc7000-target",
+            "ngc7000-warm"
+          ],
+          null,
+          0,
+          null
+        ]
+      },
+      "ngc7000-sii-block": {
+        "class": "InstructionSetNode",
+        "nodeType": "InstructionSet",
+        "props": [
+          "ngc7000-sii-block",
+          "SII Block",
+          true,
+          [
+            "ngc7000-sii-filter",
+            "ngc7000-sii-focus",
+            "ngc7000-sii-loop"
+          ],
+          "ngc7000-target",
+          5,
+          null
+        ]
+      },
+      "ngc7000-sii-exp": {
+        "class": "ExposureNode",
+        "nodeType": "TakeExposure",
+        "props": [
+          "ngc7000-sii-exp",
+          "SII Frames",
+          true,
+          [],
+          "ngc7000-sii-loop",
+          0,
+          null,
+          300.0,
+          60,
+          "light",
+          "SII",
+          null,
+          120,
+          30,
+          "one",
+          3,
+          [],
+          null
+        ]
+      },
+      "ngc7000-sii-filter": {
+        "class": "FilterChangeNode",
+        "nodeType": "ChangeFilter",
+        "props": [
+          "ngc7000-sii-filter",
+          "Filter: SII",
+          true,
+          [],
+          "ngc7000-sii-block",
+          0,
+          null,
+          "SII",
+          null
+        ]
+      },
+      "ngc7000-sii-focus": {
+        "class": "AutofocusNode",
+        "nodeType": "Autofocus",
+        "props": [
+          "ngc7000-sii-focus",
+          "Autofocus (SII)",
+          true,
+          [],
+          "ngc7000-sii-block",
+          1,
+          null,
+          "vCurve",
+          100,
+          7,
+          1,
+          8.0,
+          true,
+          600.0
+        ]
+      },
+      "ngc7000-sii-loop": {
+        "class": "LoopNode",
+        "nodeType": "Loop",
+        "props": [
+          "ngc7000-sii-loop",
+          "SII Loop (60 x 300s)",
+          true,
+          [
+            "ngc7000-sii-exp"
+          ],
+          "ngc7000-sii-block",
+          2,
+          null,
+          "count",
+          1,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "ngc7000-slew": {
+        "class": "SlewNode",
+        "nodeType": "SlewToTarget",
+        "props": [
+          "ngc7000-slew",
+          "Slew to NGC 7000",
+          true,
+          [],
+          "ngc7000-target",
+          1,
+          null,
+          true,
+          null,
+          null
+        ]
+      },
+      "ngc7000-target": {
+        "class": "TargetHeaderNode",
+        "nodeType": "TargetHeader",
+        "props": [
+          "ngc7000-target",
+          "NGC 7000",
+          true,
+          [
+            "ngc7000-unpark",
+            "ngc7000-slew",
+            "ngc7000-center",
+            "ngc7000-guide-start",
+            "ngc7000-meridian-flip",
+            "ngc7000-sii-block",
+            "ngc7000-ha-block",
+            "ngc7000-oiii-block",
+            "ngc7000-guide-stop"
+          ],
+          "ngc7000-root",
+          1,
+          null,
+          "NGC 7000 (North America Nebula)",
+          20.98,
+          44.333,
+          null,
+          0,
+          30.0,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          30,
+          null,
+          null
+        ]
+      },
+      "ngc7000-unpark": {
+        "class": "UnparkNode",
+        "nodeType": "Unpark",
+        "props": [
+          "ngc7000-unpark",
+          "Unpark Mount",
+          true,
+          [],
+          "ngc7000-target",
+          0,
+          null
+        ]
+      },
+      "ngc7000-warm": {
+        "class": "WarmCameraNode",
+        "nodeType": "WarmCamera",
+        "props": [
+          "ngc7000-warm",
+          "Warm Camera",
+          true,
+          [],
+          "ngc7000-root",
+          2,
+          null,
+          2.0,
+          20.0
+        ]
+      }
+    },
+    "rootNodeId": "ngc7000-root"
+  },
+  "assets/sample_sequences/planetary_jupiter.json": {
+    "name": "Planetary Jupiter - Lucky Imaging Burst",
+    "nodes": {
+      "jupiter-burst-loop": {
+        "class": "LoopNode",
+        "nodeType": "Loop",
+        "props": [
+          "jupiter-burst-loop",
+          "1000-Frame Burst",
+          true,
+          [
+            "jupiter-exp"
+          ],
+          "jupiter-root",
+          2,
+          null,
+          "count",
+          1,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "jupiter-exp": {
+        "class": "ExposureNode",
+        "nodeType": "TakeExposure",
+        "props": [
+          "jupiter-exp",
+          "Jupiter Frames",
+          true,
+          [],
+          "jupiter-burst-loop",
+          0,
+          null,
+          0.005,
+          1000,
+          "light",
+          null,
+          null,
+          350,
+          30,
+          "one",
+          null,
+          [],
+          null
+        ]
+      },
+      "jupiter-focus": {
+        "class": "AutofocusNode",
+        "nodeType": "Autofocus",
+        "props": [
+          "jupiter-focus",
+          "Pre-Burst Focus",
+          true,
+          [],
+          "jupiter-root",
+          1,
+          null,
+          "quadratic",
+          50,
+          5,
+          1,
+          0.5,
+          false,
+          300.0
+        ]
+      },
+      "jupiter-roi-notify": {
+        "class": "NotificationNode",
+        "nodeType": "Notification",
+        "props": [
+          "jupiter-roi-notify",
+          "ROI Setup Reminder",
+          true,
+          [],
+          "jupiter-root",
+          0,
+          null,
+          "Set Camera ROI on Jupiter",
+          "Center Jupiter in the camera frame and set a small ROI (e.g. 640x480) around the planet in the camera settings to maximize frame rate. Use planetary tracking on the mount if available.",
+          "info",
+          null
+        ]
+      },
+      "jupiter-root": {
+        "class": "InstructionSetNode",
+        "nodeType": "InstructionSet",
+        "props": [
+          "jupiter-root",
+          "Planetary Jupiter",
+          true,
+          [
+            "jupiter-roi-notify",
+            "jupiter-focus",
+            "jupiter-burst-loop"
+          ],
+          null,
+          0,
+          null
+        ]
+      }
+    },
+    "rootNodeId": "jupiter-root"
+  },
+  "test/fixtures/m51_starter_export.skseq.json": {
+    "name": "Mono LRGB M51 (Whirlpool) - L then RGB",
+    "nodes": {
+      "0c024c9d-8aa4-49c1-a2bb-d1db54dd05c3": {
+        "class": "LoopNode",
+        "nodeType": "Loop",
+        "props": [
+          "0c024c9d-8aa4-49c1-a2bb-d1db54dd05c3",
+          "Blue Loop (20 x 60s)",
+          true,
+          [
+            "fb82bd7d-57d1-4be5-8321-8f82a565cf3c"
+          ],
+          "f533f366-035e-4a59-8fec-663e1d8cedc9",
+          1,
+          null,
+          "count",
+          1,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "0c099043-1689-4595-b22d-fde3b2676b1c": {
+        "class": "StopGuidingNode",
+        "nodeType": "StopGuiding",
+        "props": [
+          "0c099043-1689-4595-b22d-fde3b2676b1c",
+          "Stop Guiding",
+          true,
+          [],
+          "46d203ee-bab4-481a-90c2-f8419b1aca2e",
+          9,
+          null
+        ]
+      },
+      "2306aa4b-d9e3-4863-bf7e-cc4c79bd0259": {
+        "class": "WarmCameraNode",
+        "nodeType": "WarmCamera",
+        "props": [
+          "2306aa4b-d9e3-4863-bf7e-cc4c79bd0259",
+          "Warm Camera",
+          true,
+          [],
+          "32794adc-05f5-43c9-819c-2b788f38dbab",
+          2,
+          null,
+          2.0,
+          20.0
+        ]
+      },
+      "2b013a44-1270-43d4-8b6c-76c377190b91": {
+        "class": "UnparkNode",
+        "nodeType": "Unpark",
+        "props": [
+          "2b013a44-1270-43d4-8b6c-76c377190b91",
+          "Unpark Mount",
+          true,
+          [],
+          "46d203ee-bab4-481a-90c2-f8419b1aca2e",
+          0,
+          null
+        ]
+      },
+      "3250edac-3523-4df7-954a-ece8bcff1282": {
+        "class": "InstructionSetNode",
+        "nodeType": "InstructionSet",
+        "props": [
+          "3250edac-3523-4df7-954a-ece8bcff1282",
+          "Green Block",
+          true,
+          [
+            "691a3462-1f04-4cec-b83c-7da9f6cbba38",
+            "c2b2dfe4-dc3d-492b-8593-7e503e88666f"
+          ],
+          "46d203ee-bab4-481a-90c2-f8419b1aca2e",
+          6,
+          null
+        ]
+      },
+      "32794adc-05f5-43c9-819c-2b788f38dbab": {
+        "class": "InstructionSetNode",
+        "nodeType": "InstructionSet",
+        "props": [
+          "32794adc-05f5-43c9-819c-2b788f38dbab",
+          "Mono LRGB M51",
+          true,
+          [
+            "c1c7cd73-071f-475c-8790-5a3235de02fc",
+            "46d203ee-bab4-481a-90c2-f8419b1aca2e",
+            "2306aa4b-d9e3-4863-bf7e-cc4c79bd0259"
+          ],
+          null,
+          0,
+          null
+        ]
+      },
+      "46d203ee-bab4-481a-90c2-f8419b1aca2e": {
+        "class": "TargetHeaderNode",
+        "nodeType": "TargetHeader",
+        "props": [
+          "46d203ee-bab4-481a-90c2-f8419b1aca2e",
+          "M51 Whirlpool Galaxy",
+          true,
+          [
+            "2b013a44-1270-43d4-8b6c-76c377190b91",
+            "64e2650b-ce97-4aa4-af11-2b6daea98788",
+            "86f3843a-8575-42b1-a922-2448952663c0",
+            "ba5a5090-3687-489f-8170-7c39c707e0b0",
+            "d7d85901-2880-4dee-a279-7fcbfabb01e9",
+            "b1a47930-0c0a-460a-9b75-5769cd56d4e4",
+            "3250edac-3523-4df7-954a-ece8bcff1282",
+            "7e278799-b79a-485f-a573-4f8858b8ac9c",
+            "f533f366-035e-4a59-8fec-663e1d8cedc9",
+            "0c099043-1689-4595-b22d-fde3b2676b1c"
+          ],
+          "32794adc-05f5-43c9-819c-2b788f38dbab",
+          1,
+          null,
+          "M51 (Whirlpool Galaxy)",
+          13.4982,
+          47.1953,
+          null,
+          0,
+          30.0,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          30,
+          null,
+          null
+        ]
+      },
+      "5e9a6cdf-6930-49a1-864f-6a7d38c40ecd": {
+        "class": "FilterChangeNode",
+        "nodeType": "ChangeFilter",
+        "props": [
+          "5e9a6cdf-6930-49a1-864f-6a7d38c40ecd",
+          "Filter: B",
+          true,
+          [],
+          "f533f366-035e-4a59-8fec-663e1d8cedc9",
+          0,
+          null,
+          "B",
+          null
+        ]
+      },
+      "5e9a71cd-2cd7-4bce-92df-c9ab5b0d0f45": {
+        "class": "ExposureNode",
+        "nodeType": "TakeExposure",
+        "props": [
+          "5e9a71cd-2cd7-4bce-92df-c9ab5b0d0f45",
+          "Green Frames",
+          true,
+          [],
+          "c2b2dfe4-dc3d-492b-8593-7e503e88666f",
+          0,
+          null,
+          60.0,
+          20,
+          "light",
+          "G",
+          null,
+          120,
+          30,
+          "one",
+          5,
+          [],
+          null
+        ]
+      },
+      "5ebf092c-5f00-4f47-bafc-0bf8aacd74f6": {
+        "class": "ExposureNode",
+        "nodeType": "TakeExposure",
+        "props": [
+          "5ebf092c-5f00-4f47-bafc-0bf8aacd74f6",
+          "Red Frames",
+          true,
+          [],
+          "e40a7ef2-000e-45eb-be62-784c2dcbb724",
+          0,
+          null,
+          60.0,
+          25,
+          "light",
+          "R",
+          null,
+          120,
+          30,
+          "one",
+          5,
+          [],
+          null
+        ]
+      },
+      "64e2650b-ce97-4aa4-af11-2b6daea98788": {
+        "class": "SlewNode",
+        "nodeType": "SlewToTarget",
+        "props": [
+          "64e2650b-ce97-4aa4-af11-2b6daea98788",
+          "Slew to M51",
+          true,
+          [],
+          "46d203ee-bab4-481a-90c2-f8419b1aca2e",
+          1,
+          null,
+          true,
+          null,
+          null
+        ]
+      },
+      "65f423b7-85f4-4131-8161-2d05c409b7a9": {
+        "class": "ExposureNode",
+        "nodeType": "TakeExposure",
+        "props": [
+          "65f423b7-85f4-4131-8161-2d05c409b7a9",
+          "Luminance Frames",
+          true,
+          [],
+          "bb03ab68-6cfd-4435-a8ae-4b7bdcc323ef",
+          0,
+          null,
+          120.0,
+          40,
+          "light",
+          "Lum",
+          null,
+          120,
+          30,
+          "one",
+          5,
+          [],
+          null
+        ]
+      },
+      "691a3462-1f04-4cec-b83c-7da9f6cbba38": {
+        "class": "FilterChangeNode",
+        "nodeType": "ChangeFilter",
+        "props": [
+          "691a3462-1f04-4cec-b83c-7da9f6cbba38",
+          "Filter: G",
+          true,
+          [],
+          "3250edac-3523-4df7-954a-ece8bcff1282",
+          0,
+          null,
+          "G",
+          null
+        ]
+      },
+      "758782a7-e04d-46c2-8496-d8819058ec13": {
+        "class": "FilterChangeNode",
+        "nodeType": "ChangeFilter",
+        "props": [
+          "758782a7-e04d-46c2-8496-d8819058ec13",
+          "Filter: Lum",
+          true,
+          [],
+          "b1a47930-0c0a-460a-9b75-5769cd56d4e4",
+          0,
+          null,
+          "Lum",
+          null
+        ]
+      },
+      "7e278799-b79a-485f-a573-4f8858b8ac9c": {
+        "class": "InstructionSetNode",
+        "nodeType": "InstructionSet",
+        "props": [
+          "7e278799-b79a-485f-a573-4f8858b8ac9c",
+          "Red Block",
+          true,
+          [
+            "87a60688-2793-4338-84d1-b6ab6f2edaa3",
+            "e40a7ef2-000e-45eb-be62-784c2dcbb724"
+          ],
+          "46d203ee-bab4-481a-90c2-f8419b1aca2e",
+          7,
+          null
+        ]
+      },
+      "86f3843a-8575-42b1-a922-2448952663c0": {
+        "class": "CenterNode",
+        "nodeType": "CenterTarget",
+        "props": [
+          "86f3843a-8575-42b1-a922-2448952663c0",
+          "Plate Solve and Center",
+          true,
+          [],
+          "46d203ee-bab4-481a-90c2-f8419b1aca2e",
+          2,
+          null,
+          10.0,
+          5,
+          true,
+          null,
+          null,
+          5.0,
+          "Lum"
+        ]
+      },
+      "87a60688-2793-4338-84d1-b6ab6f2edaa3": {
+        "class": "FilterChangeNode",
+        "nodeType": "ChangeFilter",
+        "props": [
+          "87a60688-2793-4338-84d1-b6ab6f2edaa3",
+          "Filter: R",
+          true,
+          [],
+          "7e278799-b79a-485f-a573-4f8858b8ac9c",
+          0,
+          null,
+          "R",
+          null
+        ]
+      },
+      "a096a5ed-b542-4a81-b550-d9fa9c12fe65": {
+        "class": "RecoveryNode",
+        "nodeType": "Recovery",
+        "props": [
+          "a096a5ed-b542-4a81-b550-d9fa9c12fe65",
+          "HFR Autofocus Trigger",
+          true,
+          [
+            "e93fc11c-83aa-4cb6-8aa6-42abda3a1aab"
+          ],
+          "bb03ab68-6cfd-4435-a8ae-4b7bdcc323ef",
+          0,
+          null,
+          "autofocus",
+          3,
+          "hfrDegraded",
+          null,
+          15.0,
+          3,
+          25,
+          10,
+          5,
+          0.5,
+          30.0,
+          10.0,
+          70.0,
+          300.0,
+          80.0,
+          60.0,
+          0.7,
+          60.0
+        ]
+      },
+      "b1a47930-0c0a-460a-9b75-5769cd56d4e4": {
+        "class": "InstructionSetNode",
+        "nodeType": "InstructionSet",
+        "props": [
+          "b1a47930-0c0a-460a-9b75-5769cd56d4e4",
+          "Luminance Block",
+          true,
+          [
+            "758782a7-e04d-46c2-8496-d8819058ec13",
+            "bb03ab68-6cfd-4435-a8ae-4b7bdcc323ef"
+          ],
+          "46d203ee-bab4-481a-90c2-f8419b1aca2e",
+          5,
+          null
+        ]
+      },
+      "ba5a5090-3687-489f-8170-7c39c707e0b0": {
+        "class": "AutofocusNode",
+        "nodeType": "Autofocus",
+        "props": [
+          "ba5a5090-3687-489f-8170-7c39c707e0b0",
+          "Initial Autofocus",
+          true,
+          [],
+          "46d203ee-bab4-481a-90c2-f8419b1aca2e",
+          3,
+          null,
+          "vCurve",
+          100,
+          7,
+          1,
+          4.0,
+          true,
+          600.0
+        ]
+      },
+      "bb03ab68-6cfd-4435-a8ae-4b7bdcc323ef": {
+        "class": "LoopNode",
+        "nodeType": "Loop",
+        "props": [
+          "bb03ab68-6cfd-4435-a8ae-4b7bdcc323ef",
+          "Luminance Loop (40 x 120s)",
+          true,
+          [
+            "a096a5ed-b542-4a81-b550-d9fa9c12fe65",
+            "65f423b7-85f4-4131-8161-2d05c409b7a9"
+          ],
+          "b1a47930-0c0a-460a-9b75-5769cd56d4e4",
+          1,
+          null,
+          "count",
+          1,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "c1c7cd73-071f-475c-8790-5a3235de02fc": {
+        "class": "CoolCameraNode",
+        "nodeType": "CoolCamera",
+        "props": [
+          "c1c7cd73-071f-475c-8790-5a3235de02fc",
+          "Cool to -10C",
+          true,
+          [],
+          "32794adc-05f5-43c9-819c-2b788f38dbab",
+          0,
+          null,
+          -10.0,
+          10.0
+        ]
+      },
+      "c2b2dfe4-dc3d-492b-8593-7e503e88666f": {
+        "class": "LoopNode",
+        "nodeType": "Loop",
+        "props": [
+          "c2b2dfe4-dc3d-492b-8593-7e503e88666f",
+          "Green Loop (20 x 60s)",
+          true,
+          [
+            "5e9a71cd-2cd7-4bce-92df-c9ab5b0d0f45"
+          ],
+          "3250edac-3523-4df7-954a-ece8bcff1282",
+          1,
+          null,
+          "count",
+          1,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "d7d85901-2880-4dee-a279-7fcbfabb01e9": {
+        "class": "StartGuidingNode",
+        "nodeType": "StartGuiding",
+        "props": [
+          "d7d85901-2880-4dee-a279-7fcbfabb01e9",
+          "Start Guiding",
+          true,
+          [],
+          "46d203ee-bab4-481a-90c2-f8419b1aca2e",
+          4,
+          null,
+          1.5,
+          10.0,
+          60.0,
+          true
+        ]
+      },
+      "e40a7ef2-000e-45eb-be62-784c2dcbb724": {
+        "class": "LoopNode",
+        "nodeType": "Loop",
+        "props": [
+          "e40a7ef2-000e-45eb-be62-784c2dcbb724",
+          "Red Loop (20 x 60s)",
+          true,
+          [
+            "5ebf092c-5f00-4f47-bafc-0bf8aacd74f6"
+          ],
+          "7e278799-b79a-485f-a573-4f8858b8ac9c",
+          1,
+          null,
+          "count",
+          1,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "e93fc11c-83aa-4cb6-8aa6-42abda3a1aab": {
+        "class": "AutofocusNode",
+        "nodeType": "Autofocus",
+        "props": [
+          "e93fc11c-83aa-4cb6-8aa6-42abda3a1aab",
+          "Recovery Autofocus",
+          true,
+          [],
+          "a096a5ed-b542-4a81-b550-d9fa9c12fe65",
+          0,
+          null,
+          "vCurve",
+          100,
+          7,
+          1,
+          4.0,
+          true,
+          600.0
+        ]
+      },
+      "f533f366-035e-4a59-8fec-663e1d8cedc9": {
+        "class": "InstructionSetNode",
+        "nodeType": "InstructionSet",
+        "props": [
+          "f533f366-035e-4a59-8fec-663e1d8cedc9",
+          "Blue Block",
+          true,
+          [
+            "5e9a6cdf-6930-49a1-864f-6a7d38c40ecd",
+            "0c024c9d-8aa4-49c1-a2bb-d1db54dd05c3"
+          ],
+          "46d203ee-bab4-481a-90c2-f8419b1aca2e",
+          8,
+          null
+        ]
+      },
+      "fb82bd7d-57d1-4be5-8321-8f82a565cf3c": {
+        "class": "ExposureNode",
+        "nodeType": "TakeExposure",
+        "props": [
+          "fb82bd7d-57d1-4be5-8321-8f82a565cf3c",
+          "Blue Frames",
+          true,
+          [],
+          "0c024c9d-8aa4-49c1-a2bb-d1db54dd05c3",
+          0,
+          null,
+          60.0,
+          20,
+          "light",
+          "B",
+          null,
+          120,
+          30,
+          "one",
+          5,
+          [],
+          null
+        ]
+      }
+    },
+    "rootNodeId": "32794adc-05f5-43c9-819c-2b788f38dbab"
+  }
+}

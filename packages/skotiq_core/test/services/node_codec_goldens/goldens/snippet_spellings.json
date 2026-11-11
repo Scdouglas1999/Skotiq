@@ -1,0 +1,1154 @@
+{
+  "Autofocus": {
+    "class": "AutofocusNode",
+    "nodeType": "Autofocus",
+    "props": [
+      "<id>",
+      "Autofocus",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "vCurve",
+      100,
+      7,
+      1,
+      3.0,
+      true,
+      600.0
+    ]
+  },
+  "CalibratorOff": {
+    "class": "CalibratorOffNode",
+    "nodeType": "CalibratorOff",
+    "props": [
+      "<id>",
+      "Calibrator Off",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      30
+    ]
+  },
+  "CalibratorOn": {
+    "class": "CalibratorOnNode",
+    "nodeType": "CalibratorOn",
+    "props": [
+      "<id>",
+      "Calibrator On",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      128,
+      30
+    ]
+  },
+  "CenterTarget": {
+    "class": "CenterNode",
+    "nodeType": "CenterTarget",
+    "props": [
+      "<id>",
+      "Center Target",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      5.0,
+      5,
+      true,
+      null,
+      null,
+      5.0,
+      null
+    ]
+  },
+  "ChangeFilter": {
+    "class": "FilterChangeNode",
+    "nodeType": "ChangeFilter",
+    "props": [
+      "<id>",
+      "Change Filter",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "",
+      null
+    ]
+  },
+  "CloseCover": {
+    "class": "CloseCoverNode",
+    "nodeType": "CloseCover",
+    "props": [
+      "<id>",
+      "Close Cover",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      60
+    ]
+  },
+  "CloseDome": {
+    "class": "CloseDomeNode",
+    "nodeType": "CloseDome",
+    "props": [
+      "<id>",
+      "Close Dome",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      false
+    ]
+  },
+  "Conditional": {
+    "class": "ConditionalNode",
+    "nodeType": "Conditional",
+    "props": [
+      "<id>",
+      "Conditional",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "always",
+      null,
+      null,
+      null
+    ]
+  },
+  "CoolCamera": {
+    "class": "CoolCameraNode",
+    "nodeType": "CoolCamera",
+    "props": [
+      "<id>",
+      "Cool Camera",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      -10.0,
+      null
+    ]
+  },
+  "Delay": {
+    "class": "DelayNode",
+    "nodeType": "Delay",
+    "props": [
+      "<id>",
+      "Delay",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      5.0
+    ]
+  },
+  "Dither": {
+    "class": "DitherNode",
+    "nodeType": "Dither",
+    "props": [
+      "<id>",
+      "Dither",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      5.0,
+      30.0,
+      1.5,
+      120.0,
+      false,
+      "random",
+      3
+    ]
+  },
+  "FlatWizard": "error SnippetDeserializationException: SnippetDeserializationException: Snippet \"Probe\" references unknown node type \"FlatWizard\". The snippet may have been authored by a newer version of Skotiq.",
+  "HomeMount": {
+    "class": "HomeMountNode",
+    "nodeType": "HomeMount",
+    "props": [
+      "<id>",
+      "Home mount",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null
+    ]
+  },
+  "InstructionSet": {
+    "class": "InstructionSetNode",
+    "nodeType": "InstructionSet",
+    "props": [
+      "<id>",
+      "Instructions",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null
+    ]
+  },
+  "LiveStacking": {
+    "class": "LiveStackingNode",
+    "nodeType": "LiveStacking",
+    "props": [
+      "<id>",
+      "Live Stacking",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "broadcastOnly",
+      "average",
+      0,
+      true,
+      8081,
+      "/broadcast",
+      null,
+      null,
+      1280,
+      720
+    ]
+  },
+  "Loop": {
+    "class": "LoopNode",
+    "nodeType": "Loop",
+    "props": [
+      "<id>",
+      "Loop",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "count",
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "MeridianFlip": {
+    "class": "MeridianFlipNode",
+    "nodeType": "MeridianFlip",
+    "props": [
+      "<id>",
+      "Meridian Flip",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "minutesPastMeridian",
+      5.0,
+      10.0,
+      0.5,
+      true,
+      true,
+      false,
+      10.0,
+      true,
+      3,
+      "pauseAndAlert",
+      false
+    ]
+  },
+  "Mosaic": "error SnippetDeserializationException: SnippetDeserializationException: Snippet \"Probe\" references unknown node type \"Mosaic\". The snippet may have been authored by a newer version of Skotiq.",
+  "MoveRotator": {
+    "class": "RotatorNode",
+    "nodeType": "MoveRotator",
+    "props": [
+      "<id>",
+      "Move Rotator",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      0.0,
+      false
+    ]
+  },
+  "NoSuchNode": "error SnippetDeserializationException: SnippetDeserializationException: Snippet \"Probe\" references unknown node type \"NoSuchNode\". The snippet may have been authored by a newer version of Skotiq.",
+  "Notification": {
+    "class": "NotificationNode",
+    "nodeType": "Notification",
+    "props": [
+      "<id>",
+      "Send Notification",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "",
+      "",
+      "info",
+      null
+    ]
+  },
+  "OpenCover": {
+    "class": "OpenCoverNode",
+    "nodeType": "OpenCover",
+    "props": [
+      "<id>",
+      "Open Cover",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      60
+    ]
+  },
+  "OpenDome": {
+    "class": "OpenDomeNode",
+    "nodeType": "OpenDome",
+    "props": [
+      "<id>",
+      "Open Dome",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      false
+    ]
+  },
+  "Parallel": {
+    "class": "ParallelNode",
+    "nodeType": "Parallel",
+    "props": [
+      "<id>",
+      "Parallel",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      null
+    ]
+  },
+  "Park": {
+    "class": "ParkNode",
+    "nodeType": "Park",
+    "props": [
+      "<id>",
+      "Park Mount",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null
+    ]
+  },
+  "ParkDome": {
+    "class": "ParkDomeNode",
+    "nodeType": "ParkDome",
+    "props": [
+      "<id>",
+      "Park Dome",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      false
+    ]
+  },
+  "PluginNode": {
+    "class": "PluginInstructionNode",
+    "nodeType": "PluginNode",
+    "props": [
+      "<id>",
+      "Plugin Node",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "",
+      "",
+      "{}",
+      null,
+      "",
+      "puzzle"
+    ]
+  },
+  "PolarAlignment": {
+    "class": "PolarAlignmentNode",
+    "nodeType": "PolarAlignment",
+    "props": [
+      "<id>",
+      "Polar Alignment",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      2.0,
+      2,
+      45.0,
+      20.0,
+      null,
+      null,
+      true,
+      true,
+      false
+    ]
+  },
+  "Recovery": {
+    "class": "RecoveryNode",
+    "nodeType": "Recovery",
+    "props": [
+      "<id>",
+      "Recovery",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "retry",
+      3,
+      null,
+      null,
+      20.0,
+      3,
+      25,
+      10,
+      5,
+      0.5,
+      30.0,
+      10.0,
+      70.0,
+      300.0,
+      80.0,
+      60.0,
+      0.7,
+      60.0
+    ]
+  },
+  "RunScript": {
+    "class": "ScriptNode",
+    "nodeType": "RunScript",
+    "props": [
+      "<id>",
+      "Run Script",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "",
+      [],
+      null
+    ]
+  },
+  "SciencePhotometry": {
+    "class": "SciencePhotometryNode",
+    "nodeType": "SciencePhotometry",
+    "props": [
+      "<id>",
+      "Science Photometry",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "",
+      [],
+      2.0,
+      "Clear",
+      60.0,
+      60,
+      true,
+      true,
+      {
+        "max_airmass": 2.5,
+        "max_fwhm_arcsec": 5.0,
+        "min_snr": 50.0,
+        "require_all_refs_visible": true
+      },
+      null,
+      null,
+      "one"
+    ]
+  },
+  "SlewToTarget": {
+    "class": "SlewNode",
+    "nodeType": "SlewToTarget",
+    "props": [
+      "<id>",
+      "Slew to Target",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      true,
+      null,
+      null
+    ]
+  },
+  "SmartExposure": {
+    "class": "SmartExposureNode",
+    "nodeType": "SmartExposure",
+    "props": [
+      "<id>",
+      "Smart Exposure",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      [],
+      true,
+      false,
+      0.0,
+      1,
+      false
+    ]
+  },
+  "StartGuiding": {
+    "class": "StartGuidingNode",
+    "nodeType": "StartGuiding",
+    "props": [
+      "<id>",
+      "Start Guiding",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      1.5,
+      10.0,
+      60.0,
+      true
+    ]
+  },
+  "StopGuiding": {
+    "class": "StopGuidingNode",
+    "nodeType": "StopGuiding",
+    "props": [
+      "<id>",
+      "Stop Guiding",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null
+    ]
+  },
+  "TakeExposure": {
+    "class": "ExposureNode",
+    "nodeType": "TakeExposure",
+    "props": [
+      "<id>",
+      "Take Exposures",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      60.0,
+      10,
+      "light",
+      null,
+      null,
+      null,
+      null,
+      "one",
+      null,
+      [],
+      null
+    ]
+  },
+  "TargetGroup": {
+    "class": "TargetHeaderNode",
+    "nodeType": "TargetHeader",
+    "props": [
+      "<id>",
+      "Target",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "Target",
+      0.0,
+      0.0,
+      null,
+      0,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      30,
+      null,
+      null
+    ]
+  },
+  "TargetHeader": {
+    "class": "TargetHeaderNode",
+    "nodeType": "TargetHeader",
+    "props": [
+      "<id>",
+      "Target",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "Target",
+      0.0,
+      0.0,
+      null,
+      0,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      30,
+      null,
+      null
+    ]
+  },
+  "TargetScheduler": {
+    "class": "TargetSchedulerNode",
+    "nodeType": "TargetScheduler",
+    "props": [
+      "<id>",
+      "Scheduler",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      0.25,
+      0.25,
+      0.2,
+      0.15,
+      0.15,
+      30.0,
+      0,
+      true,
+      null,
+      180.0,
+      {
+        "bright_min_score": 30.0,
+        "faint_min_score": 70.0,
+        "medium_min_score": 50.0
+      },
+      300,
+      null,
+      null
+    ]
+  },
+  "Unpark": {
+    "class": "UnparkNode",
+    "nodeType": "Unpark",
+    "props": [
+      "<id>",
+      "Unpark Mount",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null
+    ]
+  },
+  "WaitForTime": {
+    "class": "WaitTimeNode",
+    "nodeType": "WaitForTime",
+    "props": [
+      "<id>",
+      "Wait for Time",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      null,
+      null
+    ]
+  },
+  "WarmCamera": {
+    "class": "WarmCameraNode",
+    "nodeType": "WarmCamera",
+    "props": [
+      "<id>",
+      "Warm Camera",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      2.0,
+      20.0
+    ]
+  },
+  "calibrator_on": {
+    "class": "CalibratorOnNode",
+    "nodeType": "CalibratorOn",
+    "props": [
+      "<id>",
+      "Calibrator On",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      128,
+      30
+    ]
+  },
+  "center": {
+    "class": "CenterNode",
+    "nodeType": "CenterTarget",
+    "props": [
+      "<id>",
+      "Center Target",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      5.0,
+      5,
+      true,
+      null,
+      null,
+      5.0,
+      null
+    ]
+  },
+  "exposure": {
+    "class": "ExposureNode",
+    "nodeType": "TakeExposure",
+    "props": [
+      "<id>",
+      "Take Exposures",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      60.0,
+      10,
+      "light",
+      null,
+      null,
+      null,
+      null,
+      "one",
+      null,
+      [],
+      null
+    ]
+  },
+  "filterChange": {
+    "class": "FilterChangeNode",
+    "nodeType": "ChangeFilter",
+    "props": [
+      "<id>",
+      "Change Filter",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "",
+      null
+    ]
+  },
+  "home_mount": {
+    "class": "HomeMountNode",
+    "nodeType": "HomeMount",
+    "props": [
+      "<id>",
+      "Home mount",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null
+    ]
+  },
+  "instruction_set": {
+    "class": "InstructionSetNode",
+    "nodeType": "InstructionSet",
+    "props": [
+      "<id>",
+      "Instructions",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null
+    ]
+  },
+  "live_stacking": {
+    "class": "LiveStackingNode",
+    "nodeType": "LiveStacking",
+    "props": [
+      "<id>",
+      "Live Stacking",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "broadcastOnly",
+      "average",
+      0,
+      true,
+      8081,
+      "/broadcast",
+      null,
+      null,
+      1280,
+      720
+    ]
+  },
+  "plugin_node": {
+    "class": "PluginInstructionNode",
+    "nodeType": "PluginNode",
+    "props": [
+      "<id>",
+      "Plugin Node",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "",
+      "",
+      "{}",
+      null,
+      "",
+      "puzzle"
+    ]
+  },
+  "polalignment": {
+    "class": "PolarAlignmentNode",
+    "nodeType": "PolarAlignment",
+    "props": [
+      "<id>",
+      "Polar Alignment",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      2.0,
+      2,
+      45.0,
+      20.0,
+      null,
+      null,
+      true,
+      true,
+      false
+    ]
+  },
+  "rotator": {
+    "class": "RotatorNode",
+    "nodeType": "MoveRotator",
+    "props": [
+      "<id>",
+      "Move Rotator",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      0.0,
+      false
+    ]
+  },
+  "science_photometry": {
+    "class": "SciencePhotometryNode",
+    "nodeType": "SciencePhotometry",
+    "props": [
+      "<id>",
+      "Science Photometry",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "",
+      [],
+      2.0,
+      "Clear",
+      60.0,
+      60,
+      true,
+      true,
+      {
+        "max_airmass": 2.5,
+        "max_fwhm_arcsec": 5.0,
+        "min_snr": 50.0,
+        "require_all_refs_visible": true
+      },
+      null,
+      null,
+      "one"
+    ]
+  },
+  "script": {
+    "class": "ScriptNode",
+    "nodeType": "RunScript",
+    "props": [
+      "<id>",
+      "Run Script",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "",
+      [],
+      null
+    ]
+  },
+  "slew": {
+    "class": "SlewNode",
+    "nodeType": "SlewToTarget",
+    "props": [
+      "<id>",
+      "Slew to Target",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      true,
+      null,
+      null
+    ]
+  },
+  "smart_exposure": {
+    "class": "SmartExposureNode",
+    "nodeType": "SmartExposure",
+    "props": [
+      "<id>",
+      "Smart Exposure",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      [],
+      true,
+      false,
+      0.0,
+      1,
+      false
+    ]
+  },
+  "smartexposurenode": {
+    "class": "SmartExposureNode",
+    "nodeType": "SmartExposure",
+    "props": [
+      "<id>",
+      "Smart Exposure",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      [],
+      true,
+      false,
+      0.0,
+      1,
+      false
+    ]
+  },
+  "take-exposure": {
+    "class": "ExposureNode",
+    "nodeType": "TakeExposure",
+    "props": [
+      "<id>",
+      "Take Exposures",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      60.0,
+      10,
+      "light",
+      null,
+      null,
+      null,
+      null,
+      "one",
+      null,
+      [],
+      null
+    ]
+  },
+  "target_scheduler": {
+    "class": "TargetSchedulerNode",
+    "nodeType": "TargetScheduler",
+    "props": [
+      "<id>",
+      "Scheduler",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      0.25,
+      0.25,
+      0.2,
+      0.15,
+      0.15,
+      30.0,
+      0,
+      true,
+      null,
+      180.0,
+      {
+        "bright_min_score": 30.0,
+        "faint_min_score": 70.0,
+        "medium_min_score": 50.0
+      },
+      300,
+      null,
+      null
+    ]
+  },
+  "targetgroup": {
+    "class": "TargetHeaderNode",
+    "nodeType": "TargetHeader",
+    "props": [
+      "<id>",
+      "Target",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "Target",
+      0.0,
+      0.0,
+      null,
+      0,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      30,
+      null,
+      null
+    ]
+  },
+  "targetheader": {
+    "class": "TargetHeaderNode",
+    "nodeType": "TargetHeader",
+    "props": [
+      "<id>",
+      "Target",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "Target",
+      0.0,
+      0.0,
+      null,
+      0,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      30,
+      null,
+      null
+    ]
+  },
+  "targetschedulernode": {
+    "class": "TargetSchedulerNode",
+    "nodeType": "TargetScheduler",
+    "props": [
+      "<id>",
+      "Scheduler",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      0.25,
+      0.25,
+      0.2,
+      0.15,
+      0.15,
+      30.0,
+      0,
+      true,
+      null,
+      180.0,
+      {
+        "bright_min_score": 30.0,
+        "faint_min_score": 70.0,
+        "medium_min_score": 50.0
+      },
+      300,
+      null,
+      null
+    ]
+  },
+  "waitTime": {
+    "class": "WaitTimeNode",
+    "nodeType": "WaitForTime",
+    "props": [
+      "<id>",
+      "Wait for Time",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      null,
+      null
+    ]
+  }
+}
