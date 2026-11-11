@@ -333,6 +333,7 @@ pub(crate) async fn build_environment_snapshot(
     let guide_rms_arcsec = if let Some(trigger_state_lock) = &ctx.trigger_state {
         let state = trigger_state_lock.read().await;
         state
+            .latches
             .guiding_rms_history
             .as_ref()
             .and_then(|h| h.last())
@@ -414,7 +415,7 @@ pub(crate) async fn emit_grade_progress(
     // forensics — snapshot the environment once up-front so the
     // values reported in the event match the values fed to the
     // classifier. (Two separate reads could race against the
-    // ExecutorCommand::UpdateCloudMotion / UpdateSkyBrightness handlers.)
+    // `SequenceExecutor::update_cloud_motion` / `update_sky_brightness` feed.)
     let env_snapshot = build_environment_snapshot(ctx).await;
     match &grade {
         crate::quality::FrameGrade::Pass => {

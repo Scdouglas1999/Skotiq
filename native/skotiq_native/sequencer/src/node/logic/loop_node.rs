@@ -186,6 +186,21 @@ pub async fn execute_loop(
             break;
         }
 
+        // A resume runs the pass a checkpoint caught in flight again, so the
+        // record holds finished passes only, and inner loops start over.
+        {
+            let mut inner = std::collections::HashMap::new();
+            for child in &node.children {
+                child.snapshot_loop_iterations(&mut inner);
+            }
+            let mut finished = context.loop_passes_finished.write();
+            for id in inner.keys() {
+                finished.remove(id);
+            }
+            if node.current_iteration > 0 {
+                finished.insert(node.id().clone(), node.current_iteration);
+            }
+        }
         node.current_iteration += 1;
         iterations_run_here += 1;
         tracing::info!("=== LOOP ITERATION {} STARTING ===", node.current_iteration);
@@ -238,6 +253,10 @@ pub async fn execute_loop(
         if result == NodeStatus::Failure || result == NodeStatus::Cancelled {
             return result;
         }
+        context
+            .loop_passes_finished
+            .write()
+            .insert(node.id().clone(), node.current_iteration);
     }
 
     NodeStatus::Success

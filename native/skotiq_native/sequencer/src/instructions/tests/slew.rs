@@ -312,7 +312,7 @@ mod slew_arrival {
         let (result, _) = slew_with(
             ScriptedDomeRotatorOps::new()
                 .with_scripted_mount_coordinates(MOUNT_REPORTED.0, MOUNT_REPORTED.1)
-                .with_scripted_readback_frame(Err("driver type unknown".to_string())),
+                .with_scripted_readback_frame(Err("driver type unknown".into())),
         )
         .await;
 
@@ -577,7 +577,7 @@ async fn slew_node_off_target(stop_on_quality_problems: bool) -> (NodeStatus, Ve
     context.target_ra = Some(22.7892);
     context.target_dec = Some(58.1324);
     let mut state = crate::triggers::TriggerState::new();
-    state.stop_on_quality_problems = stop_on_quality_problems;
+    state.settings.stop_on_quality_problems = stop_on_quality_problems;
     context.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
     let (event_tx, mut events) = tokio::sync::broadcast::channel(64);
     context.event_tx = Some(event_tx);
@@ -615,5 +615,9 @@ async fn a_slew_that_lands_off_target_notifies_and_the_run_goes_on() {
     );
 
     let (status, _) = slew_node_off_target(true).await;
-    assert_eq!(status, NodeStatus::Failure, "the operator asked for the stop");
+    assert_eq!(
+        status,
+        NodeStatus::Failure,
+        "the operator asked for the stop"
+    );
 }

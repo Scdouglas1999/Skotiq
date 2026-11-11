@@ -32,7 +32,7 @@ async fn start_recycles_a_terminal_executor_instead_of_refusing() {
         ExecutorState::Cancelled,
     ] {
         let mut executor = SequenceExecutor::new();
-        executor.set_state(terminal).await;
+        executor.run_state.transition(terminal);
 
         let err = executor
             .start()
@@ -61,7 +61,7 @@ async fn start_still_refuses_a_busy_executor() {
         ExecutorState::Recovering,
     ] {
         let mut executor = SequenceExecutor::new();
-        executor.set_state(busy).await;
+        executor.run_state.transition(busy);
 
         let err = executor.start().await.expect_err("busy must be refused");
         assert!(
@@ -93,14 +93,14 @@ fn test_progress_tracking() {
     });
 }
 
-#[test]
-fn test_location_configuration() {
+#[tokio::test]
+async fn test_location_configuration() {
     let mut executor = SequenceExecutor::new();
 
-    executor.set_location(Some(45.5), Some(-122.6));
+    executor.set_location(Some(45.5), Some(-122.6)).await;
 
-    assert_eq!(executor.latitude, Some(45.5));
-    assert_eq!(executor.longitude, Some(-122.6));
+    assert_eq!(executor.run_config().latitude, Some(45.5));
+    assert_eq!(executor.run_config().longitude, Some(-122.6));
 }
 
 /// An unset observing site reaches the executor as `Some(0, 0)` (that is what
@@ -108,14 +108,14 @@ fn test_location_configuration() {
 /// real site puts the rig on Null Island: the daylight gate refuses every
 /// light frame of an Australian night quoting a Greenwich Sun altitude, and
 /// the altitude limits gate on the wrong sky.
-#[test]
-fn null_island_is_an_unset_site_not_a_site_at_0n_0e() {
+#[tokio::test]
+async fn null_island_is_an_unset_site_not_a_site_at_0n_0e() {
     let mut executor = SequenceExecutor::new();
 
-    executor.set_location(Some(0.0), Some(0.0));
+    executor.set_location(Some(0.0), Some(0.0)).await;
 
-    assert_eq!(executor.latitude, None);
-    assert_eq!(executor.longitude, None);
+    assert_eq!(executor.run_config().latitude, None);
+    assert_eq!(executor.run_config().longitude, None);
 }
 
 #[tokio::test]
@@ -123,23 +123,28 @@ async fn update_location_also_rejects_null_island() {
     let mut executor = SequenceExecutor::new();
     executor.update_location(Some(0.0), Some(0.0)).await;
 
-    assert_eq!(executor.latitude, None);
-    assert_eq!(executor.longitude, None);
-    let handle = executor.runtime_config_handle();
+    assert_eq!(executor.run_config().latitude, None);
+    assert_eq!(executor.run_config().longitude, None);
+    let handle = executor.run_config_store();
     let rc = handle.read();
     assert_eq!(rc.latitude, None);
     assert_eq!(rc.longitude, None);
 }
 
-#[test]
-fn safety_fail_mode_updates_runtime_config() {
+#[tokio::test]
+async fn safety_fail_mode_updates_runtime_config() {
     let mut executor = SequenceExecutor::new();
 
-    executor.set_safety_fail_mode(crate::SafetyFailMode::WarnOnly);
+    executor
+        .set_safety_fail_mode(crate::SafetyFailMode::WarnOnly)
+        .await;
 
-    assert_eq!(executor.safety_fail_mode, crate::SafetyFailMode::WarnOnly);
     assert_eq!(
-        executor.runtime_config.read().safety_fail_mode,
+        executor.run_config().safety_fail_mode,
+        crate::SafetyFailMode::WarnOnly
+    );
+    assert_eq!(
+        executor.settings.read().safety_fail_mode,
         crate::SafetyFailMode::WarnOnly
     );
 }
@@ -284,20 +289,17 @@ fn weather_verdict_stale_warning_emits_once_then_rearms() {
     );
 }
 
-#[test]
-fn safety_check_interval_updates_runtime_config() {
+#[tokio::test]
+async fn safety_check_interval_updates_runtime_config() {
     let mut executor = SequenceExecutor::new();
 
-    executor.set_safety_check_interval_secs(45);
+    executor.set_safety_check_interval_secs(45).await;
 
-    assert_eq!(
-        executor.runtime_config.read().safety_check_interval_secs,
-        45
-    );
+    assert_eq!(executor.settings.read().safety_check_interval_secs, 45);
 
-    executor.set_safety_check_interval_secs(3);
+    executor.set_safety_check_interval_secs(3).await;
 
-    assert_eq!(executor.runtime_config.read().safety_check_interval_secs, 5);
+    assert_eq!(executor.settings.read().safety_check_interval_secs, 5);
 }
 
 #[test]
@@ -322,16 +324,16 @@ fn test_get_set_state() {
         // Test state transitions
         assert_eq!(executor.get_state().await, ExecutorState::Idle);
 
-        executor.set_state(ExecutorState::Running).await;
+        executor.run_state.transition(ExecutorState::Running);
         assert_eq!(executor.get_state().await, ExecutorState::Running);
 
-        executor.set_state(ExecutorState::Paused).await;
+        executor.run_state.transition(ExecutorState::Paused);
         assert_eq!(executor.get_state().await, ExecutorState::Paused);
 
-        executor.set_state(ExecutorState::Stopping).await;
+        executor.run_state.transition(ExecutorState::Stopping);
         assert_eq!(executor.get_state().await, ExecutorState::Stopping);
 
-        executor.set_state(ExecutorState::Completed).await;
+        executor.run_state.transition(ExecutorState::Completed);
         assert_eq!(executor.get_state().await, ExecutorState::Completed);
     });
 }
@@ -377,7 +379,7 @@ fn test_executor_state_for_result_keeps_cancelled_distinct() {
 
 #[test]
 fn test_trigger_autofocus_context_preserves_runtime_metadata() {
-    let trigger_context = TriggerActionContext {
+    let trigger_context = RunRig {
         camera_id: Some("camera".to_string()),
         mount_id: Some("mount".to_string()),
         focuser_id: Some("focuser".to_string()),
@@ -390,7 +392,7 @@ fn test_trigger_autofocus_context_preserves_runtime_metadata() {
         longitude: Some(-122.0),
         filter_focus_offsets: HashMap::from([("Ha".to_string(), 42)]),
     };
-    let runtime_config = Arc::new(StdRwLock::new(RuntimeConfig::default()));
+    let runtime_config = RunConfigStore::default();
     let instruction_ctx = build_trigger_autofocus_context(
         &trigger_context,
         Some("M31".to_string()),
@@ -416,11 +418,11 @@ fn test_trigger_autofocus_context_preserves_runtime_metadata() {
 
 #[test]
 fn test_trigger_flip_context_keeps_focuser_id() {
-    let trigger_context = TriggerActionContext {
+    let trigger_context = RunRig {
         mount_id: Some("mount".to_string()),
         camera_id: Some("camera".to_string()),
         focuser_id: Some("focuser".to_string()),
-        ..TriggerActionContext::default()
+        ..RunRig::default()
     };
 
     let flip_ctx = build_trigger_flip_context(
@@ -443,11 +445,11 @@ fn test_trigger_flip_context_keeps_focuser_id() {
 
 #[test]
 fn trigger_flip_context_preserves_real_autofocus_config() {
-    let trigger_context = TriggerActionContext {
+    let trigger_context = RunRig {
         mount_id: Some("mount".to_string()),
         filterwheel_id: Some("wheel".to_string()),
         filter_focus_offsets: HashMap::from([("L".to_string(), 0), ("Ha".to_string(), 180)]),
-        ..TriggerActionContext::default()
+        ..RunRig::default()
     };
     let autofocus_config = crate::AutofocusConfig {
         filter: Some("Ha".to_string()),
@@ -690,19 +692,21 @@ async fn camera_idle_wait_holds_for_an_exposure_then_releases() {
     // overwrite a live trigger claim outright, which is the frame-destroying
     // race the claim exists to close; the token-based API refuses instead, so
     // the release has to be real.
-    state.write().await.release_imaging_train(idle_token);
+    state.write().await.imaging_train.release(idle_token);
 
     // A frame in flight holds the action until the frame releases it.
     let frame_token = state
         .write()
         .await
-        .try_claim_imaging_train("the next exposure", 30.0)
+        .imaging_train
+        .try_claim("the next exposure", 30.0)
         .expect("an idle imaging train must be claimable");
     assert!(
         state
             .read()
             .await
-            .imaging_train_hold()
+            .imaging_train
+            .hold()
             .is_some_and(|hold| hold.expected_remaining_secs > 30.0),
         "the claim's expected finish must cover the exposure plus download slack"
     );
@@ -713,7 +717,8 @@ async fn camera_idle_wait_holds_for_an_exposure_then_releases() {
         release_state
             .write()
             .await
-            .release_imaging_train(frame_token);
+            .imaging_train
+            .release(frame_token);
     });
 
     let started = tokio::time::Instant::now();
@@ -738,7 +743,8 @@ async fn camera_idle_wait_releases_immediately_on_cancel() {
     state
         .write()
         .await
-        .try_claim_imaging_train("the next exposure", 600.0)
+        .imaging_train
+        .try_claim("the next exposure", 600.0)
         .expect("an idle imaging train must be claimable");
 
     let flag = cancelled.clone();
@@ -761,15 +767,17 @@ async fn camera_idle_wait_releases_immediately_on_cancel() {
 async fn imaging_train_claim_expires_rather_than_wedging() {
     let mut state = crate::triggers::TriggerState::new();
     state
-        .try_claim_imaging_train("the next exposure", 30.0)
+        .imaging_train
+        .try_claim("the next exposure", 30.0)
         .expect("an idle imaging train must be claimable");
     let claim = state
-        .imaging_train_claim
+        .imaging_train
+        .claim
         .as_mut()
         .expect("the claim was just installed");
     claim.expires_at_ms = chrono::Utc::now().timestamp_millis() - 1;
     assert!(
-        state.imaging_train_hold().is_none(),
+        state.imaging_train.hold().is_none(),
         "a claim past its hard expiry must read as free"
     );
 }
@@ -788,18 +796,21 @@ async fn imaging_train_claim_expires_rather_than_wedging() {
 async fn an_overrunning_exposure_keeps_the_imaging_train() {
     let mut state = crate::triggers::TriggerState::new();
     state
-        .try_claim_imaging_train("the next exposure", 180.0)
+        .imaging_train
+        .try_claim("the next exposure", 180.0)
         .expect("an idle imaging train must be claimable");
 
     // Walk the clock past the 180 s + 20 s estimate, as a slow download does.
     let claim = state
-        .imaging_train_claim
+        .imaging_train
+        .claim
         .as_mut()
         .expect("the claim was just installed");
     claim.expected_finish_ms = chrono::Utc::now().timestamp_millis() - 25_000;
 
     let hold = state
-        .imaging_train_hold()
+        .imaging_train
+        .hold()
         .expect("an overrunning holder still holds the imaging train");
     assert_eq!(
         hold.expected_remaining_secs, 0.0,
@@ -810,7 +821,7 @@ async fn an_overrunning_exposure_keeps_the_imaging_train() {
         "but the claim has NOT lapsed, so the camera cannot be taken mid-frame"
     );
     assert!(
-        state.try_claim_imaging_train("recenter", 5.0).is_none(),
+        state.imaging_train.try_claim("recenter", 5.0).is_none(),
         "a waiting trigger must not be handed a camera that is still exposing"
     );
 }
@@ -826,18 +837,21 @@ async fn an_overrunning_exposure_keeps_the_imaging_train() {
 async fn the_imaging_train_claim_covers_the_filter_wheel_too() {
     let mut state = crate::triggers::TriggerState::new();
     let token = state
-        .try_claim_imaging_train("autofocus", 600.0)
+        .imaging_train
+        .try_claim("autofocus", 600.0)
         .expect("an idle imaging train must be claimable");
     assert!(
         state
-            .try_claim_imaging_train("the capture loop's filter change", 30.0)
+            .imaging_train
+            .try_claim("the capture loop's filter change", 30.0)
             .is_none(),
         "the capture loop must not be able to move the wheel while autofocus holds the train"
     );
-    state.release_imaging_train(token);
+    state.imaging_train.release(token);
     assert!(
         state
-            .try_claim_imaging_train("the capture loop's filter change", 30.0)
+            .imaging_train
+            .try_claim("the capture loop's filter change", 30.0)
             .is_some(),
         "and it must get the wheel the moment autofocus hands it back"
     );
@@ -849,22 +863,24 @@ async fn the_imaging_train_claim_covers_the_filter_wheel_too() {
 async fn a_stale_release_cannot_free_a_newer_claim() {
     let mut state = crate::triggers::TriggerState::new();
     let first = state
-        .try_claim_imaging_train("autofocus", 600.0)
+        .imaging_train
+        .try_claim("autofocus", 600.0)
         .expect("an idle imaging train must be claimable");
-    state.release_imaging_train(first);
+    state.imaging_train.release(first);
     let second = state
-        .try_claim_imaging_train("the next exposure", 180.0)
+        .imaging_train
+        .try_claim("the next exposure", 180.0)
         .expect("the train is free again");
     assert_ne!(first, second, "tokens are never reused");
 
-    state.release_imaging_train(first);
+    state.imaging_train.release(first);
     assert!(
-        state.imaging_train_hold().is_some(),
+        state.imaging_train.hold().is_some(),
         "a release presenting a stale token must do nothing"
     );
-    state.release_imaging_train(second);
+    state.imaging_train.release(second);
     assert!(
-        state.imaging_train_hold().is_none(),
+        state.imaging_train.hold().is_none(),
         "the real holder's release works"
     );
 }
@@ -946,7 +962,7 @@ async fn update_dither_config_writes_through_runtime_config() {
     executor
         .update_dither_config(7.5, 0.5, 8.0, 60.0, true)
         .await;
-    let handle = executor.runtime_config_handle();
+    let handle = executor.run_config_store();
     let rc = handle.read();
     assert!((rc.dither.pixels - 7.5).abs() < f64::EPSILON);
     assert!((rc.dither.settle_pixels - 0.5).abs() < f64::EPSILON);
@@ -963,10 +979,10 @@ async fn update_dither_config_writes_through_runtime_config() {
 async fn update_location_writes_through_runtime_config() {
     let mut executor = SequenceExecutor::new();
     executor.update_location(Some(40.7), Some(-74.0)).await;
-    assert_eq!(executor.latitude, Some(40.7));
-    assert_eq!(executor.longitude, Some(-74.0));
+    assert_eq!(executor.run_config().latitude, Some(40.7));
+    assert_eq!(executor.run_config().longitude, Some(-74.0));
     {
-        let handle = executor.runtime_config_handle();
+        let handle = executor.run_config_store();
         let rc = handle.read();
         assert_eq!(rc.latitude, Some(40.7));
         assert_eq!(rc.longitude, Some(-74.0));
@@ -974,8 +990,8 @@ async fn update_location_writes_through_runtime_config() {
     let manager = executor.trigger_manager.read().await;
     let state = manager.state();
     let guard = state.read().await;
-    assert_eq!(guard.observer_latitude, Some(40.7));
-    assert_eq!(guard.observer_longitude, Some(-74.0));
+    assert_eq!(guard.settings.observer_latitude, Some(40.7));
+    assert_eq!(guard.settings.observer_longitude, Some(-74.0));
 }
 
 /// R2: `update_location` wrote `runtime_config` and the executor's own
@@ -1059,9 +1075,9 @@ async fn a_mid_run_location_change_reaches_the_altitude_dawn_and_meridian_inputs
         .update_location(Some(NEW_YORK.0), Some(NEW_YORK.1))
         .await;
     let first = wait_for(&executor, "the pushed New York location", |s| {
-        s.observer_latitude == Some(NEW_YORK.0)
-            && s.dawn_time.is_some()
-            && s.current_altitude.is_some()
+        s.settings.observer_latitude == Some(NEW_YORK.0)
+            && s.telemetry.dawn_time.is_some()
+            && s.target.current_altitude.is_some()
     })
     .await;
 
@@ -1072,22 +1088,22 @@ async fn a_mid_run_location_change_reaches_the_altitude_dawn_and_meridian_inputs
     // is the monitor's NEXT tick that recomputes it for the new site.
     // Waiting only for "different" would accept the transient `None`.
     let second = wait_for(&executor, "dawn recomputed for Sydney", |s| {
-        s.observer_latitude == Some(SYDNEY.0)
-            && s.dawn_time.is_some()
-            && s.dawn_time != first.dawn_time
+        s.settings.observer_latitude == Some(SYDNEY.0)
+            && s.telemetry.dawn_time.is_some()
+            && s.telemetry.dawn_time != first.telemetry.dawn_time
     })
     .await;
 
     executor.stop().await.ok();
 
     assert_eq!(
-        second.observer_longitude,
+        second.settings.observer_longitude,
         Some(SYDNEY.1),
         "the meridian hour-angle is computed from TriggerState::observer_longitude, \
          so a location change that never lands there flips on the old site"
     );
     assert_ne!(
-        second.dawn_time, first.dawn_time,
+        second.telemetry.dawn_time, first.telemetry.dawn_time,
         "DawnApproaching reads TriggerState::dawn_time; a cached dawn from the \
          previous site would stop the run at the wrong hour"
     );
@@ -1097,10 +1113,11 @@ async fn a_mid_run_location_change_reaches_the_altitude_dawn_and_meridian_inputs
     for (snapshot, latitude) in [(&first, NEW_YORK.0), (&second, SYDNEY.0)] {
         assert!(
             snapshot
+                .target
                 .current_altitude
                 .is_some_and(|altitude| (altitude - latitude).abs() < 0.2),
             "pole altitude must be recomputed for observer latitude {latitude}: {:?}",
-            snapshot.current_altitude,
+            snapshot.target.current_altitude,
         );
     }
 }
@@ -1141,7 +1158,7 @@ async fn a_hung_device_poll_is_reported_as_a_failure_instead_of_parking_the_moni
         {
             let manager = executor.trigger_manager.read().await;
             let state = manager.state();
-            if state.read().await.mount_status_query_failed {
+            if state.read().await.telemetry.mount_status_query_failed {
                 query_failed = true;
                 break;
             }
@@ -1167,7 +1184,8 @@ async fn a_device_poll_that_never_answers_is_reported_as_a_poll_failure() {
         std::future::pending::<crate::device_ops::DeviceResult<bool>>(),
     )
     .await
-    .expect_err("a hung driver call must never be reported as a reading");
+    .expect_err("a hung driver call must never be reported as a reading")
+    .to_string();
     assert!(error.contains("mount_side_of_pier"), "got: {error}");
     assert!(error.contains("poll failure"), "got: {error}");
 }
@@ -1237,7 +1255,7 @@ async fn update_max_sun_altitude_writes_through_runtime_config_and_trigger_state
     // A pushed value lands verbatim in the runtime config...
     executor.update_max_sun_altitude(Some(-6.0)).await;
     {
-        let handle = executor.runtime_config_handle();
+        let handle = executor.run_config_store();
         let rc = handle.read();
         assert_eq!(
             rc.max_sun_altitude_degrees,
@@ -1252,7 +1270,7 @@ async fn update_max_sun_altitude_writes_through_runtime_config_and_trigger_state
         let state = mgr.state();
         let guard = state.read().await;
         assert_eq!(
-            guard.max_sun_altitude_degrees,
+            guard.settings.max_sun_altitude_degrees,
             Some(-6.0),
             "the trigger state the gate reads must carry the pushed threshold"
         );
@@ -1263,7 +1281,7 @@ async fn update_max_sun_altitude_writes_through_runtime_config_and_trigger_state
     // the runtime config records the raw None (unset).
     executor.update_max_sun_altitude(None).await;
     {
-        let handle = executor.runtime_config_handle();
+        let handle = executor.run_config_store();
         assert_eq!(handle.read().max_sun_altitude_degrees, None);
     }
     {
@@ -1271,7 +1289,7 @@ async fn update_max_sun_altitude_writes_through_runtime_config_and_trigger_state
         let state = mgr.state();
         let guard = state.read().await;
         assert_eq!(
-            guard.max_sun_altitude_degrees,
+            guard.settings.max_sun_altitude_degrees,
             Some(crate::instructions::DEFAULT_MAX_SUN_ALTITUDE_DEGREES),
             "a None push must resolve to the -12° default in the gate's state"
         );
@@ -1300,7 +1318,7 @@ async fn update_filter_offsets_writes_through_runtime_config() {
     offsets.insert("Ha".to_string(), 250);
     offsets.insert("OIII".to_string(), -120);
     executor.update_filter_offsets(offsets.clone()).await;
-    let handle = executor.runtime_config_handle();
+    let handle = executor.run_config_store();
     let rc = handle.read();
     assert_eq!(rc.filter_focus_offsets.get("Ha"), Some(&250));
     assert_eq!(rc.filter_focus_offsets.get("OIII"), Some(&-120));
@@ -1379,7 +1397,8 @@ async fn every_camera_driving_trigger_action_waits_for_the_frame_in_flight() {
     let frame_token = state
         .write()
         .await
-        .try_claim_imaging_train("the next exposure", 15.0)
+        .imaging_train
+        .try_claim("the next exposure", 15.0)
         .expect("an idle imaging train must be claimable");
 
     let release_state = state.clone();
@@ -1388,7 +1407,8 @@ async fn every_camera_driving_trigger_action_waits_for_the_frame_in_flight() {
         release_state
             .write()
             .await
-            .release_imaging_train(frame_token);
+            .imaging_train
+            .release(frame_token);
     });
 
     let label = camera_driving_trigger_action(&RecoveryAction::MeridianFlip(
@@ -1433,7 +1453,7 @@ async fn the_autofocus_skip_branch_hands_the_camera_back() {
         "autofocus drives the camera, so it claims it"
     );
     assert!(
-        state.read().await.imaging_train_hold().is_some(),
+        state.read().await.imaging_train.hold().is_some(),
         "the claim must actually be held while the action runs"
     );
 
@@ -1454,7 +1474,7 @@ async fn the_autofocus_skip_branch_hands_the_camera_back() {
     tokio::task::yield_now().await;
 
     assert!(
-        state.read().await.imaging_train_hold().is_none(),
+        state.read().await.imaging_train.hold().is_none(),
         "the skipped refocus must hand the camera back; a hold left to expire \
          blocks every frame for TRIGGER_CAMERA_CLAIM_SECS while the run still \
          reports itself as imaging"
@@ -1496,7 +1516,7 @@ async fn every_autofocus_device_gap_hands_the_camera_back() {
         tokio::task::yield_now().await;
 
         assert!(
-            state.read().await.imaging_train_hold().is_none(),
+            state.read().await.imaging_train.hold().is_none(),
             "the {expected} branch left the claim held; the capture loop would \
              block every frame until the ten-minute expiry"
         );
@@ -1524,7 +1544,7 @@ async fn every_camera_driving_action_hands_the_camera_back_on_a_silent_exit() {
         drop(claim);
         tokio::task::yield_now().await;
         assert!(
-            state.read().await.imaging_train_hold().is_none(),
+            state.read().await.imaging_train.hold().is_none(),
             "{action:?} exited without releasing the camera claim"
         );
 
@@ -1534,7 +1554,7 @@ async fn every_camera_driving_action_hands_the_camera_back_on_a_silent_exit() {
         claim = TriggerCameraClaim::acquire(&state, &cancelled, &action).await;
         claim.release().await;
         assert!(
-            state.read().await.imaging_train_hold().is_none(),
+            state.read().await.imaging_train.hold().is_none(),
             "{action:?} did not release explicitly"
         );
     }
@@ -1559,7 +1579,8 @@ async fn a_stale_release_cannot_steal_the_capture_loops_claim() {
         state
             .write()
             .await
-            .try_claim_imaging_train("the next exposure", 300.0)
+            .imaging_train
+            .try_claim("the next exposure", 300.0)
             .is_some(),
         "the imaging train must be free once the trigger action releases"
     );
@@ -1570,7 +1591,7 @@ async fn a_stale_release_cannot_steal_the_capture_loops_claim() {
     drop(claim);
     tokio::task::yield_now().await;
     assert!(
-        state.read().await.imaging_train_hold().is_some(),
+        state.read().await.imaging_train.hold().is_some(),
         "a stale release cleared the capture loop's own claim, which is exactly \
          how a light frame gets destroyed"
     );
@@ -1586,7 +1607,8 @@ async fn a_cancelled_wait_never_claims_and_never_releases() {
     state
         .write()
         .await
-        .try_claim_imaging_train("the next exposure", 300.0)
+        .imaging_train
+        .try_claim("the next exposure", 300.0)
         .expect("an idle imaging train must be claimable");
 
     let claim = TriggerCameraClaim::acquire(&state, &cancelled, &RecoveryAction::Autofocus).await;
@@ -1598,7 +1620,7 @@ async fn a_cancelled_wait_never_claims_and_never_releases() {
     tokio::task::yield_now().await;
 
     assert!(
-        state.read().await.imaging_train_hold().is_some(),
+        state.read().await.imaging_train.hold().is_some(),
         "the cancelled action released a claim it never took"
     );
 }
@@ -1618,7 +1640,7 @@ async fn non_camera_actions_take_no_claim() {
         let claim = TriggerCameraClaim::acquire(&state, &cancelled, &action).await;
         assert!(!claim.is_held(), "{action:?} does not drive the camera");
         assert!(
-            state.read().await.imaging_train_hold().is_none(),
+            state.read().await.imaging_train.hold().is_none(),
             "{action:?} claimed the camera it never uses"
         );
     }
@@ -1626,7 +1648,7 @@ async fn non_camera_actions_take_no_claim() {
 
 /// The guard's coverage is only real while it is the ONLY way the trigger
 /// dispatch hands the imaging train back: a hand-placed
-/// `release_imaging_train()` per arm plus a comment claiming every exit is
+/// `imaging_train.release()` per arm plus a comment claiming every exit is
 /// covered is a claim rather than a check, and one arm goes uncovered.
 ///
 /// So check it: a bare release inside the dispatch is a release that some
@@ -1634,7 +1656,7 @@ async fn non_camera_actions_take_no_claim() {
 #[test]
 fn the_trigger_dispatch_releases_the_camera_only_through_the_guard() {
     let start_rs = include_str!("../start.rs");
-    let bare_releases = start_rs.matches("release_imaging_train(").count();
+    let bare_releases = start_rs.matches("imaging_train.release(").count();
     assert_eq!(
         bare_releases, 0,
         "executor/start.rs releases the imaging-train claim directly in {bare_releases} \
@@ -2092,7 +2114,11 @@ async fn guiding_rms_samples(executor: &SequenceExecutor) -> usize {
     let manager = executor.trigger_manager.read().await;
     let state = manager.state();
     let guard = state.read().await;
-    guard.guiding_rms_history.as_ref().map_or(0, Vec::len)
+    guard
+        .latches
+        .guiding_rms_history
+        .as_ref()
+        .map_or(0, Vec::len)
 }
 
 /// The first guiding trigger a run fires within `within`, if any.
@@ -3359,7 +3385,7 @@ async fn while_imaging_unguided_guiding_rms_is_not_judged_and_guiding_coming_bac
     {
         let mut state = state_lock.write().await;
         state.guiding.set_unguided(true);
-        state.guiding_rms_history = None;
+        state.latches.guiding_rms_history = None;
     }
 
     let mut fired = Vec::new();
@@ -3432,14 +3458,15 @@ async fn live_recovery_claim_survives_its_original_deadline() {
     let claim = TriggerCameraClaim::acquire(&state, &cancelled, &RecoveryAction::Recenter).await;
     {
         let mut state = state.write().await;
-        state.imaging_train_claim.as_mut().unwrap().expires_at_ms = 0;
-        assert!(state.try_claim_imaging_train("next light", 120.0).is_none());
+        state.imaging_train.claim.as_mut().unwrap().expires_at_ms = 0;
+        assert!(state.imaging_train.try_claim("next light", 120.0).is_none());
     }
     drop(claim);
     assert!(state
         .write()
         .await
-        .try_claim_imaging_train("next light", 120.0)
+        .imaging_train
+        .try_claim("next light", 120.0)
         .is_some());
 }
 
@@ -3455,4 +3482,107 @@ async fn expired_recovery_budget_polls_cleanup_and_bounds_a_stalled_driver() {
     assert!(cancel_trigger_monitor_with_cleanup(&cancelled, monitor).await);
     assert!(restored.load(Ordering::Acquire));
     assert!(!cancel_trigger_monitor_with_cleanup(&cancelled, std::future::pending::<()>()).await);
+}
+
+/// A sequence that waits long enough for a test to act on the running
+/// executor.
+fn waiting_sequence() -> SequenceDefinition {
+    let mut sequence = SequenceDefinition::new("Waiting".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "wait".to_string(),
+        name: "Wait".to_string(),
+        node_type: crate::NodeType::Delay(crate::DelayConfig { seconds: 30.0 }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("wait".to_string());
+    sequence
+}
+
+/// The dither settle the trigger state carries after a push, and the
+/// `RuntimeConfigUpdated` announcements the push produced.
+async fn push_dither_settle(executor: &mut SequenceExecutor) -> (crate::GuiderSettle, Vec<String>) {
+    let mut events = executor.subscribe();
+    executor
+        .update_dither_config(4.0, 0.7, 9.0, 45.0, false)
+        .await;
+    let settle = executor
+        .trigger_manager
+        .read()
+        .await
+        .state()
+        .read()
+        .await
+        .settings
+        .dither_settle;
+    let mut announced = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        if let ExecutorEvent::RuntimeConfigUpdated { what } = event {
+            announced.push(what);
+        }
+    }
+    (settle, announced)
+}
+
+/// The idle setter used to leave the trigger state's dither settle for the
+/// next start to copy, while the running path wrote it at once, and a running
+/// executor announced the change twice (the setter and the forwarded
+/// command). One path now: same result and one announcement either way.
+#[tokio::test]
+async fn a_dither_push_takes_effect_and_is_announced_once_idle_or_running() {
+    let expected = crate::GuiderSettle {
+        pixels: 0.7,
+        time_secs: 9.0,
+        timeout_secs: 45.0,
+    };
+
+    let mut idle = SequenceExecutor::new();
+    let (settle, announced) = push_dither_settle(&mut idle).await;
+    assert_eq!(settle, expected);
+    assert_eq!(announced, vec!["dither"]);
+
+    let mut running = SequenceExecutor::new();
+    running.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
+    running
+        .load_sequence(waiting_sequence())
+        .expect("sequence loads");
+    running.start().await.expect("run starts");
+    let (settle, announced) = push_dither_settle(&mut running).await;
+    running.stop().await.expect("run stops");
+    assert_eq!(settle, expected);
+    assert_eq!(announced, vec!["dither"]);
+}
+
+/// What the app stages for one start is used by that start and by no later
+/// one.
+#[tokio::test]
+async fn settings_pushed_while_idle_are_what_the_next_run_starts_with() {
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
+    executor.update_location(Some(41.5), Some(-71.25)).await;
+    executor.update_max_sun_altitude(Some(-6.0)).await;
+    executor.set_stop_on_quality_problems(true).await;
+    executor
+        .load_sequence(waiting_sequence())
+        .expect("sequence loads");
+    executor.start().await.expect("run starts");
+
+    let (site, sun_limit, stops) = {
+        let manager = executor.trigger_manager.read().await;
+        let state = manager.state();
+        let state = state.read().await;
+        (
+            (
+                state.settings.observer_latitude,
+                state.settings.observer_longitude,
+            ),
+            state.settings.max_sun_altitude_degrees,
+            state.settings.stop_on_quality_problems,
+        )
+    };
+    executor.stop().await.expect("run stops");
+
+    assert_eq!(site, (Some(41.5), Some(-71.25)));
+    assert_eq!(sun_limit, Some(-6.0));
+    assert!(stops);
 }

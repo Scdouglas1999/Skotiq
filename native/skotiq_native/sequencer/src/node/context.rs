@@ -71,7 +71,7 @@ impl PauseGate {
 
 /// snapshot of the latest cloud-motion analyzer reading.
 ///
-/// Pushed from Dart via `ExecutorCommand::UpdateCloudMotion`; consumed by
+/// Pushed from Dart via `SequenceExecutor::update_cloud_motion`; consumed by
 /// the cloud-aware recovery actions (`SlewToGapAndContinue`) and the
 /// run-dashboard "Cloud Motion" panel. Mirrored into `ExecutionContext`
 /// (rather than only the trigger state) so consumers don't need to hold
@@ -230,7 +230,7 @@ pub struct ExecutionContext {
     /// target or a LIGHT exposure while the Sun is above this altitude, and
     /// deliberately does NOT block flats/darks/bias/park or a parked rig, so
     /// daytime calibration stays usable. Seeded from
-    /// `RuntimeConfig::max_sun_altitude_degrees` at `start()`; defaults to
+    /// `RunConfig::max_sun_altitude_degrees` at `start()`; defaults to
     /// [`crate::instructions::DEFAULT_MAX_SUN_ALTITUDE_DEGREES`].
     pub max_sun_altitude_degrees: f64,
     /// Filter focus offsets from equipment profile (filter_name -> offset_steps)
@@ -264,6 +264,9 @@ pub struct ExecutionContext {
     /// allocation (matches the rest of this struct's shared-state pattern).
     pub smart_exposure_states:
         Arc<RwLock<std::collections::HashMap<NodeId, crate::SmartExposureCheckpoint>>>,
+    /// Passes each Loop node has finished, kept current by the loop itself so
+    /// a checkpoint saved while the tree runs can record them.
+    pub loop_passes_finished: Arc<parking_lot::RwLock<std::collections::HashMap<NodeId, u32>>>,
     /// DepthLock verdict source, installed by the host at start. `None`
     /// when the host has no goal store; a bound plan then warns once and
     /// stays count-bounded.
@@ -351,12 +354,12 @@ pub struct ExecutionContext {
     pub frames_accepted: Arc<std::sync::atomic::AtomicU32>,
     pub frames_rejected: Arc<std::sync::atomic::AtomicU32>,
     /// Global default image-quality thresholds, seeded from
-    /// `RuntimeConfig.default_quality_check` at executor `start()`. Used as
+    /// `RunConfig::default_quality_check` at executor `start()`. Used as
     /// the fallback when a TakeExposure node does NOT carry its own
     /// `quality_check`. None => grading disabled globally.
     pub default_quality_check: Option<crate::quality::ImageQualityCheck>,
     /// Optional reject-folder override, seeded from
-    /// `RuntimeConfig.reject_folder_path`. None => a `Reject/` folder beside
+    /// `RunConfig::reject_folder_path`. None => a `Reject/` folder beside
     /// the frames (`<save_path>/<target>/Reject/` by default).
     pub reject_folder_path: Option<String>,
     /// pluggable wall-clock used by scheduling code (target
@@ -369,14 +372,14 @@ pub struct ExecutionContext {
     // sky-brightness adaptive exposures.
     // -------------------------------------------------------------------
     /// Live sky brightness in mag/arcsec² (bigger = darker). Pushed by
-    /// the Dart layer via `ExecutorCommand::UpdateSkyBrightness` from the
+    /// the Dart layer via `SequenceExecutor::update_sky_brightness` from the
     /// running `SkyBrightnessTracker`. `None` until the tracker has
     /// produced a valid sample. Shared via `Arc<RwLock<...>>` so
     /// `ExecutionContext::clone` keeps every parallel branch reading the
     /// same live value.
     pub current_sky_brightness_mag: Arc<RwLock<Option<f64>>>,
     /// global default adaptive-exposure config, seeded
-    /// from `RuntimeConfig::default_adaptive_exposure` at start time and
+    /// from `RunConfig::default_adaptive_exposure` at start time and
     /// kept in sync by the `UpdateDefaultAdaptiveExposure` command. Per-
     /// node `ExposureConfig::adaptive_exposure` wins; this is the
     /// fallback when the node has none. `None` => no global default,
@@ -386,7 +389,7 @@ pub struct ExecutionContext {
     /// holds a shared `&context` — can update it mid-run.
     pub default_adaptive_exposure: Arc<RwLock<Option<crate::scheduling::AdaptiveExposureConfig>>>,
     /// latest cloud-motion analyzer snapshot. Pushed by
-    /// the Dart side via `ExecutorCommand::UpdateCloudMotion`; consumed by
+    /// the Dart side via `SequenceExecutor::update_cloud_motion`; consumed by
     /// `RecoveryAction::SlewToGapAndContinue` (needs the clear-sky
     /// direction) and by the run-dashboard cloud-motion panel.
     /// `Arc<RwLock<...>>` so `ExecutionContext::clone` shares the
@@ -407,20 +410,20 @@ pub struct ExecutionContext {
     ///
     /// When `Some`, `instructions::execute_exposure` applies the pre-loaded
     /// defect map to each captured frame before the FITS save; `None` disables
-    /// defect correction. Pushed in via `ExecutorCommand::UpdateDefectMap`
+    /// defect correction. Pushed in via `SequenceExecutor::update_defect_map`
     /// (toggle on/off from the calibration UI).
     pub defect_map_apply: Arc<RwLock<Option<crate::executor::DefectMapApplyState>>>,
     /// Science — latest sky transparency reading (0.0..=1.0 as a
     /// fraction of clear-sky reference; 1.0 = perfectly clear, 0.0 =
     /// totally opaque). Pushed from the Dart science pipeline via
-    /// `ExecutorCommand::UpdateTransparency`. Consumed by the
+    /// `SequenceExecutor::update_transparency`. Consumed by the
     /// `TransparencyDropped` trigger evaluator and by the photometry
     /// node's per-frame quality gates. `Arc<RwLock<...>>` so cloned
     /// ExecutionContexts share the same allocation.
     pub current_transparency: Arc<RwLock<Option<f64>>>,
     /// Science — operator-configured backup plan that
     /// `RecoveryAction::SwitchTargetOrFilter` consults. Pushed by Dart
-    /// at sequence start via `ExecutorCommand::UpdateTransparencyBackup`.
+    /// at sequence start via `SequenceExecutor::update_transparency_backup`.
     /// `None` => no fallback configured (recovery falls back to
     /// `PauseAndWaitForClear` and emits an Error explaining the
     /// missing config — per no silent fallbacks).
@@ -668,13 +671,16 @@ impl ExecutionContext {
             safety_fail_mode: Arc::new(parking_lot::RwLock::new(SafetyFailMode::default())),
             // W1 native daylight gate — default threshold mirrors the Dart
             // scheduler's `maxSunAltitudeDegrees`; the executor overrides this
-            // from `RuntimeConfig::max_sun_altitude_degrees` at start.
+            // from `RunConfig::max_sun_altitude_degrees` at start.
             max_sun_altitude_degrees: crate::instructions::DEFAULT_MAX_SUN_ALTITUDE_DEGREES,
             filter_focus_offsets: std::collections::HashMap::new(),
             event_tx: None,
             recovery_request_tx: None,
             device_disconnect_recovery_pending: Arc::new(AtomicBool::new(false)),
             smart_exposure_states: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            loop_passes_finished: Arc::new(parking_lot::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
             // No checkpoint manager outside a session: wizard step state
             // is not persisted and every run starts at step 0. The
             // executor installs its own Arc at start().
@@ -728,7 +734,7 @@ impl ExecutionContext {
             defect_map_apply: Arc::new(RwLock::new(None)),
             // Science — transparency reading starts unknown; the
             // Dart science pipeline pushes the first sample via
-            // `ExecutorCommand::UpdateTransparency`. The backup plan
+            // `SequenceExecutor::update_transparency`. The backup plan
             // starts unset; the photometry timing map starts empty.
             current_transparency: Arc::new(RwLock::new(None)),
             transparency_backup_plan: Arc::new(RwLock::new(None)),
@@ -808,7 +814,7 @@ impl ExecutionContext {
 
     /// W1 native daylight gate — install the maximum permitted Sun altitude
     /// (degrees) for on-sky LIGHT captures. Builder-style so the executor can
-    /// seed it from `RuntimeConfig::max_sun_altitude_degrees` alongside the
+    /// seed it from `RunConfig::max_sun_altitude_degrees` alongside the
     /// other `with_*` calls. A non-finite value falls back to the default so a
     /// misconfiguration can never silently disable the gate.
     pub fn with_max_sun_altitude(mut self, degrees: f64) -> Self {

@@ -108,7 +108,7 @@ impl MeridianFlipExecutor {
                 return Err("Nearby recovery changed pier side; refusing to sync".into());
             }
             let camera = ctx.camera_id.as_deref().ok_or("No camera configured")?;
-            let image = self.device_ops.camera_start_exposure(camera, 15.0, None, None, 1, 1).await?;
+            let image = self.device_ops.camera_start_exposure(crate::device_ops::ExposureRequest::new(camera, 15.0)).await?;
             let solved = self.recovery_solve(ctx, &image, ra * 15.0, dec).await?;
             if !solved.success || !solved.ra_degrees.is_finite() || !(-90.0..=90.0).contains(&solved.dec_degrees) {
                 return Err("Nearby recovery field did not solve".into());
@@ -156,7 +156,7 @@ impl MeridianFlipExecutor {
         tokio::pin!(solve);
         loop {
             tokio::select! {
-                result = &mut solve => return result.map_err(|_| "Recovery plate solve timed out after 60s".to_string())?,
+                result = &mut solve => return result.map_err(|_| "Recovery plate solve timed out after 60s".to_string())?.map_err(String::from),
                 _ = tokio::time::sleep(std::time::Duration::from_millis(200)) => {
                     if self.is_cancelled(ctx) {
                 return Err("Recovery cancelled".into());

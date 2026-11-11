@@ -39,8 +39,8 @@ pub(in super::super) async fn run(request: AutofocusRequest<'_>) -> ActionFlow {
     // the sweep waits for a clean frame (see the frame watch).
     {
         let mut state = rig.trigger_state.write().await;
-        if let Some(reason) = state.autofocus_hold.clone() {
-            state.autofocus_wanted_while_held = true;
+        if let Some(reason) = state.latches.autofocus_hold.clone() {
+            state.latches.autofocus_wanted_while_held = true;
             drop(state);
             camera_claim.release().await;
             tracing::info!(
@@ -55,7 +55,7 @@ pub(in super::super) async fn run(request: AutofocusRequest<'_>) -> ActionFlow {
     let af_ctx = rig.instruction_context(rig.target().await, run);
     // The operator's tuning, seeded at start from the sequence's Autofocus
     // node or pushed through the runtime config.
-    let af_config = match rig.runtime_config.read().autofocus.clone() {
+    let af_config = match rig.runtime_config.trigger_autofocus() {
         Some(cfg) => cfg,
         None => {
             tracing::warn!(
@@ -205,7 +205,7 @@ fn record_failed_sweep(ts: &mut crate::triggers::TriggerState) {
         "Autofocus failed; the HFR baseline stays at the last good focus ({:?}) and the \
          interval cadence anchor advanced so the failed sweep does not re-fire on every \
          subsequent frame",
-        ts.baseline_hfr
+        ts.latches.baseline_hfr
     );
 }
 
@@ -236,7 +236,11 @@ async fn judge_failed_sweep(sweep: FailedSweep<'_>) {
     } = sweep;
     let verdict = {
         let ts = rig.trigger_state.read().await;
-        autofocus_failure_verdict(ts.baseline_hfr, ts.current_hfr, tolerance_ratio)
+        autofocus_failure_verdict(
+            ts.latches.baseline_hfr,
+            ts.latches.current_hfr,
+            tolerance_ratio,
+        )
     };
     record_failed_sweep(&mut *rig.trigger_state.write().await);
 
@@ -270,8 +274,7 @@ async fn judge_failed_sweep(sweep: FailedSweep<'_>) {
             .clear_autofocus_invalidation();
         run.pause(Some(
             "Paused: autofocus left the guider stopped".to_string(),
-        ))
-        .await;
+        ));
         run.error(hold.operator_message);
         return;
     }
@@ -321,7 +324,10 @@ mod tests {
             ts.increment_exposure_count();
         }
         record_failed_sweep(&mut ts);
-        assert_eq!(ts.baseline_hfr, Some(2.0));
-        assert_eq!(ts.last_autofocus_frame, 12, "the cadence anchor moves");
+        assert_eq!(ts.latches.baseline_hfr, Some(2.0));
+        assert_eq!(
+            ts.latches.last_autofocus_frame, 12,
+            "the cadence anchor moves"
+        );
     }
 }

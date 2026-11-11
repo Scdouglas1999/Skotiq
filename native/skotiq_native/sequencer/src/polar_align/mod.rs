@@ -287,12 +287,11 @@ where
         let image_data = match ctx
             .device_ops
             .camera_start_exposure(
-                &self.camera_id,
-                self.config.exposure_time,
-                None,
-                None,
-                self.config.binning.unwrap_or(1),
-                self.config.binning.unwrap_or(1),
+                crate::device_ops::ExposureRequest::new(&self.camera_id, self.config.exposure_time)
+                    .binning(
+                        self.config.binning.unwrap_or(1),
+                        self.config.binning.unwrap_or(1),
+                    ),
             )
             .await
         {
@@ -485,12 +484,14 @@ where
             let image_data = match ctx
                 .device_ops
                 .camera_start_exposure(
-                    &self.camera_id,
-                    self.config.exposure_time,
-                    None,
-                    None,
-                    self.config.binning.unwrap_or(1),
-                    self.config.binning.unwrap_or(1),
+                    crate::device_ops::ExposureRequest::new(
+                        &self.camera_id,
+                        self.config.exposure_time,
+                    )
+                    .binning(
+                        self.config.binning.unwrap_or(1),
+                        self.config.binning.unwrap_or(1),
+                    ),
                 )
                 .await
             {

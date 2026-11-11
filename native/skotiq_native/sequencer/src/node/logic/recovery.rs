@@ -111,7 +111,7 @@ pub async fn execute_recovery(
                             mount_id
                         );
                         let park_outcome = crate::device_ops::try_park_with_retry(
-                            &context.device_ops,
+                            &*context.device_ops,
                             mount_id,
                             1,
                             2.0,

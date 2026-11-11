@@ -7,7 +7,7 @@
 //! verified by the pointing actually changing, and reversed once if the axis
 //! turned out to run the other way.
 
-use crate::device_ops::{DeviceResult, SharedDeviceOps};
+use crate::device_ops::{DeviceResult, MountOps, OperatorNotifyOps, SiteOps};
 use crate::meridian::PierSide;
 use std::time::Duration;
 
@@ -69,7 +69,7 @@ fn hour_angle_change(start_ra: f64, end_ra: f64, elapsed: Duration) -> f64 {
 /// Run the primary axis at `rate` for `duration`, then stop it. The stop is
 /// sent even when the start failed.
 async fn pulse(
-    device_ops: &SharedDeviceOps,
+    device_ops: &(impl MountOps + ?Sized),
     mount_id: &str,
     rate: f64,
     duration: Duration,
@@ -85,7 +85,7 @@ async fn pulse(
 /// Move the RA axis off the limit it is stuck at. Returns what was done, for
 /// the operator, or why the mount could not be freed.
 pub(crate) async fn back_off_limit(
-    device_ops: &SharedDeviceOps,
+    device_ops: &(impl MountOps + SiteOps + ?Sized),
     mount_id: &str,
 ) -> Result<String, String> {
     let (start_ra, _) = device_ops
@@ -144,7 +144,7 @@ pub(crate) async fn back_off_limit(
 /// reports slewing, reports parked (when `parked_counts`), or its pointing
 /// changes in a way only a moving mount produces.
 pub(crate) async fn mount_responds(
-    device_ops: &SharedDeviceOps,
+    device_ops: &(impl MountOps + ?Sized),
     mount_id: &str,
     start: Option<(f64, f64)>,
     issued_at: tokio::time::Instant,
@@ -178,7 +178,7 @@ pub(crate) async fn mount_responds(
 
 /// Tell the operator the mount was stuck at a limit and what was done.
 pub(crate) async fn notify(
-    device_ops: &SharedDeviceOps,
+    device_ops: &(impl OperatorNotifyOps + ?Sized),
     command: &str,
     outcome: &Result<String, String>,
 ) {

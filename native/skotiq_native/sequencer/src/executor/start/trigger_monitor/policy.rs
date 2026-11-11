@@ -35,14 +35,17 @@ pub(super) fn select_dispatches(
     let mut dispatches = Vec::new();
     for firing in fired {
         let trigger_id = firing.trigger_id().to_string();
+        let origin = firing.origin();
         // A plan that owns its finish time reaches it only while its node
         // tree runs. Paused or recovering, its end never comes, so dawn ends
         // the night as for any plan.
-        if policy.explicit_end && trigger_id == "dawn_approaching" && !mode.executor_held() {
+        if policy.explicit_end
+            && origin == TriggerOrigin::Standard(StandardTrigger::DawnApproaching)
+            && !mode.executor_held()
+        {
             continue;
         }
-        if policy.calibration_run
-            && !super::super::calibration_run::acts_in_calibration_run(&trigger_id)
+        if policy.calibration_run && !super::super::calibration_run::acts_in_calibration_run(origin)
         {
             continue;
         }
@@ -52,10 +55,10 @@ pub(super) fn select_dispatches(
             .get_trigger(&trigger_id)
             .map(|trigger| trigger.trigger_type.clone());
         let fired = apply_quality_policy(
-            &trigger_id,
+            origin,
             trigger_type.as_ref(),
             apply_park_policy(
-                &trigger_id,
+                origin,
                 firing.action().clone(),
                 policy.park_policy,
                 policy.weather_advisory_only,
@@ -142,7 +145,13 @@ mod tests {
     }
 
     fn notifies(trigger_type: TriggerType, action: RecoveryAction, stop: bool) -> bool {
-        apply_quality_policy("saved", Some(&trigger_type), fired(action), stop).notify_only
+        apply_quality_policy(
+            TriggerOrigin::Other,
+            Some(&trigger_type),
+            fired(action),
+            stop,
+        )
+        .notify_only
     }
 
     /// Saved configurations carry Pause or Retry for quality triggers (the rig

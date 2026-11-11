@@ -47,12 +47,12 @@ async fn rig(pause_before: f64, start_ha_min: f64) -> Rig {
         let state = manager.state();
         let mut state = state.write().await;
         state.set_meridian_target("NGC 891".to_string());
-        state.target_ra = Some(35.6);
-        state.target_dec = Some(42.35);
-        state.current_hour_angle = Some(start_ha_min / 60.0);
-        state.pier_side = Some(crate::PierSide::West);
-        state.mount_parked = Some(false);
-        state.mount_is_tracking = Some(true);
+        state.target.target_ra = Some(35.6);
+        state.target.target_dec = Some(42.35);
+        state.target.current_hour_angle = Some(start_ha_min / 60.0);
+        state.telemetry.pier_side = Some(crate::PierSide::West);
+        state.telemetry.mount_parked = Some(false);
+        state.telemetry.mount_is_tracking = Some(true);
         state.set_mount_tracking_expected(true);
         state.set_guiding_enabled(true);
     }
@@ -95,12 +95,12 @@ fn spawn_monitor(
             let ha = hour_angle();
             let held = {
                 let mut s = state.write().await;
-                s.current_hour_angle = ha;
+                s.target.current_hour_angle = ha;
                 // The monitor's tracking poll.
                 if crate::executor::apply_mount_tracking_poll(&mut s, tracking) {
                     s.tracking.mark_lost();
                 }
-                s.mount_is_tracking = Some(tracking);
+                s.telemetry.mount_is_tracking = Some(tracking);
                 // The monitor's guide-star poll.
                 if s.guiding.motion_depth() > 0 || guiding {
                     s.set_guide_star_lost(false);
@@ -116,7 +116,7 @@ fn spawn_monitor(
                 if id == "meridian_flip" && !held {
                     sleep(Duration::from_secs(60)).await;
                     let mut s = state.write().await;
-                    s.pier_side = Some(crate::PierSide::East);
+                    s.telemetry.pier_side = Some(crate::PierSide::East);
                     s.mark_flip_performed();
                 }
             }
@@ -341,14 +341,14 @@ async fn a_run_cancelled_during_the_hold_ends_it_cleanly() {
 fn a_tracking_poll_during_the_hold_is_not_a_loss() {
     let mut state = crate::triggers::TriggerState::new();
     state.set_mount_tracking_expected(true);
-    state.mount_is_tracking = Some(true);
+    state.telemetry.mount_is_tracking = Some(true);
     state.run.begin_hold(crate::triggers::RunHold::PreMeridian);
 
     assert!(!crate::executor::apply_mount_tracking_poll(
         &mut state, false
     ));
     assert!(!state.tracking.is_expected());
-    state.mount_is_tracking = Some(false);
+    state.telemetry.mount_is_tracking = Some(false);
 
     state.run.end_hold();
     assert!(!crate::executor::apply_mount_tracking_poll(
@@ -358,7 +358,7 @@ fn a_tracking_poll_during_the_hold_is_not_a_loss() {
         state.tracking.is_expected(),
         "the first tracking reading after the hold arms the baseline again"
     );
-    state.mount_is_tracking = Some(true);
+    state.telemetry.mount_is_tracking = Some(true);
     assert!(
         crate::executor::apply_mount_tracking_poll(&mut state, false),
         "a loss after the hold is still a loss"

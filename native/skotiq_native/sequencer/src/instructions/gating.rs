@@ -14,7 +14,6 @@ use super::*;
 /// twilight is far too bright for science LIGHT frames.
 ///
 /// The Dart side can push a tighter or looser value at session start via
-/// [`crate::executor::ExecutorCommand::UpdateMaxSunAltitude`] /
 /// `SequenceExecutor::update_max_sun_altitude`; this constant is the floor
 /// used when nothing was pushed, or when a non-finite value is seen.
 pub const DEFAULT_MAX_SUN_ALTITUDE_DEGREES: f64 = -12.0;
@@ -245,12 +244,12 @@ pub(crate) async fn wait_for_darkness(
 
 /// W1 native daylight gate — resolve the effective maximum Sun altitude for a
 /// running sequence. Reads the executor-seeded value from the shared trigger
-/// state (mirrors `RuntimeConfig::max_sun_altitude_degrees`), falling back to
+/// state (mirrors `RunConfig::max_sun_altitude_degrees`), falling back to
 /// [`DEFAULT_MAX_SUN_ALTITUDE_DEGREES`] when no trigger state is wired (one-shot
 /// instruction sites / tests) or the value has not been seeded.
 pub(crate) async fn resolve_max_sun_altitude(ctx: &InstructionContext) -> f64 {
     if let Some(lock) = &ctx.trigger_state {
-        if let Some(v) = lock.read().await.max_sun_altitude_degrees {
+        if let Some(v) = lock.read().await.settings.max_sun_altitude_degrees {
             return v;
         }
     }

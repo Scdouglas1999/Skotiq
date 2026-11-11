@@ -40,7 +40,8 @@ pub const MAX_DEVICE_RETRIES: u32 = 10;
 /// How many times a failed camera exposure or filter-wheel move is retried
 /// before the failure counts. `0` is a single attempt, the behavior before
 /// retries existed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct DeviceRetryPolicy {
     pub camera_retries: u32,
     pub filter_wheel_retries: u32,

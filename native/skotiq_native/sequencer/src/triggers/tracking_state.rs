@@ -7,6 +7,16 @@
 //! tracking-limit wait.
 
 /// Tracking-loss bookkeeping for the run.
+/// The checkpointed fields of [`TrackingLossState`], under the names the
+/// checkpoint file has always used.
+#[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct TrackingLossSnapshot {
+    pub mount_tracking_expected: bool,
+    pub mount_tracking_lost: bool,
+    pub tracking_limit_detected_at: Option<i64>,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TrackingLossState {
     /// The mount has been seen tracking, so a stop is a loss.
@@ -118,6 +128,22 @@ impl TrackingLossState {
     }
 
     /// Set every latch at once, as a checkpoint recorded them.
+    pub fn snapshot(&self) -> TrackingLossSnapshot {
+        TrackingLossSnapshot {
+            mount_tracking_expected: self.expected,
+            mount_tracking_lost: self.lost,
+            tracking_limit_detected_at: self.limit_detected_at,
+        }
+    }
+
+    pub fn restore_snapshot(&mut self, snapshot: &TrackingLossSnapshot) {
+        self.restore(
+            snapshot.mount_tracking_expected,
+            snapshot.mount_tracking_lost,
+            snapshot.tracking_limit_detected_at,
+        );
+    }
+
     pub fn restore(&mut self, expected: bool, lost: bool, limit_detected_at: Option<i64>) {
         *self = Self {
             expected,

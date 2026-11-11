@@ -340,12 +340,10 @@ where
         let image_data = ctx
             .device_ops
             .camera_start_exposure(
-                &self.camera_id,
-                self.config.exposure_time,
-                self.config.gain,
-                self.config.offset,
-                self.binning,
-                self.binning,
+                crate::device_ops::ExposureRequest::new(&self.camera_id, self.config.exposure_time)
+                    .gain(self.config.gain)
+                    .offset(self.config.offset)
+                    .binning(self.binning, self.binning),
             )
             .await
             .map_err(|e| PolarAlignError::DeviceError(format!("Camera capture failed: {}", e)))?;
@@ -371,7 +369,7 @@ where
                     "Solver returned unsuccessful result".to_string(),
                 ));
             }
-            Ok(Err(e)) => return Err(PolarAlignError::SolveFailed(e)),
+            Ok(Err(e)) => return Err(PolarAlignError::SolveFailed(e.to_string())),
             Err(_) => {
                 return Err(PolarAlignError::SolveFailed(format!(
                     "Solver timed out after {:.1}s",

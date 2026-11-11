@@ -34,7 +34,7 @@ const GUIDE_STALL_MAX_SPREAD_DEG: f64 = 1.0;
 fn guiding_lost(state: &crate::triggers::TriggerState) -> bool {
     state.guiding.star_lost()
         || state.guiding.is_unguided()
-        || state.guide_recovery.as_ref().is_some_and(|stall| {
+        || state.latches.guide_recovery.as_ref().is_some_and(|stall| {
             stall.stalled_at_one_pointing(GUIDE_STALL_MIN_FAILURES, GUIDE_STALL_MAX_SPREAD_DEG)
         })
 }
@@ -280,6 +280,7 @@ impl FrameWatchStage {
             let state = dispatcher.rig.trigger_state.read().await;
             let window = std::time::Duration::from_secs_f64(capture.exposure_secs.max(0.0) + 10.0);
             let (guide_rms, guide_rms_samples) = state
+                .latches
                 .guiding_rms_history
                 .as_deref()
                 .map(|history| assess::guide_rms_over(history, window))
@@ -289,16 +290,16 @@ impl FrameWatchStage {
             let (target_name, target_ra_deg, target_dec_deg) = self.frame_target(
                 capture.target_id.as_deref(),
                 (
-                    state.current_target_name.clone(),
-                    state.target_ra,
-                    state.target_dec,
+                    state.target.current_target_name.clone(),
+                    state.target.target_ra,
+                    state.target.target_dec,
                 ),
             );
             let observation = FrameObservation {
                 save_path: path,
                 target_name,
                 target_id: capture.target_id.clone(),
-                filter: state.current_filter.clone(),
+                filter: state.latches.current_filter.clone(),
                 exposure_secs: capture.exposure_secs,
                 exposure_started_secs: self.clock.elapsed().as_secs_f64() - capture.exposure_secs,
                 accepted_by_grader: accepted,
@@ -317,7 +318,7 @@ impl FrameWatchStage {
                 guide_rms,
                 guide_rms_samples,
                 guiding_lost: guiding_lost(&state),
-                mount_not_tracking: state.mount_is_tracking == Some(false),
+                mount_not_tracking: state.telemetry.mount_is_tracking == Some(false),
             };
             drop(state);
             // Until the frame is measured, a grader reject for trailed or lost
@@ -329,7 +330,13 @@ impl FrameWatchStage {
                 .filter(|_| !observation.accepted_by_grader)
                 .and_then(provisional_hold_reason)
             {
-                dispatcher.rig.trigger_state.write().await.autofocus_hold = Some(reason);
+                dispatcher
+                    .rig
+                    .trigger_state
+                    .write()
+                    .await
+                    .latches
+                    .autofocus_hold = Some(reason);
             }
             if self.jobs.send(FrameJob { observation }).is_ok() {
                 self.pending_frames += 1;
@@ -914,10 +921,10 @@ impl FrameWatchStage {
 
     async fn update_autofocus_hold(&mut self, dispatcher: &Dispatcher, verdict: &FrameVerdict) {
         let mut state = dispatcher.rig.trigger_state.write().await;
-        let was_held = state.autofocus_hold.is_some();
-        state.autofocus_hold = verdict.degraded.clone();
-        if was_held && state.autofocus_hold.is_none() {
-            let wanted = std::mem::take(&mut state.autofocus_wanted_while_held);
+        let was_held = state.latches.autofocus_hold.is_some();
+        state.latches.autofocus_hold = verdict.degraded.clone();
+        if was_held && state.latches.autofocus_hold.is_none() {
+            let wanted = std::mem::take(&mut state.latches.autofocus_wanted_while_held);
             drop(state);
             if self.autofocus_hold_told && wanted {
                 let message =
@@ -936,7 +943,10 @@ impl FrameWatchStage {
         }
         let reason = {
             let state = dispatcher.rig.trigger_state.read().await;
-            match (&state.autofocus_hold, state.autofocus_wanted_while_held) {
+            match (
+                &state.latches.autofocus_hold,
+                state.latches.autofocus_wanted_while_held,
+            ) {
                 (Some(reason), true) => reason.clone(),
                 _ => return,
             }
@@ -993,20 +1003,20 @@ mod guiding_lost_tests {
         let mut state = TriggerState::new();
         assert!(!guiding_lost(&state));
 
-        state.guide_recovery = Some(stall(&[(64.1, 286.0)]));
+        state.latches.guide_recovery = Some(stall(&[(64.1, 286.0)]));
         assert!(
             !guiding_lost(&state),
             "one failed attempt is not yet a stall"
         );
 
-        state.guide_recovery = Some(stall(&[(64.1, 286.0), (64.0, 286.3)]));
+        state.latches.guide_recovery = Some(stall(&[(64.1, 286.0), (64.0, 286.3)]));
         assert!(guiding_lost(&state));
     }
 
     #[test]
     fn failures_spread_across_the_sky_are_not_a_stall() {
         let mut state = TriggerState::new();
-        state.guide_recovery = Some(stall(&[(64.0, 286.0), (40.0, 200.0)]));
+        state.latches.guide_recovery = Some(stall(&[(64.0, 286.0), (40.0, 200.0)]));
         assert!(!guiding_lost(&state));
     }
 }

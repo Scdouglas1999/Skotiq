@@ -145,13 +145,13 @@ pub(crate) async fn wait_for_slew_settle(
             PolarLoopControl::Continue => {}
             PolarLoopControl::Superseded => {
                 if let Err(e) = device_ops.mount_abort_slew(mount_id).await {
-                    emit_polar_stop_refused("A newer run took over", "measuring", &e);
+                    emit_polar_stop_refused("A newer run took over", "measuring", &e.to_string());
                 }
                 return Ok(SlewOutcome::Superseded);
             }
             PolarLoopControl::Cancelled => {
                 if let Err(e) = device_ops.mount_abort_slew(mount_id).await {
-                    emit_polar_stop_refused("Cancelled", "measuring", &e);
+                    emit_polar_stop_refused("Cancelled", "measuring", &e.to_string());
                 }
                 return Ok(SlewOutcome::Cancelled);
             }

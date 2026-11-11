@@ -25,14 +25,14 @@ async fn meridian_gate_does_not_hold_a_target_east_of_the_meridian() {
     ));
     {
         let mut state = trigger_state.write().await;
-        state.meridian_flip_minutes_past = Some(5.0);
-        state.target_ra = Some(23.4);
-        state.target_dec = Some(40.0);
+        state.trigger_config.meridian_flip_minutes_past = Some(5.0);
+        state.target.target_ra = Some(23.4);
+        state.target.target_dec = Some(40.0);
         // Stale positive hour angle left behind by an earlier run: the
         // mount poll only runs while a sequence executes, so the first
         // frame of the next run reads the previous run's value.
-        state.current_hour_angle = Some(0.19);
-        state.pier_side = None;
+        state.target.current_hour_angle = Some(0.19);
+        state.telemetry.pier_side = None;
     }
     ec.trigger_state = Some(trigger_state);
 
@@ -98,12 +98,12 @@ async fn overdue_meridian_flip_does_not_stall_the_exposure_burst() {
     ));
     {
         let mut state = trigger_state.write().await;
-        state.meridian_flip_minutes_past = Some(5.0);
-        state.target_ra = Some(12.5);
-        state.target_dec = Some(70.0);
+        state.trigger_config.meridian_flip_minutes_past = Some(5.0);
+        state.target.target_ra = Some(12.5);
+        state.target.target_dec = Some(70.0);
         // Exactly what the live rig reported: no pier side, and no mount
         // hour angle for the trigger to fire on.
-        state.pier_side = None;
+        state.telemetry.pier_side = None;
         // A mount that IS tracking the target and IS hours past the
         // meridian, so `trigger_can_fire` holds and the sibling
         // "mount cannot make the trigger fire" guard cannot be what
@@ -111,7 +111,7 @@ async fn overdue_meridian_flip_does_not_stall_the_exposure_burst() {
         // which is the state a flip that was requested and then failed
         // (or was retried to exhaustion) leaves behind. Only the overdue
         // escape hatch can let these frames through.
-        state.current_hour_angle = Some(9.0);
+        state.target.current_hour_angle = Some(9.0);
     }
     ec.trigger_state = Some(trigger_state);
 
@@ -193,14 +193,14 @@ async fn gate_does_not_hold_when_the_mount_cannot_make_the_trigger_fire() {
     ));
     {
         let mut state = trigger_state.write().await;
-        state.meridian_flip_minutes_past = Some(5.0);
-        state.target_ra = Some(12.5);
-        state.target_dec = Some(70.0);
-        state.pier_side = None;
+        state.trigger_config.meridian_flip_minutes_past = Some(5.0);
+        state.target.target_ra = Some(12.5);
+        state.target.target_dec = Some(70.0);
+        state.telemetry.pier_side = None;
         // Exactly the live rig's state: the mount never reported a
         // position, so the MinutesPastMeridian trigger returns false on
         // every evaluation and no flip can ever be requested.
-        state.current_hour_angle = None;
+        state.target.current_hour_angle = None;
     }
     ec.trigger_state = Some(trigger_state);
 
@@ -263,16 +263,16 @@ async fn meridian_gate_still_holds_when_the_flip_is_imminent() {
     ));
     {
         let mut state = trigger_state.write().await;
-        state.meridian_flip_minutes_past = Some(5.0);
-        state.target_ra = Some(1.0);
-        state.target_dec = Some(40.0);
-        state.pier_side = Some(crate::PierSide::West);
+        state.trigger_config.meridian_flip_minutes_past = Some(5.0);
+        state.target.target_ra = Some(1.0);
+        state.target.target_dec = Some(40.0);
+        state.telemetry.pier_side = Some(crate::PierSide::West);
         // A mount that is TRACKING THE TARGET, which is what the executor's
         // mount poll reports during a healthy run. The gate may only hold
         // for a flip the trigger can actually request, and the trigger
         // reads this field; leaving it None described a mount that reports
         // no position at all, in which case declining to hold is correct.
-        state.current_hour_angle = Some(10.0 / 60.0);
+        state.target.current_hour_angle = Some(10.0 / 60.0);
     }
     ec.trigger_state = Some(trigger_state);
 
@@ -382,13 +382,13 @@ async fn meridian_gate_does_not_hold_when_the_mount_is_not_tracking() {
         ));
         {
             let mut state = trigger_state.write().await;
-            state.meridian_flip_minutes_past = Some(5.0);
-            state.target_ra = Some(ra * 15.0);
-            state.target_dec = Some(40.0);
-            state.current_hour_angle = Some(0.1);
-            state.pier_side = Some(crate::PierSide::West);
-            state.mount_is_tracking = tracking;
-            state.mount_parked = parked;
+            state.trigger_config.meridian_flip_minutes_past = Some(5.0);
+            state.target.target_ra = Some(ra * 15.0);
+            state.target.target_dec = Some(40.0);
+            state.target.current_hour_angle = Some(0.1);
+            state.telemetry.pier_side = Some(crate::PierSide::West);
+            state.telemetry.mount_is_tracking = tracking;
+            state.telemetry.mount_parked = parked;
         }
         ec.trigger_state = Some(trigger_state);
         let mut ctx = ec.to_instruction_context("gate-node").await;
@@ -460,13 +460,13 @@ async fn overdue_flip_ctx(
     ));
     {
         let mut state = trigger_state.write().await;
-        state.meridian_flip_minutes_past = Some(5.0);
-        state.target_ra = Some(ra * 15.0);
-        state.target_dec = Some(40.0);
-        state.current_hour_angle = Some(30.0 / 60.0);
-        state.pier_side = Some(crate::PierSide::West);
-        state.mount_is_tracking = Some(true);
-        state.mount_parked = Some(false);
+        state.trigger_config.meridian_flip_minutes_past = Some(5.0);
+        state.target.target_ra = Some(ra * 15.0);
+        state.target.target_dec = Some(40.0);
+        state.target.current_hour_angle = Some(30.0 / 60.0);
+        state.telemetry.pier_side = Some(crate::PierSide::West);
+        state.telemetry.mount_is_tracking = Some(true);
+        state.telemetry.mount_parked = Some(false);
         match last_evaluation {
             crate::triggers::TriggerEvaluation::NoMonitor => {}
             crate::triggers::TriggerEvaluation::AwaitingRunningTick => {

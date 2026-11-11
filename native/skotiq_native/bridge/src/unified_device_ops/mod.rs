@@ -57,22 +57,6 @@
 //!   `sequencer/src/meridian.rs::julian_day`, where the per-site reasoning
 //!   lives.
 
-/// Prefix marking a capture that failed *image validation* rather than failing
-/// in the driver or the transport.
-///
-/// The `DeviceOps` trait signs its errors as bare `String` (`DeviceResult<T> =
-/// Result<T, String>`), so a caller cannot otherwise tell "the camera worked and
-/// the frame is unusable" apart from "the camera broke". That distinction
-/// matters at the HTTP boundary: a completely saturated frame is a normal,
-/// operator-actionable outcome (shorten the exposure) and must not be reported
-/// as an internal server fault. `api::imaging` matches this prefix to promote
-/// the error to [`SkotiqError::ExposureFailed`], which the headless API maps
-/// to 422 instead of 500.
-///
-/// Producer and consumer live in the same crate and share this constant so the
-/// two cannot drift apart.
-pub(crate) const IMAGE_VALIDATION_FAILED_PREFIX: &str = "Image validation failed: ";
-
 fn median_from_sorted_f64(sorted: &[f64]) -> Option<f64> {
     if sorted.is_empty() {
         return None;
@@ -98,15 +82,30 @@ use async_trait::async_trait;
 // no copy of either.
 use skotiq_sequencer::meridian::{julian_day, local_sidereal_time};
 use skotiq_sequencer::{
-    CameraSubframe, DeviceOps, DeviceResult, GuidingCalibration, GuidingStatus, ImageData,
-    PlateSolveResult, PolarAlignResult,
+    CameraOps, ConnectionOps, CoverCalibratorOps, DeviceError, DeviceResult, DomeOps,
+    ExposureRequest, FilterWheelOps, FocuserOps, FrameStoreOps, GuiderOps, GuidingCalibration,
+    GuidingStatus, ImageData, MountOps, OperatorNotifyOps, PlateSolveOps, PlateSolveResult,
+    PolarAlignResult, RotatorOps, SafetyOps, SiteOps,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use tokio::sync::Mutex;
 
-pub(crate) mod device_ops;
+mod camera;
+mod connection;
+mod cover_calibrator;
+mod dome;
 pub(crate) mod exposure_wait;
+mod filter_wheel;
+mod focuser;
+mod frame_store;
+mod guider;
+mod mount;
+mod operator;
+mod plate_solve;
+mod rotator;
+mod safety;
+mod site;
 mod solve_diagnostics;
 pub(crate) use exposure_wait::*;
 pub(crate) mod pointing;
@@ -170,7 +169,7 @@ impl UnifiedDeviceOps {
             return Ok(id);
         }
 
-        Err(skotiq_sequencer::NO_SAFETY_DEVICE_CONFIGURED.to_string())
+        Err(DeviceError::NO_SAFETY_DEVICE)
     }
 
     /// Where the telescope is actually pointing, sampled for the FITS header.

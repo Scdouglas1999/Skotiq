@@ -42,7 +42,7 @@ async fn stop_the_guider_for_park(ctx: &InstructionContext) {
         .await;
     match ctx.device_ops.guider_stop().await {
         Ok(()) => {}
-        Err(error) if crate::device_ops::is_no_guider_configured(&error) => {}
+        Err(crate::device_ops::DeviceError::NO_GUIDER) => {}
         Err(error) => {
             tracing::warn!("[GUIDING] The guider did not stop for the park: {error}");
         }
@@ -68,7 +68,7 @@ async fn park_mount(ctx: &InstructionContext, mount_id: &str) -> InstructionResu
     // A mount stuck at an axis limit takes the park and stays put: move it
     // off the limit and park again.
     if !crate::limit_backoff::mount_responds(
-        &ctx.device_ops,
+        &*ctx.device_ops,
         &mount_id,
         start,
         tokio::time::Instant::now(),
@@ -77,8 +77,8 @@ async fn park_mount(ctx: &InstructionContext, mount_id: &str) -> InstructionResu
     )
     .await
     {
-        let freed = crate::limit_backoff::back_off_limit(&ctx.device_ops, &mount_id).await;
-        crate::limit_backoff::notify(&ctx.device_ops, "park", &freed).await;
+        let freed = crate::limit_backoff::back_off_limit(&*ctx.device_ops, &mount_id).await;
+        crate::limit_backoff::notify(&*ctx.device_ops, "park", &freed).await;
         if freed.is_ok() {
             if let Err(e) = ctx.device_ops.mount_park(&mount_id).await {
                 return InstructionResult::failure(format!("Park failed: {}", e));
@@ -258,8 +258,8 @@ pub(crate) async fn execute_home_mount_with(
             .as_deref()
             .is_some_and(|m| m.contains(HOME_DID_NOT_MOVE))
     {
-        let freed = crate::limit_backoff::back_off_limit(&ctx.device_ops, &mount_id).await;
-        crate::limit_backoff::notify(&ctx.device_ops, "home command", &freed).await;
+        let freed = crate::limit_backoff::back_off_limit(&*ctx.device_ops, &mount_id).await;
+        crate::limit_backoff::notify(&*ctx.device_ops, "home command", &freed).await;
         if freed.is_ok() {
             result = home_mount(ctx, &mount_id, timing).await;
         }

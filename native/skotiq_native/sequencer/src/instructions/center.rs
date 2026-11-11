@@ -225,11 +225,7 @@ async fn center(
                 // possible star count; binning would reduce SNR enough to fail on
                 // sparse fields.
                 result = ctx.device_ops.camera_start_exposure(
-                    &camera_id,
-                    config.exposure_duration,
-                    None,
-                    None,
-                    1, 1,
+                    crate::device_ops::ExposureRequest::new(&camera_id, config.exposure_duration),
                 ) => result,
                 _ = wait_for_cancellation(ctx.cancellation_token.clone()) => {
                     tracing::info!("Center cancelled during exposure, aborting...");
@@ -257,7 +253,7 @@ async fn center(
                     ctx,
                     RetriedDevice::Camera,
                     camera_retries_done,
-                    &e,
+                    &e.to_string(),
                     &format!("on the centering frame (attempt {})", attempt),
                 )
                 .await
@@ -635,9 +631,9 @@ async fn wait_for_flip(
         let (threshold_min, polled_ha, pier, blocked, flip_requested) = {
             let state = lock.read().await;
             (
-                state.meridian_flip_minutes_past,
-                state.current_hour_angle,
-                state.pier_side,
+                state.trigger_config.meridian_flip_minutes_past,
+                state.target.current_hour_angle,
+                state.telemetry.pier_side,
                 // The trigger's own preconditions, read through the same
                 // predicate the trigger uses.
                 state.flip_blocked(crate::MeridianTriggerMethod::MinutesPastMeridian),

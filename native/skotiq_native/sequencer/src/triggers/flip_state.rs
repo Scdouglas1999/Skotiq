@@ -20,6 +20,14 @@ struct Flipped {
     origin: Option<PierSide>,
 }
 
+/// The checkpointed part of [`MeridianFlipState`], under the name the
+/// checkpoint file has always used.
+#[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct MeridianFlipSnapshot {
+    pub has_flipped_this_target: bool,
+}
+
 /// Flip bookkeeping for the current target.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct MeridianFlipState {
@@ -56,6 +64,16 @@ impl MeridianFlipState {
         };
         self.flipped = Some(Flipped { origin });
         self.requested = false;
+    }
+
+    pub fn snapshot(&self) -> MeridianFlipSnapshot {
+        MeridianFlipSnapshot {
+            has_flipped_this_target: self.has_flipped(),
+        }
+    }
+
+    pub fn restore(&mut self, snapshot: &MeridianFlipSnapshot) {
+        self.restore_flipped(snapshot.has_flipped_this_target);
     }
 
     /// Restore the flipped latch from a checkpoint, which records only whether
@@ -168,7 +186,7 @@ impl TriggerState {
     /// still flip when it lost tracking on the pre-flip side; ordinary idle
     /// mounts remain blocked. The limit-hit method checks its own telemetry.
     pub fn flip_blocked(&self, method: MeridianTriggerMethod) -> Option<FlipBlocked> {
-        if self.target_ra.is_none() || self.target_dec.is_none() {
+        if self.target.target_ra.is_none() || self.target.target_dec.is_none() {
             return Some(FlipBlocked::NoTarget);
         }
         if self.meridian.has_flipped() {
@@ -177,10 +195,10 @@ impl TriggerState {
         if method == MeridianTriggerMethod::OnTrackingLimitHit {
             return None;
         }
-        if self.mount_parked == Some(true) {
+        if self.telemetry.mount_parked == Some(true) {
             return Some(FlipBlocked::MountParked);
         }
-        if self.mount_is_tracking == Some(false)
+        if self.telemetry.mount_is_tracking == Some(false)
             && self.run.hold() != Some(super::RunHold::TrackingLimit)
             && !super::tracking_limit_recovery_candidate(self)
         {
@@ -217,12 +235,12 @@ mod tests {
     /// A target 15 minutes past the meridian, tracked on the pre-flip side.
     fn due_state() -> TriggerState {
         let mut state = TriggerState::new();
-        state.target_ra = Some(10.0);
-        state.target_dec = Some(40.0);
-        state.current_hour_angle = Some(0.25);
-        state.pier_side = Some(PierSide::West);
-        state.mount_is_tracking = Some(true);
-        state.mount_parked = Some(false);
+        state.target.target_ra = Some(10.0);
+        state.target.target_dec = Some(40.0);
+        state.target.current_hour_angle = Some(0.25);
+        state.telemetry.pier_side = Some(PierSide::West);
+        state.telemetry.mount_is_tracking = Some(true);
+        state.telemetry.mount_parked = Some(false);
         state
     }
 
@@ -311,12 +329,12 @@ mod tests {
             state.flip_blocked(MeridianTriggerMethod::MinutesPastMeridian),
             None
         );
-        state.mount_is_tracking = Some(false);
+        state.telemetry.mount_is_tracking = Some(false);
         assert_eq!(
             state.flip_blocked(MeridianTriggerMethod::MinutesPastMeridian),
             Some(FlipBlocked::MountNotTracking)
         );
-        state.mount_parked = Some(true);
+        state.telemetry.mount_parked = Some(true);
         assert_eq!(
             state.flip_blocked(MeridianTriggerMethod::MinutesPastMeridian),
             Some(FlipBlocked::MountParked)
@@ -326,7 +344,7 @@ mod tests {
             state.flip_blocked(MeridianTriggerMethod::MinutesPastMeridian),
             Some(FlipBlocked::AlreadyFlipped)
         );
-        state.target_ra = None;
+        state.target.target_ra = None;
         assert_eq!(
             state.flip_blocked(MeridianTriggerMethod::MinutesPastMeridian),
             Some(FlipBlocked::NoTarget)
@@ -336,8 +354,8 @@ mod tests {
     #[test]
     fn a_tracking_limit_flip_is_not_blocked_by_the_mount_having_stopped() {
         let mut state = due_state();
-        state.mount_is_tracking = Some(false);
-        state.mount_parked = Some(true);
+        state.telemetry.mount_is_tracking = Some(false);
+        state.telemetry.mount_parked = Some(true);
         assert_eq!(
             state.flip_blocked(MeridianTriggerMethod::OnTrackingLimitHit),
             None
@@ -350,10 +368,10 @@ mod tests {
     async fn the_trigger_and_the_operator_request_agree_with_the_predicate() {
         type Mutation = fn(&mut TriggerState);
         let blockers: [Mutation; 4] = [
-            |s| s.target_dec = None,
+            |s| s.target.target_dec = None,
             |s| s.meridian.mark_performed(None),
-            |s| s.mount_parked = Some(true),
-            |s| s.mount_is_tracking = Some(false),
+            |s| s.telemetry.mount_parked = Some(true),
+            |s| s.telemetry.mount_is_tracking = Some(false),
         ];
         for block in blockers {
             let mut state = due_state();
@@ -384,8 +402,8 @@ mod tests {
         let mut state = due_state();
         assert_eq!(state.flip_progress(), FlipProgress::NotComing, "no monitor");
         state.reset_for_new_run();
-        state.target_ra = Some(10.0);
-        state.target_dec = Some(40.0);
+        state.target.target_ra = Some(10.0);
+        state.target.target_dec = Some(40.0);
         assert_eq!(state.flip_progress(), FlipProgress::AwaitingEvaluation);
         state.record_evaluation(RunMode::HeldByRun(RunHold::PreMeridian), false);
         assert_eq!(state.flip_progress(), FlipProgress::AwaitingEvaluation);

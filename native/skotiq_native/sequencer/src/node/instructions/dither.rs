@@ -55,7 +55,7 @@ impl InstructionNode for DitherInstruction {
                 trigger_state.mark_dither_performed();
                 tracing::debug!(
                     "Marked dither performed at exposure {}",
-                    trigger_state.completed_exposures
+                    trigger_state.latches.completed_exposures
                 );
             }
         }

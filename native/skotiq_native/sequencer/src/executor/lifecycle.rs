@@ -15,13 +15,53 @@
 //! What is deliberately NOT here:
 //!   * Steady-state config pushes (`update_dither_config`, `update_location`,
 //!     …) — those live in `runtime_config.rs` because they mutate the
-//!     [`RuntimeConfig`] handle rather than driving the executor task.
+//!     [`RunConfig`] handle rather than driving the executor task.
 //!   * Recovery state-machine accessors (`current_recovery`,
 //!     `recovery_history`) — those live in `recovery.rs`. The operator
 //!     `recovery_try_now` / `recovery_abort` *commands* live here because
 //!     they are lifecycle gestures (drive the loop), not state reads.
 
 use super::{ExecutorCommand, SequenceExecutor};
+
+/// Who asked a run to stop.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StopOrigin {
+    /// A human.
+    Operator,
+    /// The autopilot, on an unattended re-plan.
+    Scheduler,
+    /// Any other named part of the system (a failed-launch rollback, say): a
+    /// stop nobody commanded.
+    System(String),
+}
+
+impl StopOrigin {
+    /// Read the origin as the app sends it: nothing or `"operator"` is a
+    /// human, `"scheduler"` the autopilot, any other name a system stop.
+    pub fn from_wire(origin: Option<&str>) -> Self {
+        match origin {
+            None | Some("operator") => Self::Operator,
+            Some("scheduler") => Self::Scheduler,
+            Some(other) => Self::System(other.to_string()),
+        }
+    }
+
+    fn wire_name(&self) -> &str {
+        match self {
+            Self::Operator => "operator",
+            Self::Scheduler => "scheduler",
+            Self::System(name) => name,
+        }
+    }
+
+    fn decision_summary(&self) -> &'static str {
+        match self {
+            Self::Operator => "Operator: stop",
+            Self::Scheduler => "Autopilot: stop",
+            Self::System(_) => "System: stop",
+        }
+    }
+}
 use crate::NodeId;
 use std::sync::atomic::Ordering;
 
@@ -61,45 +101,30 @@ impl SequenceExecutor {
     /// task to finish that cleanup before confirming termination. Only after
     /// that acknowledgment is the local `command_tx` dropped.
     pub async fn stop(&mut self) -> Result<(), String> {
-        self.stop_with_origin(None).await
+        self.stop_with_origin(StopOrigin::Operator).await
     }
 
-    /// [`Self::stop`] with the CALLER'S identity. The stop decision is what
+    /// [`Self::stop`] with the caller's identity. The stop decision is what
     /// the dashboard's stop row claims "Stopped by request" off, and the
-    /// scheduler drives this same path on unattended re-plans — an autopilot
+    /// scheduler drives this same path on unattended re-plans: an autopilot
     /// stop must not wear the operator's evidence.
-    /// `origin` of `None` or `"operator"` is a human; `"scheduler"` is the
-    /// autopilot.
-    pub async fn stop_with_origin(&mut self, origin: Option<&str>) -> Result<(), String> {
+    pub async fn stop_with_origin(&mut self, origin: StopOrigin) -> Result<(), String> {
         self.is_cancelled.store(true, Ordering::Release);
 
         if let Some(tx) = &self.command_tx {
             let _ = tx.send(ExecutorCommand::Stop).await;
         }
 
-        match origin {
-            Some("scheduler") => {
-                // Not a manual intervention: record it as the system event
-                // it is, under the normal decision-logging gate (autopilot
-                // noise may be silenced; operator evidence may not).
-                self.emit_lifecycle_system_decision(
-                    "Autopilot: stop",
-                    serde_json::json!({ "origin": "scheduler", "action": "stop" }),
-                );
-            }
-            Some(other) if other != "operator" => {
-                // Any other named system origin (e.g. a failed-launch
-                // rollback): a stop nobody commanded. Gated system event,
-                // and the feed's stop row stays cause-neutral.
-                self.emit_lifecycle_system_decision(
-                    "System: stop",
-                    serde_json::json!({ "origin": other, "action": "stop" }),
-                );
-            }
-            // None / "operator": a human's stop — the one decision that is
-            // never silenceable, because it is the only evidence the stop
-            // was human rather than a safety abort.
-            _ => self.emit_manual_intervention("stop", serde_json::json!({})),
+        match &origin {
+            // The one decision that is never silenceable: it is the only
+            // evidence the stop was human rather than a safety abort.
+            StopOrigin::Operator => self.emit_manual_intervention("stop", serde_json::json!({})),
+            // What the system did, under the normal decision-logging gate.
+            // The feed's stop row stays cause-neutral for a system stop.
+            StopOrigin::Scheduler | StopOrigin::System(_) => self.emit_lifecycle_system_decision(
+                origin.decision_summary(),
+                serde_json::json!({ "origin": origin.wire_name(), "action": "stop" }),
+            ),
         }
 
         let completion_result = if let Some(completion_rx) = self.run_completion_rx.take() {

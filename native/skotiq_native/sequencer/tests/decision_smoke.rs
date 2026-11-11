@@ -30,7 +30,7 @@ async fn executor_emit_decision_round_trips_through_channel() {
 async fn disabling_logging_short_circuits_emit() {
     let executor = SequenceExecutor::new();
     let _rx = executor.subscribe_decisions();
-    executor.set_decision_logging_enabled(false);
+    executor.set_decision_logging_enabled(false).await;
     let sent = executor.emit_decision(DecisionEvent::new(
         DecisionCategory::SystemEvent,
         "should be dropped",
@@ -116,7 +116,9 @@ async fn stop_origin_selects_the_decision_category() {
     // Scheduler origin -> SystemEvent "Autopilot: stop".
     let mut executor = SequenceExecutor::new();
     let mut rx = executor.subscribe_decisions();
-    let _ = executor.stop_with_origin(Some("scheduler")).await;
+    let _ = executor
+        .stop_with_origin(skotiq_sequencer::StopOrigin::from_wire(Some("scheduler")))
+        .await;
     let received = rx.recv().await.expect("autopilot decision delivered");
     assert_eq!(received.category, DecisionCategory::SystemEvent);
     assert_eq!(received.summary, "Autopilot: stop");
@@ -125,7 +127,7 @@ async fn stop_origin_selects_the_decision_category() {
     // Operator (None) origin -> ManualIntervention, even with logging OFF.
     let mut executor = SequenceExecutor::new();
     let mut rx = executor.subscribe_decisions();
-    executor.set_decision_logging_enabled(false);
+    executor.set_decision_logging_enabled(false).await;
     let _ = executor.stop().await;
     let received = rx.recv().await.expect("operator stop decision delivered");
     assert_eq!(received.category, DecisionCategory::ManualIntervention);
@@ -134,8 +136,10 @@ async fn stop_origin_selects_the_decision_category() {
     // Rollback origin -> gated SystemEvent; silenced when logging is off.
     let mut executor = SequenceExecutor::new();
     let mut rx = executor.subscribe_decisions();
-    executor.set_decision_logging_enabled(false);
-    let _ = executor.stop_with_origin(Some("rollback")).await;
+    executor.set_decision_logging_enabled(false).await;
+    let _ = executor
+        .stop_with_origin(skotiq_sequencer::StopOrigin::from_wire(Some("rollback")))
+        .await;
     assert!(
         rx.try_recv().is_err(),
         "a rollback stop is system noise the logging toggle may silence"

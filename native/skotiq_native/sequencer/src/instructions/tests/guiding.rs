@@ -150,7 +150,7 @@ async fn start_guiding_with(
     let mut ec = crate::node::context::ExecutionContext::new_for_test("guide".to_string());
     ec.device_ops = ops.clone();
     let mut state = crate::triggers::TriggerState::new();
-    state.stop_on_quality_problems = stop_on_quality_problems;
+    state.settings.stop_on_quality_problems = stop_on_quality_problems;
     let trigger_state = Arc::new(tokio::sync::RwLock::new(state));
     ec.trigger_state = Some(trigger_state.clone());
     let (event_tx, mut events) = tokio::sync::broadcast::channel(64);
@@ -231,7 +231,7 @@ async fn a_guider_that_never_locks_and_is_gone_notifies_and_the_run_images_ungui
     let gone = || {
         ScriptedDomeRotatorOps::new()
             .with_guider_resume_that_never_guides()
-            .with_guider_stop_failing(crate::device_ops::NO_GUIDER_CONFIGURED)
+            .with_guider_stop_failing(crate::device_ops::DeviceError::NO_GUIDER)
     };
     let run = start_guiding_with(gone(), false).await;
     assert_eq!(run.result.status, NodeStatus::Success, "{:?}", run.result);
@@ -261,7 +261,7 @@ async fn no_guider_connected_is_not_reported_as_no_guide_star() {
         run.warnings
             .iter()
             .any(|w| w.contains("Failed to start guiding")
-                && w.contains(crate::device_ops::NO_GUIDER_CONFIGURED)
+                && w.contains(&crate::device_ops::DeviceError::NO_GUIDER.to_string())
                 && !w.contains("no guide star")),
         "{:?}",
         run.warnings
@@ -716,7 +716,14 @@ async fn a_dither_settle_that_runs_out_with_the_star_held_is_not_a_failure() {
             result.message
         );
     }
-    assert_eq!(trigger_state.read().await.consecutive_dither_failures, 0);
+    assert_eq!(
+        trigger_state
+            .read()
+            .await
+            .latches
+            .consecutive_dither_failures,
+        0
+    );
     let warnings = drain_warnings(&mut events);
     assert_eq!(
         warnings
@@ -751,7 +758,7 @@ async fn lost_star_rms_does_not_recommend_hundreds_of_pixels_for_settling() {
         assert!(settle_bar_warning(Some(&state), settle, &status)
             .await
             .is_none());
-        assert!(!state.read().await.settle_bar_warning_given);
+        assert!(!state.read().await.latches.settle_bar_warning_given);
     }
     let held = GuidingStatus {
         is_guiding: true,

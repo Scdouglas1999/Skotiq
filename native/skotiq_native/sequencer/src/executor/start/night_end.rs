@@ -24,10 +24,7 @@ fn is_shutdown_step(node_type: &NodeType) -> bool {
     )
 }
 
-/// Whether a fired trigger ends the night rather than only the run.
-pub(crate) fn ends_the_night(trigger_id: &str) -> bool {
-    END_OF_NIGHT_TRIGGER_IDS.contains(&trigger_id)
-}
+pub(crate) use crate::triggers::ends_the_night;
 
 /// Nodes that watch the run rather than do a step of it: recovery triggers
 /// and the meridian flip. Plans place them anywhere, also after the shutdown.

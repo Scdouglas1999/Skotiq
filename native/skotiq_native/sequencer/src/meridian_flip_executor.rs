@@ -389,11 +389,12 @@ impl MeridianFlipExecutor {
         // would slew to an object that's about to set, risking equipment damage
         // or wasted imaging time.
         if let Some((lat, lon)) = self.device_ops.get_observer_location() {
-            let altitude = self.device_ops.calculate_altitude(
+            let altitude = meridian::calculate_altitude(
                 ctx.target_ra_hours,
                 ctx.target_dec_degrees,
                 lat,
                 lon,
+                chrono::Utc::now(),
             );
             let min_altitude = self.config.min_post_flip_altitude_deg;
             tracing::info!(
@@ -608,7 +609,7 @@ impl MeridianFlipExecutor {
                     if let Some(ts) = ctx.trigger_state.as_ref() {
                         let mut state = ts.write().await;
                         if !matches!(new_pier_side, PierSide::Unknown) {
-                            state.pier_side = Some(new_pier_side);
+                            state.telemetry.pier_side = Some(new_pier_side);
                         }
                         state.mark_flip_performed();
                     }
@@ -662,7 +663,8 @@ impl MeridianFlipExecutor {
                     if attempt >= max_attempts
                         && pier_verified
                         && failed_step.after_the_mount_tracks()
-                        && !self.stops_on_quality_problems(ctx).await
+                        && !crate::triggers::stops_on_quality_problems(ctx.trigger_state.as_ref())
+                            .await
                     {
                         // The mount is on its new side and tracks: a recenter
                         // that never solved or a guider that did not restart
@@ -994,11 +996,11 @@ impl MeridianFlipExecutor {
             .await;
         match self.device_ops.guider_stop().await {
             Ok(()) => Ok(()),
-            Err(error) if crate::device_ops::is_no_guider_configured(&error) => {
+            Err(crate::device_ops::DeviceError::NO_GUIDER) => {
                 tracing::info!("[MERIDIAN] No guider configured — nothing to pause");
                 Ok(())
             }
-            Err(error) => Err(error),
+            Err(error) => Err(error.to_string()),
         }
     }
 
@@ -1014,6 +1016,7 @@ impl MeridianFlipExecutor {
         self.device_ops
             .mount_set_tracking(&ctx.mount_id, true)
             .await
+            .map_err(String::from)
     }
 
     /// Record the flip the moment the new side is verified, so a failure in a
@@ -1025,13 +1028,13 @@ impl MeridianFlipExecutor {
         if let Some(ts) = ctx.trigger_state.as_ref() {
             let mut state = ts.write().await;
             if !matches!(new_pier_side, PierSide::Unknown) {
-                state.pier_side = Some(new_pier_side);
+                state.telemetry.pier_side = Some(new_pier_side);
             }
             state.mark_flip_performed();
             // The guide camera sees other stars on this side, so the star the
             // run guided on before is no measure for the ones it picks now,
             // as with a new target.
-            state.guide_star_reference = None;
+            state.target.guide_star_reference = None;
         }
         *self.reached_pier_side.lock() = Some(new_pier_side);
         // Guiding is stopped for the flip now, not for a tracking-limit hold
@@ -1053,13 +1056,6 @@ impl MeridianFlipExecutor {
                 error: None,
                 action_taken: None,
             });
-        }
-    }
-
-    async fn stops_on_quality_problems(&self, ctx: &FlipContext) -> bool {
-        match &ctx.trigger_state {
-            Some(state) => state.read().await.stop_on_quality_problems,
-            None => false,
         }
     }
 
@@ -1270,8 +1266,8 @@ impl MeridianFlipExecutor {
         ctx: &FlipContext,
         pre_flip_pier_side: PierSide,
     ) -> Option<Result<PierSide, String>> {
-        let freed = crate::limit_backoff::back_off_limit(&self.device_ops, &ctx.mount_id).await;
-        crate::limit_backoff::notify(&self.device_ops, "flip slew", &freed).await;
+        let freed = crate::limit_backoff::back_off_limit(&*self.device_ops, &ctx.mount_id).await;
+        crate::limit_backoff::notify(&*self.device_ops, "flip slew", &freed).await;
         // A mount that could not be freed keeps the verification's own
         // failure; the notice says why.
         freed.ok()?;
@@ -1452,7 +1448,10 @@ impl MeridianFlipExecutor {
             // The retry ladder increases acquisition exposure after the first attempt.
             let image = self
                 .device_ops
-                .camera_start_exposure(camera_id, exposure_secs, None, None, 1, 1)
+                .camera_start_exposure(crate::device_ops::ExposureRequest::new(
+                    camera_id,
+                    exposure_secs,
+                ))
                 .await?;
 
             // Passing target hints (deg-converted RA) accelerates blind solves on
@@ -1863,7 +1862,7 @@ impl MeridianFlipExecutor {
         // pre-flip star's mass floor refused every star the flipped field had
         // (SNR 38-61) and the flip failed over guiding.
         let reference = match &ctx.trigger_state {
-            Some(state) => state.read().await.guide_star_reference,
+            Some(state) => state.read().await.target.guide_star_reference,
             None => None,
         };
         match crate::instructions::start_guiding_holding_on_settle_timeout(
@@ -1889,7 +1888,7 @@ impl MeridianFlipExecutor {
                     }
                 }
             }
-            Err(error) if crate::device_ops::is_no_guider_configured(error.message()) => {
+            Err(crate::instructions::GuidingStartError::Start(crate::device_ops::DeviceError::NO_GUIDER)) => {
                 tracing::info!("[MERIDIAN] No guider configured — nothing to resume");
                 return Ok(());
             }
@@ -1986,7 +1985,7 @@ impl MeridianFlipExecutor {
         // The star guided on from here is the measure for later recoveries.
         if let Some(state) = &ctx.trigger_state {
             if let Ok(Some(star)) = self.device_ops.guider_star_quality().await {
-                state.write().await.guide_star_reference = Some(star);
+                state.write().await.target.guide_star_reference = Some(star);
             }
         }
         Ok(())
@@ -2018,7 +2017,7 @@ impl MeridianFlipExecutor {
     // Helper methods
 
     async fn get_pier_side(&self, mount_id: &str) -> Result<PierSide, String> {
-        self.device_ops.mount_side_of_pier(mount_id).await
+        Ok(self.device_ops.mount_side_of_pier(mount_id).await?)
     }
 
     /// Hour angle of the J2000 target `ra_hours`/`dec_degrees`, taken against
@@ -2256,7 +2255,7 @@ impl MeridianFlipExecutor {
     async fn retry_safety_action<F, Fut>(&self, op_name: &str, mut op: F) -> Result<(), String>
     where
         F: FnMut() -> Fut,
-        Fut: std::future::Future<Output = Result<(), String>>,
+        Fut: std::future::Future<Output = crate::device_ops::DeviceResult<()>>,
     {
         let retry_count = self.config.safety_action_retry_count;
         let retry_delay_secs = self.config.safety_action_retry_delay_secs;
@@ -2281,7 +2280,7 @@ impl MeridianFlipExecutor {
                         retry_count,
                         e
                     );
-                    last_err = e;
+                    last_err = e.to_string();
                     if attempt < retry_count {
                         tokio::time::sleep(std::time::Duration::from_secs_f64(retry_delay_secs))
                             .await;
@@ -2371,7 +2370,14 @@ fn normalize_ra_diff_hours(diff: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::device_ops::{DeviceOps, DeviceResult, GuidingStatus, ImageData, PlateSolveResult};
+    use crate::device_ops::{
+        CameraOps, ConnectionOps, CoverCalibratorOps, DomeOps, FilterWheelOps, FocuserOps,
+        FrameStoreOps, GuiderOps, MountOps, OperatorNotifyOps, PlateSolveOps, RotatorOps,
+        SafetyOps, SiteOps,
+    };
+    use crate::device_ops::{
+        DeviceResult, ExposureRequest, GuidingStatus, ImageData, PlateSolveResult,
+    };
     use async_trait::async_trait;
     use std::sync::atomic::AtomicI32;
     use std::sync::Mutex;
@@ -2534,10 +2540,6 @@ mod tests {
         /// Observer location, wrapped in a Mutex so altitude-gate tests can install
         /// a location at runtime.
         location: Mutex<Option<(f64, f64)>>,
-        /// Optional override for `calculate_altitude` so the
-        /// min_post_flip_altitude_deg gate can be exercised by tests. Defaults
-        /// to None (which causes calculate_altitude to return 45° as before).
-        altitude_override_deg: Mutex<Option<f64>>,
         /// When `Some((d_ra_hours, d_dec_degrees))`, the mount behaves like a
         /// real one behind the device layer: a slew lands, and reads back,
         /// that far from the J2000 coordinates it was sent (the precession the
@@ -2566,7 +2568,7 @@ mod tests {
     }
 
     #[async_trait]
-    impl DeviceOps for MockDeviceOps {
+    impl MountOps for MockDeviceOps {
         async fn mount_slew_to_coordinates(
             &self,
             _mount_id: &str,
@@ -2650,7 +2652,7 @@ mod tests {
                 Err(format!(
                     "simulated park failure (remaining={})",
                     remaining - 1
-                ))
+                ).into())
             } else {
                 Ok(())
             }
@@ -2697,16 +2699,20 @@ mod tests {
             self.state.tracking_calls.lock().unwrap().push(enabled);
             Ok(())
         }
+    }
 
+    #[async_trait]
+    impl CameraOps for MockDeviceOps {
         async fn camera_start_exposure(
             &self,
-            _camera_id: &str,
-            duration_secs: f64,
-            gain: Option<i32>,
-            offset: Option<i32>,
-            _bin_x: i32,
-            _bin_y: i32,
+            request: ExposureRequest<'_>,
         ) -> DeviceResult<ImageData> {
+            let ExposureRequest {
+                duration_secs,
+                gain,
+                offset,
+                ..
+            } = request;
             self.state.exposure_settings.lock().unwrap().push((
                 duration_secs,
                 self.state.wheel_position.load(Ordering::Relaxed),
@@ -2757,7 +2763,10 @@ mod tests {
         async fn camera_get_cooler_power(&self, _camera_id: &str) -> DeviceResult<f64> {
             Ok(50.0)
         }
+    }
 
+    #[async_trait]
+    impl FocuserOps for MockDeviceOps {
         async fn focuser_move_to(&self, _focuser_id: &str, _position: i32) -> DeviceResult<()> {
             Ok(())
         }
@@ -2777,7 +2786,10 @@ mod tests {
         async fn focuser_halt(&self, _focuser_id: &str) -> DeviceResult<()> {
             Ok(())
         }
+    }
 
+    #[async_trait]
+    impl FilterWheelOps for MockDeviceOps {
         async fn filterwheel_set_position(&self, _fw_id: &str, position: i32) -> DeviceResult<()> {
             if position == 4
                 && self
@@ -2806,7 +2818,10 @@ mod tests {
         ) -> DeviceResult<i32> {
             Ok(1)
         }
+    }
 
+    #[async_trait]
+    impl RotatorOps for MockDeviceOps {
         async fn rotator_move_to(&self, _rotator_id: &str, _angle: f64) -> DeviceResult<()> {
             Ok(())
         }
@@ -2822,7 +2837,10 @@ mod tests {
         async fn rotator_halt(&self, _rotator_id: &str) -> DeviceResult<()> {
             Ok(())
         }
+    }
 
+    #[async_trait]
+    impl GuiderOps for MockDeviceOps {
         async fn guider_dither(
             &self,
             _pixels: f64,
@@ -2862,7 +2880,7 @@ mod tests {
                 return Err(
                     "Start guiding failed: Operation failed: Guiding did not settle: \
                             PHD2 settle failed (status 1): timed-out waiting for guider to settle"
-                        .to_string(),
+                        .into(),
                 );
             }
             self.state.post_flip_calls.lock().unwrap().push("guide");
@@ -2874,7 +2892,7 @@ mod tests {
                 })
                 .is_ok();
             if transient_failure || self.state.guider_start_fails.load(Ordering::Relaxed) {
-                return Err("simulated guider start failure: no star".to_string());
+                return Err("simulated guider start failure: no star".into());
             }
             self.state.guider_stopped.store(false, Ordering::Relaxed);
             Ok(())
@@ -2903,7 +2921,7 @@ mod tests {
 
         async fn guider_stop(&self) -> DeviceResult<()> {
             if self.state.guider_stop_fails.load(Ordering::Relaxed) {
-                return Err("PHD2 stop_capture timed out".to_string());
+                return Err("PHD2 stop_capture timed out".into());
             }
 
             self.state
@@ -2914,100 +2932,10 @@ mod tests {
             self.state.guider_stopped.store(true, Ordering::Relaxed);
             Ok(())
         }
+    }
 
-        async fn plate_solve(
-            &self,
-            _image_data: &ImageData,
-            hint_ra: Option<f64>,
-            hint_dec: Option<f64>,
-            _hint_scale: Option<f64>,
-        ) -> DeviceResult<PlateSolveResult> {
-            self.state.post_flip_calls.lock().unwrap().push("solve");
-            self.state.plate_solve_calls.fetch_add(1, Ordering::Relaxed);
-            let dec_offset = self
-                .state
-                .solved_dec_offsets
-                .lock()
-                .unwrap()
-                .pop_front()
-                .unwrap_or(0.0);
-            let should_fail = self
-                .state
-                .plate_solve_failures_remaining
-                .try_update(Ordering::Relaxed, Ordering::Relaxed, |remaining| {
-                    (remaining > 0).then_some(remaining - 1)
-                })
-                .is_ok();
-            // Return success with the hint coordinates so total_offset==0.
-            // Why: this is a test-only mock device op.
-            // The hint-less case yields (0,0) which still satisfies the
-            // "total_offset==0" invariant the test asserts; production
-            // plate-solve always supplies hints from the mount pointing.
-            Ok(PlateSolveResult {
-                ra_degrees: hint_ra.unwrap_or(0.0),
-                dec_degrees: hint_dec.unwrap_or(0.0) + dec_offset,
-                pixel_scale: 1.5,
-                rotation: 0.0,
-                up_position_angle_deg: 0.0,
-                success: !should_fail,
-                wcs: None,
-            })
-        }
-
-        async fn save_fits(
-            &self,
-            _image_data: &ImageData,
-            _file_path: &str,
-            _frame_ctx: &crate::scheduling::FrameContext,
-        ) -> DeviceResult<()> {
-            Ok(())
-        }
-
-        async fn send_notification(
-            &self,
-            level: &str,
-            title: &str,
-            _message: &str,
-            _explicit_transports: Option<&[String]>,
-        ) -> DeviceResult<()> {
-            self.state
-                .notifications
-                .lock()
-                .unwrap()
-                .push((level.to_string(), title.to_string()));
-            Ok(())
-        }
-
-        fn calculate_altitude(
-            &self,
-            _ra_hours: f64,
-            _dec_degrees: f64,
-            _lat: f64,
-            _lon: f64,
-        ) -> f64 {
-            // Honour the per-test altitude override so the
-            // min_post_flip_altitude_deg gate can be exercised. Defaults to
-            // 45° (above the gate) so existing tests are unaffected.
-            self.state
-                .altitude_override_deg
-                .lock()
-                .unwrap()
-                .unwrap_or(45.0)
-        }
-
-        fn get_observer_location(&self) -> Option<(f64, f64)> {
-            // Read through the Mutex so altitude-gate tests can
-            // install a location at runtime.
-            *self.state.location.lock().unwrap()
-        }
-
-        async fn polar_align_update(
-            &self,
-            _result: &crate::polar_align::PolarAlignResult,
-        ) -> DeviceResult<()> {
-            Ok(())
-        }
-
+    #[async_trait]
+    impl DomeOps for MockDeviceOps {
         async fn dome_open(&self, _dome_id: &str) -> DeviceResult<()> {
             Ok(())
         }
@@ -3023,22 +2951,10 @@ mod tests {
         async fn dome_get_shutter_status(&self, _dome_id: &str) -> DeviceResult<String> {
             Ok("Open".to_string())
         }
+    }
 
-        async fn safety_is_safe(&self, _safety_id: Option<&str>) -> DeviceResult<bool> {
-            Ok(true)
-        }
-
-        async fn calculate_image_hfr(&self, _image_data: &ImageData) -> DeviceResult<Option<f64>> {
-            Ok(Some(2.0))
-        }
-
-        async fn detect_stars_in_image(
-            &self,
-            _image_data: &ImageData,
-        ) -> DeviceResult<Vec<(f64, f64, f64)>> {
-            Ok(vec![])
-        }
-
+    #[async_trait]
+    impl CoverCalibratorOps for MockDeviceOps {
         async fn cover_calibrator_open_cover(&self, _device_id: &str) -> DeviceResult<()> {
             self.state.cover_state.store(3, Ordering::Relaxed);
             Ok(())
@@ -3085,6 +3001,113 @@ mod tests {
         }
     }
 
+    #[async_trait]
+    impl SafetyOps for MockDeviceOps {
+        async fn safety_is_safe(&self, _safety_id: Option<&str>) -> DeviceResult<bool> {
+            Ok(true)
+        }
+    }
+
+    #[async_trait]
+    impl PlateSolveOps for MockDeviceOps {
+        async fn plate_solve(
+            &self,
+            _image_data: &ImageData,
+            hint_ra: Option<f64>,
+            hint_dec: Option<f64>,
+            _hint_scale: Option<f64>,
+        ) -> DeviceResult<PlateSolveResult> {
+            self.state.post_flip_calls.lock().unwrap().push("solve");
+            self.state.plate_solve_calls.fetch_add(1, Ordering::Relaxed);
+            let dec_offset = self
+                .state
+                .solved_dec_offsets
+                .lock()
+                .unwrap()
+                .pop_front()
+                .unwrap_or(0.0);
+            let should_fail = self
+                .state
+                .plate_solve_failures_remaining
+                .try_update(Ordering::Relaxed, Ordering::Relaxed, |remaining| {
+                    (remaining > 0).then_some(remaining - 1)
+                })
+                .is_ok();
+            // Return success with the hint coordinates so total_offset==0.
+            // Why: this is a test-only mock device op.
+            // The hint-less case yields (0,0) which still satisfies the
+            // "total_offset==0" invariant the test asserts; production
+            // plate-solve always supplies hints from the mount pointing.
+            Ok(PlateSolveResult {
+                ra_degrees: hint_ra.unwrap_or(0.0),
+                dec_degrees: hint_dec.unwrap_or(0.0) + dec_offset,
+                pixel_scale: 1.5,
+                rotation: 0.0,
+                up_position_angle_deg: 0.0,
+                success: !should_fail,
+                wcs: None,
+            })
+        }
+    }
+
+    #[async_trait]
+    impl FrameStoreOps for MockDeviceOps {
+        async fn save_fits(
+            &self,
+            _image_data: &ImageData,
+            _file_path: &str,
+            _frame_ctx: &crate::scheduling::FrameContext,
+        ) -> DeviceResult<()> {
+            Ok(())
+        }
+
+        async fn calculate_image_hfr(&self, _image_data: &ImageData) -> DeviceResult<Option<f64>> {
+            Ok(Some(2.0))
+        }
+
+        async fn detect_stars_in_image(
+            &self,
+            _image_data: &ImageData,
+        ) -> DeviceResult<Vec<(f64, f64, f64)>> {
+            Ok(vec![])
+        }
+    }
+
+    #[async_trait]
+    impl OperatorNotifyOps for MockDeviceOps {
+        async fn send_notification(
+            &self,
+            level: &str,
+            title: &str,
+            _message: &str,
+            _explicit_transports: Option<&[String]>,
+        ) -> DeviceResult<()> {
+            self.state
+                .notifications
+                .lock()
+                .unwrap()
+                .push((level.to_string(), title.to_string()));
+            Ok(())
+        }
+
+        async fn polar_align_update(
+            &self,
+            _result: &crate::polar_align::PolarAlignResult,
+        ) -> DeviceResult<()> {
+            Ok(())
+        }
+    }
+
+    impl ConnectionOps for MockDeviceOps {}
+
+    impl SiteOps for MockDeviceOps {
+        fn get_observer_location(&self) -> Option<(f64, f64)> {
+            // Read through the Mutex so altitude-gate tests can
+            // install a location at runtime.
+            *self.state.location.lock().unwrap()
+        }
+    }
+
     fn make_ctx(state: &Arc<MockDeviceOpsState>) -> FlipContext {
         // Initialise sensible coordinates so the slew + verify steps complete.
         *state.coordinates.lock().unwrap() = (10.0, 45.0);
@@ -3108,7 +3131,7 @@ mod tests {
     /// flip's retry ladder and failure action take it from there.
     fn make_ctx_stopping_on_quality_problems(state: &Arc<MockDeviceOpsState>) -> FlipContext {
         let mut trigger_state = TriggerState::new();
-        trigger_state.stop_on_quality_problems = true;
+        trigger_state.settings.stop_on_quality_problems = true;
         FlipContext {
             trigger_state: Some(Arc::new(RwLock::new(trigger_state))),
             ..make_ctx(state)
@@ -3358,7 +3381,7 @@ mod tests {
             star_mass: 15_000.0,
         };
         let mut trigger_state = TriggerState::new();
-        trigger_state.guide_star_reference = Some(reference);
+        trigger_state.target.guide_star_reference = Some(reference);
         let ctx = FlipContext {
             trigger_state: Some(Arc::new(RwLock::new(trigger_state))),
             ..make_ctx(&state)
@@ -3402,7 +3425,7 @@ mod tests {
             ..Default::default()
         };
         let mut trigger_state = TriggerState::new();
-        trigger_state.pier_side = Some(PierSide::West);
+        trigger_state.telemetry.pier_side = Some(PierSide::West);
         let trigger_state = Arc::new(RwLock::new(trigger_state));
         let ctx = FlipContext {
             trigger_state: Some(trigger_state.clone()),
@@ -4032,12 +4055,16 @@ mod tests {
     /// the same target to proceed.
     #[tokio::test(start_paused = true)]
     async fn test_min_post_flip_altitude_is_user_configurable() {
-        // Target altitude 5° — below the default 10° gate.
+        // Target altitude 5°, below the default 10° gate. From the pole a
+        // target's altitude is its declination at any time of day.
         let make_state = || {
             let s = Arc::new(MockDeviceOpsState::default());
-            *s.location.lock().unwrap() = Some((40.0, -74.0));
-            *s.altitude_override_deg.lock().unwrap() = Some(5.0);
+            *s.location.lock().unwrap() = Some((90.0, 0.0));
             s
+        };
+        let make_ctx = |state: &Arc<MockDeviceOpsState>| FlipContext {
+            target_dec_degrees: 5.0,
+            ..make_ctx(state)
         };
 
         // Default config (min=10°): low-altitude target must abort.
@@ -4403,26 +4430,6 @@ mod tests {
         assert!((back.max_post_settle_rms_pixels - 1.5).abs() < 1e-9);
     }
 
-    /// An unguided rig must not send the flip into its retry ladder.
-    ///
-    /// `pause_guider` / `resume_guider` report "No active guider configured" as
-    /// a skippable step: propagating it as a step failure sends an unguided rig
-    /// into the flip's retry ladder, stalling the sequence for minutes over a
-    /// device that does not exist.
-    #[test]
-    fn no_guider_marker_is_treated_as_a_skippable_step() {
-        assert!(crate::device_ops::is_no_guider_configured(
-            "No active guider configured"
-        ));
-        // A real guider fault must still fail the step so the flip retries or
-        // aborts rather than silently imaging unguided through a flip.
-        assert!(!crate::device_ops::is_no_guider_configured(
-            "Guide star lost after flip"
-        ));
-        assert!(!crate::device_ops::is_no_guider_configured(
-            "Settle timed out after 60s"
-        ));
-    }
     /// A flip in its retry ladder must say so on the RUN's event stream, not only
     /// on the flip dialog's channel: a trigger-fired flip has no `event_tx` (only
     /// the node-driven flip sets one), and the run's broadcast is the channel
@@ -4718,7 +4725,7 @@ mod tests {
             let (tx, _rx) = broadcast::channel(64);
             let mut executor = MeridianFlipExecutor::new(config, ops).with_executor_event_tx(tx);
             let mut quality_stops = TriggerState::new();
-            quality_stops.stop_on_quality_problems = true;
+            quality_stops.settings.stop_on_quality_problems = true;
             let ts = Arc::new(RwLock::new(quality_stops));
             let ctx = FlipContext {
                 trigger_state: Some(ts.clone()),
@@ -4775,12 +4782,12 @@ mod tests {
         // Both settle settings below the rig's 0.64 px: the restart bar is
         // the looser of the two, and still below the measured RMS.
         let mut trigger_state = TriggerState::new();
-        trigger_state.dither_settle = crate::GuiderSettle {
+        trigger_state.settings.dither_settle = crate::GuiderSettle {
             pixels: 0.5,
             time_secs: 30.0,
             timeout_secs: 30.0,
         };
-        trigger_state.guiding_settle = Some(crate::GuiderSettle {
+        trigger_state.settings.guiding_settle = Some(crate::GuiderSettle {
             pixels: 0.4,
             time_secs: 10.0,
             timeout_secs: 20.0,
@@ -4888,7 +4895,7 @@ mod tests {
         let mut executor = MeridianFlipExecutor::new(config, ops);
         let mut guiding_run = TriggerState::new();
         guiding_run.set_guiding_enabled(true);
-        guiding_run.stop_on_quality_problems = true;
+        guiding_run.settings.stop_on_quality_problems = true;
         let ts = Arc::new(RwLock::new(guiding_run));
         let ctx = FlipContext {
             trigger_state: Some(ts.clone()),
@@ -5061,7 +5068,7 @@ mod tests {
         };
         let mut executor = MeridianFlipExecutor::new(config, ops);
         let mut quality_stops = TriggerState::new();
-        quality_stops.stop_on_quality_problems = true;
+        quality_stops.settings.stop_on_quality_problems = true;
         let ts = Arc::new(RwLock::new(quality_stops));
         let ctx = FlipContext {
             trigger_state: Some(ts.clone()),

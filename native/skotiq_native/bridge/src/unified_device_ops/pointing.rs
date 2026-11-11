@@ -16,9 +16,8 @@ pub struct MountPointing {
 /// Altitude above the horizon of `ra_hours`/`dec_degrees` as seen from
 /// `lat`/`lon` at `when`.
 ///
-/// Free-standing (and taking an explicit instant) so the AIRMASS fallback below
-/// is testable without a clock or a device: the trait method
-/// `UnifiedDeviceOps::calculate_altitude` is this function at `Utc::now()`.
+/// Takes an explicit instant so the AIRMASS fallback below is testable
+/// without a clock or a device.
 pub(crate) fn altitude_degrees(
     ra_hours: f64,
     dec_degrees: f64,

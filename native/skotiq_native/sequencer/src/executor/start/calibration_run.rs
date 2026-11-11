@@ -1,4 +1,4 @@
-use crate::executor::RECOVERY_NODE_TRIGGER_PREFIX;
+use crate::triggers::TriggerOrigin;
 use crate::{NodeType, SequenceDefinition};
 
 /// A sequence that only takes calibration frames — darks, bias, flats — and
@@ -52,8 +52,8 @@ pub(super) fn is_calibration_frame_type(frame_type: &str) -> bool {
 }
 
 /// Whether a fired trigger may act in a calibration-only run.
-pub(super) fn acts_in_calibration_run(trigger_id: &str) -> bool {
-    trigger_id.starts_with(RECOVERY_NODE_TRIGGER_PREFIX)
+pub(super) fn acts_in_calibration_run(origin: TriggerOrigin) -> bool {
+    origin.is_recovery_node()
 }
 
 #[cfg(test)]
@@ -137,19 +137,20 @@ mod tests {
 
     #[test]
     fn only_sequence_recovery_triggers_act_in_a_calibration_run() {
-        for standard in [
-            "dither_interval",
-            "autofocus_interval",
-            "dawn_approaching",
-            "meridian_flip",
-            "weather_unsafe",
-            "temperature_shift",
-            "guide_star_lost",
-        ] {
-            assert!(!acts_in_calibration_run(standard), "{standard}");
+        for standard in crate::triggers::StandardTrigger::ALL {
+            assert!(
+                !acts_in_calibration_run(standard.build().origin()),
+                "{standard:?}"
+            );
         }
-        assert!(acts_in_calibration_run(&format!(
-            "{RECOVERY_NODE_TRIGGER_PREFIX}node-1"
-        )));
+        assert!(!acts_in_calibration_run(TriggerOrigin::Other));
+        let declared = crate::triggers::Trigger::for_recovery_node(
+            "node-1",
+            "Recovery: clouds",
+            crate::TriggerType::WeatherUnsafe,
+            crate::RecoveryAction::ParkAndAbort,
+        );
+        assert_eq!(declared.id, "recovery_node:node-1");
+        assert!(acts_in_calibration_run(declared.origin()));
     }
 }

@@ -448,14 +448,12 @@ pub async fn execute_exposure_with_renderer(
                 }
                 // Thread the frame type so shuttered cameras (Moravian, FLI, some
                 // CCDs) keep the shutter CLOSED for dark/bias frames.
-                result = ctx.device_ops.camera_start_exposure_with_frame_type(
-                    &camera_id,
-                    config.duration_secs,
-                    config.gain,
-                    config.offset,
-                    bin_x,
-                    bin_y,
-                    &config.frame_type,
+                result = ctx.device_ops.camera_start_exposure(
+                    crate::device_ops::ExposureRequest::new(&camera_id, config.duration_secs)
+                        .gain(config.gain)
+                        .offset(config.offset)
+                        .binning(bin_x, bin_y)
+                        .frame_type(&config.frame_type),
                 ) => {
                     abort_guard.disarm();
                     result
@@ -481,7 +479,7 @@ pub async fn execute_exposure_with_renderer(
                     ctx,
                     RetriedDevice::Camera,
                     camera_retries_done,
-                    &error,
+                    &error.to_string(),
                     &format!("on frame {}/{}", frame, config.count),
                 )
                 .await
@@ -518,7 +516,7 @@ pub async fn execute_exposure_with_renderer(
         // per-frame defect-map application.
         //
         // The capture path applies the pre-loaded defect map (pushed in
-        // via `ExecutorCommand::UpdateDefectMap`) before HFR / grading
+        // via `SequenceExecutor::update_defect_map`) before HFR / grading
         // / FITS save. We deliberately run BEFORE star detection so the
         // grader doesn't reject frames over hot-pixel-induced false
         // stars; HFR / detection costs are unaffected because the map
@@ -1057,7 +1055,7 @@ pub async fn execute_exposure_with_renderer(
                     // dithered again the moment the burst ended.
                     if let Some(trigger_state) = &ctx.trigger_state {
                         let mut state = trigger_state.write().await;
-                        state.consecutive_dither_failures = 0;
+                        state.latches.consecutive_dither_failures = 0;
                         state.mark_dither_performed_in_burst(completed_exposures);
                     }
                     announce_dither_performed(ctx);
@@ -1080,7 +1078,7 @@ pub async fn execute_exposure_with_renderer(
                     //
                     // Skip loudly, once per burst, and keep imaging. Every other
                     // dither/settle failure keeps the fail-closed abort below.
-                    if crate::device_ops::is_no_guider_configured(&e.to_string()) {
+                    if e == crate::device_ops::DeviceError::NO_GUIDER {
                         if !dither_skipped_warned {
                             dither_skipped_warned = true;
                             tracing::warn!(
@@ -1118,9 +1116,9 @@ pub async fn execute_exposure_with_renderer(
                         let streak = match &ctx.trigger_state {
                             Some(trigger_state) => {
                                 let mut state = trigger_state.write().await;
-                                state.consecutive_dither_failures =
-                                    state.consecutive_dither_failures.saturating_add(1);
-                                state.consecutive_dither_failures
+                                state.latches.consecutive_dither_failures =
+                                    state.latches.consecutive_dither_failures.saturating_add(1);
+                                state.latches.consecutive_dither_failures
                             }
                             None => 1,
                         };
@@ -1187,7 +1185,7 @@ async fn prepare_guiding_for_frame(
                 .guiding
                 .unguided_retry_due(super::guiding::UNGUIDED_RETRY_INTERVAL),
             state.run.is_held_by_run(),
-            state.mount_is_tracking == Some(false),
+            state.telemetry.mount_is_tracking == Some(false),
         )
     };
     if !pending && !retry_due {
@@ -1270,11 +1268,20 @@ async fn recenter_after_mount_fault(
     let Some(trigger_state) = ctx.trigger_state.as_ref() else {
         return MountFaultRecenter::NotNeeded;
     };
-    if !trigger_state.read().await.mount_fault_recenter_pending {
+    if !trigger_state
+        .read()
+        .await
+        .latches
+        .mount_fault_recenter_pending
+    {
         return MountFaultRecenter::NotNeeded;
     }
     let Some(mount_id) = ctx.mount_id.clone() else {
-        trigger_state.write().await.mount_fault_recenter_pending = false;
+        trigger_state
+            .write()
+            .await
+            .latches
+            .mount_fault_recenter_pending = false;
         return MountFaultRecenter::NotNeeded;
     };
     if ctx.target_ra.is_none() || ctx.target_dec.is_none() {
@@ -1282,7 +1289,11 @@ async fn recenter_after_mount_fault(
             "[SEQ] The mount fault left the mount off target, and this frame has no target \
              coordinates to center on"
         );
-        trigger_state.write().await.mount_fault_recenter_pending = false;
+        trigger_state
+            .write()
+            .await
+            .latches
+            .mount_fault_recenter_pending = false;
         return MountFaultRecenter::NotNeeded;
     }
     tracing::info!("[SEQ] Centering on the target after the mount fault before the next frame");
@@ -1307,7 +1318,11 @@ async fn recenter_after_mount_fault(
         return MountFaultRecenter::Stop(cancelled);
     }
     if result.status == NodeStatus::Success {
-        trigger_state.write().await.mount_fault_recenter_pending = false;
+        trigger_state
+            .write()
+            .await
+            .latches
+            .mount_fault_recenter_pending = false;
         return MountFaultRecenter::Done;
     }
     let message = format!(
@@ -1340,6 +1355,7 @@ async fn untracked_exposure_reason(
     if trigger_state
         .read()
         .await
+        .latches
         .mount_fault_at
         .is_some_and(|at| at >= started.timestamp())
     {
@@ -1390,7 +1406,7 @@ async fn watch_star_shape(
     };
     let (side, judge_rms) = {
         let state = trigger_state.read().await;
-        (state.pier_side, state.guiding.judges_rms())
+        (state.telemetry.pier_side, state.guiding.judges_rms())
     };
     let Some(side) = side.filter(|side| *side != crate::PierSide::Unknown) else {
         return;

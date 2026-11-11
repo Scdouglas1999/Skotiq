@@ -154,8 +154,8 @@ pub async fn execute_slew(
             m.contains(&crate::slew_arrival::SlewWaitError::DidNotMove.to_string())
         })
     {
-        let freed = crate::limit_backoff::back_off_limit(&ctx.device_ops, mount_id).await;
-        crate::limit_backoff::notify(&ctx.device_ops, "slew", &freed).await;
+        let freed = crate::limit_backoff::back_off_limit(&*ctx.device_ops, mount_id).await;
+        crate::limit_backoff::notify(&*ctx.device_ops, "slew", &freed).await;
         if freed.is_ok() {
             result = slew_mount(mount_id, ra, dec, ctx, progress_callback).await;
         }
@@ -252,7 +252,9 @@ async fn restore_tracking_after_slew(ctx: &InstructionContext, mount_id: &str) {
         ),
         Err(e) => (
             "Mount is not tracking",
-            format!("The mount was not tracking when the slew ended, and turning it on failed: {e}"),
+            format!(
+                "The mount was not tracking when the slew ended, and turning it on failed: {e}"
+            ),
         ),
     };
     tracing::warn!("{message}");

@@ -67,9 +67,9 @@ pub(super) async fn bounded_poll<T>(
     let limit = std::time::Duration::from_secs(TRIGGER_POLL_TIMEOUT_SECS);
     match tokio::time::timeout(limit, poll).await {
         Ok(result) => result,
-        Err(_) => Err(format!(
+        Err(_) => Err(crate::device_ops::DeviceError::Timeout(format!(
             "{what} did not answer within {TRIGGER_POLL_TIMEOUT_SECS}s (treated as a poll failure)"
-        )),
+        ))),
     }
 }
 
@@ -223,7 +223,7 @@ impl SequenceExecutor {
     /// pauses the run, and it is never read as the mount's tracking limit.
     pub async fn note_operator_tracking_stop(&self) {
         let active = matches!(
-            *self.state.read().await,
+            self.run_state.get(),
             ExecutorState::Running | ExecutorState::Paused | ExecutorState::Recovering
         );
         if !active {
@@ -254,7 +254,7 @@ pub(crate) fn apply_mount_tracking_poll(
     let (mut expected, just_lost) = mount_tracking_poll_verdict(
         state.tracking.is_expected(),
         currently_tracking,
-        state.mount_is_tracking,
+        state.telemetry.mount_is_tracking,
         state.tracking.is_lost(),
     );
     // A reading taken while the run moves the mount does not arm the
@@ -272,38 +272,6 @@ pub(crate) fn apply_mount_tracking_poll(
         state.tracking.clear_lost();
     }
     just_lost
-}
-
-/// The first-class [`crate::recovery::RecoveryCause`] a standard trigger maps
-/// to, or `None` for a trigger with no automatic recovery semantic (an
-/// operator-defined watchdog, FilterChange, and the rest).
-///
-/// A trigger with a cause can be handed to the recovery driver, which FREEZES
-/// THE NODE TREE for the length of its attempt ladder. That freeze is the part
-/// that matters: it is the only thing that stops the capture loop from taking
-/// more frames while a device the run depends on is known to be broken.
-///
-/// `guiding_failed` is here for exactly that reason. Its standard action is
-/// `Retry { max_attempts: 3 }`, and on the trigger side a `Retry` had no
-/// operation to re-run — it incremented a counter and logged "requested retry
-/// attempt 1/3" while the run went on exposing. Measured on 2026-09-14: the
-/// trigger fired at 02:59:10, 03:00:11 and 03:01:11 with guiding RMS far past
-/// its 2.0 px threshold, and three 180 s lights were taken across those two
-/// minutes. Every one was rejected. Since the owner's 2026-10-06 decision that
-/// hand-off happens only when the operator turned on "Stop the run for quality
-/// problems"; by default the trigger notifies (see `apply_quality_policy`).
-pub fn trigger_recovery_cause(trigger_id: &str) -> Option<crate::recovery::RecoveryCause> {
-    match trigger_id {
-        "guide_star_lost" | "guiding_failed" => Some(crate::recovery::RecoveryCause::GuideStarLost),
-        "mount_tracking_lost" | "on_tracking_limit_hit" => {
-            Some(crate::recovery::RecoveryCause::MountTrackingLost)
-        }
-        "weather_unsafe" | "humidity_threshold" | "temperature_limit" => {
-            Some(crate::recovery::RecoveryCause::WeatherUnsafe)
-        }
-        "focus_drift" => Some(crate::recovery::RecoveryCause::FocusDriftCritical),
-        _ => None,
-    }
 }
 
 /// What a fired trigger does once the operator's park settings are applied.
@@ -419,9 +387,9 @@ fn flip_trigger_point(config: &crate::MeridianFlipConfig) -> String {
 ///     the run resumes when both the hardware and the app's verdict read safe.
 ///   * Dawn approaching still ends the run, without parking or closing.
 ///
-/// Matched on the standard trigger ids only. A Recovery node the operator put
-/// in the sequence with Park and Abort is their explicit choice for that
-/// sequence and is left alone.
+/// Only the standard triggers have a park setting. A Recovery node the
+/// operator put in the sequence with Park and Abort is their explicit choice
+/// for that sequence and is left alone.
 ///
 /// `weather_advisory_only` is true when the unsafe weather rests only on a
 /// forecast or cloud model (see
@@ -429,21 +397,26 @@ fn flip_trigger_point(config: &crate::MeridianFlipConfig) -> String {
 /// forecast never parks the mount or ends the run, whatever the park setting:
 /// it holds the run, which resumes on its own when the sky clears.
 pub(crate) fn apply_park_policy(
-    trigger_id: &str,
+    origin: TriggerOrigin,
     action: RecoveryAction,
     policy: ParkPolicy,
     weather_advisory_only: bool,
 ) -> FiredTriggerAction {
     let parks = matches!(action, RecoveryAction::ParkAndAbort);
-    match trigger_id {
-        "weather_unsafe" if parks && (weather_advisory_only || !policy.park_on_unsafe_weather) => {
+    let park_setting = origin
+        .standard()
+        .and_then(|trigger| trigger.spec().park_setting);
+    match park_setting {
+        Some(ParkSetting::OnUnsafeWeather)
+            if parks && (weather_advisory_only || !policy.park_on_unsafe_weather) =>
+        {
             FiredTriggerAction {
                 action: RecoveryAction::Pause,
                 end_without_parking: false,
                 notify_only: false,
             }
         }
-        "dawn_approaching" if parks && !policy.park_before_dawn => FiredTriggerAction {
+        Some(ParkSetting::BeforeDawn) if parks && !policy.park_before_dawn => FiredTriggerAction {
             action,
             end_without_parking: true,
             notify_only: false,
@@ -455,9 +428,6 @@ pub(crate) fn apply_park_policy(
         },
     }
 }
-
-/// The standard trigger that judges guiding by its RMS.
-pub(crate) const GUIDING_FAILED_TRIGGER_ID: &str = "guiding_failed";
 
 /// Whether `action` stops the run: pauses it, hands it to the recovery driver
 /// (which freezes the node tree), or ends it.
@@ -488,7 +458,7 @@ pub(crate) fn is_quality_trigger(trigger_type: &TriggerType) -> bool {
 /// by itself. A quality trigger whose action does not stop the run (an
 /// autofocus, a recenter, a dither) still runs it.
 pub(crate) fn apply_quality_policy(
-    trigger_id: &str,
+    origin: TriggerOrigin,
     trigger_type: Option<&TriggerType>,
     fired: FiredTriggerAction,
     stop_on_quality_problems: bool,
@@ -496,7 +466,9 @@ pub(crate) fn apply_quality_policy(
     let quality_stop = !stop_on_quality_problems
         && stops_the_run(&fired.action)
         && (trigger_type.is_some_and(is_quality_trigger)
-            || trigger_id == GUIDING_FAILED_TRIGGER_ID);
+            // The guiding trigger is a quality trigger even when it was
+            // removed since it fired and its type is no longer known.
+            || origin == TriggerOrigin::Standard(StandardTrigger::GuidingFailed));
     // An operator-authored Notify always notifies.
     if matches!(fired.action, RecoveryAction::Notify) || quality_stop {
         FiredTriggerAction {
@@ -523,6 +495,7 @@ pub(crate) fn quality_trigger_notice(
             ..
         }) => {
             let latest = state
+                .latches
                 .guiding_rms_history
                 .as_ref()
                 .and_then(|history| history.last())
@@ -534,7 +507,7 @@ pub(crate) fn quality_trigger_notice(
             )
         }
         Some(TriggerType::HfrDegraded { .. } | TriggerType::FocusDrift { .. }) => {
-            match (state.current_hfr, state.baseline_hfr) {
+            match (state.latches.current_hfr, state.latches.baseline_hfr) {
                 (Some(hfr), Some(baseline)) => {
                     format!("HFR is {hfr:.2} px against a baseline of {baseline:.2} px")
                 }
@@ -557,7 +530,7 @@ pub(crate) fn quality_trigger_notice(
         },
         Some(TriggerType::TransparencyDropped {
             below_threshold, ..
-        }) => match state.current_transparency {
+        }) => match state.telemetry.current_transparency {
             Some(t) => format!("transparency is {t:.2} (limit {below_threshold:.2})"),
             None => "its condition holds".to_string(),
         },
@@ -784,10 +757,8 @@ pub(super) async fn restore_tracking_after_recovery(
 /// mutates exactly the production state and emits on the production event bus.
 pub(crate) struct RecoveryEscalationState<'a> {
     pub device_ops: &'a SharedDeviceOps,
-    pub event_tx: &'a broadcast::Sender<ExecutorEvent>,
-    pub runtime_config: &'a Arc<StdRwLock<RuntimeConfig>>,
-    pub state: &'a Arc<RwLock<ExecutorState>>,
-    pub progress: &'a Arc<StdRwLock<SequenceProgress>>,
+    pub run_state: &'a RunCell,
+    pub runtime_config: &'a RunConfigStore,
     pub current_recovery: &'a Arc<StdRwLock<Option<crate::recovery::RecoveryContext>>>,
     pub is_cancelled: &'a Arc<AtomicBool>,
     pub gave_up: &'a Arc<AtomicBool>,
@@ -817,6 +788,7 @@ pub(super) async fn apply_recovery_escalation(
 ) {
     // Read the policy live so an operator changing it mid-session takes effect
     // on THIS escalation.
+    let event_tx = s.run_state.events();
     let policy = UnattendedEndPolicy::from_recovery_config(&s.runtime_config.read().recovery);
     let disposition = recovery_escalation_disposition(policy);
 
@@ -843,7 +815,7 @@ pub(super) async fn apply_recovery_escalation(
 
         // Surface WHY first, so the operator / push channel sees the escalation
         // reason even if a safe-state step then fails.
-        let _ = s.event_tx.send(ExecutorEvent::Error {
+        let _ = event_tx.send(ExecutorEvent::Error {
             message: pause_message.clone(),
         });
 
@@ -878,7 +850,7 @@ pub(super) async fn apply_recovery_escalation(
                         .unwrap_or_else(|| "unknown".to_string())
                 );
                 tracing::error!("[RECOVERY] {}", msg);
-                let _ = s.event_tx.send(ExecutorEvent::Error { message: msg });
+                let _ = event_tx.send(ExecutorEvent::Error { message: msg });
             }
         }
         if let (Some(cover_id), Some(e)) = (s.cover_id, &outcome.cover_close_error) {
@@ -887,7 +859,7 @@ pub(super) async fn apply_recovery_escalation(
                 cover_id, e
             );
             tracing::error!("[RECOVERY] {}", msg);
-            let _ = s.event_tx.send(ExecutorEvent::Error { message: msg });
+            let _ = event_tx.send(ExecutorEvent::Error { message: msg });
         }
         if let (Some(dome_id), Some(e)) = (s.dome_id, &outcome.dome_close_error) {
             let msg = format!(
@@ -895,7 +867,7 @@ pub(super) async fn apply_recovery_escalation(
                 dome_id, e
             );
             tracing::error!("[RECOVERY] {}", msg);
-            let _ = s.event_tx.send(ExecutorEvent::Error { message: msg });
+            let _ = event_tx.send(ExecutorEvent::Error { message: msg });
         }
 
         // Cancel the node tree and fail the run, exactly like the give-up
@@ -904,21 +876,16 @@ pub(super) async fn apply_recovery_escalation(
         // sits in the safe parked+closed end-state rather than dome-open and
         // unmonitored.
         s.is_cancelled.store(true, Ordering::Relaxed);
-        *s.state.write().await = ExecutorState::Failed;
-        {
-            let mut prog = s.progress.write();
-            prog.state = ExecutorState::Failed;
-            prog.message = Some(format!(
+        s.run_state.transition_with_message(
+            ExecutorState::Failed,
+            format!(
                 "{}: abandoned safely after {} attempt{} (park-and-close policy)",
                 ctx.cause.display_label(),
                 ctx.attempt_count,
                 if ctx.attempt_count == 1 { "" } else { "s" }
-            ));
-        }
-        let _ = s
-            .event_tx
-            .send(ExecutorEvent::StateChanged(ExecutorState::Failed));
-        let _ = s.event_tx.send(ExecutorEvent::RecoveryGaveUp {
+            ),
+        );
+        let _ = event_tx.send(ExecutorEvent::RecoveryGaveUp {
             context: Box::new(ctx.clone()),
             aborted_by_user: false,
         });
@@ -952,36 +919,31 @@ pub(super) async fn apply_recovery_escalation(
             s.mount_id,
             stop_tracking,
             "paused for operator",
-            s.event_tx,
+            event_tx,
         )
         .await;
 
-        *s.state.write().await = ExecutorState::Paused;
-        {
-            let mut prog = s.progress.write();
-            prog.state = ExecutorState::Paused;
-            // The status API (`sequencer_get_status`) reads this snapshot, not
-            // the event stream. Dropping the restore verdict here left the
-            // pause reason alone on screen while the mount sat untracked, so
-            // the operator's Resume exposed on a drifting mount. Carry the
-            // helper's verdict into the message the poller actually reads.
-            prog.message = Some(match &tracking_warning {
-                Some(warning) => format!("{pause_message} — {warning}"),
-                None => pause_message.clone(),
-            });
-        }
+        // The status API reads the snapshot, not the event stream, so the
+        // restore verdict goes into the message the poller reads: with the
+        // pause reason alone on screen and the mount untracked, the
+        // operator's Resume exposed on a drifting mount.
+        let status = match &tracking_warning {
+            Some(warning) => format!("{pause_message} — {warning}"),
+            None => pause_message.clone(),
+        };
+        let paused = s.run_state.store(ExecutorState::Paused, |progress| {
+            progress.message = Some(status);
+        });
         *s.current_recovery.write() = None;
         // Surface the reason as a critical-event banner so the operator (and any
         // push channel) sees why the run stopped.
-        let _ = s.event_tx.send(ExecutorEvent::Error {
+        let _ = event_tx.send(ExecutorEvent::Error {
             message: pause_message,
         });
-        let _ = s
-            .event_tx
-            .send(ExecutorEvent::StateChanged(ExecutorState::Paused));
+        paused.announce();
         // Close out the recovery banner — the loop ended, it did not give up (no
         // park/fail), it handed off to a Pause.
-        let _ = s.event_tx.send(ExecutorEvent::RecoveryCompleted {
+        let _ = event_tx.send(ExecutorEvent::RecoveryCompleted {
             context: Box::new(ctx.clone()),
         });
     }

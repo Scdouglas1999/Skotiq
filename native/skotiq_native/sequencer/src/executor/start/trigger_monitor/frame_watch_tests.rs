@@ -6,6 +6,7 @@
 use super::dispatch::Dispatcher;
 use super::frame_watch::{FrameWatchStage, Measurer, TARGET_DRIFT_TRIGGER_ID};
 use super::*;
+use crate::device_ops::MountOps;
 use crate::executor::scenario_sim_tests::ScriptedDeviceOps;
 use crate::frame_watch::assess::MeasuredFrame;
 use crate::frame_watch::fixture::{
@@ -66,19 +67,16 @@ impl Harness {
             let lock = manager.state();
             let mut s = lock.write().await;
             s.set_target(TARGET_RA_DEG, TARGET_DEC_DEG);
-            s.current_target_name = Some("NGC0891".to_string());
-            s.weather_safe = true;
+            s.target.current_target_name = Some("NGC0891".to_string());
+            s.telemetry.weather_safe = true;
         }
         let (events, seen) = broadcast::channel(4096);
         let (decisions, _) = broadcast::channel(4096);
         let (requests, _recovery) = mpsc::channel(4);
-        let (done, _) = watch::channel(false);
-        let (_, quiesced) = watch::channel(true);
-        let (heartbeat, _) = watch::channel(0);
-        let runtime_config = RuntimeConfig {
+        let runtime_config = RunConfig {
             latitude: Some(SITE_LAT),
             longitude: Some(SITE_LON),
-            ..RuntimeConfig::default()
+            ..RunConfig::default()
         };
         // Each frame is "measured" from the night's logged solve.
         let solves: HashMap<String, Row> = frames
@@ -101,42 +99,27 @@ impl Harness {
         });
         let stage =
             FrameWatchStage::with_measurer(events.subscribe(), measurer, Some(plan.clone()));
-        let dispatcher = Dispatcher::new(TriggerMonitorArgs {
-            active_run_id_for_decisions: Arc::new(StdRwLock::new(None)),
-            cloud_motion_for_recovery: Arc::new(RwLock::new(CloudMotionSnapshot::default())),
-            custom_recovery_branches_for_triggers: Arc::new(HashMap::new()),
-            custom_recovery_context_for_triggers: ExecutionContext::new("root".into(), ops.clone()),
-            decision_tx_for_lifecycle: decisions,
-            device_ops_for_triggers: ops.clone(),
-            event_tx_clone2: events.clone(),
-            execution_quiesced_for_triggers: quiesced,
-            heartbeat_tx: heartbeat,
-            is_cancelled_clone: Arc::new(AtomicBool::new(false)),
-            is_paused_for_triggers: Arc::new(AtomicBool::new(false)),
-            meridian_flip_failed_for_triggers: Arc::new(AtomicBool::new(false)),
-            meridian_flip_failure_for_triggers: Arc::new(StdRwLock::new(None)),
-            park_and_abort_done_for_triggers: done,
-            park_and_abort_for_triggers: Arc::new(AtomicBool::new(false)),
-            progress_for_triggers: Arc::new(StdRwLock::new(SequenceProgress::default())),
-            recovery_request_tx: requests,
-            runtime_config: Arc::new(StdRwLock::new(runtime_config)),
-            sequence_for_custom_recovery_triggers: Some(plan),
-            skip_to_next_target_for_triggers: Arc::new(AtomicBool::new(false)),
-            skip_to_node_for_recovery: Arc::new(StdRwLock::new(None)),
-            state_clone: Arc::new(RwLock::new(ExecutorState::Running)),
-            transparency_backup_for_recovery: Arc::new(RwLock::new(None)),
-            trigger_action_context: TriggerActionContext {
-                mount_id: Some("mount".into()),
-                camera_id: Some("camera".into()),
-                latitude: Some(SITE_LAT),
-                longitude: Some(SITE_LON),
-                ..Default::default()
-            },
-            trigger_action_in_flight_for_triggers: Arc::new(AtomicBool::new(false)),
-            trigger_manager: Arc::new(RwLock::new(manager)),
-            triggers_enabled: true,
-            finish_frames: watch::channel(false).1,
-        })
+        let mut run = Run::detached(
+            ops.clone(),
+            RunCell::starting_in(events.clone(), ExecutorState::Running),
+        );
+        run.decisions.tx = decisions;
+        run.config = RunConfigStore::new(runtime_config);
+        run.plan.sequence = Some(plan);
+        run.triggers = Arc::new(RwLock::new(manager));
+        run.rig = RunRig {
+            mount_id: Some("mount".into()),
+            camera_id: Some("camera".into()),
+            latitude: Some(SITE_LAT),
+            longitude: Some(SITE_LON),
+            ..Default::default()
+        };
+        run.teardown.node_tree_has_ended();
+        let dispatcher = Dispatcher::new(
+            &run,
+            ExecutionContext::new("root".into(), ops.clone()),
+            requests,
+        )
         .await;
         Self {
             dispatcher,
@@ -316,6 +299,7 @@ async fn the_night_replayed_recenters_without_learning_an_unverified_obstruction
                 .trigger_state
                 .read()
                 .await
+                .latches
                 .autofocus_hold
                 .is_some()
         {
@@ -464,6 +448,7 @@ async fn the_last_frame_of_a_target_holds_autofocus_after_the_run_moves_on() {
         .trigger_state
         .read()
         .await
+        .latches
         .autofocus_hold
         .is_none());
 
@@ -471,7 +456,7 @@ async fn the_last_frame_of_a_target_holds_autofocus_after_the_run_moves_on() {
     {
         let mut state = h.dispatcher.rig.trigger_state.write().await;
         state.set_target(8.8567 * 15.0, 11.8);
-        state.current_target_name = Some("M67".to_string());
+        state.target.current_target_name = Some("M67".to_string());
     }
     let mut last = row(706);
     assert_eq!(last.stars, Some(1));
@@ -485,6 +470,7 @@ async fn the_last_frame_of_a_target_holds_autofocus_after_the_run_moves_on() {
         .trigger_state
         .read()
         .await
+        .latches
         .autofocus_hold
         .clone();
     assert_eq!(
@@ -530,9 +516,9 @@ async fn drift_from_first_frame_runs_centering_to_that_reference() {
     // Center's final solve is reported to trigger state, proving the actual
     // instruction received the measured reference rather than catalog Dec.
     let state = h.dispatcher.rig.trigger_state.read().await;
-    assert_eq!(state.last_plate_solve_dec, Some(reference_dec));
+    assert_eq!(state.target.last_plate_solve_dec, Some(reference_dec));
     assert_eq!(
-        state.target_dec,
+        state.target.target_dec,
         Some(TARGET_DEC_DEG),
         "the planned target stays unchanged"
     );
@@ -644,7 +630,7 @@ async fn probe_return_does_not_release_capture_before_recentering() {
         tokio::select! {
             _ = &mut recovery => {},
             _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {
-                assert!(state.write().await.try_claim_imaging_train("next light", 120.0).is_none());
+                assert!(state.write().await.imaging_train.try_claim("next light", 120.0).is_none());
                 recovery.await;
             }
         }
@@ -657,7 +643,8 @@ async fn probe_return_does_not_release_capture_before_recentering() {
     assert!(state
         .write()
         .await
-        .try_claim_imaging_train("next light", 120.0)
+        .imaging_train
+        .try_claim("next light", 120.0)
         .is_some());
 }
 
@@ -701,7 +688,6 @@ async fn unverified_pointing_on_new_pier_side_cannot_be_learned_as_horizon() {
 
 #[tokio::test(start_paused = true)]
 async fn refused_probe_return_honors_failure_policy_without_exposing() {
-    use crate::device_ops::DeviceOps;
     for action in [
         crate::FlipFailureAction::PauseAndAlert,
         crate::FlipFailureAction::AbortAndPark,
@@ -749,6 +735,6 @@ async fn refused_probe_return_honors_failure_policy_without_exposing() {
             "{:?}",
             h.ops.calls()
         );
-        assert!(state.read().await.imaging_train_hold().is_some());
+        assert!(state.read().await.imaging_train.hold().is_some());
     }
 }

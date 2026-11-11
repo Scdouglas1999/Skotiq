@@ -159,7 +159,7 @@ pub(crate) async fn apply_filter_focus_offset(
     // time). Move by the DELTA between the new offset and the one currently
     // embodied so the focuser always lands at reference_focus + offset_new.
     let last_applied = match &ctx.trigger_state {
-        Some(ts) => ts.read().await.last_applied_filter_offset,
+        Some(ts) => ts.read().await.latches.last_applied_filter_offset,
         None => 0,
     };
     let delta = offset_new - last_applied;

@@ -117,7 +117,7 @@ impl InstructionNode for ExposeInstruction {
         // sky-brightness adaptive exposure decision.
         // Resolve the effective config (per-node wins, else runtime
         // global default) and consult the live sky-brightness reading
-        // pushed in via `ExecutorCommand::UpdateSkyBrightness`. The
+        // pushed in via `SequenceExecutor::update_sky_brightness`. The
         // decision is always produced even when the adapter is
         // disabled — the returned `adapted_secs` equals `nominal_secs`
         // in that case, and a structured event is only emitted when
@@ -347,7 +347,7 @@ impl InstructionNode for ExposeInstruction {
                 }
                 tracing::debug!(
                     "Updated trigger state exposure count: {}",
-                    trigger_state.completed_exposures
+                    trigger_state.latches.completed_exposures
                 );
             }
 
@@ -892,6 +892,7 @@ pub(crate) async fn check_exposure_triggers(
         // guiding to judge.
         let trigger_state = trigger_state_lock.read().await;
         trigger_state
+            .latches
             .guiding_rms_history
             .as_ref()
             .filter(|_| !trigger_state.guiding.is_unguided())
@@ -1557,11 +1558,11 @@ mod tests {
         let bias = ExposeInstruction
             .execute("expose-bias", &burst("bias", 2), &mut ctx)
             .await;
-        let after_calibration = trigger_state.read().await.completed_exposures;
+        let after_calibration = trigger_state.read().await.latches.completed_exposures;
         let light = ExposeInstruction
             .execute("expose-light", &burst("light", 2), &mut ctx)
             .await;
-        let after_light = trigger_state.read().await.completed_exposures;
+        let after_light = trigger_state.read().await.latches.completed_exposures;
         let _ = std::fs::remove_dir_all(&dir);
 
         assert_eq!(

@@ -25,7 +25,6 @@
 //! single entry point for everything else.
 
 use super::SequenceExecutor;
-use std::sync::atomic::Ordering;
 
 impl SequenceExecutor {
     /// Subscribe to the structured decision channel. Used by the bridge
@@ -66,20 +65,6 @@ impl SequenceExecutor {
     /// Read the currently-active sequence_runs id. `None` between runs.
     pub fn active_sequence_run_id(&self) -> Option<i64> {
         *self.active_sequence_run_id.read()
-    }
-
-    /// Runtime toggle for decision emission. When `false`, every emit
-    /// site short-circuits before allocating an event. Wired to the
-    /// `decisionLoggingEnabled` app setting.
-    pub fn set_decision_logging_enabled(&self, enabled: bool) {
-        self.decision_logging_enabled
-            .store(enabled, Ordering::Relaxed);
-    }
-
-    /// Read the runtime toggle. Cheap atomic load — safe to call from
-    /// every emit site.
-    pub fn decision_logging_enabled(&self) -> bool {
-        self.decision_logging_enabled.load(Ordering::Relaxed)
     }
 
     /// Emit a decision into the broadcast channel. Stamps the active

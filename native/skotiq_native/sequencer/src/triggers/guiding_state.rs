@@ -2,6 +2,15 @@
 //! armed, whether its star is lost, whether the run has gone on unguided, and
 //! the mount moves that interrupt guiding.
 
+/// The checkpointed fields of [`GuidingState`], under the names the checkpoint
+/// file has always used.
+#[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct GuidingSnapshot {
+    pub guiding_enabled: bool,
+    pub guide_star_lost: bool,
+}
+
 /// Guiding bookkeeping for the run.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct GuidingState {
@@ -227,6 +236,17 @@ impl GuidingState {
             }
         }
         GuiderObservation::Unchanged
+    }
+
+    pub fn snapshot(&self) -> GuidingSnapshot {
+        GuidingSnapshot {
+            guiding_enabled: self.enabled,
+            guide_star_lost: self.star_lost,
+        }
+    }
+
+    pub fn restore_snapshot(&mut self, snapshot: &GuidingSnapshot) {
+        self.restore(snapshot.guiding_enabled, snapshot.guide_star_lost);
     }
 
     /// Restore the checkpointed latches without logging edges that already

@@ -162,7 +162,7 @@ async fn cool_node_with(temps: &[f64], stop_on_quality_problems: bool) -> CoolRu
     ec.device_ops = ops;
     ec.camera_id = Some("camera-1".to_string());
     let mut state = crate::triggers::TriggerState::new();
-    state.stop_on_quality_problems = stop_on_quality_problems;
+    state.settings.stop_on_quality_problems = stop_on_quality_problems;
     ec.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
     let (event_tx, mut events) = tokio::sync::broadcast::channel(64);
     ec.event_tx = Some(event_tx);

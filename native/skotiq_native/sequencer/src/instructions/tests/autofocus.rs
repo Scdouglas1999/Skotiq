@@ -682,6 +682,7 @@ async fn the_guider_restart_after_autofocus_refuses_a_star_below_the_runs_guide_
         .expect("pointing_ctx wires a trigger state")
         .write()
         .await
+        .target
         .guide_star_reference = Some(reference);
 
     let result = resume_guiding_after_autofocus(&ctx, InstructionResult::success()).await;

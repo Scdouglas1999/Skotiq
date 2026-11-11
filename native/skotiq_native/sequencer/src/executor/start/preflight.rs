@@ -31,7 +31,7 @@ impl SequenceExecutor {
             for end in &rolled {
                 let message = end.message();
                 tracing::warn!("{}", message);
-                let _ = self.event_tx.send(ExecutorEvent::Warning { message });
+                self.run_state.emit(ExecutorEvent::Warning { message });
             }
         }
         if let Some(refusal) = self
@@ -73,17 +73,7 @@ impl SequenceExecutor {
             // Re-seed from the retained sequence (reset deliberately keeps
             // `self.sequence` so the same tree can be re-run).
             if let Some(sequence) = self.sequence.as_ref() {
-                let (total_exposures, total_integration, indeterminate) =
-                    self.calculate_totals(sequence);
-                let mut progress = self.progress.write();
-                if indeterminate {
-                    progress.total_exposures = 0;
-                    progress.total_integration_secs = 0.0;
-                    progress.estimated_remaining_secs = None;
-                } else {
-                    progress.total_exposures = total_exposures;
-                    progress.total_integration_secs = total_integration;
-                }
+                self.publish_totals(sequence);
             }
         }
 
@@ -153,7 +143,7 @@ impl SequenceExecutor {
         if !unreachable_instruction_names.is_empty() {
             let message = unreachable_instructions_message(&unreachable_instruction_names);
             tracing::error!("{}", message);
-            let _ = self.event_tx.send(ExecutorEvent::Error { message });
+            self.run_state.emit(ExecutorEvent::Error { message });
         }
 
         // Plate-solve preflight. If the sequence centers on a target it needs a
@@ -183,7 +173,7 @@ impl SequenceExecutor {
         let meridian_auto_centers = {
             let manager = self.trigger_manager.read().await;
             manager
-                .get_trigger("meridian_flip")
+                .standard(StandardTrigger::MeridianFlip)
                 .filter(|t| t.enabled)
                 .and_then(|t| match &t.trigger_type {
                     TriggerType::MeridianFlip { config } => Some(config.auto_center),
@@ -201,7 +191,7 @@ impl SequenceExecutor {
             // probably finish. Sent as `Error`, this sentence gave a completed
             // 3/3 darks run a "Sequence failed / Sequence aborted" toast, a
             // Critical alert, and a red Errors section in its Session Report.
-            let _ = self.event_tx.send(ExecutorEvent::Warning {
+            self.run_state.emit(ExecutorEvent::Warning {
                 message: "The meridian-flip trigger is set to re-center after a flip, but no \
                           plate solver (ASTAP or solve-field) was found on this system. If the \
                           flip fires it will retry and fail against a solver that is not there, \
@@ -245,7 +235,7 @@ impl SequenceExecutor {
                 // in this sequence will fail") and is then contradicted by the
                 // run it warned about teaches the operator to skip the next
                 // one.
-                let _ = self.event_tx.send(ExecutorEvent::Warning {
+                self.run_state.emit(ExecutorEvent::Warning {
                     message: "Plate-solve setup: no ASTAP star catalog was found next to the \
                           detected ASTAP executable, in the folder set in Settings → Plate \
                           Solving, or in the usual install locations. If you are solving with \

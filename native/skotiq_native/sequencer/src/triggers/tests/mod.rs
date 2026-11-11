@@ -19,7 +19,7 @@ async fn test_hfr_trigger_relative() {
     );
 
     let mut state = TriggerState::new();
-    state.baseline_hfr = Some(2.0);
+    state.latches.baseline_hfr = Some(2.0);
 
     // No change - should not trigger. update_hfr keeps the pre-set
     // baseline (only sets it when None) and advances the per-frame
@@ -101,15 +101,15 @@ async fn test_dawn_approaching_fires_only_within_upcoming_window() {
     let now = chrono::Utc::now().timestamp();
 
     // Dawn 60 min out, 30 min window -> not yet.
-    state.dawn_time = Some(now + 60 * 60);
+    state.telemetry.dawn_time = Some(now + 60 * 60);
     assert!(!trigger.check(&state).await);
 
     // Dawn 15 min out -> within the 30 min window -> fire.
-    state.dawn_time = Some(now + 15 * 60);
+    state.telemetry.dawn_time = Some(now + 15 * 60);
     assert!(trigger.check(&state).await);
 
     // Dawn already passed -> must NOT fire (would otherwise fire all day).
-    state.dawn_time = Some(now - 60);
+    state.telemetry.dawn_time = Some(now - 60);
     assert!(!trigger.check(&state).await);
 }
 
@@ -200,11 +200,11 @@ async fn test_altitude_trigger() {
     let mut state = TriggerState::new();
 
     // Above limit - should not trigger
-    state.current_altitude = Some(45.0);
+    state.target.current_altitude = Some(45.0);
     assert!(!trigger.check(&state).await);
 
     // Below limit - should trigger
-    state.current_altitude = Some(25.0);
+    state.target.current_altitude = Some(25.0);
     assert!(trigger.check(&state).await);
 }
 
@@ -222,11 +222,12 @@ async fn test_guiding_failed_trigger() {
     );
 
     let mut state = TriggerState::new();
-    state.guiding_rms_history = Some(Vec::new());
+    state.latches.guiding_rms_history = Some(Vec::new());
 
     // A single fresh spike is not evidence that guiding has been bad for
     // the configured ten-second debounce window.
     state
+        .latches
         .guiding_rms_history
         .as_mut()
         .unwrap()
@@ -239,7 +240,7 @@ async fn test_guiding_failed_trigger() {
     // Two bad samples spanning the full window establish a sustained bad
     // run and must trip the trigger.
     let now = Instant::now();
-    state.guiding_rms_history = Some(vec![
+    state.latches.guiding_rms_history = Some(vec![
         (now - Duration::from_secs(11), 2.5),
         (now - Duration::from_secs(5), 2.7),
         (now, 2.8),
@@ -272,10 +273,10 @@ async fn guiding_rms_fed_by_the_monitor_reaches_guiding_failed_and_ages_out() {
     // Bad guiding for the last 20 s: one sample recorded earlier by the same
     // path, one arriving now.
     state.update_guiding_rms(2.6);
-    let history = state.guiding_rms_history.as_mut().unwrap();
+    let history = state.latches.guiding_rms_history.as_mut().unwrap();
     history[0].0 = Instant::now() - Duration::from_secs(20);
     state.update_guiding_rms(2.9);
-    assert_eq!(state.guiding_rms_history.as_ref().unwrap().len(), 2);
+    assert_eq!(state.latches.guiding_rms_history.as_ref().unwrap().len(), 2);
     assert!(
         trigger.check(&state).await,
         "20 s of RMS above threshold, fed through the monitor's path, must trip"
@@ -286,9 +287,10 @@ async fn guiding_rms_fed_by_the_monitor_reaches_guiding_failed_and_ages_out() {
     let mut state = TriggerState::new();
     state.set_guiding_rms_retention_secs(60);
     state.update_guiding_rms(2.6);
-    state.guiding_rms_history.as_mut().unwrap()[0].0 = Instant::now() - Duration::from_secs(3600);
+    state.latches.guiding_rms_history.as_mut().unwrap()[0].0 =
+        Instant::now() - Duration::from_secs(3600);
     state.update_guiding_rms(2.9);
-    let history = state.guiding_rms_history.as_ref().unwrap();
+    let history = state.latches.guiding_rms_history.as_ref().unwrap();
     assert_eq!(history.len(), 1, "the hour-old sample must be trimmed");
     assert_eq!(history[0].1, 2.9);
     assert!(!trigger.check(&state).await);
@@ -360,7 +362,7 @@ async fn a_failed_autofocus_attempt_defers_the_next_interval_by_a_full_cadence()
     // focus and the anchor moves anyway.
     state.mark_autofocus_attempted();
 
-    assert!(!state.autofocus_invalidated);
+    assert!(!state.latches.autofocus_invalidated);
     for _ in 0..9 {
         state.increment_exposure_count();
         assert!(
@@ -417,8 +419,8 @@ async fn test_autofocus_interval_resume_counter_does_not_underflow() {
     );
 
     let mut state = TriggerState::new();
-    state.completed_exposures = 3;
-    state.last_autofocus_frame = 10;
+    state.latches.completed_exposures = 3;
+    state.latches.last_autofocus_frame = 10;
 
     assert!(!trigger.check(&state).await);
 }
@@ -433,8 +435,8 @@ async fn test_dither_interval_resume_counter_does_not_underflow() {
     );
 
     let mut state = TriggerState::new();
-    state.completed_exposures = 2;
-    state.last_dither_frame = 8;
+    state.latches.completed_exposures = 2;
+    state.latches.last_dither_frame = 8;
 
     assert!(!trigger.check(&state).await);
 }
@@ -451,11 +453,11 @@ async fn test_weather_unsafe_trigger() {
     let mut state = TriggerState::new();
 
     // Safe weather - should not trigger
-    state.weather_safe = true;
+    state.telemetry.weather_safe = true;
     assert!(!trigger.check(&state).await);
 
     // Unsafe weather - should trigger
-    state.weather_safe = false;
+    state.telemetry.weather_safe = false;
     assert!(trigger.check(&state).await);
 }
 
@@ -475,7 +477,7 @@ async fn test_weather_unsafe_trigger_honours_dart_verdict() {
     let mut state = TriggerState::new();
 
     // Hardware reports SAFE, verdict abstains (None) -> overall SAFE.
-    state.weather_safe = true;
+    state.telemetry.weather_safe = true;
     state.update_weather_verdict(None);
     assert!(
         !trigger.check(&state).await,
@@ -484,7 +486,7 @@ async fn test_weather_unsafe_trigger_honours_dart_verdict() {
 
     // Hardware reports SAFE, but the Dart verdict computed UNSAFE -> the
     // trigger MUST fire (this is the rig-without-a-safety-device path).
-    state.weather_safe = true;
+    state.telemetry.weather_safe = true;
     state.update_weather_verdict(Some(true));
     assert!(
         trigger.check(&state).await,
@@ -493,7 +495,7 @@ async fn test_weather_unsafe_trigger_honours_dart_verdict() {
 
     // Hardware reports SAFE and the Dart verdict explicitly computed SAFE
     // -> overall SAFE (verdict never spuriously fires).
-    state.weather_safe = true;
+    state.telemetry.weather_safe = true;
     state.update_weather_verdict(Some(false));
     assert!(
         !trigger.check(&state).await,
@@ -502,7 +504,7 @@ async fn test_weather_unsafe_trigger_honours_dart_verdict() {
 
     // Hardware reports UNSAFE and the Dart verdict says SAFE -> the verdict
     // must NOT make the rig less safe than the hardware reading.
-    state.weather_safe = false;
+    state.telemetry.weather_safe = false;
     state.update_weather_verdict(Some(false));
     assert!(
         trigger.check(&state).await,
@@ -531,7 +533,7 @@ async fn test_weather_unsafe_abstain_does_not_suppress_hardware_abort() {
     // Operator opted out of weather-driven aborts => Dart abstains (None).
     // The hardware safety device nonetheless reads UNSAFE. The trigger MUST
     // still fire: a disabled toggle can never gag a hardware-unsafe device.
-    state.weather_safe = false;
+    state.telemetry.weather_safe = false;
     state.update_weather_verdict(None);
     assert!(
         trigger.check(&state).await,
@@ -540,7 +542,7 @@ async fn test_weather_unsafe_abstain_does_not_suppress_hardware_abort() {
 
     // And when the hardware also reads safe under abstain, nothing fires —
     // abstain is genuinely non-asserting, not a stuck-unsafe.
-    state.weather_safe = true;
+    state.telemetry.weather_safe = true;
     state.update_weather_verdict(None);
     assert!(
         !trigger.check(&state).await,
@@ -592,7 +594,7 @@ async fn weather_unsafe_gate_full_matrix_verdict_x_hardware() {
     for verdict in verdicts {
         // Hardware safe
         let mut state = TriggerState::new();
-        state.weather_safe = true;
+        state.telemetry.weather_safe = true;
         state.update_weather_verdict(verdict);
         assert_eq!(
             trigger.check(&state).await,
@@ -602,7 +604,7 @@ async fn weather_unsafe_gate_full_matrix_verdict_x_hardware() {
 
         // Hardware unsafe
         let mut state = TriggerState::new();
-        state.weather_safe = false;
+        state.telemetry.weather_safe = false;
         state.update_weather_verdict(verdict);
         assert!(
             trigger.check(&state).await,
@@ -618,7 +620,7 @@ async fn weather_unsafe_gate_full_matrix_verdict_x_hardware() {
         ] {
             let resolved = resolve_unavailable(mode, prior);
             let mut state = TriggerState::new();
-            state.weather_safe = resolved;
+            state.telemetry.weather_safe = resolved;
             state.update_weather_verdict(verdict);
             let expected = !resolved || verdict == Some(true);
             assert_eq!(
@@ -636,7 +638,7 @@ async fn weather_unsafe_gate_full_matrix_verdict_x_hardware() {
     // unsafe hardware state — including unavailable under FailClosed — can
     // be declared safe via the verdict.
     let mut state = TriggerState::new();
-    state.weather_safe = resolve_unavailable(SafetyFailMode::FailClosed, true);
+    state.telemetry.weather_safe = resolve_unavailable(SafetyFailMode::FailClosed, true);
     state.update_weather_verdict(None);
     assert!(
         trigger.check(&state).await,
@@ -661,7 +663,7 @@ async fn weather_verdict_stale_unsafe_stays_unsafe_and_is_detected() {
     let mut state = TriggerState::new();
     // Hardware reads safe; only the Dart verdict asserts UNSAFE (the
     // rig-without-a-safety-device path).
-    state.weather_safe = true;
+    state.telemetry.weather_safe = true;
     state.update_weather_verdict(Some(true));
 
     // Immediately after the push it is fresh: not stale, but still unsafe.
@@ -676,7 +678,8 @@ async fn weather_verdict_stale_unsafe_stays_unsafe_and_is_detected() {
 
     // Force the push timestamp into the past so the verdict is now stale.
     // We do NOT touch `weather_verdict_unsafe` — staleness must not clear it.
-    state.weather_verdict_last_update = Some(stale_instant(std::time::Duration::from_secs(120)));
+    state.telemetry.weather_verdict_last_update =
+        Some(stale_instant(std::time::Duration::from_secs(120)));
 
     // Stale-AND-unsafe: predicate true with a 60s window.
     assert!(
@@ -685,7 +688,7 @@ async fn weather_verdict_stale_unsafe_stays_unsafe_and_is_detected() {
     );
     // CRITICAL: the trigger STILL fires — staleness holds paused, never resumes.
     assert!(
-        state.weather_verdict_unsafe == Some(true),
+        state.telemetry.weather_verdict_unsafe == Some(true),
         "staleness must NOT clear the unsafe verdict"
     );
     assert!(
@@ -735,7 +738,8 @@ async fn weather_verdict_staleness_only_applies_to_unsafe() {
 
     // Stale SAFE verdict -> not stale-unsafe (nothing is being held).
     state.update_weather_verdict(Some(false));
-    state.weather_verdict_last_update = Some(stale_instant(std::time::Duration::from_secs(10_000)));
+    state.telemetry.weather_verdict_last_update =
+        Some(stale_instant(std::time::Duration::from_secs(10_000)));
     assert!(
         !state.is_weather_verdict_stale_unsafe(60),
         "a stale SAFE verdict must not read as stale-unsafe"
@@ -743,7 +747,8 @@ async fn weather_verdict_staleness_only_applies_to_unsafe() {
 
     // Stale abstain -> not stale-unsafe.
     state.update_weather_verdict(None);
-    state.weather_verdict_last_update = Some(stale_instant(std::time::Duration::from_secs(10_000)));
+    state.telemetry.weather_verdict_last_update =
+        Some(stale_instant(std::time::Duration::from_secs(10_000)));
     assert!(
         !state.is_weather_verdict_stale_unsafe(60),
         "a stale abstain must not read as stale-unsafe"
@@ -760,18 +765,18 @@ async fn test_temperature_shift_trigger() {
     );
 
     let mut state = TriggerState::new();
-    state.baseline_temperature = Some(10.0);
+    state.latches.baseline_temperature = Some(10.0);
 
     // Small change - should not trigger
-    state.current_temperature = Some(11.0);
+    state.latches.current_temperature = Some(11.0);
     assert!(!trigger.check(&state).await);
 
     // Large change - should trigger
-    state.current_temperature = Some(13.0);
+    state.latches.current_temperature = Some(13.0);
     assert!(trigger.check(&state).await);
 
     // Negative change - should also trigger
-    state.current_temperature = Some(7.5);
+    state.latches.current_temperature = Some(7.5);
     assert!(trigger.check(&state).await);
 }
 
@@ -862,8 +867,8 @@ async fn test_trigger_cooldown() {
     .with_cooldown(2); // 2 second cooldown
 
     let mut state = TriggerState::new();
-    state.baseline_hfr = Some(2.0);
-    state.current_hfr = Some(2.5);
+    state.latches.baseline_hfr = Some(2.0);
+    state.latches.current_hfr = Some(2.5);
 
     // First check - should trigger, and its action is dispatched
     assert!(trigger.check(&state).await);
@@ -900,7 +905,7 @@ async fn a_firing_that_is_not_dispatched_does_not_start_the_cooldown() {
     {
         let state = manager.state();
         let mut state = state.write().await;
-        state.baseline_hfr = Some(2.0);
+        state.latches.baseline_hfr = Some(2.0);
         state.update_hfr(2.5);
     }
 
@@ -943,9 +948,9 @@ async fn test_trigger_manager() {
     {
         let state_lock = manager.state();
         let mut state = state_lock.write().await;
-        state.baseline_hfr = Some(2.0);
-        state.current_hfr = Some(2.6); // 30% increase - should trigger
-        state.current_altitude = Some(25.0); // Below limit - should trigger
+        state.latches.baseline_hfr = Some(2.0);
+        state.latches.current_hfr = Some(2.6); // 30% increase - should trigger
+        state.target.current_altitude = Some(25.0); // Below limit - should trigger
     }
 
     // Check all triggers
@@ -961,29 +966,29 @@ async fn test_trigger_manager() {
 async fn test_exposure_count_tracking() {
     let mut state = TriggerState::new();
 
-    assert_eq!(state.completed_exposures, 0);
-    assert_eq!(state.last_autofocus_frame, 0);
-    assert_eq!(state.last_dither_frame, 0);
+    assert_eq!(state.latches.completed_exposures, 0);
+    assert_eq!(state.latches.last_autofocus_frame, 0);
+    assert_eq!(state.latches.last_dither_frame, 0);
 
     // Simulate completing 10 exposures
     for _ in 0..10 {
         state.increment_exposure_count();
     }
-    assert_eq!(state.completed_exposures, 10);
+    assert_eq!(state.latches.completed_exposures, 10);
 
     // Perform autofocus
     state.mark_autofocus_performed();
-    assert_eq!(state.last_autofocus_frame, 10);
+    assert_eq!(state.latches.last_autofocus_frame, 10);
 
     // Complete more exposures
     for _ in 0..5 {
         state.increment_exposure_count();
     }
-    assert_eq!(state.completed_exposures, 15);
+    assert_eq!(state.latches.completed_exposures, 15);
 
     // Perform dither
     state.mark_dither_performed();
-    assert_eq!(state.last_dither_frame, 15);
+    assert_eq!(state.latches.last_dither_frame, 15);
 }
 
 #[tokio::test]
@@ -992,18 +997,18 @@ async fn test_hfr_baseline_reset() {
 
     // Initial HFR
     state.update_hfr(2.5);
-    assert_eq!(state.baseline_hfr, Some(2.5));
-    assert_eq!(state.current_hfr, Some(2.5));
+    assert_eq!(state.latches.baseline_hfr, Some(2.5));
+    assert_eq!(state.latches.current_hfr, Some(2.5));
 
     // HFR changes
     state.update_hfr(3.0);
-    assert_eq!(state.baseline_hfr, Some(2.5)); // Baseline stays
-    assert_eq!(state.current_hfr, Some(3.0));
+    assert_eq!(state.latches.baseline_hfr, Some(2.5)); // Baseline stays
+    assert_eq!(state.latches.current_hfr, Some(3.0));
 
     // Reset baseline
     state.reset_baseline_hfr();
-    assert_eq!(state.baseline_hfr, Some(3.0)); // Baseline updated
-    assert_eq!(state.current_hfr, Some(3.0));
+    assert_eq!(state.latches.baseline_hfr, Some(3.0)); // Baseline updated
+    assert_eq!(state.latches.current_hfr, Some(3.0));
 }
 
 // OnTrackingLimitHit trigger tests
@@ -1015,12 +1020,12 @@ fn make_limit_hit_state() -> TriggerState {
     // the flip trigger now requires one.
     state.set_target(270.0, 60.0);
     state.tracking.restore(true, true, None);
-    state.mount_is_tracking = Some(false);
-    state.mount_status_query_failed = false;
-    state.mount_slewing = Some(false);
-    state.mount_parked = Some(false);
-    state.current_hour_angle = Some(1.5); // 1.5h past meridian
-    state.pier_side = Some(PierSide::West); // Pre-flip side
+    state.telemetry.mount_is_tracking = Some(false);
+    state.telemetry.mount_status_query_failed = false;
+    state.telemetry.mount_slewing = Some(false);
+    state.telemetry.mount_parked = Some(false);
+    state.target.current_hour_angle = Some(1.5); // 1.5h past meridian
+    state.telemetry.pier_side = Some(PierSide::West); // Pre-flip side
     state
         .tracking
         .set_limit_detected_at(Some(chrono::Utc::now().timestamp() - 600)); // 10 min ago
@@ -1135,7 +1140,7 @@ async fn test_on_tracking_limit_hit_connection_lost() {
     );
 
     let mut state = make_limit_hit_state();
-    state.mount_status_query_failed = true; // Connection lost
+    state.telemetry.mount_status_query_failed = true; // Connection lost
     assert!(
         !trigger.check(&state).await,
         "Should NOT trigger - mount disconnected"
@@ -1157,7 +1162,7 @@ async fn test_on_tracking_limit_hit_wrong_pier_side() {
     );
 
     let mut state = make_limit_hit_state();
-    state.pier_side = Some(PierSide::East); // Already on post-flip side
+    state.telemetry.pier_side = Some(PierSide::East); // Already on post-flip side
     assert!(
         !trigger.check(&state).await,
         "Should NOT trigger - already on East side"
@@ -1179,7 +1184,7 @@ async fn test_on_tracking_limit_hit_negative_ha() {
     );
 
     let mut state = make_limit_hit_state();
-    state.current_hour_angle = Some(-2.0); // East of meridian
+    state.target.current_hour_angle = Some(-2.0); // East of meridian
     assert!(
         !trigger.check(&state).await,
         "Should NOT trigger - target east of meridian"
@@ -1201,7 +1206,7 @@ async fn test_on_tracking_limit_hit_mount_slewing() {
     );
 
     let mut state = make_limit_hit_state();
-    state.mount_slewing = Some(true); // Mount is slewing
+    state.telemetry.mount_slewing = Some(true); // Mount is slewing
     assert!(
         !trigger.check(&state).await,
         "Should NOT trigger - mount is slewing"
@@ -1241,7 +1246,8 @@ async fn test_mount_tracking_lost_defers_to_limit_hit() {
 
     let mut state = make_limit_hit_state();
     // Set OnTrackingLimitHit as the active method
-    state.meridian_trigger_method = Some(crate::MeridianTriggerMethod::OnTrackingLimitHit);
+    state.trigger_config.meridian_trigger_method =
+        Some(crate::MeridianTriggerMethod::OnTrackingLimitHit);
 
     // Heuristic matches limit hit → MountTrackingLost should NOT fire
     assert!(
@@ -1261,7 +1267,8 @@ async fn test_mount_tracking_lost_fires_when_not_limit_hit() {
 
     let mut state = TriggerState::new();
     state.tracking.restore(true, true, None);
-    state.meridian_trigger_method = Some(crate::MeridianTriggerMethod::OnTrackingLimitHit);
+    state.trigger_config.meridian_trigger_method =
+        Some(crate::MeridianTriggerMethod::OnTrackingLimitHit);
     // No HA data → heuristic fails → MountTrackingLost should fire
     assert!(
         trigger.check(&state).await,
@@ -1280,7 +1287,8 @@ async fn test_mount_tracking_lost_fires_with_different_trigger_method() {
 
     let mut state = make_limit_hit_state();
     // Not using OnTrackingLimitHit → MountTrackingLost should fire normally
-    state.meridian_trigger_method = Some(crate::MeridianTriggerMethod::MinutesPastMeridian);
+    state.trigger_config.meridian_trigger_method =
+        Some(crate::MeridianTriggerMethod::MinutesPastMeridian);
 
     assert!(
         trigger.check(&state).await,
@@ -1310,14 +1318,14 @@ async fn test_hfr_degraded_forces_autofocus_when_invalidated() {
 #[test]
 fn test_target_change_invalidates_autofocus() {
     let mut state = TriggerState::new();
-    state.current_target_name = Some("M31".to_string());
-    state.baseline_hfr = Some(2.0);
-    state.current_hfr = Some(2.2);
+    state.target.current_target_name = Some("M31".to_string());
+    state.latches.baseline_hfr = Some(2.0);
+    state.latches.current_hfr = Some(2.2);
 
     state.set_meridian_target("M42".to_string());
 
-    assert!(state.autofocus_invalidated);
-    assert_eq!(state.baseline_hfr, None);
+    assert!(state.latches.autofocus_invalidated);
+    assert_eq!(state.latches.baseline_hfr, None);
 }
 
 /// A filter change restarts the HFR baseline (filters do not share one) but
@@ -1330,15 +1338,15 @@ fn test_target_change_invalidates_autofocus() {
 #[test]
 fn test_filter_change_restarts_the_hfr_baseline_without_forcing_autofocus() {
     let mut state = TriggerState::new();
-    state.current_filter = Some("L".to_string());
-    state.baseline_hfr = Some(2.0);
-    state.current_hfr = Some(2.1);
+    state.latches.current_filter = Some("L".to_string());
+    state.latches.baseline_hfr = Some(2.0);
+    state.latches.current_hfr = Some(2.1);
 
     state.set_filter("Ha".to_string());
 
-    assert!(state.filter_changed);
-    assert!(!state.autofocus_invalidated);
-    assert_eq!(state.baseline_hfr, None);
+    assert!(state.latches.filter_changed);
+    assert!(!state.latches.autofocus_invalidated);
+    assert_eq!(state.latches.baseline_hfr, None);
 }
 
 #[tokio::test]
@@ -1381,11 +1389,11 @@ async fn test_on_tracking_limit_hit_uses_limit_time_without_hour_angle() {
     let mut state = TriggerState::new();
     state.set_target(270.0, 60.0);
     state.tracking.restore(true, true, None);
-    state.mount_is_tracking = Some(false);
-    state.mount_status_query_failed = false;
-    state.mount_slewing = Some(false);
-    state.mount_parked = Some(false);
-    state.mount_tracking_limit_time = Some(Utc::now().timestamp() - 5);
+    state.telemetry.mount_is_tracking = Some(false);
+    state.telemetry.mount_status_query_failed = false;
+    state.telemetry.mount_slewing = Some(false);
+    state.telemetry.mount_parked = Some(false);
+    state.telemetry.mount_tracking_limit_time = Some(Utc::now().timestamp() - 5);
 
     assert!(trigger.check(&state).await);
 }
@@ -1469,7 +1477,7 @@ async fn autofocus_attempt_consumes_old_hfr_but_requires_new_bad_frames() {
             RecoveryAction::Autofocus,
         );
         let mut state = TriggerState::new();
-        state.baseline_hfr = Some(2.0);
+        state.latches.baseline_hfr = Some(2.0);
         for _ in 0..3 {
             state.update_hfr(3.0);
             trigger.check(&state).await;

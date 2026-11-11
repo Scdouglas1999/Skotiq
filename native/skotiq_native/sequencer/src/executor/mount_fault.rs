@@ -19,7 +19,7 @@ impl SequenceExecutor {
     ///
     /// Returns `Ok(false)` when there is no run to hold.
     pub async fn hold_for_mount_fault(&self, message: &str) -> Result<bool, String> {
-        let state = *self.state.read().await;
+        let state = self.run_state.get();
         if !matches!(
             state,
             ExecutorState::Running | ExecutorState::Paused | ExecutorState::Recovering
@@ -29,8 +29,8 @@ impl SequenceExecutor {
         let trigger_state = self.trigger_manager.read().await.state();
         let run_guiding = {
             let mut ts = trigger_state.write().await;
-            ts.mount_fault_at = Some(chrono::Utc::now().timestamp());
-            ts.mount_fault_recenter_pending = true;
+            ts.latches.mount_fault_at = Some(chrono::Utc::now().timestamp());
+            ts.latches.mount_fault_recenter_pending = true;
             ts.guiding.is_enabled()
         };
         if let Some(tx) = &self.command_tx {
@@ -52,10 +52,7 @@ impl SequenceExecutor {
             ts.set_guide_star_lost(false);
             ts.guiding.set_resume_pending(true);
         }
-        {
-            let mut progress = self.progress.write();
-            progress.message = Some(format!("Paused: {message}"));
-        }
+        self.run_state.set_message(format!("Paused: {message}"));
         // No executor error: an error reads as the run failing, and the
         // device layer already raised the alarm with what the mount did.
         self.emit_manual_intervention("mount_fault_hold", serde_json::json!({ "reason": message }));

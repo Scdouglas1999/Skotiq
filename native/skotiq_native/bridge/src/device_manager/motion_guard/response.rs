@@ -572,7 +572,7 @@ pub async fn solve_for_recovery(
     let ops = crate::unified_device_ops::create_unified_device_ops();
     let exposure = exposure_secs.clamp(0.5, 60.0);
     let image = ops
-        .camera_start_exposure(&camera, exposure, None, None, 1, 1)
+        .camera_start_exposure(skotiq_sequencer::ExposureRequest::new(&camera, exposure))
         .await
         .map_err(|e| format!("The recovery frame failed: {e}"))?;
     let solved = tokio::time::timeout(

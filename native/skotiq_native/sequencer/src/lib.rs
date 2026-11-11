@@ -15,7 +15,7 @@ pub mod checkpoint;
 // and system event).
 pub mod decision;
 pub mod depth_goal;
-mod device_ops;
+pub mod device_ops;
 // Dual-rig / multi-camera synchronized imaging: dither-coordination barrier
 // + secondary capture-loop driver.
 pub mod dual_rig;
@@ -1852,7 +1852,7 @@ pub struct ExposureConfig {
     pub triggers: Vec<ExposureTrigger>,
     /// Image Grading: per-node image-quality thresholds. When
     /// `None`, the executor falls back to the global grading settings
-    /// installed in the runtime config (`RuntimeConfig::default_quality_check`).
+    /// installed in the runtime config (`RunConfig::default_quality_check`).
     /// `#[serde(default)]` keeps old sequence JSON loadable.
     #[serde(default)]
     pub quality_check: Option<crate::quality::ImageQualityCheck>,
@@ -1861,7 +1861,7 @@ pub struct ExposureConfig {
     /// reading at capture time and may extend (or shrink) the burst's
     /// per-frame duration to keep SNR roughly constant across changing
     /// sky conditions. `None` falls back to the runtime default
-    /// (`RuntimeConfig::default_adaptive_exposure`) and finally to using
+    /// (`RunConfig::default_adaptive_exposure`) and finally to using
     /// `duration_secs` as-is. `#[serde(default)]` keeps old JSON
     /// loadable without an adaptive section.
     #[serde(default)]
@@ -1925,7 +1925,7 @@ impl Binning {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AutofocusFilterConfig {
     /// Exposure override when this imaging filter is active.
     #[serde(default)]
@@ -1953,7 +1953,7 @@ impl Default for AutofocusFilterConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AutofocusConfig {
     #[serde(default)]
     pub method: AutofocusMethod,
@@ -2202,7 +2202,7 @@ pub enum DitherPattern {
     Grid,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DitherConfig {
     pub pixels: f64,
     pub settle_pixels: f64,
@@ -2282,9 +2282,9 @@ fn default_validate_calibration() -> bool {
 impl Default for StartGuidingConfig {
     fn default() -> Self {
         Self {
-            settle_pixels: 1.5,
-            settle_time: 10.0,
-            settle_timeout: 60.0,
+            settle_pixels: GuiderSettle::START_GUIDING.pixels,
+            settle_time: GuiderSettle::START_GUIDING.time_secs,
+            settle_timeout: GuiderSettle::START_GUIDING.timeout_secs,
             auto_select_star: true,
             max_calibration_axis_error_deg: default_max_cal_axis_error_deg(),
             max_post_settle_rms_pixels: default_max_post_settle_rms_pixels(),
@@ -2359,15 +2359,34 @@ pub struct GuiderSettle {
 
 impl Default for GuiderSettle {
     fn default() -> Self {
-        Self {
-            pixels: default_dither_settle_pixels(),
-            time_secs: default_dither_settle_time(),
-            timeout_secs: default_dither_settle_timeout(),
-        }
+        Self::DITHER
     }
 }
 
 impl GuiderSettle {
+    /// After a dither.
+    pub const DITHER: Self = Self {
+        pixels: 1.5,
+        time_secs: 30.0,
+        timeout_secs: 120.0,
+    };
+
+    /// A Start Guiding step.
+    pub const START_GUIDING: Self = Self {
+        pixels: 1.5,
+        time_secs: 10.0,
+        timeout_secs: 60.0,
+    };
+
+    /// Getting a lost guide star back. A reacquire that cannot settle inside
+    /// the timeout is a failure for the retry policy, not something to wait
+    /// on while the target drifts.
+    pub const REACQUIRE: Self = Self {
+        pixels: 2.0,
+        time_secs: 10.0,
+        timeout_secs: 120.0,
+    };
+
     /// The bar a planned restart of guiding (after autofocus or a flip)
     /// settles at: the looser of the guider and dither settle thresholds,
     /// so a restart never waits on a bar the rig cannot meet. Settle time
@@ -2405,15 +2424,15 @@ impl From<&DitherConfig> for GuiderSettle {
 }
 
 const fn default_dither_settle_pixels() -> f64 {
-    1.5
+    GuiderSettle::DITHER.pixels
 }
 
 const fn default_dither_settle_time() -> f64 {
-    30.0
+    GuiderSettle::DITHER.time_secs
 }
 
 const fn default_dither_settle_timeout() -> f64 {
-    120.0
+    GuiderSettle::DITHER.timeout_secs
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2521,7 +2540,7 @@ pub enum FlipFailureAction {
     AbortAndPark,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MeridianFlipConfig {
     // Trigger conditions
     pub trigger_method: MeridianTriggerMethod,
@@ -2622,19 +2641,18 @@ pub(crate) fn default_safety_action_retry_delay_secs() -> f64 {
     5.0
 }
 
-// Post-flip guider re-lock settle defaults. Numeric values match the executor
-// constants and StartGuidingConfig's defaults, so a user who does not override
-// their guiding settle gets the same behaviour on both paths.
+// The post-flip guider settle is the Start Guiding one, so an operator who
+// does not override it gets the same behavior on both paths.
 pub(crate) fn default_guider_settle_pixels() -> f64 {
-    1.5
+    GuiderSettle::START_GUIDING.pixels
 }
 
 pub(crate) fn default_guider_settle_time() -> f64 {
-    10.0
+    GuiderSettle::START_GUIDING.time_secs
 }
 
 pub(crate) fn default_guider_settle_timeout() -> f64 {
-    60.0
+    GuiderSettle::START_GUIDING.timeout_secs
 }
 
 pub(crate) fn default_meridian_max_post_settle_rms_pixels() -> f64 {
@@ -2872,7 +2890,7 @@ pub enum TriggerType {
     ///
     /// The trigger is fed by Dart's `CloudMotionAnalyzer` (see
     /// `packages/skotiq_core/lib/src/services/weather/cloud_motion_analyzer.dart`)
-    /// pushed via `ExecutorCommand::UpdateCloudMotion`. When the analyzer is
+    /// pushed via `SequenceExecutor::update_cloud_motion`. When the analyzer is
     /// unavailable (e.g. no radar fetch yet) the trigger stays quiescent —
     /// `state.predicted_cloud_arrival_minutes` is `None` and the evaluator
     /// returns false.
@@ -2917,7 +2935,7 @@ pub enum TriggerType {
     /// Science — transparency-adaptive trigger.
     ///
     /// Fires when the live sky transparency reading (pushed in via
-    /// `ExecutorCommand::UpdateTransparency` from the Dart science
+    /// `SequenceExecutor::update_transparency` from the Dart science
     /// pipeline) drops below `below_threshold` (fraction of clear-sky
     /// reference; 1.0 = perfectly clear, 0.0 = totally opaque) for at
     /// least `duration_secs` consecutive seconds. The duration acts as

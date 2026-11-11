@@ -23,9 +23,11 @@
 use async_trait::async_trait;
 use skotiq_sequencer::quality::ImageQualityCheck;
 use skotiq_sequencer::{
-    AutofocusConfig, DeviceOps, DeviceResult, ExecutorEvent, ExecutorState, GuidingStatus,
-    ImageData, NodeDefinition, NodeType, NullDeviceOps, PlateSolveResult, SequenceDefinition,
-    SequenceExecutor,
+    AutofocusConfig, DeviceResult, ExecutorEvent, ExecutorState, ExposureRequest, GuidingStatus,
+    ImageData, NodeDefinition, NodeType, NullDeviceOps, SequenceDefinition, SequenceExecutor,
+};
+use skotiq_sequencer::{
+    CameraOps, CoverCalibratorOps, DomeOps, FocuserOps, FrameStoreOps, GuiderOps, MountOps,
 };
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -145,61 +147,10 @@ fn shape(d: &ImageData) -> Option<skotiq_imaging::FrameShape> {
 }
 
 #[async_trait]
-impl DeviceOps for ReplayRig {
-    async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
-        let guiding = self.is_guiding();
-        self.record(format!("guider_get_status->{guiding}"));
-        Ok(GuidingStatus {
-            is_guiding: guiding,
-            rms_ra: 0.5,
-            rms_dec: 0.4,
-            rms_total: 0.64,
-        })
-    }
-    async fn guider_start(&self, _sp: f64, _st: f64, _sto: f64) -> DeviceResult<()> {
-        self.record("guider_start");
-        *self.guider.lock().unwrap() = Guider::Resuming(std::time::Instant::now());
-        Ok(())
-    }
-    async fn guider_stop(&self) -> DeviceResult<()> {
-        self.record("guider_stop");
-        *self.guider.lock().unwrap() = Guider::Stopped;
-        Ok(())
-    }
+impl MountOps for ReplayRig {
     async fn mount_park(&self, id: &str) -> DeviceResult<()> {
         self.record(format!("mount_park:{id}"));
         Ok(())
-    }
-    async fn cover_calibrator_close_cover(&self, id: &str) -> DeviceResult<()> {
-        self.record(format!("cover_close:{id}"));
-        Ok(())
-    }
-    async fn dome_close(&self, id: &str) -> DeviceResult<()> {
-        self.record(format!("dome_close:{id}"));
-        Ok(())
-    }
-    async fn camera_start_exposure(
-        &self,
-        id: &str,
-        d: f64,
-        _g: Option<i32>,
-        _o: Option<i32>,
-        _bx: i32,
-        _by: i32,
-    ) -> DeviceResult<ImageData> {
-        self.record(format!("camera_start_exposure:{id}:{d}"));
-        // Lights get the night's real 180 s frames in the order they were
-        // taken; the autofocus sweep gets the in-focus 2 s frame.
-        if d >= 1.0 {
-            let n = self.lights_taken.fetch_add(1, Ordering::SeqCst);
-            match (&self.first_light, n) {
-                (Some(first), 0) => Ok(first.clone()),
-                (Some(_), n) => Ok(self.lights[(n - 1) % self.lights.len()].clone()),
-                (None, n) => Ok(self.lights[n % self.lights.len()].clone()),
-            }
-        } else {
-            Ok(self.focused.clone())
-        }
     }
     async fn mount_slew_to_coordinates(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
         self.inner.mount_slew_to_coordinates(id, ra, dec).await
@@ -237,6 +188,30 @@ impl DeviceOps for ReplayRig {
     async fn mount_set_tracking(&self, id: &str, enabled: bool) -> DeviceResult<()> {
         self.inner.mount_set_tracking(id, enabled).await
     }
+}
+
+#[async_trait]
+impl CameraOps for ReplayRig {
+    async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
+        let ExposureRequest {
+            camera_id: id,
+            duration_secs: d,
+            ..
+        } = request;
+        self.record(format!("camera_start_exposure:{id}:{d}"));
+        // Lights get the night's real 180 s frames in the order they were
+        // taken; the autofocus sweep gets the in-focus 2 s frame.
+        if d >= 1.0 {
+            let n = self.lights_taken.fetch_add(1, Ordering::SeqCst);
+            match (&self.first_light, n) {
+                (Some(first), 0) => Ok(first.clone()),
+                (Some(_), n) => Ok(self.lights[(n - 1) % self.lights.len()].clone()),
+                (None, n) => Ok(self.lights[n % self.lights.len()].clone()),
+            }
+        } else {
+            Ok(self.focused.clone())
+        }
+    }
     async fn camera_abort_exposure(&self, id: &str) -> DeviceResult<()> {
         self.inner.camera_abort_exposure(id).await
     }
@@ -249,6 +224,10 @@ impl DeviceOps for ReplayRig {
     async fn camera_get_cooler_power(&self, id: &str) -> DeviceResult<f64> {
         self.inner.camera_get_cooler_power(id).await
     }
+}
+
+#[async_trait]
+impl FocuserOps for ReplayRig {
     async fn focuser_move_to(&self, id: &str, p: i32) -> DeviceResult<()> {
         self.inner.focuser_move_to(id, p).await
     }
@@ -268,29 +247,29 @@ impl DeviceOps for ReplayRig {
     async fn focuser_halt(&self, id: &str) -> DeviceResult<()> {
         self.inner.focuser_halt(id).await
     }
-    async fn filterwheel_set_position(&self, id: &str, p: i32) -> DeviceResult<()> {
-        self.inner.filterwheel_set_position(id, p).await
+}
+
+#[async_trait]
+impl GuiderOps for ReplayRig {
+    async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
+        let guiding = self.is_guiding();
+        self.record(format!("guider_get_status->{guiding}"));
+        Ok(GuidingStatus {
+            is_guiding: guiding,
+            rms_ra: 0.5,
+            rms_dec: 0.4,
+            rms_total: 0.64,
+        })
     }
-    async fn filterwheel_get_position(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.filterwheel_get_position(id).await
+    async fn guider_start(&self, _sp: f64, _st: f64, _sto: f64) -> DeviceResult<()> {
+        self.record("guider_start");
+        *self.guider.lock().unwrap() = Guider::Resuming(std::time::Instant::now());
+        Ok(())
     }
-    async fn filterwheel_get_names(&self, id: &str) -> DeviceResult<Vec<String>> {
-        self.inner.filterwheel_get_names(id).await
-    }
-    async fn filterwheel_set_filter_by_name(&self, id: &str, n: &str) -> DeviceResult<i32> {
-        self.inner.filterwheel_set_filter_by_name(id, n).await
-    }
-    async fn rotator_move_to(&self, id: &str, a: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_to(id, a).await
-    }
-    async fn rotator_move_relative(&self, id: &str, d: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_relative(id, d).await
-    }
-    async fn rotator_get_angle(&self, id: &str) -> DeviceResult<f64> {
-        self.inner.rotator_get_angle(id).await
-    }
-    async fn rotator_halt(&self, id: &str) -> DeviceResult<()> {
-        self.inner.rotator_halt(id).await
+    async fn guider_stop(&self) -> DeviceResult<()> {
+        self.record("guider_stop");
+        *self.guider.lock().unwrap() = Guider::Stopped;
+        Ok(())
     }
     async fn guider_dither(
         &self,
@@ -302,40 +281,13 @@ impl DeviceOps for ReplayRig {
     ) -> DeviceResult<()> {
         self.inner.guider_dither(p, sp, st, sto, ra).await
     }
-    async fn plate_solve(
-        &self,
-        d: &ImageData,
-        ra: Option<f64>,
-        dec: Option<f64>,
-        s: Option<f64>,
-    ) -> DeviceResult<PlateSolveResult> {
-        self.inner.plate_solve(d, ra, dec, s).await
-    }
-    async fn save_fits(
-        &self,
-        d: &ImageData,
-        f: &str,
-        ctx: &skotiq_sequencer::scheduling::FrameContext,
-    ) -> DeviceResult<()> {
-        self.inner.save_fits(d, f, ctx).await
-    }
-    async fn send_notification(
-        &self,
-        l: &str,
-        t: &str,
-        m: &str,
-        x: Option<&[String]>,
-    ) -> DeviceResult<()> {
-        self.inner.send_notification(l, t, m, x).await
-    }
-    fn calculate_altitude(&self, r: f64, d: f64, la: f64, lo: f64) -> f64 {
-        self.inner.calculate_altitude(r, d, la, lo)
-    }
-    fn get_observer_location(&self) -> Option<(f64, f64)> {
-        self.inner.get_observer_location()
-    }
-    async fn polar_align_update(&self, r: &skotiq_sequencer::PolarAlignResult) -> DeviceResult<()> {
-        self.inner.polar_align_update(r).await
+}
+
+#[async_trait]
+impl DomeOps for ReplayRig {
+    async fn dome_close(&self, id: &str) -> DeviceResult<()> {
+        self.record(format!("dome_close:{id}"));
+        Ok(())
     }
     async fn dome_open(&self, id: &str) -> DeviceResult<()> {
         self.inner.dome_open(id).await
@@ -346,21 +298,13 @@ impl DeviceOps for ReplayRig {
     async fn dome_get_shutter_status(&self, id: &str) -> DeviceResult<String> {
         self.inner.dome_get_shutter_status(id).await
     }
-    async fn safety_is_safe(&self, id: Option<&str>) -> DeviceResult<bool> {
-        self.inner.safety_is_safe(id).await
-    }
-    async fn calculate_image_hfr(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        Ok(shape(d).map(|s| s.hfr))
-    }
-    async fn detect_stars_in_image(&self, d: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        let stars = skotiq_imaging::detect_stars(
-            &imaging(d),
-            &skotiq_imaging::StarDetectionConfig::default(),
-        );
-        Ok(stars.iter().map(|s| (s.x, s.y, s.hfr)).collect())
-    }
-    async fn measure_frame_eccentricity(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        Ok(shape(d).map(|s| s.eccentricity))
+}
+
+#[async_trait]
+impl CoverCalibratorOps for ReplayRig {
+    async fn cover_calibrator_close_cover(&self, id: &str) -> DeviceResult<()> {
+        self.record(format!("cover_close:{id}"));
+        Ok(())
     }
     async fn cover_calibrator_open_cover(&self, id: &str) -> DeviceResult<()> {
         self.inner.cover_calibrator_open_cover(id).await
@@ -387,6 +331,33 @@ impl DeviceOps for ReplayRig {
         self.inner.cover_calibrator_get_max_brightness(id).await
     }
 }
+
+#[async_trait]
+impl FrameStoreOps for ReplayRig {
+    async fn save_fits(
+        &self,
+        d: &ImageData,
+        f: &str,
+        ctx: &skotiq_sequencer::scheduling::FrameContext,
+    ) -> DeviceResult<()> {
+        self.inner.save_fits(d, f, ctx).await
+    }
+    async fn calculate_image_hfr(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
+        Ok(shape(d).map(|s| s.hfr))
+    }
+    async fn detect_stars_in_image(&self, d: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
+        let stars = skotiq_imaging::detect_stars(
+            &imaging(d),
+            &skotiq_imaging::StarDetectionConfig::default(),
+        );
+        Ok(stars.iter().map(|s| (s.x, s.y, s.hfr)).collect())
+    }
+    async fn measure_frame_eccentricity(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
+        Ok(shape(d).map(|s| s.eccentricity))
+    }
+}
+
+skotiq_sequencer::forward_device_ops!(ReplayRig => inner: FilterWheelOps, RotatorOps, SafetyOps, PlateSolveOps, OperatorNotifyOps, ConnectionOps, SiteOps);
 /// The grading the rig ran under: `default_quality_check: enabled=true,
 /// hfr=Some(3.5), hfr_baseline=Some(50.0), ecc=Some(0.7), stars=Some(10),
 /// max_rejects=3`.
@@ -493,8 +464,8 @@ async fn replay(
     executor
         .update_trigger_state(move |ts| {
             ts.invalidate_autofocus("replay: filter changed");
-            ts.baseline_hfr = Some(first_light_hfr);
-            ts.current_hfr = Some(first_light_hfr);
+            ts.latches.baseline_hfr = Some(first_light_hfr);
+            ts.latches.current_hfr = Some(first_light_hfr);
         })
         .await;
 

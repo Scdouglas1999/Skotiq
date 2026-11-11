@@ -35,7 +35,7 @@ pub async fn api_sequencer_load_json(json: String) -> Result<(), SkotiqError> {
 pub(crate) async fn seed_executor_site_from_settings(
     executor: &mut skotiq_sequencer::SequenceExecutor,
 ) {
-    if executor.latitude.is_some() && executor.longitude.is_some() {
+    if let (Some(_), Some(_)) = executor.observer_location() {
         return;
     }
     if let Ok(Some(site)) = get_state().get_observer_location() {
@@ -122,7 +122,7 @@ pub async fn api_sequencer_stop(origin: Option<String>) -> Result<(), SkotiqErro
     let mut executor = get_sequence_executor().write().await;
     let run_id = executor.active_sequence_run_id();
     executor
-        .stop_with_origin(origin.as_deref())
+        .stop_with_origin(skotiq_sequencer::StopOrigin::from_wire(origin.as_deref()))
         .await
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to stop sequence: {}", e)))?;
 
@@ -481,7 +481,7 @@ mod executor_site_tests {
 
         let executor = get_sequence_executor().read().await;
         assert_eq!(
-            (executor.latitude, executor.longitude),
+            executor.observer_location(),
             (Some(41.5), Some(-71.25)),
             "the run started with no observing site even though app settings had one"
         );

@@ -1,10 +1,9 @@
 //! Stage 4 of a monitor tick: announce each dispatch and run its action.
 
 use super::actions::custom_branch::CustomBranches;
-use super::actions::meridian_flip::FlipFailureLatch;
 use super::actions::{
     autofocus, cloud, custom_branch, dither, meridian_flip, park, recenter, recovery, science,
-    ActionFlow, DecisionLog, ParkSignals, Rig, RunControl,
+    ActionFlow, Rig,
 };
 use super::policy::{Dispatch, NotifyEpisodes};
 use super::*;
@@ -42,9 +41,14 @@ pub(super) struct Dispatcher {
 }
 
 impl Dispatcher {
-    pub(super) async fn new(args: TriggerMonitorArgs) -> Self {
-        let frame_watch_config = args
-            .sequence_for_custom_recovery_triggers
+    pub(super) async fn new(
+        run: &Run,
+        custom_branch_context: ExecutionContext,
+        recovery_requests: mpsc::Sender<crate::recovery::RecoveryCause>,
+    ) -> Self {
+        let frame_watch_config = run
+            .plan
+            .sequence
             .as_ref()
             .map(|s| crate::frame_watch::FrameWatchConfig::from_metadata(&s.metadata))
             .unwrap_or_default();
@@ -53,57 +57,43 @@ impl Dispatcher {
             // otherwise that trigger would pull framing back to catalog coords.
             // Keep explicitly customized pixel triggers, including callers
             // that reuse the built-in ID with different settings.
-            let mut manager = args.trigger_manager.write().await;
-            let is_default = manager.get_trigger("drift_limit").is_some_and(|trigger| {
-                matches!(trigger.trigger_type, TriggerType::DriftLimit { max_pixels } if max_pixels == 30.0)
-                    && matches!(trigger.recovery_action, RecoveryAction::Recenter)
-                    && trigger.cooldown_secs == Some(120)
-            });
+            let mut manager = run.triggers.write().await;
+            let is_default = manager
+                .standard(StandardTrigger::DriftLimit)
+                .is_some_and(|trigger| {
+                    matches!(trigger.trigger_type, TriggerType::DriftLimit { max_pixels } if max_pixels == 30.0)
+                        && matches!(trigger.recovery_action, RecoveryAction::Recenter)
+                        && trigger.cooldown_secs == Some(120)
+                });
             if is_default {
-                manager.remove_trigger("drift_limit");
+                manager.remove_trigger(StandardTrigger::DriftLimit.id());
             }
         }
-        let trigger_state = args.trigger_manager.read().await.state();
+        let trigger_state = run.triggers.read().await.state();
         Self {
-            run: RunControl {
-                events: args.event_tx_clone2,
-                is_cancelled: args.is_cancelled_clone,
-                is_paused: args.is_paused_for_triggers,
-                executor_state: args.state_clone,
-                progress: args.progress_for_triggers,
-            },
+            run: run.control.clone(),
             rig: Rig {
-                device_ops: args.device_ops_for_triggers,
-                context: args.trigger_action_context,
+                device_ops: run.device_ops.clone(),
+                context: run.rig.clone(),
                 trigger_state,
-                runtime_config: args.runtime_config,
+                runtime_config: run.config.clone(),
             },
-            decisions: DecisionLog {
-                tx: args.decision_tx_for_lifecycle,
-                run_id: args.active_run_id_for_decisions,
-            },
-            park: ParkSignals {
-                park_and_abort: args.park_and_abort_for_triggers,
-                done: args.park_and_abort_done_for_triggers,
-                execution_quiesced: args.execution_quiesced_for_triggers,
-            },
-            flip_failure: FlipFailureLatch {
-                failed: args.meridian_flip_failed_for_triggers,
-                failure: args.meridian_flip_failure_for_triggers,
-            },
+            decisions: run.decisions.clone(),
+            park: run.teardown.park_signals(),
+            flip_failure: run.outside_failures.meridian_flip.clone(),
             custom: CustomBranches {
-                branches: args.custom_recovery_branches_for_triggers,
-                sequence: args.sequence_for_custom_recovery_triggers,
-                context: args.custom_recovery_context_for_triggers,
+                branches: run.plan.custom_recovery_branches.clone(),
+                sequence: run.plan.sequence.clone(),
+                context: custom_branch_context,
             },
-            trigger_manager: args.trigger_manager,
+            trigger_manager: run.triggers.clone(),
             tracking_limit_hold: None,
-            recovery_tx: args.recovery_request_tx,
-            action_in_flight: args.trigger_action_in_flight_for_triggers,
-            skip_to_next_target: args.skip_to_next_target_for_triggers,
-            skip_to_node: args.skip_to_node_for_recovery,
-            cloud_motion: args.cloud_motion_for_recovery,
-            transparency_backup: args.transparency_backup_for_recovery,
+            recovery_tx: recovery_requests,
+            action_in_flight: run.teardown.trigger_action_in_flight.clone(),
+            skip_to_next_target: run.skip_to_next_target.clone(),
+            skip_to_node: run.skip_to_node.clone(),
+            cloud_motion: run.sky.cloud_motion.clone(),
+            transparency_backup: run.sky.transparency_backup.clone(),
             retry_attempts: HashMap::new(),
             notify_episodes: NotifyEpisodes::default(),
             recenter_failure_told: false,
@@ -233,7 +223,7 @@ impl Dispatcher {
                 config,
                 self.rig.device_ops.clone(),
             )
-            .with_executor_event_tx(self.run.events.clone());
+            .with_executor_event_tx(self.run.state.events().clone());
             let slew = crate::instructions::execute_slew(
                 &crate::SlewConfig {
                     use_target_coords: true,
@@ -261,7 +251,7 @@ impl Dispatcher {
                 self.flip_failure.latch(|| message.clone());
                 self.run.error(message.clone());
                 match failure_action {
-                    crate::FlipFailureAction::PauseAndAlert => self.run.pause(Some(message)).await,
+                    crate::FlipFailureAction::PauseAndAlert => self.run.pause(Some(message)),
                     crate::FlipFailureAction::AbortAndPark => {
                         meridian_flip::abort_and_park(&self.rig, &self.run, &mut self.park).await;
                         self.fired.push((id.into(), RecoveryAction::ParkAndAbort));
@@ -381,7 +371,7 @@ impl Dispatcher {
         }
         let mut state = self.rig.trigger_state.write().await;
         state.guiding.lose_star_and_continue_unguided();
-        if let Some(history) = state.guiding_rms_history.as_mut() {
+        if let Some(history) = state.latches.guiding_rms_history.as_mut() {
             history.clear();
         }
     }

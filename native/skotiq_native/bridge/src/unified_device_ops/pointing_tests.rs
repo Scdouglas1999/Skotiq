@@ -446,7 +446,7 @@ async fn save_fits_writes_the_header_from_its_own_frame_context() {
 
     let scratch = temp_scratch_dir("save_fits_ctx");
     let path = scratch.as_ref().join("save_fits_ctx_0001.fits");
-    skotiq_sequencer::DeviceOps::save_fits(&ops, &tiny_frame(), &path.to_string_lossy(), &ctx)
+    skotiq_sequencer::FrameStoreOps::save_fits(&ops, &tiny_frame(), &path.to_string_lossy(), &ctx)
         .await
         .expect("save should succeed");
 
@@ -529,7 +529,7 @@ async fn save_fits_derives_the_altitude_at_the_exposure_midpoint() {
 
     let scratch = temp_scratch_dir("save_fits_midpoint");
     let path = scratch.as_ref().join("midpoint_0001.fits");
-    skotiq_sequencer::DeviceOps::save_fits(&ops, &tiny_frame(), &path.to_string_lossy(), &ctx)
+    skotiq_sequencer::FrameStoreOps::save_fits(&ops, &tiny_frame(), &path.to_string_lossy(), &ctx)
         .await
         .expect("save should succeed");
 

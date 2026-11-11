@@ -1,34 +1,29 @@
 //! Sequence execution engine.
 //!
 //! This module owns the [`SequenceExecutor`] struct, its constructor, the
-//! orchestrating [`SequenceExecutor::start`] method, the sequence-load /
-//! totals-calculation helpers, the free-standing recovery / trigger helper
-//! functions that the inline executor closures rely on, and the public
-//! event / progress / state types.
+//! policy constants and the free-standing helpers the run tasks share.
 //!
-//! Cohesive concerns are split into sibling submodules:
+//! Submodules:
+//!   * [`run_state`]    — the run-state cell: state, progress, events.
 //!   * [`lifecycle`]    — operator pause/resume/stop/skip/recovery-button.
 //!   * [`recovery`]     — recovery state-machine snapshot accessors.
 //!   * [`setup`]        — pre-start `set_*` wiring and post-run `reset`.
 //!   * [`loading`]      — sequence load + read-only totals/order walks.
-//!   * [`runtime_config`] — `update_*` mid-flight config mutators.
+//!   * [`run_config`]   — the operator's settings and the one path that
+//!     changes them.
+//!   * [`runtime_config`] — the settings surface the app pushes through.
 //!   * [`checkpoint`]   — crash-recovery save/load/resume surface.
 //!   * [`decision`]     — structured-decision logging surface.
-//!
-//! What is deliberately kept here in `mod.rs`:
-//!   * `start()` — the orchestrator. It captures dozens of locals into
-//!     spawned tasks; extracting it would require either a giant
-//!     parameter struct or making most private fields `pub(super)`,
-//!     neither of which is a net win.
-//!   * The free-standing helpers (`run_recovery_attempt`,
-//!     `build_trigger_autofocus_context`, etc.) are owned here because
-//!     the inline `start()` closures are their only callers.
+//!   * [`start`]        — the run supervisor and its tasks.
 
 mod checkpoint;
+mod checkpoint_writer;
 mod decision;
 mod lifecycle;
 mod loading;
 mod recovery;
+mod run_config;
+mod run_state;
 mod runtime_config;
 mod setup;
 
@@ -37,7 +32,12 @@ use crate::node::instructions::autofocus::parse_autofocus_detail;
 use crate::node::{
     CloudMotionSnapshot, ExecutionContext, Node, ProgressDetail, ProgressUpdate, RuntimeNode,
 };
-use crate::triggers::{Trigger, TriggerManager, TriggerState};
+#[cfg(test)]
+use crate::triggers::{camera_driving_trigger_action, claim_camera_for_trigger_action};
+use crate::triggers::{
+    ParkSetting, StandardTrigger, Trigger, TriggerCameraClaim, TriggerManager, TriggerOrigin,
+    TriggerState,
+};
 use crate::{
     NodeDefinition, NodeId, NodeStatus, NodeType, RecoveryAction, SafetyFailMode,
     SequenceDefinition, TriggerType,
@@ -52,16 +52,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, oneshot, watch, RwLock};
 
-pub(crate) const RECOVERY_NODE_TRIGGER_PREFIX: &str = "recovery_node:";
-
-/// Trigger id of a fired obstruction (trees, a building) in front of the
-/// telescope. A `ParkAndAbort` fired under this id, like the dawn trigger's,
-/// ends the night: the plan's shutdown steps run after the park, and the app
-/// reads the id as the run's stop origin to start end-of-night calibration.
-pub const OBSTRUCTION_TRIGGER_ID: &str = "obstruction";
-
-/// Standard trigger ids whose `ParkAndAbort` ends the night, not only the run.
-pub const END_OF_NIGHT_TRIGGER_IDS: [&str; 2] = ["dawn_approaching", OBSTRUCTION_TRIGGER_ID];
+pub use crate::triggers::{trigger_recovery_cause, OBSTRUCTION_TRIGGER_ID};
 const DEFAULT_SAFETY_CHECK_INTERVAL_SECS: u64 = 30;
 
 /// Summary line of the decision row written when an autofocus does not
@@ -89,23 +80,10 @@ const DEFAULT_WEATHER_VERDICT_STALENESS_SECS: u64 = 360;
 /// app's "required safe duration" until it pushes its own.
 pub const DEFAULT_WEATHER_RESUME_AFTER_SAFE_SECS: u64 = 300;
 
-/// How often a weather hold checks the sky.
-pub const WEATHER_HOLD_CHECK_SECS: f64 = 15.0;
-
-/// How often a guide-star hold looks for the star again, at most: soon enough
-/// that the run resumes shortly after a cloud passes.
-pub const GUIDE_STAR_RECHECK_SECS: f64 = 60.0;
-
-/// First wait between attempts to get a stopped mount tracking again. Each
-/// failed attempt doubles it, up to [`TRACKING_RECHECK_MAX_SECS`]; the attempts
-/// never run out, because nothing else gets the mount tracking.
-pub const TRACKING_RECHECK_SECS: f64 = 30.0;
-pub const TRACKING_RECHECK_MAX_SECS: f64 = 300.0;
-
-/// The span a weather hold reports as its budget. A hold has no budget and
-/// never runs out; this only keeps the attempt counters the recovery events
-/// carry finite.
-pub const WEATHER_HOLD_NOMINAL_SPAN_SECS: f64 = 12.0 * 3600.0;
+pub use crate::recovery::{
+    GUIDE_STAR_RECHECK_SECS, TRACKING_RECHECK_MAX_SECS, TRACKING_RECHECK_SECS,
+    WEATHER_HOLD_CHECK_SECS, WEATHER_HOLD_NOMINAL_SPAN_SECS,
+};
 
 /// A weather hold at least this long recenters on the target before imaging
 /// again: guided or not, an unguided mount drifts over that time.
@@ -121,24 +99,28 @@ mod start;
 mod trigger_context;
 mod types;
 
+use checkpoint_writer::{CheckpointSources, CheckpointWriter};
+pub use lifecycle::StopOrigin;
 pub use monitoring::*;
 pub(crate) use preflight::*;
 pub(crate) use recovery_ops::*;
+pub use run_config::{RunConfig, RunConfigStore};
+use run_config::{RunStaging, SkyFeed};
+pub(crate) use run_state::{RunCell, RunControl};
 use trigger_context::*;
 pub use types::*;
 
 /// The sequence executor manages running a sequence
 pub struct SequenceExecutor {
     sequence: Option<SequenceDefinition>,
-    state: Arc<RwLock<ExecutorState>>,
-    progress: Arc<StdRwLock<SequenceProgress>>,
+    /// The executor state, the progress snapshot and the event stream.
+    run_state: RunCell,
     command_tx: Option<mpsc::Sender<ExecutorCommand>>,
     /// Completion acknowledgment for the currently spawned executor task.
     /// `stop()` takes and awaits this receiver so native termination is not
     /// reported until instruction cancellation cleanup (including camera
     /// exposure abort) and terminal event emission have finished.
     run_completion_rx: Option<oneshot::Receiver<()>>,
-    event_tx: broadcast::Sender<ExecutorEvent>,
     is_cancelled: Arc<AtomicBool>,
     root_node: Option<Box<dyn Node>>,
     /// Device operations handler - None indicates no device ops have been configured.
@@ -154,9 +136,6 @@ pub struct SequenceExecutor {
     pub cover_calibrator_id: Option<String>,
     /// Base save path for images
     pub save_path: Option<std::path::PathBuf>,
-    /// Observer location
-    pub latitude: Option<f64>,
-    pub longitude: Option<f64>,
     /// Trigger manager for monitoring conditions
     trigger_manager: Arc<RwLock<TriggerManager>>,
     /// Enable/disable trigger monitoring
@@ -168,6 +147,8 @@ pub struct SequenceExecutor {
     /// `CheckpointManager::new(checkpoint_dir)` that bypasses the cache and
     /// causes UI staleness on `has_recoverable_checkpoint`.
     checkpoint_manager: Option<Arc<crate::checkpoint::CheckpointManager>>,
+    /// The run in flight, or the last one, until another sequence is loaded.
+    run: Option<Arc<start::Run>>,
     /// DepthLock verdict source handed to every run's `ExecutionContext`.
     /// Installed by the host via [`Self::set_depth_goal_ops`]; `None` keeps
     /// bound plans count-bounded.
@@ -178,23 +159,15 @@ pub struct SequenceExecutor {
     /// the next `start()` is that resume. Loading another sequence cancels
     /// it; `start()` consumes it.
     resume_prepared: bool,
-    /// Safety fail mode - determines behavior when safety devices fail or are unavailable
-    pub safety_fail_mode: SafetyFailMode,
-    /// Filter focus offsets from equipment profile (filter_name -> offset_steps)
-    pub filter_focus_offsets: std::collections::HashMap<String, i32>,
-    /// shared runtime configuration. Updated by
-    /// `Update{DitherConfig,Location,FilterOffsets}` commands so changes
-    /// take effect on the next dither/capture/autofocus without requiring a
-    /// sequence reload. Cloned into the spawned executor task so the task
-    /// reads the same values the public update_* methods write.
-    ///
-    /// Why `parking_lot::RwLock` instead of `tokio::sync::RwLock`: the
-    /// public `update_*` methods are sync (already wired into the bridge
-    /// crate that way) and the lock is only ever held for the duration of
-    /// a struct-field assignment. A sync rwlock keeps the bridge call sites
-    /// non-`.await` and is free of contention concerns for this access
-    /// pattern.
-    runtime_config: Arc<StdRwLock<RuntimeConfig>>,
+    /// The operator's settings, shared with the run's tasks.
+    settings: RunConfigStore,
+    /// What the next start consumes.
+    staging: RunStaging,
+    /// The live sky readings the app feeds in.
+    sky: SkyFeed,
+    /// The defect map the host loaded for the connected camera, shared with
+    /// each run's contexts. `None` means no correction.
+    defect_map_apply: Arc<RwLock<Option<DefectMapApplyState>>>,
     /// Recovery Mode — shared atomic flags that let the operator
     /// punch through the wait timer ("Try Now") or exit the loop ("Abort")
     /// without blocking on a mutex. Cloned into the spawned executor task
@@ -225,17 +198,8 @@ pub struct SequenceExecutor {
     /// `DecisionEvent` so the replay screen can filter by run without
     /// joining on a wall-clock window.
     active_sequence_run_id: Arc<StdRwLock<Option<i64>>>,
-    /// Replay Debug — runtime toggle. When `false`, the executor
-    /// short-circuits decision emission entirely (no channel send, no
-    /// allocation). Wired to the `decisionLoggingEnabled` setting.
-    decision_logging_enabled: Arc<AtomicBool>,
-    /// adaptive sky-conditions swap. Stable Arc slots shared
-    /// between this struct and the per-run `ExecutionContext`. Holding
-    /// them on the executor too lets idle-time pushes (`update_conditions_score`
-    /// called before `start()`) survive into the next run AND lets the
-    /// dashboard's `current_adaptive_swap_json` reach a snapshot without
-    /// needing access to the in-flight context.
-    shared_conditions_score: Arc<RwLock<Option<crate::scheduling::ConditionsScore>>>,
+    /// The adaptive-swap accounting the dashboard reads, shared with each
+    /// run's context.
     shared_adaptive_swap_state: Arc<RwLock<crate::node::context::AdaptiveSwapRuntimeState>>,
 }
 
@@ -253,11 +217,9 @@ impl SequenceExecutor {
 
         Self {
             sequence: None,
-            state: Arc::new(RwLock::new(ExecutorState::Idle)),
-            progress: Arc::new(StdRwLock::new(SequenceProgress::default())),
+            run_state: RunCell::new(event_tx),
             command_tx: None,
             run_completion_rx: None,
-            event_tx,
             is_cancelled: Arc::new(AtomicBool::new(false)),
             root_node: None,
             device_ops: None,
@@ -269,32 +231,25 @@ impl SequenceExecutor {
             dome_id: None,
             cover_calibrator_id: None,
             save_path: None,
-            latitude: None,
-            longitude: None,
             trigger_manager: Arc::new(RwLock::new(trigger_manager)),
             triggers_enabled: true,
             checkpoint_manager: None,
+            run: None,
             depth_goal_ops: None,
             current_checkpoint: None,
             resume_prepared: false,
-            safety_fail_mode: SafetyFailMode::default(),
-            filter_focus_offsets: std::collections::HashMap::new(),
-            runtime_config: Arc::new(StdRwLock::new(RuntimeConfig::default())),
+            settings: RunConfigStore::default(),
+            staging: RunStaging::default(),
+            sky: SkyFeed::new(),
+            defect_map_apply: Arc::new(RwLock::new(None)),
             recovery_signals: Arc::new(crate::recovery::RecoverySignals::new()),
             current_recovery: Arc::new(StdRwLock::new(None)),
             recovery_history: Arc::new(StdRwLock::new(Vec::new())),
             decision_tx,
             active_sequence_run_id: Arc::new(StdRwLock::new(None)),
-            shared_conditions_score: Arc::new(RwLock::new(None)),
             shared_adaptive_swap_state: Arc::new(RwLock::new(
                 crate::node::context::AdaptiveSwapRuntimeState::default(),
             )),
-            // Replay Debug — default ON. The Dart settings layer
-            // calls `set_decision_logging_enabled(false)` when the user
-            // opts out; the overhead is negligible (one channel send +
-            // one DB row per decision, well under 100 rows/min in real
-            // sessions) so we ship enabled-by-default.
-            decision_logging_enabled: Arc::new(AtomicBool::new(true)),
         }
     }
 
@@ -310,7 +265,7 @@ impl SequenceExecutor {
         let stale_ids: Vec<String> = manager
             .triggers()
             .iter()
-            .filter(|trigger| trigger.id.starts_with(RECOVERY_NODE_TRIGGER_PREFIX))
+            .filter(|trigger| trigger.origin().is_recovery_node())
             .map(|trigger| trigger.id.clone())
             .collect();
         for trigger_id in stale_ids {
@@ -322,8 +277,8 @@ impl SequenceExecutor {
                 custom_branches.insert(spec.trigger_id.clone(), node_id.clone());
             }
 
-            manager.add_trigger(Trigger::new(
-                spec.trigger_id,
+            manager.add_trigger(Trigger::for_recovery_node(
+                &spec.node_id,
                 spec.trigger_name,
                 spec.trigger_type,
                 spec.recovery_action,
@@ -335,27 +290,29 @@ impl SequenceExecutor {
 
     /// Get the current state
     pub async fn get_state(&self) -> ExecutorState {
-        *self.state.read().await
+        self.run_state.get()
     }
 
     /// Get the current progress
     pub fn get_progress(&self) -> SequenceProgress {
-        self.progress.read().clone()
+        self.run_state.progress()
     }
 
-    /// Emit an event
-    fn emit(&self, event: ExecutorEvent) {
-        let _ = self.event_tx.send(event);
-    }
-
-    /// Set state and emit event
-    async fn set_state(&self, state: ExecutorState) {
-        *self.state.write().await = state;
-        {
-            let mut progress = self.progress.write();
-            progress.state = state;
-        }
-        self.emit(ExecutorEvent::StateChanged(state));
+    /// Write the sequence's totals into the progress snapshot. Indeterminate
+    /// totals (unbounded loops, an engaged integration budget) have no finite
+    /// ETA, so they read as zero with no estimate.
+    fn publish_totals(&self, sequence: &SequenceDefinition) {
+        let (total_exposures, total_integration, indeterminate) = self.calculate_totals(sequence);
+        self.run_state.update_progress(|progress| {
+            if indeterminate {
+                progress.total_exposures = 0;
+                progress.total_integration_secs = 0.0;
+                progress.estimated_remaining_secs = None;
+            } else {
+                progress.total_exposures = total_exposures;
+                progress.total_integration_secs = total_integration;
+            }
+        });
     }
 }
 
@@ -396,7 +353,7 @@ pub(crate) fn classify_dither_result(
     if status == NodeStatus::Success {
         return DitherTriggerOutcome::Performed;
     }
-    if message.is_some_and(crate::device_ops::is_no_guider_configured) {
+    if message.is_some_and(crate::device_ops::message_says_no_guider_configured) {
         return DitherTriggerOutcome::SkippedNoGuider;
     }
     DitherTriggerOutcome::Failed
@@ -593,7 +550,7 @@ pub(crate) fn autofocus_failure_continuation(
 pub const QUALITY_PROBLEM_CONTINUED_SUMMARY: &str = "Problem noticed — the run continues";
 
 /// The continuation record for a quality problem the run carries on through
-/// (see [`crate::triggers::TriggerState::stop_on_quality_problems`]). `source`
+/// (see [`crate::triggers::TriggerState::stops_on_quality_problems`]). `source`
 /// names what noticed it ("Center 'M31'", "Post-flip recenter"), `problem`
 /// says what it found, and the fields of `context` are added to the decision
 /// row's details.

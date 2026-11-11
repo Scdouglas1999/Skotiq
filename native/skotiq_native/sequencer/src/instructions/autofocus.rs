@@ -829,7 +829,7 @@ pub(crate) async fn resume_guiding_after_autofocus(
     // A fresh star: the autofocus run may have moved the field under the
     // guider's old lock position. It must measure up to the run's guide star.
     let reference = match &ctx.trigger_state {
-        Some(state) => state.read().await.guide_star_reference,
+        Some(state) => state.read().await.target.guide_star_reference,
         None => None,
     };
     // The run's restart bar, the same a flip restarts guiding at.
@@ -872,7 +872,7 @@ pub(crate) async fn resume_guiding_after_autofocus(
         }
     }
     let deadline = tokio::time::Instant::now() + GUIDING_RESUME_DEADLINE;
-    let mut last_seen: Result<crate::GuidingStatus, String>;
+    let mut last_seen: crate::device_ops::DeviceResult<crate::GuidingStatus>;
     loop {
         last_seen = ctx.device_ops.guider_get_status().await;
         if let Ok(status) = &last_seen {
@@ -1286,12 +1286,13 @@ pub(crate) async fn execute_autofocus_sweep_around(
                     let exposure_result = ctx
                         .device_ops
                         .camera_start_exposure(
-                            &camera_id,
-                            config.exposure_duration,
-                            config.gain,
-                            config.offset,
-                            bin_x,
-                            bin_y,
+                            crate::device_ops::ExposureRequest::new(
+                                &camera_id,
+                                config.exposure_duration,
+                            )
+                            .gain(config.gain)
+                            .offset(config.offset)
+                            .binning(bin_x, bin_y),
                         )
                         .await;
                     abort_guard.disarm();
@@ -1312,7 +1313,7 @@ pub(crate) async fn execute_autofocus_sweep_around(
                             ctx,
                             RetriedDevice::Camera,
                             camera_retries_done,
-                            &e,
+                            &e.to_string(),
                             &format!("on autofocus point {}", point + 1),
                         )
                         .await
@@ -1655,12 +1656,10 @@ pub(crate) async fn execute_autofocus_sweep_around(
             let exposure_result = ctx
                 .device_ops
                 .camera_start_exposure(
-                    &camera_id,
-                    config.exposure_duration,
-                    config.gain,
-                    config.offset,
-                    bin_x,
-                    bin_y,
+                    crate::device_ops::ExposureRequest::new(&camera_id, config.exposure_duration)
+                        .gain(config.gain)
+                        .offset(config.offset)
+                        .binning(bin_x, bin_y),
                 )
                 .await;
             abort_guard.disarm();
