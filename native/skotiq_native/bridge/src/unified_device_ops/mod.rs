@@ -45,9 +45,6 @@
 //!
 //! Same pattern groupings as `sequencer_ops.rs` (this file is the unified
 //! replacement and the cast taxonomy is identical):
-//! - **Pixel histogram u16 → usize index** (line 548): u16 max 65535 fits
-//!   any supported usize.
-//! - **Image normalize u16 → f64** (line 505): exact widening.
 //! - **bool → u8** (lines 660, 904): wire encoding.
 //! - **Filter wheel index ±1** (lines 815, 817): bounded by slot count.
 //! - **star_count usize → u32** (line 544): real frames have ≤ tens of
@@ -57,18 +54,6 @@
 //!   `sequencer/src/meridian.rs::julian_day`, where the per-site reasoning
 //!   lives.
 
-fn median_from_sorted_f64(sorted: &[f64]) -> Option<f64> {
-    if sorted.is_empty() {
-        return None;
-    }
-
-    let mid = sorted.len() / 2;
-    if sorted.len() % 2 == 0 {
-        Some((sorted[mid - 1] + sorted[mid]) / 2.0)
-    } else {
-        Some(sorted[mid])
-    }
-}
 
 use crate::adaptive_polling::{AdaptivePoller, PollerPreset};
 use crate::api::*;
@@ -76,7 +61,6 @@ use crate::device::DeviceType;
 use crate::event::*;
 use crate::filter_matching::find_filter_match;
 use crate::state::SharedAppState;
-use crate::FitsWriteHeader;
 use async_trait::async_trait;
 // Julian Day and local sidereal time come from the sequencer; this file keeps
 // no copy of either.
@@ -110,6 +94,8 @@ mod solve_diagnostics;
 pub(crate) use exposure_wait::*;
 pub(crate) mod pointing;
 pub(crate) use pointing::*;
+#[cfg(test)]
+mod capture_pins_tests;
 #[cfg(test)]
 mod frame_tests;
 #[cfg(test)]

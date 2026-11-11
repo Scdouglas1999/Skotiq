@@ -52,6 +52,8 @@ where
     Fut: std::future::Future<Output = Result<bool, String>>,
 {
     let start_time = std::time::Instant::now();
+    let exposure = std::time::Duration::from_secs_f64(duration_secs.max(0.0));
+    let mut reading_out = false;
     let mut poller: AdaptivePoller<bool> = AdaptivePoller::from_preset(PollerPreset::Exposure);
 
     loop {
@@ -106,10 +108,24 @@ where
         );
 
         // Reaching this point means the current poll observed "not complete";
-        // a completed exposure returns immediately above.
+        // a completed exposure returns immediately above. The backoff never
+        // sleeps past the end of the exposure: the poll lands when the shutter
+        // closes, and from there the readout is polled from the base interval
+        // again, so a frame is fetched when it is ready rather than up to a
+        // whole backed-off interval later.
         let poll_interval = poller.tick(&false);
+        let until_exposure_end = exposure.saturating_sub(start_time.elapsed());
+        let wait = if until_exposure_end.is_zero() {
+            if !reading_out {
+                reading_out = true;
+                poller.reset();
+            }
+            poll_interval
+        } else {
+            poll_interval.min(until_exposure_end)
+        };
         let remaining_timeout = timeout_after.saturating_sub(start_time.elapsed());
-        tokio::time::sleep(poll_interval.min(remaining_timeout)).await;
+        tokio::time::sleep(wait.min(remaining_timeout)).await;
     }
 }
 
@@ -144,6 +160,34 @@ pub(crate) async fn claim_camera_acquisition(
         )
         .into()
     })
+}
+
+#[cfg(test)]
+mod wait_tests {
+    use super::*;
+
+    /// The poll backs off to 2 s during a long exposure; without the cap the
+    /// completion of a 2 s exposure was seen at 2.64 s.
+    #[tokio::test]
+    async fn an_exposure_is_collected_when_it_ends_not_a_backoff_later() {
+        let started = std::time::Instant::now();
+        let duration = 2.0;
+        wait_for_camera_exposure_complete(
+            "wait-test-camera",
+            duration,
+            exposure_completion_timeout(duration),
+            exposure_abort_generation("wait-test-camera").await,
+            crate::api::get_state(),
+            || async move { Ok(started.elapsed().as_secs_f64() >= duration) },
+        )
+        .await
+        .expect("exposure completes");
+        let seen = started.elapsed().as_secs_f64();
+        assert!(
+            seen < duration + 0.25,
+            "a {duration} s exposure was collected after {seen:.2} s"
+        );
+    }
 }
 
 #[cfg(test)]

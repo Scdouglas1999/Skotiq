@@ -38,7 +38,7 @@ impl FrameStoreOps for UnifiedDeviceOps {
         };
         let header = build_rich_header(image_data, frame_ctx, pointing);
 
-        crate::api::save_fits_file_rich(
+        crate::frame_header::write_frame_fits(
             file_path.to_string(),
             image_data.width,
             image_data.height,

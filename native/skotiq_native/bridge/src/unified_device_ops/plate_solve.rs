@@ -39,8 +39,7 @@ impl PlateSolveOps for UnifiedDeviceOps {
             .filter(|s| s.is_finite() && *s > 0.0)
             .or_else(|| scale.arcsec_per_px());
 
-        // Save the image data to the temp file first
-        let header = FitsWriteHeader {
+        let header = crate::frame_header::FrameHeader {
             object_name: Some("Plate Solve".to_string()),
             exposure_time: image_data.exposure_secs,
             capture_timestamp: chrono::Utc::now()
@@ -52,22 +51,15 @@ impl PlateSolveOps for UnifiedDeviceOps {
             ccd_temp: image_data.temperature,
             ra: hint_ra.map(|r| r / 15.0),
             dec: hint_dec,
-            altitude: None,
-            telescope: None,
-            instrument: None,
-            observer: None,
             bin_x: binning.0,
             bin_y: binning.1,
             focal_length: focal_length_mm,
-            aperture: None,
             pixel_size_x: pixel_size.map(|(x, _)| x),
             pixel_size_y: pixel_size.map(|(_, y)| y),
-            site_latitude: None,
-            site_longitude: None,
-            site_elevation: None,
+            ..Default::default()
         };
 
-        api_save_fits_file(
+        crate::frame_header::write_frame_fits(
             temp_path.clone(),
             image_data.width,
             image_data.height,

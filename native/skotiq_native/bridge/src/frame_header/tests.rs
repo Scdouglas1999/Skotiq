@@ -1,4 +1,4 @@
-use super::{save_fits_file_rich, FitsWriteHeaderRich};
+use super::{write_frame_fits, FrameHeader};
 use skotiq_imaging::read_fits;
 use skotiq_sequencer::scheduling::FrameContext;
 use skotiq_sequencer::MosaicPanelInfo;
@@ -104,9 +104,9 @@ async fn fits_round_trip_preserves_all_frame_context_keywords() {
     ctx.camera_pixel_size_x_um = Some(3.76);
     ctx.camera_pixel_size_y_um = Some(3.76);
 
-    let header = FitsWriteHeaderRich::from_frame_context(&ctx);
+    let header = FrameHeader::from_frame_context(&ctx);
 
-    save_fits_file_rich(
+    write_frame_fits(
         temp_path.to_string_lossy().to_string(),
         width,
         height,
@@ -220,8 +220,8 @@ async fn monochrome_capture_omits_bayer_pattern() {
     let mut ctx = FrameContext::new_light("s", 1, 1, 30.0, 1);
     ctx.target_name = Some("FocusTest".to_string());
     // bayer_pattern is None — mono camera.
-    let header = FitsWriteHeaderRich::from_frame_context(&ctx);
-    save_fits_file_rich(
+    let header = FrameHeader::from_frame_context(&ctx);
+    write_frame_fits(
         temp_path.to_string_lossy().to_string(),
         width,
         height,
@@ -252,8 +252,8 @@ async fn missing_optional_fields_are_omitted_not_zeroed() {
 
     let ctx = FrameContext::new_light("sess", 1, 1, 10.0, 1);
     // Nothing else set — every optional field stays None.
-    let header = FitsWriteHeaderRich::from_frame_context(&ctx);
-    save_fits_file_rich(
+    let header = FrameHeader::from_frame_context(&ctx);
+    write_frame_fits(
         temp_path.to_string_lossy().to_string(),
         width,
         height,
@@ -288,7 +288,7 @@ async fn missing_optional_fields_are_omitted_not_zeroed() {
     // (the rich-header builder maps empty -> None).
     let mut empty_ctx = FrameContext::new_light("", 1, 1, 10.0, 1);
     empty_ctx.session_id = String::new();
-    let header_empty = FitsWriteHeaderRich::from_frame_context(&empty_ctx);
+    let header_empty = FrameHeader::from_frame_context(&empty_ctx);
     assert!(
         header_empty.session_id.is_none(),
         "empty session_id should be normalised to None"
@@ -308,11 +308,11 @@ async fn below_horizon_altitude_still_writes_the_frame() {
     let temp_path = scratch.join("parked.fits");
 
     let ctx = FrameContext::new_light("sess", 1, 1, 3.0, 1);
-    let mut header = FitsWriteHeaderRich::from_frame_context(&ctx);
+    let mut header = FrameHeader::from_frame_context(&ctx);
     // Mount parked: the exact altitude the sim mount reports.
     header.altitude = Some(-9.9);
 
-    save_fits_file_rich(
+    write_frame_fits(
         temp_path.to_string_lossy().to_string(),
         width,
         height,
@@ -357,10 +357,10 @@ async fn above_horizon_altitude_writes_airmass() {
     let temp_path = scratch.join("high.fits");
 
     let ctx = FrameContext::new_light("sess", 1, 1, 3.0, 1);
-    let mut header = FitsWriteHeaderRich::from_frame_context(&ctx);
+    let mut header = FrameHeader::from_frame_context(&ctx);
     header.altitude = Some(78.98);
 
-    save_fits_file_rich(
+    write_frame_fits(
         temp_path.to_string_lossy().to_string(),
         width,
         height,
@@ -409,8 +409,8 @@ async fn sequenced_frame_records_where_in_the_sky_it_was_taken() {
     ctx.mount_dec_degrees = Some(-5.39);
     ctx.mount_altitude_deg = Some(30.0);
 
-    let header = FitsWriteHeaderRich::from_frame_context(&ctx);
-    save_fits_file_rich(
+    let header = FrameHeader::from_frame_context(&ctx);
+    write_frame_fits(
         temp_path.to_string_lossy().to_string(),
         width,
         height,
@@ -507,8 +507,8 @@ async fn mountless_frame_still_records_altitude_and_airmass() {
         "precondition: no mount telemetry was recorded for this frame"
     );
 
-    let header = FitsWriteHeaderRich::from_frame_context(&ctx);
-    save_fits_file_rich(
+    let header = FrameHeader::from_frame_context(&ctx);
+    write_frame_fits(
         temp_path.to_string_lossy().to_string(),
         width,
         height,
@@ -575,7 +575,7 @@ async fn no_site_means_no_altitude_rather_than_a_guessed_one() {
     ctx.exposure_started_at = Some(chrono::Utc::now());
     // site_latitude_deg / site_longitude_deg left unset.
 
-    let header = FitsWriteHeaderRich::from_frame_context(&ctx);
+    let header = FrameHeader::from_frame_context(&ctx);
     assert_eq!(
         header.altitude, None,
         "altitude must be omitted, not computed from a guessed site"
@@ -723,10 +723,10 @@ async fn airmass_card_agrees_with_the_scheduler_that_chose_the_target() {
     for altitude in [80.0_f64, 45.0, 24.0, 12.0, 6.0, 1.0] {
         let temp_path = scratch.join(format!("alt_{altitude}.fits"));
         let ctx = FrameContext::new_light("sess", 1, 1, 5.0, 1);
-        let mut header = FitsWriteHeaderRich::from_frame_context(&ctx);
+        let mut header = FrameHeader::from_frame_context(&ctx);
         header.altitude = Some(altitude);
 
-        save_fits_file_rich(
+        write_frame_fits(
             temp_path.to_string_lossy().to_string(),
             width,
             height,
@@ -763,9 +763,9 @@ async fn ra_is_written_in_degrees_not_hours() {
     // A pointing whose hour and degree values cannot be confused: 08h00m / +40°.
     ctx.target_ra_hours = Some(8.0);
     ctx.target_dec_degrees = Some(40.0);
-    let header = FitsWriteHeaderRich::from_frame_context(&ctx);
+    let header = FrameHeader::from_frame_context(&ctx);
 
-    save_fits_file_rich(
+    write_frame_fits(
         temp_path.to_string_lossy().to_string(),
         width,
         height,
@@ -799,5 +799,55 @@ fn sexagesimal_formatting_handles_sign_and_rounding() {
     assert_eq!(
         super::format_sexagesimal(7.999_999_99, false),
         "08 00 00.00"
+    );
+}
+
+/// DATE-OBS must be when the shutter OPENED.
+///
+/// It was sampled with `Utc::now()` while building the header, which runs
+/// after readout, so every sequenced frame recorded a DATE-OBS late by
+/// exactly its own EXPTIME -- measured live as a 30 s exposure starting
+/// 14:04:37 and claiming 14:05:09. Photometry, occultation timing and
+/// astrometry all read DATE-OBS as the start, so this silently shifted
+/// every measurement by half to one exposure length.
+#[test]
+fn date_obs_is_the_exposure_start_not_the_readout_time() {
+    use chrono::TimeZone;
+
+    let started = chrono::Utc
+        .with_ymd_and_hms(2026, 8, 1, 14, 4, 37)
+        .single()
+        .expect("valid instant");
+
+    let mut ctx =
+        skotiq_sequencer::scheduling::FrameContext::new_light("session".to_string(), 1, 1, 30.0, 1);
+    ctx.exposure_started_at = Some(started);
+
+    let header = FrameHeader::from_frame_context(&ctx);
+
+    assert_eq!(
+        header.capture_timestamp, "2026-08-01T14:04:37",
+        "DATE-OBS must be the start of the exposure"
+    );
+    assert!(
+        !header.capture_timestamp.starts_with("2026-08-01T14:05"),
+        "DATE-OBS must not be the readout time (start + EXPTIME)"
+    );
+}
+
+/// A frame whose start time was never recorded must not silently claim the
+/// current clock as its observation time without that being obvious.
+#[test]
+fn date_obs_without_a_recorded_start_falls_back_to_now() {
+    let ctx =
+        skotiq_sequencer::scheduling::FrameContext::new_light("session".to_string(), 1, 1, 5.0, 1);
+    assert!(ctx.exposure_started_at.is_none());
+
+    let header = FrameHeader::from_frame_context(&ctx);
+    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S").to_string();
+    assert_eq!(
+        header.capture_timestamp[..13],
+        now[..13],
+        "fallback should be the current hour, not an empty or sentinel value"
     );
 }

@@ -8,8 +8,8 @@ pub(crate) fn build_rich_header(
     image_data: &ImageData,
     frame_ctx: &skotiq_sequencer::scheduling::FrameContext,
     pointing: Option<MountPointing>,
-) -> crate::api::FitsWriteHeaderRich {
-    let mut header = crate::api::FitsWriteHeaderRich::from_frame_context(frame_ctx);
+) -> crate::frame_header::FrameHeader {
+    let mut header = crate::frame_header::FrameHeader::from_frame_context(frame_ctx);
 
     // The `FrameContext` wins over `ImageData` for every value the two both
     // carry, because the context is also what the `captured_images` row is

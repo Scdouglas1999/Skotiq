@@ -44,56 +44,6 @@ fn driver_faults_stay_operation_failed() {
     }
 }
 
-/// DATE-OBS must be when the shutter OPENED.
-///
-/// It was sampled with `Utc::now()` while building the header, which runs
-/// after readout, so every sequenced frame recorded a DATE-OBS late by
-/// exactly its own EXPTIME -- measured live as a 30 s exposure starting
-/// 14:04:37 and claiming 14:05:09. Photometry, occultation timing and
-/// astrometry all read DATE-OBS as the start, so this silently shifted
-/// every measurement by half to one exposure length.
-#[test]
-fn date_obs_is_the_exposure_start_not_the_readout_time() {
-    use chrono::TimeZone;
-
-    let started = chrono::Utc
-        .with_ymd_and_hms(2026, 8, 1, 14, 4, 37)
-        .single()
-        .expect("valid instant");
-
-    let mut ctx =
-        skotiq_sequencer::scheduling::FrameContext::new_light("session".to_string(), 1, 1, 30.0, 1);
-    ctx.exposure_started_at = Some(started);
-
-    let header = crate::FitsWriteHeaderRich::from_frame_context(&ctx);
-
-    assert_eq!(
-        header.capture_timestamp, "2026-08-01T14:04:37",
-        "DATE-OBS must be the start of the exposure"
-    );
-    assert!(
-        !header.capture_timestamp.starts_with("2026-08-01T14:05"),
-        "DATE-OBS must not be the readout time (start + EXPTIME)"
-    );
-}
-
-/// A frame whose start time was never recorded must not silently claim the
-/// current clock as its observation time without that being obvious.
-#[test]
-fn date_obs_without_a_recorded_start_falls_back_to_now() {
-    let ctx =
-        skotiq_sequencer::scheduling::FrameContext::new_light("session".to_string(), 1, 1, 5.0, 1);
-    assert!(ctx.exposure_started_at.is_none());
-
-    let header = crate::FitsWriteHeaderRich::from_frame_context(&ctx);
-    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S").to_string();
-    assert_eq!(
-        header.capture_timestamp[..13],
-        now[..13],
-        "fallback should be the current hour, not an empty or sentinel value"
-    );
-}
-
 #[test]
 fn empty_validation_reason_still_classifies() {
     // `validation.errors.join("; ")` can only be empty if the error list was

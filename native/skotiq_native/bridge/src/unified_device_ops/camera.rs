@@ -214,7 +214,26 @@ impl CameraOps for UnifiedDeviceOps {
                 return Err(error);
             }
         }
-        let (sensor_type, bayer_offset) = match &native_image.bayer_pattern {
+        // The display, statistics and stars are ready in the store before the
+        // exposure is announced complete, so whoever reacts to the event finds them.
+        if let Err(e) = crate::last_frame::store(
+            camera_id,
+            crate::last_frame::RawFrame {
+                width: native_image.width,
+                height: native_image.height,
+                data: native_image.data.clone(),
+                bayer_pattern: native_image.bayer_pattern,
+            },
+            duration_secs,
+        )
+        .await
+        {
+            exposure.end(false, EventSeverity::Error);
+            return Err(e.to_string().into());
+        }
+
+        // The sequencer's ImageData names the colour filter by its offset.
+        let (sensor_type, bayer_offset) = match native_image.bayer_pattern {
             Some(pattern) => {
                 let offset = match pattern {
                     skotiq_device::BayerPattern::Rggb => (0, 0),
@@ -226,121 +245,6 @@ impl CameraOps for UnifiedDeviceOps {
             }
             None => (Some("Monochrome".to_string()), None),
         };
-
-        // Store image in unified storage for UI access
-        // This is critical - the Flutter UI calls api_get_last_image() to display captures
-        {
-            let is_color = bayer_offset.is_some();
-
-            // Create ImageData for stretching
-            let channels = if is_color { 3 } else { 1 };
-            let image = skotiq_imaging::ImageData::from_u16(
-                native_image.width,
-                native_image.height,
-                channels,
-                &native_image.data,
-            );
-
-            // Apply auto-stretch to create display-ready data
-            let display_data_raw = if is_color {
-                // Color: debayer and stretch
-                // Get bayer pattern from offset
-                let bayer_pattern = match bayer_offset {
-                    Some((0, 0)) => skotiq_imaging::BayerPattern::RGGB,
-                    Some((1, 0)) => skotiq_imaging::BayerPattern::GRBG,
-                    Some((0, 1)) => skotiq_imaging::BayerPattern::GBRG,
-                    Some((1, 1)) => skotiq_imaging::BayerPattern::BGGR,
-                    _ => skotiq_imaging::BayerPattern::RGGB, // Default
-                };
-                let rgb_data = skotiq_imaging::debayer_to_rgb16(
-                    &native_image.data,
-                    native_image.width,
-                    native_image.height,
-                    bayer_pattern,
-                    skotiq_imaging::DebayerAlgorithm::Bilinear,
-                );
-
-                // Auto-stretch RGB
-                use rayon::prelude::*;
-                let rgb_pixels: Vec<f64> =
-                    rgb_data.par_iter().map(|&v| v as f64 / 65535.0).collect();
-                let mut sorted = rgb_pixels.clone();
-                // Why: f64::partial_cmp is required because
-                // f64 is PartialOrd, not Ord (NaN). Pixel data is already
-                // bounded to [0.0, 1.0] by the `v / 65535.0` normalisation
-                // above, so NaN cannot occur — the fallback is purely a
-                // language requirement to satisfy the closure signature.
-                sorted.par_sort_unstable_by(|a, b| {
-                    a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
-                });
-                if sorted.is_empty() {
-                    return Err("Empty image data for median calculation".into());
-                }
-                let median = median_from_sorted_f64(&sorted)
-                    .ok_or_else(|| "Empty image data for median calculation".to_string())?;
-                let unified_params = skotiq_imaging::StretchParams {
-                    shadows: (median - 0.1).max(0.0),
-                    highlights: (median + 0.3).min(1.0),
-                    midtones: 0.5,
-                };
-
-                skotiq_imaging::apply_stretch_rgb(
-                    &rgb_data,
-                    native_image.width,
-                    native_image.height,
-                    &unified_params,
-                )
-            } else {
-                // Grayscale: auto-stretch to u8
-                let stretch_params = skotiq_imaging::auto_stretch_stf(&image);
-                skotiq_imaging::apply_stretch(&image, &stretch_params)
-            };
-
-            // Calculate stats and histogram from pre-RGBA data
-            let stats = skotiq_imaging::calculate_stats_u16(&image);
-            let stars = skotiq_imaging::detect_stars(
-                &image,
-                &skotiq_imaging::StarDetectionConfig::default(),
-            );
-            // The same block the manual exposure paths publish, read out of the
-            // stars this frame already detected: HFR, FWHM, eccentricity and the
-            // star count all come from one detection, so a sequencer frame
-            // answers `/api/camera/last-image` with everything a manual one
-            // does. Building the struct here by hand is what published `hfr:
-            // null` beside a real star count for every frame of a run.
-            let frame_stats = crate::api::imaging::frame_stats_result(&stats, &stars);
-
-            let mut histogram = vec![0u32; 256];
-            for &pixel in &display_data_raw {
-                histogram[pixel as usize] += 1;
-            }
-
-            // Convert to RGBA for Flutter rendering (parallel, fast in Rust)
-            let display_data = crate::api::display_data_to_rgba(&display_data_raw, is_color);
-
-            // Create and store the display result
-            let display_result = CapturedImageResult {
-                width: native_image.width,
-                height: native_image.height,
-                display_data,
-                histogram,
-                stats: frame_stats,
-                exposure_time: duration_secs,
-                timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-                is_color,
-            };
-
-            let raw_info = RawImageInfo {
-                width: native_image.width,
-                height: native_image.height,
-                data: native_image.data.clone(),
-                sensor_type: sensor_type.clone(),
-                bayer_offset,
-            };
-
-            store_captured_image_atomically(camera_id, display_result, raw_info).await;
-            tracing::info!("Stored image in unified storage for UI display");
-        }
 
         // Publish success event
         exposure.end(true, EventSeverity::Info);

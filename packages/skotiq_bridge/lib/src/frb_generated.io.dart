@@ -63,7 +63,6 @@ import 'event/imaging.dart';
 import 'event/sequencer.dart';
 import 'event/system.dart';
 import 'frb_generated.dart';
-import 'lib.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 import 'state.dart';
 import 'storage.dart';
@@ -76,18 +75,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     required super.portManager,
   });
 
-  CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_DefectMapCorrectionRecordPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecordPtr;
-
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
-
-  @protected
-  DefectMapCorrectionRecord
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    dynamic raw,
-  );
 
   @protected
   Map<String, Map<String, double>>
@@ -103,12 +92,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Map<String, int> dco_decode_Map_String_i_32_None(dynamic raw);
-
-  @protected
-  DefectMapCorrectionRecord
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    dynamic raw,
-  );
 
   @protected
   RustStreamSink<SkotiqEvent> dco_decode_StreamSink_skotiq_event_Dco(
@@ -183,12 +166,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool dco_decode_bool(dynamic raw);
-
-  @protected
-  DefectMapCorrectionRecord
-  dco_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    dynamic raw,
-  );
 
   @protected
   ApiAcquisitionSettings dco_decode_box_autoadd_api_acquisition_settings(
@@ -272,11 +249,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   FitsWriteHeader dco_decode_box_autoadd_fits_write_header(dynamic raw);
-
-  @protected
-  FitsWriteHeaderRich dco_decode_box_autoadd_fits_write_header_rich(
-    dynamic raw,
-  );
 
   @protected
   FocuserCapabilities dco_decode_box_autoadd_focuser_capabilities(dynamic raw);
@@ -503,9 +475,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FitsWriteHeader dco_decode_fits_write_header(dynamic raw);
 
   @protected
-  FitsWriteHeaderRich dco_decode_fits_write_header_rich(dynamic raw);
-
-  @protected
   FocusDataPoint dco_decode_focus_data_point(dynamic raw);
 
   @protected
@@ -672,12 +641,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
-
-  @protected
-  DefectMapCorrectionRecord?
-  dco_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    dynamic raw,
-  );
 
   @protected
   ApiAcquisitionSettings? dco_decode_opt_box_autoadd_api_acquisition_settings(
@@ -965,9 +928,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void dco_decode_unit(dynamic raw);
 
   @protected
-  BigInt dco_decode_usize(dynamic raw);
-
-  @protected
   WeatherCapabilities dco_decode_weather_capabilities(dynamic raw);
 
   @protected
@@ -978,12 +938,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
-
-  @protected
-  DefectMapCorrectionRecord
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    SseDeserializer deserializer,
-  );
 
   @protected
   Map<String, Map<String, double>>
@@ -1001,12 +955,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Map<String, int> sse_decode_Map_String_i_32_None(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  DefectMapCorrectionRecord
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
     SseDeserializer deserializer,
   );
 
@@ -1117,12 +1065,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
-  DefectMapCorrectionRecord
-  sse_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   ApiAcquisitionSettings sse_decode_box_autoadd_api_acquisition_settings(
     SseDeserializer deserializer,
   );
@@ -1230,11 +1172,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   FitsWriteHeader sse_decode_box_autoadd_fits_write_header(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  FitsWriteHeaderRich sse_decode_box_autoadd_fits_write_header_rich(
     SseDeserializer deserializer,
   );
 
@@ -1515,11 +1452,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FitsWriteHeader sse_decode_fits_write_header(SseDeserializer deserializer);
 
   @protected
-  FitsWriteHeaderRich sse_decode_fits_write_header_rich(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   FocusDataPoint sse_decode_focus_data_point(SseDeserializer deserializer);
 
   @protected
@@ -1726,12 +1658,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
-
-  @protected
-  DefectMapCorrectionRecord?
-  sse_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    SseDeserializer deserializer,
-  );
 
   @protected
   ApiAcquisitionSettings? sse_decode_opt_box_autoadd_api_acquisition_settings(
@@ -2089,9 +2015,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_decode_unit(SseDeserializer deserializer);
 
   @protected
-  BigInt sse_decode_usize(SseDeserializer deserializer);
-
-  @protected
   WeatherCapabilities sse_decode_weather_capabilities(
     SseDeserializer deserializer,
   );
@@ -2170,20 +2093,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ffi.Pointer<wire_cst_list_prim_u_8_strict> cst_encode_String(String raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_list_prim_u_8_strict(utf8.encoder.convert(raw));
-  }
-
-  @protected
-  ffi.Pointer<ffi.UintPtr>
-  cst_encode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    DefectMapCorrectionRecord raw,
-  ) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    return wire
-        .cst_new_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-          cst_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-            raw,
-          ),
-        );
   }
 
   @protected
@@ -2394,15 +2303,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     // Codec=Cst (C-struct based), see doc to use other codecs
     final ptr = wire.cst_new_box_autoadd_fits_write_header();
     cst_api_fill_to_wire_fits_write_header(raw, ptr.ref);
-    return ptr;
-  }
-
-  @protected
-  ffi.Pointer<wire_cst_fits_write_header_rich>
-  cst_encode_box_autoadd_fits_write_header_rich(FitsWriteHeaderRich raw) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    final ptr = wire.cst_new_box_autoadd_fits_write_header_rich();
-    cst_api_fill_to_wire_fits_write_header_rich(raw, ptr.ref);
     return ptr;
   }
 
@@ -3050,19 +2950,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
-  ffi.Pointer<ffi.UintPtr>
-  cst_encode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    DefectMapCorrectionRecord? raw,
-  ) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    return raw == null
-        ? ffi.nullptr
-        : cst_encode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-            raw,
-          );
-  }
-
-  @protected
   ffi.Pointer<wire_cst_api_acquisition_settings>
   cst_encode_opt_box_autoadd_api_acquisition_settings(
     ApiAcquisitionSettings? raw,
@@ -3298,12 +3185,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int cst_encode_u_64(BigInt raw) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    return raw.toSigned(64).toInt();
-  }
-
-  @protected
-  int cst_encode_usize(BigInt raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.toSigned(64).toInt();
   }
@@ -3825,14 +3706,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_fits_write_header> wireObj,
   ) {
     cst_api_fill_to_wire_fits_write_header(apiObj, wireObj.ref);
-  }
-
-  @protected
-  void cst_api_fill_to_wire_box_autoadd_fits_write_header_rich(
-    FitsWriteHeaderRich apiObj,
-    ffi.Pointer<wire_cst_fits_write_header_rich> wireObj,
-  ) {
-    cst_api_fill_to_wire_fits_write_header_rich(apiObj, wireObj.ref);
   }
 
   @protected
@@ -4982,116 +4855,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.site_elevation = cst_encode_opt_box_autoadd_f_64(
       apiObj.siteElevation,
     );
-  }
-
-  @protected
-  void cst_api_fill_to_wire_fits_write_header_rich(
-    FitsWriteHeaderRich apiObj,
-    wire_cst_fits_write_header_rich wireObj,
-  ) {
-    wireObj.object_name = cst_encode_opt_String(apiObj.objectName);
-    wireObj.exposure_time = cst_encode_f_64(apiObj.exposureTime);
-    wireObj.capture_timestamp = cst_encode_String(apiObj.captureTimestamp);
-    wireObj.frame_type = cst_encode_String(apiObj.frameType);
-    wireObj.filter = cst_encode_opt_String(apiObj.filter);
-    wireObj.filter_position = cst_encode_opt_box_autoadd_i_32(
-      apiObj.filterPosition,
-    );
-    wireObj.gain = cst_encode_opt_box_autoadd_i_32(apiObj.gain);
-    wireObj.offset = cst_encode_opt_box_autoadd_i_32(apiObj.offset);
-    wireObj.ccd_temp = cst_encode_opt_box_autoadd_f_64(apiObj.ccdTemp);
-    wireObj.set_temp = cst_encode_opt_box_autoadd_f_64(apiObj.setTemp);
-    wireObj.ra = cst_encode_opt_box_autoadd_f_64(apiObj.ra);
-    wireObj.dec = cst_encode_opt_box_autoadd_f_64(apiObj.dec);
-    wireObj.altitude = cst_encode_opt_box_autoadd_f_64(apiObj.altitude);
-    wireObj.telescope = cst_encode_opt_String(apiObj.telescope);
-    wireObj.instrument = cst_encode_opt_String(apiObj.instrument);
-    wireObj.observer = cst_encode_opt_String(apiObj.observer);
-    wireObj.bin_x = cst_encode_i_32(apiObj.binX);
-    wireObj.bin_y = cst_encode_i_32(apiObj.binY);
-    wireObj.focal_length = cst_encode_opt_box_autoadd_f_64(apiObj.focalLength);
-    wireObj.aperture = cst_encode_opt_box_autoadd_f_64(apiObj.aperture);
-    wireObj.pixel_size_x = cst_encode_opt_box_autoadd_f_64(apiObj.pixelSizeX);
-    wireObj.pixel_size_y = cst_encode_opt_box_autoadd_f_64(apiObj.pixelSizeY);
-    wireObj.site_latitude = cst_encode_opt_box_autoadd_f_64(
-      apiObj.siteLatitude,
-    );
-    wireObj.site_longitude = cst_encode_opt_box_autoadd_f_64(
-      apiObj.siteLongitude,
-    );
-    wireObj.site_elevation = cst_encode_opt_box_autoadd_f_64(
-      apiObj.siteElevation,
-    );
-    wireObj.focuser_position = cst_encode_opt_box_autoadd_i_32(
-      apiObj.focuserPosition,
-    );
-    wireObj.focuser_temperature = cst_encode_opt_box_autoadd_f_64(
-      apiObj.focuserTemperature,
-    );
-    wireObj.rotator_angle = cst_encode_opt_box_autoadd_f_64(
-      apiObj.rotatorAngle,
-    );
-    wireObj.guide_rms_arcsec = cst_encode_opt_box_autoadd_f_64(
-      apiObj.guideRmsArcsec,
-    );
-    wireObj.solved_ra_hours = cst_encode_opt_box_autoadd_f_64(
-      apiObj.solvedRaHours,
-    );
-    wireObj.solved_dec_degrees = cst_encode_opt_box_autoadd_f_64(
-      apiObj.solvedDecDegrees,
-    );
-    wireObj.plate_solve_pixel_scale_arcsec = cst_encode_opt_box_autoadd_f_64(
-      apiObj.plateSolvePixelScaleArcsec,
-    );
-    wireObj.plate_solve_rotation_deg = cst_encode_opt_box_autoadd_f_64(
-      apiObj.plateSolveRotationDeg,
-    );
-    wireObj.bayer_pattern = cst_encode_opt_String(apiObj.bayerPattern);
-    wireObj.session_id = cst_encode_opt_String(apiObj.sessionId);
-    wireObj.frame_index = cst_encode_opt_box_autoadd_u_32(apiObj.frameIndex);
-    wireObj.total_planned_frames = cst_encode_opt_box_autoadd_u_32(
-      apiObj.totalPlannedFrames,
-    );
-    wireObj.mosaic_name = cst_encode_opt_String(apiObj.mosaicName);
-    wireObj.mosaic_panel_index = cst_encode_opt_box_autoadd_i_32(
-      apiObj.mosaicPanelIndex,
-    );
-    wireObj.mosaic_panel_row = cst_encode_opt_box_autoadd_i_32(
-      apiObj.mosaicPanelRow,
-    );
-    wireObj.mosaic_panel_column = cst_encode_opt_box_autoadd_i_32(
-      apiObj.mosaicPanelColumn,
-    );
-    wireObj.mosaic_total_panels = cst_encode_opt_box_autoadd_i_32(
-      apiObj.mosaicTotalPanels,
-    );
-    wireObj.defect_map_correction =
-        cst_encode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-          apiObj.defectMapCorrection,
-        );
-    wireObj.photometry_object_catalog = cst_encode_opt_String(
-      apiObj.photometryObjectCatalog,
-    );
-    wireObj.photometry_reference_stars = cst_encode_opt_String(
-      apiObj.photometryReferenceStars,
-    );
-    wireObj.photometry_mjd_obs = cst_encode_opt_box_autoadd_f_64(
-      apiObj.photometryMjdObs,
-    );
-    wireObj.photometry_instrumental_mag = cst_encode_opt_box_autoadd_f_64(
-      apiObj.photometryInstrumentalMag,
-    );
-    wireObj.photometry_differential_mag = cst_encode_opt_box_autoadd_f_64(
-      apiObj.photometryDifferentialMag,
-    );
-    wireObj.photometry_fwhm_arcsec = cst_encode_opt_box_autoadd_f_64(
-      apiObj.photometryFwhmArcsec,
-    );
-    wireObj.photometry_snr = cst_encode_opt_box_autoadd_f_64(
-      apiObj.photometrySnr,
-    );
-    wireObj.rig_label = cst_encode_opt_String(apiObj.rigLabel);
-    wireObj.pier_side = cst_encode_opt_String(apiObj.pierSide);
   }
 
   @protected
@@ -7302,18 +7065,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
-  int
-  cst_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    DefectMapCorrectionRecord raw,
-  );
-
-  @protected
-  int
-  cst_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    DefectMapCorrectionRecord raw,
-  );
-
-  @protected
   bool cst_encode_bool(bool raw);
 
   @protected
@@ -7386,13 +7137,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    DefectMapCorrectionRecord self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_Map_String_Map_String_f_64_None_None(
     Map<String, Map<String, double>> self,
     SseSerializer serializer,
@@ -7413,13 +7157,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_Map_String_i_32_None(
     Map<String, int> self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    DefectMapCorrectionRecord self,
     SseSerializer serializer,
   );
 
@@ -7556,13 +7293,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
-  void
-  sse_encode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    DefectMapCorrectionRecord self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_box_autoadd_api_acquisition_settings(
     ApiAcquisitionSettings self,
     SseSerializer serializer,
@@ -7694,12 +7424,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_fits_write_header(
     FitsWriteHeader self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_box_autoadd_fits_write_header_rich(
-    FitsWriteHeaderRich self,
     SseSerializer serializer,
   );
 
@@ -8058,12 +7782,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_fits_write_header_rich(
-    FitsWriteHeaderRich self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_focus_data_point(
     FocusDataPoint self,
     SseSerializer serializer,
@@ -8344,13 +8062,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
-
-  @protected
-  void
-  sse_encode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    DefectMapCorrectionRecord? self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_opt_box_autoadd_api_acquisition_settings(
@@ -8795,9 +8506,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_usize(BigInt self, SseSerializer serializer);
 
   @protected
   void sse_encode_weather_capabilities(
@@ -17141,18 +16849,6 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
           >();
 
-  void wire__crate__api__imaging__fits_write_header_rich_default(int port_) {
-    return _wire__crate__api__imaging__fits_write_header_rich_default(port_);
-  }
-
-  late final _wire__crate__api__imaging__fits_write_header_rich_defaultPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__fits_write_header_rich_default',
-      );
-  late final _wire__crate__api__imaging__fits_write_header_rich_default =
-      _wire__crate__api__imaging__fits_write_header_rich_defaultPtr
-          .asFunction<void Function(int)>();
-
   void wire__crate__api__devices__focuser__focuser_halt(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
@@ -17710,50 +17406,6 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__imaging__save_fits_file_rich(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> file_path,
-    int width,
-    int height,
-    ffi.Pointer<wire_cst_list_prim_u_16_loose> data,
-    ffi.Pointer<wire_cst_fits_write_header_rich> header_data,
-  ) {
-    return _wire__crate__api__imaging__save_fits_file_rich(
-      port_,
-      file_path,
-      width,
-      height,
-      data,
-      header_data,
-    );
-  }
-
-  late final _wire__crate__api__imaging__save_fits_file_richPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Uint32,
-            ffi.Uint32,
-            ffi.Pointer<wire_cst_list_prim_u_16_loose>,
-            ffi.Pointer<wire_cst_fits_write_header_rich>,
-          )
-        >
-      >('frbgen_skotiq_bridge_wire__crate__api__imaging__save_fits_file_rich');
-  late final _wire__crate__api__imaging__save_fits_file_rich =
-      _wire__crate__api__imaging__save_fits_file_richPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              int,
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_16_loose>,
-              ffi.Pointer<wire_cst_fits_write_header_rich>,
-            )
-          >();
-
   void wire__crate__api__secondary_rig__secondary_rig_status_api_default(
     int port_,
   ) {
@@ -18075,59 +17727,6 @@ class RustLibWire implements BaseWire {
               int,
             )
           >();
-
-  void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    ffi.Pointer<ffi.Void> ptr,
-  ) {
-    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-      ptr,
-    );
-  }
-
-  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecordPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-        'frbgen_skotiq_bridge_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord',
-      );
-  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord =
-      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecordPtr
-          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-
-  void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    ffi.Pointer<ffi.Void> ptr,
-  ) {
-    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-      ptr,
-    );
-  }
-
-  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecordPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-        'frbgen_skotiq_bridge_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord',
-      );
-  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord =
-      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecordPtr
-          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-
-  ffi.Pointer<ffi.UintPtr>
-  cst_new_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    int value,
-  ) {
-    return _cst_new_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-      value,
-    );
-  }
-
-  late final _cst_new_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecordPtr =
-      _lookup<
-        ffi.NativeFunction<ffi.Pointer<ffi.UintPtr> Function(ffi.UintPtr)>
-      >(
-        'frbgen_skotiq_bridge_cst_new_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord',
-      );
-  late final _cst_new_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord =
-      _cst_new_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecordPtr
-          .asFunction<ffi.Pointer<ffi.UintPtr> Function(int)>();
 
   ffi.Pointer<wire_cst_api_acquisition_settings>
   cst_new_box_autoadd_api_acquisition_settings() {
@@ -18462,23 +18061,6 @@ class RustLibWire implements BaseWire {
   late final _cst_new_box_autoadd_fits_write_header =
       _cst_new_box_autoadd_fits_write_headerPtr
           .asFunction<ffi.Pointer<wire_cst_fits_write_header> Function()>();
-
-  ffi.Pointer<wire_cst_fits_write_header_rich>
-  cst_new_box_autoadd_fits_write_header_rich() {
-    return _cst_new_box_autoadd_fits_write_header_rich();
-  }
-
-  late final _cst_new_box_autoadd_fits_write_header_richPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Pointer<wire_cst_fits_write_header_rich> Function()
-        >
-      >('frbgen_skotiq_bridge_cst_new_box_autoadd_fits_write_header_rich');
-  late final _cst_new_box_autoadd_fits_write_header_rich =
-      _cst_new_box_autoadd_fits_write_header_richPtr
-          .asFunction<
-            ffi.Pointer<wire_cst_fits_write_header_rich> Function()
-          >();
 
   ffi.Pointer<wire_cst_focuser_capabilities>
   cst_new_box_autoadd_focuser_capabilities() {
@@ -19966,116 +19548,6 @@ final class wire_cst_app_settings extends ffi.Struct {
 
   @ffi.Bool()
   external bool auto_connect;
-}
-
-final class wire_cst_fits_write_header_rich extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> object_name;
-
-  @ffi.Double()
-  external double exposure_time;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> capture_timestamp;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> frame_type;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> filter;
-
-  external ffi.Pointer<ffi.Int32> filter_position;
-
-  external ffi.Pointer<ffi.Int32> gain;
-
-  external ffi.Pointer<ffi.Int32> offset;
-
-  external ffi.Pointer<ffi.Double> ccd_temp;
-
-  external ffi.Pointer<ffi.Double> set_temp;
-
-  external ffi.Pointer<ffi.Double> ra;
-
-  external ffi.Pointer<ffi.Double> dec;
-
-  external ffi.Pointer<ffi.Double> altitude;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> telescope;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> instrument;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> observer;
-
-  @ffi.Int32()
-  external int bin_x;
-
-  @ffi.Int32()
-  external int bin_y;
-
-  external ffi.Pointer<ffi.Double> focal_length;
-
-  external ffi.Pointer<ffi.Double> aperture;
-
-  external ffi.Pointer<ffi.Double> pixel_size_x;
-
-  external ffi.Pointer<ffi.Double> pixel_size_y;
-
-  external ffi.Pointer<ffi.Double> site_latitude;
-
-  external ffi.Pointer<ffi.Double> site_longitude;
-
-  external ffi.Pointer<ffi.Double> site_elevation;
-
-  external ffi.Pointer<ffi.Int32> focuser_position;
-
-  external ffi.Pointer<ffi.Double> focuser_temperature;
-
-  external ffi.Pointer<ffi.Double> rotator_angle;
-
-  external ffi.Pointer<ffi.Double> guide_rms_arcsec;
-
-  external ffi.Pointer<ffi.Double> solved_ra_hours;
-
-  external ffi.Pointer<ffi.Double> solved_dec_degrees;
-
-  external ffi.Pointer<ffi.Double> plate_solve_pixel_scale_arcsec;
-
-  external ffi.Pointer<ffi.Double> plate_solve_rotation_deg;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> bayer_pattern;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> session_id;
-
-  external ffi.Pointer<ffi.Uint32> frame_index;
-
-  external ffi.Pointer<ffi.Uint32> total_planned_frames;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> mosaic_name;
-
-  external ffi.Pointer<ffi.Int32> mosaic_panel_index;
-
-  external ffi.Pointer<ffi.Int32> mosaic_panel_row;
-
-  external ffi.Pointer<ffi.Int32> mosaic_panel_column;
-
-  external ffi.Pointer<ffi.Int32> mosaic_total_panels;
-
-  external ffi.Pointer<ffi.UintPtr> defect_map_correction;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> photometry_object_catalog;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict>
-  photometry_reference_stars;
-
-  external ffi.Pointer<ffi.Double> photometry_mjd_obs;
-
-  external ffi.Pointer<ffi.Double> photometry_instrumental_mag;
-
-  external ffi.Pointer<ffi.Double> photometry_differential_mag;
-
-  external ffi.Pointer<ffi.Double> photometry_fwhm_arcsec;
-
-  external ffi.Pointer<ffi.Double> photometry_snr;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> rig_label;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> pier_side;
 }
 
 final class wire_cst_api_defect_map_status extends ffi.Struct {
