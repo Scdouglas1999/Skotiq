@@ -11,10 +11,6 @@ pub struct OpenDomeInstruction;
 
 #[async_trait]
 impl InstructionNode for OpenDomeInstruction {
-    fn type_name(&self) -> &'static str {
-        "Open Dome"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

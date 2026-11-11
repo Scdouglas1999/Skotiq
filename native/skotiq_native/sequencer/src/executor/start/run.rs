@@ -7,9 +7,9 @@
 //! outside the node tree can fail it ([`OutsideFailures`]). The node tree's
 //! `ExecutionContext` takes its shared handles from here.
 
-use crate::node::resume::ResumeRecord;
 use super::*;
 use crate::node::context::{AdaptiveSwapRuntimeState, PluginNodeReply};
+use crate::node::resume::ResumeRecord;
 use crate::recovery::{RecoveryCause, RecoveryContext, RecoveryHistoryEntry, RecoverySignals};
 use crate::scheduling::integration_budget::BudgetRegistry;
 use crate::scheduling::BudgetRegistrySnapshot;

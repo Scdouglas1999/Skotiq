@@ -11,10 +11,6 @@ pub struct CloseCoverInstruction;
 
 #[async_trait]
 impl InstructionNode for CloseCoverInstruction {
-    fn type_name(&self) -> &'static str {
-        "Close Cover"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

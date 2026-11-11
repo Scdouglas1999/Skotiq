@@ -11,10 +11,6 @@ pub struct ChangeFilterInstruction;
 
 #[async_trait]
 impl InstructionNode for ChangeFilterInstruction {
-    fn type_name(&self) -> &'static str {
-        "Filter"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

@@ -11,10 +11,6 @@ pub struct DelayInstruction;
 
 #[async_trait]
 impl InstructionNode for DelayInstruction {
-    fn type_name(&self) -> &'static str {
-        "Delay"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

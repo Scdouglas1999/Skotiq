@@ -11,10 +11,6 @@ pub struct ParkDomeInstruction;
 
 #[async_trait]
 impl InstructionNode for ParkDomeInstruction {
-    fn type_name(&self) -> &'static str {
-        "Park Dome"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

@@ -58,13 +58,6 @@ pub struct PluginNodeInstruction;
 
 #[async_trait]
 impl InstructionNode for PluginNodeInstruction {
-    fn type_name(&self) -> &'static str {
-        // Surfaced on the legacy `InstructionProgress.instruction` field.
-        // The dashboard's typed plugin-node panel uses the structured
-        // detail instead, so this is purely a fallback string.
-        "Plugin Node"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -119,7 +112,7 @@ impl InstructionNode for PluginNodeInstruction {
         // yet so the JSON object is empty.
         context.send_progress(ProgressUpdate::instruction_progress(
             node_id.to_string(),
-            self.type_name(),
+            node_type.display_name(),
             0.0,
             ProgressDetail::PluginNode {
                 plugin_id: plugin_id.clone(),
@@ -222,7 +215,7 @@ impl InstructionNode for PluginNodeInstruction {
                     .unwrap_or_else(|| serde_json::json!({"phase": "finished"}));
                 context.send_progress(ProgressUpdate::instruction_progress(
                     node_id.to_string(),
-                    self.type_name(),
+                    node_type.display_name(),
                     100.0,
                     ProgressDetail::PluginNode {
                         plugin_id: plugin_id.clone(),

@@ -11,10 +11,6 @@ pub struct AutofocusInstruction;
 
 #[async_trait]
 impl InstructionNode for AutofocusInstruction {
-    fn type_name(&self) -> &'static str {
-        "Autofocus"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

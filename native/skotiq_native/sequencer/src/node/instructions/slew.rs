@@ -11,10 +11,6 @@ pub struct SlewInstruction;
 
 #[async_trait]
 impl InstructionNode for SlewInstruction {
-    fn type_name(&self) -> &'static str {
-        "Slew"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

@@ -10,10 +10,6 @@ pub struct HomeMountInstruction;
 
 #[async_trait]
 impl InstructionNode for HomeMountInstruction {
-    fn type_name(&self) -> &'static str {
-        "Home Mount"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

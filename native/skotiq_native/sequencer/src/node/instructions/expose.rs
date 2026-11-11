@@ -29,10 +29,6 @@ pub struct ExposeInstruction;
 
 #[async_trait]
 impl InstructionNode for ExposeInstruction {
-    fn type_name(&self) -> &'static str {
-        "Exposure"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

@@ -11,10 +11,6 @@ pub struct CoolCameraInstruction;
 
 #[async_trait]
 impl InstructionNode for CoolCameraInstruction {
-    fn type_name(&self) -> &'static str {
-        "Cool Camera"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

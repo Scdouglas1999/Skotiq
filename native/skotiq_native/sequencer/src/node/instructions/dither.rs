@@ -11,10 +11,6 @@ pub struct DitherInstruction;
 
 #[async_trait]
 impl InstructionNode for DitherInstruction {
-    fn type_name(&self) -> &'static str {
-        "Dither"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

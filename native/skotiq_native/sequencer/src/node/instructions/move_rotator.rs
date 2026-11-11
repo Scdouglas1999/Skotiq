@@ -11,10 +11,6 @@ pub struct MoveRotatorInstruction;
 
 #[async_trait]
 impl InstructionNode for MoveRotatorInstruction {
-    fn type_name(&self) -> &'static str {
-        "Move Rotator"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

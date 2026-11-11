@@ -10,10 +10,6 @@ pub struct TemperatureCompensationInstruction;
 
 #[async_trait]
 impl InstructionNode for TemperatureCompensationInstruction {
-    fn type_name(&self) -> &'static str {
-        "Temp Comp"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

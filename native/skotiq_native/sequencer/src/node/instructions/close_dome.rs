@@ -11,10 +11,6 @@ pub struct CloseDomeInstruction;
 
 #[async_trait]
 impl InstructionNode for CloseDomeInstruction {
-    fn type_name(&self) -> &'static str {
-        "Close Dome"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

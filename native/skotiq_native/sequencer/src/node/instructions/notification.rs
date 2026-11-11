@@ -16,10 +16,6 @@ pub struct NotificationInstruction;
 
 #[async_trait]
 impl InstructionNode for NotificationInstruction {
-    fn type_name(&self) -> &'static str {
-        "Notification"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

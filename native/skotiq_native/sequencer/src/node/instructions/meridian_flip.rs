@@ -11,10 +11,6 @@ pub struct MeridianFlipInstruction;
 
 #[async_trait]
 impl InstructionNode for MeridianFlipInstruction {
-    fn type_name(&self) -> &'static str {
-        "Meridian Flip"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

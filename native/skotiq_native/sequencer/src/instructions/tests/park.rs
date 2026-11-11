@@ -208,9 +208,7 @@ fn home_mount_node_type_round_trips_through_the_wire_tag() {
         serde_json::to_string(&crate::NodeType::HomeMount).unwrap(),
         r#"{"type":"HomeMount"}"#
     );
-    assert!(crate::node::registry::registry()
-        .build(&crate::NodeType::HomeMount)
-        .is_some());
+    assert!(crate::node::registry::instruction_for(&crate::NodeType::HomeMount).is_some());
 }
 
 /// A home is the run's own move, and the tracking stop it leaves behind is

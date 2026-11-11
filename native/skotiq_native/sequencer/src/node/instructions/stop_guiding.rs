@@ -11,10 +11,6 @@ pub struct StopGuidingInstruction;
 
 #[async_trait]
 impl InstructionNode for StopGuidingInstruction {
-    fn type_name(&self) -> &'static str {
-        "Stop Guiding"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

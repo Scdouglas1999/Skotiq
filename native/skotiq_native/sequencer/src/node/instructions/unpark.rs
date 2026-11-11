@@ -10,10 +10,6 @@ pub struct UnparkInstruction;
 
 #[async_trait]
 impl InstructionNode for UnparkInstruction {
-    fn type_name(&self) -> &'static str {
-        "Unpark"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

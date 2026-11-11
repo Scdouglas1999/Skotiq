@@ -17,10 +17,6 @@ pub struct RunScriptInstruction;
 
 #[async_trait]
 impl InstructionNode for RunScriptInstruction {
-    fn type_name(&self) -> &'static str {
-        "Run Script"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

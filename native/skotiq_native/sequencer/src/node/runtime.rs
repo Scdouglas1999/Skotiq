@@ -2,14 +2,14 @@
 //!
 //! The top-level execute() dispatch is intentionally small: container/logic
 //! variants are routed to `node::logic::*` (which need `&mut self.children`
-//! access) and every other variant goes through the `InstructionRegistry`
-//! trait dispatch.
+//! access) and every other variant runs the instruction node
+//! [`instruction_for`] names.
 
 use crate::expressions::{interpolate, EvaluationFrame};
 use crate::node::context::ExecutionContext;
 use crate::node::logic;
 use crate::node::progress::ProgressUpdate;
-use crate::node::registry::registry;
+use crate::node::registry::instruction_for;
 use crate::{NodeDefinition, NodeId, NodeStatus, NodeType};
 use async_trait::async_trait;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -83,7 +83,7 @@ pub(crate) fn is_disconnect_retry_attempt() -> bool {
         .is_ok_and(|is_retry| is_retry)
 }
 
-/// Execute an instruction node through the registry, retrying it if it fails
+/// Execute an instruction node, retrying it if it fails
 /// because a device disconnected.
 ///
 /// The recovery driver runs in a parallel task. When an instruction fails with
@@ -149,10 +149,10 @@ async fn execute_instruction_with_disconnect_retry(
     node_type: &NodeType,
     context: &mut ExecutionContext,
 ) -> NodeStatus {
-    let Some(instruction) = registry().build(variant) else {
+    let Some(instruction) = instruction_for(variant) else {
         tracing::error!(
-            "No instruction registered for variant {:?}; sequence cannot proceed",
-            variant
+            "{} is a container, not an instruction; sequence cannot proceed",
+            variant.wire_name()
         );
         return NodeStatus::Failure;
     };

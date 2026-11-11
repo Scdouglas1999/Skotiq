@@ -8,7 +8,7 @@
 //! node/
 //!   context.rs                  ExecutionContext (Clone-able)
 //!   progress.rs                 ProgressUpdate + ProgressDetail (structured)
-//!   registry.rs                 InstructionNode trait + static registry
+//!   registry.rs                 InstructionNode trait + the NodeType match
 //!   runtime.rs                  RuntimeNode + Node trait + dispatch
 //!   instructions/               one file per instruction (29 leaf nodes)
 //!   logic/                      target_header, loop, parallel, conditional,
@@ -39,10 +39,7 @@ pub use runtime::{Node, RuntimeNode};
 // via `crate::node::julian_day` / `crate::node::local_sidereal_time`.
 pub use crate::meridian::{julian_day, local_sidereal_time};
 
-// The instruction registry is not part of the public API but is exposed for
-// the unit tests in `registry.rs` and any future plugin authors who want to
-// inspect available variants.
-pub use registry::{node_type_discriminant, registry, InstructionNode, InstructionRegistry};
+pub use registry::{instruction_for, InstructionNode};
 
 // Re-export the sequential helper so external callers (tests, the executor's
 // resume path) can poke at execute_children_sequential without having to

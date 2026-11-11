@@ -16,10 +16,6 @@ pub struct CenterInstruction;
 
 #[async_trait]
 impl InstructionNode for CenterInstruction {
-    fn type_name(&self) -> &'static str {
-        "Center"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

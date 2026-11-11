@@ -11,10 +11,6 @@ pub struct OpenCoverInstruction;
 
 #[async_trait]
 impl InstructionNode for OpenCoverInstruction {
-    fn type_name(&self) -> &'static str {
-        "Open Cover"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

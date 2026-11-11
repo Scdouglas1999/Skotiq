@@ -9,7 +9,7 @@
 //! 2. Loop over `count` exposures. For each frame:
 //!    a. Record the frame's start time so the next iteration can
 //!    compute the inter-frame gap.
-//!    b. Run a single-frame `TakeExposure` via the InstructionRegistry
+//!    b. Run a single-frame `TakeExposure` through its instruction node
 //!    (re-uses the standard expose pipeline: camera, grading,
 //!    FITS save, integration accounting).
 //!    c. If the previous frame's start-to-start gap exceeded
@@ -35,7 +35,7 @@
 //! inevitably diverge. Instead, the photometry node constructs a
 //! `NodeType::TakeExposure` per frame with the photometric quality
 //! gates pre-translated into an `ImageQualityCheck`, dispatches it
-//! through the registry, and layers in the photometry-specific
+//! through its instruction node, and layers in the photometry-specific
 //! reduction (instrumental + differential magnitude extraction) +
 //! cadence tracking after the burst returns.
 //!
@@ -55,8 +55,11 @@
 //! AF interrupt is loudly visible in the run dashboard.
 
 use crate::node::context::{ExecutionContext, PhotometryRuntimeState};
+use crate::node::instructions::{
+    change_filter::ChangeFilterInstruction, expose::ExposeInstruction,
+};
 use crate::node::progress::{ProgressDetail, ProgressUpdate};
-use crate::node::registry::{registry, InstructionNode};
+use crate::node::registry::InstructionNode;
 use crate::{
     ExposureConfig, FilterConfig, NodeId, NodeStatus, NodeType, PhotometryFrameVerdict,
     SciencePhotometryConfig,
@@ -68,10 +71,6 @@ pub struct SciencePhotometryInstruction;
 
 #[async_trait]
 impl InstructionNode for SciencePhotometryInstruction {
-    fn type_name(&self) -> &'static str {
-        "Science Photometry"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -224,16 +223,8 @@ impl InstructionNode for SciencePhotometryInstruction {
             // Take one frame via the standard expose pipeline.
             let exposure_cfg = build_exposure_config(config);
             let exposure_node_type = NodeType::TakeExposure(exposure_cfg);
-            let Some(instruction) = registry().build(&exposure_node_type) else {
-                tracing::error!(
-                    "[PHOTOMETRY] '{}': InstructionRegistry returned None for TakeExposure; \
-                     cannot proceed (registry bug)",
-                    node_id
-                );
-                save_state(node_id, context, &state).await;
-                return NodeStatus::Failure;
-            };
-            let burst_status = instruction
+
+            let burst_status = ExposeInstruction
                 .execute(node_id, &exposure_node_type, context)
                 .await;
 
@@ -383,15 +374,8 @@ async fn run_filter_change(
         filter_index: None,
         timeout_secs: None,
     });
-    let Some(instruction) = registry().build(&filter_node_type) else {
-        tracing::error!(
-            "[PHOTOMETRY] '{}': InstructionRegistry returned None for ChangeFilter; \
-             cannot proceed (registry bug)",
-            node_id
-        );
-        return NodeStatus::Failure;
-    };
-    instruction
+
+    ChangeFilterInstruction
         .execute(node_id, &filter_node_type, context)
         .await
 }

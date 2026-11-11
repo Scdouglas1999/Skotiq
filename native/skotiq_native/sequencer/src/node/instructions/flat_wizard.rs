@@ -10,10 +10,6 @@ pub struct FlatWizardInstruction;
 
 #[async_trait]
 impl InstructionNode for FlatWizardInstruction {
-    fn type_name(&self) -> &'static str {
-        "Flat Wizard"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
