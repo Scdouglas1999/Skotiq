@@ -35,7 +35,6 @@ class ModerationService {
   /// threshold that used to permanently auto-suspend honest accounts.
   static const Duration defaultAbuseWindow = Duration(hours: 72);
 
-  /// Whether [accountId] is currently suspended.
   bool isSuspended(String accountId) {
     final rows = _db.db.select(
       'SELECT suspended_at FROM accounts WHERE id = ?;',

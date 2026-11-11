@@ -54,8 +54,6 @@ class MosaicBrokerService {
   /// this elapses.
   static const Duration claimTtl = Duration(hours: 12);
 
-  // --- Publish ---------------------------------------------------------------
-
   /// Publish a mosaic and its panel grid in one transaction. [panels] carries
   /// one entry per `rows × cols` panel (0-based row-major index + the panel's
   /// sky centre). Returns the new mosaic id.
@@ -117,7 +115,6 @@ class MosaicBrokerService {
     return mosaicId;
   }
 
-  /// One published mosaic by id, or null.
   CollaborativeMosaicRow? getMosaic(String mosaicId) {
     final rows = _db.db.select(
       'SELECT * FROM collaborative_mosaics WHERE id = ?;',
@@ -482,8 +479,6 @@ class MosaicBrokerService {
     return mosaic.outputPath;
   }
 
-  // --- Internals -------------------------------------------------------------
-
   /// Free a claim whose TTL has elapsed (lazy, like [HandoffService]). An
   /// uploaded panel is terminal and never expired.
   void _expireStale(String mosaicId, int panelIndex) {
@@ -730,7 +725,6 @@ class CollaborativeMosaicPanelRow {
   };
 }
 
-/// No published mosaic with the given id exists.
 class MosaicNotFound implements Exception {
   MosaicNotFound(this.mosaicId);
   final String mosaicId;
@@ -738,7 +732,6 @@ class MosaicNotFound implements Exception {
   String toString() => 'MosaicNotFound($mosaicId)';
 }
 
-/// No panel with the given index exists on the mosaic.
 class MosaicPanelNotFound implements Exception {
   MosaicPanelNotFound(this.mosaicId, this.panelIndex);
   final String mosaicId;

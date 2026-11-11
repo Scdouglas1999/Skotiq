@@ -260,7 +260,6 @@ class FusionService {
       medianResidual: medianFwhm,
       acceptedFrames: framesDelta,
     );
-    // Materialize the per-account credit for this fused tile.
     _attribution?.recordAccepted(
       artifactType: 'tile',
       artifactRef: tileArtifactRef(tileId, order),
@@ -432,7 +431,6 @@ class FusionService {
   }
 }
 
-/// Result of a [FusionService.contribute] call.
 class ContributionOutcome {
   ContributionOutcome({
     required this.contributionId,
@@ -453,7 +451,6 @@ class ContributionOutcome {
   final TileQualityVerdict verdict;
 }
 
-/// Result of a [FusionService.retract] call.
 class RetractionOutcome {
   RetractionOutcome({
     required this.retracted,

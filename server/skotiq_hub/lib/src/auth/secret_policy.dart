@@ -7,7 +7,6 @@
 /// a non-null reason.
 library;
 
-/// The minimum length an operator-supplied secret must have.
 const int minSecretLength = 24;
 
 /// The minimum number of distinct characters a secret must contain, a cheap

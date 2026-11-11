@@ -28,7 +28,6 @@ enum HubScope {
     return null;
   }
 
-  /// Whether a token with this scope satisfies a requirement for [required].
   bool satisfies(HubScope required) => index >= required.index;
 }
 
@@ -391,7 +390,6 @@ class TokenService {
     if (expiresAt != null) {
       final exp = DateTime.tryParse(expiresAt);
       if (exp != null && !DateTime.now().toUtc().isBefore(exp)) {
-        // Expired: purge and deny.
         _db.db.execute('DELETE FROM tokens WHERE token_hash = ?;', <Object?>[
           hash,
         ]);
