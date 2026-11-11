@@ -392,8 +392,10 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
               );
               break;
             }
-            // If came from downloading, dialog handles it
-            if (previous?.status == UpdateStatus.downloading) {
+            // A download, verification included, ends in the download
+            // dialog.
+            if (previous?.status == UpdateStatus.downloading ||
+                previous?.status == UpdateStatus.verifying) {
               // Will be handled by download dialog
             } else {
               // For non-LAN push staged updates, show banner instead of dialog
