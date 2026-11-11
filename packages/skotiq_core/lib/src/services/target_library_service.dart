@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/skotiq_backend.dart';
 import '../database/database.dart' as db;
+import '../providers/async_scope.dart';
 import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart';
 import 'catalog_target_resolver.dart';
@@ -11,29 +12,15 @@ import '../backend/remote_host.dart';
 
 /// Host-aware targets-library CRUD for planetarium and transient flows.
 class TargetLibraryService {
-  TargetLibraryService(Ref ref, {SkotiqBackend? backend})
+  TargetLibraryService(Ref ref)
     : _ref = ref,
-      _backend = backend ?? ref.read(backendProvider),
-      _backendNotifier = ref.read(backendProvider.notifier);
+      _host = ref.providerBackendScope();
 
   final Ref _ref;
-  final SkotiqBackend _backend;
-  final BackendNotifier _backendNotifier;
-  bool _retired = false;
+  final AsyncScope<SkotiqBackend> _host;
 
-  bool get _hasAuthority =>
-      !_retired && _backendNotifier.isCurrentBackend(_backend);
-
-  void retire() => _retired = true;
-
-  void _ensureAuthority() {
-    if (_hasAuthority) return;
-    throw StateError(
-      'The imaging host changed while the target library was being updated. '
-      'The stale result was discarded; try the action again on the current '
-      'host.',
-    );
-  }
+  void _ensureSameHost() =>
+      _host.ensureCurrent('the target library was being updated');
 
   /// Creates a row in the targets library on the imaging host (remote) or
   /// local SQLite (FFI). Returns the new target id.
@@ -52,8 +39,8 @@ class TargetLibraryService {
     bool isFavorite = false,
     int priority = 5,
   }) async {
-    _ensureAuthority();
-    final host = _backend.remoteHost?.imagingRecords;
+    _ensureSameHost();
+    final host = _host.value.remoteHost?.imagingRecords;
     if (host != null) {
       final id = await host.createTarget({
         'name': name,
@@ -70,7 +57,7 @@ class TargetLibraryService {
         'isFavorite': isFavorite,
         'priority': priority,
       });
-      _ensureAuthority();
+      _ensureSameHost();
       _invalidateCatalog();
       return id;
     }
@@ -93,7 +80,7 @@ class TargetLibraryService {
         priority: Value(priority),
       ),
     );
-    _ensureAuthority();
+    _ensureSameHost();
     _invalidateCatalog();
     return id;
   }
@@ -109,9 +96,9 @@ class TargetLibraryService {
     double? magnitude,
     double? sizeArcmin,
   }) async {
-    _ensureAuthority();
+    _ensureSameHost();
     final candidates = await _loadTargets();
-    _ensureAuthority();
+    _ensureSameHost();
     final existing = resolveDbTargetForCatalog(
       candidates: candidates,
       targetName: targetName,
@@ -133,10 +120,10 @@ class TargetLibraryService {
       magnitude: magnitude,
       sizeArcmin: sizeArcmin,
     );
-    _ensureAuthority();
+    _ensureSameHost();
 
     final refreshed = await _loadTargets();
-    _ensureAuthority();
+    _ensureSameHost();
     for (final target in refreshed) {
       if (target.id == id) {
         return target;
@@ -166,7 +153,7 @@ class TargetLibraryService {
   }
 
   Future<List<db.Target>> _loadTargets() async {
-    final host = _backend.remoteHost?.imagingRecords;
+    final host = _host.value.remoteHost?.imagingRecords;
     if (host != null) {
       final rows = await host.getAllTargets();
       // Drop rows the host sent without a usable sky coordinate rather than
@@ -250,8 +237,6 @@ class TargetLibraryService {
 }
 
 final targetLibraryServiceProvider = Provider<TargetLibraryService>((ref) {
-  final backend = ref.watch(backendProvider);
-  final service = TargetLibraryService(ref, backend: backend);
-  ref.onDispose(service.retire);
-  return service;
+  ref.watch(backendProvider);
+  return TargetLibraryService(ref);
 });
