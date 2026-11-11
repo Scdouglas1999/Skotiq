@@ -505,7 +505,7 @@
     }
   ],
   "stampProducingNode all": null,
-  "stampProducingNode all :: wakes watchers": false,
+  "stampProducingNode all :: wakes watchers": true,
   "stampProducingNode some": null,
   "stampProducingNode none": null,
   "stampProducingNode none :: wakes watchers": false,
@@ -1414,7 +1414,7 @@
   "node n1 count": 5,
   "node n1 run 7 count": 3,
   "node n9 count": 0,
-  "strip emissions after a stamp": 1,
+  "strip emissions after a stamp": 2,
   "run 7 images": [
     {
       "id": 1,
