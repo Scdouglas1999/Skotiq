@@ -476,6 +476,7 @@ export 'src/providers/current_frame_analysis_provider.dart';
 export 'src/providers/frame_record_updates.dart';
 export 'src/providers/frame_watch_settings_provider.dart';
 export 'src/services/annotation_service.dart';
+export 'src/services/annotation_export.dart';
 export 'src/services/scheduler/scheduler_engine.dart';
 export 'src/services/scheduler/integration_goal_service.dart';
 export 'src/services/scheduler/target_constraint_service.dart';

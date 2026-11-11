@@ -223,6 +223,7 @@ class StackAndShareNotifier extends StateNotifier<StackAndShareState> {
         resultChannels: raw?.channels ?? 1,
         resultRgba: rgba?.rgba,
       );
+      _ref.invalidate(recentStackedResultsProvider);
     } catch (e, st) {
       if (!mounted) return;
       // Ensure the terminal error phase is reflected even if the failure
@@ -284,20 +285,51 @@ final stackResultViewerProvider =
       return result;
     });
 
-/// The most recent stacked results across all sessions, newest first, for any
-/// history / gallery surface. Caps at the DAO's default limit.
-final recentStackedResultsProvider = FutureProvider<List<StackAndShareResult>>((
-  ref,
-) async {
-  final backend = ref.watch(backendProvider);
-  final host = backend.remoteHost?.liveStack;
-  if (host != null) {
-    final remote = await host.stackingGetSavedResults();
-    return [for (final record in remote) record.result];
+/// The most recent stacked results across all sessions, newest first: this
+/// machine's on a rig, the host's on a linked client. Caps at the DAO's default
+/// limit. Re-read whenever the history is shown again and after every
+/// Stack & Share run, so a new stack appears without a restart.
+final recentStackedResultsProvider =
+    FutureProvider.autoDispose<List<StackAndShareResult>>((ref) async {
+      final backend = ref.watch(backendProvider);
+      final host = backend.remoteHost?.liveStack;
+      if (host != null) {
+        final remote = await host.stackingGetSavedResults();
+        return [for (final record in remote) record.result];
+      }
+      final dao = ref.watch(stackedResultsDaoProvider);
+      return dao.getRecentResults();
+    });
+
+/// Path of a stacked result's saved preview, for a thumbnail in the history.
+///
+/// Null when there is nothing on disk, and always null on a linked client: the
+/// host serves only the full-size preview, and fetching one per history row
+/// would move tens of megabytes to draw a few small squares.
+final stackResultThumbnailPathProvider = FutureProvider.autoDispose
+    .family<String?, int>((ref, id) async {
+      if (ref.watch(backendProvider).remoteHost != null) return null;
+      final result = await ref.watch(stackResultViewerProvider(id).future);
+      final file = await _localPreviewFile(ref, result);
+      if (file == null || !await file.exists()) return null;
+      return file.path;
+    });
+
+/// The file a local result's preview is read from: the application-owned
+/// viewer preview when it exists, else the image the run exported. Null when
+/// the run recorded no image at all.
+Future<File?> _localPreviewFile(Ref ref, StackAndShareResult result) async {
+  final recordedPath = result.exportedImagePath;
+  if (recordedPath == null || recordedPath.trim().isEmpty) return null;
+  final resultId = result.id;
+  if (resultId != null) {
+    final canonical = File(
+      await ref.read(stackShareExportServiceProvider).viewerPreviewPath(resultId),
+    );
+    if (await canonical.exists()) return canonical;
   }
-  final dao = ref.watch(stackedResultsDaoProvider);
-  return dao.getRecentResults();
-});
+  return File(recordedPath);
+}
 
 /// Strict remote metadata record, shared by the result and preview providers so
 /// a screen load performs only one metadata request. Watching [backendProvider]
@@ -333,20 +365,8 @@ final stackResultPreviewProvider = FutureProvider.autoDispose
         encoded = await host.stackingGetSavedResultPreview(id);
         source = 'remote stacked-result preview $id';
       } else {
-        final recordedPath = result.exportedImagePath;
-        if (recordedPath == null || recordedPath.trim().isEmpty) return null;
-        final resultId = result.id;
-        final canonicalPath = resultId == null
-            ? null
-            : await ref
-                  .read(stackShareExportServiceProvider)
-                  .viewerPreviewPath(resultId);
-        final canonicalFile = canonicalPath == null
-            ? null
-            : File(canonicalPath);
-        final file = canonicalFile != null && await canonicalFile.exists()
-            ? canonicalFile
-            : File(recordedPath);
+        final file = await _localPreviewFile(ref, result);
+        if (file == null) return null;
         if (!await file.exists()) {
           throw StateError('The saved stacked-result preview is missing.');
         }
