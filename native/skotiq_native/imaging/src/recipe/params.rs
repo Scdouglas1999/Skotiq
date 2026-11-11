@@ -72,7 +72,6 @@ impl<'a> Params<'a> {
         Ok(())
     }
 
-    /// Whether the payload carries this key.
     pub fn has(&self, key: &str) -> bool {
         self.map.contains_key(key)
     }

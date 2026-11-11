@@ -36,7 +36,6 @@ pub struct Affine2 {
 }
 
 impl Affine2 {
-    /// The identity map.
     pub const IDENTITY: Self = Self {
         m: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
     };
@@ -54,7 +53,6 @@ impl Affine2 {
         out.inverse().map(|_| out)
     }
 
-    /// Map a point.
     #[inline]
     pub fn apply(&self, x: f64, y: f64) -> (f64, f64) {
         let m = &self.m;
@@ -660,9 +658,7 @@ pub struct Rect {
     pub x: u32,
     /// Top edge.
     pub y: u32,
-    /// Width.
     pub width: u32,
-    /// Height.
     pub height: u32,
 }
 

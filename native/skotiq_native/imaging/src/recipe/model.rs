@@ -43,10 +43,6 @@ pub const RECIPE_SCHEMA_VERSION: u32 = 1;
 /// aborts at safing instead of running the shutdown budget out.
 pub const CANCEL_POLL_PIXELS: usize = 65_536;
 
-// ---------------------------------------------------------------------------
-// Recipe model
-// ---------------------------------------------------------------------------
-
 /// Who authored a recipe. The morning draft is `autopilot` until the user edits
 /// it; the distinction drives "this is a first draft" affordances in the editor.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -240,10 +236,6 @@ impl Recipe {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Canonical JSON + fingerprint
-// ---------------------------------------------------------------------------
-
 /// Render a JSON value with object keys sorted at every depth and no
 /// insignificant whitespace.
 ///
@@ -328,10 +320,6 @@ pub fn fingerprint_hex(bytes: &[u8]) -> String {
     format!("{hash:032x}")
 }
 
-// ---------------------------------------------------------------------------
-// Errors
-// ---------------------------------------------------------------------------
-
 /// Faults an operation reports to the engine. Every variant names the caller
 /// mistake or the missing capability; none of them describe a degraded result
 /// that was applied anyway.
@@ -340,9 +328,7 @@ pub enum OpError {
     /// The parameter payload is not a JSON object.
     #[error("{op_id}@{op_version}: parameters must be a JSON object, found {found}")]
     ParamsNotObject {
-        /// Operation id.
         op_id: &'static str,
-        /// Operation version.
         op_version: u32,
         /// JSON type of what was supplied.
         found: &'static str,
@@ -350,31 +336,22 @@ pub enum OpError {
     /// A parameter key the operation version does not define.
     #[error("{op_id}@{op_version}: unknown parameter '{key}'")]
     UnknownParam {
-        /// Operation id.
         op_id: &'static str,
-        /// Operation version.
         op_version: u32,
-        /// The offending key.
         key: String,
     },
     /// A parameter with no default was not supplied.
     #[error("{op_id}@{op_version}: missing required parameter '{key}'")]
     MissingParam {
-        /// Operation id.
         op_id: &'static str,
-        /// Operation version.
         op_version: u32,
-        /// The missing key.
         key: String,
     },
     /// A parameter has the wrong JSON type.
     #[error("{op_id}@{op_version}: parameter '{key}' must be {expected}, found {found}")]
     ParamType {
-        /// Operation id.
         op_id: &'static str,
-        /// Operation version.
         op_version: u32,
-        /// The offending key.
         key: String,
         /// The type the operation requires.
         expected: &'static str,
@@ -384,11 +361,8 @@ pub enum OpError {
     /// A parameter is outside the range the operation accepts.
     #[error("{op_id}@{op_version}: parameter '{key}' = {value} is outside {range}")]
     ParamRange {
-        /// Operation id.
         op_id: &'static str,
-        /// Operation version.
         op_version: u32,
-        /// The offending key.
         key: String,
         /// The rejected value, rendered.
         value: String,
@@ -401,11 +375,8 @@ pub enum OpError {
     /// The declared geometry and the pixel buffer disagree.
     #[error("pixel buffer holds {found} samples, {width}x{height}x{channels} needs {expected}")]
     GeometryMismatch {
-        /// Image width in pixels.
         width: u32,
-        /// Image height in pixels.
         height: u32,
-        /// Channel count.
         channels: u32,
         /// Samples the geometry requires.
         expected: usize,
@@ -417,7 +388,6 @@ pub enum OpError {
         "unsupported pixel type {found:?} for the recipe engine; linear masters are F32 and U16 is carried as ADU"
     )]
     UnsupportedPixelType {
-        /// The pixel type that was supplied.
         found: PixelType,
     },
     /// The operation does not define a result for this channel layout.
@@ -425,11 +395,8 @@ pub enum OpError {
         "{op_id}@{op_version}: unsupported channel layout: a {channels}-channel image, {expected}"
     )]
     UnsupportedChannels {
-        /// Operation id.
         op_id: &'static str,
-        /// Operation version.
         op_version: u32,
-        /// Channel count supplied.
         channels: u32,
         /// What the operation requires, in words.
         expected: &'static str,
@@ -439,9 +406,7 @@ pub enum OpError {
     /// image through unchanged; it never reports the step as applied.
     #[error("{op_id}@{op_version}: unavailable: {reason}")]
     Unavailable {
-        /// Operation id.
         op_id: &'static str,
-        /// Operation version.
         op_version: u32,
         /// Why the capability is absent, in the words the user reads.
         reason: String,
@@ -452,9 +417,7 @@ pub enum OpError {
     /// The operation ran and failed for a reason of its own.
     #[error("{op_id}@{op_version}: {reason}")]
     Failed {
-        /// Operation id.
         op_id: &'static str,
-        /// Operation version.
         op_version: u32,
         /// The underlying failure, already user-readable.
         reason: String,
@@ -495,9 +458,7 @@ pub enum RecipeError {
         /// Step index in the recipe, counted from 0; the sentence counts it
         /// from 1.
         index: usize,
-        /// Operation id requested.
         op_id: String,
-        /// Operation version requested.
         op_version: u32,
     },
     /// The step's parameters failed the operation's own validation.
@@ -506,11 +467,8 @@ pub enum RecipeError {
         /// Step index in the recipe, counted from 0; the sentence counts it
         /// from 1.
         index: usize,
-        /// Operation id.
         op_id: String,
-        /// Operation version.
         op_version: u32,
-        /// The operation's parameter fault.
         source: Box<OpError>,
     },
     /// A linear-stage operation sits after a stretched-stage operation.
@@ -559,7 +517,6 @@ pub enum RecipeError {
     /// The base image is not usable as a render input.
     #[error("base image is not renderable: {source}")]
     BaseImage {
-        /// The image fault.
         source: Box<OpError>,
     },
     /// An operation failed while the recipe was rendering.
@@ -568,17 +525,12 @@ pub enum RecipeError {
         /// Step index in the recipe, counted from 0; the sentence counts it
         /// from 1.
         index: usize,
-        /// The operation's fault.
         source: Box<OpError>,
     },
     /// The cancel flag was raised during the render.
     #[error("cancelled")]
     Cancelled,
 }
-
-// ---------------------------------------------------------------------------
-// OpImage
-// ---------------------------------------------------------------------------
 
 /// The image an operation reads and writes: linear-or-stretched F32 samples plus
 /// the FITS header they came with.
@@ -665,12 +617,10 @@ impl OpImage {
         ImageData::from_f32(self.width, self.height, self.channels, &self.data)
     }
 
-    /// Image width in pixels.
     pub fn width(&self) -> u32 {
         self.width
     }
 
-    /// Image height in pixels.
     pub fn height(&self) -> u32 {
         self.height
     }
@@ -777,10 +727,6 @@ pub fn wcs_from_header(header: &FitsHeader) -> Option<SipWcs> {
     SipWcs::from_header(header).filter(SipWcs::is_invertible)
 }
 
-// ---------------------------------------------------------------------------
-// Catalog handle
-// ---------------------------------------------------------------------------
-
 /// One catalogue star with genuine photometry, in degrees.
 ///
 /// `b_minus_v` is a catalogue measurement. A value derived from the frame's own
@@ -847,10 +793,6 @@ pub trait PhotometryCatalog: Send + Sync {
     /// them, not the list.
     fn identity(&self) -> String;
 }
-
-// ---------------------------------------------------------------------------
-// OpContext
-// ---------------------------------------------------------------------------
 
 /// Everything an operation needs beyond its image and parameters.
 ///
@@ -956,12 +898,10 @@ impl OpContext {
         Arc::clone(&self.cancel)
     }
 
-    /// Whether cancellation has been requested.
     pub fn cancel_requested(&self) -> bool {
         self.cancel.load(Ordering::Relaxed)
     }
 
-    /// Raise the cancel flag.
     pub fn request_cancel(&self) {
         self.cancel.store(true, Ordering::Relaxed);
     }
@@ -1048,10 +988,6 @@ impl OpContext {
     }
 }
 
-// ---------------------------------------------------------------------------
-// The operation trait
-// ---------------------------------------------------------------------------
-
 /// The pixel domain an operation *emits*.
 ///
 /// A `Linear` operation reads and writes linear data. A `Stretched` operation
@@ -1088,7 +1024,6 @@ impl OpStage {
 /// it the fit would have to be repeated outside the render to be seen.
 #[derive(Debug, Clone)]
 pub struct OpApplied {
-    /// The image the operation produced.
     pub image: OpImage,
     /// What the operation solved while it ran, as the step report's detail, or
     /// `None` when its parameters already describe its result in full.

@@ -37,7 +37,6 @@ pub struct PyramidSources {
 }
 
 impl PyramidSources {
-    /// An empty source.
     pub fn new() -> Self {
         Self::default()
     }
@@ -52,7 +51,6 @@ impl PyramidSources {
         self.masters.insert(path.into(), (identity.into(), pyramid));
     }
 
-    /// Whether no master is held.
     pub fn is_empty(&self) -> bool {
         self.masters.is_empty()
     }

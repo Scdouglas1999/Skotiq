@@ -203,7 +203,6 @@ impl RenderCache {
         self.entries.len()
     }
 
-    /// Whether nothing is stored.
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
