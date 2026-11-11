@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_app/screens/session_replay/session_picker_screen.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 
 void main() {
   testWidgets('deduplicates runs while advancing by the raw page offset', (
@@ -140,10 +141,10 @@ void main() {
       (_) async => RemotePage(items: [_run(9)], total: 1),
     );
     final router = GoRouter(
-      initialLocation: kSessionReplayRoutePath,
+      initialLocation: AppRoute.sessionReplay.path,
       routes: [
         GoRoute(
-          path: kSessionReplayRoutePath,
+          path: AppRoute.sessionReplay.path,
           builder: (_, __) => const SessionPickerScreen(),
           routes: [
             GoRoute(

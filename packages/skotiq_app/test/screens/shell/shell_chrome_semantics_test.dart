@@ -300,11 +300,9 @@ void main() {
 
     // Every rail destination, with a role and a selected state — a name with
     // no role reads as static text to a screen reader.
-    for (var index = 0;
-        index < ShellNavigation.primaryDestinations.length;
-        index++) {
-      final destination = ShellNavigation.primaryDestinations[index];
-      final name = destination.label(l10n);
+    for (var index = 0; index < ShellNavigation.rail.length; index++) {
+      final destination = ShellNavigation.rail[index];
+      final name = destination.label!.of(l10n);
       // The rail row's Semantics label is EXACTLY the destination name (the
       // descriptions are gone in the Observatory rail), so match on equality:
       // a `contains` match would let the top bar's own buttons answer for a

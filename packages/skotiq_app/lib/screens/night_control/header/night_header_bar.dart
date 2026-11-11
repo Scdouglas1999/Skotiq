@@ -18,7 +18,6 @@ import '../../../localization/skotiq_localizations.dart';
 import '../../../models/command_action_result.dart';
 import '../../../services/sequence_action_service.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../sequencer/sequencer_screen.dart' show kSequencerRoutePath;
 import '../../sequencer/widgets/preflight_validation_dialog.dart';
 import '../actions/armed_start_provider.dart';
 import '../actions/night_action_controller.dart';
@@ -29,6 +28,7 @@ import '../data/plan/night_timeline_provider.dart';
 import '../left/night_time_format.dart';
 import '../night_control_contracts.dart';
 import '../night_control_layout.dart';
+import '../../../router/app_routes.dart';
 
 /// The header slot of [NightControlLayout].
 ///
@@ -294,7 +294,7 @@ class NightHeaderBar extends ConsumerWidget {
         _ButtonControl(
           label: l10n.text('nightCtlEditPlan'),
           control: const NightControlVm.enabled(),
-          onPressed: () => context.go(kSequencerRoutePath),
+          onPressed: () => context.go(AppRoute.sequencer.path),
         ),
       );
     }

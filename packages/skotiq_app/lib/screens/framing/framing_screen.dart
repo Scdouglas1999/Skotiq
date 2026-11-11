@@ -12,6 +12,7 @@ import 'framing_hips_layer_wiring.dart';
 import 'framing_search_provider.dart';
 import '../../widgets/tutorial_keys/framing_keys.dart';
 import 'widgets/optical_config_panel.dart';
+import '../../router/app_routes.dart';
 import 'widgets/framing_canvas.dart';
 import 'widgets/framing_actions_panel.dart';
 import 'widgets/framing_sidebar.dart';
@@ -23,8 +24,8 @@ import 'widgets/framing_sidebar.dart';
 /// wrapper kept for the redirected `/framing` standalone route). Browsing and
 /// acting on tonight's target suggestions lives entirely in the Planner — this
 /// view carries no Suggestions tab. Targets are adopted into the canvas via
-/// [FramingNotifier.setTargetSuggestion] + `goNamed('framing')` or via
-/// `?ra=&dec=&name=` query params.
+/// [FramingNotifier.setTargetSuggestion] before opening the Framing tab, or
+/// via a [SkyTarget] in the location's query.
 class FramingView extends ConsumerStatefulWidget {
   const FramingView({super.key});
 
@@ -50,7 +51,7 @@ class _FramingViewState extends ConsumerState<FramingView> {
   }
 
   Future<void> _loadPersistedTarget() async {
-    // Honor inbound query params first: /framing?ra=<hours>&dec=<deg>&name=<n>.
+    // Honor an inbound [SkyTarget] query first.
     // The planning workspace uses this to hand off a chosen target to framing.
     final applied = _applyQueryParamsTarget();
 
@@ -67,9 +68,8 @@ class _FramingViewState extends ConsumerState<FramingView> {
     }
   }
 
-  /// Parses `?ra=&dec=&name=` from the current GoRouter location and, when
-  /// valid, hands the target to the framing provider. Returns true if a
-  /// target was applied. RA is in decimal hours, Dec is in decimal degrees.
+  /// Reads a [SkyTarget] from the current GoRouter location and, when valid,
+  /// hands it to the framing provider. Returns true if a target was applied.
   bool _applyQueryParamsTarget() {
     if (!mounted) return false;
     final Uri uri;
@@ -79,22 +79,12 @@ class _FramingViewState extends ConsumerState<FramingView> {
       // Why: framing screen is reachable outside the GoRouter tree in tests.
       return false;
     }
-    final params = uri.queryParameters;
-    final raStr = params['ra'];
-    final decStr = params['dec'];
-    if (raStr == null || decStr == null) return false;
-
-    final raHours = double.tryParse(raStr);
-    final decDegrees = double.tryParse(decStr);
-    if (raHours == null || decDegrees == null) return false;
-    if (raHours < 0 || raHours >= 24) return false;
-    if (decDegrees < -90 || decDegrees > 90) return false;
-
-    final name = params['name']?.trim();
+    final target = SkyTarget.fromQuery(uri.queryParameters);
+    if (target == null) return false;
     ref.read(framingProvider.notifier).setTargetCoordinates(
-          raHours,
-          decDegrees,
-          name: (name == null || name.isEmpty) ? null : name,
+          target.raHours,
+          target.decDegrees,
+          name: target.name,
         );
     return true;
   }
@@ -459,7 +449,7 @@ class _FramingViewState extends ConsumerState<FramingView> {
       rotationDegrees: rotation,
     );
     if (added && mounted) {
-      context.go('/sequencer');
+      context.go(AppRoute.sequencer.path);
     }
   }
 

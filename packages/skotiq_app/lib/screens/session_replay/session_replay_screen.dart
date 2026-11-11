@@ -6,6 +6,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../sequencer/run_status_presentation.dart';
 import 'session_picker_screen.dart';
+import '../../router/app_routes.dart';
 
 /// One past run as a timeline to scrub: events above the track, frames below
 /// it, and what the rig was doing at the playhead.
@@ -93,7 +94,7 @@ class _BackToRunList extends StatelessWidget {
           return;
         }
         // A deep link leaves nothing beneath this screen.
-        context.go(kSessionReplayRoutePath);
+        context.go(AppRoute.sessionReplay.path);
       },
     );
   }

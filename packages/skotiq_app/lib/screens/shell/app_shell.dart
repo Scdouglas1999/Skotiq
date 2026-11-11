@@ -12,14 +12,13 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../localization/skotiq_localizations.dart';
+import '../../router/app_routes.dart';
 import '../../startup/startup_surface_queue.dart';
 import '../../widgets/command_palette/command_palette.dart';
 import '../../widgets/onboarding_tour_replay_launcher.dart';
 import '../../widgets/tutorial_overlay.dart';
 import '../../widgets/mobile_sequence_overlay.dart';
 import '../../widgets/running_sequence_mini_bar.dart';
-import '../night_control/night_control_screen.dart' show isTonightLocation;
-import '../sequencer/sequencer_screen.dart' show kSequencerRoutePath;
 import '../../widgets/notification_toast_overlay.dart';
 import '../../widgets/autofocus_progress_overlay.dart';
 import '../../widgets/polar_alignment_run_overlay.dart';
@@ -40,7 +39,6 @@ import 'widgets/skotiq_bottom_navigation.dart';
 // Conditional import for window_manager (desktop only)
 import 'app_shell_stub.dart' if (dart.library.io) 'app_shell_desktop.dart'
     as window_impl;
-import '../settings/settings_sections.dart';
 
 part 'app_shell_parts/_startup_checkpoint.dart';
 part 'app_shell_parts/_mobile_settings_bar.dart';
@@ -64,7 +62,7 @@ part 'app_shell_parts/_mobile_settings_bar.dart';
 String topRouteLocation(GoRouter router) {
   return router
           .routerDelegate.currentConfiguration.lastOrNull?.matchedLocation ??
-      '/dashboard';
+      AppRoute.tonight.path;
 }
 
 class AppShell extends ConsumerStatefulWidget {
@@ -392,7 +390,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     try {
       return topRouteLocation(GoRouter.of(context));
     } catch (_) {
-      return '/dashboard';
+      return AppRoute.tonight.path;
     }
   }
 
@@ -401,26 +399,18 @@ class _AppShellState extends ConsumerState<AppShell> {
 
     // Update current screen provider for smart notifications
     // Use Future.microtask to avoid modification during build
-    final screen = locationToAppScreen(location);
+    final screen = AppRoute.of(location)?.screen ?? AppScreen.unknown;
     Future.microtask(() {
       if (mounted) {
         ref.read(currentScreenProvider.notifier).state = screen;
       }
     });
 
-    // -1 = nothing highlighted, which is the correct answer for every route no
-    // rail destination hosts: Settings (+ its plate-solving child), Polar
-    // Alignment, Tonight, the Flat Wizard, the mosaic / session-review /
-    // stack-result viewers and /diagnostics/dump. Defaulting to 0 lights
-    // Dashboard on all of them, so the rail claims the operator is on a screen
-    // they are not. Sub-routes resolve to their HOST (/imaging/preview/:id
-    // lights Imaging).
-    return ShellNavigation.primaryIndexForLocation(location);
+    return ShellNavigation.railIndexFor(location);
   }
 
   void _onTabSelected(int index, BuildContext context) {
-    final route = ShellNavigation.primaryRouteForIndex(index);
-    if (route == null) return;
+    final route = ShellNavigation.rail[index].path;
     try {
       context.go(route);
     } catch (e, stack) {
@@ -456,6 +446,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       appSettingsProvider.select((s) => s.isLoading),
     );
     final currentLocation = _getCurrentLocation(context);
+    final currentRoute = AppRoute.of(currentLocation);
+    final shownByScreen = currentRoute?.showsItself ?? const {};
     final currentIndex = _getCurrentIndex(context);
 
     final isSideNavExpanded =
@@ -531,24 +523,22 @@ class _AppShellState extends ConsumerState<AppShell> {
                                       order: const NumericFocusOrder(0),
                                       child: SideNavigation(
                                         key: TutorialKeys.sideNavigation,
-                                        // Positional, so it tracks the rail
-                                        // order in ShellNavigation
-                                        // .primaryDestinations (04 §3.2):
-                                        // Tonight, Imaging, Sequencer,
-                                        // Guiding | Plan, Equipment, Flat wizard, Weather
-                                        // | Darkroom, Analytics.
-                                        tutorialKeys: [
-                                          TutorialKeys.navDashboard,
-                                          TutorialKeys.navImaging,
-                                          TutorialKeys.navSequencer,
-                                          TutorialKeys.navGuiding,
-                                          TutorialKeys.navPlanner,
-                                          TutorialKeys.navEquipment,
-                                          null,
-                                          null,
-                                          null,
-                                          TutorialKeys.navAnalytics,
-                                        ],
+                                        tutorialKeys: {
+                                          AppRoute.tonight:
+                                              TutorialKeys.navDashboard,
+                                          AppRoute.imaging:
+                                              TutorialKeys.navImaging,
+                                          AppRoute.sequencer:
+                                              TutorialKeys.navSequencer,
+                                          AppRoute.guiding:
+                                              TutorialKeys.navGuiding,
+                                          AppRoute.planner:
+                                              TutorialKeys.navPlanner,
+                                          AppRoute.equipment:
+                                              TutorialKeys.navEquipment,
+                                          AppRoute.analytics:
+                                              TutorialKeys.navAnalytics,
+                                        },
                                         currentIndex: currentIndex,
                                         onTabSelected: (index) =>
                                             _onTabSelected(index, context),
@@ -627,35 +617,22 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                       ),
                                                     ),
                                                   ),
-                                                  // Mobile sequence overlay
-                                                  // (only on mobile and the
-                                                  // sequencer screen). Gated
-                                                  // on the shared route
-                                                  // constant instead of a
-                                                  // literal string so the
-                                                  // router and this check
-                                                  // stay in sync.
+                                                  // The phone sequencer's
+                                                  // run controls.
                                                   if (useBottomNav &&
-                                                      currentLocation
-                                                              .split('?')
-                                                              .first ==
-                                                          kSequencerRoutePath)
+                                                      currentRoute ==
+                                                          AppRoute.sequencer)
                                                     const MobileSequenceOverlay(),
-                                                  // Autofocus progress
-                                                  // overlay. Tonight shows
-                                                  // the run in its Focus
-                                                  // tab and on the frame.
-                                                  if (!isTonightLocation(
-                                                    currentLocation,
+                                                  if (!shownByScreen.contains(
+                                                    ShellOverlay.autofocus,
                                                   ))
                                                     const AutofocusProgressOverlay(),
                                                   // A live polar alignment,
-                                                  // on every screen but its
-                                                  // own, however it started.
-                                                  if (currentLocation
-                                                          .split('?')
-                                                          .first !=
-                                                      kPolarAlignmentRoutePath)
+                                                  // however it started.
+                                                  if (!shownByScreen.contains(
+                                                    ShellOverlay
+                                                        .polarAlignmentRun,
+                                                  ))
                                                     const PolarAlignmentRunOverlay(),
                                                   // Toast notifications -
                                                   // always on top
@@ -703,7 +680,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                                 currentRoute: currentLocation,
                                 onRouteSelected: (route) {
                                   try {
-                                    context.go(route);
+                                    context.go(route.path);
                                   } catch (e, stack) {
                                     developer.log(
                                       '[AppShell] Bottom nav could not '
@@ -762,8 +739,8 @@ class _AppShellState extends ConsumerState<AppShell> {
               router.pop();
               return;
             }
-            if (!_getCurrentLocation(context).startsWith('/dashboard')) {
-              context.go('/dashboard');
+            if (!AppRoute.tonight.contains(_getCurrentLocation(context))) {
+              context.go(AppRoute.tonight.path);
               return;
             }
             SystemNavigator.pop();

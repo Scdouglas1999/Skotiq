@@ -243,15 +243,11 @@ class _SearchResultActions extends ConsumerWidget {
                   decDegrees,
                   name: name,
                 );
-            final uri = Uri(
-              path: '/framing',
-              queryParameters: {
-                'ra': raHours.toStringAsFixed(6),
-                'dec': decDegrees.toStringAsFixed(6),
-                'name': name,
-              },
-            );
-            context.go(uri.toString());
+            context.go(AppRoutes.framingAt(SkyTarget(
+              raHours: raHours,
+              decDegrees: decDegrees,
+              name: name,
+            )));
           },
         ),
       ],

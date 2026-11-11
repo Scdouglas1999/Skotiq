@@ -12,12 +12,12 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
-import '../../../sequencer/sequencer_screen.dart' show kSequencerRoutePath;
 import '../../actions/night_action_controller.dart';
 import '../../night_control_contracts.dart';
 import '../panel_ops.dart';
 import '../panel_widgets.dart';
 import 'camera_panel_vm.dart';
+import '../../../../router/app_routes.dart';
 
 /// The frame types the block offers, in board order.
 const List<FrameType> kNightCaptureFrameTypes = <FrameType>[
@@ -137,7 +137,7 @@ class _NightCaptureSectionState extends ConsumerState<NightCaptureSection> {
     if (nodeId != null) {
       ref.read(selectedNodeIdProvider.notifier).state = nodeId;
     }
-    GoRouter.maybeOf(context)?.go(kSequencerRoutePath);
+    GoRouter.maybeOf(context)?.go(AppRoute.sequencer.path);
   }
 
   @override

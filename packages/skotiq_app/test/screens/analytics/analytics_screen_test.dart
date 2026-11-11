@@ -66,28 +66,28 @@ List<Override> _commonOverrides() {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('analyticsTabFromQuery', () {
+  group('AnalyticsTab.fromQuery', () {
     test('returns null for null input', () {
-      expect(analyticsTabFromQuery(null), isNull);
+      expect(AnalyticsTab.fromQuery(null), isNull);
     });
 
     test('returns null for an unrecognized value', () {
-      expect(analyticsTabFromQuery('made-up-tab'), isNull);
+      expect(AnalyticsTab.fromQuery('made-up-tab'), isNull);
     });
 
     test('maps canonical tab names', () {
-      expect(analyticsTabFromQuery('session'), AnalyticsTab.session);
-      expect(analyticsTabFromQuery('history'), AnalyticsTab.history);
-      expect(analyticsTabFromQuery('projects'), AnalyticsTab.projects);
-      expect(analyticsTabFromQuery('equipment'), AnalyticsTab.equipment);
-      expect(analyticsTabFromQuery('science'), AnalyticsTab.science);
-      expect(analyticsTabFromQuery('diagnostics'), AnalyticsTab.diagnostics);
+      expect(AnalyticsTab.fromQuery('session'), AnalyticsTab.session);
+      expect(AnalyticsTab.fromQuery('history'), AnalyticsTab.history);
+      expect(AnalyticsTab.fromQuery('projects'), AnalyticsTab.projects);
+      expect(AnalyticsTab.fromQuery('equipment'), AnalyticsTab.equipment);
+      expect(AnalyticsTab.fromQuery('science'), AnalyticsTab.science);
+      expect(AnalyticsTab.fromQuery('diagnostics'), AnalyticsTab.diagnostics);
     });
 
     test('accepts case-insensitive equipment aliases', () {
-      expect(analyticsTabFromQuery('Diagnostics'), AnalyticsTab.diagnostics);
-      expect(analyticsTabFromQuery('equipment-stats'), AnalyticsTab.equipment);
-      expect(analyticsTabFromQuery('equipmentstats'), AnalyticsTab.equipment);
+      expect(AnalyticsTab.fromQuery('Diagnostics'), AnalyticsTab.diagnostics);
+      expect(AnalyticsTab.fromQuery('equipment-stats'), AnalyticsTab.equipment);
+      expect(AnalyticsTab.fromQuery('equipmentstats'), AnalyticsTab.equipment);
     });
 
     test('Diagnostics is the right-most enum entry', () {
@@ -159,8 +159,9 @@ void main() {
         overrides: _commonOverrides(),
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(
-            body: AnalyticsScreen(initialTabQuery: 'diagnostics'),
+          home: Scaffold(
+            body: AnalyticsScreen(
+                initialTab: AnalyticsTab.fromQuery('diagnostics')),
           ),
         ),
       ),

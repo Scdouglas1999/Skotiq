@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/router/app_router.dart';
-import 'package:skotiq_app/screens/sequencer/widgets/replay_debug_screen.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 
 import '../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
@@ -38,7 +38,6 @@ void main() {
     ).firstWhere((r) => r.path == '/replay/:runId');
 
     expect(replay.pageBuilder, isNotNull);
-    expect(replay.name, 'replay');
 
     // Inside the ShellRoute: a route pushed above the shell would keep the
     // rail's highlight and the page out of sync all over again.
@@ -51,9 +50,9 @@ void main() {
   });
 
   test('the launcher location carries the run, label and scrub window', () {
-    final location = ReplayDebugScreen.locationFor(
-      sequenceRunId: 7,
-      sequenceName: 'New Sequence',
+    final location = AppRoutes.replay(
+      runId: 7,
+      name: 'New Sequence',
       startedAt: DateTime.utc(2026, 8, 13, 20, 53, 44),
       endedAt: DateTime.utc(2026, 8, 13, 20, 54, 1),
     );

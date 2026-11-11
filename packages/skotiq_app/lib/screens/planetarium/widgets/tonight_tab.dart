@@ -12,6 +12,8 @@ import '../../../services/observing_site.dart';
 import '../../../utils/plan_tonight_sequencer_helper.dart';
 import '../planetarium_screen.dart';
 import 'sidebar_shared_widgets.dart';
+import '../../../router/app_routes.dart';
+import '../../planner/planner_route.dart';
 
 class TonightTab extends ConsumerWidget {
   final SkotiqColors colors;
@@ -39,7 +41,7 @@ class TonightTab extends ConsumerWidget {
     );
     if (!context.mounted) return;
     ref.read(framingProvider.notifier).setTargetSuggestion(target);
-    context.goNamed('framing');
+    context.go(AppRoutes.planner(tab: PlannerTab.framing));
   }
 
   Future<void> _addToSequencer(
@@ -829,7 +831,7 @@ class _LocationIndicator extends StatelessWidget {
             GestureDetector(
               onTap: () {
                 try {
-                  context.goNamed('settings');
+                  context.go(AppRoute.settings.path);
                 } catch (e, stack) {
                   developer.log(
                     '[TonightTab] Could not open settings to fix the '

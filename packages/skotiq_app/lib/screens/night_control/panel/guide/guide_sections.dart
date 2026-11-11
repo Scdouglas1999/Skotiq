@@ -18,10 +18,11 @@ import '../mount/night_panel_parts.dart';
 import 'guide_metrics.dart';
 import 'guide_scatter.dart';
 import '../../../settings/settings_sections.dart';
+import '../../../../router/app_routes.dart';
 
 /// Where "Edit dither settings…" goes.
 final String kNightGuideSettingsRoute =
-    settingsLocation(SettingsSectionId.phd2Guiding);
+    AppRoutes.settings(SettingsSectionId.phd2Guiding);
 
 /// Edge of the star view and the scatter plot.
 const double _plotSize = 124;

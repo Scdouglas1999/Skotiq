@@ -7,12 +7,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../sequencer/run_status_presentation.dart';
-
-/// Where the run list lives.
-const String kSessionReplayRoutePath = '/session-replay';
-
-/// The location of one run's replay.
-String sessionReplayLocation(int runId) => '$kSessionReplayRoutePath/$runId';
+import '../../router/app_routes.dart';
 
 /// Past sequence runs on the linked imaging host, newest first; a row opens
 /// that run's replay.
@@ -238,7 +233,7 @@ class _SessionPickerScreenState extends ConsumerState<SessionPickerScreen> {
         final run = _runs[index];
         return _RunRow(
           run: run,
-          onTap: () => context.push(sessionReplayLocation(run.id)),
+          onTap: () => context.push(AppRoutes.sessionReplayRun(run.id)),
         );
       },
     );

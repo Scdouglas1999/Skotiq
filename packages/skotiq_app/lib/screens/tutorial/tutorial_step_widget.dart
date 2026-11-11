@@ -4,6 +4,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../localization/skotiq_localizations.dart';
+import '../../router/app_routes.dart';
 
 /// Reusable body for a single first-night wizard step.
 ///
@@ -135,8 +136,7 @@ class TutorialStepWidget extends StatelessWidget {
         // hidden rather than rendered with a disabled-looking state.
         if (step.hasDeepLink)
           SkotiqButton(
-            label: l10n.text('firstNightWizardShowMeOnScreen',
-                params: {'screen': _routeLabel(step.deepLinkRoute)}),
+            label: _showMeLabel(l10n),
             icon: SkotiqIcons.externalLink,
             variant: ButtonVariant.outline,
             size: ButtonSize.small,
@@ -171,29 +171,12 @@ class TutorialStepWidget extends StatelessWidget {
     );
   }
 
-  /// Convert a go_router path to a human-readable screen name for the
-  /// "Show me on the X screen" button label. Keeps the button copy concrete
-  /// — "Show me on the Polar Alignment screen" is much clearer than
-  /// "Show me".
-  String _routeLabel(String route) {
-    switch (route) {
-      case '/equipment':
-        return 'Equipment';
-      case '/polar-alignment':
-        return 'Polar Alignment';
-      case '/imaging':
-        return 'Imaging';
-      case '/framing':
-        return 'Framing';
-      case '/guiding':
-        return 'Guiding';
-      case '/sequencer':
-        return 'Sequencer';
-      default:
-        throw ArgumentError(
-          'TutorialStepWidget._routeLabel: no human label for route '
-          '"$route". Add one when introducing a new wizard deep-link.',
-        );
-    }
+  /// "Show me on the Polar alignment screen" is much clearer than "Show me",
+  /// which is what a route without a name gets.
+  String _showMeLabel(SkotiqLocalizations l10n) {
+    final screen = AppRoute.of(step.deepLinkRoute)?.label?.of(l10n);
+    if (screen == null) return 'Show me';
+    return l10n
+        .text('firstNightWizardShowMeOnScreen', params: {'screen': screen});
   }
 }

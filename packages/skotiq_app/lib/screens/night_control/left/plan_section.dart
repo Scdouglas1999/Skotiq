@@ -8,12 +8,12 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
-import '../../tonight/tonight_screen.dart' show kOneTapTonightRoutePath;
 import '../data/plan/night_run_phase_provider.dart';
 import '../data/plan/plan_progress_provider.dart';
 import '../night_control_contracts.dart';
 import 'left_section_frame.dart';
 import 'night_time_format.dart';
+import '../../../router/app_routes.dart';
 
 class NightPlanSection extends ConsumerWidget {
   const NightPlanSection({super.key});
@@ -106,7 +106,7 @@ class _NothingToImage extends StatelessWidget {
           icon: LucideIcons.moonStar,
           variant: ButtonVariant.secondary,
           size: ButtonSize.small,
-          onPressed: () => context.go(kOneTapTonightRoutePath),
+          onPressed: () => context.go(AppRoute.oneTapTonight.path),
         ),
       ],
     );

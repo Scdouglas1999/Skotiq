@@ -1,16 +1,11 @@
 // "Show in sky" hand-off: the planetarium's counterpart to the framing
-// hand-off.
-//
-// Before this existed, `/planetarium` redirected to the Plan Tonight tab while
-// discarding the entire query string, so there was no way for any surface in
-// the app to say *which* target it wanted the sky pointed at. These tests pin
-// the whole chain at the data level — build the link, survive the redirect,
-// parse it back — plus the widget-level effect on the sky view state.
+// hand-off. The link itself (build, redirect, parse back) is pinned in
+// test/router/app_routes_test.dart; these tests pin the effect on the sky view
+// state.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/router/app_router.dart';
 import 'package:skotiq_app/screens/planetarium/show_in_sky.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
@@ -26,81 +21,6 @@ Future<void> _teardown(WidgetTester tester, ProviderContainer container) async {
 }
 
 void main() {
-  group('planetariumTargetLocation', () {
-    test('encodes RA hours, Dec degrees and the name', () {
-      final location = planetariumTargetLocation(
-        raHours: 13.5,
-        decDegrees: 47.2,
-        name: 'M51',
-      );
-      final uri = Uri.parse(location);
-
-      expect(uri.path, '/planetarium');
-      expect(double.parse(uri.queryParameters['ra']!), closeTo(13.5, 1e-6));
-      expect(double.parse(uri.queryParameters['dec']!), closeTo(47.2, 1e-6));
-      expect(uri.queryParameters['name'], 'M51');
-    });
-
-    test('omits an empty name rather than emitting a blank one', () {
-      final uri = Uri.parse(
-        planetariumTargetLocation(raHours: 1, decDegrees: 2, name: '   '),
-      );
-      expect(uri.queryParameters.containsKey('name'), isFalse);
-    });
-  });
-
-  group('planetariumRedirectLocation', () {
-    test('carries a target hand-off across the redirect', () {
-      final target = planetariumTargetLocation(
-        raHours: 0.712,
-        decDegrees: 41.269,
-        name: 'Andromeda Galaxy',
-      );
-
-      final redirected =
-          Uri.parse(planetariumRedirectLocation(Uri.parse(target)));
-
-      expect(redirected.path, '/planner');
-      expect(redirected.queryParameters['tab'], 'planetarium');
-
-      // The Plan Tonight host forwards its query down to the planetarium view,
-      // which recovers the coordinate from exactly these params.
-      final coordinate = parseSkyTargetQuery(redirected.queryParameters);
-      expect(coordinate, isNotNull);
-      expect(coordinate!.ra, closeTo(0.712, 1e-6));
-      expect(coordinate.dec, closeTo(41.269, 1e-6));
-      expect(redirected.queryParameters['name'], 'Andromeda Galaxy');
-    });
-
-    test('a bare /planetarium still lands on the tab', () {
-      expect(
-        planetariumRedirectLocation(Uri.parse('/planetarium')),
-        '/planner?tab=planetarium',
-      );
-    });
-  });
-
-  group('parseSkyTargetQuery', () {
-    test('rejects a partial, unparseable or out-of-range hand-off', () {
-      expect(parseSkyTargetQuery(const {}), isNull);
-      expect(parseSkyTargetQuery(const {'ra': '13.5'}), isNull);
-      expect(parseSkyTargetQuery(const {'dec': '47.2'}), isNull);
-      expect(parseSkyTargetQuery(const {'ra': 'M51', 'dec': '47.2'}), isNull);
-      expect(parseSkyTargetQuery(const {'ra': '24.1', 'dec': '47.2'}), isNull);
-      expect(parseSkyTargetQuery(const {'ra': '-0.1', 'dec': '47.2'}), isNull);
-      expect(parseSkyTargetQuery(const {'ra': '13.5', 'dec': '130'}), isNull);
-      expect(parseSkyTargetQuery(const {'ra': '13.5', 'dec': '-130'}), isNull);
-    });
-
-    test('accepts the boundaries of the valid ranges', () {
-      expect(parseSkyTargetQuery(const {'ra': '0', 'dec': '-90'}), isNotNull);
-      expect(
-        parseSkyTargetQuery(const {'ra': '23.999999', 'dec': '90'}),
-        isNotNull,
-      );
-    });
-  });
-
   group('focusSkyOn', () {
     testWidgets('centers the sky view and selects the coordinate',
         (tester) async {

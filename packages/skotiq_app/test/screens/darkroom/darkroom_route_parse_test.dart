@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_controller.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_route.dart';
 import 'package:skotiq_app/utils/darkroom_navigation.dart';
@@ -50,9 +51,11 @@ void main() {
   });
 
   test('old links keep their meaning', () {
-    expect(parse(darkroomMasterLocation(7)).tab, DarkroomTab.edit);
-    expect(parse(darkroomMasterLocation(7)).masterId, 7);
-    expect(parse(darkroomRecipeLocation(4)).recipeId, 4);
+    // Links written before the tab parameter existed.
+    expect(parse('/darkroom?master=7').tab, DarkroomTab.edit);
+    expect(parse('/darkroom?master=7').masterId, 7);
+    expect(parse('/darkroom?recipe=4').tab, DarkroomTab.edit);
+    expect(parse('/darkroom?recipe=4').recipeId, 4);
     final pass = parse(darkroomPassLocation('run 1'));
     expect(pass.tab, DarkroomTab.activity);
     expect(pass.passRunId, 'run 1');
@@ -64,7 +67,7 @@ void main() {
       darkroomEditLocation(masterId: 5),
       darkroomTabLocation(DarkroomTab.activity),
     ]) {
-      expect(parse(parse(location).location), parse(location));
+      expect(parse(AppRoutes.darkroom(parse(location))), parse(location));
     }
   });
 }

@@ -8,9 +8,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../localization/skotiq_localizations.dart';
-import '../screens/night_control/night_control_screen.dart'
-    show isTonightLocation;
-import '../screens/sequencer/sequencer_screen.dart' show kSequencerRoutePath;
+import '../router/app_routes.dart';
 import '../screens/sequencer/widgets/run_dashboard/sequence_status_visuals.dart';
 import '../services/sequence_action_service.dart';
 import '../utils/snackbar_helper.dart';
@@ -30,8 +28,8 @@ import '../utils/snackbar_helper.dart';
 /// thumb-slip can't abort an overnight run. Tapping the status area jumps back
 /// to the sequencer screen.
 class RunningSequenceMiniBar extends ConsumerWidget {
-  /// Current shell location (already stripped of query in the caller is fine;
-  /// this also strips defensively). Used to hide on the sequencer route.
+  /// The shell's location; the bar hides on screens that carry the run
+  /// controls themselves.
   final String currentLocation;
 
   const RunningSequenceMiniBar({super.key, required this.currentLocation});
@@ -46,10 +44,8 @@ class RunningSequenceMiniBar extends ConsumerWidget {
     // terminal completed/failed states hide the bar.
     if (!executionState.isBusy) return const SizedBox.shrink();
 
-    // On the sequencer route the full controls are already on screen, and
-    // Tonight's header carries the same run controls.
-    if (currentLocation.split('?').first == kSequencerRoutePath ||
-        isTonightLocation(currentLocation)) {
+    final route = AppRoute.of(currentLocation);
+    if (route != null && route.showsItself.contains(ShellOverlay.runControls)) {
       return const SizedBox.shrink();
     }
 
@@ -95,7 +91,7 @@ class RunningSequenceMiniBar extends ConsumerWidget {
                     child: InkWell(
                       onTap: () {
                         try {
-                          context.go(kSequencerRoutePath);
+                          context.go(AppRoute.sequencer.path);
                         } catch (e, stack) {
                           developer.log(
                             '[RunningSequenceMiniBar] Could not return to the '

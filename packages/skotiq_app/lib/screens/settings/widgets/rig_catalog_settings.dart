@@ -11,6 +11,7 @@ import '../../../utils/confirm_dialog.dart';
 import '../../../utils/snackbar_helper.dart';
 import 'settings_widgets.dart';
 import '../settings_sections.dart';
+import '../../../router/app_routes.dart';
 
 /// Manage the connected appliance's plate-solve / star catalogs over the
 /// network (`/api/catalog/*`). A freshly-imaged Pi ships with no catalogs, so

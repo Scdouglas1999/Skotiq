@@ -23,9 +23,9 @@ class SideNavTab extends SideNavEntry {
   final IconData icon;
   final String label;
 
-  /// Index into [ShellNavigation.primaryDestinations] — the rail's selection
-  /// index. Carried explicitly because the group headings make the rendered
-  /// row position and the destination index different numbers.
+  /// Index into [ShellNavigation.rail] — the rail's selection index. Carried
+  /// explicitly because the group headings make the rendered row position
+  /// and the destination index different numbers.
   final int index;
 
   const SideNavTab({
@@ -40,14 +40,14 @@ List<SideNavEntry> sideNavigationEntries(BuildContext context) {
   final l10n = context.l10n;
   final entries = <SideNavEntry>[];
   ShellNavGroup? currentGroup;
-  for (var i = 0; i < ShellNavigation.primaryDestinations.length; i++) {
-    final dest = ShellNavigation.primaryDestinations[i];
+  for (var i = 0; i < ShellNavigation.rail.length; i++) {
+    final dest = ShellNavigation.rail[i];
     if (dest.group != currentGroup) {
-      currentGroup = dest.group;
+      currentGroup = dest.group!;
       entries.add(SideNavGroupHeading(currentGroup.label(l10n)));
     }
     entries.add(
-      SideNavTab(icon: dest.icon, label: dest.label(l10n), index: i),
+      SideNavTab(icon: dest.icon!, label: dest.label!.of(l10n), index: i),
     );
   }
   return entries;
@@ -75,9 +75,8 @@ class SideNavigation extends ConsumerWidget {
   final bool isExpanded;
   final VoidCallback onToggleExpanded;
 
-  /// Optional GlobalKeys for tutorial targeting, indexed by destination (not
-  /// by rendered row — the group headings are not targets).
-  final List<GlobalKey?>? tutorialKeys;
+  /// Tour spotlight keys for the destinations that have one.
+  final Map<AppRoute, GlobalKey> tutorialKeys;
 
   const SideNavigation({
     super.key,
@@ -85,7 +84,7 @@ class SideNavigation extends ConsumerWidget {
     required this.onTabSelected,
     required this.isExpanded,
     required this.onToggleExpanded,
-    this.tutorialKeys,
+    this.tutorialKeys = const {},
   });
 
   /// The gap between two groups when the rail is collapsed and there is no
@@ -281,7 +280,7 @@ class SideNavigation extends ConsumerWidget {
     BuildContext context,
     List<SideNavEntry> entries,
     int row,
-    Set<String> badgedRoutes, {
+    Set<AppRoute> badgedRoutes, {
     required bool compact,
   }) {
     final entry = entries[row];
@@ -320,16 +319,14 @@ class SideNavigation extends ConsumerWidget {
           ),
         );
       case SideNavTab():
-        final destination = ShellNavigation.primaryDestinations[entry.index];
+        final destination = ShellNavigation.rail[entry.index];
         final button = NavItem(
-          key: tutorialKeys != null && entry.index < tutorialKeys!.length
-              ? tutorialKeys![entry.index]
-              : null,
+          key: tutorialKeys[destination],
           icon: entry.icon,
           label: entry.label,
           isSelected: entry.index == currentIndex,
           isExpanded: isExpanded,
-          hasBadge: badgedRoutes.contains(destination.route),
+          hasBadge: badgedRoutes.contains(destination),
           height: compact
               ? ShellChromeMetrics.railItemSizeCompact
               : ShellChromeMetrics.railItemSize,
@@ -358,12 +355,10 @@ class SideNavigation extends ConsumerWidget {
   /// Two cases, both from 04 §3.1: Equipment while no device is connected, and
   /// Weather while conditions are unsafe. Both are read from the providers the
   /// screens themselves read, so the dot cannot disagree with the screen.
-  Set<String> _badgedRoutes(WidgetRef ref) {
-    final routes = <String>{};
-    if (!ref.watch(railAnyDeviceConnectedProvider)) routes.add('/equipment');
-    if (ref.watch(railWeatherUnsafeProvider)) routes.add('/weather');
-    return routes;
-  }
+  Set<AppRoute> _badgedRoutes(WidgetRef ref) => {
+        if (!ref.watch(railAnyDeviceConnectedProvider)) AppRoute.equipment,
+        if (ref.watch(railWeatherUnsafeProvider)) AppRoute.weather,
+      };
 }
 
 /// Whether ANY device is attached, for the Equipment dot.

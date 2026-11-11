@@ -42,14 +42,21 @@ const String _screensRoot = 'lib/screens';
 const _hostOnlyEntryPoints = <String>[
   '/session-review',
   '/darkroom',
+  'AppRoute.sessionReview',
+  'AppRoutes.sessionReviewOf',
+  'AppRoute.darkroom',
+  'AppRoutes.darkroom',
+  'darkroomTabLocation',
+  'darkroomPassLocation',
+  'darkroomTargetLocation',
+  'darkroomFramingLocation',
+  'darkroomEditLocation',
   'openDarkroomForMaster',
   'openDarkroomForMasterRow',
   'openDarkroomForSession',
   'resolveDarkroomTargetForSession',
   'darkroomSessionTargetProvider',
   'watchDarkroomSessionRefusal',
-  'darkroomMasterLocation',
-  'darkroomRecipeLocation',
   'kDarkroomHostOnlyRefusal',
   'darkroomHostOnlyRefusal',
 ];
@@ -85,8 +92,8 @@ void main() {
     for (final entity in root.listSync(recursive: true)) {
       if (entity is! File || !entity.path.endsWith('.dart')) continue;
       final source = entity.readAsStringSync();
-      // Membership is read from the RAW source, because the two routes are
-      // string literals — `context.push('/session-review?session=$id')` — and
+      // Membership is read from the RAW source, because older links name the
+      // two routes in string literals — `'/session-review?session=$id'` — and
       // the blanking that keeps a comment from being read as code would erase
       // exactly the thing that makes the file a host-only gate. Over-including
       // a file that only MENTIONS the Darkroom costs nothing: the offence scan

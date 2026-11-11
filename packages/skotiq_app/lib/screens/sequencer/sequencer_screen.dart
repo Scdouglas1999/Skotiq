@@ -38,8 +38,11 @@ import 'widgets/target_queue_panel.dart';
 import 'tabs/history_tab.dart';
 import 'tabs/sequence_library_tab.dart';
 import 'tabs/templates_tab.dart';
+import 'sequencer_route.dart';
 import '../../utils/guide_distance.dart';
 import 'widgets/tree_insert.dart';
+
+export 'sequencer_route.dart' show SequencerTab;
 
 part 'sequencer_screen_parts/tab_bar.dart';
 part 'sequencer_screen_parts/builder_layout.dart';
@@ -49,49 +52,6 @@ part 'sequencer_screen_parts/snippet_palette.dart';
 part 'sequencer_screen_parts/collapsible_panel.dart';
 part 'sequencer_screen_parts/narrow_layout.dart';
 part 'sequencer_screen_parts/mobile_layout.dart';
-
-/// Canonical route path for the sequencer screen.
-///
-/// Referenced by the router's [GoRoute] and the shell's run-overlay-visibility
-/// check so the two cannot drift via a copy-pasted `'/sequencer'` string
-/// literal.
-const String kSequencerRoutePath = '/sequencer';
-
-/// The top-level sequencer tabs, in display order.
-///
-/// Single source of truth for both the [TabController] length and the
-/// [AdaptiveTabBar] strip — adding a tab here updates the controller, the
-/// strip and the keyboard accelerator hints in one edit.
-enum SequencerTab {
-  builder('Builder', LucideIcons.workflow),
-  templates('Templates', LucideIcons.fileStack),
-  sequences('Saved', LucideIcons.folderOpen),
-  history('History', LucideIcons.history);
-
-  const SequencerTab(this.label, this.icon);
-
-  final String label;
-
-  /// Leading icon used in the strip + collapsed (icon-only) phone mode.
-  final IconData icon;
-}
-
-SequencerTab? sequencerTabFromQuery(String? value) {
-  if (value == null) return null;
-  switch (value.toLowerCase()) {
-    case 'builder':
-      return SequencerTab.builder;
-    case 'templates':
-      return SequencerTab.templates;
-    case 'sequences':
-    case 'library':
-      return SequencerTab.sequences;
-    case 'history':
-    case 'runs':
-      return SequencerTab.history;
-  }
-  return null;
-}
 
 /// The tabs inside the desktop toolbox panel, in display order.
 ///
@@ -178,10 +138,10 @@ final flatNodePaletteProvider =
 // user-initiated delete must share one policy.
 
 class SequencerScreen extends ConsumerStatefulWidget {
-  const SequencerScreen({super.key, this.initialTabQuery});
+  const SequencerScreen({super.key, this.initialTab});
 
-  /// Raw router `?tab=` value. Unknown values preserve the last in-session tab.
-  final String? initialTabQuery;
+  /// The tab a link asked for; null keeps the last in-session tab.
+  final SequencerTab? initialTab;
 
   @override
   ConsumerState<SequencerScreen> createState() => _SequencerScreenState();
@@ -199,8 +159,7 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
         persistedIndex >= 0 && persistedIndex < SequencerTab.values.length
             ? persistedIndex
             : SequencerTab.builder.index;
-    final initialIndex = sequencerTabFromQuery(widget.initialTabQuery)?.index ??
-        safePersistedIndex;
+    final initialIndex = widget.initialTab?.index ?? safePersistedIndex;
     _tabController = TabController(
       length: SequencerTab.values.length,
       initialIndex: initialIndex,

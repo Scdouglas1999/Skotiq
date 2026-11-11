@@ -399,8 +399,9 @@ void main() {
 
   group('the Darkroom locations', () {
     test('a recipe and a master are distinct query scopes', () {
-      expect(darkroomRecipeLocation(412), '/darkroom?recipe=412');
-      expect(darkroomMasterLocation(7), '/darkroom?master=7');
+      expect(
+          darkroomEditLocation(recipeId: 412), '/darkroom?tab=edit&recipe=412');
+      expect(darkroomEditLocation(masterId: 7), '/darkroom?tab=edit&master=7');
     });
   });
 }

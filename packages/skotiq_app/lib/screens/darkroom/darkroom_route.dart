@@ -1,8 +1,8 @@
 /// What a `/darkroom` location asks for: a tab, and inside it a target, a
 /// view, a master, a recipe or a pass.
 ///
-/// Every Darkroom link is built by the helpers in `darkroom_navigation.dart`
-/// and read back here, so the parameter names live in exactly two places.
+/// [query] writes the parameters and [DarkroomRoute.fromUri] reads them back,
+/// so their names live in this file alone.
 library;
 
 import 'package:flutter/widgets.dart';
@@ -99,19 +99,16 @@ class DarkroomRoute {
   DarkroomScope get scope => DarkroomScope(
       recipeId: recipeId, masterId: masterId, passRunId: passRunId);
 
-  /// The location that reopens this route.
-  String get location {
-    final q = <String, String>{
-      'tab': tab.name,
-      if (target != null) 'target': target!,
-      if (target != null && view == DarkroomTargetView.framing)
-        'view': 'framing',
-      if (masterId != null) 'master': '$masterId',
-      if (recipeId != null) 'recipe': '$recipeId',
-      if (passRunId != null) 'pass': passRunId!,
-    };
-    return Uri(path: '/darkroom', queryParameters: q).toString();
-  }
+  /// The query that reopens this route.
+  Map<String, String> get query => {
+        'tab': tab.name,
+        if (target != null) 'target': target!,
+        if (target != null && view == DarkroomTargetView.framing)
+          'view': 'framing',
+        if (masterId != null) 'master': '$masterId',
+        if (recipeId != null) 'recipe': '$recipeId',
+        if (passRunId != null) 'pass': passRunId!,
+      };
 
   @override
   bool operator ==(Object other) =>
@@ -128,7 +125,7 @@ class DarkroomRoute {
       Object.hash(tab, target, view, masterId, recipeId, passRunId);
 
   @override
-  String toString() => 'DarkroomRoute($location)';
+  String toString() => 'DarkroomRoute($query)';
 }
 
 /// Hands the parsed route to the tab bodies, whose constructors take no

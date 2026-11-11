@@ -35,8 +35,7 @@ void main() {
             reason: 'the rail should fit without scrolling');
 
         final items = find.descendant(of: list, matching: find.byType(NavItem));
-        expect(
-            items, findsNWidgets(ShellNavigation.primaryDestinations.length));
+        expect(items, findsNWidgets(ShellNavigation.rail.length));
         for (final element in items.evaluate()) {
           final item = element.widget as NavItem;
           final rect = tester.getRect(find.byWidget(item));

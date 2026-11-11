@@ -62,6 +62,7 @@ import 'package:skotiq_core/skotiq_core.dart'
 
 import 'settings_sections.dart';
 import 'widgets/settings_widgets.dart';
+import '../../router/app_routes.dart';
 
 part 'integrations_settings/plugin_rows.dart';
 part 'integrations_settings/plugin_enable_switch.dart';

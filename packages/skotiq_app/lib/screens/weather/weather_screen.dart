@@ -11,6 +11,7 @@ import '../../widgets/weather/weather_status_card.dart';
 import '../../widgets/weather/satellite_legend.dart';
 import '../../widgets/tutorial_keys/weather_keys.dart';
 import '../settings/settings_sections.dart';
+import '../../router/app_routes.dart';
 
 part 'weather_screen/header_and_radar_controls.dart';
 part 'weather_screen/safety_and_settings.dart';

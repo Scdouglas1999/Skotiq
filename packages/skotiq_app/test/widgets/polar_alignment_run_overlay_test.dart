@@ -11,6 +11,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../harness/pump_app_screen.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 
 class _Fixed extends PolarAlignmentStateNotifier {
   _Fixed(super.ref, PolarAlignmentState fixed) {
@@ -30,7 +31,7 @@ Future<void> _pump(WidgetTester tester, PolarAlignmentState state) async {
         ),
       ),
       GoRoute(
-        path: kPolarAlignmentRoutePath,
+        path: AppRoute.polarAlignment.path,
         builder: (_, __) => const Scaffold(body: Text('alignment screen')),
       ),
     ],

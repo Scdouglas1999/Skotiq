@@ -16,6 +16,7 @@ import 'widgets/deep_star_catalog_card.dart';
 import 'widgets/element_refresh_card.dart';
 import 'widgets/settings_widgets.dart' show settingsPagePadding;
 import 'settings_sections.dart';
+import '../../router/app_routes.dart';
 
 part 'catalog_settings_screen/card_builders.dart';
 

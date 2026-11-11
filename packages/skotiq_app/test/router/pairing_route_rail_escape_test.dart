@@ -19,6 +19,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/router/app_router.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 
 Widget _shell(BuildContext context, Widget child) {
   return Scaffold(
@@ -115,6 +116,10 @@ void main() {
     final router = container.read(appRouterProvider);
     addTearDown(router.dispose);
 
-    expect(router.configuration.namedLocation('pairing'), '/pairing');
+    final shell = router.configuration.routes.whereType<ShellRoute>().single;
+    expect(
+      shell.routes.whereType<GoRoute>().map((r) => r.path),
+      contains(AppRoute.pairing.path),
+    );
   });
 }
