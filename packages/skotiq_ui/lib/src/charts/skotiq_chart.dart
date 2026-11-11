@@ -825,23 +825,39 @@ class _ChartPainter extends CustomPainter {
       ..color = colors.border
       ..strokeWidth = 1;
 
-    // Value scales: gridlines from the left scale, labels on both sides. A
-    // label that would touch the one before it is skipped, outermost kept.
+    // Value scales: gridlines from the left scale, labels on both sides.
+    // When the labels would touch, every second (third, ...) one is drawn,
+    // on a stride that keeps both ends: the ends name the scale. When even
+    // the two ends would touch, none is drawn.
     void scale(
       List<(double, String)> items,
       ChartValueAxis axis, {
       required bool onLeft,
     }) {
-      double? lastY;
-      for (final (value, text) in items.reversed) {
-        final y = layout.yOf(value, axis, plot);
+      final ys = <double?>[
+        for (final (value, _) in items) layout.yOf(value, axis, plot),
+      ];
+      var stride = 1;
+      final last = items.length - 1;
+      if (last > 0 && ys.first != null && ys.last != null) {
+        final pitch = (ys.first! - ys.last!).abs() / last;
+        stride = 0;
+        for (var candidate = 1; candidate <= last; candidate++) {
+          if (last % candidate != 0) continue;
+          if (pitch * candidate >= lineHeight + 2) {
+            stride = candidate;
+            break;
+          }
+        }
+      }
+      for (var i = 0; i < items.length; i++) {
+        final y = ys[i];
         if (y == null) continue;
         if (onLeft) {
           canvas.drawLine(Offset(plot.left, y), Offset(plot.right, y), grid);
         }
-        if (lastY != null && (y - lastY).abs() < lineHeight + 2) continue;
-        lastY = y;
-        final tp = labels.of(text);
+        if (stride == 0 || i % stride != 0) continue;
+        final tp = labels.of(items[i].$2);
         final top = (y - tp.height / 2).clamp(0.0, size.height - tp.height);
         tp.paint(
           canvas,

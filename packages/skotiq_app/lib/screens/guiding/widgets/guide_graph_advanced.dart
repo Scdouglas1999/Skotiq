@@ -141,26 +141,56 @@ class GuideGraphAdvanced extends StatelessWidget {
               borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
             ),
             padding: const EdgeInsets.all(8),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return CustomPaint(
-                  size: Size(constraints.maxWidth, constraints.maxHeight),
-                  painter: _GraphPainter(
-                    colors: colors,
-                    data: data,
-                    timeScale: timeScale,
-                    yScale: yScale,
-                    showRa: showRa,
-                    showDec: showDec,
-                    showPulses: showPulses,
-                    valueUnit: valueUnit,
-                  ),
-                );
-              },
-            ),
+            child: _plot(),
           ),
         ),
       ],
+    );
+  }
+
+  /// The error traces against time before now (now at the right edge, older
+  /// samples scrolling left, as PHD2 draws it) on a fixed symmetric scale. An
+  /// excursion past the scale sits on its edge rather than leaving the plot.
+  Widget _plot() {
+    final now = DateTime.now();
+    final span = timeScale.duration.inMilliseconds / 1000.0;
+    final limit = yScale.arcsec;
+    List<Offset> trace(double Function(GuideDataPoint) error) => <Offset>[
+          for (final point in data)
+            if (now.difference(point.timestamp).inMilliseconds / 1000.0 <= span)
+              Offset(
+                -now.difference(point.timestamp).inMilliseconds / 1000.0,
+                error(point).clamp(-limit, limit),
+              ),
+        ];
+    return SkotiqChart(
+      semanticLabel: 'Guide error over the last ${timeScale.label}, '
+          '${yScaleLabel(yScale, valueUnit)} full scale',
+      series: <ChartSeries>[
+        if (showRa)
+          ChartSeries(
+            points: trace((p) => p.raError),
+            label: 'RA',
+            tone: SeriesChartTone.error,
+          ),
+        if (showDec)
+          ChartSeries(
+            points: trace((p) => p.decError),
+            label: 'Dec',
+            tone: SeriesChartTone.tertiary,
+          ),
+      ],
+      x: ChartAxis(kind: ChartAxisKind.elapsed, min: -span, max: 0),
+      y: ChartAxis(
+        min: -limit,
+        max: limit,
+        ticks: <double>[-limit, -limit / 2, 0, limit / 2, limit],
+        format: (v) => v == 0
+            ? '0'
+            : '${v > 0 ? '+' : '-'}${_axisNumber(v.abs())}$valueUnit',
+      ),
+      rules: const <ChartRule>[ChartRule.y(0, dashed: false)],
+      emptyText: 'No guide steps yet',
     );
   }
 
@@ -392,275 +422,3 @@ class GuideGraphAdvanced extends StatelessWidget {
 /// Platform touch minimum for the graph's compact popup selectors.
 double _touchTargetFloor(BuildContext context) =>
     SkotiqTouchTarget.minExtent(context);
-
-class _GraphPainter extends CustomPainter {
-  final SkotiqColors colors;
-  final List<GuideDataPoint> data;
-  final GraphTimeScale timeScale;
-  final GraphYScale yScale;
-  final bool showRa;
-  final bool showDec;
-  final bool showPulses;
-
-  /// Unit suffix for the Y-axis labels. The scale steps themselves are
-  /// unit-agnostic numbers; the caller says whether the errors it supplied are
-  /// arcseconds or guide-camera pixels.
-  final String valueUnit;
-
-  static const double leftMargin = 35;
-  static const double bottomMargin = 20;
-  static const double topMargin = 5;
-  static const double rightMargin = 5;
-
-  /// Clear space required between two stacked Y-axis labels.
-  static const double _yLabelGap = 2;
-
-  /// How many ticks to step between drawn Y-axis labels, or null when even the
-  /// thinnest set would not clear [_yLabelGap].
-  ///
-  /// The plot area collapses hard on a phone — the panel header, the scale
-  /// selector row and the card gutters take a fixed slice out of the graph
-  /// pane, so a banner-squeezed viewport can leave under 20 dp of plot. All
-  /// five labels drawn there stacked `±2" / 1.0" / 0 / -1.0" / -2"` into one
-  /// illegible smear. Thinning to the extremes-plus-zero (and then to nothing)
-  /// keeps whatever is drawn readable at any height, and measuring the laid-out
-  /// label rather than assuming its size keeps that true at any text scale.
-  ///
-  /// Strides are restricted to divisors of [divisions] so the first and last
-  /// tick — the ones that name the scale — are always among those drawn.
-  static int? _yAxisLabelStride({
-    required double graphHeight,
-    required int divisions,
-    required double labelHeight,
-  }) {
-    final pitch = graphHeight / divisions;
-    for (final stride in const [1, 2]) {
-      if (divisions % stride != 0) continue;
-      if (pitch * stride >= labelHeight + _yLabelGap) return stride;
-    }
-    return null;
-  }
-
-  _GraphPainter({
-    required this.colors,
-    required this.data,
-    required this.timeScale,
-    required this.yScale,
-    required this.showRa,
-    required this.showDec,
-    required this.showPulses,
-    required this.valueUnit,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final graphRect = Rect.fromLTRB(
-      leftMargin,
-      topMargin,
-      size.width - rightMargin,
-      size.height - bottomMargin,
-    );
-
-    // Draw background and grid
-    _drawGrid(canvas, size, graphRect);
-
-    // Draw Y-axis labels
-    _drawYAxisLabels(canvas, graphRect);
-
-    // Draw X-axis labels
-    _drawXAxisLabels(canvas, size, graphRect);
-
-    // Clip to graph area
-    canvas.save();
-    canvas.clipRect(graphRect);
-
-    // Draw data traces
-    if (data.isNotEmpty) {
-      if (showRa) {
-        _drawTrace(canvas, graphRect, true);
-      }
-      if (showDec) {
-        _drawTrace(canvas, graphRect, false);
-      }
-    }
-
-    canvas.restore();
-  }
-
-  void _drawGrid(Canvas canvas, Size size, Rect graphRect) {
-    final paint = Paint()
-      ..color = colors.border.withValues(alpha: 0.8)
-      ..strokeWidth = 0.5;
-
-    // Draw vertical grid lines (time divisions)
-    const numVerticalLines = 4;
-    for (int i = 0; i <= numVerticalLines; i++) {
-      final x = graphRect.left + (graphRect.width / numVerticalLines) * i;
-      canvas.drawLine(
-        Offset(x, graphRect.top),
-        Offset(x, graphRect.bottom),
-        paint,
-      );
-    }
-
-    // Draw horizontal grid lines (error divisions)
-    const numHorizontalLines = 4;
-    for (int i = 0; i <= numHorizontalLines; i++) {
-      final y = graphRect.top + (graphRect.height / numHorizontalLines) * i;
-      // Highlight zero line
-      if (i == numHorizontalLines ~/ 2) {
-        paint.color = colors.borderHighlight;
-        paint.strokeWidth = 1;
-      } else {
-        paint.color = colors.border.withValues(alpha: 0.8);
-        paint.strokeWidth = 0.5;
-      }
-      canvas.drawLine(
-        Offset(graphRect.left, y),
-        Offset(graphRect.right, y),
-        paint,
-      );
-    }
-  }
-
-  void _drawYAxisLabels(Canvas canvas, Rect graphRect) {
-    if (graphRect.height <= 0) return;
-
-    final textPainter = TextPainter(textDirection: TextDirection.ltr);
-    // A canvas TextStyle inherits nothing, so the family has to be named here
-    // or these tick labels render in whatever the platform default is instead
-    // of the app's type. They are numerics, so they take the mono face every
-    // other readout uses.
-    final style = TextStyle(
-      color: colors.textMuted,
-      fontSize: SkotiqTypography.fontSize9,
-      fontFamily: SkotiqTypography.fontFamilyMono,
-    );
-
-    final labels = [
-      '+${_axisNumber(yScale.arcsec)}$valueUnit',
-      '+${_axisNumber(yScale.arcsec / 2)}$valueUnit',
-      '0',
-      '-${_axisNumber(yScale.arcsec / 2)}$valueUnit',
-      '-${_axisNumber(yScale.arcsec)}$valueUnit',
-    ];
-
-    textPainter.text = TextSpan(text: labels.first, style: style);
-    textPainter.layout();
-    final labelHeight = textPainter.height;
-
-    final divisions = labels.length - 1;
-    final stride = _yAxisLabelStride(
-      graphHeight: graphRect.height,
-      divisions: divisions,
-      labelHeight: labelHeight,
-    );
-    if (stride == null) return;
-
-    for (int i = 0; i <= divisions; i += stride) {
-      textPainter.text = TextSpan(text: labels[i], style: style);
-      textPainter.layout();
-
-      final y = graphRect.top + (graphRect.height / divisions) * i;
-      textPainter.paint(canvas, Offset(2, y - textPainter.height / 2));
-    }
-  }
-
-  void _drawXAxisLabels(Canvas canvas, Size size, Rect graphRect) {
-    final textPainter = TextPainter(textDirection: TextDirection.ltr);
-
-    // The X axis is elapsed time relative to *now*, which sits at the right
-    // edge (matching how _drawTrace positions points across `timeScale`):
-    // counting back from 0 on the right to -timeScale on the left keeps the
-    // newest sample at "now" and scrolls older ones left. This is the PHD2 /
-    // NINA convention, and it is stable across repaints — wall-clock MM:SS
-    // labels recomputed from DateTime.now() appear to tick up instead.
-    final totalSeconds = timeScale.duration.inSeconds;
-    const numLabels = 5;
-
-    for (int i = 0; i < numLabels; i++) {
-      // i == 0 is the left edge (oldest, -totalSeconds); the last index is the
-      // right edge (newest, 0s).
-      final secondsAgo =
-          (totalSeconds * (numLabels - 1 - i) / (numLabels - 1)).round();
-      final label = secondsAgo == 0 ? '0s' : '-${_formatElapsed(secondsAgo)}';
-
-      textPainter.text = TextSpan(
-        text: label,
-        style: TextStyle(
-          color: colors.textMuted,
-          fontSize: SkotiqTypography.fontSize9,
-          fontFamily: SkotiqTypography.fontFamilyMono,
-        ),
-      );
-      textPainter.layout();
-
-      final x = graphRect.left + (graphRect.width / (numLabels - 1)) * i;
-      textPainter.paint(
-        canvas,
-        Offset(x - textPainter.width / 2, graphRect.bottom + 4),
-      );
-    }
-  }
-
-  /// Format an elapsed-second count for an X-axis tick. Sub-minute spans read
-  /// as plain seconds ("30s"); minute-or-longer spans read as "m:ss" so the
-  /// 15m / 30m scales stay compact and legible.
-  String _formatElapsed(int seconds) {
-    if (seconds < 60) return '${seconds}s';
-    final minutes = seconds ~/ 60;
-    final remSeconds = seconds % 60;
-    if (remSeconds == 0) return '${minutes}m';
-    return '$minutes:${remSeconds.toString().padLeft(2, '0')}';
-  }
-
-  void _drawTrace(Canvas canvas, Rect graphRect, bool isRa) {
-    if (data.isEmpty) return;
-
-    final paint = Paint()
-      ..color = isRa ? colors.error : colors.info
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke
-      ..strokeJoin = StrokeJoin.round;
-
-    final path = Path();
-    final now = DateTime.now();
-    final startTime = now.subtract(timeScale.duration);
-    bool first = true;
-
-    for (final point in data) {
-      if (point.timestamp.isBefore(startTime)) continue;
-
-      final timeFraction =
-          point.timestamp.difference(startTime).inMilliseconds /
-              timeScale.duration.inMilliseconds;
-      final x = graphRect.left + graphRect.width * timeFraction.clamp(0.0, 1.0);
-
-      final error = isRa ? point.raError : point.decError;
-      final errorFraction = (error / yScale.arcsec).clamp(-1.0, 1.0);
-      final y = graphRect.top +
-          graphRect.height / 2 -
-          (errorFraction * graphRect.height / 2);
-
-      if (first) {
-        path.moveTo(x, y);
-        first = false;
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(_GraphPainter oldDelegate) {
-    return data != oldDelegate.data ||
-        colors != oldDelegate.colors ||
-        timeScale != oldDelegate.timeScale ||
-        yScale != oldDelegate.yScale ||
-        showRa != oldDelegate.showRa ||
-        showDec != oldDelegate.showDec ||
-        valueUnit != oldDelegate.valueUnit;
-  }
-}
