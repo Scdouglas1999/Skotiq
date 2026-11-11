@@ -16,6 +16,7 @@ import '../utils/resilient_poll_stream.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'capability_provider.dart';
+import '../settings/store_settings.dart';
 import 'database_provider.dart';
 import 'profiles_provider.dart';
 
@@ -770,7 +771,8 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
     } catch (e) {
       if (mounted) {
         state = state.copyWith(
-          errorMessage: 'Failed to stop before completing: ${userFacingError(e)}',
+          errorMessage:
+              'Failed to stop before completing: ${userFacingError(e)}',
           statusMessage: 'Stop failed — retry before leaving alignment',
         );
       }

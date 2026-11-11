@@ -149,14 +149,14 @@ class _ConstellationSignInSheetState
       // These values form one usable account identity. A partial write could
       // leave the app "configured" with a token but no matching hub/account,
       // so commit the tuple in one database transaction.
-      await settings.setSettings({
-        constellationHubUrlSettingKey: rawUrl,
-        constellationHubTokenSettingKey: account.bearerToken,
-        constellationDisplayNameSettingKey: name,
+      await settings.writeAll([
+        StoreSettings.constellationHubUrl.to(rawUrl),
+        StoreSettings.constellationHubToken.to(account.bearerToken),
+        StoreSettings.constellationDisplayName.to(name),
         // Record the hub-issued account id so follow-the-night can tell when
         // the baton's holder is this user (enables the Release affordance).
-        constellationAccountIdSettingKey: account.accountId,
-      });
+        StoreSettings.constellationAccountId.to(account.accountId),
+      ]);
 
       if (!mounted) return;
       ref.invalidate(constellationConfiguredProvider);
@@ -176,14 +176,12 @@ class _ConstellationSignInSheetState
   /// against the account. The self-hosted hub only needs a stable identifier,
   /// so a persisted random hex string suffices.
   Future<String> _ensurePublicKey(SettingsDao settings) async {
-    final existing = await settings.getSetting(
-      constellationPublicKeySettingKey,
-    );
-    if (existing != null && existing.isNotEmpty) return existing;
+    final existing = await settings.read(StoreSettings.constellationPublicKey);
+    if (existing.isNotEmpty) return existing;
     final rng = math.Random.secure();
     final bytes = List<int>.generate(32, (_) => rng.nextInt(256));
     final key = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-    await settings.setSetting(constellationPublicKeySettingKey, key);
+    await settings.write(StoreSettings.constellationPublicKey, key);
     return key;
   }
 }

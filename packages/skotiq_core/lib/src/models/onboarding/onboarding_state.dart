@@ -98,10 +98,6 @@ class OnboardingDraft {
   /// so the two flows do not collide.
   static const String persistenceCategory = 'equipmentOnboarding';
 
-  /// app_settings key under which the JSON draft is stored. Wiped when the
-  /// user completes or dismisses the wizard so a fresh run starts clean.
-  static const String draftSettingsKey = 'equipment_onboarding_draft';
-
   /// Current step the user is on. Survives an app restart mid-wizard.
   final OnboardingStep currentStep;
 

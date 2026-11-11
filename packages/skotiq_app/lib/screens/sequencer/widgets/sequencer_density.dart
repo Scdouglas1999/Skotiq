@@ -55,13 +55,6 @@ SequencerDensity effectiveSequencerDensity(
   return isMobile ? SequencerDensity.comfortable : preference;
 }
 
-/// Settings key holding the persisted [SequencerDensity].
-///
-/// Stored as the bare enum name rather than a JSON object (the shape
-/// `thumbnail_strip_prefs_v1` uses) because the preference is a single value:
-/// there is no second knob for an object to hold.
-const _sequencerDensityKey = 'sequencer_density_v1';
-
 /// Persisted sequencer row density, backed by the `settingsDaoProvider`
 /// persistence pattern. A read or write failure surfaces through the
 /// [AsyncValue] rather than being swallowed — a silent fallback hides bugs.
@@ -73,8 +66,9 @@ final sequencerDensityPrefsProvider =
 class SequencerDensityNotifier extends AsyncNotifier<SequencerDensity> {
   @override
   Future<SequencerDensity> build() async {
-    final dao = ref.read(settingsDaoProvider);
-    final stored = await dao.getSetting(_sequencerDensityKey);
+    final stored = await ref
+        .read(settingsDaoProvider)
+        .read(StoreSettings.sequencerDensity);
     if (stored == null || stored.trim().isEmpty) {
       return SequencerDensity.defaultDensity;
     }
@@ -88,8 +82,9 @@ class SequencerDensityNotifier extends AsyncNotifier<SequencerDensity> {
   }
 
   Future<void> setDensity(SequencerDensity density) async {
-    final dao = ref.read(settingsDaoProvider);
-    await dao.setSetting(_sequencerDensityKey, density.name);
+    await ref
+        .read(settingsDaoProvider)
+        .write(StoreSettings.sequencerDensity, density.name);
     state = AsyncData(density);
   }
 }

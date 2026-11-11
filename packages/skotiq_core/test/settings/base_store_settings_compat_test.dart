@@ -18,7 +18,7 @@ import 'package:skotiq_core/src/models/annotation_settings.dart';
 import 'package:skotiq_core/src/models/imaging/auto_stretch_settings.dart';
 import 'package:skotiq_core/src/models/scheduler/scheduler_status.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart'
-    show BinningMode, LiveStackingMethod;
+    show BinningMode, LiveStackingMethod, LiveStackingThumbnailSize;
 import 'package:skotiq_core/src/providers/annotation_settings_provider.dart';
 import 'package:skotiq_core/src/providers/constellation_provider.dart'
     show resolveConstellationAccountId, resolveConstellationCredentials;
@@ -219,8 +219,14 @@ final _probes = <_Probe>[
       'other text': {'notes.prompt_after_run': 'yes'},
     },
     writes: {
-      "don't ask again": (c) => c.read(notesPromptToggleProvider)(false),
-      'ask again': (c) => c.read(notesPromptToggleProvider)(true),
+      "don't ask again": (c) async {
+        await c.read(promptForNotesAfterRunProvider.future);
+        await c.read(notesPromptToggleProvider)(false);
+      },
+      'ask again': (c) async {
+        await c.read(promptForNotesAfterRunProvider.future);
+        await c.read(notesPromptToggleProvider)(true);
+      },
     },
   ),
   _Probe(
@@ -813,7 +819,13 @@ void main() {
         if (update) {
           recorded[probe.name] = result;
         } else {
-          expect(result, fixture['probes'][probe.name]);
+          expect(
+            result,
+            _withChanges(
+              fixture['probes'][probe.name],
+              _changedOnPurpose[probe.name],
+            ),
+          );
         }
       },
     );
@@ -842,6 +854,45 @@ void main() {
       );
     });
   }
+}
+
+/// What these settings now read from text no build writes, where that
+/// differs from the base build. A declared setting reads it by its kind's one
+/// rule instead of each feature's own idiom:
+///   * a bool is on for `true` in any case and off for any other text (the
+///     base read `TRUE` as off where it tested `== 'true'`, and empty or
+///     unreadable text as on where it tested `!= 'false'`);
+///   * an empty row of a JSON document or an optional text means nothing is
+///     saved (the base kept an empty filter name, and failed on an empty push
+///     notification document).
+const Map<String, Object?> _changedOnPurpose = {
+  'glance mode': {
+    'reads': {'upper case': true},
+  },
+  'tutorials enabled': {
+    'reads': {'upper case off': false, 'empty': false},
+  },
+};
+
+/// A change that replaces the base value whole instead of being laid over it.
+class _Replace {
+  const _Replace(this.value);
+
+  final Object? value;
+}
+
+/// [base] with the entries of [changes] laid over it, map by map. A change
+/// that is not a map replaces the base value whole.
+Object? _withChanges(Object? base, Object? changes) {
+  if (changes is _Replace) return changes.value;
+  if (changes is! Map || base is! Map) return changes ?? base;
+  return {
+    ...base,
+    for (final entry in changes.entries)
+      entry.key: entry.value == null
+          ? null
+          : _withChanges(base[entry.key], entry.value),
+  };
 }
 
 Map<String, Object?> _probesOf(Map<String, Object?> recorded) => {

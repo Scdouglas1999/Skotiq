@@ -237,9 +237,7 @@ void main() {
     );
 
     // Draft blob is still present (not wiped until finishNextSteps).
-    final draftRow = await settingsDao.getSetting(
-      OnboardingDraft.draftSettingsKey,
-    );
+    final draftRow = await settingsDao.getSetting('equipment_onboarding_draft');
     expect(draftRow, isNotNull);
   });
 
@@ -353,7 +351,7 @@ void main() {
 
       final settingsDao = container.read(settingsDaoProvider);
       final draftRow = await settingsDao.getSetting(
-        OnboardingDraft.draftSettingsKey,
+        'equipment_onboarding_draft',
       );
       expect(draftRow, isNull);
 

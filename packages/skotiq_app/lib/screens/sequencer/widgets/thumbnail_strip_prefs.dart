@@ -82,8 +82,6 @@ class ThumbnailStripPrefs {
   }
 }
 
-const _thumbnailStripPrefsKey = 'thumbnail_strip_prefs_v1';
-
 /// Persisted thumbnail-strip preferences. Backed by the
 /// `settingsDaoProvider` persistence pattern. Errors
 /// during read/write surface through the AsyncValue rather than being
@@ -96,8 +94,8 @@ final thumbnailStripPrefsProvider =
 class ThumbnailStripPrefsNotifier extends AsyncNotifier<ThumbnailStripPrefs> {
   @override
   Future<ThumbnailStripPrefs> build() async {
-    final dao = ref.read(settingsDaoProvider);
-    final stored = await dao.getSetting(_thumbnailStripPrefsKey);
+    final stored =
+        await ref.read(settingsDaoProvider).read(StoreSettings.thumbnailStrip);
     if (stored == null || stored.trim().isEmpty) {
       return ThumbnailStripPrefs.defaults;
     }
@@ -123,11 +121,9 @@ class ThumbnailStripPrefsNotifier extends AsyncNotifier<ThumbnailStripPrefs> {
   }
 
   Future<void> _persist(ThumbnailStripPrefs prefs) async {
-    final dao = ref.read(settingsDaoProvider);
-    await dao.setSetting(
-      _thumbnailStripPrefsKey,
-      jsonEncode(prefs.toJson()),
-    );
+    await ref
+        .read(settingsDaoProvider)
+        .write(StoreSettings.thumbnailStrip, jsonEncode(prefs.toJson()));
     state = AsyncData(prefs);
   }
 }

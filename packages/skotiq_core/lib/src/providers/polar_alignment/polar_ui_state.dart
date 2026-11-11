@@ -86,13 +86,13 @@ class PolarAlignmentUiStateNotifier
   }
 
   final Ref ref;
-  static const String _settingsKey = 'polar_alignment_ui';
-
   Future<void> _load() async {
     try {
       final db = ref.read(databaseProvider);
-      final setting = await db.settingsDao.getSetting(_settingsKey);
-      if (setting != null && setting.isNotEmpty) {
+      final setting = await db.settingsDao.read(
+        StoreSettings.polarAlignmentScreen,
+      );
+      if (setting != null) {
         final json = jsonDecode(setting) as Map<String, dynamic>;
         state = PolarAlignmentUiState.fromJson(json);
       }
@@ -109,7 +109,10 @@ class PolarAlignmentUiStateNotifier
   Future<void> _persist() async {
     try {
       final db = ref.read(databaseProvider);
-      await db.settingsDao.setSetting(_settingsKey, jsonEncode(state.toJson()));
+      await db.settingsDao.write(
+        StoreSettings.polarAlignmentScreen,
+        jsonEncode(state.toJson()),
+      );
     } catch (e) {
       developer.log(
         '[PolarAlignmentUiStateNotifier] Failed to save UI state: $e',

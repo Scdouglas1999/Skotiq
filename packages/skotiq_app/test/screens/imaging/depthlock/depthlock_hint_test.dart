@@ -18,7 +18,7 @@ import 'depthlock_test_doubles.dart';
 class _RecordingSettingsDao implements SettingsDao {
   _RecordingSettingsDao([Map<String, String>? seed])
       : store = <String, String>{...?seed} {
-    _controller.add(store[kDepthLockHintDismissedKey]);
+    _controller.add(store[StoreSettings.depthLockHintDismissed.key]);
   }
 
   final Map<String, String> store;
@@ -37,7 +37,7 @@ class _RecordingSettingsDao implements SettingsDao {
   @override
   Future<void> setSetting(String key, String value) async {
     store[key] = value;
-    if (key == kDepthLockHintDismissedKey) _controller.add(value);
+    if (key == StoreSettings.depthLockHintDismissed.key) _controller.add(value);
   }
 
   @override
@@ -143,7 +143,7 @@ void main() {
     await tester.tap(find.byTooltip('Dismiss'));
     await tester.pumpAndSettle();
 
-    expect(dao.store[kDepthLockHintDismissedKey], 'true');
+    expect(dao.store[StoreSettings.depthLockHintDismissed.key], 'true');
     expect(find.textContaining('Chasing something faint?'), findsNothing);
   });
 
@@ -154,7 +154,7 @@ void main() {
       tester,
       backend: FakeDepthLockBackend(),
       frame: _solvedFrame(),
-      seed: <String, String>{kDepthLockHintDismissedKey: 'true'},
+      seed: <String, String>{StoreSettings.depthLockHintDismissed.key: 'true'},
     );
 
     expect(find.textContaining('Chasing something faint?'), findsNothing);
@@ -173,7 +173,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(marked, isTrue);
-    expect(dao.store[kDepthLockHintDismissedKey], 'true');
+    expect(dao.store[StoreSettings.depthLockHintDismissed.key], 'true');
     expect(find.textContaining('Chasing something faint?'), findsNothing);
   });
 
@@ -217,6 +217,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Chasing something faint?'), findsNothing);
-    expect(dao.store[kDepthLockHintDismissedKey], 'true');
+    expect(dao.store[StoreSettings.depthLockHintDismissed.key], 'true');
   });
 }

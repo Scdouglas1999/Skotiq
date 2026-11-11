@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 
 import '../../backend/roles/host_data/science_products.dart' show SettingRows;
 import '../../models/focuser_backlash_calibration.dart';
+import '../../settings/setting.dart';
 import '../database.dart';
 import '../tables/settings.dart';
 
@@ -377,21 +378,6 @@ class SettingsDao extends DatabaseAccessor<SkotiqDatabase>
   Future<void> setObserverElevation(double elevation) =>
       setSetting('observer_elevation', elevation.toString());
 
-  static const String _autoStretchKey = 'auto_stretch_settings';
-
-  /// Get auto-stretch settings as JSON string
-  Future<String?> getAutoStretchSettings() async {
-    return await getSetting(_autoStretchKey);
-  }
-
-  Stream<String?> watchAutoStretchSettings() {
-    return watchSetting(_autoStretchKey);
-  }
-
-  /// Save auto-stretch settings as JSON string
-  Future<void> setAutoStretchSettings(String jsonSettings) =>
-      setSetting(_autoStretchKey, jsonSettings);
-
   // Remembered camera sensor geometry ---------------------------------------
   //
   // Stored as one JSON object keyed by camera device id rather than as columns
@@ -553,5 +539,53 @@ class SettingsDao extends DatabaseAccessor<SkotiqDatabase>
         for (final entry in records.entries) entry.key: entry.value.toJson(),
       }),
     );
+  }
+}
+
+/// Typed access to the rows of declared settings, built on [SettingsDao]'s
+/// key/value calls so it reads and writes through whichever store the DAO
+/// routes a key to (this computer's database or a linked host's).
+extension StoredSettings on SettingsDao {
+  /// The stored value of [setting], or its default when no row holds it.
+  Future<T> read<T>(Setting<T> setting) async =>
+      setting.fromRows(await readRows([setting]), setting.fallback);
+
+  /// The stored rows of [settings], for reading several at once with
+  /// [Setting.fromRows]. A setting with no row has no entry.
+  Future<Map<String, String>> readRows(
+    Iterable<Setting<Object?>> settings,
+  ) async {
+    final rows = <String, String>{};
+    for (final setting in settings) {
+      for (final key in setting.keys) {
+        final value = await getSetting(key);
+        if (value != null) rows[key] = value;
+      }
+    }
+    return rows;
+  }
+
+  /// Store [value] for [setting], held to its bounds.
+  Future<void> write<T>(Setting<T> setting, T value) {
+    final rows = setting.toRows(setting.clean(value));
+    if (rows.length != 1) return setSettings(rows);
+    final row = rows.entries.single;
+    return setSetting(row.key, row.value);
+  }
+
+  /// Store several settings in one write.
+  Future<void> writeAll(Iterable<SettingValue<Object?>> values) =>
+      setSettings({for (final value in values) ...value.rows});
+
+  /// [setting]'s value now and whenever its row changes.
+  Stream<T> watch<T>(Setting<T> setting) => watchSetting(
+    setting.key,
+  ).map((raw) => setting.decode(raw, setting.fallback));
+
+  /// Remove [setting]'s rows, so it reads as its default.
+  Future<void> clear(Setting<Object?> setting) async {
+    for (final key in setting.keys) {
+      await deleteSetting(key);
+    }
   }
 }

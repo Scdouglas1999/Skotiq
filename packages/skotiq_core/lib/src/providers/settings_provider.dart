@@ -41,7 +41,8 @@ export '../settings/capture_format.dart';
 export '../settings/device_retries.dart';
 export '../settings/preflight_strictness.dart';
 export '../settings/setting.dart'
-    show ExecutorConfig, Setting, SettingSync, SettingValue;
+    show ExecutorConfig, Setting, SettingFamily, SettingSync, SettingValue;
+export '../settings/store_settings.dart' show StoreSettings;
 
 part 'settings_sections/general.dart';
 part 'settings_sections/appearance.dart';

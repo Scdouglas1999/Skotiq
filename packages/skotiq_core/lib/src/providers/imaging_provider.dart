@@ -323,12 +323,10 @@ class AutoStretchSettingsNotifier extends StateNotifier<AutoStretchSettings> {
     final revisionAtStart = _requestRevision;
 
     try {
-      final dao = _ref.read(settingsDaoProvider);
-      final json = await dao.getAutoStretchSettings();
-      if (json != null &&
-          json.isNotEmpty &&
-          revisionAtStart == _requestRevision &&
-          mounted) {
+      final json = await _ref
+          .read(settingsDaoProvider)
+          .read(StoreSettings.autoStretch);
+      if (json != null && revisionAtStart == _requestRevision && mounted) {
         final decoded = jsonDecode(json) as Map<String, dynamic>;
         final loaded = AutoStretchSettings.fromJson(decoded);
         _confirmedSettings = loaded;
@@ -374,9 +372,9 @@ class AutoStretchSettingsNotifier extends StateNotifier<AutoStretchSettings> {
   /// Persist a captured settings snapshot to the database.
   Future<void> _persistSettings(AutoStretchSettings settings) async {
     try {
-      final dao = _ref.read(settingsDaoProvider);
-      final json = jsonEncode(settings.toJson());
-      await dao.setAutoStretchSettings(json);
+      await _ref
+          .read(settingsDaoProvider)
+          .write(StoreSettings.autoStretch, jsonEncode(settings.toJson()));
     } catch (e) {
       developer.log(
         'Failed to save auto-stretch settings: $e',

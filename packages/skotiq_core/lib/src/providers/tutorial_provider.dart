@@ -6,6 +6,7 @@ import '../database/daos/tutorial_dao.dart';
 import '../database/daos/tutorial_progress_dao.dart';
 import '../database/daos/settings_dao.dart';
 import '../models/tutorial/tutorial_models.dart';
+import '../settings/store_settings.dart';
 import 'database_provider.dart';
 
 final tutorialProgressDaoProvider = Provider<TutorialProgressDao>((ref) {
@@ -516,8 +517,6 @@ class TutorialNotifier extends StateNotifier<TutorialProgress> {
   Future<void> _progressMutationTail = Future<void>.value();
   int _progressRevision = 0;
 
-  static const String _tutorialsEnabledSettingKey = 'tutorials_enabled';
-
   TutorialNotifier(this._dao, [this._settingsDao])
     : super(const TutorialProgress());
 
@@ -525,8 +524,8 @@ class TutorialNotifier extends StateNotifier<TutorialProgress> {
     final settingsRevisionAtStart = _settingsRevision;
     final progressRevisionAtStart = _progressRevision;
     final allProgress = await _dao.getAllProgress();
-    final storedTutorialsEnabled = await _settingsDao?.getSetting(
-      _tutorialsEnabledSettingKey,
+    final storedTutorialsEnabled = await _settingsDao?.read(
+      StoreSettings.tutorialsEnabled,
     );
 
     // Build completed steps set from all completed categories
@@ -566,7 +565,7 @@ class TutorialNotifier extends StateNotifier<TutorialProgress> {
           ? hasSeenInitialTour
           : state.hasSeenInitialTour,
       tutorialsEnabled: settingsRevisionAtStart == _settingsRevision
-          ? storedTutorialsEnabled != 'false'
+          ? storedTutorialsEnabled ?? StoreSettings.tutorialsEnabled.fallback
           : state.tutorialsEnabled,
     );
   }
@@ -715,10 +714,7 @@ class TutorialNotifier extends StateNotifier<TutorialProgress> {
     final completer = Completer<void>();
     _settingsMutationTail = _settingsMutationTail.then((_) async {
       try {
-        await _settingsDao?.setSetting(
-          _tutorialsEnabledSettingKey,
-          enabled.toString(),
-        );
+        await _settingsDao?.write(StoreSettings.tutorialsEnabled, enabled);
         if (mounted) state = state.copyWith(tutorialsEnabled: enabled);
         completer.complete();
       } catch (error, stackTrace) {

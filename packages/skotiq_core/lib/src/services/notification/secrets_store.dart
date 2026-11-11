@@ -31,6 +31,7 @@ import 'dart:developer' as developer;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../database/daos/settings_dao.dart';
+import '../../settings/store_settings.dart';
 import '../../models/notification/notification_categories.dart';
 import '../../utils/legacy_install_migration.dart'
     show migrateLegacySecretsNamespace;
@@ -43,14 +44,11 @@ import '../../utils/legacy_install_migration.dart'
 /// is touched, via [migrateLegacySecretsNamespace].
 const String _secretsKeyPrefix = 'skotiq.notif.v1.';
 
-/// Sentinel value written to `app_settings` once the one-shot migration
-/// has completed. Presence of this flag short-circuits subsequent
-/// migration attempts.
-// v2 adds generic-webhook URLs and authorization headers. It intentionally
-// does not honor the old v1 flag: all v1 migrations are idempotent, while
-// honoring it would leave newly-classified webhook secrets in plaintext for
-// existing users.
-const String _migrationFlagKey = 'notification_secrets_migrated_v2';
+// The one-shot migration records completion in
+// [StoreSettings.notificationSecretsMigrated] (`_v2`). v2 adds generic-webhook
+// URLs and authorization headers. It intentionally does not honor the old v1
+// flag: all v1 migrations are idempotent, while honoring it would leave
+// newly-classified webhook secrets in plaintext for existing users.
 
 /// Logical secret fields the store owns. Each one is a stable string
 /// the UI / providers reference (vs. coupling to enum names that might
@@ -275,8 +273,9 @@ class SecretsStore {
   /// Best-effort: if a single transport's blob is malformed, the
   /// migration continues for the others rather than aborting whole.
   Future<bool> migrateFromPlaintext(SettingsDao dao) async {
-    final flag = await dao.getSetting(_migrationFlagKey);
-    if (flag == 'true') return false; // already migrated
+    if (await dao.read(StoreSettings.notificationSecretsMigrated)) {
+      return false;
+    }
 
     // Migrate each transport in turn. Each call writes the cleaned blob
     // back, so a crash midway leaves the database in a consistent state
@@ -332,7 +331,7 @@ class SecretsStore {
     // forever. Successfully cleaned blobs are idempotent, so retrying all of
     // them after the malformed blob is repaired is safe.
     if (complete) {
-      await dao.setSetting(_migrationFlagKey, 'true');
+      await dao.write(StoreSettings.notificationSecretsMigrated, true);
     }
     return complete;
   }
