@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skotiq_app/router/app_routes.dart';
+import 'package:skotiq_app/utils/darkroom_navigation.dart'
+    show darkroomEditLocation;
 import 'package:skotiq_core/skotiq_core.dart' show darkroomRouteForPayload;
 
 import 'mobile_preferences.dart';
@@ -152,48 +155,49 @@ String? routeForNotificationPayload(String payload) {
 
   switch (type) {
     case 'image_ready':
-      if (arg == null || arg.isEmpty) return '/imaging';
-      return '/imaging/preview/${Uri.encodeComponent(arg)}';
+      if (arg == null || arg.isEmpty) return AppRoute.imaging.path;
+      return AppRoutes.imagingPreview(arg);
     case 'sequence_complete':
     case 'sequence_failed':
     case 'meridian_flip':
     case 'target_completed':
     case 'autofocus_failed':
-      return '/sequencer';
+      return AppRoute.sequencer.path;
     case 'exposure_failed':
-      return '/imaging';
+      return AppRoute.imaging.path;
     case 'plate_solve_failed':
     case 'centering_failed':
       // Both job-failure paths land on the imaging viewport because that
       // screen exposes the "solve again" / "re-center" actions.
-      return '/imaging';
+      return AppRoute.imaging.path;
     case 'polar_alignment_failed':
       // Polar align has its own dedicated screen; route there directly.
-      return '/polar-alignment';
+      return AppRoute.polarAlignment.path;
     case 'guiding_lost':
-      return '/guiding';
+      return AppRoute.guiding.path;
     case 'safety':
     case 'mount_parked':
-      return '/weather';
+      return AppRoute.weather.path;
     case 'equipment_disconnected':
-      return '/equipment';
+      return AppRoute.equipment.path;
     case 'low_battery':
     case 'low_disk_space':
-      return '/dashboard';
+      return AppRoute.tonight.path;
     case 'ownership_taken_over':
     case 'ownership_auto_released':
       // Session ownership state lives on the dashboard banner; that's
       // where the user resolves the take-over.
-      return '/dashboard';
+      return AppRoute.tonight.path;
     case 'darkroom_draft':
       // The dawn autopilot's morning message. The argument is the recipe row
       // the pass saved; without one there is nothing specific to open, so the
       // tap lands on the Darkroom's own empty/most-recent state rather than on
       // a query for a recipe that does not exist.
-      if (arg == null || arg.isEmpty) return '/darkroom';
-      return '/darkroom?recipe=${Uri.encodeComponent(arg)}';
+      final recipeId = int.tryParse(arg ?? '');
+      if (recipeId == null) return AppRoute.darkroom.path;
+      return darkroomEditLocation(recipeId: recipeId);
     case 'push':
-      return '/dashboard';
+      return AppRoute.tonight.path;
     default:
       return null;
   }

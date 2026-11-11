@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_app/skotiq_app.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 import 'package:skotiq_app/startup/app_overrides.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -324,7 +325,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
       }
       return;
     }
-    router.go('/imaging');
+    router.go(AppRoute.imaging.path);
   }
 
   @override
