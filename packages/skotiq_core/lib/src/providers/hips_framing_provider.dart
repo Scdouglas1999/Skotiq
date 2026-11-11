@@ -59,8 +59,6 @@ import '../services/hips/hips_tile_fetcher.dart';
 import '../services/hips/hips_tile_loader.dart';
 import 'framing_provider.dart' show FramingTarget, SurveySource;
 
-// Tunable residency budget
-
 /// Default bounds for the framing tile [HipsTileCache].
 ///
 /// A framing view at a typical preview FOV resolves to a few dozen visible
@@ -78,8 +76,6 @@ const int kHipsFramingCacheMaxEntries = 256;
 /// layer.
 const int kHipsFramingCacheMaxBytes = 256 * 1024 * 1024;
 
-// C5 — fetcher provider
-
 /// Canonical DI handle for the HiPS [HipsTileFetcher] (component C5).
 ///
 /// Production resolves a real fetcher (its own [http.Client] + the default
@@ -95,8 +91,6 @@ const int kHipsFramingCacheMaxBytes = 256 * 1024 * 1024;
 final hipsTileFetcherProvider = Provider.autoDispose<HipsTileFetcher>(
   (ref) => HipsTileFetcher(),
 );
-
-// C4 — cache provider
 
 /// Canonical DI handle for the bounded LRU [HipsTileCache] (component C4).
 ///
@@ -132,8 +126,6 @@ final hipsLoaderClockProvider = Provider.autoDispose<HipsLoaderClock>(
   (ref) => const HipsRealLoaderClock(),
 );
 
-// C6 — loader provider
-
 /// Canonical DI handle for the HiPS tile orchestrator (component C6).
 ///
 /// Builds a [HipsTileLoader] from the C4 cache and C5 fetcher and registers an
@@ -165,8 +157,6 @@ final hipsTileLoaderProvider = Provider.autoDispose<HipsTileLoader>((ref) {
   ref.onDispose(loader.dispose);
   return loader;
 });
-
-// Shared survey `properties` resolution
 
 /// The single source of truth for a survey's HiPS `properties` document.
 ///
@@ -214,8 +204,6 @@ final framingHipsPropertiesProvider = FutureProvider.autoDispose
         rethrow;
       }
     });
-
-// Feature flag
 
 /// User-facing feature flag for the HiPS framing tile layer, defaulting to
 /// **on** for tile-capable surveys.

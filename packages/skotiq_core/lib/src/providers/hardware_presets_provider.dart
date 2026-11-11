@@ -175,8 +175,6 @@ class HardwarePresetsNotifier extends StateNotifier<HardwarePresetsService> {
     state = state.withOverrides(cameraOverrides: next);
   }
 
-  // Internals.
-
   /// The current telescope overrides, recovered as the merged-list entries that
   /// are not built-ins. Because the merge places overrides first and de-dupes
   /// by id, every non-built-in entry in [HardwarePresetsService.allTelescopes]

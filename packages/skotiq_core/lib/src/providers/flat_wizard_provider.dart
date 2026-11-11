@@ -33,7 +33,6 @@ part 'flat_wizard/flat_camera_config.dart';
 part 'flat_wizard/flat_wizard_settings_ops.dart';
 part 'flat_wizard/flat_wizard_run.dart';
 
-/// Provider for flat wizard state
 final flatWizardProvider =
     StateNotifierProvider<FlatWizardNotifier, FlatWizardState>((ref) {
       return FlatWizardNotifier(ref);
@@ -103,14 +102,10 @@ class FlatWizardNotifier extends StateNotifier<FlatWizardState> {
     });
   }
 
-  // Capture control
-
   bool _startPromptReserved = false;
 
   /// Whether capture startup or a capture run currently owns the wizard.
   bool get isBusy => _running || _startPromptReserved;
-
-  // Reset
 
   void reset() {
     // Refuse to wipe state out from under an active run; cancel it instead.

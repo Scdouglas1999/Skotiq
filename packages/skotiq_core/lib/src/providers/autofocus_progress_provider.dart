@@ -9,7 +9,6 @@ import 'operation_progress_provider.dart';
 
 /// State for the non-blocking autofocus progress overlay
 class AutofocusOverlayState {
-  /// Whether an autofocus run is currently active
   final bool isRunning;
 
   /// Current point index (1-based)
@@ -21,22 +20,18 @@ class AutofocusOverlayState {
   /// All V-curve data points collected so far
   final List<VCurvePoint> vcurvePoints;
 
-  /// Current HFR measurement
   final double currentHfr;
 
   /// Best HFR seen so far in this run
   final double bestHfr;
 
-  /// Current star count
   final int starCount;
 
-  /// Status message
   final String status;
 
   /// Final autofocus result (null while running)
   final AutofocusResult? result;
 
-  /// Whether the overlay is minimized
   final bool isMinimized;
 
   /// Whether the overlay should be visible at all
@@ -300,7 +295,6 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
     );
   }
 
-  /// Called when autofocus fails
   void onAutofocusFailed(String error) {
     // A failed run carries an error the operator has to read, so it stays up
     // until dismissed by hand.
@@ -334,7 +328,6 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
     );
   }
 
-  /// Toggle minimized state
   void toggleMinimized() {
     state = state.copyWith(isMinimized: !state.isMinimized);
   }
@@ -378,7 +371,6 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
   }
 }
 
-/// Provider for the autofocus progress overlay state
 final autofocusOverlayProvider =
     StateNotifierProvider<AutofocusOverlayNotifier, AutofocusOverlayState>((
       ref,

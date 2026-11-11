@@ -12,7 +12,6 @@ import 'database_provider.dart';
 
 const _observingListNotProvided = Object();
 
-/// DAO provider for ObservingListsDao.
 final observingListsDaoProvider = Provider<ObservingListsDao>((ref) {
   return ObservingListsDao(ref.watch(databaseProvider));
 });
@@ -156,7 +155,6 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
     });
   }
 
-  /// Create a new observing list.
   Future<int?> createList({required String name, String? description}) {
     return _mutate<int?>(null, (scope) async {
       try {
@@ -244,7 +242,6 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
     });
   }
 
-  /// Rename an observing list.
   Future<bool> renameList(int id, String newName) {
     return _mutate<bool>(false, (scope) async {
       try {
@@ -261,7 +258,6 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
     });
   }
 
-  /// Update a list's description.
   Future<bool> updateDescription(int id, String? description) {
     return _mutate<bool>(false, (scope) async {
       try {
@@ -313,7 +309,6 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
     });
   }
 
-  /// Delete an observing list.
   Future<bool> deleteList(int id) {
     return _mutate<bool>(false, (scope) async {
       try {
@@ -362,7 +357,6 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
     return operation;
   }
 
-  /// Add an object to a list.
   Future<int?> addItem({
     required int listId,
     required String objectName,
@@ -422,7 +416,6 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
     return null;
   }
 
-  /// Remove an item from a list.
   Future<bool> removeItem(int itemId) {
     return _mutate<bool>(false, (scope) async {
       try {
@@ -439,7 +432,6 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
     });
   }
 
-  /// Update notes on an item.
   Future<bool> updateItemNotes(int itemId, String? notes) {
     return _mutate<bool>(false, (scope) async {
       try {
@@ -455,7 +447,6 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
     });
   }
 
-  /// Get which lists contain a given catalog ID.
   Future<List<ObservingList>> getListsContaining(String catalogId) async {
     final scope = _scopes.begin();
     final lists = await scope.value.getListsContaining(catalogId);

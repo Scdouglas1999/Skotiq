@@ -40,7 +40,6 @@ enum HeartbeatHealth {
 
 /// Immutable snapshot of a single device's heartbeat health.
 class DeviceHeartbeatHealthState {
-  /// The current health classification.
   final HeartbeatHealth health;
 
   /// Human-readable reason for non-healthy states. Populated from the

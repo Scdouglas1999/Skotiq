@@ -22,34 +22,28 @@ export '../backend/network_backend/host_data/remote_host_records.dart'
     show fetchAllRemoteSequenceRuns;
 export 'project_tracking_provider.dart';
 
-/// Global database instance provider
 final databaseProvider = Provider<db.SkotiqDatabase>((ref) {
   final database = db.SkotiqDatabase();
   ref.onDispose(() => database.close());
   return database;
 });
 
-/// Equipment profiles DAO provider
 final equipmentProfilesDaoProvider = Provider<EquipmentProfilesDao>((ref) {
   return EquipmentProfilesDao(ref.watch(databaseProvider));
 });
 
-/// Targets DAO provider
 final targetsDaoProvider = Provider<TargetsDao>((ref) {
   return TargetsDao(ref.watch(databaseProvider));
 });
 
-/// Sessions DAO provider
 final sessionsDaoProvider = Provider<SessionsDao>((ref) {
   return SessionsDao(ref.watch(databaseProvider));
 });
 
-/// Images DAO provider
 final imagesDaoProvider = Provider<ImagesDao>((ref) {
   return ImagesDao(ref.watch(databaseProvider));
 });
 
-/// Sequences DAO provider
 final sequencesDaoProvider = Provider<SequencesDao>((ref) {
   return SequencesDao(ref.watch(databaseProvider));
 });
@@ -68,17 +62,14 @@ final settingsDaoProvider = Provider<SettingsDao>((ref) {
   return buildRemoteSettingsDao(ref, store, database);
 });
 
-/// Science DAO provider
 final scienceDaoProvider = Provider<ScienceDao>((ref) {
   return ScienceDao(ref.watch(databaseProvider));
 });
 
-/// Guide RMS history DAO provider.
 final guideRmsHistoryDaoProvider = Provider<GuideRmsHistoryDao>((ref) {
   return GuideRmsHistoryDao(ref.watch(databaseProvider));
 });
 
-/// Night Narrator events DAO provider.
 final narratorEventsDaoProvider = Provider<NarratorEventsDao>((ref) {
   return NarratorEventsDao(ref.watch(databaseProvider));
 });
@@ -114,37 +105,30 @@ final sessionHistoryProvider = Provider<SessionHistory>(
 // Convenience providers for watching data
 // Note: These use the database entity types (prefixed with db.)
 
-/// Watch all equipment profiles
 final allProfilesProvider = StreamProvider<List<db.EquipmentProfile>>((ref) {
   return ref.watch(equipmentProfileLibraryProvider).watchAllProfiles();
 });
 
-/// Watch the active equipment profile
 final activeProfileProvider = StreamProvider<db.EquipmentProfile?>((ref) {
   return ref.watch(equipmentProfileLibraryProvider).watchActiveProfile();
 });
 
-/// Watch all targets (database entities)
 final allDbTargetsProvider = StreamProvider<List<db.Target>>((ref) {
   return ref.watch(targetLibraryProvider).watchAllTargets();
 });
 
-/// Watch favorite targets (database entities)
 final favoriteDbTargetsProvider = StreamProvider<List<db.Target>>((ref) {
   return ref.watch(targetLibraryProvider).watchFavoriteTargets();
 });
 
-/// Watch all sequences (database entities)
 final allDbSequencesProvider = StreamProvider<List<db.Sequence>>((ref) {
   return ref.watch(sequenceLibraryProvider).watchAllSequences();
 });
 
-/// Watch all imaging sessions
 final allSessionsProvider = StreamProvider<List<db.ImagingSession>>((ref) {
   return ref.watch(sessionHistoryProvider).watchAllSessions();
 });
 
-/// Watch all captured images (database entities)
 final allDbImagesProvider = StreamProvider<List<db.CapturedImage>>((ref) {
   final rows = ref.watch(remoteImageRowsProvider);
   if (rows != null) return rows.watch();
@@ -341,7 +325,6 @@ class RemoteImageRows {
   }
 }
 
-/// Load a captured image row by id.
 final capturedImageByIdProvider = FutureProvider.family<db.CapturedImage?, int>(
   (ref, imageId) {
     if (ref.watch(backendProvider).remoteHost != null) {
@@ -421,7 +404,6 @@ final capturedImageWcsProvider =
       );
     });
 
-/// Watch all settings as a map
 final allSettingsProvider = StreamProvider<Map<String, String>>((ref) {
   return ref.watch(settingsDaoProvider).watchAllSettings();
 });

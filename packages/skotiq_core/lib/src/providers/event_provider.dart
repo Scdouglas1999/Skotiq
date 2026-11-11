@@ -117,14 +117,11 @@ final eventHistoryProvider =
       return notifier;
     });
 
-/// Notifier that maintains a history of events
 class EventHistoryNotifier extends StateNotifier<List<SkotiqEvent>> {
-  /// Maximum number of events to keep in history
   static const int maxHistorySize = 100;
 
   EventHistoryNotifier() : super([]);
 
-  /// Add a new event to the history
   void addEvent(SkotiqEvent event) {
     if (!mounted) return;
     state = [event, ...state].take(maxHistorySize).toList();
@@ -137,17 +134,14 @@ class EventHistoryNotifier extends StateNotifier<List<SkotiqEvent>> {
     state = newestFirst.take(maxHistorySize).toList();
   }
 
-  /// Clear the event history
   void clear() {
     state = [];
   }
 
-  /// Get events filtered by category
   List<SkotiqEvent> getByCategory(EventCategory category) {
     return state.where((e) => e.category == category).toList();
   }
 
-  /// Get events filtered by severity
   List<SkotiqEvent> getBySeverity(EventSeverity severity) {
     return state.where((e) => e.severity == severity).toList();
   }
@@ -354,7 +348,6 @@ String _extractEventMessage(core.SkotiqEvent event) {
     return data['reason'] as String;
   }
 
-  // Fall back to event type
   return event.eventType;
 }
 
