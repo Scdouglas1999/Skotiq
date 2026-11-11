@@ -200,18 +200,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       next,
     ) {
       if (next == null || identical(previous, next)) return;
-      final messenger = ScaffoldMessenger.maybeOf(context);
-      messenger
-        ?..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(next.message),
-            action: SnackBarAction(
-              label: 'Retry',
-              onPressed: () => ref.invalidate(appSettingsProvider),
+      // An input that reports the failure beside itself takes it off the
+      // channel as its write fails (`settingsReportRollback`), within this
+      // turn of the event loop; what is still there afterwards nothing on
+      // screen has reported.
+      Timer.run(() {
+        if (!mounted ||
+            !identical(ref.read(appSettingsWriteFailureProvider), next)) {
+          return;
+        }
+        ScaffoldMessenger.maybeOf(context)
+          ?..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(next.message),
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: () => ref.invalidate(appSettingsProvider),
+              ),
             ),
-          ),
-        );
+          );
+      });
     });
     final colors = Theme.of(context).extension<SkotiqColors>()!;
     final groups = buildSettingsGroups(context);

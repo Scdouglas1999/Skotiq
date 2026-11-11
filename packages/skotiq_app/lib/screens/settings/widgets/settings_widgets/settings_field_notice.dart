@@ -39,11 +39,23 @@ class SettingWriteHandled implements Exception {
 
 /// Tells the operator a save failed and the stored value is back, unless the
 /// write callback already did ([SettingWriteHandled]).
+///
+/// Either way the failure is reported here, so it is taken off the settings
+/// error channel ([appSettingsWriteFailureProvider]) that the Settings screen
+/// turns into a snackbar for writes no input reports.
 void settingsReportRollback(
   BuildContext context,
   SettingsNoticeController notice,
   Object error,
 ) {
+  final cause = error is SettingWriteHandled ? error.cause : error;
+  if (context.getElementForInheritedWidgetOfExactType<
+          UncontrolledProviderScope>() !=
+      null) {
+    final failures = ProviderScope.containerOf(context, listen: false)
+        .read(appSettingsWriteFailureProvider.notifier);
+    if (identical(failures.state?.error, cause)) failures.state = null;
+  }
   if (error is SettingWriteHandled) return;
   final label = SettingRowLabel.maybeOf(context);
   final what = label == null ? 'This setting' : '"$label"';

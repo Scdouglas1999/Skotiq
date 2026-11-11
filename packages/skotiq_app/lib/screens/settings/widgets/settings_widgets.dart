@@ -10,7 +10,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:lucide_icons/lucide_icons.dart';
 
-import 'package:skotiq_core/skotiq_core.dart' show userFacingError;
+import 'package:skotiq_core/skotiq_core.dart'
+    show appSettingsWriteFailureProvider, userFacingError;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/help/field_help_copy.dart';
