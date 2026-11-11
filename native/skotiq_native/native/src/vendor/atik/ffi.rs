@@ -12,7 +12,7 @@ pub(crate) type ArtemisHandle = *mut c_void;
 /// be serialized, which we ensure through the Mutex wrapper in AtikCamera.
 pub(crate) struct HandleWrapper(pub(crate) ArtemisHandle);
 // SAFETY: HandleWrapper is only ever accessed while holding the per-camera
-// `handle: Mutex<HandleWrapper>` AND the global `atik_mutex()` async lock, so
+// `handle: Mutex<HandleWrapper>` AND the Atik SDK lock (`AtikSdk::lock()`), so
 // no two threads ever touch the raw ArtemisHandle concurrently.
 unsafe impl Send for HandleWrapper {}
 // SAFETY: Same justification as `Send` above — the wrapped raw pointer is

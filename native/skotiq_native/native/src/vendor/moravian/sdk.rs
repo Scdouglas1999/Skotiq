@@ -90,18 +90,14 @@ crate::load_vendor_sdk! {
     }
 }
 
-// SAFETY: MoravianSdk holds only function pointers and a `libloading::Library` (memory-mapped shared object). The function pointers reference code in a library kept alive for the program's lifetime (we store the Library). Every actual SDK call is serialized through `moravian_mutex()`, so the underlying gxccd SDK never sees concurrent invocation.
+// SAFETY: MoravianSdk holds only function pointers and a `libloading::Library` (memory-mapped shared object). The function pointers reference code in a library kept alive for the program's lifetime (we store the Library). Every actual SDK call is serialized through the `MoravianSdk` lock guard, so the underlying gxccd SDK never sees concurrent invocation.
 unsafe impl Send for MoravianSdk {}
-// SAFETY: Same justification as `impl Send`: pointer-and-handle aggregate that becomes safe under the moravian_mutex serialization used by every call site.
+// SAFETY: Same justification as `impl Send`: pointer-and-handle aggregate that becomes safe because every call goes through the `MoravianSdk` lock guard.
 unsafe impl Sync for MoravianSdk {}
-
-pub(crate) fn get_sdk() -> Result<&'static MoravianSdk, NativeError> {
-    MoravianSdk::get_or_reason().map_err(|reason| NativeError::SdkError(reason.to_string()))
-}
 
 /// Fetch the SDK's human-readable description of the last failing call.
 ///
-/// SAFETY: caller must hold `moravian_mutex()` and pass a valid, initialized
+/// SAFETY: caller must pass the table from its `MoravianSdk` guard and a valid, initialized
 /// camera handle. `gxccd_get_last_error` writes a NUL-terminated string of at
 /// most `size` bytes into `buf`.
 pub(crate) unsafe fn sdk_last_error(sdk: &MoravianSdk, handle: PCCamera) -> String {

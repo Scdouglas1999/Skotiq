@@ -23,7 +23,6 @@ use crate::camera::{
     BayerPattern, CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData,
     ImageMetadata, ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
 };
-use crate::sync::moravian_mutex;
 use crate::traits::{NativeCamera, NativeDevice, NativeError};
 use crate::utils::CleanupGuard;
 use crate::NativeVendor;

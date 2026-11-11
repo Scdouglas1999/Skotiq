@@ -148,10 +148,6 @@ crate::load_vendor_sdk! {
     }
 }
 
-pub(crate) fn get_sdk() -> Result<&'static FliSdk, NativeError> {
-    FliSdk::get_or_reason().map_err(|reason| NativeError::SdkError(reason.to_string()))
-}
-
 /// What one libfli return code means for a call that asks a device to do
 /// something it may not have.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -209,7 +205,7 @@ pub(crate) fn close_fli_handle(sdk: &FliSdk, handle: &mut FliDev) {
         return;
     }
 
-    // SAFETY: caller holds fli_mutex and handle was returned by a successful FLIOpen.
+    // SAFETY: the caller passes the table from its SDK guard and handle was returned by a successful FLIOpen.
     unsafe { (sdk.close)(*handle) };
     *handle = FLI_INVALID_DEVICE;
 }

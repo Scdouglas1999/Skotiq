@@ -7,7 +7,6 @@ use crate::camera::{
     BayerPattern, CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData,
     ImageMetadata, ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
 };
-use crate::sync::atik_mutex;
 use crate::traits::{NativeCamera, NativeDevice, NativeError, NativeFilterWheel};
 use crate::NativeVendor;
 use async_trait::async_trait;

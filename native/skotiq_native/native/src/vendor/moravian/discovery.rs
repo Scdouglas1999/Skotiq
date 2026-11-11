@@ -29,10 +29,8 @@ pub struct MoravianCameraInfo {
 
 /// Discover all connected Moravian cameras
 pub async fn discover_devices() -> Result<Vec<MoravianCameraInfo>, NativeError> {
-    let sdk = get_sdk()?;
-
     // Acquire global SDK mutex for thread safety
-    let _lock = moravian_mutex().lock().await;
+    let sdk = MoravianSdk::lock().await?;
 
     let ids_sink = Arc::new(Mutex::new(Vec::new()));
     *ACTIVE_ENUMERATION_IDS
@@ -40,7 +38,7 @@ pub async fn discover_devices() -> Result<Vec<MoravianCameraInfo>, NativeError> 
         .unwrap_or_else(|e| e.into_inner()) = Some(ids_sink.clone());
 
     // Enumerate cameras
-    // SAFETY: moravian_mutex held above (single-threaded gxccd SDK access); ACTIVE_ENUMERATION_IDS has been set to `ids_sink` so the callback has a sink to push to; `enumerate_callback` is a properly declared `unsafe extern "C" fn(c_int)` matching the enum_callback_t typedef.
+    // SAFETY: ACTIVE_ENUMERATION_IDS has been set to `ids_sink` so the callback has a sink to push to; `enumerate_callback` is a properly declared `unsafe extern "C" fn(c_int)` matching the enum_callback_t typedef.
     unsafe { (sdk.enumerate_usb)(enumerate_callback) };
     *ACTIVE_ENUMERATION_IDS
         .lock()
@@ -53,7 +51,7 @@ pub async fn discover_devices() -> Result<Vec<MoravianCameraInfo>, NativeError> 
 
     for (index, &id) in ids.iter().enumerate() {
         // Temporarily initialize to read camera info, then release.
-        // SAFETY: moravian_mutex held above (single-threaded gxccd SDK access); `id` was just emitted by gxccd_enumerate_usb via enumerate_callback so it is a valid camera ID for gxccd_initialize_usb.
+        // SAFETY: `id` was just emitted by gxccd_enumerate_usb via enumerate_callback so it is a valid camera ID for gxccd_initialize_usb.
         let handle = unsafe { (sdk.initialize_usb)(id) };
         if handle.is_null() {
             continue;
@@ -61,7 +59,7 @@ pub async fn discover_devices() -> Result<Vec<MoravianCameraInfo>, NativeError> 
 
         // Get camera description
         let mut name_buf = [0 as c_char; 256];
-        // SAFETY: moravian_mutex held; `handle` was just successfully initialized (non-null check above); name_buf is a 256-byte stack array and we pass its truthful length as `size_t` so the SDK cannot overrun.
+        // SAFETY: `handle` was just successfully initialized (non-null check above); name_buf is a 256-byte stack array and we pass its truthful length as `size_t` so the SDK cannot overrun.
         if unsafe {
             (sdk.get_string_parameter)(
                 handle,
@@ -79,7 +77,7 @@ pub async fn discover_devices() -> Result<Vec<MoravianCameraInfo>, NativeError> 
 
             // Get serial number
             let mut serial_buf = [0 as c_char; 64];
-            // SAFETY: moravian_mutex held; `handle` is still the successfully-initialized one from above; serial_buf is 64 bytes and its truthful length is passed as `size_t`.
+            // SAFETY: `handle` is still the successfully-initialized one from above; serial_buf is 64 bytes and its truthful length is passed as `size_t`.
             let serial_number = if unsafe {
                 (sdk.get_string_parameter)(
                     handle,
@@ -112,7 +110,7 @@ pub async fn discover_devices() -> Result<Vec<MoravianCameraInfo>, NativeError> 
         }
 
         // Release temporary handle
-        // SAFETY: moravian_mutex held; `handle` was successfully initialized at the top of this iteration; gxccd_release pairs with gxccd_initialize_usb per gxccd.h:206-211.
+        // SAFETY: `handle` was successfully initialized at the top of this iteration; gxccd_release pairs with gxccd_initialize_usb per gxccd.h:206-211.
         unsafe { (sdk.release)(handle) };
     }
 

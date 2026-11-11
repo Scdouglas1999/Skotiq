@@ -17,17 +17,15 @@ impl NativeCamera for MoravianCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = moravian_mutex().lock().await;
+        let sdk = MoravianSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
         // Get temperature
         let current_temp = {
             let mut value: c_float = 0.0;
-            // SAFETY: moravian_mutex held above (single-threaded gxccd SDK access); self.connected was checked at entry so the handle is open; `&mut value` is a valid stack out-pointer to a c_float.
+            // SAFETY: self.connected was checked at entry so the handle is open; `&mut value` is a valid stack out-pointer to a c_float.
             if unsafe { (sdk.get_value)(handle, GV_CHIP_TEMPERATURE, &mut value) } >= 0 {
                 Some(value as f64)
             } else {
@@ -38,7 +36,7 @@ impl NativeCamera for MoravianCamera {
         // Get cooler power
         let cooler_power = {
             let mut value: c_float = 0.0;
-            // SAFETY: moravian_mutex held; self.connected was checked at entry; `&mut value` is a valid stack out-pointer to a c_float.
+            // SAFETY: self.connected was checked at entry; `&mut value` is a valid stack out-pointer to a c_float.
             if unsafe { (sdk.get_value)(handle, GV_POWER_UTILIZATION, &mut value) } >= 0 {
                 Some(value as f64)
             } else {
@@ -87,7 +85,7 @@ impl NativeCamera for MoravianCamera {
             return Err(NativeError::SdkError("Camera is already exposing".into()));
         }
 
-        let sdk = get_sdk()?;
+        let sdk = MoravianSdk::installed()?;
 
         // Compute the binned, y-flipped ROI the current SDK expects on
         // start_exposure (the legacy SDK applied the ROI at download time).
@@ -124,11 +122,11 @@ impl NativeCamera for MoravianCamera {
 
         {
             // Acquire global SDK mutex for thread safety
-            let _lock = moravian_mutex().lock().await;
+            let sdk = sdk.lock().await;
 
             let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
-            // SAFETY: moravian_mutex held above (single-threaded gxccd SDK access); self.connected was checked at entry so the handle is open; exp_time/use_shutter/x/y/w/h are passed by value and the ROI was bounds-checked by compute_binned_roi against the binned sensor extent.
+            // SAFETY: self.connected was checked at entry so the handle is open; exp_time/use_shutter/x/y/w/h are passed by value and the ROI was bounds-checked by compute_binned_roi against the binned sensor extent.
             let ret = unsafe {
                 (sdk.start_exposure)(
                     handle,
@@ -141,8 +139,8 @@ impl NativeCamera for MoravianCamera {
                 )
             };
             if ret < 0 {
-                // SAFETY: moravian_mutex held; handle is the open camera handle.
-                let msg = unsafe { sdk_last_error(sdk, handle) };
+                // SAFETY: handle is the open camera handle.
+                let msg = unsafe { sdk_last_error(&sdk, handle) };
                 tracing::error!(
                     "Moravian gxccd_start_exposure() failed for camera '{}': {} (duration {:.3}s, ROI {}x{}+{}+{})",
                     self.name, msg, params.duration_secs, roi.w, roi.h, roi.x, roi.y
@@ -183,21 +181,19 @@ impl NativeCamera for MoravianCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = moravian_mutex().lock().await;
+        let sdk = MoravianSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
         // Abort, discarding the frame (download = false), matching the reference
         // (mi_ccd.cpp:534). Abort is a best-effort cleanup path: log a failure
         // but still reset local state so the orchestrator is not wedged.
-        // SAFETY: moravian_mutex held above (single-threaded gxccd SDK access); self.connected was checked at entry so the handle is open; gxccd_abort_exposure takes the handle plus a GxBool (download=0) by value.
+        // SAFETY: self.connected was checked at entry so the handle is open; gxccd_abort_exposure takes the handle plus a GxBool (download=0) by value.
         let ret = unsafe { (sdk.abort_exposure)(handle, 0) };
         if ret < 0 {
-            // SAFETY: moravian_mutex held; handle is the open camera handle.
-            let msg = unsafe { sdk_last_error(sdk, handle) };
+            // SAFETY: handle is the open camera handle.
+            let msg = unsafe { sdk_last_error(&sdk, handle) };
             tracing::warn!(
                 "Moravian gxccd_abort_exposure() failed for camera '{}': {}",
                 self.name,
@@ -218,7 +214,7 @@ impl NativeCamera for MoravianCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
+        let sdk = MoravianSdk::installed()?;
 
         // Binned dimensions requested at start_exposure. gxccd_read_image takes
         // no ROI of its own; the buffer must match exactly what start_exposure
@@ -263,14 +259,14 @@ impl NativeCamera for MoravianCamera {
             std::time::Instant::now() + std::time::Duration::from_secs(READOUT_TIMEOUT_SECS);
         loop {
             let ready = {
-                let _lock = moravian_mutex().lock().await;
+                let sdk = sdk.lock().await;
                 let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
                 let mut ready: GxBool = 0;
-                // SAFETY: moravian_mutex held; self.connected was checked at entry so the handle is open; `&mut ready` is a valid stack out-pointer to a GxBool.
+                // SAFETY: self.connected was checked at entry so the handle is open; `&mut ready` is a valid stack out-pointer to a GxBool.
                 let ret = unsafe { (sdk.image_ready)(handle, &mut ready) };
                 if ret < 0 {
-                    // SAFETY: moravian_mutex held; handle is the open camera handle.
-                    let msg = unsafe { sdk_last_error(sdk, handle) };
+                    // SAFETY: handle is the open camera handle.
+                    let msg = unsafe { sdk_last_error(&sdk, handle) };
                     self.state = CameraState::Error;
                     return Err(NativeError::SdkError(format!(
                         "Moravian gxccd_image_ready() failed for camera '{}': {}",
@@ -294,19 +290,19 @@ impl NativeCamera for MoravianCamera {
 
         self.state = CameraState::Downloading;
 
-        // Read the frame and capture temperature under a single mutex hold.
-        let _lock = moravian_mutex().lock().await;
+        // Read the frame and capture temperature under a single lock hold.
+        let sdk = sdk.lock().await;
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
         // Allocate the exact buffer (binned_w * binned_h pixels, 16-bit each).
         let mut data: Vec<u16> = vec![0u16; buffer_size];
 
         // Download image.
-        // SAFETY: moravian_mutex held above; handle is open (self.connected checked at entry); `data` is `vec![0u16; buffer_size]` where buffer_size = binned_width * binned_height, so `byte_count = buffer_size * 2` is the exact byte length passed as `size_t` — the SDK cannot overrun; `data.as_mut_ptr() as *mut c_void` provides a valid non-null buffer pointer.
+        // SAFETY: handle is open (self.connected checked at entry); `data` is `vec![0u16; buffer_size]` where buffer_size = binned_width * binned_height, so `byte_count = buffer_size * 2` is the exact byte length passed as `size_t` — the SDK cannot overrun; `data.as_mut_ptr() as *mut c_void` provides a valid non-null buffer pointer.
         let ret = unsafe { (sdk.read_image)(handle, data.as_mut_ptr() as *mut c_void, byte_count) };
         if ret < 0 {
-            // SAFETY: moravian_mutex held; handle is the open camera handle.
-            let msg = unsafe { sdk_last_error(sdk, handle) };
+            // SAFETY: handle is the open camera handle.
+            let msg = unsafe { sdk_last_error(&sdk, handle) };
             tracing::error!(
                 "Moravian gxccd_read_image() failed for camera '{}': {} ({}x{} pixels, {} bytes)",
                 self.name,
@@ -334,7 +330,7 @@ impl NativeCamera for MoravianCamera {
         // Get temperature while we still hold the mutex.
         let temperature = {
             let mut value: c_float = 0.0;
-            // SAFETY: moravian_mutex still held (same scope as the download above); handle is still open; `&mut value` is a valid stack out-pointer to a c_float.
+            // SAFETY: handle is still open; `&mut value` is a valid stack out-pointer to a c_float.
             if unsafe { (sdk.get_value)(handle, GV_CHIP_TEMPERATURE, &mut value) } >= 0 {
                 Some(value as f64)
             } else {
@@ -394,10 +390,8 @@ impl NativeCamera for MoravianCamera {
             return Err(NativeError::NotSupported);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = moravian_mutex().lock().await;
+        let sdk = MoravianSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
@@ -407,11 +401,11 @@ impl NativeCamera for MoravianCamera {
             // driver already holds rather than inventing a temperature.
             let target = target_temp.unwrap_or(self.target_temp);
             // Set target temperature.
-            // SAFETY: moravian_mutex held above (single-threaded gxccd SDK access); self.connected was checked at entry so handle is open; gxccd_set_temperature takes the handle plus a c_float by value.
+            // SAFETY: self.connected was checked at entry so handle is open; gxccd_set_temperature takes the handle plus a c_float by value.
             let ret = unsafe { (sdk.set_temperature)(handle, target as c_float) };
             if ret < 0 {
-                // SAFETY: moravian_mutex held; handle is the open camera handle.
-                let msg = unsafe { sdk_last_error(sdk, handle) };
+                // SAFETY: handle is the open camera handle.
+                let msg = unsafe { sdk_last_error(&sdk, handle) };
                 tracing::error!(
                     "Moravian gxccd_set_temperature() failed for camera '{}': {} (target {:.1} C)",
                     self.name,
@@ -429,7 +423,7 @@ impl NativeCamera for MoravianCamera {
         } else {
             // Warm up: a high setpoint turns the cooler fully off (mi_ccd.cpp:35).
             // No caller setpoint is involved or needed.
-            // SAFETY: moravian_mutex held above; handle is open (self.connected checked at entry); gxccd_set_temperature accepts the handle and a c_float by value.
+            // SAFETY: handle is open (self.connected checked at entry); gxccd_set_temperature accepts the handle and a c_float by value.
             unsafe { (sdk.set_temperature)(handle, TEMP_COOLER_OFF) };
             self.cooler_on = false;
             tracing::info!("Moravian cooler disabled");
@@ -443,20 +437,18 @@ impl NativeCamera for MoravianCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = moravian_mutex().lock().await;
+        let sdk = MoravianSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
         let mut value: c_float = 0.0;
-        // SAFETY: moravian_mutex held above; self.connected was checked at entry so handle is open; `&mut value` is a valid stack out-pointer to a c_float.
+        // SAFETY: self.connected was checked at entry so handle is open; `&mut value` is a valid stack out-pointer to a c_float.
         if unsafe { (sdk.get_value)(handle, GV_CHIP_TEMPERATURE, &mut value) } >= 0 {
             Ok(value as f64)
         } else {
-            // SAFETY: moravian_mutex held; handle is the open camera handle.
-            let msg = unsafe { sdk_last_error(sdk, handle) };
+            // SAFETY: handle is the open camera handle.
+            let msg = unsafe { sdk_last_error(&sdk, handle) };
             Err(NativeError::SdkError(format!(
                 "Failed to get temperature: {}",
                 msg
@@ -469,20 +461,18 @@ impl NativeCamera for MoravianCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = moravian_mutex().lock().await;
+        let sdk = MoravianSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
         let mut value: c_float = 0.0;
-        // SAFETY: moravian_mutex held above; self.connected was checked at entry so handle is open; `&mut value` is a valid stack out-pointer to a c_float.
+        // SAFETY: self.connected was checked at entry so handle is open; `&mut value` is a valid stack out-pointer to a c_float.
         if unsafe { (sdk.get_value)(handle, GV_POWER_UTILIZATION, &mut value) } >= 0 {
             Ok(value as f64)
         } else {
-            // SAFETY: moravian_mutex held; handle is the open camera handle.
-            let msg = unsafe { sdk_last_error(sdk, handle) };
+            // SAFETY: handle is the open camera handle.
+            let msg = unsafe { sdk_last_error(&sdk, handle) };
             Err(NativeError::SdkError(format!(
                 "Failed to get cooler power: {}",
                 msg
@@ -504,18 +494,16 @@ impl NativeCamera for MoravianCamera {
             NativeError::InvalidParameter(format!("Moravian gain {} out of range 0..=65535", gain))
         })?;
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = moravian_mutex().lock().await;
+        let sdk = MoravianSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
-        // SAFETY: moravian_mutex held above (single-threaded gxccd SDK access); self.connected and capabilities.can_set_gain were checked at entry so the handle is open and the camera supports gain; gxccd_set_gain takes the handle and a u16 by value.
+        // SAFETY: self.connected and capabilities.can_set_gain were checked at entry so the handle is open and the camera supports gain; gxccd_set_gain takes the handle and a u16 by value.
         let ret = unsafe { (sdk.set_gain)(handle, gain_u16) };
         if ret < 0 {
-            // SAFETY: moravian_mutex held; handle is the open camera handle.
-            let msg = unsafe { sdk_last_error(sdk, handle) };
+            // SAFETY: handle is the open camera handle.
+            let msg = unsafe { sdk_last_error(&sdk, handle) };
             tracing::error!(
                 "Moravian gxccd_set_gain() failed for camera '{}': {} (requested {})",
                 self.name,
@@ -545,18 +533,16 @@ impl NativeCamera for MoravianCamera {
             return Err(NativeError::NotSupported);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = moravian_mutex().lock().await;
+        let sdk = MoravianSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
-        // SAFETY: moravian_mutex held above (single-threaded gxccd SDK access); self.connected was checked at entry so the handle is open; gxccd_set_binning takes the handle plus two c_int values by value.
+        // SAFETY: self.connected was checked at entry so the handle is open; gxccd_set_binning takes the handle plus two c_int values by value.
         let ret = unsafe { (sdk.set_binning)(handle, bin_x as c_int, bin_y as c_int) };
         if ret < 0 {
-            // SAFETY: moravian_mutex held; handle is the open camera handle.
-            let msg = unsafe { sdk_last_error(sdk, handle) };
+            // SAFETY: handle is the open camera handle.
+            let msg = unsafe { sdk_last_error(&sdk, handle) };
             tracing::error!(
                 "Moravian gxccd_set_binning() failed for camera '{}': {} (requested {}x{}, max {}x{})",
                 self.name,
@@ -645,17 +631,15 @@ impl NativeCamera for MoravianCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = moravian_mutex().lock().await;
+        let sdk = MoravianSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
         // Number of read modes.
         let num_modes = {
             let mut value: c_int = 0;
-            // SAFETY: moravian_mutex held above; self.connected was checked at entry so handle is open; `&mut value` is a valid stack out-pointer to a c_int.
+            // SAFETY: self.connected was checked at entry so handle is open; `&mut value` is a valid stack out-pointer to a c_int.
             if unsafe { (sdk.get_integer_parameter)(handle, GIP_READ_MODES, &mut value) } >= 0 {
                 value
             } else {
@@ -666,7 +650,7 @@ impl NativeCamera for MoravianCamera {
         let mut modes = Vec::new();
         for i in 0..num_modes.max(0) {
             let mut desc_buf = [0 as c_char; 256];
-            // SAFETY: moravian_mutex held; handle is open; `i` is in [0, num_modes) as reported above; desc_buf is 256 bytes and its truthful length is passed as `size_t`. gxccd_enumerate_read_modes returns -1 once the index is past the end.
+            // SAFETY: handle is open; `i` is in [0, num_modes) as reported above; desc_buf is 256 bytes and its truthful length is passed as `size_t`. gxccd_enumerate_read_modes returns -1 once the index is past the end.
             if unsafe {
                 (sdk.enumerate_read_modes)(handle, i, desc_buf.as_mut_ptr(), desc_buf.len())
             } >= 0
@@ -713,18 +697,16 @@ impl NativeCamera for MoravianCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = moravian_mutex().lock().await;
+        let sdk = MoravianSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
-        // SAFETY: moravian_mutex held above (single-threaded gxccd SDK access); self.connected was checked at entry so the handle is open; gxccd_set_read_mode takes the handle plus a c_int index by value.
+        // SAFETY: self.connected was checked at entry so the handle is open; gxccd_set_read_mode takes the handle plus a c_int index by value.
         let ret = unsafe { (sdk.set_read_mode)(handle, mode.index as c_int) };
         if ret < 0 {
-            // SAFETY: moravian_mutex held; handle is the open camera handle.
-            let msg = unsafe { sdk_last_error(sdk, handle) };
+            // SAFETY: handle is the open camera handle.
+            let msg = unsafe { sdk_last_error(&sdk, handle) };
             tracing::error!(
                 "Moravian gxccd_set_read_mode() failed for camera '{}': {} (mode {} '{}')",
                 self.name,

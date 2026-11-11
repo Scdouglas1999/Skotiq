@@ -13,10 +13,8 @@ impl NativeCamera for AtikCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
+        let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
@@ -24,7 +22,7 @@ impl NativeCamera for AtikCamera {
         let sensor_temp = {
             let mut temp: c_int = 0;
             // Sensor 1 is the CCD temperature
-            // SAFETY: atik_mutex held; self.connected was true (checked above); handle is valid;
+            // SAFETY: self.connected was true (checked above); handle is valid;
             // `temp` is a valid stack pointer. Sensor index 1 is documented as CCD temperature.
             if unsafe { (sdk.temperature_sensor_info)(handle, 1, &mut temp) } == 0 {
                 Some(temp as f64 / 100.0)
@@ -40,7 +38,7 @@ impl NativeCamera for AtikCamera {
             let mut minlvl: c_int = 0;
             let mut maxlvl: c_int = 0;
             let mut setpoint: c_int = 0;
-            // SAFETY: atik_mutex held; handle is valid (connected=true); all five out-pointers
+            // SAFETY: handle is valid (connected=true); all five out-pointers
             // are valid stack pointers to c_int.
             if unsafe {
                 (sdk.cooling_info)(
@@ -69,7 +67,7 @@ impl NativeCamera for AtikCamera {
 
         // Get exposure remaining
         let exposure_remaining = if self.state == CameraState::Exposing {
-            // SAFETY: atik_mutex held; handle is valid (connected=true); ArtemisExposureTimeRemaining
+            // SAFETY: handle is valid (connected=true); ArtemisExposureTimeRemaining
             // takes only the handle and returns a c_float by value.
             let remaining = unsafe { (sdk.exposure_time_remaining)(handle) };
             Some(remaining as f64)
@@ -113,10 +111,8 @@ impl NativeCamera for AtikCamera {
         self.set_subframe(params.subframe.clone()).await?;
 
         // Now get SDK and handle after all awaits are complete
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
+        let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
@@ -126,13 +122,13 @@ impl NativeCamera for AtikCamera {
             1
         };
         // Dark, bias, and dark-flat frames must keep a mechanical shutter closed.
-        // SAFETY: atik_mutex held; self.connected was true (checked at entry); handle is valid;
+        // SAFETY: self.connected was true (checked at entry); handle is valid;
         // ArtemisSetDarkMode takes pass-by-value c_int with no out-pointers.
         let result = unsafe { (sdk.set_dark_mode)(handle, dark_mode) };
         check_artemis_error(result, "set dark mode")?;
 
         // Start exposure
-        // SAFETY: atik_mutex held; handle is valid (connected=true); duration is pass-by-value
+        // SAFETY: handle is valid (connected=true); duration is pass-by-value
         // c_float — the SDK validates the duration internally and returns an ArtemisError on
         // out-of-range values.
         let result = unsafe { (sdk.start_exposure)(handle, params.duration_secs as c_float) };
@@ -151,13 +147,11 @@ impl NativeCamera for AtikCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
+        let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
-        // SAFETY: atik_mutex held; self.connected was true (checked at entry); handle is valid;
+        // SAFETY: self.connected was true (checked at entry); handle is valid;
         // ArtemisAbortExposure takes only the handle.
         let result = unsafe { (sdk.abort_exposure)(handle) };
         if ArtemisError::from_i32(result) != ArtemisError::Ok {
@@ -173,13 +167,11 @@ impl NativeCamera for AtikCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
+        let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
-        // SAFETY: atik_mutex held; self.connected was true (checked at entry); handle is valid;
+        // SAFETY: self.connected was true (checked at entry); handle is valid;
         // ArtemisImageReady takes only the handle and returns a c_int flag.
         let ready = unsafe { (sdk.image_ready)(handle) };
         Ok(ready != 0)
@@ -190,10 +182,8 @@ impl NativeCamera for AtikCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
+        let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
@@ -207,7 +197,7 @@ impl NativeCamera for AtikCamera {
         let mut binx: c_int = 0;
         let mut biny: c_int = 0;
 
-        // SAFETY: atik_mutex held; self.connected was true (checked at entry); handle is valid;
+        // SAFETY: self.connected was true (checked at entry); handle is valid;
         // all six out-pointers are valid stack pointers to c_int.
         let result = unsafe {
             (sdk.get_image_data)(handle, &mut x, &mut y, &mut w, &mut h, &mut binx, &mut biny)
@@ -218,7 +208,7 @@ impl NativeCamera for AtikCamera {
         }
 
         // Get image buffer
-        // SAFETY: atik_mutex held; handle is valid (connected=true); ArtemisImageBuffer returns
+        // SAFETY: handle is valid (connected=true); ArtemisImageBuffer returns
         // a pointer to the SDK-owned image buffer (we null-check immediately below).
         let buffer_ptr = unsafe { (sdk.image_buffer)(handle) };
         if buffer_ptr.is_null() {
@@ -259,7 +249,7 @@ impl NativeCamera for AtikCamera {
         // even on x86). We take the buffer as bytes and decode each pixel via from_le_bytes,
         // which is well-defined regardless of source alignment and pins the SDK's documented
         // little-endian framing.
-        // SAFETY: buffer_ptr is non-null (verified above), atik_mutex held so the SDK won't
+        // SAFETY: buffer_ptr is non-null (verified above), the Atik SDK guard is held so the SDK won't
         // mutate the buffer concurrently, and byte_count = w*h*2 matches the SDK's documented
         // buffer size for ArtemisImageBuffer (pixel_count * sizeof(u16) bytes). We read as
         // bytes to avoid alignment UB — see the Why comment above. The slice's lifetime is
@@ -275,7 +265,7 @@ impl NativeCamera for AtikCamera {
         // Get temperature for metadata
         let temperature = {
             let mut temp: c_int = 0;
-            // SAFETY: atik_mutex held; handle is valid (connected=true); `temp` is a valid stack
+            // SAFETY: handle is valid (connected=true); `temp` is a valid stack
             // pointer; sensor index 1 is the documented CCD temperature sensor.
             if unsafe { (sdk.temperature_sensor_info)(handle, 1, &mut temp) } == 0 {
                 Some(temp as f64 / 100.0)
@@ -356,24 +346,22 @@ impl NativeCamera for AtikCamera {
             }
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
+        let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
         if let Some(target) = setpoint_c {
             // Temperature in hundredths of degrees
             let setpoint = (target * 100.0) as c_int;
-            // SAFETY: atik_mutex held; self.connected and can_cool checked at entry; handle is
+            // SAFETY: self.connected and can_cool checked at entry; handle is
             // valid; setpoint is pass-by-value c_int (hundredths of degrees per AtikCameras.h).
             let result = unsafe { (sdk.set_cooling)(handle, setpoint) };
             if ArtemisError::from_i32(result) != ArtemisError::Ok {
                 return Err(ArtemisError::from_i32(result).to_native_error("set cooling"));
             }
         } else {
-            // SAFETY: atik_mutex held; handle is valid (connected=true); ArtemisCoolerWarmUp
+            // SAFETY: handle is valid (connected=true); ArtemisCoolerWarmUp
             // takes only the handle.
             let result = unsafe { (sdk.cooler_warm_up)(handle) };
             if ArtemisError::from_i32(result) != ArtemisError::Ok {
@@ -393,15 +381,13 @@ impl NativeCamera for AtikCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
+        let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
         let mut temp: c_int = 0;
 
-        // SAFETY: atik_mutex held; self.connected was true (checked at entry); handle is valid;
+        // SAFETY: self.connected was true (checked at entry); handle is valid;
         // sensor index 1 is the documented CCD temperature sensor; `temp` is a valid stack pointer.
         let result = unsafe { (sdk.temperature_sensor_info)(handle, 1, &mut temp) };
         if ArtemisError::from_i32(result) != ArtemisError::Ok {
@@ -419,10 +405,8 @@ impl NativeCamera for AtikCamera {
             return Err(NativeError::NotSupported);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
+        let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
         let mut flags: c_int = 0;
@@ -431,7 +415,7 @@ impl NativeCamera for AtikCamera {
         let mut maxlvl: c_int = 0;
         let mut setpoint: c_int = 0;
 
-        // SAFETY: atik_mutex held; self.connected and can_cool both checked at entry; handle is
+        // SAFETY: self.connected and can_cool both checked at entry; handle is
         // valid; all five out-pointers are valid stack pointers to c_int.
         let result = unsafe {
             (sdk.cooling_info)(
@@ -459,13 +443,11 @@ impl NativeCamera for AtikCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
+        let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
-        // SAFETY: atik_mutex held; self.connected was true (checked at entry); handle is valid;
+        // SAFETY: self.connected was true (checked at entry); handle is valid;
         // preview=0 is a valid mode constant; gain/offset are pass-by-value c_int.
         let result =
             unsafe { (sdk.set_gain)(handle, 0, gain as c_int, self.current_offset as c_int) };
@@ -486,13 +468,11 @@ impl NativeCamera for AtikCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
+        let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
-        // SAFETY: atik_mutex held; self.connected was true (checked at entry); handle is valid;
+        // SAFETY: self.connected was true (checked at entry); handle is valid;
         // preview=0 is a valid mode constant; gain/offset are pass-by-value c_int. Atik SDK
         // sets gain and offset together via ArtemisSetGain.
         let result =
@@ -521,13 +501,11 @@ impl NativeCamera for AtikCamera {
             )));
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
+        let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
-        // SAFETY: atik_mutex held; self.connected was true (checked at entry); handle is valid;
+        // SAFETY: self.connected was true (checked at entry); handle is valid;
         // bin_x/bin_y bounds were checked against capabilities.max_bin_{x,y} above.
         let result = unsafe { (sdk.bin)(handle, bin_x as c_int, bin_y as c_int) };
         if ArtemisError::from_i32(result) != ArtemisError::Ok {
@@ -548,10 +526,8 @@ impl NativeCamera for AtikCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
+        let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
@@ -620,7 +596,7 @@ impl NativeCamera for AtikCamera {
             }
         };
 
-        // SAFETY: atik_mutex held; self.connected was true (checked at entry); handle is valid;
+        // SAFETY: self.connected was true (checked at entry); handle is valid;
         // x/y/w/h are computed from the user-provided subframe or from sensor_info / current
         // binning above — both branches produce in-sensor coordinates the SDK can clip.
         let result = unsafe { (sdk.subframe)(handle, x, y, w, h) };

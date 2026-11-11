@@ -68,15 +68,18 @@ impl NativeDevice for AtikFilterWheel {
             return Ok(());
         }
 
-        let sdk = get_sdk()?;
-        require_efw_api(sdk)?;
+        let loaded = AtikSdk::installed()?;
+        // Unlocked on purpose: this only reads which optional entry points the
+        // library exports (no SDK call), and a library without the EFW API must
+        // fail here before waiting for the lock, as it always has.
+        require_efw_api(loaded.unlocked())?;
+
+        let sdk = loaded.lock().await;
         let efw_connect = sdk.efw_connect.unwrap();
         let efw_is_connected = sdk.efw_is_connected.unwrap();
         let efw_disconnect = sdk.efw_disconnect.unwrap();
         let efw_nmr_position = sdk.efw_nmr_position.unwrap();
         let efw_get_device_details = sdk.efw_get_device_details.unwrap();
-
-        let _lock = atik_mutex().lock().await;
 
         let serial_number = self.serial_number.as_deref().ok_or_else(|| {
             NativeError::DeviceNotFound(format!(
@@ -84,9 +87,9 @@ impl NativeDevice for AtikFilterWheel {
                 self.device_index
             ))
         })?;
-        let device_index = efw_index_for_serial(sdk, serial_number)?;
+        let device_index = efw_index_for_serial(&sdk, serial_number)?;
 
-        // SAFETY: atik_mutex held; device_index was resolved from the discovery-time serial
+        // SAFETY: device_index was resolved from the discovery-time serial
         // against the current SDK enumeration; NULL is checked below.
         let handle = unsafe { efw_connect(device_index) };
         if handle.is_null() {
@@ -98,7 +101,7 @@ impl NativeDevice for AtikFilterWheel {
 
         // SAFETY: handle was just returned by ArtemisEFWConnect and checked non-null.
         if !unsafe { efw_is_connected(handle) } {
-            // SAFETY: atik_mutex held; handle was successfully opened above.
+            // SAFETY: handle was successfully opened above.
             unsafe { efw_disconnect(handle) };
             return Err(NativeError::SdkError(format!(
                 "Atik EFW serial {} did not report connected after connect",
@@ -108,7 +111,7 @@ impl NativeDevice for AtikFilterWheel {
 
         let mut efw_type: c_int = 0;
         let mut serial_buf = [0 as c_char; 100];
-        // SAFETY: atik_mutex held; out-pointers are valid. Failure is non-fatal for connect:
+        // SAFETY: out-pointers are valid. Failure is non-fatal for connect:
         // the wheel handle is already valid, and type/name are display metadata.
         if unsafe { efw_get_device_details(device_index, &mut efw_type, serial_buf.as_mut_ptr()) }
             == ArtemisError::Ok as c_int
@@ -117,16 +120,16 @@ impl NativeDevice for AtikFilterWheel {
         }
 
         let mut filter_count: c_int = 0;
-        // SAFETY: atik_mutex held; handle is connected and `filter_count` is a valid out-pointer.
-        // SAFETY: atik_mutex held; handle is connected, out-pointer valid.
+        // SAFETY: handle is connected and `filter_count` is a valid out-pointer.
+        // SAFETY: handle is connected, out-pointer valid.
         let result = unsafe { efw_nmr_position(handle, &mut filter_count) };
         if let Err(error) = check_artemis_error(result, "get EFW filter count") {
-            // SAFETY: atik_mutex held; handle was successfully opened above.
+            // SAFETY: handle was successfully opened above.
             unsafe { efw_disconnect(handle) };
             return Err(error);
         }
         if filter_count <= 0 {
-            // SAFETY: atik_mutex held; handle was successfully opened above.
+            // SAFETY: handle was successfully opened above.
             unsafe { efw_disconnect(handle) };
             return Err(NativeError::SdkError(format!(
                 "Atik EFW serial {} reported invalid filter count {}",
@@ -149,13 +152,16 @@ impl NativeDevice for AtikFilterWheel {
             return Ok(());
         }
 
-        let sdk = get_sdk()?;
-        require_efw_api(sdk)?;
-        let efw_disconnect = sdk.efw_disconnect.unwrap();
+        let loaded = AtikSdk::installed()?;
+        // Unlocked on purpose: this only reads which optional entry points the
+        // library exports (no SDK call), and a library without the EFW API must
+        // fail here before waiting for the lock, as it always has.
+        require_efw_api(loaded.unlocked())?;
 
-        let _lock = atik_mutex().lock().await;
+        let sdk = loaded.lock().await;
+        let efw_disconnect = sdk.efw_disconnect.unwrap();
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
-        // SAFETY: atik_mutex held; handle is valid because self.connected is true.
+        // SAFETY: handle is valid because self.connected is true.
         check_artemis_error(unsafe { efw_disconnect(handle) }, "disconnect EFW")?;
 
         {
@@ -181,12 +187,15 @@ impl NativeFilterWheel for AtikFilterWheel {
             )));
         }
 
-        let sdk = get_sdk()?;
-        require_efw_api(sdk)?;
+        let loaded = AtikSdk::installed()?;
+        // Unlocked on purpose: this only reads which optional entry points the
+        // library exports (no SDK call), and a library without the EFW API must
+        // fail here before waiting for the lock, as it always has.
+        require_efw_api(loaded.unlocked())?;
+        let sdk = loaded.lock().await;
         let efw_set_position = sdk.efw_set_position.unwrap();
-        let _lock = atik_mutex().lock().await;
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
-        // SAFETY: atik_mutex held; handle is connected and position was bounds-checked.
+        // SAFETY: handle is connected and position was bounds-checked.
         check_artemis_error(
             unsafe { efw_set_position(handle, position as c_int) },
             "set EFW position",
@@ -198,16 +207,19 @@ impl NativeFilterWheel for AtikFilterWheel {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-        require_efw_api(sdk)?;
+        let loaded = AtikSdk::installed()?;
+        // Unlocked on purpose: this only reads which optional entry points the
+        // library exports (no SDK call), and a library without the EFW API must
+        // fail here before waiting for the lock, as it always has.
+        require_efw_api(loaded.unlocked())?;
+        let sdk = loaded.lock().await;
         let efw_get_position = sdk.efw_get_position.unwrap();
-        let _lock = atik_mutex().lock().await;
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
         let mut position: c_int = -1;
         let mut is_moving = false;
-        // SAFETY: atik_mutex held; handle is connected and both out-pointers are valid.
+        // SAFETY: handle is connected and both out-pointers are valid.
         check_artemis_error(
-            // SAFETY: atik_mutex held; handle is connected, out-pointers valid.
+            // SAFETY: handle is connected, out-pointers valid.
             unsafe { efw_get_position(handle, &mut position, &mut is_moving) },
             "get EFW position",
         )?;
@@ -219,16 +231,19 @@ impl NativeFilterWheel for AtikFilterWheel {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-        require_efw_api(sdk)?;
+        let loaded = AtikSdk::installed()?;
+        // Unlocked on purpose: this only reads which optional entry points the
+        // library exports (no SDK call), and a library without the EFW API must
+        // fail here before waiting for the lock, as it always has.
+        require_efw_api(loaded.unlocked())?;
+        let sdk = loaded.lock().await;
         let efw_get_position = sdk.efw_get_position.unwrap();
-        let _lock = atik_mutex().lock().await;
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
         let mut position: c_int = -1;
         let mut is_moving = false;
-        // SAFETY: atik_mutex held; handle is connected and both out-pointers are valid.
+        // SAFETY: handle is connected and both out-pointers are valid.
         check_artemis_error(
-            // SAFETY: atik_mutex held; handle is connected, out-pointers valid.
+            // SAFETY: handle is connected, out-pointers valid.
             unsafe { efw_get_position(handle, &mut position, &mut is_moving) },
             "get EFW moving state",
         )?;

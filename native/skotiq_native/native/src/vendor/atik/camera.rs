@@ -89,10 +89,8 @@ impl NativeDevice for AtikCamera {
             return Ok(());
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
+        let sdk = AtikSdk::lock().await?;
 
         let serial_number = self.serial_number.as_deref().ok_or_else(|| {
             NativeError::DeviceNotFound(format!(
@@ -100,10 +98,10 @@ impl NativeDevice for AtikCamera {
                 self.device_index
             ))
         })?;
-        let device_index = camera_index_for_serial(sdk, serial_number)?;
+        let device_index = camera_index_for_serial(&sdk, serial_number)?;
 
         // Connect to camera
-        // SAFETY: atik_mutex held above ensuring exclusive Atik SDK access; device_index was
+        // SAFETY: device_index was
         // resolved from the discovery-time serial against the current SDK enumeration.
         // ArtemisConnect returns a handle that we null-check immediately below.
         let handle = unsafe { (sdk.connect)(device_index) };
@@ -120,14 +118,14 @@ impl NativeDevice for AtikCamera {
         }
 
         // Check connection
-        // SAFETY: atik_mutex held; `handle` is the non-null pointer returned by ArtemisConnect
+        // SAFETY: `handle` is the non-null pointer returned by ArtemisConnect
         // above (null check passed); ArtemisIsConnected only reads the handle's internal flag.
         if unsafe { (sdk.is_connected)(handle) } == 0 {
             tracing::error!(
                 "Atik camera serial {} - ArtemisIsConnected() returned false after successful connect.",
                 serial_number
             );
-            // SAFETY: atik_mutex held; handle was successfully opened above.
+            // SAFETY: handle was successfully opened above.
             unsafe { (sdk.disconnect)(handle) };
             return Err(NativeError::SdkError(format!(
                 "Atik camera connection verification failed for serial {}. Device may have disconnected.",
@@ -139,12 +137,12 @@ impl NativeDevice for AtikCamera {
         // SAFETY: ArtemisProperties is `#[repr(C)]` POD (only c_int / c_float / fixed-size char
         // arrays); a zero-filled instance is a valid initial state that the SDK will overwrite.
         let mut props: ArtemisProperties = unsafe { std::mem::zeroed() };
-        // SAFETY: atik_mutex held; `handle` was successfully opened and IsConnected verified;
+        // SAFETY: `handle` was successfully opened and IsConnected verified;
         // &mut props is a valid stack pointer to a #[repr(C)] struct of the size the SDK
         // expects (matches AtikCameras.h ARTEMISPROPERTIES).
         let result = unsafe { (sdk.properties)(handle, &mut props) };
         if ArtemisError::from_i32(result) != ArtemisError::Ok {
-            // SAFETY: atik_mutex held; `handle` was successfully opened above. ArtemisDisconnect
+            // SAFETY: `handle` was successfully opened above. ArtemisDisconnect
             // pairs with ArtemisConnect to release the handle on the error path.
             unsafe { (sdk.disconnect)(handle) };
             return Err(ArtemisError::from_i32(result).to_native_error("get properties"));
@@ -153,7 +151,7 @@ impl NativeDevice for AtikCamera {
         // Get max binning
         let mut max_bin_x: c_int = 1;
         let mut max_bin_y: c_int = 1;
-        // SAFETY: atik_mutex held; handle is valid (IsConnected verified); both out-pointers
+        // SAFETY: handle is valid (IsConnected verified); both out-pointers
         // are valid stack pointers to c_int.
         let max_bin_result = unsafe { (sdk.get_max_bin)(handle, &mut max_bin_x, &mut max_bin_y) };
         if ArtemisError::from_i32(max_bin_result) != ArtemisError::Ok {
@@ -172,7 +170,7 @@ impl NativeDevice for AtikCamera {
         let mut _minlvl: c_int = 0;
         let mut _maxlvl: c_int = 0;
         let mut _setpoint: c_int = 0;
-        // SAFETY: atik_mutex held; handle is valid (IsConnected verified); all five out-
+        // SAFETY: handle is valid (IsConnected verified); all five out-
         // pointers are valid stack pointers to c_int.
         let can_cool = unsafe {
             (sdk.cooling_info)(
@@ -206,7 +204,7 @@ impl NativeDevice for AtikCamera {
         let mut _normal_offset_y: c_int = 0;
         let mut _preview_offset_x: c_int = 0;
         let mut _preview_offset_y: c_int = 0;
-        // SAFETY: atik_mutex held; handle is valid (IsConnected verified); all five out-
+        // SAFETY: handle is valid (IsConnected verified); all five out-
         // pointers are valid stack pointers to c_int.
         let colour_result = unsafe {
             (sdk.colour_properties)(
@@ -246,7 +244,7 @@ impl NativeDevice for AtikCamera {
                     self.device_id,
                     reason
                 );
-                // SAFETY: atik_mutex held; `handle` was successfully opened above.
+                // SAFETY: `handle` was successfully opened above.
                 // ArtemisDisconnect pairs with ArtemisConnect to release it.
                 unsafe { (sdk.disconnect)(handle) };
                 return Err(NativeError::SdkError(format!(
@@ -283,7 +281,7 @@ impl NativeDevice for AtikCamera {
         let (pixels_x_u32, pixels_y_u32) = match sensor_dimensions {
             Ok(dimensions) => dimensions,
             Err(error) => {
-                // SAFETY: atik_mutex held; handle was successfully opened above.
+                // SAFETY: handle was successfully opened above.
                 unsafe { (sdk.disconnect)(handle) };
                 return Err(error);
             }
@@ -317,7 +315,7 @@ impl NativeDevice for AtikCamera {
         // exactly `width * height * 2` little-endian bytes. A camera left in 8-bit mode
         // holds half that many bytes, so a swallowed failure here would read past the
         // SDK buffer and hand the pipeline garbage pixels under a 16-bit header.
-        // SAFETY: atik_mutex held; handle is valid (IsConnected verified); ArtemisEightBitMode
+        // SAFETY: handle is valid (IsConnected verified); ArtemisEightBitMode
         // takes a pass-by-value c_int (0 = 16-bit per AtikCameras.h).
         let bit_mode_result = unsafe { (sdk.eight_bit_mode)(handle, 0) };
         match ArtemisError::from_i32(bit_mode_result) {
@@ -336,7 +334,7 @@ impl NativeDevice for AtikCamera {
                     self.name,
                     other
                 );
-                // SAFETY: atik_mutex held; `handle` was successfully opened above. ArtemisDisconnect
+                // SAFETY: `handle` was successfully opened above. ArtemisDisconnect
                 // pairs with ArtemisConnect to release the handle on the error path.
                 unsafe { (sdk.disconnect)(handle) };
                 return Err(other.to_native_error("select 16-bit output mode"));
@@ -346,7 +344,7 @@ impl NativeDevice for AtikCamera {
         // Get initial gain/offset
         let mut gain: c_int = 0;
         let mut offset: c_int = 0;
-        // SAFETY: atik_mutex held; handle is valid; preview=0 is a valid mode constant; both
+        // SAFETY: handle is valid; preview=0 is a valid mode constant; both
         // out-pointers are valid stack pointers to c_int.
         if unsafe { (sdk.get_gain)(handle, 0, &mut gain, &mut offset) } == 0 {
             self.current_gain = gain;
@@ -376,15 +374,13 @@ impl NativeDevice for AtikCamera {
             return Ok(());
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
+        let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
         // Abort any exposure
-        // SAFETY: atik_mutex held; `handle` is valid because `self.connected` was true (only set
+        // SAFETY: `handle` is valid because `self.connected` was true (only set
         // after successful connect() above) and disconnect hasn't run yet.
         let _ = unsafe { (sdk.abort_exposure)(handle) };
 
@@ -392,7 +388,7 @@ impl NativeDevice for AtikCamera {
         // cold setpoint until power is removed — a thermal-shock risk the operator can
         // only act on if we say it happened.
         if self.cooler_on {
-            // SAFETY: atik_mutex held; handle is valid (connected=true); ArtemisCoolerWarmUp
+            // SAFETY: handle is valid (connected=true); ArtemisCoolerWarmUp
             // takes only the handle, no out-pointers.
             let warm_up_result = unsafe { (sdk.cooler_warm_up)(handle) };
             if ArtemisError::from_i32(warm_up_result) != ArtemisError::Ok {
@@ -405,7 +401,7 @@ impl NativeDevice for AtikCamera {
         }
 
         // Disconnect
-        // SAFETY: atik_mutex held; handle was successfully opened during connect(). ArtemisDisconnect
+        // SAFETY: handle was successfully opened during connect(). ArtemisDisconnect
         // pairs with ArtemisConnect to release the SDK-owned handle.
         let result = unsafe { (sdk.disconnect)(handle) };
         if result == 0 {

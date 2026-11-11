@@ -13,15 +13,13 @@ impl NativeCamera for FliCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         // Get temperature
         let sensor_temp = {
             let mut temp: c_double = 0.0;
-            // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked); `temp` is a valid stack pointer.
+            // SAFETY: self.handle is valid (connected=true checked); `temp` is a valid stack pointer.
             if unsafe { (sdk.get_temperature)(self.handle, &mut temp) } == 0 {
                 Some(temp)
             } else {
@@ -32,7 +30,7 @@ impl NativeCamera for FliCamera {
         // Get cooler power
         let cooler_power = {
             let mut power: c_double = 0.0;
-            // SAFETY: fli_mutex held; self.handle is valid (connected=true checked); `power` is a valid stack pointer.
+            // SAFETY: self.handle is valid (connected=true checked); `power` is a valid stack pointer.
             if unsafe { (sdk.get_cooler_power)(self.handle, &mut power) } == 0 {
                 Some(power)
             } else {
@@ -43,7 +41,7 @@ impl NativeCamera for FliCamera {
         // Get exposure remaining
         let exposure_remaining = if self.state == CameraState::Exposing {
             let mut timeleft: c_long = 0;
-            // SAFETY: fli_mutex held; self.handle is valid; `timeleft` is a valid stack pointer.
+            // SAFETY: self.handle is valid; `timeleft` is a valid stack pointer.
             if unsafe { (sdk.get_exposure_status)(self.handle, &mut timeleft) } == 0 {
                 Some(timeleft as f64 / 1000.0) // Convert from ms to seconds
             } else {
@@ -78,10 +76,8 @@ impl NativeCamera for FliCamera {
         // Set subframe (has its own mutex lock)
         self.set_subframe(params.subframe.clone()).await?;
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         // Dark/bias frames must keep the mechanical shutter CLOSED
         // (FLI_FRAME_TYPE_DARK); light/flat frames open it (FLI_FRAME_TYPE_NORMAL).
@@ -92,18 +88,18 @@ impl NativeCamera for FliCamera {
         } else {
             FLI_FRAME_TYPE_DARK
         };
-        // SAFETY: fli_mutex held; self.handle is valid (connected=true checked at function start); frame type is a valid FLI frame-type constant.
+        // SAFETY: self.handle is valid (connected=true checked at function start); frame type is a valid FLI frame-type constant.
         let result = unsafe { (sdk.set_frame_type)(self.handle, fli_frame_type) };
         check_fli_error(result, "set frame type")?;
 
         // Set exposure time (in milliseconds)
         let exposure_ms = (params.duration_secs * 1000.0) as c_long;
-        // SAFETY: fli_mutex held; self.handle is valid; `exposure_ms` is a pass-by-value c_long.
+        // SAFETY: self.handle is valid; `exposure_ms` is a pass-by-value c_long.
         let result = unsafe { (sdk.set_exposure_time)(self.handle, exposure_ms) };
         check_fli_error(result, "set exposure time")?;
 
         // Start exposure
-        // SAFETY: fli_mutex held; self.handle is valid; FLIExposeFrame takes only the device handle.
+        // SAFETY: self.handle is valid; FLIExposeFrame takes only the device handle.
         let result = unsafe { (sdk.expose_frame)(self.handle) };
         check_fli_error(result, "expose frame")?;
 
@@ -118,12 +114,10 @@ impl NativeCamera for FliCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
-        // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked).
+        // SAFETY: self.handle is valid (connected=true checked).
         let result = unsafe { (sdk.cancel_exposure)(self.handle) };
         check_fli_error(result, "cancel exposure")?;
 
@@ -136,14 +130,12 @@ impl NativeCamera for FliCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         // Check device status
         let mut status: c_long = 0;
-        // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked); `status` is a valid stack pointer.
+        // SAFETY: self.handle is valid (connected=true checked); `status` is a valid stack pointer.
         let result = unsafe { (sdk.get_device_status)(self.handle, &mut status) };
         check_fli_error(result, "get device status")?;
 
@@ -156,10 +148,8 @@ impl NativeCamera for FliCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         self.state = CameraState::Downloading;
 
@@ -225,7 +215,7 @@ impl NativeCamera for FliCamera {
             let row_offset = row * row_bytes;
             // SAFETY: row_offset = row * row_bytes is strictly less than total_bytes = height * row_bytes (row < height), so the resulting pointer remains within byte_buffer's allocation (in-bounds, single allocated object); both row and row_bytes are usize derived from validated overflow-checked multiplications above.
             let row_ptr = unsafe { byte_buffer.as_mut_ptr().add(row_offset) };
-            // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked); `row_ptr` points to `row_bytes` bytes inside byte_buffer (verified above). FLIGrabRow's third argument is a PIXEL count, not a byte count — it writes exactly `width` u16 elements = `width * 2` = `row_bytes` bytes into `row_ptr`. Passing `row_bytes` here (the previous bug) told the SDK to write `row_bytes` u16 pixels = 2x the row slot, overrunning the buffer on every bin>=2 frame (bin=1 was masked by the SDK's internal width clamp). Matches the reference (fli_ccd.cpp:667 passes pixel `width`).
+            // SAFETY: self.handle is valid (connected=true checked); `row_ptr` points to `row_bytes` bytes inside byte_buffer (verified above). FLIGrabRow's third argument is a PIXEL count, not a byte count — it writes exactly `width` u16 elements = `width * 2` = `row_bytes` bytes into `row_ptr`. Passing `row_bytes` here (the previous bug) told the SDK to write `row_bytes` u16 pixels = 2x the row slot, overrunning the buffer on every bin>=2 frame (bin=1 was masked by the SDK's internal width clamp). Matches the reference (fli_ccd.cpp:667 passes pixel `width`).
             let result = unsafe { (sdk.grab_row)(self.handle, row_ptr, width) };
             if result != 0 {
                 tracing::error!(
@@ -249,13 +239,13 @@ impl NativeCamera for FliCamera {
             .collect();
 
         // End exposure
-        // SAFETY: fli_mutex held above; self.handle is valid; FLIEndExposure takes only the handle.
+        // SAFETY: self.handle is valid; FLIEndExposure takes only the handle.
         let _ = unsafe { (sdk.end_exposure)(self.handle) };
 
         // Get temperature for metadata
         let temperature = {
             let mut temp: c_double = 0.0;
-            // SAFETY: fli_mutex held; self.handle is valid; `temp` is a valid stack pointer.
+            // SAFETY: self.handle is valid; `temp` is a valid stack pointer.
             if unsafe { (sdk.get_temperature)(self.handle, &mut temp) } == 0 {
                 Some(temp)
             } else {
@@ -306,10 +296,8 @@ impl NativeCamera for FliCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         // FLISetTemperature *is* the enable on this SDK: cooling needs a
         // setpoint, so when the caller names none we reuse the one this driver
@@ -322,7 +310,7 @@ impl NativeCamera for FliCamera {
             25.0
         };
 
-        // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked); `setpoint_c` is a pass-by-value c_double.
+        // SAFETY: self.handle is valid (connected=true checked); `setpoint_c` is a pass-by-value c_double.
         let result = unsafe { (sdk.set_temperature)(self.handle, setpoint_c) };
         check_fli_error(result, "set temperature")?;
 
@@ -338,14 +326,12 @@ impl NativeCamera for FliCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         let mut temp: c_double = 0.0;
 
-        // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked); `temp` is a valid stack pointer.
+        // SAFETY: self.handle is valid (connected=true checked); `temp` is a valid stack pointer.
         let result = unsafe { (sdk.get_temperature)(self.handle, &mut temp) };
         check_fli_error(result, "get temperature")?;
 
@@ -357,14 +343,12 @@ impl NativeCamera for FliCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         let mut power: c_double = 0.0;
 
-        // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked); `power` is a valid stack pointer.
+        // SAFETY: self.handle is valid (connected=true checked); `power` is a valid stack pointer.
         let result = unsafe { (sdk.get_cooler_power)(self.handle, &mut power) };
         check_fli_error(result, "get cooler power")?;
 
@@ -392,16 +376,14 @@ impl NativeCamera for FliCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
-        // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked); bin_x is a pass-by-value c_long bounded by max_bin_x=16 in capabilities.
+        // SAFETY: self.handle is valid (connected=true checked); bin_x is a pass-by-value c_long bounded by max_bin_x=16 in capabilities.
         let result = unsafe { (sdk.set_hbin)(self.handle, bin_x as c_long) };
         check_fli_error(result, "set horizontal binning")?;
 
-        // SAFETY: fli_mutex held; self.handle is valid; bin_y is bounded by max_bin_y=16.
+        // SAFETY: self.handle is valid; bin_y is bounded by max_bin_y=16.
         let result = unsafe { (sdk.set_vbin)(self.handle, bin_y as c_long) };
         check_fli_error(result, "set vertical binning")?;
 
@@ -419,10 +401,8 @@ impl NativeCamera for FliCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         // Why: SubFrame.start_x/y/width/height are u32. We convert to i32 with overflow
         // detection (a u32 > i32::MAX would wrap to negative) and add to the validated
@@ -475,7 +455,7 @@ impl NativeCamera for FliCamera {
             ),
         };
 
-        // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked); the coordinates are computed from SDK-reported visible area bounds and the subframe parameters validated by upper layer.
+        // SAFETY: self.handle is valid (connected=true checked); the coordinates are computed from SDK-reported visible area bounds and the subframe parameters validated by upper layer.
         let result = unsafe {
             (sdk.set_image_area)(
                 self.handle,

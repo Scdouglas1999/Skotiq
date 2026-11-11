@@ -58,10 +58,8 @@ impl NativeDevice for FliFilterWheel {
             return Ok(());
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         let path_cstr = CString::new(self.device_path.clone()).map_err(|_| {
             tracing::error!(
@@ -75,7 +73,7 @@ impl NativeDevice for FliFilterWheel {
         })?;
         let domain = FLIDOMAIN_USB | FLIDEVICE_FILTERWHEEL;
 
-        // SAFETY: fli_mutex held above; `self.handle` is a valid pointer into Self; path_cstr is a NUL-terminated CString that outlives the call.
+        // SAFETY: `self.handle` is a valid pointer into Self; path_cstr is a NUL-terminated CString that outlives the call.
         let result = unsafe { (sdk.open)(&mut self.handle, path_cstr.as_ptr(), domain) };
         if result != 0 {
             tracing::error!(
@@ -91,7 +89,7 @@ impl NativeDevice for FliFilterWheel {
 
         // Get model name
         let mut model_buf = [0 as c_char; 128];
-        // SAFETY: fli_mutex held; self.handle was just opened above; model_buf is a 128-byte stack array with truthful length.
+        // SAFETY: self.handle was just opened above; model_buf is a 128-byte stack array with truthful length.
         if unsafe { (sdk.get_model)(self.handle, model_buf.as_mut_ptr(), model_buf.len()) } == 0 {
             // SAFETY: model_buf is 128 bytes; FLI SDK guarantees NUL-termination on success.
             self.name = unsafe { CStr::from_ptr(model_buf.as_ptr()) }
@@ -101,10 +99,10 @@ impl NativeDevice for FliFilterWheel {
 
         // Get filter count
         let mut count: c_long = 0;
-        // SAFETY: fli_mutex held; self.handle is open; `count` is a valid stack pointer.
+        // SAFETY: self.handle is open; `count` is a valid stack pointer.
         let result = unsafe { (sdk.get_filter_count)(self.handle, &mut count) };
         if let Err(error) = check_fli_error(result, "get filter count") {
-            close_fli_handle(sdk, &mut self.handle);
+            close_fli_handle(&sdk, &mut self.handle);
             return Err(error);
         }
         // Why: filter count is a small positive integer (<= ~16 across all FLI CFW
@@ -112,12 +110,12 @@ impl NativeDevice for FliFilterWheel {
         let filter_count = match fli_c_long_to_i32(count, "filter count") {
             Ok(filter_count) => filter_count,
             Err(error) => {
-                close_fli_handle(sdk, &mut self.handle);
+                close_fli_handle(&sdk, &mut self.handle);
                 return Err(error);
             }
         };
         if filter_count <= 0 {
-            close_fli_handle(sdk, &mut self.handle);
+            close_fli_handle(&sdk, &mut self.handle);
             return Err(NativeError::SdkError(format!(
                 "FLI filter wheel at '{}' reported invalid filter count {}",
                 self.device_path, filter_count
@@ -140,12 +138,10 @@ impl NativeDevice for FliFilterWheel {
             return Ok(());
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
-        // SAFETY: fli_mutex held above; self.handle was successfully opened during connect(). FLIClose pairs with FLIOpen.
+        // SAFETY: self.handle was successfully opened during connect(). FLIClose pairs with FLIOpen.
         let result = unsafe { (sdk.close)(self.handle) };
         check_fli_error(result, "close filter wheel")?;
 
@@ -163,14 +159,12 @@ impl NativeFilterWheel for FliFilterWheel {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         let mut position: c_long = 0;
 
-        // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked); `position` is a valid stack pointer.
+        // SAFETY: self.handle is valid (connected=true checked); `position` is a valid stack pointer.
         let result = unsafe { (sdk.get_filter_pos)(self.handle, &mut position) };
         check_fli_error(result, "get filter position")?;
 
@@ -192,12 +186,10 @@ impl NativeFilterWheel for FliFilterWheel {
             )));
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
-        // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked); `position` was bounds-checked against filter_count earlier in this function.
+        // SAFETY: self.handle is valid (connected=true checked); `position` was bounds-checked against filter_count earlier in this function.
         let result = unsafe { (sdk.set_filter_pos)(self.handle, position as c_long) };
         check_fli_error(result, "set filter position")?;
 
@@ -209,14 +201,12 @@ impl NativeFilterWheel for FliFilterWheel {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         let mut status: c_long = 0;
 
-        // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked); `status` is a valid stack pointer.
+        // SAFETY: self.handle is valid (connected=true checked); `status` is a valid stack pointer.
         let result = unsafe { (sdk.get_device_status)(self.handle, &mut status) };
         check_fli_error(result, "get device status")?;
 

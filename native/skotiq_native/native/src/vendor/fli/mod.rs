@@ -7,7 +7,6 @@ use crate::camera::{
     CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData, ImageMetadata,
     ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
 };
-use crate::sync::fli_mutex;
 use crate::traits::{NativeCamera, NativeDevice, NativeError, NativeFilterWheel, NativeFocuser};
 use crate::NativeVendor;
 use async_trait::async_trait;
