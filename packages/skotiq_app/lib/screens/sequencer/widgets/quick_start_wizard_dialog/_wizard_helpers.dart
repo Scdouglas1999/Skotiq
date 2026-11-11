@@ -1,5 +1,4 @@
 // ignore_for_file: invalid_use_of_protected_member
-// Initialisation, target search, preset and estimate helpers of the quick-start wizard state.
 part of '../quick_start_wizard_dialog.dart';
 
 extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
@@ -184,8 +183,6 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
       mounted &&
       generation == _authorityGeneration &&
       identical(ref.read(backendProvider), backend);
-
-  // Target search
 
   void _onTargetSearch(String query) {
     _searchDebounce?.cancel();
@@ -400,7 +397,6 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
     text = text.trim();
     if (text.isEmpty) return null;
 
-    // Try simple decimal
     final decimal = double.tryParse(text);
     if (decimal != null) {
       return decimal.isFinite && decimal >= 0 && decimal < 24 ? decimal : null;
@@ -414,7 +410,6 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
     text = text.trim();
     if (text.isEmpty) return null;
 
-    // Try simple decimal
     final decimal = double.tryParse(text);
     if (decimal != null) {
       return decimal.isFinite && decimal >= -90 && decimal <= 90
@@ -424,8 +419,6 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
 
     return CoordinateParser.parseDec(text);
   }
-
-  // Preset application
 
   void _applyPreset(_ExposurePreset preset) {
     setState(() {
@@ -530,8 +523,6 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
     return '$filterSummary | ${features.join(", ")}';
   }
 
-  // Estimated time calculation
-
   double _estimatedTotalSecs() {
     final enabledFilters = _filterConfigs.where((f) => f.enabled).toList();
     if (enabledFilters.isEmpty) return 0;
@@ -569,8 +560,6 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
         ? sequencerDefaults.ditherSettleTime
         : _kWizardDitherSettleSecondsFallback;
   }
-
-  // Validation
 
   bool _canAdvance() {
     switch (_currentStep) {
