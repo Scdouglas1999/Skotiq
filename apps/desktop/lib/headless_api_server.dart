@@ -304,7 +304,6 @@ class HeadlessApiServer {
   /// reconnect.
   late final EventReplayBuffer _eventReplayBuffer;
 
-  /// correlates command IDs from action handlers with later events.
   late final CommandCorrelator _commandCorrelator;
 
   /// Periodic sweep that evicts expired pending commands from the
@@ -352,7 +351,6 @@ class HeadlessApiServer {
   void _logError(String message, {Map<String, Object?>? fields}) =>
       _logger.error(message, source: 'HeadlessApiServer', fields: fields);
 
-  // Handler instances
   late final RouteTable _routeTable;
 
   // The handler classes the server itself calls into, beyond routing.
@@ -421,12 +419,10 @@ class HeadlessApiServer {
     _commandCorrelator = commandCorrelator ?? CommandCorrelator();
     final tokensByValue = <String, HeadlessAuthGrant>{};
 
-    // Determine effective auth token
     if (authToken != null) {
       _effectiveAuthToken = authToken;
       tokensByValue[authToken!] = HeadlessAuthGrant.admin();
     } else if (requireAuth) {
-      // Generate a random token
       _effectiveAuthToken = _generateRandomToken();
       tokensByValue[_effectiveAuthToken!] = HeadlessAuthGrant.admin();
       // Why: the auto-generated token must be visible to the operator once
@@ -513,12 +509,6 @@ class HeadlessApiServer {
     return scopes;
   }
 
-  // /api/collaboration/* and /api/session-handoff handlers were moved to
-  // [CollaborationHandlers] (handlers/collaboration_handlers.dart). The
-  // shared LiveCollaborationSessionManager is injected so the WS upgrade
-  // path, the desktop GUI, and the HTTP surface still observe the same
-  // in-memory state.
-
   // Pairing flow — first-run dashboard onboarding.
   //
   // The desktop console prints the 6-digit code; the dashboard user retypes it
@@ -545,17 +535,6 @@ class HeadlessApiServer {
     return created;
   }
 
-  // /api/pairing/{start,verify,active} handlers moved to
-  // [PairingHandlers] (handlers/pairing_handlers.dart). The lifecycle
-  // callbacks `ensurePairingService` / `recordPairedSession` /
-  // `rateLimitClientKey` keep the server's private state behind a
-  // typed surface.
-
-  // /api/ws/ticket and /api/auth/{cookie,csrf,logout} handlers moved to
-  // [AuthHandlers] (handlers/auth_handlers.dart). The shared
-  // WsTicketManager, AuthCookieManager, and a TokenScopeResolver closure
-  // (`_scopeForToken`) are injected via the constructor.
-
   /// Whether [method] mutates state and therefore requires CSRF when the
   /// caller is using a cookie. Why uppercase compare: shelf passes the
   /// raw method but middleware may have lowercased it elsewhere — be
@@ -568,23 +547,6 @@ class HeadlessApiServer {
         upper == 'DELETE' ||
         upper == 'PATCH';
   }
-
-  // /api/devices/*, /api/devices/discover-indi, /api/devices/discover-alpaca,
-  // and /api/devices/connected were moved to
-  // [DeviceDiscoveryHandlers] (handlers/device_discovery_handlers.dart) so the
-  // headless server class is not the home of read-only discovery logic.
-  //
-  // /api/devices/connect and /api/devices/disconnect live in
-  // [DeviceHandlers.handleConnectDevice] /
-  // [DeviceHandlers.handleDisconnectDevice].
-
-  // Dashboard + Run-Watch static-file serving was moved to
-  // [StaticFileHandlers] (handlers/static_file_handlers.dart). The handlers
-  // there own the SPA-directory resolution, the MIME-type table, the CSP
-  // security headers, and the symlink-traversal guard. Inline `_handleInfo`
-  // / `_handleSelfTest` now read the dashboard-available flag via
-  // `_staticFileHandlers.dashboardAvailable` so the inline JSON shape is
-  // unchanged.
 
   /// Generates a cryptographically secure random token.
   static String _generateRandomToken({int length = 32}) {
