@@ -21,7 +21,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:uuid/uuid.dart';
 
 import '../database/database.dart';
@@ -69,31 +69,25 @@ class ForensicsService {
     final evidenceJson = jsonEncode(evidence);
     final environmentJson = jsonEncode(environment.toJson());
 
-    await _db.customStatement(
-      'INSERT INTO frame_forensics ('
-      'id, captured_image_id, session_id, sequence_run_id, node_id, '
-      'frame_index, total_frames, reject_path, reason, likely_cause, '
-      'evidence_json, environment_json, hfr, eccentricity, star_count, '
-      'created_at) '
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      <Object?>[
-        id,
-        capturedImageId,
-        sessionId,
-        sequenceRunId,
-        nodeId,
-        frameIndex,
-        totalFrames,
-        rejectPath,
-        reason,
-        cause.label,
-        evidenceJson,
-        environmentJson,
-        hfr,
-        eccentricity,
-        starCount,
-        now.millisecondsSinceEpoch ~/ 1000,
-      ],
+    await _db.frameForensicsDao.insertRecord(
+      FrameForensicsCompanion.insert(
+        id: id,
+        capturedImageId: Value(capturedImageId),
+        sessionId: Value(sessionId),
+        sequenceRunId: Value(sequenceRunId),
+        nodeId: Value(nodeId),
+        frameIndex: frameIndex,
+        totalFrames: totalFrames,
+        rejectPath: rejectPath,
+        reason: reason,
+        likelyCause: Value(cause.label),
+        evidenceJson: Value(evidenceJson),
+        environmentJson: Value(environmentJson),
+        hfr: Value(hfr),
+        eccentricity: Value(eccentricity),
+        starCount: Value(starCount),
+        createdAt: now.millisecondsSinceEpoch ~/ 1000,
+      ),
     );
 
     final record = FrameForensicsRecord(
@@ -126,14 +120,8 @@ class ForensicsService {
     String sessionId, {
     int limit = 50,
   }) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT * FROM frame_forensics WHERE session_id = ? '
-          'ORDER BY created_at DESC LIMIT ?',
-          variables: [Variable<String>(sessionId), Variable<int>(limit)],
-        )
-        .get();
-    return rows.map((r) => FrameForensicsRecord.fromRow(r.data)).toList();
+    final rows = await _db.frameForensicsDao.recentForSession(sessionId, limit);
+    return rows.map(_toRecord).toList();
   }
 
   /// Fetch every record for a given `sequence_runs.id`. Used by the
@@ -141,14 +129,8 @@ class ForensicsService {
   Future<List<FrameForensicsRecord>> loadForSequenceRun(
     int sequenceRunId,
   ) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT * FROM frame_forensics WHERE sequence_run_id = ? '
-          'ORDER BY created_at ASC',
-          variables: [Variable<int>(sequenceRunId)],
-        )
-        .get();
-    return rows.map((r) => FrameForensicsRecord.fromRow(r.data)).toList();
+    final rows = await _db.frameForensicsDao.forSequenceRun(sequenceRunId);
+    return rows.map(_toRecord).toList();
   }
 
   /// Fetch the newest forensic record tied to a captured image id.
@@ -157,15 +139,10 @@ class ForensicsService {
   Future<FrameForensicsRecord?> loadForCapturedImage(
     int capturedImageId,
   ) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT * FROM frame_forensics WHERE captured_image_id = ? '
-          'ORDER BY created_at DESC LIMIT 1',
-          variables: [Variable<int>(capturedImageId)],
-        )
-        .get();
-    if (rows.isEmpty) return null;
-    return FrameForensicsRecord.fromRow(rows.first.data);
+    final row = await _db.frameForensicsDao.newestForCapturedImage(
+      capturedImageId,
+    );
+    return row == null ? null : _toRecord(row);
   }
 
   /// Filter records by classified cause (used by the "Show me all
@@ -175,22 +152,33 @@ class ForensicsService {
     int? sequenceRunId,
     int limit = 200,
   }) async {
-    final filter = StringBuffer('likely_cause = ?');
-    final vars = <Variable<Object>>[Variable<String>(cause.label)];
-    if (sequenceRunId != null) {
-      filter.write(' AND sequence_run_id = ?');
-      vars.add(Variable<int>(sequenceRunId));
-    }
-    vars.add(Variable<int>(limit));
-    final rows = await _db
-        .customSelect(
-          'SELECT * FROM frame_forensics WHERE $filter '
-          'ORDER BY created_at DESC LIMIT ?',
-          variables: vars,
-        )
-        .get();
-    return rows.map((r) => FrameForensicsRecord.fromRow(r.data)).toList();
+    final rows = await _db.frameForensicsDao.byCause(
+      cause.label,
+      sequenceRunId: sequenceRunId,
+      limit: limit,
+    );
+    return rows.map(_toRecord).toList();
   }
+
+  static FrameForensicsRecord _toRecord(FrameForensicsRow row) =>
+      FrameForensicsRecord.fromRow({
+        'id': row.id,
+        'captured_image_id': row.capturedImageId,
+        'session_id': row.sessionId,
+        'sequence_run_id': row.sequenceRunId,
+        'node_id': row.nodeId,
+        'frame_index': row.frameIndex,
+        'total_frames': row.totalFrames,
+        'reject_path': row.rejectPath,
+        'reason': row.reason,
+        'likely_cause': row.likelyCause,
+        'evidence_json': row.evidenceJson,
+        'environment_json': row.environmentJson,
+        'hfr': row.hfr,
+        'eccentricity': row.eccentricity,
+        'star_count': row.starCount,
+        'created_at': row.createdAt,
+      });
 
   /// Build a summary for the given records grouped by cause.
   static ForensicSummary summarize(Iterable<FrameForensicsRecord> records) {
