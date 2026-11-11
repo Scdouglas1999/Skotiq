@@ -255,21 +255,15 @@ async fn bounded<E: std::fmt::Display>(
 }
 
 /// Pause the run for the fault, which also stops its guiding; with no run,
-/// stop the guider directly. Returns whether a run was paused.
+/// stop the guider directly. Returns whether a run was paused. The run
+/// announces its own pause when its state turns Paused.
 async fn hold_run_or_stop_guiding(message: &str) -> bool {
     let held = {
         let executor = skotiq_sequencer::get_executor().read().await;
         executor.hold_for_mount_fault(message).await
     };
     match held {
-        Ok(true) => {
-            crate::api::get_state().publish_event(crate::event::create_event_auto_id(
-                EventSeverity::Warning,
-                crate::event::EventCategory::Sequencer,
-                crate::event::EventPayload::Sequencer(crate::event::SequencerEvent::Paused),
-            ));
-            true
-        }
+        Ok(true) => true,
         Ok(false) => {
             stop_guiding().await;
             false
