@@ -131,6 +131,44 @@ void main() {
     expect(find.textContaining('Capture missing darks'), findsOneWidget);
   });
 
+  // The walk-through's dialog opened on four "Loop Repeats Once" notes; the
+  // two errors that blocked the run were below the fold.
+  testWidgets('lists what blocks the run first and notes last',
+      (tester) async {
+    ValidationIssue issue(
+      ValidationSeverity severity,
+      ValidationCategory category,
+      String title,
+    ) =>
+        ValidationIssue(
+          severity: severity,
+          category: category,
+          title: title,
+          description: title,
+        );
+    await pumpDialog(
+      tester: tester,
+      issues: [
+        issue(ValidationSeverity.info, ValidationCategory.structure,
+            'Loop Repeats Once'),
+        issue(ValidationSeverity.warning, ValidationCategory.equipment,
+            'Filter Not in Wheel'),
+        issue(ValidationSeverity.info, ValidationCategory.equipmentHealth,
+            'Time Sync Check Unavailable'),
+        issue(ValidationSeverity.error, ValidationCategory.equipment,
+            'No plate solver'),
+        issue(ValidationSeverity.error, ValidationCategory.opticalTrain,
+            'Tilt changed'),
+      ],
+    );
+
+    double top(String text) => tester.getTopLeft(find.text(text).first).dy;
+    expect(top('No plate solver'), lessThan(top('Filter Not in Wheel')));
+    expect(top('Filter Not in Wheel'), lessThan(top('Loop Repeats Once')));
+    // A section holding an error comes before one holding only notes.
+    expect(top('Tilt changed'), lessThan(top('Time Sync Check Unavailable')));
+  });
+
   testWidgets('renders compact simulation summary when location is set',
       (tester) async {
     final target = TargetHeaderNode(
