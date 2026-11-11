@@ -306,7 +306,10 @@ Future<void> initialiseCatalogManager(LoggingService logger) async {
   try {
     final appDataDir = await resolveSkotiqDataDirectory();
     final catalogDir = path.join(appDataDir.path, 'catalogs');
-    await CatalogManager.instance.initialize(catalogDir);
+    await CatalogManager.instance.initialize(
+      catalogDir,
+      builtIn: builtInCatalogs,
+    );
     logger.info('Catalog manager initialized', source: _logSource);
   } catch (e) {
     logger.error(

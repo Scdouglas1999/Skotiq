@@ -40,8 +40,11 @@ class CatalogManager extends CatalogInstaller {
       isInitialized ? pathOf(catalog) : '';
 
   @override
-  Future<void> initialize(String catalogDirectory) async {
-    await super.initialize(catalogDirectory);
+  Future<void> initialize(
+    String catalogDirectory, {
+    Map<SkyCatalog, Future<List<int>> Function()> builtIn = const {},
+  }) async {
+    await super.initialize(catalogDirectory, builtIn: builtIn);
     SkyCatalog.values.forEach(catalogChanged);
     // Parse both catalogs now, off this isolate, so the first search or sky
     // view finds them ready.

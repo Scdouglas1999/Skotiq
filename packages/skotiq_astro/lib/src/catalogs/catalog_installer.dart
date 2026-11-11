@@ -73,7 +73,16 @@ class CatalogInstaller {
 
   /// Point the installer at [catalogDirectory], creating it if needed, and
   /// reclaim what an interrupted download left behind.
-  Future<void> initialize(String catalogDirectory) async {
+  ///
+  /// [builtIn] holds the catalogs that ship inside the app, each with a
+  /// function that reads its bytes. One that is not installed is installed
+  /// from that copy, so it works offline from the first start. A copy that
+  /// cannot be installed is logged and skipped: the catalog stays missing and
+  /// can still be downloaded.
+  Future<void> initialize(
+    String catalogDirectory, {
+    Map<SkyCatalog, Future<List<int>> Function()> builtIn = const {},
+  }) async {
     _directory = catalogDirectory;
     final dir = Directory(catalogDirectory);
     if (!await dir.exists()) {
@@ -81,6 +90,39 @@ class CatalogInstaller {
     }
     _log('initialized with directory: $catalogDirectory');
     await _sweepAbandonedPartials(dir);
+    for (final MapEntry(key: catalog, value: read) in builtIn.entries) {
+      if ((await status(catalog)).state != CatalogInstallStatus.missing) {
+        continue;
+      }
+      try {
+        await _installBuiltIn(catalog, await read());
+      } catch (e) {
+        _log(
+          'the built-in ${catalog.displayName} could not be installed: $e',
+          level: 1000,
+        );
+      }
+    }
+  }
+
+  /// Install [catalog] from the copy that ships with the app. [bytes] must be
+  /// the canonical file: anything that does not hash to [SkyCatalog.sha256]
+  /// is refused with [CatalogHashMismatchException].
+  Future<void> _installBuiltIn(SkyCatalog catalog, List<int> bytes) async {
+    final tempFile = File(
+      '${path.join(catalogDirectory, catalog.fileName)}.partial',
+    );
+    try {
+      await tempFile.writeAsBytes(bytes, flush: true);
+      await _installStagedFile(
+        catalog,
+        tempFile,
+        expectedSha256: catalog.sha256,
+        metadata: {'installedFrom': 'built-in'},
+      );
+    } finally {
+      await _deleteQuietly(tempFile);
+    }
   }
 
   /// Deletes the temp files a download that never finished left in the
