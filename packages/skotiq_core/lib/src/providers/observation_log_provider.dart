@@ -1,12 +1,12 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
+import '../backend/remote_host.dart';
+import '../backend/roles/host_data/observation_log.dart';
 import '../database/daos/observation_logs_dao.dart';
 import '../database/database.dart';
-import '../utils/resilient_poll_stream.dart';
+import 'async_scope.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 
@@ -17,139 +17,33 @@ final observationLogsDaoProvider = Provider<ObservationLogsDao>((ref) {
   return ObservationLogsDao(ref.watch(databaseProvider));
 });
 
+/// The observation log of whichever machine is the imaging host: this
+/// process's database, or the linked host's.
+final observationLogProvider = Provider<ObservationLog>(
+  (ref) =>
+      ref.watch(backendProvider).remoteHost?.observationLog ??
+      ref.watch(observationLogsDaoProvider),
+);
+
 /// Reactive stream of all observation log entries (newest first).
-///
-/// On a remote client (`NetworkBackend`) observation logs live only in the
-/// master's DB; the slave's local table is never populated. We poll the
-/// host's `GET /api/notes-journal` (which serves the `observation_logs`
-/// table) and map each [RemoteNotesJournalEntry] onto the local
-/// [ObservationLogEntry] shape the log panel + planetarium markers read.
-final observationLogsProvider = StreamProvider<List<ObservationLogEntry>>((
-  ref,
-) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return _pollRemoteObservationLogs(backend);
-  }
-  return ref.watch(observationLogsDaoProvider).watchAllLogs();
-});
+final observationLogsProvider = StreamProvider<List<ObservationLogEntry>>(
+  (ref) => ref.watch(observationLogProvider).watchAllLogs(),
+);
 
 /// Reactive stream of observed catalog IDs, used for planetarium markers.
-final observedCatalogIdsProvider = StreamProvider<Set<String>>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return _pollRemoteObservationLogs(backend).map(
-      (logs) => logs
-          .map((l) => l.catalogId)
-          .whereType<String>()
-          .where((id) => id.isNotEmpty)
-          .toSet(),
-    );
-  }
-  return ref.watch(observationLogsDaoProvider).watchObservedCatalogIds();
-});
+final observedCatalogIdsProvider = StreamProvider<Set<String>>(
+  (ref) => ref.watch(observationLogProvider).watchObservedCatalogIds(),
+);
 
 /// Observation log statistics (refreshes when logs change).
 final observationLogStatsProvider = FutureProvider<ObservationLogStats>((
   ref,
 ) async {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    final logs = await ref.watch(observationLogsProvider.future);
-    return _statsFromLogs(logs);
-  }
-  // Depend on the logs stream so stats refresh on any change
-  ref.watch(observationLogsProvider);
-  return ref.read(observationLogsDaoProvider).getStats();
+  // Wait for the list so the numbers describe what the list shows, and
+  // recompute whenever it changes.
+  await ref.watch(observationLogsProvider.future);
+  return ref.read(observationLogProvider).getStats();
 });
-
-/// Polls the host's observation logs, emitting only on change (mirrors the
-/// `_pollRemote` change-guard in `database_provider.dart`).
-Stream<List<ObservationLogEntry>> _pollRemoteObservationLogs(
-  NetworkBackend backend, {
-  Duration interval = const Duration(seconds: 10),
-}) => resilientDistinctPoll(
-  fetch: () => _fetchRemoteObservationLogs(backend),
-  unchanged: listEquals,
-  interval: interval,
-);
-
-Future<List<ObservationLogEntry>> _fetchRemoteObservationLogs(
-  NetworkBackend backend,
-) async {
-  const pageSize = 1000;
-  final rows = <RemoteNotesJournalEntry>[];
-  var offset = 0;
-  while (true) {
-    final page = await backend.fetchNotesJournal(
-      limit: pageSize,
-      offset: offset,
-    );
-    rows.addAll(page.items);
-    offset += page.items.length;
-    if (offset >= page.total || page.items.isEmpty) break;
-  }
-
-  final mapped = rows.map(_observationLogFromRemote).toList()
-    // Host orders newest-first already; keep that invariant so `.first`/`.last`
-    // the stats reader relies on stay correct.
-    ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
-  return mapped;
-}
-
-ObservationLogEntry _observationLogFromRemote(RemoteNotesJournalEntry row) {
-  return ObservationLogEntry(
-    id: row.id,
-    timestamp: row.timestamp,
-    objectName: row.objectName,
-    objectType: row.objectType,
-    catalogId: row.catalogId,
-    ra: row.ra,
-    dec: row.dec,
-    altitude: row.altitude,
-    azimuth: row.azimuth,
-    notes: row.notes,
-    rating: row.rating,
-    equipmentProfileId: row.equipmentProfileId,
-    seeingConditions: row.seeingConditions,
-    transparency: row.transparency,
-    locationName: row.locationName,
-    latitude: row.latitude,
-    longitude: row.longitude,
-  );
-}
-
-/// Reconstructs [ObservationLogStats] from a host-polled log list so the
-/// remote path produces the same summary the local DAO `getStats()` would.
-ObservationLogStats _statsFromLogs(List<ObservationLogEntry> logs) {
-  if (logs.isEmpty) {
-    return const ObservationLogStats(
-      totalObservations: 0,
-      uniqueObjects: 0,
-      averageRating: 0,
-      firstObservation: null,
-      lastObservation: null,
-    );
-  }
-  final uniqueObjects = <String>{};
-  double ratingSum = 0;
-  int ratedCount = 0;
-  for (final log in logs) {
-    uniqueObjects.add(log.catalogId ?? log.objectName);
-    if (log.rating != null) {
-      ratingSum += log.rating!;
-      ratedCount++;
-    }
-  }
-  // `logs` is newest-first (see _fetchRemoteObservationLogs).
-  return ObservationLogStats(
-    totalObservations: logs.length,
-    uniqueObjects: uniqueObjects.length,
-    averageRating: ratedCount > 0 ? ratingSum / ratedCount : 0,
-    firstObservation: logs.last.timestamp,
-    lastObservation: logs.first.timestamp,
-  );
-}
 
 /// StateNotifier for managing observation log UI interactions.
 final observationLogNotifierProvider =
@@ -212,15 +106,22 @@ class ObservationLogUiState {
 
 class ObservationLogNotifier extends StateNotifier<ObservationLogUiState> {
   final Ref ref;
-  int _authorityRevision = 0;
   final Map<int, Object> _deletingLogs = {};
   Object? _deleteAllToken;
   Future<String?>? _exportInFlight;
 
+  /// Each operation belongs to the log it started on, which changes with the
+  /// backend and with the local database.
+  late final AsyncScopes<ObservationLog> _scopes = AsyncScopes(
+    ref.read,
+    observationLogProvider,
+    alive: () => mounted,
+  );
+
   ObservationLogNotifier(this.ref) : super(const ObservationLogUiState()) {
     ref.listen(backendProvider, (previous, next) {
       if (!mounted || identical(previous, next)) return;
-      _authorityRevision++;
+      _scopes.cancelAll();
       _deletingLogs.clear();
       _deleteAllToken = null;
       _exportInFlight = null;
@@ -230,13 +131,6 @@ class ObservationLogNotifier extends StateNotifier<ObservationLogUiState> {
         errorMessage: null,
       );
     });
-  }
-
-  ObservationLogsDao get _dao => ref.read(observationLogsDaoProvider);
-
-  void _refreshLogs() {
-    ref.invalidate(observationLogsProvider);
-    ref.invalidate(observedCatalogIdsProvider);
   }
 
   /// Log a new observation.
@@ -259,58 +153,36 @@ class ObservationLogNotifier extends StateNotifier<ObservationLogUiState> {
     double? longitude,
   }) async {
     if (state.isSaving) return null;
-    final backend = ref.read(backendProvider);
-    final dao = _dao;
-    final authority = _authorityRevision;
+    final scope = _scopes.begin();
     state = state.copyWith(isSaving: true, errorMessage: null);
 
     try {
-      final id = backend is NetworkBackend
-          ? await backend.createObservationLog(
-              timestamp: timestamp,
-              objectName: objectName,
-              ra: ra,
-              dec: dec,
-              objectType: objectType,
-              catalogId: catalogId,
-              altitude: altitude,
-              azimuth: azimuth,
-              notes: notes,
-              rating: rating,
-              equipmentProfileId: equipmentProfileId,
-              seeingConditions: seeingConditions,
-              transparency: transparency,
-              locationName: locationName,
-              latitude: latitude,
-              longitude: longitude,
-            )
-          : await dao.insertLog(
-              timestamp: timestamp,
-              objectName: objectName,
-              ra: ra,
-              dec: dec,
-              objectType: objectType,
-              catalogId: catalogId,
-              altitude: altitude,
-              azimuth: azimuth,
-              notes: notes,
-              rating: rating,
-              equipmentProfileId: equipmentProfileId,
-              seeingConditions: seeingConditions,
-              transparency: transparency,
-              locationName: locationName,
-              latitude: latitude,
-              longitude: longitude,
-            );
-      if (!_isCurrentAuthority(authority, backend, dao)) return null;
-      _refreshLogs();
+      final id = await scope.value.insertLog(
+        timestamp: timestamp,
+        objectName: objectName,
+        ra: ra,
+        dec: dec,
+        objectType: objectType,
+        catalogId: catalogId,
+        altitude: altitude,
+        azimuth: azimuth,
+        notes: notes,
+        rating: rating,
+        equipmentProfileId: equipmentProfileId,
+        seeingConditions: seeingConditions,
+        transparency: transparency,
+        locationName: locationName,
+        latitude: latitude,
+        longitude: longitude,
+      );
+      if (scope.isStale) return null;
       state = state.copyWith(
         isSaving: false,
         statusMessage: 'Observation logged for $objectName',
       );
       return id;
     } catch (e) {
-      if (_isCurrentAuthority(authority, backend, dao)) {
+      if (scope.isCurrent) {
         state = state.copyWith(
           isSaving: false,
           errorMessage: 'Failed to log observation: $e',
@@ -325,25 +197,18 @@ class ObservationLogNotifier extends StateNotifier<ObservationLogUiState> {
     if (_deletingLogs.containsKey(id)) return false;
     final token = Object();
     _deletingLogs[id] = token;
-    final backend = ref.read(backendProvider);
-    final dao = _dao;
-    final authority = _authorityRevision;
+    final scope = _scopes.begin();
     state = state.copyWith(errorMessage: null);
     try {
-      if (backend is NetworkBackend) {
-        await backend.deleteObservationLog(id);
-      } else {
-        await dao.deleteLog(id);
-      }
-      if (!_isCurrentAuthority(authority, backend, dao)) return false;
-      _refreshLogs();
+      await scope.value.deleteLog(id);
+      if (scope.isStale) return false;
       state = state.copyWith(
         statusMessage: 'Observation deleted.',
         errorMessage: null,
       );
       return true;
     } catch (e) {
-      if (_isCurrentAuthority(authority, backend, dao)) {
+      if (scope.isCurrent) {
         state = state.copyWith(
           errorMessage: 'Failed to delete observation: $e',
         );
@@ -358,28 +223,19 @@ class ObservationLogNotifier extends StateNotifier<ObservationLogUiState> {
   Future<String?> exportCsv() {
     final existing = _exportInFlight;
     if (existing != null) return existing;
-    final backend = ref.read(backendProvider);
-    final dao = _dao;
-    final authority = _authorityRevision;
     late final Future<String?> operation;
-    operation = _exportCsv(backend, dao, authority).whenComplete(() {
+    operation = _exportCsv(_scopes.begin()).whenComplete(() {
       if (identical(_exportInFlight, operation)) _exportInFlight = null;
     });
     _exportInFlight = operation;
     return operation;
   }
 
-  Future<String?> _exportCsv(
-    Object backend,
-    ObservationLogsDao dao,
-    int authority,
-  ) async {
+  Future<String?> _exportCsv(AsyncScope<ObservationLog> scope) async {
     state = state.copyWith(errorMessage: null);
     try {
-      final csv = backend is NetworkBackend
-          ? observationLogsToCsv(await _fetchRemoteObservationLogs(backend))
-          : await dao.exportToCsv();
-      if (!_isCurrentAuthority(authority, backend, dao)) return null;
+      final csv = await scope.value.exportToCsv();
+      if (scope.isStale) return null;
       if (csv.isEmpty) {
         state = state.copyWith(statusMessage: 'No observations to export.');
         return null;
@@ -390,7 +246,7 @@ class ObservationLogNotifier extends StateNotifier<ObservationLogUiState> {
       );
       return csv;
     } catch (e) {
-      if (_isCurrentAuthority(authority, backend, dao)) {
+      if (scope.isCurrent) {
         state = state.copyWith(errorMessage: 'Failed to export: $e');
       }
       return null;
@@ -402,23 +258,17 @@ class ObservationLogNotifier extends StateNotifier<ObservationLogUiState> {
     if (_deleteAllToken != null) return;
     final token = Object();
     _deleteAllToken = token;
-    final backend = ref.read(backendProvider);
-    final dao = _dao;
-    final authority = _authorityRevision;
+    final scope = _scopes.begin();
     try {
-      if (backend is NetworkBackend) {
-        await backend.deleteAllObservationLogs();
-        if (!_isCurrentAuthority(authority, backend, dao)) return;
-        _refreshLogs();
-        state = state.copyWith(statusMessage: 'Deleted all observations.');
-      } else {
-        final count = await dao.deleteAllLogs();
-        if (!_isCurrentAuthority(authority, backend, dao)) return;
-        _refreshLogs();
-        state = state.copyWith(statusMessage: 'Deleted $count observations.');
-      }
+      final count = await scope.value.deleteAllLogs();
+      if (scope.isStale) return;
+      state = state.copyWith(
+        statusMessage: count == null
+            ? 'Deleted all observations.'
+            : 'Deleted $count observations.',
+      );
     } catch (e) {
-      if (_isCurrentAuthority(authority, backend, dao)) {
+      if (scope.isCurrent) {
         state = state.copyWith(
           errorMessage: 'Failed to delete observations: $e',
         );
@@ -426,17 +276,6 @@ class ObservationLogNotifier extends StateNotifier<ObservationLogUiState> {
     } finally {
       if (identical(_deleteAllToken, token)) _deleteAllToken = null;
     }
-  }
-
-  bool _isCurrentAuthority(
-    int authority,
-    Object backend,
-    ObservationLogsDao dao,
-  ) {
-    return mounted &&
-        authority == _authorityRevision &&
-        identical(backend, ref.read(backendProvider)) &&
-        identical(dao, ref.read(observationLogsDaoProvider));
   }
 
   /// Set filter query text.

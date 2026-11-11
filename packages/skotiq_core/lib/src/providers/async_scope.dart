@@ -36,6 +36,17 @@ final class AsyncScope<T> {
 
   bool get isStale => !isCurrent;
 
+  /// Throws when the scope is stale, for code whose caller shows the failure
+  /// rather than dropping the result. [what] completes "... changed while
+  /// (what)".
+  void ensureCurrent(String what) {
+    if (isCurrent) return;
+    throw StateError(
+      'The imaging host changed while $what. The stale result was '
+      'discarded; try again on the current host.',
+    );
+  }
+
   /// Awaits [operation] and returns its result, or [ifStale] when the scope
   /// went stale meanwhile. An error from a stale operation is swallowed the
   /// same way, since nothing is left to show it to.

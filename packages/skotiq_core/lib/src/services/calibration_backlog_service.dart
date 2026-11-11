@@ -6,6 +6,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
+import '../backend/roles/host_data/calibration_library.dart';
 import '../backend/network_backend.dart';
 import '../database/daos/settings_dao.dart';
 import '../database/database.dart';
@@ -179,7 +180,7 @@ class CalibrationBacklogException implements Exception {
 class CalibrationBacklogService {
   CalibrationBacklogService({
     required SkotiqDatabase db,
-    required CalibrationLibraryService library,
+    required CalibrationLibrary library,
     required DarkLibraryService darkLibrary,
     required FlatLibraryService flatLibrary,
     required CalibrationMasterBuild buildMaster,
@@ -196,7 +197,7 @@ class CalibrationBacklogService {
        _now = now ?? DateTime.now;
 
   final SkotiqDatabase _db;
-  final CalibrationLibraryService _library;
+  final CalibrationLibrary _library;
   final DarkLibraryService _darkLibrary;
   final FlatLibraryService _flatLibrary;
   final CalibrationMasterBuild _buildMaster;
@@ -764,7 +765,7 @@ final calibrationBacklogServiceProvider = Provider<CalibrationBacklogService>((
 ) {
   return CalibrationBacklogService(
     db: ref.watch(databaseProvider),
-    library: ref.watch(calibrationLibraryServiceProvider),
+    library: ref.watch(calibrationLibraryProvider),
     darkLibrary: ref.watch(darkLibraryServiceProvider),
     flatLibrary: ref.watch(flatLibraryServiceProvider),
     buildMaster: ref.watch(calibrationMasterBuildProvider),

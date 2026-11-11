@@ -1,5 +1,9 @@
 import 'network_backend.dart';
+import 'network_backend/host_data/remote_host_calibration_library.dart';
+import 'network_backend/host_data/remote_observation_log.dart';
 import 'network_backend/host_data/remote_observing_lists_store.dart';
+import 'roles/host_data/calibration_library.dart';
+import 'roles/host_data/observation_log.dart';
 import 'roles/host_data/observing_lists_store.dart';
 import 'skotiq_backend.dart';
 
@@ -27,6 +31,11 @@ final class RemoteHost {
   final NetworkBackend _backend;
 
   static final _hosts = Expando<RemoteHost>('RemoteHost');
+
+  late final CalibrationLibrary calibrationLibrary =
+      RemoteHostCalibrationLibrary(_backend);
+
+  late final ObservationLog observationLog = RemoteObservationLog(_backend);
 
   late final ObservingListsStore observingLists = RemoteObservingListsStore(
     _backend,

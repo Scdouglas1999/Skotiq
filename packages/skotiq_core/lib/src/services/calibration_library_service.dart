@@ -6,7 +6,8 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
-import '../backend/network_backend.dart';
+import '../backend/remote_host.dart';
+import '../backend/roles/host_data/calibration_library.dart';
 import '../backend/skotiq_backend.dart';
 import '../database/daos/calibration_tags_dao.dart';
 import '../database/daos/flat_library_dao.dart';
@@ -43,7 +44,7 @@ part 'calibration_library_service/formatting.dart';
 ///  3. **Annotate / manage**: user tags + notes per master ([setTags] /
 ///     [setNotes]) and deletion of the artifact row + optional file
 ///     ([deleteMaster]).
-class CalibrationLibraryService {
+class CalibrationLibraryService implements CalibrationLibrary {
   CalibrationLibraryService({
     required SkotiqDatabase db,
     required FlatLibraryDao flatLibraryDao,
@@ -86,17 +87,6 @@ class CalibrationLibraryService {
   final CalibrationStalenessThresholds thresholds;
   final DateTime Function() _now;
 
-  /// The active [NetworkBackend] when this device is a remote client (a tablet
-  /// or desktop driving the headless appliance). When non-null, tag/note/
-  /// delete/match operations target the APPLIANCE's real calibration library
-  /// over `/api/calibration-library/*` instead of this device's local Drift
-  /// DB (which on a remote client is empty). Null on the host / local builds,
-  /// where the operations run against the local DB.
-  NetworkBackend? get _remote {
-    final backend = _backend;
-    return backend is NetworkBackend ? backend : null;
-  }
-
   bool get _hasAuthority {
     final backend = _backend;
     if (backend == null) return true;
@@ -123,87 +113,20 @@ class CalibrationLibraryService {
   /// `calibration_tags.camera_id` so each file is parsed at most once.
   /// Enrichment is best-effort — a missing or malformed file never breaks the
   /// listing.
+  @override
   Future<List<CalibrationMasterRecord>> listMasters({
     CalibrationLibraryFilter filter = const CalibrationLibraryFilter(),
     bool enrichFromHeaders = true,
   }) async {
     _ensureAuthority();
-    final remote = _remote;
-    var records = remote == null
-        ? await _loadAll()
-        : [
-            for (final row in await remote.getCalibrationMasters(
-              type: filter.type == null
-                  ? null
-                  : calibrationMasterTypeWireName(filter.type!),
-            ))
-              CalibrationMasterRecord.fromJson(row),
-          ];
+    var records = filter.whereStoredFieldsMatch(await _loadAll());
     _ensureAuthority();
 
-    if (filter.mastersOnly) {
-      records = records.where((r) => r.isMaster).toList();
-    }
-    if (filter.type != null) {
-      records = records.where((r) => r.type == filter.type).toList();
-    }
-    if (filter.gain != null) {
-      records = records.where((r) => r.gain == filter.gain).toList();
-    }
-    if (filter.binX != null) {
-      records = records.where((r) => r.binX == filter.binX).toList();
-    }
-    if (filter.binY != null) {
-      records = records.where((r) => r.binY == filter.binY).toList();
-    }
-    if (filter.exposureSeconds != null) {
-      records = records
-          .where(
-            (r) =>
-                r.exposureSeconds != null &&
-                (r.exposureSeconds! - filter.exposureSeconds!).abs() <=
-                    filter.exposureToleranceSecs,
-          )
-          .toList();
-    }
-    if (filter.temperatureMin != null) {
-      records = records
-          .where(
-            (r) =>
-                r.temperature != null &&
-                r.temperature! >= filter.temperatureMin!,
-          )
-          .toList();
-    }
-    if (filter.temperatureMax != null) {
-      records = records
-          .where(
-            (r) =>
-                r.temperature != null &&
-                r.temperature! <= filter.temperatureMax!,
-          )
-          .toList();
-    }
-    final filterName = filter.filter?.trim();
-    if (filterName != null && filterName.isNotEmpty) {
-      records = records
-          .where(
-            (r) =>
-                r.filter != null &&
-                r.filter!.trim().toLowerCase() == filterName.toLowerCase(),
-          )
-          .toList();
-    }
-
-    if (enrichFromHeaders && remote == null) {
+    if (enrichFromHeaders) {
       records = await _enrichAll(records);
       _ensureAuthority();
     }
-
-    final cameraId = filter.cameraId?.trim();
-    if (cameraId != null && cameraId.isNotEmpty) {
-      records = records.where((r) => r.cameraId == cameraId).toList();
-    }
+    records = filter.whereCameraMatches(records);
 
     records.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     _ensureAuthority();
@@ -211,24 +134,16 @@ class CalibrationLibraryService {
   }
 
   /// One record by identity, or null. Enriched from the FITS header.
+  @override
   Future<CalibrationMasterRecord?> getRecord(
     CalibrationMasterType type,
     int id,
   ) async {
     _ensureAuthority();
-    final remote = _remote;
-    final all = remote == null
-        ? await _loadAll()
-        : [
-            for (final row in await remote.getCalibrationMasters(
-              type: calibrationMasterTypeWireName(type),
-            ))
-              CalibrationMasterRecord.fromJson(row),
-          ];
+    final all = await _loadAll();
     _ensureAuthority();
     for (final record in all) {
       if (record.type == type && record.id == id) {
-        if (remote != null) return record;
         final enriched = await _enrich(record);
         _ensureAuthority();
         return enriched;
@@ -271,20 +186,12 @@ class CalibrationLibraryService {
   /// [includeRemote] is set, ranked remote candidates join the same per-type
   /// ranking, local-first on an exact tuple tie. The chosen master's provenance
   /// rides on the result; [acceptRemoteMaster] downloads and merges it.
+  @override
   Future<CalibrationMatchSet> match(
     LightFrameContext context, {
     CalibrationMatchTolerances tolerances = CalibrationMatchTolerances.defaults,
     bool includeRemote = true,
   }) async {
-    final remote = _remote;
-    if (remote != null) {
-      // Remote client: the appliance owns the real master library, so the
-      // host runs the matcher against its own DB and returns the transparent
-      // per-type result.
-      final result = await remote.matchCalibrationMasters(context);
-      _ensureAuthority();
-      return result;
-    }
     // Enrich exactly as [listMasters] does. A master flat whose filter lives
     // only in its FITS header has a null `filter` column, so without this it is
     // visible and correctly labelled in the Calibration Library while this
@@ -478,6 +385,7 @@ class CalibrationLibraryService {
   /// (consent-gated: refuses when the consent does not permit sharing). The
   /// trust signals (frame count, sensor dimensions, camera) are taken from the
   /// record; [provenance] supplies the rest (e.g. measured dark current).
+  @override
   Future<SharedCalibrationMaster> publishMaster(
     CalibrationMasterRecord record, {
     required ContributionConsent consent,
@@ -526,15 +434,8 @@ class CalibrationLibraryService {
   /// id recorded at publish time, calls the hub's owner-scoped delete, and clears
   /// the local retract handle so the master shows as un-shared again. Throws a
   /// [StateError] when the master was never published or no hub is configured.
+  @override
   Future<void> retractPublishedMaster(CalibrationMasterRecord record) async {
-    final remote = _remote;
-    if (remote != null) {
-      await remote.retractCalibrationMaster(
-        type: calibrationMasterTypeWireName(record.type),
-        id: record.id,
-      );
-      return;
-    }
     final library = _remoteLibrary;
     if (library == null) {
       throw StateError('no shared calibration library is configured');
@@ -552,9 +453,21 @@ class CalibrationLibraryService {
     await _tagsDao.upsert(record.type, record.id, clearPublishedRemoteId: true);
   }
 
+  @override
+  Future<SharedMasterAcceptOutcome> acceptSharedMaster(
+    CalibrationMasterRecord shared,
+  ) async {
+    final outcome = await acceptRemoteMaster(shared);
+    return (kind: outcome.kind.name, reason: outcome.reason);
+  }
+
+  @override
+  HostFileDownload? masterFileDownload(CalibrationMasterRecord record) => null;
+
   // Tagging
 
   /// Replace the user tags of one master.
+  @override
   Future<void> setTags(
     CalibrationMasterType type,
     int id,
@@ -564,34 +477,17 @@ class CalibrationLibraryService {
       for (final t in tags)
         if (t.trim().isNotEmpty) t.trim(),
     ];
-    final remote = _remote;
-    if (remote != null) {
-      await remote.setCalibrationMasterTags(
-        type: calibrationMasterTypeWireName(type),
-        id: id,
-        tags: cleaned,
-      );
-      return;
-    }
     await _tagsDao.upsert(type, id, tags: cleaned);
   }
 
   /// Replace the notes of one master (null/empty clears them).
+  @override
   Future<void> setNotes(
     CalibrationMasterType type,
     int id,
     String? notes,
   ) async {
     final cleaned = notes?.trim();
-    final remote = _remote;
-    if (remote != null) {
-      await remote.setCalibrationMasterNotes(
-        type: calibrationMasterTypeWireName(type),
-        id: id,
-        notes: cleaned,
-      );
-      return;
-    }
     if (cleaned == null || cleaned.isEmpty) {
       await _tagsDao.upsert(type, id, clearNotes: true);
     } else {
@@ -604,23 +500,12 @@ class CalibrationLibraryService {
   /// Delete one master's DB row (plus its `calibration_tags` annotation) and,
   /// when [deleteFile] is set, the on-disk artifact(s). Returns false when no
   /// row with that identity exists.
+  @override
   Future<bool> deleteMaster(
     CalibrationMasterType type,
     int id, {
     bool deleteFile = false,
   }) async {
-    final remote = _remote;
-    if (remote != null) {
-      // The appliance owns the row + file. A 404 there surfaces as a thrown
-      // ServerError (no_calibration_master); the caller reloads either way, so
-      // success here means the host accepted the delete.
-      await remote.deleteCalibrationMaster(
-        type: calibrationMasterTypeWireName(type),
-        id: id,
-        deleteFile: deleteFile,
-      );
-      return true;
-    }
     var found = false;
     switch (type) {
       case CalibrationMasterType.dark:
@@ -675,7 +560,15 @@ class CalibrationLibraryService {
       when.toLocal().toIso8601String().split('T').first;
 }
 
-/// Riverpod provider for the [CalibrationLibraryService].
+/// The calibration library of whichever machine is the imaging host: this
+/// process's own ([calibrationLibraryServiceProvider]), or the linked host's.
+final calibrationLibraryProvider = Provider<CalibrationLibrary>(
+  (ref) =>
+      ref.watch(backendProvider).remoteHost?.calibrationLibrary ??
+      ref.watch(calibrationLibraryServiceProvider),
+);
+
+/// The calibration library in this process's database.
 final calibrationLibraryServiceProvider = Provider<CalibrationLibraryService>((
   ref,
 ) {

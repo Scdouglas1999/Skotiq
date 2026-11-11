@@ -57,6 +57,26 @@ void main() {
     expect(scope.isCurrent, isFalse);
   });
 
+  test('ensureCurrent throws once stale and names what was interrupted', () {
+    final scope = scopes().begin();
+    expect(
+      () => scope.ensureCurrent('the library was loading'),
+      returnsNormally,
+    );
+    notifier.switchTo(hostB);
+    expect(
+      () => scope.ensureCurrent('the library was loading'),
+      throwsA(
+        isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          'The imaging host changed while the library was loading. The stale '
+              'result was discarded; try again on the current host.',
+        ),
+      ),
+    );
+  });
+
   test('a dead owner is stale without reading the provider', () {
     var alive = true;
     var reads = 0;

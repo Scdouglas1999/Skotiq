@@ -46,11 +46,15 @@ class CalibrationLibraryPanelState
   bool _loading = true;
   Object? _error;
   List<CalibrationMasterRecord> _records = const [];
-  int _loadGeneration = 0;
   int? _downloadingId;
 
-  CalibrationLibraryService get _service =>
-      ref.read(calibrationLibraryServiceProvider);
+  /// Every load and edit belongs to the library it started on, which changes
+  /// with the imaging host.
+  late final AsyncScopes<CalibrationLibrary> _scopes = AsyncScopes(
+    ref.read,
+    calibrationLibraryProvider,
+    alive: () => mounted,
+  );
 
   @override
   void initState() {
@@ -71,29 +75,20 @@ class CalibrationLibraryPanelState
   }
 
   Future<void> reload() async {
-    final backend = ref.read(backendProvider);
-    final generation = ++_loadGeneration;
+    final scope = _scopes.beginLatest();
     setState(() {
       _loading = _records.isEmpty;
       _error = null;
     });
     try {
-      final List<CalibrationMasterRecord> records;
-      if (backend is NetworkBackend) {
-        final masters = await backend.getCalibrationMasters();
-        records = [
-          for (final m in masters) CalibrationMasterRecord.fromJson(m)
-        ];
-      } else {
-        records = await _service.listMasters();
-      }
-      if (!_isCurrentLoad(backend, generation)) return;
+      final records = await scope.value.listMasters();
+      if (scope.isStale) return;
       setState(() {
         _records = records;
         _loading = false;
       });
     } catch (e) {
-      if (!_isCurrentLoad(backend, generation)) return;
+      if (scope.isStale) return;
       setState(() {
         _error = e;
         _loading = false;
@@ -101,20 +96,12 @@ class CalibrationLibraryPanelState
     }
   }
 
-  bool _isCurrentLoad(SkotiqBackend backend, int generation) =>
-      mounted &&
-      generation == _loadGeneration &&
-      identical(ref.read(backendProvider), backend);
-
-  bool _isCurrentAuthority(SkotiqBackend authority) =>
-      mounted && identical(ref.read(backendProvider), authority);
-
   void _bumpRevision() =>
       ref.read(calibrationLibraryRevisionProvider.notifier).state++;
 
   @override
   Widget build(BuildContext context) {
-    final isRemote = ref.watch(backendProvider) is NetworkBackend;
+    final isRemote = ref.watch(backendProvider).remoteHost != null;
     final shown = _typeFilter == null
         ? _records
         : _records.where((r) => r.type == _typeFilter).toList();
@@ -279,7 +266,7 @@ class CalibrationLibraryPanelState
   }
 
   Future<void> _confirmClear(BuildContext context) async {
-    final authority = ref.read(backendProvider);
+    final scope = _scopes.begin();
     var deleteFiles = false;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -320,7 +307,7 @@ class CalibrationLibraryPanelState
       ),
     );
     if (confirmed != true) return;
-    if (!_isCurrentAuthority(authority)) {
+    if (scope.isStale) {
       _showMessage(
         'The imaging host changed; the library was not cleared.',
         isError: true,
@@ -334,7 +321,7 @@ class CalibrationLibraryPanelState
   }
 
   Future<void> _editTags(CalibrationMasterRecord record) async {
-    final authority = ref.read(backendProvider);
+    final scope = _scopes.begin();
     final tags = TextEditingController(text: record.tags.join(', '));
     final notes = TextEditingController(text: record.notes ?? '');
     final saved = await showDialog<bool>(
@@ -375,7 +362,7 @@ class CalibrationLibraryPanelState
     tags.dispose();
     notes.dispose();
     if (saved != true) return;
-    if (!_isCurrentAuthority(authority)) {
+    if (scope.isStale) {
       _showMessage(
         'The imaging host changed; the tags were not saved.',
         isError: true,
@@ -387,33 +374,19 @@ class CalibrationLibraryPanelState
         if (t.trim().isNotEmpty) t.trim(),
     ];
     try {
-      if (authority is NetworkBackend) {
-        final type = calibrationMasterTypeWireName(record.type);
-        await authority.setCalibrationMasterTags(
-          type: type,
-          id: record.id,
-          tags: tagList,
-        );
-        await authority.setCalibrationMasterNotes(
-          type: type,
-          id: record.id,
-          notes: notesText.trim(),
-        );
-      } else {
-        await _service.setTags(record.type, record.id, tagList);
-        if (!_isCurrentAuthority(authority)) return;
-        await _service.setNotes(record.type, record.id, notesText);
-      }
-      if (!_isCurrentAuthority(authority)) return;
+      await scope.value.setTags(record.type, record.id, tagList);
+      if (scope.isStale) return;
+      await scope.value.setNotes(record.type, record.id, notesText);
+      if (scope.isStale) return;
       await reload();
     } catch (e) {
-      if (!_isCurrentAuthority(authority)) return;
+      if (scope.isStale) return;
       _showMessage('Could not save the tags: $e', isError: true);
     }
   }
 
   Future<void> _confirmDelete(CalibrationMasterRecord record) async {
-    final authority = ref.read(backendProvider);
+    final scope = _scopes.begin();
     var deleteFile = false;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -456,7 +429,7 @@ class CalibrationLibraryPanelState
       ),
     );
     if (confirmed != true) return;
-    if (!_isCurrentAuthority(authority)) {
+    if (scope.isStale) {
       _showMessage(
         'The imaging host changed; nothing was deleted.',
         isError: true,
@@ -464,32 +437,24 @@ class CalibrationLibraryPanelState
       return;
     }
     try {
-      if (authority is NetworkBackend) {
-        await authority.deleteCalibrationMaster(
-          type: calibrationMasterTypeWireName(record.type),
-          id: record.id,
-          deleteFile: deleteFile,
-        );
-      } else {
-        await _service.deleteMaster(
-          record.type,
-          record.id,
-          deleteFile: deleteFile,
-        );
-      }
-      if (!_isCurrentAuthority(authority)) return;
+      await scope.value.deleteMaster(
+        record.type,
+        record.id,
+        deleteFile: deleteFile,
+      );
+      if (scope.isStale) return;
       _bumpRevision();
     } catch (e) {
-      if (!_isCurrentAuthority(authority)) return;
+      if (scope.isStale) return;
       _showMessage('Could not delete the master: $e', isError: true);
     }
   }
 
   Future<void> _publish(CalibrationMasterRecord record) async {
-    final authority = ref.read(backendProvider);
+    final scope = _scopes.begin();
     final consent = await _collectConsent(record);
     if (consent == null) return;
-    if (!_isCurrentAuthority(authority)) {
+    if (scope.isStale) {
       _showMessage(
         'The imaging host changed; the master was not shared.',
         isError: true,
@@ -497,30 +462,21 @@ class CalibrationLibraryPanelState
       return;
     }
     try {
-      if (authority is NetworkBackend) {
-        await authority.publishCalibrationMaster(
-          type: calibrationMasterTypeWireName(record.type),
-          id: record.id,
-          license: consent.license.wireName,
-          attributionName: consent.attributionName,
-        );
-      } else {
-        await _service.publishMaster(record, consent: consent);
-      }
-      if (!_isCurrentAuthority(authority)) return;
+      await scope.value.publishMaster(record, consent: consent);
+      if (scope.isStale) return;
       _showMessage(
         'Shared ${calibrationTypeLabel(record.type)} #${record.id} under '
         '${consent.license.wireName}.',
       );
       await reload();
     } catch (e) {
-      if (!_isCurrentAuthority(authority)) return;
+      if (scope.isStale) return;
       _showMessage('Could not share the master: $e', isError: true);
     }
   }
 
   Future<void> _retract(CalibrationMasterRecord record) async {
-    final authority = ref.read(backendProvider);
+    final scope = _scopes.begin();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -545,47 +501,30 @@ class CalibrationLibraryPanelState
       ),
     );
     if (confirmed != true) return;
-    if (!_isCurrentAuthority(authority)) return;
+    if (scope.isStale) return;
     try {
-      if (authority is NetworkBackend) {
-        await authority.retractCalibrationMaster(
-          type: calibrationMasterTypeWireName(record.type),
-          id: record.id,
-        );
-      } else {
-        await _service.retractPublishedMaster(record);
-      }
-      if (!_isCurrentAuthority(authority)) return;
+      await scope.value.retractPublishedMaster(record);
+      if (scope.isStale) return;
       _showMessage(
         'Stopped sharing ${calibrationTypeLabel(record.type)} #${record.id}.',
       );
       await reload();
     } catch (e) {
-      if (!_isCurrentAuthority(authority)) return;
+      if (scope.isStale) return;
       _showMessage('Could not stop sharing: $e', isError: true);
     }
   }
 
   /// Download a shared master the match check surfaced into this library.
   Future<void> acceptRemote(CalibrationMasterRecord remote) async {
-    final authority = ref.read(backendProvider);
+    final scope = _scopes.begin();
     try {
-      final String message;
-      if (authority is NetworkBackend) {
-        final outcome = await authority.acceptRemoteCalibrationMaster(remote);
-        message = _acceptMessage(
-          outcome['kind'] as String?,
-          outcome['reason'] as String?,
-        );
-      } else {
-        final outcome = await _service.acceptRemoteMaster(remote);
-        message = _acceptMessage(outcome.kind.name, outcome.reason);
-      }
-      if (!_isCurrentAuthority(authority)) return;
-      _showMessage(message);
+      final outcome = await scope.value.acceptSharedMaster(remote);
+      if (scope.isStale) return;
+      _showMessage(_acceptMessage(outcome.kind, outcome.reason));
       _bumpRevision();
     } catch (e) {
-      if (!_isCurrentAuthority(authority)) return;
+      if (scope.isStale) return;
       _showMessage('Could not pull the shared master: $e', isError: true);
     }
   }
@@ -600,8 +539,9 @@ class CalibrationLibraryPanelState
       };
 
   Future<void> _download(CalibrationMasterRecord record) async {
-    final backend = ref.read(backendProvider);
-    if (backend is! NetworkBackend || _downloadingId != null) return;
+    final scope = _scopes.begin();
+    final download = scope.value.masterFileDownload(record);
+    if (download == null || _downloadingId != null) return;
     setState(() => _downloadingId = record.id);
     try {
       final name = (record.filePath ?? '').split(RegExp(r'[/\\]')).last;
@@ -609,9 +549,9 @@ class CalibrationLibraryPanelState
         fileName: name.isEmpty ? 'dark-${record.id}.fits' : name,
         tempKey: 'dark-${record.id}',
         fetch: (localPath, onProgress) =>
-            backend.downloadDark(record.id, localPath, onProgress: onProgress),
+            download(localPath, onProgress: onProgress),
       );
-      if (!mounted || !_isCurrentAuthority(backend)) return;
+      if (!mounted || scope.isStale) return;
       switch (outcome.status) {
         case FileDownloadStatus.saved:
           context.showSuccessSnackBar('Saved to ${outcome.savedPath}');

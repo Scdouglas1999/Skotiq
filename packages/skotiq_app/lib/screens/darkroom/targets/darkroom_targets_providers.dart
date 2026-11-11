@@ -80,7 +80,7 @@ final darkroomTargetCalibrationProvider = FutureProvider.autoDispose
   final targets = await ref.watch(darkroomTargetsProvider.future);
   final target = targets.where((t) => t.key == key).firstOrNull;
   if (target == null) return const [];
-  final library = ref.watch(calibrationLibraryServiceProvider);
+  final library = ref.watch(calibrationLibraryProvider);
   final result = <DarkroomFilterCalibration>[];
   for (final channel in target.channels) {
     final subs = [

@@ -184,7 +184,8 @@ class _DepthLockRegionCommitHostState
       _matchMasters(DepthLockGoalDefinition definition) async {
     final acquisition = definition.acquisition;
     try {
-      final matches = await ref.read(calibrationLibraryServiceProvider).match(
+      final scope = ref.backendScope();
+      final matches = await ref.read(calibrationLibraryProvider).match(
             LightFrameContext(
               gain: acquisition.gain,
               offset: acquisition.offset,
@@ -195,6 +196,7 @@ class _DepthLockRegionCommitHostState
               binY: acquisition.binY,
             ),
           );
+      scope.ensureCurrent('the calibration library was matching');
       // The library's own warnings (a hub not consulted, an unverified
       // dimension) are context, not the reason a master is missing. The
       // reason the operator needs is which acquisition nothing matched.
