@@ -60,12 +60,10 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
     // node_palette_search.dart.
     final filteredCategories = rankNodePaletteMatches(categories, _searchQuery);
 
-    // Mobile bottom sheet layout
     if (widget.isMobileSheet) {
       return _buildMobileSheetContent(filteredCategories);
     }
 
-    // Desktop sidebar layout
     return _buildDesktopSidebarContent(filteredCategories);
   }
 
@@ -74,7 +72,6 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Handle bar
         Center(
           child: Container(
             margin: const EdgeInsets.only(top: 12, bottom: 8),
@@ -87,7 +84,6 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
           ),
         ),
 
-        // Header with search
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Column(
@@ -110,7 +106,6 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
                 ],
               ),
               const SizedBox(height: 12),
-              // Search
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
@@ -167,7 +162,6 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
 
         Divider(color: widget.colors.border, height: 1),
 
-        // Categories list - using provided scroll controller for DraggableScrollableSheet
         Expanded(
           child: ScrollConfiguration(
             behavior: ScrollConfiguration.of(context).copyWith(
@@ -223,7 +217,6 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Container(
               padding: EdgeInsets.all(headerPadding),
               decoration: BoxDecoration(
@@ -268,7 +261,6 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
                     ],
                   ),
                   SizedBox(height: Responsive.spacing(context, 12)),
-                  // Search
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: searchPadding),
                     decoration: BoxDecoration(
@@ -325,7 +317,6 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
               ),
             ),
 
-            // Categories
             Expanded(
               child: ScrollConfiguration(
                 behavior: ScrollConfiguration.of(context).copyWith(
@@ -367,7 +358,6 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
             // Category color legend so the palette is self-describing.
             _PaletteColorLegend(colors: widget.colors),
 
-            // Help tip
             Container(
               padding: EdgeInsets.all(tipPadding),
               margin:
@@ -441,7 +431,6 @@ class _CategorySectionState extends ConsumerState<_CategorySection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Category header
         InkWell(
           onTap: () => setState(() => _isExpanded = !_isExpanded),
           child: Padding(
@@ -490,7 +479,6 @@ class _CategorySectionState extends ConsumerState<_CategorySection> {
           ),
         ),
 
-        // Items
         AnimatedCrossFade(
           firstChild: Padding(
             padding: EdgeInsets.only(

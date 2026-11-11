@@ -24,7 +24,6 @@ class _AutofocusProgressPanelState
 
   @override
   Widget build(BuildContext context) {
-    // Try to parse structured JSON progress data
     final afData = AutofocusProgressData.tryParse(widget.detail);
 
     // Compatibility fallback: older / remote backends that have not been
@@ -110,7 +109,6 @@ class _AutofocusProgressPanelState
     });
 
     try {
-      // Get the camera device ID from the camera state
       final cameraState = ref.read(cameraStateProvider);
       final deviceId = cameraState.deviceId;
 
@@ -121,7 +119,6 @@ class _AutofocusProgressPanelState
         return;
       }
 
-      // Request fresh star crops from the backend
       final backend = ref.read(imagingBackendProvider);
       final crops =
           await backend.getStarCropsFromLastImage(deviceId, maxCrops: 5);
@@ -150,15 +147,12 @@ class _AutofocusProgressPanelState
   }
 
   Widget _buildEnhancedPanel(AutofocusProgressData data) {
-    // Use refreshed crops if available, otherwise use data from progress events
     final starCrops = _refreshedCrops ?? data.starCrops;
 
-    // Ensure star index is valid
     if (_currentStarIndex >= starCrops.length) {
       _currentStarIndex = 0;
     }
 
-    // Clear refreshed crops when new progress data arrives with different crops
     if (_refreshedCrops != null &&
         data.starCrops.isNotEmpty &&
         data.starCrops.first.pixelsBase64 !=
@@ -175,12 +169,10 @@ class _AutofocusProgressPanelState
           _buildHeader(data.point, data.totalPoints),
           const SizedBox(height: 12),
 
-          // V-curve with star zoom overlay
           SizedBox(
             height: 120,
             child: Stack(
               children: [
-                // V-curve chart (fills the whole area)
                 Positioned.fill(
                   child: Container(
                     decoration: BoxDecoration(
@@ -200,7 +192,6 @@ class _AutofocusProgressPanelState
                   ),
                 ),
 
-                // Star zoom panel (top-left corner overlay)
                 if (starCrops.isNotEmpty)
                   Positioned(
                     left: 4,
@@ -227,7 +218,6 @@ class _AutofocusProgressPanelState
           ),
           const SizedBox(height: 8),
 
-          // Stats row
           Row(
             children: [
               _StatBox(
@@ -248,7 +238,6 @@ class _AutofocusProgressPanelState
           ),
           const SizedBox(height: 8),
 
-          // Progress bar
           _AnimatedProgressBar(
               colors: widget.colors,
               progress: widget.progressPercent / 100.0,
@@ -280,5 +269,3 @@ class _AutofocusProgressPanelState
     );
   }
 }
-
-/// Star zoom panel with navigation arrows
