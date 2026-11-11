@@ -47,7 +47,6 @@ class SubCullRail extends ConsumerStatefulWidget {
   /// Open the per-sub detail dialog.
   final void Function(DbCapturedImage) onTapSub;
 
-  /// Flip a single sub's accept flag.
   final void Function(int imageId, bool accepted) onSetAccepted;
 
   /// Reject every accepted sub above [hfrThreshold] (the threshold-bulk cull).
@@ -90,15 +89,12 @@ class SubCullRail extends ConsumerStatefulWidget {
 }
 
 class _SubCullRailState extends ConsumerState<SubCullRail> {
-  // blink
   bool _blink = false;
   int _blinkIndex = 0;
   Timer? _blinkTimer;
 
-  // threshold bulk-cull
   double _hfrCull = 3.5;
 
-  // multi-select / lasso
   bool _selectMode = false;
   final Set<int> _selected = <int>{};
 

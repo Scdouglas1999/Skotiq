@@ -80,7 +80,6 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   void initState() {
     super.initState();
-    // Initialize window manager if on desktop
     if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
       window_impl.initWindowManager(
         this,
@@ -101,7 +100,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     );
   }
 
-  /// Handle window close request - show confirmation if needed
   Future<bool> _onCloseRequested() async {
     final sessionState = ref.read(sessionStateProvider);
     final sequenceState = ref.read(sequenceExecutionStateProvider);
@@ -137,7 +135,6 @@ class _AppShellState extends ConsumerState<AppShell> {
       return _flushEditsBeforeClose();
     }
 
-    // Show confirmation dialog
     final shouldClose = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -214,7 +211,6 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   @override
   void dispose() {
-    // Dispose window manager if on desktop
     if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
       window_impl.disposeWindowManager(this);
     }
@@ -531,7 +527,6 @@ class _AppShellState extends ConsumerState<AppShell> {
                                 ),
                               ),
 
-                            // Main content
                             Expanded(
                               child: Row(
                                 children: [
@@ -608,18 +603,12 @@ class _AppShellState extends ConsumerState<AppShell> {
                                           if (!useBottomNav)
                                             const DisconnectedBackendBanner(),
 
-                                          // iOS background-monitoring
-                                          // advisory.
                                           const IosBackgroundBanner(),
 
-                                          // Android POST_NOTIFICATIONS
-                                          // advisory.
                                           const AndroidNotificationsBanner(),
 
-                                          // Stale-connection advisory.
                                           const ConnectionStaleBanner(),
 
-                                          // Weather Alert Banner
                                           const WeatherAlertBanner(),
 
                                           Expanded(
