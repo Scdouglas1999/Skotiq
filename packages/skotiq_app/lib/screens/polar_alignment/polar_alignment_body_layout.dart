@@ -57,10 +57,6 @@ class PolarAlignmentBodyLayout extends StatelessWidget {
   static const double leftPanelMin = 240;
   static const double rightPanelMin = 280;
 
-  /// Legacy names — same as preferred widths.
-  static const double leftPanelWidth = leftPanelPreferred;
-  static const double rightPanelWidth = rightPanelPreferred;
-
   /// Computes side panel widths for [width] so the center column is at least
   /// [minCenterWidth], shrinking sides down to their minimums first.
   static ({double left, double right}) panelWidthsForWide(double width) {

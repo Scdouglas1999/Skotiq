@@ -13,7 +13,7 @@ import 'widgets/name_region_sheet.dart';
 
 /// Pillar A ("Your Sky") — the personal growing all-sky atlas.
 ///
-/// A top-level shell destination that shows the regions the observer has imaged
+/// Shows the regions the observer has imaged
 /// as deep, co-added previews, the atlas-wide growth ("4h deeper than
 /// yesterday"), and a coverage heat summary. Tapping a region opens the
 /// [RegionDetailScreen] with its co-added cutout and a time-scrub control.
@@ -22,23 +22,8 @@ import 'widgets/name_region_sheet.dart';
 /// so the screen works unchanged on the desktop `FfiBackend` and the mobile
 /// `NetworkBackend` (the latter resolving the same calls over the headless
 /// `/api/atlas/*` routes).
-class YourSkyScreen extends StatelessWidget {
-  const YourSkyScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: const SafeArea(
-        bottom: false,
-        child: YourSkyView(),
-      ),
-    );
-  }
-}
-
-/// Scaffold-free body so the atlas can also be embedded (e.g. a dashboard tab).
+///
+/// Scaffold-free: the Plan screen embeds it as a tab.
 class YourSkyView extends ConsumerWidget {
   const YourSkyView({super.key});
 

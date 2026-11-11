@@ -88,7 +88,7 @@ void main() {
     // the default MockBackend.
     await pumpAppScreen(
       tester,
-      const DiagnosticsScreen(),
+      const DiagnosticsTabContent(showTitle: true),
       size: const Size(1280, 800),
       settle: false,
       extraOverrides: _diagnosticsOverrides(),
@@ -112,7 +112,7 @@ void main() {
     // (no "select" prompt).
     await pumpAppScreen(
       tester,
-      const DiagnosticsScreen(),
+      const DiagnosticsTabContent(showTitle: true),
       size: const Size(1280, 800),
       settle: false,
       extraOverrides: _diagnosticsOverrides(),
@@ -140,7 +140,7 @@ void main() {
       (tester) async {
     await pumpAppScreen(
       tester,
-      const DiagnosticsScreen(),
+      const DiagnosticsTabContent(showTitle: true),
       size: const Size(1280, 800),
       settle: false,
       extraOverrides: _diagnosticsOverrides(),

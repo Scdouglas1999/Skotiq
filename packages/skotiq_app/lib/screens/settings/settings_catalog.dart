@@ -742,22 +742,6 @@ const Map<String, String> kMergedSectionAliases = {
   'calibration-library': 'calibration',
 };
 
-/// Resolves a deep-link [key] (including merged-away aliases) to the section
-/// that should open, or `null` if no section matches.
-SettingsSectionDef? resolveSection(
-  List<SettingsGroupDef> groups,
-  String? key,
-) {
-  final resolvedKey = resolveSectionKey(key);
-  if (resolvedKey == null) return null;
-  for (final group in groups) {
-    for (final section in group.sections) {
-      if (section.key == resolvedKey) return section;
-    }
-  }
-  return null;
-}
-
 /// Resolves a deep-link [key] (including merged-away aliases) to the stable
 /// section key that should open, or `null` if [key] is null or unknown.
 ///

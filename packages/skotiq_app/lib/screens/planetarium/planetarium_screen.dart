@@ -1,13 +1,11 @@
 import 'dart:async';
 import 'dart:developer' as developer;
-import 'dart:math' as math;
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -15,16 +13,11 @@ import '../../services/finder_chart_service.dart';
 import '../../services/fov_presets_sync_service.dart';
 import '../../utils/plan_tonight_sequencer_helper.dart';
 import 'providers/sequenced_object_ids_provider.dart';
-import 'widgets/filter_sidebar.dart';
-import 'widgets/top_overlay.dart';
 import 'widgets/bottom_info_bar.dart';
-import 'widgets/view_controls.dart';
-import 'widgets/slew_controls.dart';
 import 'widgets/search_header.dart';
 import 'widgets/sidebar_tabs.dart';
 import 'widgets/object_info_popup.dart';
 import 'widgets/mobile_widgets.dart';
-import 'widgets/mobile_overlay_layout.dart';
 import 'providers/device_orientation_provider.dart';
 import 'providers/finder_chart_catalog_provider.dart';
 import '../../services/mount_command_service.dart';
@@ -43,7 +36,6 @@ import 'show_in_sky.dart';
 import '../imaging/centering_dialog.dart';
 
 part 'planetarium_screen/actions.dart';
-part 'planetarium_screen/layouts.dart';
 part 'planetarium_screen/local_widgets.dart';
 part 'widgets/redesign/planetarium_shell.dart';
 part 'planetarium_screen/sheets.dart';
@@ -115,7 +107,10 @@ class _PlanetariumScreenState extends ConsumerState<PlanetariumView>
   CelestialObject? _popupObject;
   final GlobalKey _skyViewKey = GlobalKey();
 
-  // Slew mode state
+  // Tap-to-slew. Nothing sets this: its toggle lived in the layouts the
+  // redesigned shell replaced (SlewControls / MobileSlewControls are the
+  // unmounted controls). Kept so the mode can be wired back in.
+  // ignore: prefer_final_fields
   bool _slewMode = false;
 
   // FOV overlay state
@@ -128,9 +123,6 @@ class _PlanetariumScreenState extends ConsumerState<PlanetariumView>
   // an unrelated dependency change doesn't yank the view back to it after the
   // user has panned away.
   String? _appliedSkyTargetQuery;
-
-  // Filter sidebar expansion state for the desktop layout.
-  bool _filterSidebarExpanded = false;
 
   // Redesigned shell: which right-docked panel is open (desktop). Mutually
   // exclusive; on phone these surface as bottom sheets instead.

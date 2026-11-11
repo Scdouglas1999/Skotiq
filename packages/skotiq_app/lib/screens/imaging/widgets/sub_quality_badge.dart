@@ -29,7 +29,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 ///   ([FrameGradeRules.hasActiveRules]).
 /// * [guideStatsProvider] — live total RMS in **arcseconds**
 ///   ([Phd2GuideStats.rmsTotal] is PHD2's calibrated arcsecond residual; see
-///   its field docs and the `GuideHealthCard` arcsecond readout), fed into
+///   its field docs), fed into
 ///   [FrameGradeRules.gradeStats] against [FrameGradeRules.maxGuidingRmsTotalArcsec]
 ///   so a guiding excursion can reject a sub exactly as the auto-grader would.
 ///   Units match end to end: the threshold, the live value, and the rendered
@@ -132,8 +132,8 @@ _Grade _grade(WidgetRef ref, ImageStats stats, double? injectedEccentricity) {
   );
   // Live guiding RMS (arcseconds) only matters for the verdict; select the
   // single field so the badge does not rebuild on every unrelated guide-stat
-  // tick. This is the same arcsecond value GuideHealthCard renders, compared
-  // against the arcsecond maxGuidingRmsTotalArcsec threshold.
+  // tick. The value is in arcseconds, compared against the arcsecond
+  // maxGuidingRmsTotalArcsec threshold.
   final guidingRmsTotal = ref.watch(
     guideStatsProvider.select((s) => s.rmsTotal),
   );

@@ -27,7 +27,7 @@ Widget _surface(SkotiqBackend backend) {
         (ref) => Stream.value(const <AtlasTileCoverage>[]),
       ),
     ],
-    child: const MaterialApp(home: YourSkyScreen()),
+    child: const MaterialApp(home: Scaffold(body: YourSkyView())),
   );
 }
 

@@ -8,8 +8,6 @@ import '../screens/imaging/imaging_screen.dart';
 import '../screens/guiding/guiding_screen.dart';
 import '../screens/sequencer/sequencer_screen.dart';
 import '../screens/sequencer/widgets/replay_debug_screen.dart';
-import '../screens/planetarium/planetarium_screen.dart';
-import '../screens/framing/framing_screen.dart';
 import '../screens/analytics/analytics_screen.dart';
 import '../screens/darkroom/darkroom_route.dart' show DarkroomRoute;
 import '../screens/darkroom/darkroom_screen.dart';
@@ -25,22 +23,13 @@ import '../screens/settings/settings_screen.dart';
 import '../screens/settings/widgets/calibration_redirect.dart';
 import '../screens/settings/plate_solving_settings_screen.dart';
 import '../screens/polar_alignment/polar_alignment_screen.dart';
-import '../screens/transients/transients_screen.dart';
-import '../screens/your_sky/your_sky_screen.dart';
-import '../screens/constellation/constellation_screen.dart';
 import '../screens/planner/planner_screen.dart';
 import '../screens/tonight/tonight_screen.dart';
-import '../screens/diagnostics/diagnostics_screen.dart';
 import '../screens/diagnostics/diagnostic_dump_screen.dart';
 import '../screens/tutorial/first_night_wizard_route.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../widgets/first_light/first_light_launcher.dart';
 import 'page_transitions.dart';
-
-/// Optional top-level routes registered by an app entry point (e.g. desktop
-/// dev screens). Defaults to empty so mobile/web builds are unaffected.
-final extraTopLevelRoutesProvider =
-    Provider<List<RouteBase>>((ref) => const []);
 
 /// Where the standalone `/planetarium` deep-link lands.
 ///
@@ -55,11 +44,9 @@ String planetariumRedirectLocation(Uri uri) {
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final extraRoutes = ref.watch(extraTopLevelRoutesProvider);
   return GoRouter(
     initialLocation: '/dashboard',
     routes: [
-      ...extraRoutes,
       // Phone-tailored dashboard lives outside the shell because it
       // brings its own scaffold + bottom-nav and the desktop AppShell
       // would double-up the chrome and steal the bottom 78 px from the
@@ -154,11 +141,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             name: 'planetarium',
             redirect: (context, state) =>
                 planetariumRedirectLocation(state.uri),
-            pageBuilder: (context, state) => const CustomTransitionPage(
-              child: PlanetariumScreen(),
-              transitionsBuilder: PageTransitions.slideFadeTransition,
-              transitionDuration: Duration(milliseconds: 300),
-            ),
           ),
           // Framing is a first-class Plan Tonight tab. This standalone path is
           // kept for deep-link compatibility (the framing handoff passes
@@ -173,11 +155,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               final q = state.uri.query;
               return '/planner?tab=framing${q.isEmpty ? '' : '&$q'}';
             },
-            pageBuilder: (context, state) => const CustomTransitionPage(
-              child: FramingScreen(),
-              transitionsBuilder: PageTransitions.slideFadeTransition,
-              transitionDuration: Duration(milliseconds: 300),
-            ),
           ),
           GoRoute(
             path: '/analytics',
@@ -414,11 +391,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             name: 'transients',
             redirect: (context, state) =>
                 '/analytics?tab=science&view=transients',
-            pageBuilder: (context, state) => const CustomTransitionPage(
-              child: TransientsScreen(),
-              transitionsBuilder: PageTransitions.slideFadeTransition,
-              transitionDuration: Duration(milliseconds: 300),
-            ),
           ),
           // Pillar A ("Your Sky") — the personal growing all-sky atlas. Now nested
           // under Plan Tonight → Discover; this path is kept for deep-link
@@ -428,11 +400,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/your-sky',
             name: 'your-sky',
             redirect: (context, state) => '/planner?tab=discover&view=yoursky',
-            pageBuilder: (context, state) => const CustomTransitionPage(
-              child: YourSkyScreen(),
-              transitionsBuilder: PageTransitions.slideFadeTransition,
-              transitionDuration: Duration(milliseconds: 300),
-            ),
           ),
           // Pillar C ("Constellation") — the community swarm surface. Now nested
           // under Plan Tonight → Discover; this path is kept for deep-link
@@ -443,11 +410,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             name: 'constellation',
             redirect: (context, state) =>
                 '/planner?tab=discover&view=constellation',
-            pageBuilder: (context, state) => const CustomTransitionPage(
-              child: ConstellationScreen(),
-              transitionsBuilder: PageTransitions.slideFadeTransition,
-              transitionDuration: Duration(milliseconds: 300),
-            ),
           ),
           // Collaborative Sky (6.0 pillar) — the unified distributed-imaging
           // surface (co-imaging, mosaics, shared calibration). Nested under Plan
@@ -503,11 +465,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/diagnostics',
             name: 'diagnostics',
             redirect: (context, state) => '/analytics?tab=diagnostics',
-            pageBuilder: (context, state) => const CustomTransitionPage(
-              child: DiagnosticsScreen(),
-              transitionsBuilder: PageTransitions.slideFadeTransition,
-              transitionDuration: Duration(milliseconds: 300),
-            ),
           ),
           // Bug-report bundle: zip up logs/profile/sequence/system info into
           // one attachment. Lives at /diagnostics/dump (not under /settings)

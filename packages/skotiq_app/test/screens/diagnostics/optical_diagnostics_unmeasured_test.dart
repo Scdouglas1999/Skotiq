@@ -82,7 +82,7 @@ void main() {
       (tester) async {
     await pumpAppScreen(
       tester,
-      const DiagnosticsScreen(),
+      const DiagnosticsTabContent(showTitle: true),
       size: const Size(1400, 1200),
       settle: false,
       extraOverrides: _overrides(tiles: const [], residuals: const []),
@@ -113,7 +113,7 @@ void main() {
     // the tilt penalty is genuinely near zero and the green verdict is earned.
     await pumpAppScreen(
       tester,
-      const DiagnosticsScreen(),
+      const DiagnosticsTabContent(showTitle: true),
       size: const Size(1400, 1200),
       settle: false,
       extraOverrides: _overrides(

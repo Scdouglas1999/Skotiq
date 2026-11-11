@@ -1,9 +1,8 @@
-// ignore_for_file: unused_element_parameter
 
 part of '../analytics_screen.dart';
 
 class _HistoryTab extends ConsumerStatefulWidget {
-  const _HistoryTab({super.key});
+  const _HistoryTab();
 
   @override
   ConsumerState<_HistoryTab> createState() => _HistoryTabState();

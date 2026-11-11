@@ -43,9 +43,6 @@ final selectedEquipmentProfileIdProvider = StateProvider<int?>((ref) {
 /// 1 Profiles, 2 Optical train.
 final equipmentTabIndexProvider = StateProvider<int>((ref) => 0);
 
-/// Whether the profile sidebar is collapsed (icon-only mode)
-final equipmentSidebarCollapsedProvider = StateProvider<bool>((ref) => false);
-
 /// Whether the right-hand side panel (profile, readiness, system health) is
 /// collapsed. Desktop-only; below [ShellChromeMetrics.shellLayoutBreakpoint]
 /// its content scrolls under the device grid instead.

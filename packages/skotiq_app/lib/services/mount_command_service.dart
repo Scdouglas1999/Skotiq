@@ -320,46 +320,6 @@ class MountCommandService {
     });
   }
 
-  /// Slews the mount to the specified Alt/Az coordinates.
-  Future<CommandActionResult> slewToAltAz(
-    double altitude,
-    double azimuth, {
-    bool showFeedback = true,
-  }) async {
-    if (!altitude.isFinite || altitude < -90 || altitude > 90) {
-      return const CommandActionResult.failure(
-        'Altitude must be between -90 and +90 degrees',
-      );
-    }
-    if (!azimuth.isFinite || azimuth < 0 || azimuth > 360) {
-      return const CommandActionResult.failure(
-        'Azimuth must be between 0 and 360 degrees',
-      );
-    }
-    return _runExclusive((deviceId) async {
-      try {
-        final capabilities = await _getCapabilities(deviceId);
-        final changed = _connectionChanged(deviceId);
-        if (changed != null) return changed;
-        if (!capabilities.supportsAltAz) {
-          return const CommandActionResult.failure(
-            'This mount reports that Alt/Az slewing is unsupported',
-          );
-        }
-        await _deviceService.slewMountToAltAz(altitude, azimuth);
-        if (showFeedback) {
-          return CommandActionResult.success(
-            message:
-                'Alt/Az slew complete at ${altitude.toStringAsFixed(1)}°, ${azimuth.toStringAsFixed(1)}°',
-          );
-        }
-        return CommandActionResult.ok;
-      } catch (e) {
-        return CommandActionResult.failure('Alt/Az slew failed: $e');
-      }
-    });
-  }
-
   /// Sends the mount to its home position and reports where it ended up.
   ///
   /// Homing is not parking: the mount is left unparked and commandable. A

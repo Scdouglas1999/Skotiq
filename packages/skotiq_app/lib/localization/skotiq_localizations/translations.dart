@@ -3,9 +3,7 @@ part of '../skotiq_localizations.dart';
 
 final Map<String, Map<String, String>> _localizedValues = {
   'en': {
-    'appTitle': 'Skotiq',
     'cancel': 'Cancel',
-    'clearGoal': 'Clear Goal',
     'closeAnyway': 'Close Anyway',
     'closeSkotiqBody':
         'Skotiq is controlling active imaging equipment. Closing now can interrupt captures and may leave the mount tracking or the camera cooler running. Stop operations and safe the rig first, or close anyway only if another controller is taking over.',
@@ -18,8 +16,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'generalAutoConnectDesc':
         'Connects the default startup profile on launch, falling back to the '
             'last active profile when no default is set',
-    'generalAutoSaveSequences': 'Auto-save sequences',
-    'generalAutoSaveSequencesDesc': 'Automatically save sequence changes',
     'generalBehavior': 'Behavior',
     'generalConfirmBeforeClosing': 'Confirm before closing',
     'generalConfirmBeforeClosingDesc':
@@ -125,7 +121,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'savedServersReachable': 'Reachable',
     'savedServersUnreachableShort': 'Unreachable',
     'navAnalytics': 'Analytics',
-    'navScience': 'Science',
     // The rail groups (04 §3.2). Rendered as 11px uppercase eyebrows above
     // each group when the rail is expanded.
     // The command palette's field, which doubles as the top bar's placeholder.
@@ -141,22 +136,16 @@ final Map<String, Map<String, String>> _localizedValues = {
     'navTonight': 'Tonight',
     'navEquipment': 'Equipment',
     'navFlatWizard': 'Flat wizard',
-    'navFraming': 'Framing',
     'navGuiding': 'Guiding',
     'navImaging': 'Imaging',
-    'navPlanetarium': 'Planetarium',
     'navSequencer': 'Sequencer',
     'navWeather': 'Weather',
     'navPlan': 'Plan',
     'navDarkroom': 'Darkroom',
     // Short forms for the phone bottom nav — five slots at ~76dp each.
-    'navEquipmentShort': 'Gear',
     'navImagingShort': 'Imaging',
     'navSequencerShort': 'Sequencer',
     'navGuidingShort': 'Guiding',
-    'navYourSky': 'Your Sky',
-    'navConstellation': 'Constellation',
-    'navTransients': 'Transients',
     'navMore': 'More',
     'save': 'Save',
     'searchForServer': 'Search for Server',
@@ -167,9 +156,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'settingsCalibration': 'Calibration',
     'settingsCatalogs': 'Catalogs',
     'settingsConnection': 'Connection',
-    'settingsDarkLibrary': 'Dark library',
     'settingsEquipmentProfiles': 'Equipment profiles',
-    'settingsFilePaths': 'File paths',
     // Settings sidebar GROUP headers. Distinct from the structural
     // `kGroupTitles` identifiers, which must stay English.
     'settingsSearchHint': 'Search settings…',
@@ -189,36 +176,24 @@ final Map<String, Map<String, String>> _localizedValues = {
     'settingsNotifications': 'Notifications',
     'settingsPhd2Guiding': 'PHD2 guiding',
     'settingsPlateSolving': 'Plate solving',
-    'settingsPlugins': 'Plugins',
     'settingsRemoteAccess': 'Remote access',
     'settingsScience': 'Science',
     'settingsSequencer': 'Sequencer',
     'settingsLogs': 'Logs',
-    'settingsAutoSave': 'Auto-save',
     'settingsObservationLog': 'Observation log',
     'settingsObservingLists': 'Observing lists',
     'settingsTitle': 'Settings',
-    'settingsDesc': 'Preferences & profiles',
-    'settingsTourDescription':
-        'Learn how to configure your Skotiq preferences.',
-    'settingsTourTitle': 'Settings tour',
     'settingsWeatherSafety': 'Weather safety',
     'share': 'Share',
-    'analyticsAllTargets': 'All targets',
-    'analyticsAllTime': 'All Time',
     'analyticsAvgHfr': 'Avg HFR',
     'analyticsAvgRms': 'Avg RMS',
     'analyticsCapturedImages': 'Captured images',
     'analyticsClearGoal': 'Clear Goal',
-    'analyticsComplete': 'Complete',
     'analyticsCurrentSession': 'Current Session',
-    'analyticsCustomTarget': 'Custom target',
     'analyticsDiagnostics': 'Diagnostics',
     'analyticsDuration': 'Duration',
     'analyticsEditGoal': 'Edit Goal',
-    'analyticsEquipmentStats': 'Equipment Stats',
     'analyticsAcceptedLights': 'Accepted',
-    'analyticsCameraReturned': 'Camera Returned',
     'analyticsExposureCountsLightOnly':
         'Exposure counts are light frames only. "Camera Returned" is what the '
             'camera handed back; "Accepted" and "Rejected" are what the culling '
@@ -231,53 +206,33 @@ final Map<String, Map<String, String>> _localizedValues = {
     'analyticsExportCsv': 'Export to CSV',
     'analyticsExportHtml': 'Export HTML report',
     'analyticsExportJson': 'Export to JSON',
-    'analyticsFailed': 'Failed',
     // The image list holds every frame on disk; the exposure counters beside
     // it only ever counted lights. Both captions exist so the two numbers
     // cannot be read as disagreeing versions of one count.
     'analyticsFrameMix': '{light} light \u00B7 {calibration} calibration',
-    'analyticsFrames': 'Frames',
-    'analyticsGoal': 'Goal',
     'analyticsGoalDialogTitle': 'Set integration goal for {target}',
     'analyticsGoalHours': 'Goal integration (hours)',
     'analyticsHistory': 'History',
     'analyticsImages': 'Images ({count})',
-    'analyticsIntegrated': 'Integrated',
     'analyticsIntegration': 'Integration',
-    'analyticsLastImaged': 'Last imaged {time}',
     'analyticsNoActiveSession': 'No Active Session',
-    'analyticsNoProjects': 'No targets available for project tracking yet.',
     'analyticsNoSessionHistory': 'No session history',
     'analyticsNoSessionHistoryDesc':
         'Complete an imaging session to see history here',
     'analyticsNoSessionInProgress': 'No session in progress',
-    'analyticsNotSet': 'Not set',
     'analyticsProjects': 'Projects',
-    // Scoped to the badges themselves: the Science tab ships a frame grader
-    // that DOES reject frames (it stamps rejection_reason 'Auto-grade: ...'),
-    // so a blanket "no frames are auto-rejected" was false the moment it ran.
-    'analyticsQualityAdvisory':
-        'Quality badges are advisory and never change acceptance on their own. '
-            'Nothing is deleted. Science > Grade frames is what rejects frames.',
     'analyticsQuickCapture': 'Quick Capture',
     'analyticsQuickCaptureSubtitle':
         'Standalone snapshots taken outside sequences',
-    'analyticsRemaining': 'Remaining',
     'analyticsSave': 'Save',
     'analyticsScience': 'Science',
     'analyticsSearchSessions': 'Search sessions...',
     'analyticsSession': 'Session',
     'analyticsSessionInProgress': 'Session in progress',
-    'analyticsSessions': 'Sessions',
     'analyticsSetGoal': 'Set Goal',
     'analyticsStarted': 'Started: {time}',
     'analyticsStatistics': 'Statistics',
-    'analyticsThisMonth': 'This Month',
-    'analyticsThisYear': 'This Year',
     'analyticsTotalExposures': 'Total exposures',
-    'analyticsTourDescription':
-        'Learn how to analyze your imaging data and session statistics.',
-    'analyticsTourTitle': 'Analytics tour',
     'analyticsUnnamedSession': 'Unnamed Session',
     'weatherSafetyActions': 'Safety Actions',
     'weatherSafetyAlertDistance': 'Alert distance',
@@ -325,31 +280,19 @@ final Map<String, Map<String, String>> _localizedValues = {
     'rate': 'Rate',
     'unpark': 'Unpark',
     'park': 'Park',
-    'track': 'Track',
     'stop': 'Stop',
-    'abortSlew': 'Abort Slew',
     'capturing': 'Capturing',
     'idle': 'Idle',
     'sequenceRunning': 'Running',
     'sequencePaused': 'Paused',
-    'sequenceStopping': 'Stopping…',
     'temp': 'Temp',
     'focus': 'Focus',
     'hfr': 'HFR',
     'rms': 'RMS',
-    // Night-context chip (command bar): {time} is a duration like "1h 23m"
-    // or a clock time like "20:14".
-    'darkIn': 'Dark in {time}',
-    'darkLeft': 'Dark {time} left',
-    'sunsetAt': 'Sunset {time}',
-    'livePreview': 'Live preview',
-    'noImage': 'No Image',
-    'noCameraConnected': 'No camera connected',
     'guiding': 'Guiding',
     'disconnected': 'Disconnected',
     'stopping': 'Stopping...',
     'starting': 'Starting...',
-    'connectGuider': 'Connect guider',
     'ok': 'OK',
     'off': 'Off',
     'autofocus': 'Autofocus',
@@ -358,8 +301,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'slewing': 'Slewing',
     'parked': 'Parked',
     'tracking': 'Tracking',
-    'pos': 'Pos',
-    'noData': 'No data',
     'remoteAccessTitle': 'Remote access',
     'remoteAccessDescription':
         'Configure the web dashboard and remote control server.',
@@ -370,7 +311,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'remoteAccessPortTitle': 'Server port',
     'remoteAccessPortDesc':
         'Port for the remote-access server. Changes rebind the server automatically.',
-    'remoteAccessStatusTitle': 'Status',
     'remoteAccessServerStatus': 'Server status',
     'remoteAccessRunning': 'Running',
     'remoteAccessStopped': 'Stopped',
@@ -381,12 +321,9 @@ final Map<String, Map<String, String>> _localizedValues = {
     'remoteAccessScopeLocal': 'Local machine only',
     'remoteAccessScopeLan': 'Local machine and LAN',
     'remoteAccessDashboard': 'Dashboard files',
-    'remoteAccessDashboardAvailable': 'Available',
     'remoteAccessDashboardServing': 'Installed, being served',
     'remoteAccessDashboardIdle': 'Installed, not served (server stopped)',
     'remoteAccessDashboardMissing': 'Static files missing',
-    'remoteAccessLocalUrl': 'Local URL',
-    'remoteAccessLanUrl': 'LAN URL',
     'remoteAccessActiveViewers': 'Active Viewers',
     'remoteAccessLastError': 'Last error',
     'remoteAccessNoErrors': 'None',
@@ -402,8 +339,6 @@ final Map<String, Map<String, String>> _localizedValues = {
         'Start pairing mode to show a QR code and pairing phrase on this screen.',
     'remoteAccessQrNoLanIp':
         'Could not detect a LAN IP for this PC. QR pairing needs your Wi‑Fi address (e.g. 192.168.x.x). Check network settings, then restart remote access.',
-    'remoteAccessInfoBody':
-        'Desktop remote access serves the same dashboard locally and on your LAN. Localhost stays frictionless for this machine, while non-local clients must pair before they can control the app.',
     'remoteAccessCopiedUrl': 'Copied {url} to clipboard',
     'remoteAccessInvalidPort': 'Enter a valid port between 1024 and 65535.',
     'remoteAccessSavePortFailed':
@@ -412,8 +347,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'remoteAccessIssueBody':
         'If the port is in use by another program, choose a different port above.',
     'remoteAccessLocalActionTitle': 'Open on this computer',
-    'remoteAccessLocalActionBody':
-        'Use this link from the same machine to confirm the dashboard is working before sharing it elsewhere.',
     'remoteAccessLanActionTitle': 'Share on your network',
     'remoteAccessLanActionBodyPaired':
         'Share this link with a paired device on your local network.',
@@ -486,56 +419,13 @@ final Map<String, Map<String, String>> _localizedValues = {
     'pairingErrorRevokeAll':
         'Skotiq could not revoke access for every device. Check the list — some devices may still be paired.',
     'pairingErrorDelete': 'Skotiq could not delete that paired device.',
-    'plannerTitle': 'Plan tonight',
-    'plannerLoading': 'Analyzing tonight\'s conditions...',
-    'plannerCreateSequence': 'Create sequence',
-    'plannerReviewInSequencer': 'Review in Sequencer',
-    'plannerReviewHint':
-        'Skotiq will create a draft sequence and take you to Sequencer so you can review exposure, filters, and safety checks before running it.',
-    'plannerAlternateTargets': 'Alternate Targets',
-    'plannerAlternateTargetsSubtitle': '{count} additional option{suffix}',
-    'plannerRiskFactors': 'Risk Factors',
-    'plannerRiskFactorsSubtitle': 'Conditions that may affect your session',
-    'plannerRationale': 'Rationale',
-    'plannerRationaleSubtitle': 'Why this plan was chosen',
     'plannerRationaleSubtitleNamed': 'Why {target} was chosen',
-    'plannerSequenceCreated':
-        'Created sequence with {target} ({exposure}s recommended)',
     'plannerDraftCreated':
         'Draft sequence created for {target}. Review it in Sequencer before running.',
-    'plannerLocationMissingTitle': 'Location not configured',
-    'plannerLocationMissingBody':
-        'Set your observing latitude and longitude in Settings before using the planner.',
     'plannerPlanFailedTitle': 'Failed to generate plan',
     'plannerPlanFailedBody':
         'Skotiq could not generate tonight\'s plan. Try again or review your observing settings and saved targets.',
-    'plannerOpenSettings': 'Open settings',
-    'plannerRetry': 'Retry',
-    'plannerNoTargetsTitle': 'No targets for tonight',
-    'plannerNoTargetsBody':
-        'The planner could not find a target that clears the current filters and observing window. Review the active constraints, add or select targets, then refresh the plan.',
-    'plannerConstraintAltitude': 'Altitude >= {value}\u00B0',
-    'plannerConstraintScore': 'Score >= {value}',
-    'plannerConstraintMoon': 'Moon <= {value}\u00B0',
-    'plannerConstraintMoonAny': 'Any moon distance',
-    'plannerConstraintTypes': 'Types: {value}',
-    'plannerConstraintTypesAny': 'any',
-    'plannerTryThis': 'Next steps',
-    'plannerTryPlanetarium':
-        'Use Planetarium to find targets that are actually up from your location tonight.',
-    'plannerTryFraming':
-        'Use Framing to confirm field of view, rotation, and mosaic fit before sequencing.',
     'plannerOpenPlanetarium': 'Open Planetarium',
-    'plannerOpenFraming': 'Open Framing',
-    'plannerUserOverride': 'USER OVERRIDE',
-    'plannerSelected': 'Selected',
-    'plannerSelect': 'Select',
-    'plannerMagnitude': 'Mag {value}',
-    'plannerPeak': 'Peak in dark {value}\u00B0',
-    'plannerVisible': '{value}h visible',
-    'plannerMoon': 'Moon {value}\u00B0',
-    'plannerExposure': '{value}s exp',
-    'plannerEstimatedIntegration': 'Estimated integration: {value}',
     'diagnosticsTitle': 'Optical train diagnostics',
     'diagnosticsLoadSessionsFailed': 'Could not load sessions',
     'diagnosticsNoSessions': 'No sessions available',
@@ -555,32 +445,17 @@ final Map<String, Map<String, String>> _localizedValues = {
     'diagnosticsMean': 'Mean',
     'diagnosticsMin': 'Min',
     'diagnosticsMax': 'Max',
-    'equipmentProfilesLoadFailedTitle': 'Failed to load profiles',
-    'equipmentProfilesLoadFailedBody':
-        'Skotiq could not load your saved equipment profiles.',
     // Common buttons / verbs (shared across dialogs, snackbars, wizards).
     'commonNext': 'Next',
     'commonBack': 'Back',
     'commonDone': 'Done',
-    'commonSkip': 'Skip',
     'commonUndo': 'Undo',
     'commonClose': 'Close',
-    'commonDelete': 'Delete',
-    'commonRename': 'Rename',
-    'commonDuplicate': 'Duplicate',
     // First-night wizard chrome (replay-only walkthrough).
     'firstNightWizardTitle': 'First night walkthrough',
     'firstNightWizardSkipForever': 'Skip forever',
-    'firstNightWizardShowNextLaunch': 'Show on next launch',
     'firstNightWizardStepLabel': 'Step {current} of {total}',
     'firstNightWizardShowMeOnScreen': 'Show me on the {screen} screen',
-    // Tour prompts.
-    'equipmentTourTitle': 'Equipment tour',
-    'equipmentTourDescription':
-        'Learn how to connect and manage your astrophotography equipment.',
-    'sequencerTourTitle': 'Sequencer tour',
-    'sequencerTourDescription':
-        'Learn how to create and run automated imaging sequences.',
     // Equipment screen profile management (snackbars + dialogs).
     'equipmentSettingsTitle': 'Equipment settings',
     'equipmentDefaultProfileSet': 'Default profile set',
@@ -596,24 +471,17 @@ final Map<String, Map<String, String>> _localizedValues = {
     'equipmentDeleteFailed': 'Failed to delete: {error}',
     'equipmentRestoreFailed': 'Failed to restore profile: {error}',
     // Planner (Plan Tonight) sub-tab labels.
-    'plannerTabRecommendation': 'Recommendation',
     'plannerTabProjects': 'Projects',
-    'plannerTabTargetQueue': 'Target queue',
-    'plannerTabThisWeek': 'This week',
-    'plannerTabProgress': 'Progress',
     'plannerTabSchedule': 'Schedule',
     'plannerTabFraming': 'Framing',
     'plannerTabPlanetarium': 'Planetarium',
-    'plannerTabDiscover': 'Discover',
     // Settings catalog section labels.
     'settingsFilesStorage': 'Files & storage',
     'settingsAdaptiveExposure': 'Adaptive exposure',
     'settingsImageGrading': 'Image grading',
-    'settingsCalibrationLibrary': 'Calibration library',
     'settingsPreflight': 'Pre-flight checks',
     'settingsAdaptiveConditions': 'Adaptive conditions',
     'settingsIntegrations': 'Integrations',
-    'settingsAiAssistant': 'AI assistant',
     'settingsReplayDebug': 'Replay & debug',
     // Persistent shell chrome: the status bar that sits on EVERY screen, and
     // the title-bar icon tooltips. The Language row promises "app chrome", and
@@ -634,7 +502,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'statusNoMount': 'No mount',
     'statusNoGuider': 'No guider',
     'statusNoFocuser': 'No focuser',
-    'statusSavePath': 'Save path',
     'statusFilterWheel': 'Filter wheel',
     // Not `sequenceStopping` — that one carries an ellipsis and this pill
     // does not.
@@ -669,49 +536,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'statusLstTooltip': 'Local sidereal time at your observing site',
     'statusLstNoSite': 'No observing site set — sidereal time is unknown. '
         'Set it in Settings → Location.',
-    'statusDashboardOpen': 'Open local dashboard ({url})',
-    'statusDashboardFilesMissing':
-        'Remote access API is running, but the dashboard files are unavailable',
-    'statusDashboardOff': 'Remote access is not running',
-
-    // Dashboard "Tonight's Briefing" — the idle Dashboard body, i.e. the
-    // landing screen. The language picker's own scope claim was "app chrome"
-    // while the first screen a Spanish user ever sees was 100% English, which
-    // made the picker read as broken rather than partial. These keys put the
-    // landing screen inside the scope the setting claims.
-    'dbEditDashboard': 'Edit Dashboard',
-    'dbEdit': 'Edit',
-    'dbDone': 'Done',
-    // Observatory wave 3 — Tonight (/dashboard), 06 §Tonight.
-    'tnEditLayout': 'Edit layout',
-    'tnHeadlineClearAfter': 'Clear skies after {time}',
-    'tnNodeCount': '{count} nodes',
-    'tnDarkIn': 'Astronomical dark in {duration}',
-    'tnDarkWindow': 'Astronomical dark {start} – {end} · {duration}',
-    'tnMoonSets': 'Moon {percent}%, sets {time}',
-    'tnChecklistProgress': '{done} of {total} done',
-    'tnLastSub': 'Last sub {time} · {filter} · {exposure}',
-    'tnSomeConnected': '{count} of {total} connected',
-    'tnLastNight': 'Last night',
-    'tnLastRun': 'Last run',
-    'tnLayoutErrorTitle': 'The dashboard layout could not be read',
-    'dbSetLocation': 'Set location',
-    'dbIlluminated': '{value}% illuminated',
-    'dbLastNight': 'Last night',
-    'dbLastRun': 'Last run',
-    'dbMinuteAgo': '1 minute ago',
-    'dbMinutesAgo': '{value} minutes ago',
-    'dbHourAgo': '1 hour ago',
-    'dbHoursAgo': '{value} hours ago',
-    'dbDayAgo': '1 day ago',
-    'dbDaysAgo': '{value} days ago',
-    'dbMonthAgo': '1 month ago',
-    'dbMonthsAgo': '{value} months ago',
-    'dbAstroDarkIn': 'Astro dark in',
-    'dbDarkForAnother': 'Dark for another',
-    'dbSunriseIn': 'Sunrise in',
-    'dbSunsetAt': 'Sunset at',
-    'dbTonight': 'Tonight',
     // Observatory wave 3 — Plan screen.
     'plannerTitleShort': 'Plan',
     'plannerTabTonight': 'Tonight',
@@ -738,7 +562,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'plannerWindow': 'Window',
     'plannerFrameIt': 'Frame it',
     'plannerBuildSequence': 'Build sequence',
-    'plannerKvFramesOnDisk': 'Frames on disk',
     'plannerKvObjectType': 'Object type',
     'plannerKvConstellation': 'Constellation',
     'plannerKvMagnitude': 'Magnitude',
@@ -759,10 +582,6 @@ final Map<String, Map<String, String>> _localizedValues = {
         '{total} candidates were scored and {passed} passed the filters.',
     'plannerNoMatchesAction': 'Reset filters',
     'plannerPlanFailedAction': 'Retry',
-    'plannerSelectCandidateTitle': 'Pick a target',
-    'plannerSelectCandidateBody':
-        'Choose a candidate on the left to see its night and build a sequence '
-            'for it.',
     // Wave 3 Analytics: 06-screens names the tab "Equipment" and the copy
     // rules require sentence case, so this replaces 'Equipment Stats' at the
     // call site. The old key stays; other surfaces still read it.
@@ -1492,7 +1311,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeSolveNone': 'No solve yet this session',
     'nightScopeSolveSolved': 'Solved',
     'nightScopeSolveFailed': 'Solve failed',
-    'nightScopeSolveError': 'Solve failed: {error}',
     'nightScopeSolveRotation': 'Rotation',
     'nightScopeSolveScale': 'Scale',
     'nightScopeSolveField': 'Field',
@@ -1705,9 +1523,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrSemAfCount': '{count} autofocus runs',
   },
   'es': {
-    'appTitle': 'Skotiq',
     'cancel': 'Cancelar',
-    'clearGoal': 'Borrar meta',
     'closeAnyway': 'Cerrar de todos modos',
     'closeSkotiqBody':
         'Skotiq est\u00E1 controlando equipos de imagen activos. Cerrar ahora puede interrumpir capturas y dejar la montura siguiendo o el enfriador de la c\u00E1mara funcionando. Det\u00E9n las operaciones y asegura el equipo primero, o cierra solo si otro controlador tomar\u00E1 el control.',
@@ -1720,9 +1536,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'generalAutoConnectDesc':
         'Conecta el perfil de inicio predeterminado al arrancar; si no hay '
             'ninguno, usa el \u00FAltimo perfil activo',
-    'generalAutoSaveSequences': 'Guardar secuencias autom\u00E1ticamente',
-    'generalAutoSaveSequencesDesc':
-        'Guardar los cambios de secuencia de forma autom\u00E1tica',
     'generalBehavior': 'Comportamiento',
     'generalConfirmBeforeClosing': 'Confirmar antes de cerrar',
     'generalConfirmBeforeClosingDesc':
@@ -1833,7 +1646,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'savedServersReachable': 'Accesible',
     'savedServersUnreachableShort': 'Inaccesible',
     'navAnalytics': 'Anal\u00EDtica',
-    'navScience': 'Ciencia',
     'commandPalettePlaceholder':
         'Busca objetivos, ajustes o salta a una pantalla',
     'snapshot': 'Captura',
@@ -1843,23 +1655,17 @@ final Map<String, Map<String, String>> _localizedValues = {
     'navTonight': 'Esta noche',
     'navEquipment': 'Equipo',
     'navFlatWizard': 'Asistente de Flats',
-    'navFraming': 'Encuadre',
     'navGuiding': 'Guiado',
     'navImaging': 'Captura',
-    'navPlanetarium': 'Planetario',
     'navSequencer': 'Secuenciador',
     'navWeather': 'Clima',
     'navPlan': 'Plan',
     // TODO(l10n): English copy, awaiting a Spanish term for the review room.
     'navDarkroom': 'Darkroom',
     // Formas cortas para la barra inferior del telefono.
-    'navEquipmentShort': 'Equipo',
     'navImagingShort': 'Captura',
     'navSequencerShort': 'Secuencia',
     'navGuidingShort': 'Guiado',
-    'navYourSky': 'Tu Cielo',
-    'navConstellation': 'Constelación',
-    'navTransients': 'Transientes',
     'navMore': 'Mas',
     'save': 'Guardar',
     'searchForServer': 'Buscar servidor',
@@ -1870,9 +1676,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'settingsCalibration': 'Calibraci\u00F3n',
     'settingsCatalogs': 'Cat\u00E1logos',
     'settingsConnection': 'Conexi\u00F3n',
-    'settingsDarkLibrary': 'Biblioteca de darks',
     'settingsEquipmentProfiles': 'Perfiles de equipo',
-    'settingsFilePaths': 'Rutas de archivo',
     'settingsSearchHint': 'Buscar ajustes…',
     'settingsBackup': 'Copia de seguridad',
     'settingsGroupGeneral': 'General',
@@ -1889,36 +1693,24 @@ final Map<String, Map<String, String>> _localizedValues = {
     'settingsNotifications': 'Notificaciones',
     'settingsPhd2Guiding': 'Guiado PHD2',
     'settingsPlateSolving': 'Resoluci\u00F3n de placas',
-    'settingsPlugins': 'Plugins',
     'settingsRemoteAccess': 'Acceso remoto',
     'settingsScience': 'Ciencia',
     'settingsSequencer': 'Secuenciador',
     'settingsLogs': 'Registros',
-    'settingsAutoSave': 'Auto-guardado',
     'settingsObservationLog': 'Registro de observacion',
     'settingsObservingLists': 'Listas de observacion',
     'settingsTitle': 'Ajustes',
-    'settingsDesc': 'Preferencias y perfiles',
-    'settingsTourDescription':
-        'Aprende a configurar tus preferencias de Skotiq.',
-    'settingsTourTitle': 'Tour de ajustes',
     'settingsWeatherSafety': 'Seguridad meteorol\u00F3gica',
     'share': 'Compartir',
-    'analyticsAllTargets': 'Todos los objetivos',
-    'analyticsAllTime': 'Todo el tiempo',
     'analyticsAvgHfr': 'HFR prom.',
     'analyticsAvgRms': 'RMS prom.',
     'analyticsCapturedImages': 'Im\u00E1genes capturadas',
     'analyticsClearGoal': 'Borrar meta',
-    'analyticsComplete': 'Completado',
     'analyticsCurrentSession': 'Sesi\u00F3n actual',
-    'analyticsCustomTarget': 'Objetivo personalizado',
     'analyticsDiagnostics': 'Diagn\u00F3stico',
     'analyticsDuration': 'Duraci\u00F3n',
     'analyticsEditGoal': 'Editar meta',
-    'analyticsEquipmentStats': 'Equipo',
     'analyticsAcceptedLights': 'Aceptadas',
-    'analyticsCameraReturned': 'Devueltas por la c\u00E1mara',
     'analyticsExposureCountsLightOnly':
         'Los recuentos de exposiciones incluyen solo cuadros de luz. '
             '"Devueltas por la c\u00E1mara" es lo que entreg\u00F3 la '
@@ -1934,50 +1726,32 @@ final Map<String, Map<String, String>> _localizedValues = {
     'analyticsExportCsv': 'Exportar a CSV',
     'analyticsExportHtml': 'Exportar informe HTML',
     'analyticsExportJson': 'Exportar a JSON',
-    'analyticsFailed': 'Fallidas',
     'analyticsFrameMix':
         '{light} de luz \u00B7 {calibration} de calibraci\u00F3n',
-    'analyticsFrames': 'Frames',
-    'analyticsGoal': 'Meta',
     'analyticsGoalDialogTitle':
         'Definir meta de integraci\u00F3n para {target}',
     'analyticsGoalHours': 'Meta de integraci\u00F3n (horas)',
     'analyticsHistory': 'Historial',
     'analyticsImages': 'Im\u00E1genes ({count})',
-    'analyticsIntegrated': 'Integrado',
     'analyticsIntegration': 'Integraci\u00F3n',
-    'analyticsLastImaged': '\u00DAltima captura {time}',
     'analyticsNoActiveSession': 'Sin sesi\u00F3n activa',
-    'analyticsNoProjects':
-        'Todav\u00EDa no hay objetivos disponibles para seguimiento.',
     'analyticsNoSessionHistory': 'Sin historial de sesiones',
     'analyticsNoSessionHistoryDesc':
         'Completa una sesi\u00F3n para ver el historial aqu\u00ED',
     'analyticsNoSessionInProgress': 'No hay una sesi\u00F3n en curso',
-    'analyticsNotSet': 'Sin definir',
     'analyticsProjects': 'Proyectos',
-    'analyticsQualityAdvisory':
-        'Las etiquetas de calidad son informativas y nunca cambian la aceptaci\u00F3n por s\u00ED solas. '
-            'No se elimina nada. Ciencia > Clasificar cuadros es lo que rechaza cuadros.',
     'analyticsQuickCapture': 'Captura r\u00E1pida',
     'analyticsQuickCaptureSubtitle':
         'Instant\u00E1neas hechas fuera de las secuencias',
-    'analyticsRemaining': 'Restante',
     'analyticsSave': 'Guardar',
     'analyticsScience': 'Ciencia',
     'analyticsSearchSessions': 'Buscar sesiones...',
     'analyticsSession': 'Sesi\u00F3n',
     'analyticsSessionInProgress': 'Sesi\u00F3n en curso',
-    'analyticsSessions': 'Sesiones',
     'analyticsSetGoal': 'Definir meta',
     'analyticsStarted': 'Inicio: {time}',
     'analyticsStatistics': 'Estad\u00EDsticas',
-    'analyticsThisMonth': 'Este mes',
-    'analyticsThisYear': 'Este a\u00F1o',
     'analyticsTotalExposures': 'Exposiciones totales',
-    'analyticsTourDescription':
-        'Aprende a analizar tus datos y estad\u00EDsticas de captura.',
-    'analyticsTourTitle': 'Tour de anal\u00EDtica',
     'analyticsUnnamedSession': 'Sesi\u00F3n sin nombre',
     'weatherSafetyActions': 'Acciones de seguridad',
     'weatherSafetyAlertDistance': 'Distancia de alerta',
@@ -2028,29 +1802,19 @@ final Map<String, Map<String, String>> _localizedValues = {
     'rate': 'Velocidad',
     'unpark': 'Desaparcar',
     'park': 'Aparcar',
-    'track': 'Seguir',
     'stop': 'Detener',
-    'abortSlew': 'Cancelar giro',
     'capturing': 'Capturando',
     'idle': 'Inactivo',
     'sequenceRunning': 'En curso',
     'sequencePaused': 'En pausa',
-    'sequenceStopping': 'Deteniendo…',
     'temp': 'Temp',
     'focus': 'Enfoque',
     'hfr': 'HFR',
     'rms': 'RMS',
-    'darkIn': 'Oscuro en {time}',
-    'darkLeft': 'Oscuro {time} restante',
-    'sunsetAt': 'Ocaso {time}',
-    'livePreview': 'Vista en vivo',
-    'noImage': 'Sin imagen',
-    'noCameraConnected': 'Sin c\u00E1mara conectada',
     'guiding': 'Guiado',
     'disconnected': 'Desconectado',
     'stopping': 'Deteniendo...',
     'starting': 'Iniciando...',
-    'connectGuider': 'Conectar guiado',
     'ok': 'OK',
     'off': 'Apagado',
     'autofocus': 'Autoenfoque',
@@ -2059,8 +1823,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'slewing': 'Girando',
     'parked': 'Aparcada',
     'tracking': 'Siguiendo',
-    'pos': 'Pos',
-    'noData': 'Sin datos',
     'remoteAccessTitle': 'Acceso remoto',
     'remoteAccessDescription':
         'Configura el panel web y el servidor de control remoto.',
@@ -2071,7 +1833,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'remoteAccessPortTitle': 'Puerto del servidor',
     'remoteAccessPortDesc':
         'Puerto del servidor de acceso remoto. Los cambios vuelven a enlazar el servidor automaticamente.',
-    'remoteAccessStatusTitle': 'Estado',
     'remoteAccessServerStatus': 'Estado del servidor',
     'remoteAccessRunning': 'En ejecucion',
     'remoteAccessStopped': 'Detenido',
@@ -2083,12 +1844,9 @@ final Map<String, Map<String, String>> _localizedValues = {
     'remoteAccessScopeLocal': 'Solo equipo local',
     'remoteAccessScopeLan': 'Equipo local y LAN',
     'remoteAccessDashboard': 'Archivos del panel',
-    'remoteAccessDashboardAvailable': 'Disponible',
     'remoteAccessDashboardServing': 'Instalados, en servicio',
     'remoteAccessDashboardIdle': 'Instalados, sin servir (servidor detenido)',
     'remoteAccessDashboardMissing': 'Faltan archivos estaticos',
-    'remoteAccessLocalUrl': 'URL local',
-    'remoteAccessLanUrl': 'URL LAN',
     'remoteAccessActiveViewers': 'Visores activos',
     'remoteAccessLastError': 'Ultimo error',
     'remoteAccessNoErrors': 'Ninguno',
@@ -2104,8 +1862,6 @@ final Map<String, Map<String, String>> _localizedValues = {
         'Inicia el emparejamiento para mostrar un codigo QR y la frase en esta pantalla.',
     'remoteAccessQrNoLanIp':
         'No se detecto una IP LAN en este PC. El QR necesita la direccion Wi-Fi (p. ej. 192.168.x.x). Revisa la red y reinicia el acceso remoto.',
-    'remoteAccessInfoBody':
-        'El acceso remoto de escritorio sirve el mismo panel localmente y en tu LAN. Localhost sigue siendo directo para esta maquina, mientras que los clientes no locales deben emparejarse antes de poder controlar la aplicacion.',
     'remoteAccessCopiedUrl': 'Se copio {url} al portapapeles',
     'remoteAccessInvalidPort': 'Introduce un puerto valido entre 1024 y 65535.',
     'remoteAccessSavePortFailed':
@@ -2114,8 +1870,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'remoteAccessIssueBody':
         'Si otro programa usa el puerto, elige un puerto distinto arriba.',
     'remoteAccessLocalActionTitle': 'Abrir en este equipo',
-    'remoteAccessLocalActionBody':
-        'Usa este enlace desde esta misma maquina para confirmar que el panel funciona antes de compartirlo.',
     'remoteAccessLanActionTitle': 'Compartir en tu red',
     'remoteAccessLanActionBodyPaired':
         'Comparte este enlace con un dispositivo emparejado en tu red local.',
@@ -2192,57 +1946,13 @@ final Map<String, Map<String, String>> _localizedValues = {
     'pairingErrorRevokeAll':
         'Skotiq no pudo revocar el acceso de todos los dispositivos. Revisa la lista: puede que algunos sigan emparejados.',
     'pairingErrorDelete': 'Skotiq no pudo eliminar ese dispositivo emparejado.',
-    'plannerTitle': 'Planificar esta noche',
-    'plannerLoading': 'Analizando las condiciones de esta noche...',
-    'plannerCreateSequence': 'Crear secuencia',
-    'plannerReviewInSequencer': 'Revisar en secuenciador',
-    'plannerReviewHint':
-        'Skotiq creara una secuencia borrador y te llevara al secuenciador para revisar exposicion, filtros y comprobaciones de seguridad antes de ejecutarla.',
-    'plannerAlternateTargets': 'Objetivos alternativos',
-    'plannerAlternateTargetsSubtitle':
-        '{count} opcion{suffix} adicional{suffix}',
-    'plannerRiskFactors': 'Factores de riesgo',
-    'plannerRiskFactorsSubtitle': 'Condiciones que pueden afectar tu sesion',
-    'plannerRationale': 'Motivo',
-    'plannerRationaleSubtitle': 'Por que se eligio este plan',
     'plannerRationaleSubtitleNamed': 'Por que se eligio {target}',
-    'plannerSequenceCreated':
-        'Se creo una secuencia con {target} ({exposure}s recomendados)',
     'plannerDraftCreated':
         'Se creo una secuencia borrador para {target}. Revisala en el secuenciador antes de ejecutarla.',
-    'plannerLocationMissingTitle': 'Ubicacion no configurada',
-    'plannerLocationMissingBody':
-        'Configura tu latitud y longitud de observacion en Ajustes antes de usar el planificador.',
     'plannerPlanFailedTitle': 'No se pudo generar el plan',
     'plannerPlanFailedBody':
         'Skotiq no pudo generar el plan de esta noche. Intentalo de nuevo o revisa tus ajustes y objetivos guardados.',
-    'plannerOpenSettings': 'Abrir ajustes',
-    'plannerRetry': 'Reintentar',
-    'plannerNoTargetsTitle': 'No hay objetivos para esta noche',
-    'plannerNoTargetsBody':
-        'El planificador no encontro un objetivo que cumpla los filtros y la ventana de observacion actuales. Revisa las restricciones activas, agrega o selecciona objetivos y actualiza el plan.',
-    'plannerConstraintAltitude': 'Altitud >= {value}\u00B0',
-    'plannerConstraintScore': 'Puntuacion >= {value}',
-    'plannerConstraintMoon': 'Luna <= {value}\u00B0',
-    'plannerConstraintMoonAny': 'Cualquier distancia lunar',
-    'plannerConstraintTypes': 'Tipos: {value}',
-    'plannerConstraintTypesAny': 'cualquiera',
-    'plannerTryThis': 'Siguientes pasos',
-    'plannerTryPlanetarium':
-        'Usa Planetario para encontrar objetivos visibles desde tu ubicacion esta noche.',
-    'plannerTryFraming':
-        'Usa Encuadre para confirmar campo de vision, rotacion y mosaico antes de secuenciar.',
     'plannerOpenPlanetarium': 'Abrir planetario',
-    'plannerOpenFraming': 'Abrir encuadre',
-    'plannerUserOverride': 'ANULACION DEL USUARIO',
-    'plannerSelected': 'Seleccionado',
-    'plannerSelect': 'Seleccionar',
-    'plannerMagnitude': 'Mag {value}',
-    'plannerPeak': 'Pico en osc. {value}\u00B0',
-    'plannerVisible': '{value}h visible',
-    'plannerMoon': 'Luna {value}\u00B0',
-    'plannerExposure': '{value}s exp',
-    'plannerEstimatedIntegration': 'Integracion estimada: {value}',
     'diagnosticsTitle': 'Diagnostico del tren optico',
     'diagnosticsLoadSessionsFailed': 'No se pudieron cargar las sesiones',
     'diagnosticsNoSessions': 'No hay sesiones disponibles',
@@ -2263,32 +1973,17 @@ final Map<String, Map<String, String>> _localizedValues = {
     'diagnosticsMean': 'Media',
     'diagnosticsMin': 'Min',
     'diagnosticsMax': 'Max',
-    'equipmentProfilesLoadFailedTitle': 'No se pudieron cargar los perfiles',
-    'equipmentProfilesLoadFailedBody':
-        'Skotiq no pudo cargar tus perfiles de equipo guardados.',
     // Common buttons / verbs (shared across dialogs, snackbars, wizards).
     'commonNext': 'Siguiente',
     'commonBack': 'Atrás',
     'commonDone': 'Listo',
-    'commonSkip': 'Omitir',
     'commonUndo': 'Deshacer',
     'commonClose': 'Cerrar',
-    'commonDelete': 'Eliminar',
-    'commonRename': 'Renombrar',
-    'commonDuplicate': 'Duplicar',
     // First-night wizard chrome (replay-only walkthrough).
     'firstNightWizardTitle': 'Guía de la primera noche',
     'firstNightWizardSkipForever': 'Omitir para siempre',
-    'firstNightWizardShowNextLaunch': 'Mostrar al iniciar de nuevo',
     'firstNightWizardStepLabel': 'Paso {current} de {total}',
     'firstNightWizardShowMeOnScreen': 'Muéstrame en la pantalla {screen}',
-    // Tour prompts.
-    'equipmentTourTitle': 'Tour de equipo',
-    'equipmentTourDescription':
-        'Aprende a conectar y administrar tu equipo de astrofotografía.',
-    'sequencerTourTitle': 'Tour del secuenciador',
-    'sequencerTourDescription':
-        'Aprende a crear y ejecutar secuencias de captura automatizadas.',
     // Equipment screen profile management (snackbars + dialogs).
     'equipmentSettingsTitle': 'Ajustes de equipo',
     'equipmentDefaultProfileSet': 'Perfil predeterminado establecido',
@@ -2306,24 +2001,17 @@ final Map<String, Map<String, String>> _localizedValues = {
     'equipmentDeleteFailed': 'No se pudo eliminar: {error}',
     'equipmentRestoreFailed': 'No se pudo restaurar el perfil: {error}',
     // Planner (Plan Tonight) sub-tab labels.
-    'plannerTabRecommendation': 'Recomendación',
     'plannerTabProjects': 'Proyectos',
-    'plannerTabTargetQueue': 'Cola de objetivos',
-    'plannerTabThisWeek': 'Esta semana',
-    'plannerTabProgress': 'Progreso',
     'plannerTabSchedule': 'Calendario',
     'plannerTabFraming': 'Encuadre',
     'plannerTabPlanetarium': 'Planetario',
-    'plannerTabDiscover': 'Descubrir',
     // Settings catalog section labels.
     'settingsFilesStorage': 'Archivos y almacenamiento',
     'settingsAdaptiveExposure': 'Exposición adaptativa',
     'settingsImageGrading': 'Clasificación de imágenes',
-    'settingsCalibrationLibrary': 'Biblioteca de calibración',
     'settingsPreflight': 'Comprobaciones previas',
     'settingsAdaptiveConditions': 'Condiciones adaptativas',
     'settingsIntegrations': 'Integraciones',
-    'settingsAiAssistant': 'Asistente de IA',
     'settingsReplayDebug': 'Reproducción y depuración',
     // Ver el bloque equivalente en 'en'.
     'statusCamera': 'Cámara',
@@ -2334,7 +2022,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'statusNoMount': 'Sin montura',
     'statusNoGuider': 'Sin guiado',
     'statusNoFocuser': 'Sin enfocador',
-    'statusSavePath': 'Ruta de guardado',
     'statusFilterWheel': 'Rueda de filtros',
     'statusSequenceStopping': 'Deteniendo',
     'statusSequenceCompleted': 'Completada',
@@ -2373,47 +2060,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'statusLstNoSite':
         'No hay lugar de observación definido: la hora sidérea es desconocida. '
             'Defínelo en Ajustes → Ubicación.',
-    'statusDashboardOpen': 'Abrir el panel local ({url})',
-    'statusDashboardFilesMissing':
-        'La API de acceso remoto está activa, pero los archivos del panel no '
-            'están disponibles',
-    'statusDashboardOff': 'El acceso remoto no está activo',
-
-    // Dashboard "Tonight's Briefing" — see the English block for why the
-    // landing screen is inside the language setting's scope.
-    'dbEditDashboard': 'Editar el panel',
-    'dbEdit': 'Editar',
-    'dbDone': 'Listo',
-    // TODO(l10n): Observatory wave 3 — Tonight (/dashboard). English copy pending translation.
-    'tnEditLayout': 'Edit layout',
-    'tnHeadlineClearAfter': 'Clear skies after {time}',
-    'tnNodeCount': '{count} nodes',
-    'tnDarkIn': 'Astronomical dark in {duration}',
-    'tnDarkWindow': 'Astronomical dark {start} – {end} · {duration}',
-    'tnMoonSets': 'Moon {percent}%, sets {time}',
-    'tnChecklistProgress': '{done} of {total} done',
-    'tnLastSub': 'Last sub {time} · {filter} · {exposure}',
-    'tnSomeConnected': '{count} of {total} connected',
-    'tnLastNight': 'Last night',
-    'tnLastRun': 'Last run',
-    'tnLayoutErrorTitle': 'The dashboard layout could not be read',
-    'dbSetLocation': 'Definir ubicación',
-    'dbIlluminated': '{value} % iluminada',
-    'dbLastNight': 'Anoche',
-    'dbLastRun': 'Última sesión',
-    'dbMinuteAgo': 'hace 1 minuto',
-    'dbMinutesAgo': 'hace {value} minutos',
-    'dbHourAgo': 'hace 1 hora',
-    'dbHoursAgo': 'hace {value} horas',
-    'dbDayAgo': 'hace 1 día',
-    'dbDaysAgo': 'hace {value} días',
-    'dbMonthAgo': 'hace 1 mes',
-    'dbMonthsAgo': 'hace {value} meses',
-    'dbAstroDarkIn': 'Noche astronómica en',
-    'dbDarkForAnother': 'Oscuridad durante',
-    'dbSunriseIn': 'Amanece en',
-    'dbSunsetAt': 'Puesta de sol a las',
-    'dbTonight': 'Esta noche',
     // Observatory wave 3 — Plan screen.
     'plannerTitleShort': 'Planificar',
     'plannerTabTonight': 'Esta noche',
@@ -2440,7 +2086,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'plannerWindow': 'Ventana',
     'plannerFrameIt': 'Encuadrar',
     'plannerBuildSequence': 'Crear secuencia',
-    'plannerKvFramesOnDisk': 'Tomas en disco',
     'plannerKvObjectType': 'Tipo de objeto',
     'plannerKvConstellation': 'Constelación',
     'plannerKvMagnitude': 'Magnitud',
@@ -2462,10 +2107,6 @@ final Map<String, Map<String, String>> _localizedValues = {
         'Se puntuaron {total} candidatos y {passed} pasaron los filtros.',
     'plannerNoMatchesAction': 'Restablecer filtros',
     'plannerPlanFailedAction': 'Reintentar',
-    'plannerSelectCandidateTitle': 'Elige un objetivo',
-    'plannerSelectCandidateBody':
-        'Elige un candidato a la izquierda para ver su noche y crear una '
-            'secuencia.',
     'analyticsEquipmentTab': 'Equipo',
     'analyticsLive': 'En vivo',
     'nightPlanDrawer': 'Plan',
@@ -3216,7 +2857,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeSolveNone': 'Aún no hay resolución en esta sesión',
     'nightScopeSolveSolved': 'Resuelta',
     'nightScopeSolveFailed': 'Falló la resolución',
-    'nightScopeSolveError': 'Falló la resolución: {error}',
     'nightScopeSolveRotation': 'Rotación',
     'nightScopeSolveScale': 'Escala',
     'nightScopeSolveField': 'Campo',

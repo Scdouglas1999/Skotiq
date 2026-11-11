@@ -1,4 +1,3 @@
-// ignore_for_file: unused_element_parameter
 
 part of '../analytics_screen.dart';
 
@@ -23,7 +22,7 @@ ParsedRunStats? _parseRunStats(String json) {
 /// carries everywhere else in the app.
 
 class _EquipmentStatsTab extends ConsumerWidget {
-  const _EquipmentStatsTab({super.key});
+  const _EquipmentStatsTab();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

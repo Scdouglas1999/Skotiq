@@ -66,8 +66,8 @@ Future<String?> resolveDumpSaveDirectory({
 /// users can drop it directly into a GitHub issue without hunting through
 /// the app-data directory.
 ///
-/// The optical-train
-/// `DiagnosticsScreen` lives next to this file but covers a different scope;
+/// The optical-train diagnostics tab (`DiagnosticsTabContent`) lives next to
+/// this file but covers a different scope;
 /// keep them visually distinct (different titles, different icons).
 class DiagnosticDumpScreen extends ConsumerStatefulWidget {
   const DiagnosticDumpScreen({super.key});

@@ -119,11 +119,4 @@ class NightRecentSolvesNotifier extends StateNotifier<List<NightSolveRecord>> {
         : next;
   }
 
-  /// When the newest plain solve arrived, or null.
-  DateTime? get lastSolveAt {
-    for (final record in state) {
-      if (record.kind == NightSolveKind.solve) return record.at;
-    }
-    return null;
-  }
 }

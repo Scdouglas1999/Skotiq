@@ -27,20 +27,8 @@ import 'widgets/shared_target_card.dart';
 ///
 /// Reads exclusively through the core `constellationServiceProvider` family, so
 /// it works unchanged on the desktop FFI backend and the mobile network backend.
-class ConstellationScreen extends StatelessWidget {
-  const ConstellationScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: const SafeArea(bottom: false, child: ConstellationView()),
-    );
-  }
-}
-
-/// Scaffold-free body so the swarm view can also be embedded (e.g. a tab).
+///
+/// Scaffold-free: the Plan screen embeds it as a tab.
 class ConstellationView extends ConsumerWidget {
   const ConstellationView({super.key});
 

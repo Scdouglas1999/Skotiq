@@ -27,9 +27,6 @@ const String _folderRoute = '/settings?section=files-storage';
 const String _solverRoute = '/settings/plate-solving';
 const String _weatherRoute = '/settings?section=weather-safety';
 
-/// The dawn rule's lead time, as `WeatherSafetyNotifier` applies it.
-const Duration kNightParkBeforeDawnLead = kParkBeforeDawnLead;
-
 /// The plate solver the operator picked, and whether it is installed.
 @immutable
 class NightSolverStatus {

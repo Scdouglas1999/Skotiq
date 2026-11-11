@@ -176,13 +176,6 @@ class RunDashboardFilterTotals {
   /// Returns true if no exposures are configured for any filter.
   bool get isEmpty => integrationSecs.isEmpty && goalSecs.isEmpty;
 
-  /// Rejected (accepted-vs-total gap) seconds for [filter].
-  double rejectedSecsFor(String filter) {
-    final total = totalAcquiredSecs[filter] ?? 0.0;
-    final accepted = integrationSecs[filter] ?? 0.0;
-    final gap = total - accepted;
-    return gap > 0 ? gap : 0.0;
-  }
 }
 
 /// Accepted + total-acquired per-filter integration for a session.
@@ -256,17 +249,6 @@ final runDashboardSessionIntegrationProvider =
     acceptedSecs: accepted,
     totalSecs: total,
   );
-});
-
-/// Pulls accepted light-frame integration totals from the database for the
-/// session id provided. Derived from [runDashboardSessionIntegrationProvider]
-/// so callers that only need the accepted map (e.g. the budget panel) don't
-/// trigger a second DB scan.
-final runDashboardSessionFilterTotalsProvider =
-    Provider.family<AsyncValue<Map<String, double>>, int>((ref, sessionId) {
-  return ref
-      .watch(runDashboardSessionIntegrationProvider(sessionId))
-      .whenData((integration) => integration.acceptedSecs);
 });
 
 /// Combined per-filter totals + goals for the active sequence/session.
@@ -367,52 +349,6 @@ class RunDashboardBudgetProgress {
     return (completedTotalSecs / capSum).clamp(0.0, 1.0);
   }
 }
-
-/// Surfaces the integration-budget progress for the
-/// currently-active TargetHeader. Returns `null` when no target is
-/// active or the active target has no budget configured.
-///
-/// Computes the resolved per-filter caps locally (cheap; the same math as the
-/// Rust side) and asserts the "budget met" flag when every cap is reached. The
-/// Rust runtime is the authoritative gate — this provider is render-only.
-final runDashboardActiveBudgetProvider =
-    Provider<RunDashboardBudgetProgress?>((ref) {
-  final target = ref.watch(runDashboardActiveTargetProvider);
-  if (target == null) return null;
-  final budget = target.integrationBudget;
-  if (budget == null || !budget.isActive) return null;
-
-  final resolvedCaps = <String, double>{};
-  for (final filter in budget.perFilter.keys) {
-    final cap = budget.resolvedFilterCap(filter);
-    if (cap != null) resolvedCaps[filter] = cap;
-  }
-
-  final sessionId = ref.watch(sessionStateProvider).dbSessionId;
-  final completedSecs = sessionId == null
-      ? const <String, double>{}
-      : ref
-              .watch(runDashboardSessionFilterTotalsProvider(sessionId))
-              .valueOrNull ??
-          const <String, double>{};
-
-  // Budget-met check mirrors `BudgetState::evaluate` on the Rust side.
-  final completedTotal = completedSecs.values.fold<double>(0, (a, b) => a + b);
-  final totalMet = budget.totalSecs > 0 && completedTotal >= budget.totalSecs;
-  final allFiltersMet = resolvedCaps.isNotEmpty &&
-      resolvedCaps.entries.every(
-        (e) => (completedSecs[e.key] ?? 0) >= e.value,
-      );
-  final budgetMet = totalMet || allFiltersMet;
-
-  return RunDashboardBudgetProgress(
-    targetId: target.id,
-    resolvedCapSecs: resolvedCaps,
-    totalSecs: budget.totalSecs,
-    completedSecs: completedSecs,
-    budgetMet: budgetMet,
-  );
-});
 
 /// Severity classification used by the trigger feed.
 enum RunDashboardEventSeverity { info, warning, error, critical }

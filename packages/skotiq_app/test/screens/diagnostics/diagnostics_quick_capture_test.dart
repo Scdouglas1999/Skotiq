@@ -70,7 +70,7 @@ void main() {
       (tester) async {
     await pumpAppScreen(
       tester,
-      const DiagnosticsScreen(),
+      const DiagnosticsTabContent(showTitle: true),
       size: const Size(1280, 800),
       settle: false,
       extraOverrides: _overrides(withQuickCaptureData: true),
@@ -109,7 +109,7 @@ void main() {
       (tester) async {
     await pumpAppScreen(
       tester,
-      const DiagnosticsScreen(),
+      const DiagnosticsTabContent(showTitle: true),
       size: const Size(1280, 800),
       settle: false,
       extraOverrides: _overrides(withQuickCaptureData: false),
