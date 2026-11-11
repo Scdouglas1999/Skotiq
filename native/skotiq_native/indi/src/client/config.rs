@@ -82,18 +82,12 @@ impl ReaderTaskConfig {
 pub struct ProtocolConfig {
     /// Preferred protocol version
     pub preferred_version: String,
-    /// Whether to auto-detect server version
-    pub auto_detect: bool,
-    /// Minimum supported version
-    pub min_version: Option<String>,
 }
 
 impl Default for ProtocolConfig {
     fn default() -> Self {
         Self {
             preferred_version: DEFAULT_PROTOCOL_VERSION.to_string(),
-            auto_detect: true,
-            min_version: None,
         }
     }
 }

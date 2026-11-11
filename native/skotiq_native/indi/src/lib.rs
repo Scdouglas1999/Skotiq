@@ -84,11 +84,6 @@ pub struct IndiDevice {
     pub driver: String,
 }
 
-/// Check if INDI is available on this platform
-pub fn is_available() -> bool {
-    !cfg!(target_os = "windows")
-}
-
 /// INDI property types
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IndiPropertyType {
@@ -207,11 +202,6 @@ impl IndiTimeoutConfig {
     /// Get the BLOB timeout as a Duration
     pub fn blob_timeout(&self) -> std::time::Duration {
         std::time::Duration::from_secs(self.blob_timeout_secs)
-    }
-
-    /// Get the property timeout as a Duration
-    pub fn property_timeout(&self) -> std::time::Duration {
-        std::time::Duration::from_secs(self.property_timeout_secs)
     }
 
     /// Get the connection timeout as a Duration

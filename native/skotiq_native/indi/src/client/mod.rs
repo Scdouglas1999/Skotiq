@@ -44,9 +44,6 @@ pub use event::*;
 use jitter::*;
 pub(crate) use xml::*;
 
-/// Supported INDI protocol versions
-pub const INDI_PROTOCOL_VERSIONS: &[&str] = &["1.7", "1.8", "1.9"];
-
 /// Default protocol version to use
 pub const DEFAULT_PROTOCOL_VERSION: &str = "1.7";
 
@@ -241,11 +238,6 @@ impl IndiClient {
     /// Get the protocol configuration
     pub fn protocol_config(&self) -> &ProtocolConfig {
         &self.protocol_config
-    }
-
-    /// Set the protocol configuration
-    pub fn set_protocol_config(&mut self, config: ProtocolConfig) {
-        self.protocol_config = config;
     }
 
     /// Get the reconnection configuration

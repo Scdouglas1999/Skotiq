@@ -328,16 +328,6 @@ async fn test_client_default_creation() {
 }
 
 #[test]
-fn test_version_compatibility() {
-    assert!(is_version_compatible("1.7", "1.7"));
-    assert!(is_version_compatible("1.8", "1.7"));
-    assert!(is_version_compatible("1.9", "1.7"));
-    assert!(is_version_compatible("2.0", "1.7"));
-    assert!(!is_version_compatible("1.6", "1.7"));
-    assert!(!is_version_compatible("1.0", "1.7"));
-}
-
-#[test]
 fn test_blob_format_validation() {
     // FITS format detection
     let fits_data = b"SIMPLE  =                    T";
@@ -364,8 +354,6 @@ fn test_blob_format_validation() {
 async fn test_protocol_config() {
     let protocol_config = ProtocolConfig {
         preferred_version: "1.8".to_string(),
-        auto_detect: true,
-        min_version: Some("1.7".to_string()),
     };
 
     let client = IndiClient::with_full_config(
@@ -377,7 +365,6 @@ async fn test_protocol_config() {
     );
 
     assert_eq!(client.protocol_config().preferred_version, "1.8");
-    assert!(client.protocol_config().auto_detect);
 }
 
 #[tokio::test]

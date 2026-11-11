@@ -357,22 +357,3 @@ pub(super) fn resolve_blob_format(declared_format: Option<&str>, data: &[u8]) ->
             .unwrap_or_else(|| ".blob".to_string()),
     }
 }
-
-/// Compare protocol versions (returns true if server >= required)
-pub(super) fn is_version_compatible(server: &str, required: &str) -> bool {
-    let parse_version = |v: &str| -> (u32, u32) {
-        let parts: Vec<&str> = v.split('.').collect();
-        // Why: malformed/missing version-component digits default to 0,
-        // which makes a malformed INDI server-version report as "1.0" baseline and
-        // legitimately FAIL the `>= required` compatibility gate at the caller. Zero is
-        // the correct "treat as ancient" fallback for compatibility comparisons.
-        let major = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
-        let minor = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
-        (major, minor)
-    };
-
-    let (server_major, server_minor) = parse_version(server);
-    let (req_major, req_minor) = parse_version(required);
-
-    server_major > req_major || (server_major == req_major && server_minor >= req_minor)
-}

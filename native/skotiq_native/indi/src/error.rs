@@ -74,8 +74,6 @@ pub enum IndiError {
         min: f64,
         max: f64,
     },
-    /// Protocol version mismatch
-    VersionMismatch { required: String, server: String },
     /// Reconnection failed after max attempts
     ReconnectionFailed { attempts: u32, last_error: String },
 }
@@ -185,13 +183,6 @@ impl fmt::Display for IndiError {
                     f,
                     "Value {} out of range [{}, {}] for {}.{}.{}",
                     value, min, max, device, property, element
-                )
-            }
-            IndiError::VersionMismatch { required, server } => {
-                write!(
-                    f,
-                    "Protocol version mismatch: required {}, server {}",
-                    required, server
                 )
             }
             IndiError::ReconnectionFailed {

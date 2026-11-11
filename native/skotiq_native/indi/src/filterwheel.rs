@@ -146,16 +146,6 @@ impl IndiFilterWheel {
             .await
     }
 
-    /// Set filter position (0-based) with timeout.
-    pub async fn set_position_with_timeout(
-        &self,
-        zero_based: i32,
-        timeout: Option<Duration>,
-    ) -> Result<(), String> {
-        let wire = self.wire_slot_from_zero_based(zero_based).await;
-        self.set_slot_with_timeout(wire, timeout).await
-    }
-
     /// Set filter slot with timeout (driver-native slot index).
     pub async fn set_slot_with_timeout(
         &self,

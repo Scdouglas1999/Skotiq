@@ -322,26 +322,6 @@ impl IndiClient {
     pub async fn reconnect_attempts(&self) -> u32 {
         self.reconnect_attempts.load(Ordering::SeqCst)
     }
-
-    /// Request protocol version info from server
-    pub async fn request_version(&mut self) -> IndiResult<()> {
-        self.send_command("<getProperties version=\"\"/>").await
-    }
-
-    /// Check if server version is compatible with minimum required version
-    pub async fn check_version_compatibility(&self) -> IndiResult<()> {
-        if let Some(ref min_version) = self.protocol_config.min_version {
-            if let Some(server_ver) = self.server_version().await {
-                if !is_version_compatible(&server_ver, min_version) {
-                    return Err(IndiError::VersionMismatch {
-                        required: min_version.clone(),
-                        server: server_ver,
-                    });
-                }
-            }
-        }
-        Ok(())
-    }
 }
 
 /// Marks a reconnect or reader recovery as in progress and clears the markers
