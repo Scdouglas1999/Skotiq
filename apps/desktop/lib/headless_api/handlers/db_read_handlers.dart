@@ -129,8 +129,6 @@ class DbReadHandlers implements RouteSource {
     return double.tryParse(raw);
   }
 
-  // Sequence run history
-
   Future<Response> handleListSequenceRuns(Request request) async {
     final qp = request.url.queryParameters;
     final limit = _parseLimit(qp['limit']);
@@ -279,8 +277,6 @@ class DbReadHandlers implements RouteSource {
     };
   }
 
-  // Guide-RMS history
-
   Future<Response> handleListGuideRmsHistory(Request request) async {
     final qp = request.url.queryParameters;
     final limit = _parseLimit(qp['limit']);
@@ -322,8 +318,6 @@ class DbReadHandlers implements RouteSource {
       'recordedAt': row.recordedAt.toIso8601String(),
     };
   }
-
-  // Polar alignment history
 
   Future<Response> handleListPolarAlignmentHistory(Request request) async {
     final qp = request.url.queryParameters;
@@ -464,8 +458,6 @@ class DbReadHandlers implements RouteSource {
     return jsonOk({'status': 'deleted', 'id': id});
   }
 
-  // Dark library (paginated read)
-
   Future<Response> handleListDarkLibrary(Request request) async {
     final qp = request.url.queryParameters;
     final limit = _parseLimit(qp['limit']);
@@ -515,8 +507,6 @@ class DbReadHandlers implements RouteSource {
       'createdAt': row.createdAt.toIso8601String(),
     };
   }
-
-  // Flat history (paginated read)
 
   Future<Response> handleListFlatHistory(Request request) async {
     final qp = request.url.queryParameters;

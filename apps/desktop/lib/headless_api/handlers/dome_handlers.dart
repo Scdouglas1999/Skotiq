@@ -10,7 +10,6 @@ import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
 
-/// Handlers for dome control endpoints
 class DomeHandlers implements RouteSource {
   @override
   Map<ApiEndpoint, Function> get routes => {

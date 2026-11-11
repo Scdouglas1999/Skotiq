@@ -8,7 +8,6 @@ import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
 
-/// Handlers for equipment status and capabilities endpoints
 class EquipmentHandlers implements RouteSource {
   @override
   Map<ApiEndpoint, Function> get routes => {
@@ -94,8 +93,6 @@ class EquipmentHandlers implements RouteSource {
     return deviceId;
   }
 
-  // Equipment status
-
   Future<Response> handleCameraStatus(Request request) async {
     final deviceId = _requireDeviceId(request);
     final backend = container.read(deviceBackendProvider);
@@ -150,8 +147,6 @@ class EquipmentHandlers implements RouteSource {
       ),
     );
   }
-
-  // Equipment capabilities
 
   Future<Response> handleCameraCapabilities(Request request) async {
     final deviceId = _requireDeviceId(request);
@@ -212,8 +207,6 @@ class EquipmentHandlers implements RouteSource {
     }
     return jsonOk(caps.toJson());
   }
-
-  // Device health monitoring
 
   Future<Response> handleStartDeviceHeartbeat(Request request) async {
     _logInfo('[API] POST /api/device/heartbeat/start');

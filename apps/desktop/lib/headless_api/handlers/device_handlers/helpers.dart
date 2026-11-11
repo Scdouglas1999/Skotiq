@@ -1,7 +1,5 @@
 part of '../device_handlers.dart';
 
-// Helpers
-
 /// Parse the wire `frameType` string into a [FrameType].
 ///
 /// An unrecognised string is a bad request, never [FrameType.light]: coercing

@@ -1,8 +1,6 @@
 part of '../headless_api_server.dart';
 
 extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
-  // Middleware
-
   Middleware _requestTrackingMiddleware() {
     return (innerHandler) {
       return (request) async {

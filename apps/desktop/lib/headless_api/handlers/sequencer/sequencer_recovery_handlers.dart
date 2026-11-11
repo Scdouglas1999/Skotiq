@@ -1,6 +1,5 @@
 part of '../sequencer_handlers.dart';
 
-/// Recovery-mode HTTP handlers.
 extension _SequencerRecovery on SequencerHandlers {
   // Recovery mode — HTTP handlers.
   //

@@ -63,9 +63,6 @@ class RunWatchHandlers implements RouteSource {
     RunWatchApi.eventStream: handleEventStream,
   };
 
-  /// The provider container that backs the headless server. We pull the
-  /// backend, services, and providers via this container exactly like the
-  /// other handler files do.
   final ProviderContainer container;
 
   /// Broadcast of the server's single subscription on `backend.eventStream`.
@@ -116,8 +113,6 @@ class RunWatchHandlers implements RouteSource {
       _logger.info(message, source: 'RunWatchHandlers');
   void _logWarning(String message) =>
       _logger.warning(message, source: 'RunWatchHandlers');
-
-  // Snapshot
 
   /// GET /api/run-watch/snapshot
   ///
@@ -590,8 +585,6 @@ class RunWatchHandlers implements RouteSource {
     }
   }
 
-  // Frame thumbnail (JPEG)
-
   /// Where the frames already on disk are listed, named in the empty-buffer
   /// body so a client can say what the rig actually holds.
   static const String kFrameLibraryRoute = '/api/images';
@@ -732,8 +725,6 @@ class RunWatchHandlers implements RouteSource {
     );
   }
 
-  // Server-Sent Events
-
   /// GET /api/run-watch/events
   ///
   /// Server-Sent Events stream. Browsers expose EventSource which
@@ -823,8 +814,6 @@ class RunWatchHandlers implements RouteSource {
       context: {'shelf.io.buffer_output': false},
     );
   }
-
-  // Internal helpers
 
   /// Encode a SkotiqEvent the way the SSE/snapshot path expects.
   Map<String, Object?> _eventToJson(SkotiqEvent event) {

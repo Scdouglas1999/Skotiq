@@ -16,7 +16,6 @@ enum HostKind {
   daemon,
 }
 
-/// When a step runs.
 enum HostStartupPhase {
   /// Before the GUI creates its window. Keep this short: it is time the
   /// operator spends looking at nothing.
@@ -30,7 +29,6 @@ enum HostStartupPhase {
 /// One thing to undo at shutdown.
 typedef HostStop = ({String name, Future<void> Function() action});
 
-/// One named step of host start-up.
 class HostStartupStep {
   const HostStartupStep({
     required this.name,
@@ -88,7 +86,6 @@ class HostStartup {
   final String logSource;
   final AppVersionInfo appVersion;
 
-  /// The launch arguments.
   final List<String> args;
 
   /// The daemon's command-line server configuration.

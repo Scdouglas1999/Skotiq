@@ -69,7 +69,6 @@ class DeviceDiscoveryHandlers implements RouteSource {
       final deviceTypeStr = request.url.queryParameters['deviceType'];
       final backend = container.read(deviceBackendProvider);
 
-      // If no device type specified, discover all device types.
       List<DeviceInfo> allDevices = [];
       // Per-type errors travel in the response rather than being swallowed: a
       // persistent driver failure (missing TouptekSdk DLL, INDI server

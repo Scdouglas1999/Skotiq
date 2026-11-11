@@ -49,14 +49,11 @@ class PlanetariumHandlers implements RouteSource {
   void _logInfo(String message) =>
       _logger.info(message, source: 'PlanetariumHandlers');
 
-  // Mount Position (for FOV overlay on remote planetarium)
-
   /// GET /api/planetarium/mount-position
   /// Returns current mount RA/Dec/rotation for FOV display on client planetarium.
   Future<Response> handleGetMountPosition(Request request) async {
     final backend = container.read(deviceBackendProvider);
 
-    // Get connected mount
     final connectedDevices = await backend.getConnectedDevices();
     final mount = connectedDevices
         .where((d) => d.deviceType == DeviceType.mount)
@@ -117,8 +114,6 @@ class PlanetariumHandlers implements RouteSource {
     });
   }
 
-  // FOV Configuration (camera/optical setup for FOV calculation)
-
   /// GET /api/planetarium/fov-config
   /// Returns camera sensor size, pixel size, focal length, reducer for FOV calculation.
   Future<Response> handleGetFovConfig(Request request) async {
@@ -128,10 +123,8 @@ class PlanetariumHandlers implements RouteSource {
     // 20-line handler.
     final backend = container.read(backendProvider);
 
-    // Get active equipment profile
     final profile = await backend.getActiveProfile();
 
-    // Get connected camera for sensor info
     final connectedDevices = await backend.getConnectedDevices();
     final camera = connectedDevices
         .where((d) => d.deviceType == DeviceType.camera)
@@ -142,7 +135,6 @@ class PlanetariumHandlers implements RouteSource {
       cameraCapabilities = await backend.getCameraCapabilities(camera.id);
     }
 
-    // Calculate FOV if we have enough data
     double? fovWidthDegrees;
     double? fovHeightDegrees;
     double? imageScaleArcsecPerPixel;
@@ -200,8 +192,6 @@ class PlanetariumHandlers implements RouteSource {
     });
   }
 
-  // Target interactions
-
   /// POST /api/planetarium/slew-to
   /// Slew mount to RA/Dec coordinates.
   Future<Response> handleSlewTo(Request request) async {
@@ -216,7 +206,6 @@ class PlanetariumHandlers implements RouteSource {
 
     final backend = container.read(deviceBackendProvider);
 
-    // Get connected mount
     final connectedDevices = await backend.getConnectedDevices();
     final mount = connectedDevices
         .where((d) => d.deviceType == DeviceType.mount)
@@ -259,7 +248,6 @@ class PlanetariumHandlers implements RouteSource {
 
     final centeringService = container.read(centeringServiceProvider);
 
-    // Create centering config
     final config = CenteringConfig(
       maxIterations: maxIterations,
       toleranceArcsec: toleranceArcsec,
@@ -270,7 +258,6 @@ class PlanetariumHandlers implements RouteSource {
       syncMount: syncMount,
     );
 
-    // Get plate solver config from settings
     final database = container.read(databaseProvider);
     final solverName =
         await database.settingsDao.getSetting('plate_solve_solver') ?? 'ASTAP';
@@ -288,7 +275,6 @@ class PlanetariumHandlers implements RouteSource {
       timeoutSeconds: int.tryParse(timeoutStr) ?? 60,
     );
 
-    // Run centering
     final result = await centeringService.centerOnTarget(
       targetRa: ra,
       targetDec: dec,
@@ -332,7 +318,6 @@ class PlanetariumHandlers implements RouteSource {
 
     final backend = container.read(deviceBackendProvider);
 
-    // Get connected mount
     final connectedDevices = await backend.getConnectedDevices();
     final mount = connectedDevices
         .where((d) => d.deviceType == DeviceType.mount)
@@ -347,8 +332,6 @@ class PlanetariumHandlers implements RouteSource {
     return jsonOk({'status': 'synced', 'ra': ra, 'dec': dec});
   }
 
-  // Catalog data
-
   /// GET /api/planetarium/catalog/search?query=M31
   /// Search objects by name across star and DSO catalogs.
   Future<Response> handleCatalogSearch(Request request) async {
@@ -360,10 +343,8 @@ class PlanetariumHandlers implements RouteSource {
       return jsonOk({'results': []});
     }
 
-    // Use CatalogManager for searching
     final results = await CatalogManager.instance.search(query);
 
-    // Convert to response format
     final responseResults = results
         .take(limit)
         .map(
@@ -427,7 +408,6 @@ class PlanetariumHandlers implements RouteSource {
 
     final results = <Map<String, dynamic>>[];
 
-    // Search DSOs in region
     if (typeFilter == null || typeFilter == 'dso') {
       final dsos = await CatalogManager.instance.searchDsoNearby(
         ra: ra,
@@ -452,7 +432,6 @@ class PlanetariumHandlers implements RouteSource {
       }
     }
 
-    // Search stars in region
     if (typeFilter == null || typeFilter == 'star') {
       final stars = await CatalogManager.instance.searchStarsNearby(
         ra: ra,
@@ -500,10 +479,8 @@ class PlanetariumHandlers implements RouteSource {
     Request request,
     String objectId,
   ) async {
-    // Search for the object by ID
     final results = await CatalogManager.instance.search(objectId);
 
-    // Find exact match
     final exactMatch = results
         .where(
           (r) =>
@@ -516,11 +493,9 @@ class PlanetariumHandlers implements RouteSource {
       return jsonNotFound({'error': 'Object not found: $objectId'});
     }
 
-    // Get observer location for visibility calculation
     final backend = container.read(profileSettingsBackendProvider);
     final location = await backend.getLocation();
 
-    // Calculate visibility if we have location
     Map<String, dynamic>? visibility;
     if (location != null) {
       final now = DateTime.now();
@@ -561,8 +536,6 @@ class PlanetariumHandlers implements RouteSource {
     });
   }
 
-  // WebSocket subscription info
-
   /// GET /api/planetarium/subscribe-info
   /// Returns WebSocket URL and event types for real-time mount updates.
   Future<Response> handleGetSubscribeInfo(Request request) async {
@@ -598,8 +571,6 @@ class PlanetariumHandlers implements RouteSource {
       'pongFormat': {'type': 'pong'},
     });
   }
-
-  // Observer location
 
   /// GET /api/planetarium/location
   /// Get current observer location for astronomical calculations.

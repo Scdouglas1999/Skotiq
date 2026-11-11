@@ -96,7 +96,6 @@ const Map<String, Set<String>> commandCompletionEventTypes = {
   'phd2.dither': {'DitherComplete', 'DitherFailed', 'SettleDone'},
 };
 
-/// A registered command awaiting its completion event.
 class _PendingCommand {
   final String commandId;
   final String operation;
@@ -222,7 +221,6 @@ class CommandCorrelator {
     }
   }
 
-  /// Total pending commands across all keys (diagnostic).
   int get pendingCount {
     var sum = 0;
     for (final list in _pendingByKey.values) {

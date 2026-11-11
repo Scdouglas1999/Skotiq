@@ -169,7 +169,6 @@ class ImagingForegroundService {
   }) async {
     if (!_isRunning) return;
 
-    // Send final notification before stopping service
     if (sequenceCompleted) {
       await MobileNotificationService().notifySequenceComplete(
         _currentTarget,
@@ -232,7 +231,6 @@ class ImagingTaskHandler extends TaskHandler {
 
   @override
   void onNotificationPressed() {
-    // Handle notification tap - app will be brought to foreground
     FlutterForegroundTask.launchApp('/');
   }
 }

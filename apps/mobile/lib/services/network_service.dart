@@ -5,10 +5,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:skotiq_core/skotiq_core.dart' show userFacingError;
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
-/// Network connection status
 enum NetworkStatus { connected, disconnected, reconnecting }
 
-/// Network service state
 class NetworkServiceState {
   final NetworkStatus status;
   final List<ConnectivityResult> connectivityResults;
@@ -68,7 +66,6 @@ class NetworkService {
   DiscoveredServer? _lastKnownServer;
   Timer? _reconnectTimer;
 
-  /// Initialize the network service
   Future<void> initialize() async {
     if (_isInitialized) {
       developer.log('Already initialized', name: 'NetworkService', level: 800);
@@ -77,7 +74,6 @@ class NetworkService {
 
     developer.log('Initializing...', name: 'NetworkService', level: 800);
 
-    // Load last known server
     _lastKnownServer = await EnhancedSkotiqDiscovery.loadLastServer();
     if (_lastKnownServer != null) {
       developer.log(
@@ -87,7 +83,6 @@ class NetworkService {
       );
     }
 
-    // Get initial connectivity status
     final connectivityResult = await _connectivity.checkConnectivity();
     // In connectivity_plus 5.0.0, checkConnectivity returns ConnectivityResult
     // In 6.0.0+, it returns List<ConnectivityResult>
@@ -168,7 +163,6 @@ class NetworkService {
     return TailnetDetector.isTailscaleEndpoint(server.host);
   }
 
-  /// Dispose of the network service
   Future<void> dispose() async {
     developer.log('Disposing...', name: 'NetworkService', level: 800);
     await _connectivitySubscription?.cancel();
@@ -179,7 +173,6 @@ class NetworkService {
     _isInitialized = false;
   }
 
-  /// Handle connectivity changes
   void _onConnectivityChanged(List<ConnectivityResult> results) {
     developer.log(
       'Connectivity changed: $results',
@@ -251,7 +244,6 @@ class NetworkService {
     }
   }
 
-  /// Get connectivity status message
   String _getConnectivityMessage(List<ConnectivityResult> results) {
     if (results.isEmpty || results.every((r) => r == ConnectivityResult.none)) {
       return 'No network connection';
@@ -272,7 +264,6 @@ class NetworkService {
     return 'Network available';
   }
 
-  /// Attempt to reconnect to last known server
   Future<void> _attemptReconnect() async {
     if (_lastKnownServer == null) {
       developer.log(
@@ -331,7 +322,6 @@ class NetworkService {
           ),
         );
 
-        // Schedule retry
         _scheduleReconnect();
       }
     } catch (e, st) {
@@ -351,12 +341,10 @@ class NetworkService {
         ),
       );
 
-      // Schedule retry
       _scheduleReconnect();
     }
   }
 
-  /// Schedule a reconnection attempt
   void _scheduleReconnect() {
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer(const Duration(seconds: 10), () {
@@ -368,7 +356,6 @@ class NetworkService {
     });
   }
 
-  /// Manually trigger server rediscovery
   Future<DiscoveredServer?> rediscoverServer() async {
     if (!_state.hasConnection) {
       developer.log(
@@ -425,7 +412,6 @@ class NetworkService {
     }
   }
 
-  /// Connect to a specific server
   Future<void> connectToServer(DiscoveredServer server) async {
     developer.log(
       'Connecting to ${server.name} at ${server.host}:${server.webPort}',
@@ -433,7 +419,6 @@ class NetworkService {
       level: 800,
     );
 
-    // Save as last known server
     await EnhancedSkotiqDiscovery.saveLastServer(server);
     _lastKnownServer = server;
 
@@ -446,7 +431,6 @@ class NetworkService {
     );
   }
 
-  /// Disconnect from current server
   Future<void> disconnect() async {
     developer.log(
       'Disconnecting from server',
@@ -454,7 +438,6 @@ class NetworkService {
       level: 800,
     );
 
-    // Clear saved server
     await EnhancedSkotiqDiscovery.clearLastServer();
     _lastKnownServer = null;
 
@@ -467,7 +450,6 @@ class NetworkService {
       ),
     );
 
-    // Cancel any reconnection attempts
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
   }
@@ -480,15 +462,11 @@ class NetworkService {
     }
   }
 
-  /// Check if currently connected to a server
   bool get isConnected => _state.status == NetworkStatus.connected;
 
-  /// Get current server
   DiscoveredServer? get currentServer => _state.connectedServer;
 
-  /// Check if WiFi is available
   bool get hasWifi => _state.hasWifi;
 
-  /// Check if any network connection is available
   bool get hasConnection => _state.hasConnection;
 }

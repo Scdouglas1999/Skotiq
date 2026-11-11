@@ -461,7 +461,6 @@ class JobManager {
     return filtered;
   }
 
-  /// Returns the current count of registered jobs (diagnostic).
   int get length => _jobs.length;
 
   /// Request cooperative cancellation. Returns the current snapshot when

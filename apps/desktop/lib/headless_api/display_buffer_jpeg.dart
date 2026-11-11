@@ -27,7 +27,6 @@ class DisplayBufferJpegEncodeResult {
   final String metaHeaderValue;
 }
 
-/// Return a wire-safe UTC timestamp for camera frames.
 String capturedImageTimestampUtc(String value) => normalizeUtcTimestamp(value);
 
 /// Tail of the encode queue. Only one full-resolution encode runs at a time:

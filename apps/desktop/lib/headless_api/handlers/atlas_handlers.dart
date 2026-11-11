@@ -271,8 +271,6 @@ class AtlasHandlers implements RouteSource {
     });
   }
 
-  // Helpers
-
   Future<SkyAtlasRegionRow?> _findRegion(int regionId) async {
     final regions = await _service.regions();
     for (final region in regions) {

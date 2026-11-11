@@ -58,7 +58,6 @@ class FocusModelHandlers implements RouteSource {
   void _logInfo(String message) =>
       _logger.info(message, source: 'FocusModelHandlers');
 
-  /// Ensure the focus model service is initialized
   Future<FocusModelService> _getInitializedService() async {
     final service = container.read(focusModelServiceProvider);
     if (!_initialized) {
@@ -207,8 +206,6 @@ class FocusModelHandlers implements RouteSource {
     return jsonOk({'filter': filter, 'json': json});
   }
 
-  // Get focus data
-
   /// GET /api/focus-model/data
   /// Get all focus data points (temperature, position pairs)
   Future<Response> handleGetFocusData(Request request) async {
@@ -246,8 +243,6 @@ class FocusModelHandlers implements RouteSource {
       "referenceFilter": profileData.referenceFilter,
     });
   }
-
-  // Add focus data point
 
   /// POST /api/focus-model/add-point
   /// Add a focus data point (temperature, position, filter?)
@@ -289,7 +284,6 @@ class FocusModelHandlers implements RouteSource {
       filterName: filterName,
     );
 
-    // Get updated profile data
     final profileData = service.getProfileData(profileId);
 
     return jsonOk({
@@ -300,8 +294,6 @@ class FocusModelHandlers implements RouteSource {
       "modelIsReliable": profileData?.temperatureModel?.isReliable ?? false,
     });
   }
-
-  // Clear focus data
 
   /// DELETE /api/focus-model/clear
   /// Clear all data points
@@ -324,8 +316,6 @@ class FocusModelHandlers implements RouteSource {
       "message": "Focus data cleared",
     });
   }
-
-  // Get focus model
 
   /// GET /api/focus-model/model
   /// Get current focus model (slope, intercept, r-squared)
@@ -368,7 +358,6 @@ class FocusModelHandlers implements RouteSource {
     });
   }
 
-  /// Generate a human-readable description of the focus model
   String _getModelDescription(FocusModel model) {
     final slopeDir = model.slope > 0 ? 'increases' : 'decreases';
     final slopeAbs = model.slope.abs().toStringAsFixed(1);
@@ -379,8 +368,6 @@ class FocusModelHandlers implements RouteSource {
         'Model explains $rSquaredPct% of variance (${model.dataPointCount} data points). '
         'Model is $reliability for predictions.';
   }
-
-  // Predict focus position
 
   /// GET /api/focus-model/predict?temperature=X&filter=Y
   /// Predict focus position for temperature.
@@ -400,7 +387,6 @@ class FocusModelHandlers implements RouteSource {
     final profileId = _getActiveProfileId();
     final profileIntId = _getActiveProfileIntId();
 
-    // Parse temperature
     final tempParam = request.url.queryParameters['temperature'];
     if (tempParam == null) {
       throw BadRequestError(
@@ -483,8 +469,6 @@ class FocusModelHandlers implements RouteSource {
     return 'Low';
   }
 
-  // Get filter offsets
-
   /// GET /api/focus-model/filter-offsets
   /// Get per-filter focus offsets
   Future<Response> handleGetFilterOffsets(Request request) async {
@@ -531,8 +515,6 @@ class FocusModelHandlers implements RouteSource {
     });
   }
 
-  // Set filter offsets
-
   /// POST /api/focus-model/filter-offsets
   /// Set per-filter focus offsets
   Future<Response> handleSetFilterOffsets(Request request) async {
@@ -548,7 +530,6 @@ class FocusModelHandlers implements RouteSource {
 
     final payload = await readJsonObject(request);
 
-    // Set reference filter if provided
     final referenceFilter = optionalString(payload, 'referenceFilter');
     if (referenceFilter != null) {
       await service.setReferenceFilter(profileId, referenceFilter);
@@ -582,7 +563,6 @@ class FocusModelHandlers implements RouteSource {
       );
     }
 
-    // Get updated profile data
     final updatedData = service.getProfileData(profileId);
     final Map<String, FilterOffset> storedOffsets =
         updatedData?.filterOffsets ?? const {};
@@ -598,8 +578,6 @@ class FocusModelHandlers implements RouteSource {
       },
     });
   }
-
-  // Check should refocus
 
   /// GET /api/focus-model/should-refocus?currentTemp=X&lastFocusTemp=Y&filter=Z
   /// Check if autofocus should be triggered based on temperature drift.
@@ -743,8 +721,6 @@ class FocusModelHandlers implements RouteSource {
     );
   }
 
-  // Export focus data
-
   /// GET /api/focus-model/export
   /// Export focus data as JSON
   Future<Response> handleExportFocusData(Request request) async {
@@ -766,8 +742,6 @@ class FocusModelHandlers implements RouteSource {
     );
   }
 
-  // Import focus data
-
   /// POST /api/focus-model/import
   /// Import focus data from JSON
   Future<Response> handleImportFocusData(Request request) async {
@@ -783,7 +757,6 @@ class FocusModelHandlers implements RouteSource {
 
     final jsonData = await request.readAsString();
 
-    // Validate JSON before importing
     try {
       jsonDecode(jsonData);
     } on FormatException catch (e) {
@@ -796,7 +769,6 @@ class FocusModelHandlers implements RouteSource {
 
     await service.importData(profileId, jsonData);
 
-    // Get updated profile data
     final profileData = service.getProfileData(profileId);
 
     return jsonOk({

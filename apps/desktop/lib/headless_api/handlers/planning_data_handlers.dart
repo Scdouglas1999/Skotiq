@@ -63,8 +63,6 @@ class PlanningDataHandlers implements RouteSource {
   int? _intParam(Request request, String key) =>
       optionalQueryInt(request.url.queryParameters, key, min: 1);
 
-  // Integration goals
-
   /// GET /api/integration-goals?targetId=
   Future<Response> handleGetIntegrationGoals(Request request) async {
     final targetId = _intParam(request, 'targetId');
@@ -163,8 +161,6 @@ class PlanningDataHandlers implements RouteSource {
     }
   }
 
-  // Scheduler queue membership
-
   /// GET /api/scheduler/removed-targets
   Future<Response> handleGetSchedulerRemovedTargets(Request request) async {
     try {
@@ -226,8 +222,6 @@ class PlanningDataHandlers implements RouteSource {
       });
     }
   }
-
-  // Target constraints
 
   /// GET /api/target-constraints?targetId=
   Future<Response> handleGetTargetConstraints(Request request) async {
@@ -329,8 +323,6 @@ class PlanningDataHandlers implements RouteSource {
     }
   }
 
-  // Horizon profiles
-
   /// GET /api/horizon-profiles
   Future<Response> handleGetHorizonProfiles(Request request) async {
     try {
@@ -344,8 +336,6 @@ class PlanningDataHandlers implements RouteSource {
       });
     }
   }
-
-  // Projects
 
   /// GET /api/projects
   Future<Response> handleGetProjects(Request request) async {

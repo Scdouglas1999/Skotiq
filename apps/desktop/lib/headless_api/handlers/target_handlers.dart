@@ -10,7 +10,6 @@ import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
 
-/// Handlers for target CRUD operations
 class TargetHandlers implements RouteSource {
   @override
   Map<ApiEndpoint, Function> get routes => {
@@ -52,16 +51,12 @@ class TargetHandlers implements RouteSource {
     return parsed;
   }
 
-  // Get all targets
-
   Future<Response> handleGetAllTargets(Request request) async {
     final database = container.read(databaseProvider);
     final targets = await database.targetsDao.getAllTargets();
 
     return jsonOk({'targets': targets.map((t) => _targetToJson(t)).toList()});
   }
-
-  // Get Target By ID
 
   Future<Response> handleGetTargetById(Request request, String id) async {
     final targetId = _parsePathId(id, 'id');
@@ -75,8 +70,6 @@ class TargetHandlers implements RouteSource {
     return jsonOk({'target': _targetToJson(target)});
   }
 
-  // Search targets
-
   Future<Response> handleSearchTargets(Request request) async {
     final query = request.url.queryParameters['query'] ?? '';
     final database = container.read(databaseProvider);
@@ -85,16 +78,12 @@ class TargetHandlers implements RouteSource {
     return jsonOk({'targets': targets.map((t) => _targetToJson(t)).toList()});
   }
 
-  // Get favorite targets
-
   Future<Response> handleGetFavoriteTargets(Request request) async {
     final database = container.read(databaseProvider);
     final targets = await database.targetsDao.getFavoriteTargets();
 
     return jsonOk({'targets': targets.map((t) => _targetToJson(t)).toList()});
   }
-
-  // Create target
 
   Future<Response> handleCreateTarget(Request request) async {
     _logInfo('[API] POST /api/targets');
@@ -144,15 +133,12 @@ class TargetHandlers implements RouteSource {
     return jsonOk({'status': 'created', 'id': id});
   }
 
-  // Update target
-
   Future<Response> handleUpdateTarget(Request request, String id) async {
     _logInfo('[API] PUT /api/targets/$id');
     final targetId = _parsePathId(id, 'id');
     final payload = await readJsonObject(request);
     final database = container.read(databaseProvider);
 
-    // Get existing target
     final existing = await database.targetsDao.getTargetById(targetId);
     if (existing == null) {
       return jsonNotFound({'error': 'Target not found: $id'});
@@ -219,8 +205,6 @@ class TargetHandlers implements RouteSource {
     return jsonOk({'status': 'updated'});
   }
 
-  // Delete target
-
   Future<Response> handleDeleteTarget(Request request, String id) async {
     _logInfo('[API] DELETE /api/targets/$id');
     final targetId = _parsePathId(id, 'id');
@@ -240,8 +224,6 @@ class TargetHandlers implements RouteSource {
     return jsonOk({'status': 'deleted'});
   }
 
-  // Toggle favorite
-
   Future<Response> handleToggleFavorite(Request request, String id) async {
     _logInfo('[API] POST /api/targets/$id/favorite');
     final targetId = _parsePathId(id, 'id');
@@ -251,8 +233,6 @@ class TargetHandlers implements RouteSource {
 
     return jsonOk({'status': 'toggled'});
   }
-
-  // Update progress
 
   Future<Response> handleUpdateProgress(Request request, String id) async {
     _logInfo('[API] PUT /api/targets/$id/progress');
@@ -274,8 +254,6 @@ class TargetHandlers implements RouteSource {
     return jsonOk({'status': 'updated'});
   }
 
-  // Get targets by type
-
   Future<Response> handleGetTargetsByType(Request request) async {
     final objectType = request.url.queryParameters['type'] ?? '';
     final database = container.read(databaseProvider);
@@ -284,16 +262,12 @@ class TargetHandlers implements RouteSource {
     return jsonOk({'targets': targets.map((t) => _targetToJson(t)).toList()});
   }
 
-  // Get targets by priority
-
   Future<Response> handleGetTargetsByPriority(Request request) async {
     final database = container.read(databaseProvider);
     final targets = await database.targetsDao.getTargetsByPriority();
 
     return jsonOk({'targets': targets.map((t) => _targetToJson(t)).toList()});
   }
-
-  // Helper: Convert Target to JSON
 
   Map<String, dynamic> _targetToJson(Target target) {
     return {

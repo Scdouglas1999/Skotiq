@@ -88,7 +88,6 @@ void main() async {
     await applyAndroidSystemUiPreference(immersiveSticky);
   }
 
-  // Initialize CatalogManager
   try {
     final appDir = await resolveSkotiqDocumentsDirectory();
     await CatalogManager.instance.initialize(appDir.path);
@@ -100,7 +99,6 @@ void main() async {
     );
   }
 
-  // Initialize NetworkService for connectivity monitoring
   try {
     await NetworkService().initialize();
     developer.log('NetworkService initialized', name: 'Main');
@@ -183,7 +181,6 @@ void main() async {
     }
   }
 
-  // Add error handling
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
     developer.log(
@@ -299,7 +296,6 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
       if (!mounted) return;
       ref.read(relayReconnectProvider.notifier).state = _reconnectSavedRelay;
     });
-    // Automatically discover and connect on startup
     _autoConnect();
 
     // "Hey Siri, show the last Skotiq image": the voice lifecycle
@@ -387,7 +383,6 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
         }
       });
 
-      // If not connected and not skipped, show connection screen
       if (_connectedServer == null && !_skippedConnection) {
         final settings = ref.watch(appSettingsProvider).valueOrNull;
         final theme = resolveSkotiqThemeData(
@@ -440,7 +435,6 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
         },
       );
     } catch (e, stackTrace) {
-      // Fallback UI if something goes wrong
       developer.log(
         'Error building app: $e',
         name: 'Main',
@@ -507,14 +501,12 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
   }
 
   Widget _buildConnectionScreen() {
-    // Safe color access with fallback
     return Builder(
       builder: (context) {
         final l10n = context.l10n;
         final theme = Theme.of(context);
         final colors = theme.extension<SkotiqColors>();
 
-        // If colors extension not available, use default Material colors
         final bgColor = colors?.background ?? theme.scaffoldBackgroundColor;
         final surfaceColor = colors?.surface ?? theme.cardColor;
         final textColor =
@@ -687,7 +679,6 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                   ),
                 ],
 
-                // Manual IP entry field
                 if (_showManualEntry) ...[
                   const SizedBox(height: 8),
                   TextField(

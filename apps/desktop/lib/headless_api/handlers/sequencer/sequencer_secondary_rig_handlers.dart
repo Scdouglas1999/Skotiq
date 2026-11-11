@@ -1,6 +1,5 @@
 part of '../sequencer_handlers.dart';
 
-/// Dual-rig / secondary (piggyback) camera monitoring and control.
 extension _SequencerSecondaryRig on SequencerHandlers {
   // Dual-rig / secondary (piggyback) camera — monitoring and control.
   //

@@ -63,7 +63,6 @@ class TokenResolver {
     return bucket.failures.length >= maxFailuresPerWindow;
   }
 
-  /// Records a failed token comparison from [clientKey].
   void recordFailure(String clientKey) {
     final now = _now();
     var bucket = _failureBuckets.remove(clientKey);

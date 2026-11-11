@@ -89,8 +89,6 @@ class SafetyMonitorHandlers implements RouteSource {
     };
   }
 
-  // Safety status
-
   /// Exact aggregate host-safety projection shared by both aggregate response
   /// shapes. Keeping this in one map prevents the no-dedicated-monitor branch
   /// from silently dropping weather/API verdicts, severity, or the action
@@ -159,16 +157,13 @@ class SafetyMonitorHandlers implements RouteSource {
       _logError('Failed to read connected devices for safety status: $e');
     }
 
-    // Filter to safety monitors
     final safetyMonitors = connectedDevices
         .where((d) => d.deviceType == DeviceType.safetyMonitor)
         .toList();
 
-    // Read the real safety monitor device state from the provider
     final safetyMonitorState = container.read(safetyMonitorStateProvider);
 
     if (deviceId != null && deviceId.isNotEmpty) {
-      // Return status for specific device
       final monitor = safetyMonitors.firstWhere(
         (d) => d.id == deviceId,
         orElse: () => const DeviceInfo(
@@ -190,7 +185,6 @@ class SafetyMonitorHandlers implements RouteSource {
         }, statusCode: 503);
       }
 
-      // Use real safety state from the connected device
       final isDeviceMatch = safetyMonitorState.deviceId == deviceId;
       final isConnected =
           isDeviceMatch &&
@@ -230,7 +224,6 @@ class SafetyMonitorHandlers implements RouteSource {
       });
     }
 
-    // Build per-monitor status using real device state
     final monitorStatuses = safetyMonitors.map((m) {
       final isThisDevice = safetyMonitorState.deviceId == m.id;
       final isConnected =
@@ -255,8 +248,6 @@ class SafetyMonitorHandlers implements RouteSource {
       "lastUpdate": DateTime.now().toIso8601String(),
     });
   }
-
-  // Safety settings
 
   /// GET /api/safety/settings
   /// Gets safety-related settings.
@@ -285,7 +276,6 @@ class SafetyMonitorHandlers implements RouteSource {
     _logInfo('POST /api/safety/settings');
     final payload = await readJsonObject(request);
 
-    // Validate fail mode if provided
     final failMode = optionalString(payload, 'failMode');
     if (failMode != null) {
       const validModes = ['fail_open', 'fail_closed', 'warn_only'];
@@ -354,8 +344,6 @@ class SafetyMonitorHandlers implements RouteSource {
     final updated = await _buildSettingsPayload();
     return jsonOk({'status': 'updated', 'settings': updated});
   }
-
-  // Safety acknowledgement
 
   /// POST /api/safety/acknowledge
   /// Acknowledges an unsafe condition, allowing operations to continue despite the warning.

@@ -446,8 +446,6 @@ class CalibrationLibraryHandlers implements RouteSource {
     return jsonOk({'status': 'deleted', 'type': typeRaw, 'id': id});
   }
 
-  // param helpers
-
   CalibrationMasterType _requireType(String? raw) {
     final type = _typeParam(raw);
     if (type == null) {

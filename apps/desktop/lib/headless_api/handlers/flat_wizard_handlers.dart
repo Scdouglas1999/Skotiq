@@ -7,7 +7,6 @@ import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
 
-/// Handlers for flat frame calibration and sequence generation
 class FlatWizardHandlers implements RouteSource {
   @override
   Map<ApiEndpoint, Function> get routes => {
@@ -25,8 +24,6 @@ class FlatWizardHandlers implements RouteSource {
 
   void _logInfo(String message) =>
       _logger.info(message, source: 'FlatWizardHandlers');
-
-  // Calibrate single filter
 
   Future<Response> handleCalibrateFilter(Request request) async {
     _logInfo('[API] POST /api/flat-wizard/calibrate');
@@ -65,8 +62,6 @@ class FlatWizardHandlers implements RouteSource {
     return jsonOk({'result': _flatResultToJson(result)});
   }
 
-  // Calibrate multiple filters
-
   Future<Response> handleCalibrateMultipleFilters(Request request) async {
     _logInfo('[API] POST /api/flat-wizard/calibrate-multi');
     final payload = await readJsonObject(request);
@@ -102,8 +97,6 @@ class FlatWizardHandlers implements RouteSource {
       'results': results.map((r) => _flatResultToJson(r)).toList(),
     });
   }
-
-  // Generate Sequence from Calibrations
 
   Future<Response> handleGenerateSequence(Request request) async {
     _logInfo('[API] POST /api/flat-wizard/generate-sequence');
@@ -225,8 +218,6 @@ class FlatWizardHandlers implements RouteSource {
 
     return jsonOk({'sequence': _sequenceToJson(sequence)});
   }
-
-  // Quick calibrate
 
   Future<Response> handleQuickCalibrate(Request request) async {
     _logInfo('[API] POST /api/flat-wizard/quick-calibrate');
@@ -485,8 +476,6 @@ class FlatWizardHandlers implements RouteSource {
     return cleaned;
   }
 
-  // Helpers
-
   (int, int) _resolveGainOffset(Map<String, dynamic> payload) {
     // Client-supplied values are already floored at 0 here, so a negative can
     // only enter through a profile fallback below.
@@ -568,7 +557,6 @@ class FlatWizardHandlers implements RouteSource {
       'isEnabled': node.isEnabled,
     };
 
-    // Add type-specific fields
     if (node is ExposureNode) {
       base['durationSecs'] = node.durationSecs;
       base['count'] = node.count;

@@ -1,4 +1,3 @@
-// Export all handler modules
 export 'handlers/auth_handlers.dart';
 export 'handlers/collaboration_handlers.dart';
 export 'handlers/device_handlers.dart';
@@ -15,7 +14,6 @@ export 'handlers/replay_debug_handlers.dart';
 export 'handlers/sequencer_handlers.dart';
 export 'handlers/session_handlers.dart';
 
-// New feature parity handlers
 export 'handlers/target_handlers.dart';
 export 'handlers/sequence_management_handlers.dart';
 export 'handlers/flat_wizard_handlers.dart';
@@ -34,16 +32,13 @@ export 'handlers/framing_handlers.dart';
 export 'handlers/filesystem_handlers.dart';
 export 'handlers/science_handlers.dart';
 
-// Auxiliary device handlers
 export 'handlers/dome_handlers.dart';
 export 'handlers/narrator_handlers.dart';
 export 'handlers/safety_monitor_handlers.dart';
 export 'handlers/auxiliary_handlers.dart';
 
-// Planetarium support for remote clients
 export 'handlers/planetarium_handlers.dart';
 
-// Intelligent scheduler and focus model
 export 'handlers/scheduler_handlers.dart';
 
 // Planner/scheduler DATA tables (goals/constraints/horizons/projects)
@@ -73,10 +68,8 @@ export 'handlers/broadcast_handlers.dart';
 // remote log retrieval and tail SSE
 export 'handlers/log_handlers.dart';
 
-// long-running job model handlers
 export 'handlers/job_handlers.dart';
 
-// session ownership handlers
 export 'handlers/session_ownership_handlers.dart';
 
 // headless OTA update endpoints

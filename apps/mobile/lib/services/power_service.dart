@@ -24,7 +24,6 @@ class PowerService {
   BatteryState _currentBatteryState = BatteryState.full;
   BatteryWarningLevel _lastWarningLevel = BatteryWarningLevel.normal;
 
-  // Callbacks for battery events
   Function(int percentage)? onBatteryLevelChanged;
   Function(BatteryState state)? onBatteryStateChanged;
   Function(BatteryWarningLevel level)? onBatteryWarning;
@@ -45,16 +44,13 @@ class PowerService {
   final _batteryLevelStreamController = StreamController<int>.broadcast();
 
   Future<void> initialize() async {
-    // Get initial battery level
     _currentBatteryLevel = await _battery.batteryLevel;
     _currentBatteryState = await _battery.batteryState;
 
-    // Listen to battery state changes (charging/discharging)
     _batteryStateSubscription = _battery.onBatteryStateChanged.listen((state) {
       _currentBatteryState = state;
       onBatteryStateChanged?.call(state);
 
-      // Cancel critical warnings if charging
       if (state == BatteryState.charging || state == BatteryState.full) {
         _lastWarningLevel = BatteryWarningLevel.normal;
       }
@@ -66,7 +62,6 @@ class PowerService {
 
     try {
       if (enableCpuWakeLock) {
-        // Enable wake lock to keep CPU running
         await WakelockPlus.enable();
         _wakeLockActive = true;
         developer.log(
@@ -118,13 +113,11 @@ class PowerService {
       level: 800,
     );
 
-    // Check battery level periodically
     _batteryMonitorTimer = Timer.periodic(
       Duration(seconds: batteryCheckIntervalSeconds),
       (_) => _checkBatteryLevel(),
     );
 
-    // Initial check
     _checkBatteryLevel();
   }
 
@@ -148,16 +141,12 @@ class PowerService {
       final level = await _battery.batteryLevel;
       _currentBatteryLevel = level;
 
-      // Emit to stream
       _batteryLevelStreamController.add(level);
 
-      // Notify callback
       onBatteryLevelChanged?.call(level);
 
-      // Check if we need to warn about battery level
       final warningLevel = _getBatteryWarningLevel(level);
 
-      // Only notify if warning level changed and not charging
       if (warningLevel != _lastWarningLevel &&
           _currentBatteryState != BatteryState.charging &&
           _currentBatteryState != BatteryState.full) {
@@ -193,7 +182,6 @@ class PowerService {
             break;
 
           case BatteryWarningLevel.normal:
-            // Battery level returned to normal
             break;
         }
       }

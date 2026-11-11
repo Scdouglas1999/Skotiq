@@ -21,7 +21,6 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
     try {
       developer.log('Starting enhanced auto-discovery...', name: 'Discovery');
 
-      // Use enhanced discovery with cascading fallback
       final server = await EnhancedSkotiqDiscovery.discoverWithFallback(
         onStatus: (status) {
           if (mounted) {

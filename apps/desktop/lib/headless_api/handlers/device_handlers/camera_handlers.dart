@@ -1,8 +1,6 @@
 part of '../device_handlers.dart';
 
 extension CameraDeviceHandlers on DeviceHandlers {
-  // Camera control
-
   /// Reject exposure parameters the camera has told us it cannot honour.
   ///
   /// Vendor SDKs clamp an out-of-range request instead of failing it, and the
@@ -928,6 +926,4 @@ extension CameraDeviceHandlers on DeviceHandlers {
 
     return jsonOk({'status': 'ok'});
   }
-
-  // Mount control
 }

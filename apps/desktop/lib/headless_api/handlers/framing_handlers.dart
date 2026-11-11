@@ -10,7 +10,6 @@ import 'device_handlers.dart' show requestPrefersLegacyBlocking;
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
 
-/// Handlers for framing assistant and centering operations
 class FramingHandlers implements RouteSource {
   @override
   Map<ApiEndpoint, Function> get routes => {
@@ -41,8 +40,6 @@ class FramingHandlers implements RouteSource {
   void _logInfo(String message) =>
       _logger.info(message, source: 'FramingHandlers');
 
-  // Slew to target
-
   Future<Response> handleSlewToTarget(Request request) async {
     _logInfo('[API] POST /api/framing/slew-to-target');
     final payload = await readJsonObject(request);
@@ -52,7 +49,6 @@ class FramingHandlers implements RouteSource {
 
     final backend = container.read(deviceBackendProvider);
 
-    // Get connected mount
     final connectedDevices = await backend.getConnectedDevices();
     final mount = connectedDevices
         .where((d) => d.deviceType == DeviceType.mount)
@@ -66,8 +62,6 @@ class FramingHandlers implements RouteSource {
 
     return jsonOk({'status': 'slewing', 'targetRa': ra, 'targetDec': dec});
   }
-
-  // Center on target
 
   Future<Response> handleCenterOnTarget(Request request) async {
     _logInfo('[API] POST /api/framing/center-on-target');
@@ -199,8 +193,6 @@ class FramingHandlers implements RouteSource {
     return jsonOk(resultToJson(result));
   }
 
-  // Sync mount
-
   Future<Response> handleSyncMount(Request request) async {
     _logInfo('[API] POST /api/framing/sync');
     final payload = await readJsonObject(request);
@@ -210,7 +202,6 @@ class FramingHandlers implements RouteSource {
 
     final backend = container.read(deviceBackendProvider);
 
-    // Get connected mount
     final connectedDevices = await backend.getConnectedDevices();
     final mount = connectedDevices
         .where((d) => d.deviceType == DeviceType.mount)
@@ -225,12 +216,9 @@ class FramingHandlers implements RouteSource {
     return jsonOk({'status': 'synced', 'ra': ra, 'dec': dec});
   }
 
-  // Get current position
-
   Future<Response> handleGetCurrentPosition(Request request) async {
     final backend = container.read(deviceBackendProvider);
 
-    // Get connected mount
     final connectedDevices = await backend.getConnectedDevices();
     final mount = connectedDevices
         .where((d) => d.deviceType == DeviceType.mount)
@@ -256,8 +244,6 @@ class FramingHandlers implements RouteSource {
     });
   }
 
-  // Rotate to angle
-
   Future<Response> handleRotateTo(Request request) async {
     _logInfo('[API] POST /api/framing/rotate-to');
     final payload = await readJsonObject(request);
@@ -266,7 +252,6 @@ class FramingHandlers implements RouteSource {
 
     final backend = container.read(deviceBackendProvider);
 
-    // Get connected rotator
     final connectedDevices = await backend.getConnectedDevices();
     final rotator = connectedDevices
         .where((d) => d.deviceType == DeviceType.rotator)
@@ -281,13 +266,10 @@ class FramingHandlers implements RouteSource {
     return jsonOk({'status': 'rotating', 'targetAngle': angle});
   }
 
-  // Abort slew
-
   Future<Response> handleAbortSlew(Request request) async {
     _logInfo('[API] POST /api/framing/abort-slew');
     final backend = container.read(deviceBackendProvider);
 
-    // Get connected mount
     final connectedDevices = await backend.getConnectedDevices();
     final mount = connectedDevices
         .where((d) => d.deviceType == DeviceType.mount)
@@ -332,13 +314,10 @@ class FramingHandlers implements RouteSource {
     return jsonOk({'status': 'aborted', kWasRunningField: true});
   }
 
-  // Park mount
-
   Future<Response> handleParkMount(Request request) async {
     _logInfo('[API] POST /api/framing/park');
     final backend = container.read(deviceBackendProvider);
 
-    // Get connected mount
     final connectedDevices = await backend.getConnectedDevices();
     final mount = connectedDevices
         .where((d) => d.deviceType == DeviceType.mount)
@@ -353,13 +332,10 @@ class FramingHandlers implements RouteSource {
     return jsonOk({'status': 'parking'});
   }
 
-  // Unpark mount
-
   Future<Response> handleUnparkMount(Request request) async {
     _logInfo('[API] POST /api/framing/unpark');
     final backend = container.read(deviceBackendProvider);
 
-    // Get connected mount
     final connectedDevices = await backend.getConnectedDevices();
     final mount = connectedDevices
         .where((d) => d.deviceType == DeviceType.mount)
@@ -373,8 +349,6 @@ class FramingHandlers implements RouteSource {
 
     return jsonOk({'status': 'unparking'});
   }
-
-  // Set framing target (remote handoff)
 
   /// POST /api/framing/set-target
   ///
@@ -398,8 +372,6 @@ class FramingHandlers implements RouteSource {
 
     return jsonOk({'status': 'ok', 'ra': ra, 'dec': dec, 'name': name});
   }
-
-  // Save framing on a target row
 
   /// POST /api/framing/save
   ///

@@ -988,8 +988,6 @@ class SavedServersService {
     );
   }
 
-  // Internals
-
   Future<T> _serializeMutation<T>(Future<T> Function() operation) {
     final completer = Completer<T>();
     _mutationTail = _mutationTail.then((_) async {
@@ -1123,7 +1121,6 @@ class SavedServersService {
         // Bad JSON — treat as empty.
       }
     }
-    // If the legacy host/port is already represented, skip the import.
     final alreadyPresent = existingList.any(
       (s) => s.host == legacy!.host && s.port == legacy.webPort,
     );

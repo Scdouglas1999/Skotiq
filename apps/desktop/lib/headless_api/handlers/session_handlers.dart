@@ -75,8 +75,6 @@ class SessionHandlers implements RouteSource {
     return id;
   }
 
-  // Polar alignment
-
   Future<Response> handleStartPolarAlignment(Request request) async {
     _logInfo('[API] POST /api/polar-alignment/start');
     final payload = await readJsonObject(request);
@@ -191,8 +189,6 @@ class SessionHandlers implements RouteSource {
         .startAllSkyAlignment(config);
     return jsonOk({"status": "started"});
   }
-
-  // Session images
 
   Future<Response> handleGetSessionImages(
     Request request,

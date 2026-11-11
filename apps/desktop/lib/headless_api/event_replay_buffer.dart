@@ -78,10 +78,8 @@ class EventReplayBuffer {
     return result;
   }
 
-  /// Lowest retained seq, or null when empty.
   int? get oldestSeq => _entries.isEmpty ? null : _entries.first.seq;
 
-  /// Highest retained seq, or null when empty.
   int? get newestSeq => _entries.isEmpty ? null : _entries.last.seq;
 
   /// Current number of retained events (0..capacity).

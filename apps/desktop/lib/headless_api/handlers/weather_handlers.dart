@@ -7,7 +7,6 @@ import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
 
-/// Handlers for weather data and alerts
 class WeatherHandlers implements RouteSource {
   @override
   Map<ApiEndpoint, Function> get routes => {
@@ -41,8 +40,6 @@ class WeatherHandlers implements RouteSource {
   /// response — only the log copy is coarsened.
   static String _coarseCoord(double? value) =>
       value == null ? 'null' : value.toStringAsFixed(1);
-
-  // Get radar data
 
   Future<Response> handleGetRadarData(Request request) async {
     final query = request.url.queryParameters;
@@ -80,8 +77,6 @@ class WeatherHandlers implements RouteSource {
       "frames": [],
     }, statusCode: 502);
   }
-
-  // Get weather forecast
 
   Future<Response> handleGetForecast(Request request) async {
     final query = request.url.queryParameters;
@@ -146,8 +141,6 @@ class WeatherHandlers implements RouteSource {
     }
   }
 
-  // Get active alerts
-
   Future<Response> handleGetAlerts(Request request) async {
     final alertService = container.read(weatherAlertServiceProvider);
     final currentAlert = alertService.currentAlert;
@@ -160,8 +153,6 @@ class WeatherHandlers implements RouteSource {
       "alerts": [_alertToJson(currentAlert)],
     });
   }
-
-  // Get cloud cover prediction
 
   Future<Response> handleGetCloudCover(Request request) async {
     final query = request.url.queryParameters;
@@ -228,8 +219,6 @@ class WeatherHandlers implements RouteSource {
     }
   }
 
-  // Get weather settings
-
   /// The writable weather settings, by the names both the GET and the POST
   /// use. [handleUpdateSettings] refuses a body naming none of them.
   static const Set<String> _writableSettings = {
@@ -284,8 +273,6 @@ class WeatherHandlers implements RouteSource {
       },
     });
   }
-
-  // Update weather settings
 
   Future<Response> handleUpdateSettings(Request request) async {
     _logInfo('[API] POST /api/weather/settings');
@@ -424,8 +411,6 @@ class WeatherHandlers implements RouteSource {
     });
   }
 
-  // Check safe imaging conditions
-
   Future<Response> handleCheckSafeImaging(Request request) async {
     final alertService = container.read(weatherAlertServiceProvider);
     final currentAlert = alertService.currentAlert;
@@ -500,8 +485,6 @@ class WeatherHandlers implements RouteSource {
     });
   }
 
-  // Clear weather cache
-
   Future<Response> handleClearCache(Request request) async {
     _logInfo('[API] POST /api/weather/clear-cache');
     final service = container.read(weatherRadarServiceProvider);
@@ -509,8 +492,6 @@ class WeatherHandlers implements RouteSource {
 
     return jsonOk({"status": "cache_cleared"});
   }
-
-  // Helpers
 
   String _safetyMessage(WeatherSafetyState safety, WeatherAlert? currentAlert) {
     if (currentAlert != null) return currentAlert.message;

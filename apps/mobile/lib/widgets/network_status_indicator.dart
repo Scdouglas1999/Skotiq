@@ -834,7 +834,6 @@ class _ConnectionDetailsSheetState
   }
 }
 
-/// Detail row widget
 class _DetailRow extends StatelessWidget {
   final String label;
   final String value;
