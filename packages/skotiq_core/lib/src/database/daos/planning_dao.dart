@@ -158,24 +158,28 @@ class PlanningDao extends DatabaseAccessor<SkotiqDatabase>
   /// `targets` so an id that is no longer in the catalog is a no-op rather
   /// than a foreign-key failure.
   Future<void> removeFromSchedulerQueue(int targetId, int removedAtSeconds) =>
-      customInsert(
-        'INSERT OR REPLACE INTO scheduler_removed_targets '
-        '(target_id, removed_at) SELECT id, ? FROM targets WHERE id = ?',
-        variables: [
-          Variable.withInt(removedAtSeconds),
-          Variable.withInt(targetId),
-        ],
-        updates: {schedulerRemovedTargets},
-      );
+      _removeFromSchedulerQueue(removedAtSeconds, targets.id.equals(targetId));
 
   /// Records every target in the catalog right now as removed.
   Future<void> removeAllFromSchedulerQueue(int removedAtSeconds) =>
-      customInsert(
-        'INSERT OR REPLACE INTO scheduler_removed_targets '
-        '(target_id, removed_at) SELECT id, ? FROM targets',
-        variables: [Variable.withInt(removedAtSeconds)],
-        updates: {schedulerRemovedTargets},
-      );
+      _removeFromSchedulerQueue(removedAtSeconds, null);
+
+  Future<void> _removeFromSchedulerQueue(
+    int removedAtSeconds,
+    Expression<bool>? which,
+  ) {
+    final removedAt = Variable.withInt(removedAtSeconds);
+    final catalog = selectOnly(targets)..addColumns([targets.id, removedAt]);
+    if (which != null) catalog.where(which);
+    return into(schedulerRemovedTargets).insertFromSelect(
+      catalog,
+      columns: {
+        schedulerRemovedTargets.targetId: targets.id,
+        schedulerRemovedTargets.removedAt: removedAt,
+      },
+      mode: InsertMode.insertOrReplace,
+    );
+  }
 
   Future<void> readmitToSchedulerQueue(int targetId) => (delete(
     schedulerRemovedTargets,

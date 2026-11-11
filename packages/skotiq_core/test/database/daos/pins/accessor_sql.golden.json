@@ -2,9 +2,9 @@
   "removed ids empty": {
     "set": []
   },
-  "remove one": 2,
-  "remove unknown target": 2,
-  "remove one again replaces": 2,
+  "remove one": null,
+  "remove unknown target": null,
+  "remove one again replaces": null,
   "after remove one :: scheduler_removed_targets": [
     {
       "target_id": {
@@ -17,7 +17,7 @@
       }
     }
   ],
-  "remove all": 3,
+  "remove all": null,
   "after remove all :: scheduler_removed_targets": [
     {
       "target_id": {
