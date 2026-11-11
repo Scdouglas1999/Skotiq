@@ -40,9 +40,7 @@ use crate::recipe::ops::star_detect;
 use crate::recipe::{DarkroomOp, OpContext, OpError, OpImage, OpStage, Params};
 use crate::{DetectedStar, StarDetectionConfig};
 
-/// Registry id.
 const OP_ID: &str = "star_reduce";
-/// Registry version.
 const OP_VERSION: u32 = 1;
 
 /// Lowest reduction weight; `0` is an exact clone.
@@ -56,7 +54,6 @@ const AMOUNT_DEFAULT: f64 = 0.5;
 /// Lowest detection threshold a source must clear to enter the mask, in sigmas
 /// above the measured background.
 const MASK_THRESHOLD_SIGMA_MIN: f64 = 1.0;
-/// Highest detection threshold accepted.
 const MASK_THRESHOLD_SIGMA_MAX: f64 = 20.0;
 /// Detection threshold when the parameter is absent, in sigmas.
 const MASK_THRESHOLD_SIGMA_DEFAULT: f64 = 5.0;

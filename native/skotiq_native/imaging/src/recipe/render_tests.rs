@@ -29,10 +29,6 @@ fn scale_step(factor: f64) -> RecipeStep {
     RecipeStep::new("test_scale", 1).with_params(scale_params(factor))
 }
 
-// ---------------------------------------------------------------------------
-// Validation
-// ---------------------------------------------------------------------------
-
 #[test]
 fn an_empty_recipe_validates_against_an_empty_registry() {
     let recipe = Recipe::new("rec", "master-1", RecipeAuthor::Autopilot);
@@ -205,10 +201,6 @@ fn an_unsupported_schema_version_is_rejected_before_the_steps_are_read() {
         Err(RecipeError::UnsupportedSchemaVersion { found: 2 })
     );
 }
-
-// ---------------------------------------------------------------------------
-// Replay
-// ---------------------------------------------------------------------------
 
 #[test]
 fn an_empty_recipe_renders_the_base_unchanged() {
@@ -421,10 +413,6 @@ fn a_crop_moves_the_reference_pixel_with_the_image() {
     );
 }
 
-// ---------------------------------------------------------------------------
-// Stage materialisation
-// ---------------------------------------------------------------------------
-
 #[test]
 fn stopping_after_a_step_materialises_that_stage() {
     let base = base_image();
@@ -465,10 +453,6 @@ fn stopping_after_a_step_the_recipe_does_not_have_is_rejected() {
         }
     );
 }
-
-// ---------------------------------------------------------------------------
-// Cancellation
-// ---------------------------------------------------------------------------
 
 #[test]
 fn a_cancel_raised_before_the_render_stops_it_immediately() {
@@ -529,10 +513,6 @@ fn a_cancel_between_steps_stops_the_remaining_ones() {
     );
     assert_eq!(applications.load(Ordering::Relaxed), 0);
 }
-
-// ---------------------------------------------------------------------------
-// Cache resume
-// ---------------------------------------------------------------------------
 
 fn counting_registry() -> (OpRegistry, Arc<AtomicUsize>) {
     let applications = Arc::new(AtomicUsize::new(0));
@@ -649,10 +629,6 @@ fn a_run_of_disabled_steps_does_not_collapse_the_report() {
     assert_eq!(warm.report.steps[1].outcome, StepOutcome::Disabled);
     assert_eq!(warm.report.steps[2].outcome, StepOutcome::Disabled);
 }
-
-// ---------------------------------------------------------------------------
-// Preview
-// ---------------------------------------------------------------------------
 
 #[test]
 fn a_preview_renders_over_the_requested_level() {

@@ -110,7 +110,6 @@ pub(crate) fn mono(width: u32, height: u32, plane: Vec<f32>, filter: &str) -> Op
     OpImage::new(width, height, 1, plane, header).expect("valid image")
 }
 
-/// The pyramid of an image.
 pub(crate) fn pyramid(image: OpImage) -> Arc<ImagePyramid> {
     Arc::new(ImagePyramid::build(Arc::new(image)).expect("pyramid"))
 }

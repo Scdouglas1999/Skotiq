@@ -162,7 +162,6 @@ extern "C" {
     fn libraw_get_raw_height(data: *mut libraw_data_t) -> c_int;
 }
 
-/// RAW file error types
 #[derive(Debug)]
 pub enum RawError {
     Io(std::io::Error),
@@ -218,7 +217,6 @@ impl From<std::io::Error> for RawError {
     }
 }
 
-/// RAW file metadata
 #[derive(Debug, Clone, Default)]
 pub struct RawMetadata {
     pub camera_make: String,
@@ -234,7 +232,6 @@ pub struct RawMetadata {
     pub raw_height: u32,
 }
 
-/// White Balance Mode
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum WhiteBalanceMode {
     Camera,
@@ -242,7 +239,6 @@ pub enum WhiteBalanceMode {
     Custom(f32, f32, f32, f32), // R, G1, B, G2 multipliers
 }
 
-/// Output Color Space
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorSpace {
     Raw,
@@ -254,7 +250,6 @@ pub enum ColorSpace {
     ACES,
 }
 
-/// Demosaic Algorithm
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DemosaicAlgorithm {
     Linear,
@@ -266,7 +261,6 @@ pub enum DemosaicAlgorithm {
     AAHD,
 }
 
-/// Highlight Recovery Mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HighlightMode {
     Clip,
@@ -275,7 +269,6 @@ pub enum HighlightMode {
     Rebuild(u32), // 3-9
 }
 
-/// RAW Processing Parameters
 #[derive(Debug, Clone)]
 pub struct RawProcessingParams {
     pub white_balance: WhiteBalanceMode,
@@ -350,7 +343,6 @@ pub fn read_raw(
 ) -> Result<(ImageData, RawMetadata), RawError> {
     let default_params = RawProcessingParams::default();
     let params = params.unwrap_or(&default_params);
-    // Validate path
     let path_str = path
         .to_str()
         .ok_or_else(|| RawError::InvalidPath("Path contains invalid UTF-8".to_string()))?;
@@ -368,13 +360,11 @@ pub fn read_raw(
     // carefully: init returns a valid pointer or null (checked), and we ensure cleanup via
     // libraw_close in all code paths (error and success).
     unsafe {
-        // Initialize LibRaw processor
         let processor = libraw_init(0);
         if processor.is_null() {
             return Err(RawError::NullPointer);
         }
 
-        // Open file
         let c_path = CString::new(path_str)
             .map_err(|_| RawError::InvalidPath("Path contains null bytes".to_string()))?;
 
@@ -416,7 +406,6 @@ pub fn read_raw(
         // Detect X-Trans (filters == 9 indicates X-Trans)
         let is_xtrans = iparams.filters == 9;
 
-        // Extract exposure metadata
         let iso_speed = if other.iso_speed > 0.0 {
             Some(other.iso_speed)
         } else {
@@ -554,7 +543,6 @@ pub fn read_raw(
             raw_height: libraw_get_raw_height(processor) as u32,
         };
 
-        // Unpack the RAW data
         let ret = libraw_unpack(processor);
         if ret != LIBRAW_SUCCESS {
             let err_msg = get_error_string(ret);
@@ -576,7 +564,6 @@ pub fn read_raw(
             )));
         }
 
-        // Get processed RGB image
         let mut errcode = 0;
         let processed_image = libraw_dcraw_make_mem_image(processor, &mut errcode);
         if processed_image.is_null() {
@@ -587,7 +574,6 @@ pub fn read_raw(
             )));
         }
 
-        // Extract image data from the processed image structure
         let img = &*processed_image;
         let img_width = img.width as u32;
         let img_height = img.height as u32;
@@ -651,10 +637,8 @@ pub fn read_raw(
             )));
         }
 
-        // Convert to byte array for ImageData
         let data: Vec<u8> = rgb_data.iter().flat_map(|&val| val.to_le_bytes()).collect();
 
-        // Cleanup
         libraw_dcraw_clear_mem(processed_image);
         libraw_close(processor);
 
@@ -685,7 +669,6 @@ unsafe fn get_error_string(code: c_int) -> String {
 
 /// Extract thumbnail from RAW file (Fast Preview)
 pub fn extract_thumbnail(path: &Path) -> Result<ImageData, RawError> {
-    // Validate path
     let path_str = path
         .to_str()
         .ok_or_else(|| RawError::InvalidPath("Path contains invalid UTF-8".to_string()))?;
@@ -701,13 +684,11 @@ pub fn extract_thumbnail(path: &Path) -> Result<ImageData, RawError> {
     // carefully: init returns a valid pointer or null (checked), and we ensure cleanup via
     // libraw_close in all code paths (error and success).
     unsafe {
-        // Initialize LibRaw processor
         let processor = libraw_init(0);
         if processor.is_null() {
             return Err(RawError::NullPointer);
         }
 
-        // Open file
         let c_path = CString::new(path_str)
             .map_err(|_| RawError::InvalidPath("Path contains null bytes".to_string()))?;
 
@@ -717,7 +698,6 @@ pub fn extract_thumbnail(path: &Path) -> Result<ImageData, RawError> {
             return Err(RawError::LibRawError("Failed to open file".to_string()));
         }
 
-        // Unpack thumbnail
         let ret = libraw_unpack_thumb(processor);
         if ret != LIBRAW_SUCCESS {
             libraw_close(processor);
@@ -726,7 +706,6 @@ pub fn extract_thumbnail(path: &Path) -> Result<ImageData, RawError> {
             ));
         }
 
-        // Make memory thumbnail
         let mut err = 0;
         let processed = libraw_dcraw_make_mem_thumb(processor, &mut err);
 
@@ -738,7 +717,6 @@ pub fn extract_thumbnail(path: &Path) -> Result<ImageData, RawError> {
             )));
         }
 
-        // Convert to ImageData
         let width = (*processed).width as u32;
         let height = (*processed).height as u32;
         let colors = (*processed).colors as u32;

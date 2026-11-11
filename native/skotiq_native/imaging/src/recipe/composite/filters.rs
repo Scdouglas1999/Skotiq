@@ -269,7 +269,6 @@ pub struct FilterSetInput {
 pub struct PlannedInput {
     /// Index into the inputs the plan was given.
     pub index: usize,
-    /// The role it plays.
     pub role: FilterRole,
 }
 

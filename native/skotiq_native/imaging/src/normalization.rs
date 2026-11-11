@@ -177,12 +177,10 @@ impl CoverageMask {
         self.is_valid(index)
     }
 
-    /// Width in pixels.
     pub fn width(&self) -> usize {
         self.width
     }
 
-    /// Height in pixels.
     pub fn height(&self) -> usize {
         self.height
     }
@@ -287,9 +285,7 @@ impl Default for NormalizationConfig {
 /// across the frame with no cell-boundary discontinuities.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LocalGrid {
-    /// Lattice rows.
     pub rows: usize,
-    /// Lattice columns.
     pub cols: usize,
     /// Per-cell multiplicative scale, row-major (`rows × cols`).
     pub scale: Vec<f64>,
@@ -396,8 +392,6 @@ pub enum NormalizationError {
     #[error("local normalization grid must have non-zero rows and cols")]
     EmptyGrid,
 }
-
-// Public API
 
 /// Estimate the normalization that maps `frame` onto `reference`'s photometric
 /// scale.
@@ -507,8 +501,6 @@ pub fn apply_normalization(
         Some(grid) => apply_local_grid(frame, grid, width, height),
     }
 }
-
-// Global fit
 
 /// A bare global fit result (no local grid).
 #[derive(Debug, Clone, Copy)]
@@ -872,8 +864,6 @@ fn ordinary_least_squares(pairs: &[(f64, f64)]) -> Option<(f64, f64)> {
     Some((scale, offset))
 }
 
-// Local grid fit + apply
-
 /// Fit a `rows × cols` grid of local `(scale, offset)` coefficients.
 ///
 /// Each cell fits its own robust line over the pixels whose centre falls in
@@ -996,8 +986,6 @@ fn bilinear_coeffs(grid: &LocalGrid, gx: f64, gy: f64) -> (f64, f64) {
     (s, o)
 }
 
-// Robust-statistics helpers
-
 /// The reference value above which a pixel is treated as bright structure and
 /// excluded from the fit. Computed as the `percentile` quantile of the *valid,
 /// finite* reference pixels. Falls back to `+∞` (exclude nothing) when there is
@@ -1030,8 +1018,6 @@ fn std_dev(values: &[f64]) -> f64 {
     let var = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n as f64;
     var.sqrt()
 }
-
-// Tests
 
 #[cfg(test)]
 mod tests {

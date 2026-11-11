@@ -59,7 +59,6 @@ pub const DEFAULT_POOL_TTL: Duration = Duration::from_secs(60);
 /// both run their own caps.
 pub const DEFAULT_POOL_MAX_TOTAL_ELEMENTS: usize = 4 * 9576 * 6388;
 
-/// Configuration for buffer pool behavior
 #[derive(Debug, Clone)]
 pub struct BufferPoolConfig {
     /// Number of buffers to pre-allocate for each size bucket
@@ -106,7 +105,6 @@ impl Default for BufferPoolConfig {
     }
 }
 
-/// Metrics for buffer pool utilization
 #[derive(Debug, Default)]
 pub struct BufferPoolMetrics {
     /// Number of times a buffer was retrieved from the pool (hit)
@@ -117,14 +115,12 @@ pub struct BufferPoolMetrics {
     pub pool_size: AtomicUsize,
     /// Number of buffers currently checked out (in use)
     pub active_buffers: AtomicUsize,
-    /// Total number of buffers ever allocated
     pub total_allocations: AtomicU64,
     /// Number of buffers dropped due to pool being at max capacity
     pub dropped_returns: AtomicU64,
 }
 
 impl BufferPoolMetrics {
-    /// Get a snapshot of current metrics
     pub fn snapshot(&self) -> MetricsSnapshot {
         MetricsSnapshot {
             hits: self.hits.load(Ordering::Relaxed),
@@ -149,7 +145,6 @@ impl BufferPoolMetrics {
     }
 }
 
-/// Snapshot of metrics at a point in time
 #[derive(Debug, Clone)]
 pub struct MetricsSnapshot {
     pub hits: u64,
@@ -174,9 +169,7 @@ impl MetricsSnapshot {
 
 /// Inner pool storage, protected by mutex
 struct PoolInner<T> {
-    /// Buffers organized by size bucket
     buckets: HashMap<usize, Vec<Vec<T>>>,
-    /// Configuration
     config: BufferPoolConfig,
     /// Sorted bucket sizes for efficient lookup
     sorted_buckets: Vec<usize>,
@@ -191,7 +184,6 @@ where
         let mut sorted_buckets = config.size_buckets.clone();
         sorted_buckets.sort_unstable();
 
-        // Pre-allocate buffers for each bucket
         for &size in &sorted_buckets {
             let mut bucket_buffers = Vec::with_capacity(config.max_capacity);
             for _ in 0..config.initial_capacity {
@@ -207,9 +199,7 @@ where
         }
     }
 
-    /// Find the appropriate bucket size for a given request
     fn find_bucket_size(&self, requested_size: usize) -> usize {
-        // Find the smallest bucket that can accommodate the requested size
         for &bucket_size in &self.sorted_buckets {
             if bucket_size >= requested_size {
                 return bucket_size;
@@ -219,7 +209,6 @@ where
         requested_size
     }
 
-    /// Try to get a buffer from the pool
     fn try_get(&mut self, bucket_size: usize) -> Option<Vec<T>> {
         if let Some(bucket) = self.buckets.get_mut(&bucket_size) {
             bucket.pop()
@@ -228,12 +217,9 @@ where
         }
     }
 
-    /// Return a buffer to the pool
     fn return_buffer(&mut self, mut buffer: Vec<T>, bucket_size: usize) -> bool {
-        // Get or create the bucket
         let bucket = self.buckets.entry(bucket_size).or_default();
 
-        // Check if we're at capacity
         if bucket.len() >= self.config.max_capacity {
             return false; // Buffer will be dropped
         }
@@ -246,7 +232,6 @@ where
         true
     }
 
-    /// Get total number of buffers in pool
     fn total_pool_size(&self) -> usize {
         self.buckets.values().map(|b| b.len()).sum()
     }
@@ -278,7 +263,6 @@ impl<T> BufferPool<T>
 where
     T: Default + Clone + Send + 'static,
 {
-    /// Create a new buffer pool with the given configuration
     pub fn new(config: BufferPoolConfig) -> Self {
         let initial_pool_size: usize = config.size_buckets.len() * config.initial_capacity;
         let total_allocations = config.size_buckets.len() as u64 * config.initial_capacity as u64;
@@ -296,7 +280,6 @@ where
         }
     }
 
-    /// Create a pool with default configuration
     pub fn with_defaults() -> Self {
         Self::new(BufferPoolConfig::default())
     }
@@ -322,13 +305,11 @@ where
                 }
                 (buffer, bucket_size, true)
             } else {
-                // Allocate new buffer at bucket size
                 let buffer = vec![T::default(); bucket_size.max(min_size)];
                 (buffer, bucket_size, false)
             }
         };
 
-        // Update metrics
         if was_hit {
             self.metrics.hits.fetch_add(1, Ordering::Relaxed);
             self.metrics.pool_size.fetch_sub(1, Ordering::Relaxed);
@@ -349,12 +330,10 @@ where
         }
     }
 
-    /// Get current pool metrics
     pub fn metrics(&self) -> &BufferPoolMetrics {
         &self.metrics
     }
 
-    /// Get a snapshot of current metrics
     pub fn metrics_snapshot(&self) -> MetricsSnapshot {
         self.metrics.snapshot()
     }
@@ -372,14 +351,12 @@ where
             .fetch_sub(pool_size, Ordering::Relaxed);
     }
 
-    /// Get the current number of buffers in the pool
     pub fn pool_size(&self) -> usize {
         // Why: unpoisonable-Mutex idiom; see get_buffer above.
         let inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         inner.total_pool_size()
     }
 
-    /// Get the number of currently active (checked out) buffers
     pub fn active_buffers(&self) -> usize {
         self.metrics.active_buffers.load(Ordering::Relaxed)
     }
@@ -410,22 +387,18 @@ impl<T> PooledBuffer<T>
 where
     T: Default + Clone,
 {
-    /// Get the buffer as a slice
     pub fn as_slice(&self) -> &[T] {
         self.buffer.as_slice()
     }
 
-    /// Get the buffer as a mutable slice
     pub fn as_slice_mut(&mut self) -> &mut [T] {
         self.buffer.as_mut_slice()
     }
 
-    /// Get the length of the buffer
     pub fn len(&self) -> usize {
         self.buffer.len()
     }
 
-    /// Check if the buffer is empty
     pub fn is_empty(&self) -> bool {
         self.buffer.is_empty()
     }
@@ -449,17 +422,14 @@ where
         self.buffer.resize(new_len, T::default());
     }
 
-    /// Truncate the buffer to a smaller length
     pub fn truncate(&mut self, len: usize) {
         self.buffer.truncate(len);
     }
 
-    /// Get an iterator over the buffer
     pub fn iter(&self) -> std::slice::Iter<'_, T> {
         self.buffer.iter()
     }
 
-    /// Get a mutable iterator over the buffer
     pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, T> {
         self.buffer.iter_mut()
     }
@@ -483,7 +453,6 @@ impl<T: Default + Clone> Drop for PooledBuffer<T> {
     fn drop(&mut self) {
         if !self.detached {
             let buffer = std::mem::take(&mut self.buffer);
-            // Try to return to pool
             if let Some(pool) = self.pool.upgrade() {
                 let returned = {
                     // Why: unpoisonable-Mutex idiom; see get_buffer above.
@@ -512,7 +481,6 @@ unsafe impl<T: Default + Clone + Send> Send for PooledBuffer<T> {}
 /// Global buffer pool for u8 image data (raw bytes)
 static GLOBAL_U8_POOL: std::sync::OnceLock<BufferPool<u8>> = std::sync::OnceLock::new();
 
-/// Get the global u8 buffer pool for raw byte data
 pub fn global_u8_pool() -> &'static BufferPool<u8> {
     GLOBAL_U8_POOL.get_or_init(|| {
         let config = BufferPoolConfig {
@@ -555,7 +523,6 @@ mod tests {
         assert!(buffer1.len() >= 50);
         assert_eq!(pool.active_buffers(), 1);
 
-        // Get another buffer
         let buffer2 = pool.get_buffer(500);
         assert!(buffer2.len() >= 500);
         assert_eq!(pool.active_buffers(), 2);
@@ -585,7 +552,6 @@ mod tests {
         let buffer1 = pool.get_buffer(100);
         assert_eq!(pool.metrics().misses.load(Ordering::Relaxed), 1);
 
-        // Return buffer
         drop(buffer1);
         assert_eq!(pool.pool_size(), 1);
 
@@ -603,7 +569,6 @@ mod tests {
             ..Default::default()
         });
 
-        // Allocate and return multiple buffers
         let buffer1 = pool.get_buffer(100);
         let buffer2 = pool.get_buffer(100);
 
@@ -649,17 +614,14 @@ mod tests {
 
         let mut buffer = pool.get_buffer(5);
 
-        // Test slice operations
         buffer[0] = 42;
         assert_eq!(buffer[0], 42);
 
-        // Test iteration
         for val in buffer.iter_mut() {
             *val = 1;
         }
         assert!(buffer.iter().all(|&v| v == 1));
 
-        // Test len
         assert!(buffer.len() >= 5);
     }
 

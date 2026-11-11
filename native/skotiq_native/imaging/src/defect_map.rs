@@ -157,7 +157,6 @@ pub const NDM_HEADER_SIZE: usize = 16;
 /// Size of the trailing footer (u32 count).
 pub const NDM_FOOTER_SIZE: usize = 4;
 
-/// Errors that can occur in the defect-map pipeline.
 #[derive(Debug, Clone)]
 pub enum DefectMapError {
     EmptyStack,

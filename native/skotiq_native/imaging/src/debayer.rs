@@ -2,7 +2,6 @@
 
 use rayon::prelude::*;
 
-/// Bayer pattern type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BayerPattern {
     RGGB,
@@ -24,7 +23,6 @@ impl BayerPattern {
         }
     }
 
-    /// Get the color at a specific pixel position
     pub fn color_at(&self, x: usize, y: usize) -> BayerColor {
         let x_odd = x % 2 == 1;
         let y_odd = y % 2 == 1;
@@ -60,7 +58,6 @@ pub enum BayerColor {
     Blue,
 }
 
-/// Debayer algorithm
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum DebayerAlgorithm {
     /// Simple bilinear interpolation (fast)
@@ -72,7 +69,6 @@ pub enum DebayerAlgorithm {
     SuperPixel,
 }
 
-/// RGB image data
 #[derive(Debug, Clone)]
 pub struct RgbImage {
     pub width: u32,
@@ -135,7 +131,6 @@ pub fn debayer(
     pattern: BayerPattern,
     algorithm: DebayerAlgorithm,
 ) -> RgbImage {
-    // Convert to u16 array
     let pixels: Vec<u16> = raw_data
         .as_chunks::<2>()
         .0
@@ -190,7 +185,6 @@ pub fn debayer_to_rgb16(
     debayer_u16(raw_data, width, height, pattern, algorithm).to_rgb16()
 }
 
-/// Bilinear interpolation debayering
 fn debayer_bilinear(pixels: &[u16], width: u32, height: u32, pattern: BayerPattern) -> RgbImage {
     let w = width as usize;
     let h = height as usize;
@@ -200,8 +194,6 @@ fn debayer_bilinear(pixels: &[u16], width: u32, height: u32, pattern: BayerPatte
     let mut green = vec![0u16; len];
     let mut blue = vec![0u16; len];
 
-    // Parallel processing using Rayon
-    // We split the output vectors into rows and process them in parallel
     red.par_chunks_mut(w)
         .zip(green.par_chunks_mut(w))
         .zip(blue.par_chunks_mut(w))
@@ -211,27 +203,22 @@ fn debayer_bilinear(pixels: &[u16], width: u32, height: u32, pattern: BayerPatte
                 let idx = y * w + x;
                 let color = pattern.color_at(x, y);
 
-                // Set the known color
                 match color {
                     BayerColor::Red => red_row[x] = pixels[idx],
                     BayerColor::Green => green_row[x] = pixels[idx],
                     BayerColor::Blue => blue_row[x] = pixels[idx],
                 }
 
-                // Interpolate missing colors
                 match color {
                     BayerColor::Red => {
-                        // At red pixel: interpolate green and blue
                         green_row[x] = interpolate_cross(pixels, w, h, x, y);
                         blue_row[x] = interpolate_diagonal(pixels, w, h, x, y);
                     }
                     BayerColor::Blue => {
-                        // At blue pixel: interpolate green and red
                         green_row[x] = interpolate_cross(pixels, w, h, x, y);
                         red_row[x] = interpolate_diagonal(pixels, w, h, x, y);
                     }
                     BayerColor::Green => {
-                        // At green pixel: interpolate red and blue
                         let horizontal_color = axis_neighbor_color(pattern, x, y, true);
                         if horizontal_color == BayerColor::Red {
                             red_row[x] = interpolate_horizontal(pixels, w, h, x, y);
@@ -317,7 +304,6 @@ fn interpolate_diagonal(pixels: &[u16], w: usize, h: usize, x: usize, y: usize) 
     sum.checked_div(count).map_or(0, |q| q as u16)
 }
 
-/// Interpolate from horizontal neighbors
 fn interpolate_horizontal(pixels: &[u16], w: usize, _h: usize, x: usize, y: usize) -> u16 {
     let mut sum = 0u32;
     let mut count = 0u32;
@@ -334,7 +320,6 @@ fn interpolate_horizontal(pixels: &[u16], w: usize, _h: usize, x: usize, y: usiz
     sum.checked_div(count).map_or(0, |q| q as u16)
 }
 
-/// Interpolate from vertical neighbors
 fn interpolate_vertical(pixels: &[u16], w: usize, h: usize, x: usize, y: usize) -> u16 {
     let mut sum = 0u32;
     let mut count = 0u32;
@@ -369,12 +354,10 @@ fn debayer_vng(pixels: &[u16], width: u32, height: u32, pattern: BayerPattern) -
         .zip(blue.par_chunks_mut(w))
         .enumerate()
         .for_each(|(y, ((red_row, green_row), blue_row))| {
-            // Process main area (skip borders)
             if y >= 2 && y < h - 2 {
                 for x in 2..w - 2 {
                     let color = pattern.color_at(x, y);
 
-                    // Calculate gradients in 8 directions
                     let gradients = calculate_gradients(pixels, w, x, y);
                     // Why: `calculate_gradients` always returns an 8-element
                     // array of i32 gradients (per direction); .min() is therefore guaranteed
@@ -428,7 +411,6 @@ fn debayer_vng(pixels: &[u16], width: u32, height: u32, pattern: BayerPattern) -
     }
 }
 
-/// Helper for VNG border processing
 #[allow(clippy::too_many_arguments)]
 fn process_border_pixel(
     pixels: &[u16],
@@ -478,7 +460,6 @@ fn process_border_pixel(
     }
 }
 
-/// Calculate gradients in 8 directions
 fn calculate_gradients(pixels: &[u16], w: usize, x: usize, y: usize) -> [i32; 8] {
     let idx = |dx: i32, dy: i32| -> u16 {
         pixels[(y as i32 + dy) as usize * w + (x as i32 + dx) as usize]
@@ -529,7 +510,6 @@ fn vng_interpolate(
 ) -> (u16, u16, u16) {
     let val = pixels[y * w + x] as i32;
 
-    // Helper to read a pixel at (x+dx, y+dy)
     let px = |dx: i32, dy: i32| -> i32 {
         pixels[(y as i32 + dy) as usize * w + (x as i32 + dx) as usize] as i32
     };
@@ -687,7 +667,6 @@ fn debayer_superpixel(pixels: &[u16], width: u32, height: u32, pattern: BayerPat
     let mut green = vec![0u16; len];
     let mut blue = vec![0u16; len];
 
-    // Parallel processing for superpixel
     red.par_chunks_mut(out_w)
         .zip(green.par_chunks_mut(out_w))
         .zip(blue.par_chunks_mut(out_w))
@@ -697,13 +676,11 @@ fn debayer_superpixel(pixels: &[u16], width: u32, height: u32, pattern: BayerPat
                 let src_x = x * 2;
                 let src_y = y * 2;
 
-                // Get 2x2 block
                 let p00 = pixels[src_y * w + src_x] as u32;
                 let p10 = pixels[src_y * w + src_x + 1] as u32;
                 let p01 = pixels[(src_y + 1) * w + src_x] as u32;
                 let p11 = pixels[(src_y + 1) * w + src_x + 1] as u32;
 
-                // Assign based on pattern
                 match pattern {
                     BayerPattern::RGGB => {
                         red_row[x] = p00 as u16;

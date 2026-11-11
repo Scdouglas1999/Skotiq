@@ -74,8 +74,6 @@ use rayon::prelude::*;
 /// model fits noise rather than the smooth background (see module docs).
 const MAX_POLY_DEGREE: usize = 6;
 
-// Public configuration
-
 /// Tunables for [`extract_background`].
 ///
 /// [`Default`] is a quality-first DBE/ABE-spirit configuration: a 24×24 sample
@@ -141,7 +139,6 @@ pub struct BackgroundModel {
     pub width: u32,
     /// Frame height the model was fitted for (px).
     pub height: u32,
-    /// Number of channels the model covers.
     pub channels: u32,
     /// Per-channel polynomial coefficients. `coeffs_per_channel[c]` is the
     /// coefficient vector for channel `c`, in the canonical term order produced
@@ -213,8 +210,6 @@ pub enum BackgroundError {
     SingularFit { channel: usize },
 }
 
-// Public entry points
-
 /// Fit a star-masked, low-order polynomial background model to `image`.
 ///
 /// The algorithm, per channel (run in parallel across channels):
@@ -273,7 +268,6 @@ pub fn extract_background(
     let degree = cfg.poly_degree;
     let n_terms = poly_terms(degree).len();
 
-    // Fit every channel; collect either all coeff/mean pairs or the first error.
     let per_channel: Result<Vec<(Vec<f64>, f64)>, BackgroundError> = (0..channels)
         .into_par_iter()
         .map(|ch| {
@@ -401,8 +395,6 @@ pub fn extract_and_subtract(
     subtract_background(&mut out, &model);
     Ok((out, model))
 }
-
-// Per-channel fit
 
 /// Fit one channel's background polynomial. Returns the coefficient vector (in
 /// [`poly_terms`] order) and the surface's mean level over the frame.
@@ -640,7 +632,6 @@ pub(crate) fn iterative_residual_fit(
             break;
         }
 
-        // Residual of every survivor against the current surface.
         let mut residuals: Vec<f64> = samples
             .iter()
             .map(|s| {
@@ -687,8 +678,6 @@ pub(crate) fn iterative_residual_fit(
 
     Ok(coeffs)
 }
-
-// Polynomial machinery
 
 /// The exponent pairs `(i, j)` of every monomial `xⁱ·yʲ` with `i + j ≤ degree`,
 /// in a stable canonical order: ascending total degree, then **descending `i`**
@@ -863,14 +852,12 @@ fn solve_linear_system(mut m: Vec<Vec<f64>>, mut b: Vec<f64>) -> Option<Vec<f64>
         m.swap(col, pivot_row);
         b.swap(col, pivot_row);
 
-        // Normalise the pivot row.
         let pivot = m[col][col];
         for c in col..n {
             m[col][c] /= pivot;
         }
         b[col] /= pivot;
 
-        // Eliminate the column from every other row.
         for r in 0..n {
             if r == col {
                 continue;
@@ -922,8 +909,6 @@ fn surface_mean(coeffs: &[f64], degree: usize, width: usize, height: usize) -> f
         0.0
     }
 }
-
-// Star masking
 
 /// Detect star centres/radii once, so every channel's fit can reject the same
 /// star-overlapping boxes.
@@ -995,8 +980,6 @@ fn mean_plane(planes: &[Vec<f64>], width: usize, height: usize) -> Option<Detect
     let (low, high) = finite_range(&mean)?;
     DetectionPlane::from_range(width, height, &mean, low, high, Quantize::Truncate)
 }
-
-// Tests
 
 #[cfg(test)]
 mod tests {
@@ -1336,7 +1319,6 @@ mod tests {
             "nebulosity patch must be preserved at ~{NEB_LEVEL} above sky, got excess {patch_excess:.1}"
         );
 
-        // Mean preservation must be reflected in the model too.
         assert!(model.preserve_mean);
         assert!(model.mean_level[0] > 0.0);
     }

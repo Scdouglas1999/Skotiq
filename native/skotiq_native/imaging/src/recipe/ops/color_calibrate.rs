@@ -98,9 +98,7 @@ use crate::robust_stats::median_in_place;
 use crate::wcs_sip::SipWcs;
 use crate::{DetectedStar, StarDetectionConfig};
 
-/// Registry id.
 const OP_ID: &str = "color_calibrate";
-/// Registry version.
 const OP_VERSION: u32 = 1;
 
 /// The only channel layout this operation defines a result for.

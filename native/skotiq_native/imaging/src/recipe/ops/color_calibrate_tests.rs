@@ -56,7 +56,6 @@ struct Scene {
     image: OpImage,
     /// Every planted star, with the colour index it was planted at.
     catalog: Arc<dyn PhotometryCatalog>,
-    /// Number of planted stars.
     planted: usize,
 }
 

@@ -99,8 +99,6 @@ use crate::registration::TransformModel;
 use crate::{BayerColor, BayerPattern, ImageData};
 use rayon::prelude::*;
 
-// Public configuration types
-
 /// The shape of the "drop" footprint a single input pixel deposits onto the
 /// output grid.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -134,7 +132,6 @@ pub struct DrizzleConfig {
     /// dithered frames sample finer detail (sharper, but needs more frames to
     /// fill coverage). `0.9` is the DrizzlePac default.
     pub pixfrac: f64,
-    /// The drop footprint shape.
     pub kernel: DrizzleKernel,
 }
 
@@ -175,9 +172,7 @@ impl DrizzleConfig {
 pub struct DrizzleFrame<'a> {
     /// Aligned-or-not pixel buffer (`width × height × channels`, f64, interleaved).
     pub pixels: &'a [f64],
-    /// Frame width in pixels.
     pub width: u32,
-    /// Frame height in pixels.
     pub height: u32,
     /// Channel count (must match every other frame and the output).
     pub channels: u32,
@@ -199,9 +194,7 @@ pub struct DrizzleFrame<'a> {
 pub struct BayerDrizzleFrame<'a> {
     /// Raw single-channel CFA mosaic (`width × height`, f64, row-major).
     pub mosaic: &'a [f64],
-    /// Mosaic width in pixels.
     pub width: u32,
-    /// Mosaic height in pixels.
     pub height: u32,
     /// Effective Bayer pattern at the mosaic origin `(0, 0)`.
     pub pattern: BayerPattern,
@@ -254,8 +247,6 @@ pub enum DrizzleError {
     #[error("invalid drizzle parameters (need scale > 0 and 0 < pixfrac <= 1)")]
     BadParams,
 }
-
-// Public entry points
 
 /// Drizzle a population of frames onto a `scale`× output grid.
 ///
@@ -475,8 +466,6 @@ pub fn bayer_drizzle_integrate(
 
     Ok(DrizzleOutput { master, coverage })
 }
-
-// Core deposition
 
 /// Output grid dimensions: `ceil(ref · scale)`, floored to at least 1 cell so a
 /// degenerate-but-valid 1×1 reference still produces an output.
@@ -847,8 +836,6 @@ fn erf(x: f64) -> f64 {
             * (-x * x).exp();
     sign * y
 }
-
-// Tests
 
 #[cfg(test)]
 mod tests {

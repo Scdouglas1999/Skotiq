@@ -15,10 +15,8 @@
 use crate::{ImageData, PixelType};
 use rayon::prelude::*;
 
-/// Errors that can occur during calibration
 #[derive(Debug, Clone)]
 pub enum CalibrationError {
-    /// Frame dimensions do not match
     DimensionMismatch {
         expected_width: u32,
         expected_height: u32,
@@ -26,19 +24,16 @@ pub enum CalibrationError {
         actual_height: u32,
         frame_name: String,
     },
-    /// Channel counts do not match
     ChannelMismatch {
         expected: u32,
         actual: u32,
         frame_name: String,
     },
-    /// Pixel types do not match
     PixelTypeMismatch {
         expected: PixelType,
         actual: PixelType,
         frame_name: String,
     },
-    /// The input frame has no data
     EmptyFrame { frame_name: String },
     /// A dark scale that is negative or not finite, or a scaled dark without
     /// a bias to separate its thermal signal from its pedestal.
@@ -154,7 +149,6 @@ fn validate_frame_geometry(
             frame_name: other_name.to_string(),
         });
     }
-    // Validate that raw buffers are correctly sized for their pixel types
     validate_buffer_length(reference, "light frame")?;
     validate_buffer_length(other, other_name)?;
     Ok(())
@@ -299,7 +293,6 @@ pub fn calibrate_frame(
     let dark = conformed_dark.as_deref();
     let bias = conformed_bias.as_deref();
 
-    // Validate all provided frames against the light
     if let Some(d) = dark {
         validate_frames(light, d, "dark frame")?;
     }
@@ -343,12 +336,10 @@ pub fn calibrate_frame(
         None => light.clone(),
     };
 
-    // Step 4: Subtract dark from light
     if let Some(ref d) = corrected_dark {
         result = subtract_dark(&result, d)?;
     }
 
-    // Step 5: Divide by normalized flat
     if let Some(ref f) = corrected_flat {
         result = divide_flat(&result, f)?;
     }
@@ -551,8 +542,6 @@ fn per_channel_means(values: &[f64], channels: usize) -> Vec<f64> {
         .collect()
 }
 
-// U8 pixel operations
-
 fn subtract_u8(light: &[u8], dark: &[u8]) -> Vec<u8> {
     light
         .par_iter()
@@ -589,8 +578,6 @@ fn divide_flat_u8(light: &[u8], flat: &[u8], channels: usize) -> Vec<u8> {
         })
         .collect()
 }
-
-// U16 pixel operations
 
 fn subtract_u16(light: &[u8], dark: &[u8]) -> Vec<u8> {
     let light_pixels: Vec<u16> = light
@@ -659,8 +646,6 @@ fn divide_flat_u16(light: &[u8], flat: &[u8], channels: usize) -> Vec<u8> {
     result.iter().flat_map(|&v| v.to_le_bytes()).collect()
 }
 
-// U32 pixel operations
-
 fn subtract_u32(light: &[u8], dark: &[u8]) -> Vec<u8> {
     let light_pixels: Vec<u32> = light
         .as_chunks::<4>()
@@ -727,8 +712,6 @@ fn divide_flat_u32(light: &[u8], flat: &[u8], channels: usize) -> Vec<u8> {
 
     result.iter().flat_map(|&v| v.to_le_bytes()).collect()
 }
-
-// F32 pixel operations
 
 fn subtract_f32(light: &[u8], dark: &[u8]) -> Vec<u8> {
     let light_pixels: Vec<f32> = light
@@ -809,8 +792,6 @@ fn divide_flat_f32(light: &[u8], flat: &[u8], channels: usize) -> Vec<u8> {
 
     result.iter().flat_map(|&v| v.to_le_bytes()).collect()
 }
-
-// F64 pixel operations
 
 fn subtract_f64(light: &[u8], dark: &[u8]) -> Vec<u8> {
     let light_pixels: Vec<f64> = light

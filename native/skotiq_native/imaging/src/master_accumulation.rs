@@ -89,8 +89,6 @@ pub const MASTER_STATE_VERSION: u32 = 2;
 /// rather than parsing garbage, exactly like [`crate::defect_map`]'s container.
 pub const MASTER_MAGIC: &[u8; 4] = b"NSM1";
 
-// Public configuration + metadata types
-
 /// How the accumulating master folds samples and whether it rejects outliers
 /// online as it goes.
 ///
@@ -162,9 +160,7 @@ pub struct SignalReference {
 /// a clear error rather than silently misaccumulated.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GeometryReference {
-    /// Reference grid width in pixels.
     pub width: u32,
-    /// Reference grid height in pixels.
     pub height: u32,
     /// Channel count (1 = mono, 3 = OSC/RGB).
     pub channels: u32,
@@ -413,8 +409,6 @@ impl PerPixelAccumulator {
 /// principle the batch rejectors use when they refuse to clip < 3 samples).
 pub(crate) const MIN_HISTORY_FOR_CLIP: u32 = 5;
 
-// Configuration for creating a master
-
 /// How to create a new [`IntegratedMaster`].
 #[derive(Debug, Clone, Default)]
 pub struct MasterCreateConfig {
@@ -423,7 +417,6 @@ pub struct MasterCreateConfig {
     /// Provenance metadata seeded onto the master (totals are managed by the
     /// master itself; the caller supplies filter/target).
     pub filter: Option<String>,
-    /// Optional target name.
     pub target: Option<String>,
 }
 
@@ -439,8 +432,6 @@ pub struct AddReport {
     /// Master's running total frame count after this call.
     pub total_frames: usize,
 }
-
-// Errors
 
 /// Errors from the accumulating-master API. Every variant is a caller mistake
 /// (a degenerate reference, a mismatched sub, a corrupt sidecar) surfaced loudly
@@ -508,8 +499,6 @@ pub enum MasterError {
     InconsistentPayload,
 }
 
-// The accumulating master
-
 /// A resumable, multi-night accumulating master frame.
 ///
 /// Create one from the reference frame, fold in each night's prepared subs with
@@ -527,9 +516,7 @@ pub struct IntegratedMaster {
     pub geometry: GeometryReference,
     /// Frozen photometric reference baseline.
     pub norm_reference: SignalReference,
-    /// Per-pixel running accumulator state.
     pub state: PerPixelAccumulator,
-    /// Provenance + summary metadata.
     pub metadata: MasterMetadata,
 }
 
@@ -725,8 +712,6 @@ impl IntegratedMaster {
         self.state.rejection_image(g.width, g.height, g.channels)
     }
 
-    // Serialization (resumable sidecar)
-
     /// Serialize the running accumulator state into a self-contained, versioned
     /// blob (the `.skmaster` sidecar).
     ///
@@ -850,8 +835,6 @@ struct SerializedHeader {
     metadata: MasterMetadata,
     slot_count: usize,
 }
-
-// Helpers
 
 /// The reference frame as a flat f64 buffer (channel-interleaved). Only U16
 /// and F32 references are supported; everything else is a caller error.

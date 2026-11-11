@@ -81,7 +81,6 @@ pub enum PsfKind {
 /// `size` is always odd so the kernel has a well-defined centre pixel.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PsfModel {
-    /// Which family produced this kernel.
     pub kind: PsfKind,
     /// Full-width-half-maximum of the PSF, in pixels. For the empirical kind
     /// this is measured from the stacked core; for the parametric kinds it is
@@ -115,7 +114,6 @@ pub struct PsfEstimateConfig {
     /// pixels. Must be odd (forced odd internally if an even value is supplied).
     /// 25 px comfortably contains the wings of a well-sampled stellar PSF.
     pub crop: usize,
-    /// Which PSF family to produce.
     pub kind: PsfKind,
 }
 
@@ -186,8 +184,6 @@ pub enum DeconvError {
 /// noise / centroiding error and is not a trustworthy PSF. Three is the floor
 /// at which a per-pixel median is meaningfully robust to one outlier.
 const MIN_STARS_FOR_PSF: usize = 3;
-
-// PSF estimation
 
 /// Estimate the point-spread function from the stars in `image`.
 ///
@@ -324,7 +320,6 @@ fn select_psf_stars(
             && s.flux > 0.0
     });
 
-    // Brightest first.
     stars.sort_by(|a, b| b.flux.total_cmp(&a.flux));
 
     // Skip the very brightest handful (closest to non-linear) when we have a
@@ -687,8 +682,6 @@ fn measure_kernel_fwhm(kernel: &[f64], size: usize) -> f64 {
     2.0 * half as f64
 }
 
-// Richardson–Lucy deconvolution
-
 /// Deconvolve `image` with `psf` using regularized Richardson–Lucy.
 ///
 /// The RL iteration on a single channel is
@@ -880,7 +873,6 @@ fn convolve(plane: &[f64], width: usize, height: usize, kernel: &[f64], half: us
             for x in 0..width {
                 let mut acc = 0.0_f64;
                 for kj in 0..(2 * half + 1) {
-                    // Clamp sample row to the image.
                     let sy = clamp_coord(y as isize + kj as isize - half as isize, height);
                     let krow = kj * (2 * half + 1);
                     let prow = sy * width;
@@ -919,8 +911,6 @@ fn flip_kernel(kernel: &[f64], size: usize) -> Vec<f64> {
     }
     out
 }
-
-// Shared helpers
 
 /// Validate a PSF kernel: odd side, matching length, and a usable normalization.
 fn validate_kernel(psf: &PsfModel) -> Result<(), DeconvError> {
@@ -1090,8 +1080,6 @@ fn psf_detection_plane(
     };
     Some((detection_plane, U16_SAT))
 }
-
-// Tests
 
 #[cfg(test)]
 mod tests {
@@ -1335,7 +1323,6 @@ mod tests {
         };
         let restored = richardson_lucy(&blurred, &psf, &cfg).expect("RL must succeed");
 
-        // Dimensions preserved.
         assert_eq!(restored.width, blurred.width);
         assert_eq!(restored.height, blurred.height);
         assert_eq!(restored.channels, blurred.channels);

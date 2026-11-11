@@ -12,14 +12,11 @@ use crate::robust_stats::{median_and_sigma, median_in_place};
 /// `y ≈ scale · x + offset`: how one master's values map onto another's.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LinearFit {
-    /// Multiplier.
     pub scale: f64,
-    /// Additive term.
     pub offset: f64,
 }
 
 impl LinearFit {
-    /// Apply the fit to one value.
     #[inline]
     pub fn apply(&self, x: f32) -> f32 {
         (self.scale * x as f64 + self.offset) as f32

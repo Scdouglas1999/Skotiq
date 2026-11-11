@@ -67,9 +67,7 @@ use serde_json::{json, Value};
 use crate::recipe::{DarkroomOp, OpContext, OpError, OpImage, OpStage, Params};
 use crate::robust_stats::{mad_sigma, percentile_nearest_rank};
 
-/// Registry id.
 const OP_ID: &str = "stretch";
-/// Registry version.
 const OP_VERSION: u32 = 1;
 
 /// Widest ADU magnitude accepted for a black or white point.
@@ -87,7 +85,6 @@ const D_DEFAULT: f64 = 1.0;
 /// Lowest local intensity. Below `0` the curve saturates at a finite distance
 /// from the symmetry point.
 const B_MIN: f64 = -5.0;
-/// Highest local intensity.
 const B_MAX: f64 = 15.0;
 /// Local intensity when the parameter is absent: the exponential family.
 const B_DEFAULT: f64 = 0.0;

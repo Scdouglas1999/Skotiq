@@ -362,7 +362,6 @@ fn safe_pow(base: f64, exp: f64) -> f64 {
 pub struct WeightedFrame {
     /// Index of the frame in the input slice.
     pub index: usize,
-    /// The frame's quality descriptor.
     pub quality: FrameQuality,
     /// Weight normalized so the best frame in the population = 1.0.
     pub weight: f64,

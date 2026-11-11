@@ -6,7 +6,6 @@ fn main() {
     println!("LibRaw Integration Test");
     println!("========================================\n");
 
-    // Test with a RAW file
     let test_file = std::env::args().nth(1).unwrap_or_else(|| {
         eprintln!(
             "Usage: cargo run --package skotiq_imaging --example test_raw <path_to_raf_file>"
@@ -27,7 +26,6 @@ fn main() {
 
     println!("Testing file: {}\n", test_file);
 
-    // Test direct RAW reading
     println!("--- Direct RAW Reading ---");
     match read_raw(path, None) {
         Ok((image, metadata)) => {
@@ -92,7 +90,6 @@ fn main() {
                         );
                         println!("  Expected: {} bytes", expected_size);
 
-                        // Sample first few pixels
                         println!("\n  Sample pixel values (first pixel):");
                         if rgba.len() >= 4 {
                             println!(
@@ -119,7 +116,6 @@ fn main() {
         }
     }
 
-    // Test unified image reader
     println!("\n--- Unified Image Reader Test ---");
     match read_image(path) {
         Ok(result) => {

@@ -111,7 +111,6 @@ pub enum PlateSolveError {
     },
 }
 
-/// Plate solve result
 #[derive(Debug, Clone, Default)]
 pub struct PlateSolveResult {
     /// Solved RA in degrees
@@ -126,9 +125,7 @@ pub struct PlateSolveResult {
     pub field_width: f64,
     /// Field height in degrees
     pub field_height: f64,
-    /// Was the solve successful?
     pub success: bool,
-    /// Error message if failed
     pub error: Option<String>,
     /// Time taken to solve in seconds
     pub solve_time_secs: f64,
@@ -156,7 +153,6 @@ pub struct PlateSolveResult {
     pub bp_coeffs: Vec<f64>,
 }
 
-/// Plate solver configuration
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum PlateSolverChoice {
     #[default]
@@ -177,7 +173,6 @@ impl PlateSolverChoice {
 
 #[derive(Debug, Clone)]
 pub struct PlateSolverConfig {
-    /// Path to ASTAP executable
     pub astap_path: Option<PathBuf>,
     /// Path to local astrometry.net solve-field
     pub astrometry_path: Option<PathBuf>,
@@ -748,7 +743,6 @@ pub(crate) fn build_astap_args(
         }
     }
 
-    // Field-scale hint.
     if let Some(scale) = hint_scale.filter(|s| *s > 0.0 && s.is_finite()) {
         match naxis2 {
             Some(height) if height > 0.0 => {
@@ -991,7 +985,6 @@ fn reclaim_new_artifacts(dir: &Path, stem: &str, existing: &[std::ffi::OsString]
     }
 }
 
-/// Plate solver using ASTAP
 pub struct AstapSolver {
     config: PlateSolverConfig,
 }
@@ -1010,12 +1003,10 @@ impl AstapSolver {
         }
     }
 
-    /// Check if ASTAP is available
     pub fn is_available(&self) -> bool {
         self.config.astap_path.is_some()
     }
 
-    /// Get ASTAP path
     pub fn astap_path(&self) -> Option<&Path> {
         self.config.astap_path.as_deref()
     }
@@ -2058,7 +2049,6 @@ pub fn invalidate_solver_availability_cache() {
         .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
 }
 
-/// Get path to installed solver
 pub fn get_solver_path() -> Option<PathBuf> {
     let discovered = discovered_solvers();
     discovered.astap.or(discovered.astrometry)

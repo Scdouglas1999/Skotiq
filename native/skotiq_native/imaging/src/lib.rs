@@ -93,7 +93,6 @@ pub use xisf::*;
 
 use rayon::prelude::*;
 
-/// Image format supported by Skotiq
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ImageFormat {
     #[default]
@@ -115,7 +114,6 @@ pub enum ImageFormat {
 }
 
 impl ImageFormat {
-    /// Get the file extension for this format
     pub fn extension(&self) -> &'static str {
         match self {
             ImageFormat::Fits => "fits",
@@ -135,7 +133,6 @@ impl ImageFormat {
         }
     }
 
-    /// Parse from file extension
     pub fn from_extension(ext: &str) -> Option<Self> {
         match ext.to_lowercase().as_str() {
             "fits" | "fit" | "fts" => Some(ImageFormat::Fits),
@@ -241,7 +238,6 @@ impl ImageFormat {
         None
     }
 
-    /// Check if this format is a RAW camera format
     pub fn is_raw(&self) -> bool {
         matches!(
             self,
@@ -258,7 +254,6 @@ impl ImageFormat {
     }
 }
 
-/// Pixel data types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PixelType {
     U8,
@@ -270,7 +265,6 @@ pub enum PixelType {
 }
 
 impl PixelType {
-    /// Get the number of bytes per pixel
     pub fn byte_size(&self) -> usize {
         match self {
             PixelType::U8 => 1,
@@ -280,7 +274,6 @@ impl PixelType {
         }
     }
 
-    /// Get the bit depth
     pub fn bit_depth(&self) -> u32 {
         match self {
             PixelType::U8 => 8,
@@ -308,7 +301,6 @@ pub enum ImageDisplayError {
     UnsupportedChannelLayout { channels: u32 },
 }
 
-/// Image data container
 #[derive(Debug, Clone)]
 pub struct ImageData {
     pub width: u32,
@@ -325,7 +317,6 @@ impl Default for ImageData {
 }
 
 impl ImageData {
-    /// Create a new image with the given dimensions
     pub fn new(width: u32, height: u32, channels: u32, pixel_type: PixelType) -> Self {
         let bytes_per_pixel = pixel_type.byte_size();
         let size = (width as usize) * (height as usize) * (channels as usize) * bytes_per_pixel;
@@ -339,22 +330,18 @@ impl ImageData {
         }
     }
 
-    /// Get the number of bytes per pixel
     pub fn bytes_per_pixel(&self) -> usize {
         self.pixel_type.byte_size()
     }
 
-    /// Get total pixel count
     pub fn pixel_count(&self) -> usize {
         (self.width as usize) * (self.height as usize) * (self.channels as usize)
     }
 
-    /// Check if image has data
     pub fn is_empty(&self) -> bool {
         self.width == 0 || self.height == 0 || self.data.is_empty()
     }
 
-    /// Get image data as u16 slice (for 16-bit images)
     pub fn as_u16(&self) -> Option<Vec<u16>> {
         if self.pixel_type != PixelType::U16 {
             return None;
@@ -370,7 +357,6 @@ impl ImageData {
         )
     }
 
-    /// Get image data as f32 slice
     pub fn as_f32(&self) -> Option<Vec<f32>> {
         if self.pixel_type != PixelType::F32 {
             return None;
@@ -386,7 +372,6 @@ impl ImageData {
         )
     }
 
-    /// Create from u16 data
     pub fn from_u16(width: u32, height: u32, channels: u32, data: &[u16]) -> Self {
         let bytes: Vec<u8> = data.iter().flat_map(|&v| v.to_le_bytes()).collect();
 
@@ -399,7 +384,6 @@ impl ImageData {
         }
     }
 
-    /// Create from f32 data
     pub fn from_f32(width: u32, height: u32, channels: u32, data: &[f32]) -> Self {
         let bytes: Vec<u8> = data.iter().flat_map(|&v| v.to_le_bytes()).collect();
 
@@ -488,7 +472,6 @@ impl ImageData {
     }
 }
 
-/// Image read result
 #[derive(Debug)]
 pub struct ImageReadResult {
     pub image: ImageData,
@@ -505,8 +488,6 @@ pub struct ImageReadResult {
     /// (XISF, RAW) does not surface a Bayer pattern through this reader path.
     pub bayer: Option<BayerGeometry>,
 }
-
-// Image writing functions
 
 /// Write an image to TIFF format (16-bit if possible, otherwise 8-bit)
 pub fn write_tiff(path: &std::path::Path, image: &ImageData) -> Result<(), String> {
@@ -539,7 +520,6 @@ pub fn write_tiff(path: &std::path::Path, image: &ImageData) -> Result<(), Strin
                 )
                 .map_err(|e| format!("Failed to encode TIFF: {}", e))?;
         }
-        // 8-bit mono
         (1, PixelType::U8) => {
             let img: GrayImage =
                 ImageBuffer::from_raw(image.width, image.height, image.data.clone())
@@ -547,7 +527,6 @@ pub fn write_tiff(path: &std::path::Path, image: &ImageData) -> Result<(), Strin
             img.save(path)
                 .map_err(|e| format!("Failed to save TIFF: {}", e))?;
         }
-        // 16-bit RGB
         (3, PixelType::U16) => {
             use image::ImageEncoder;
             let pixels: Vec<u16> = image
@@ -568,7 +547,6 @@ pub fn write_tiff(path: &std::path::Path, image: &ImageData) -> Result<(), Strin
                 )
                 .map_err(|e| format!("Failed to encode TIFF: {}", e))?;
         }
-        // 8-bit RGB
         (3, PixelType::U8) => {
             let img: RgbImage =
                 ImageBuffer::from_raw(image.width, image.height, image.data.clone())
@@ -625,7 +603,6 @@ pub fn write_png(path: &std::path::Path, image: &ImageData) -> Result<(), String
     let writer = BufWriter::new(file);
 
     match (image.channels, image.pixel_type) {
-        // 16-bit mono
         (1, PixelType::U16) => {
             let pixels: Vec<u16> = image
                 .data
@@ -645,7 +622,6 @@ pub fn write_png(path: &std::path::Path, image: &ImageData) -> Result<(), String
                 )
                 .map_err(|e| format!("Failed to encode PNG: {}", e))?;
         }
-        // 8-bit mono
         (1, PixelType::U8) => {
             let img: GrayImage =
                 ImageBuffer::from_raw(image.width, image.height, image.data.clone())
@@ -653,7 +629,6 @@ pub fn write_png(path: &std::path::Path, image: &ImageData) -> Result<(), String
             img.save(path)
                 .map_err(|e| format!("Failed to save PNG: {}", e))?;
         }
-        // 16-bit RGB
         (3, PixelType::U16) => {
             let pixels: Vec<u16> = image
                 .data
@@ -673,7 +648,6 @@ pub fn write_png(path: &std::path::Path, image: &ImageData) -> Result<(), String
                 )
                 .map_err(|e| format!("Failed to encode PNG: {}", e))?;
         }
-        // 8-bit RGB
         (3, PixelType::U8) => {
             let img: RgbImage =
                 ImageBuffer::from_raw(image.width, image.height, image.data.clone())
@@ -735,7 +709,6 @@ pub fn write_jpeg(path: &std::path::Path, image: &ImageData, quality: u8) -> Res
     let display_data = image.to_display_u8();
 
     if image.channels == 1 {
-        // Grayscale JPEG
         encoder
             .write_image(
                 &display_data,
@@ -845,7 +818,6 @@ pub fn read_image(path: &std::path::Path) -> Result<ImageReadResult, String> {
                 bayer: None,
             })
         }
-        // Handle all RAW formats
         ImageFormat::CanonCR2
         | ImageFormat::CanonCR3
         | ImageFormat::NikonNEF
@@ -857,7 +829,6 @@ pub fn read_image(path: &std::path::Path) -> Result<ImageReadResult, String> {
         | ImageFormat::GenericRAW => {
             let (image, raw_metadata) = read_raw(path, None).map_err(|e| e.to_string())?;
 
-            // Convert raw metadata to hashmap
             let mut header = std::collections::HashMap::new();
             header.insert("MAKE".to_string(), raw_metadata.camera_make);
             header.insert("MODEL".to_string(), raw_metadata.camera_model);

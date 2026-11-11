@@ -122,7 +122,6 @@ pub struct TransientCandidate {
     /// `0.5·atan2(2·Ixy, Ixx − Iyy)`. Meaningful for an elongated source (a
     /// streak's trail direction); ~arbitrary for a round one.
     pub position_angle_deg: f64,
-    /// Shape/sign classification.
     pub kind: TransientKind,
 }
 

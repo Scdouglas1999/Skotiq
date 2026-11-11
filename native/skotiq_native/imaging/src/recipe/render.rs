@@ -62,11 +62,8 @@ impl StepOutcome {
 pub struct StepReport {
     /// Index of the step in the recipe.
     pub index: usize,
-    /// Operation id.
     pub op_id: String,
-    /// Operation version.
     pub op_version: u32,
-    /// What happened.
     pub outcome: StepOutcome,
     /// What the operation solved while it ran (see [`OpApplied::measurement`]),
     /// or `None` when it measured nothing and for every outcome but
@@ -111,7 +108,6 @@ impl RenderReport {
 /// A rendered image and the report describing how it was produced.
 #[derive(Debug, Clone)]
 pub struct RenderOutput {
-    /// The rendered image.
     pub image: Arc<OpImage>,
     /// What each step did.
     pub report: RenderReport,

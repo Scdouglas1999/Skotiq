@@ -74,9 +74,7 @@ use crate::recipe::composite::mix::{
 };
 use crate::recipe::{DarkroomOp, OpApplied, OpContext, OpError, OpImage, OpStage};
 
-/// Registry id.
 const OP_ID: &str = "channel_combine";
-/// Registry version.
 const OP_VERSION: u32 = 1;
 
 /// Default blur of the chromaticity in [`apply_luminance`], in full-resolution

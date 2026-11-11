@@ -36,14 +36,12 @@ const XISF_MAGIC: &[u8; 8] = b"XISF0100";
 const XISF_ALIGNMENT: usize = 16;
 const MAX_OFFSET_RESOLUTION_PASSES: usize = 8;
 
-/// XISF metadata
 #[derive(Debug, Clone, Default)]
 pub struct XisfMetadata {
     pub properties: HashMap<String, XisfProperty>,
     pub fits_keywords: HashMap<String, String>,
 }
 
-/// XISF property types
 #[derive(Debug, Clone)]
 pub enum XisfProperty {
     String(String),
@@ -115,7 +113,6 @@ impl XisfProperty {
     }
 }
 
-/// XISF error types
 #[derive(Debug)]
 pub enum XisfError {
     Io(std::io::Error),
@@ -173,7 +170,6 @@ struct ImageHeader {
     data_size: usize,
 }
 
-/// Read an XISF file
 pub fn read_xisf(path: &Path) -> Result<(ImageData, XisfMetadata), XisfError> {
     let file = File::open(path)?;
     let mut reader = BufReader::new(file);
@@ -201,17 +197,13 @@ pub fn read_xisf(path: &Path) -> Result<(ImageData, XisfMetadata), XisfError> {
     let mut xml_bytes = vec![0u8; header_len];
     reader.read_exact(&mut xml_bytes)?;
 
-    // Parse XML header using quick-xml
     let (header, metadata) = parse_xisf_xml(&xml_bytes)?;
 
-    // Seek to data block
     reader.seek(SeekFrom::Start(header.data_offset as u64))?;
 
-    // Read pixel data
     let mut data = vec![0u8; header.data_size];
     reader.read_exact(&mut data)?;
 
-    // Determine pixel type
     let pixel_type = match header.sample_format.as_str() {
         "UInt8" => PixelType::U8,
         "UInt16" => PixelType::U16,
@@ -551,7 +543,6 @@ fn parse_boolean_property(value: &str) -> XisfProperty {
 /// real version instead of a hardcoded literal.
 const SKOTIQ_PRODUCT_VERSION: &str = env!("SKOTIQ_VERSION");
 
-/// Write an XISF file
 pub fn write_xisf(
     path: &Path,
     image: &ImageData,
@@ -686,10 +677,8 @@ fn build_xisf_xml(
     let mut xml_buf = Cursor::new(Vec::new());
     let mut xml_writer = Writer::new_with_indent(&mut xml_buf, b' ', 2);
 
-    // XML declaration
     xml_writer.write_event(Event::Decl(BytesDecl::new("1.0", Some("UTF-8"), None)))?;
 
-    // <xisf> root element
     let mut xisf_start = BytesStart::new("xisf");
     xisf_start.push_attribute(("version", "1.0"));
     xisf_start.push_attribute(("xmlns", "http://www.pixinsight.com/xisf"));
@@ -700,7 +689,6 @@ fn build_xisf_xml(
     ));
     xml_writer.write_event(Event::Start(xisf_start))?;
 
-    // <Image> element
     let mut image_start = BytesStart::new("Image");
     image_start.push_attribute(("geometry", geometry.as_str()));
     image_start.push_attribute(("sampleFormat", sample_format));
@@ -750,10 +738,8 @@ fn build_xisf_xml(
         xml_writer.write_event(Event::Empty(kw_elem))?;
     }
 
-    // </Image>
     xml_writer.write_event(Event::End(BytesEnd::new("Image")))?;
 
-    // </xisf>
     xml_writer.write_event(Event::End(BytesEnd::new("xisf")))?;
 
     let xml_bytes = xml_buf.into_inner();

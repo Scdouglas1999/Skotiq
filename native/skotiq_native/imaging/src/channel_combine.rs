@@ -151,7 +151,6 @@ pub fn combine_channels(
     inputs: &[&ImageData],
     weights: &[[f64; 3]],
 ) -> Result<ImageData, CombineError> {
-    // Validate the call site
     if inputs.is_empty() {
         return Err(CombineError::NoInputs);
     }
@@ -182,7 +181,6 @@ pub fn combine_channels(
         .map(|img| decode_plane_f64(img, pixel_count))
         .collect::<Result<Vec<_>, _>>()?;
 
-    // Combine
     // Output layout is interleaved RGB: 3 contiguous samples per pixel. The work
     // is parallelised over disjoint output rows (one row = `width` pixels = `3 *
     // width` samples), matching the crate's integration/calibration idiom. Each
@@ -197,7 +195,6 @@ pub fn combine_channels(
             let row_base = y * (width as usize);
             for x in 0..(width as usize) {
                 let loc = row_base + x;
-                // f64 accumulators per output channel.
                 let mut acc = [0.0f64; OUT_CHANNELS];
                 for (plane, w) in planes.iter().zip(weights.iter()) {
                     let v = plane[loc];
@@ -235,13 +232,11 @@ mod tests {
     use super::*;
     use crate::{ImageData, PixelType};
 
-    /// Build a synthetic single-channel `F32` master from per-pixel values.
     fn mono_f32(width: u32, height: u32, values: &[f32]) -> ImageData {
         assert_eq!(values.len(), (width * height) as usize);
         ImageData::from_f32(width, height, 1, values)
     }
 
-    /// Build a synthetic single-channel `U16` master from per-pixel values.
     fn mono_u16(width: u32, height: u32, values: &[u16]) -> ImageData {
         assert_eq!(values.len(), (width * height) as usize);
         ImageData::from_u16(width, height, 1, values)

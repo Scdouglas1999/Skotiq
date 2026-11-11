@@ -25,21 +25,15 @@ use super::params::Params;
 use super::registry::OpRegistry;
 use super::render::{render, RenderOptions, RenderOutput};
 
-// ---------------------------------------------------------------------------
-// Synthetic images
-// ---------------------------------------------------------------------------
-
 /// A deterministic linear congruential generator. Test images must be
 /// reproducible without a `rand` dependency.
 pub(crate) struct Lcg(u64);
 
 impl Lcg {
-    /// Seeded generator.
     pub(crate) fn new(seed: u64) -> Self {
         Self(seed | 1)
     }
 
-    /// Next raw value.
     pub(crate) fn next_u64(&mut self) -> u64 {
         self.0 = self
             .0
@@ -132,10 +126,6 @@ pub(crate) fn synthetic_star_field(width: u32, height: u32, channels: u32, seed:
     )
     .expect("synthetic star field geometry is consistent")
 }
-
-// ---------------------------------------------------------------------------
-// Test operations
-// ---------------------------------------------------------------------------
 
 /// A linear-stage operation multiplying every sample by `factor`.
 pub(crate) struct ScaleOp {
@@ -521,10 +511,6 @@ pub(crate) fn test_registry() -> OpRegistry {
 pub(crate) fn scale_params(factor: f64) -> Value {
     json!({ "factor": factor })
 }
-
-// ---------------------------------------------------------------------------
-// Assertions
-// ---------------------------------------------------------------------------
 
 /// Assert two images hold bit-identical samples with the same geometry.
 pub(crate) fn assert_pixels_identical(left: &OpImage, right: &OpImage, context: &str) {

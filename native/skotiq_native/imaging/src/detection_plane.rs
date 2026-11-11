@@ -24,7 +24,6 @@ pub enum ChannelCollapse {
     /// Rec. 601 luma, `0.299 R + 0.587 G + 0.114 B`: a stable plane for
     /// matching stars between frames. Needs exactly three channels.
     Rec601,
-    /// Mean of the channels.
     Mean,
     /// Brightest channel at each pixel: a star bright in any one channel is
     /// kept, which is what a star mask needs.
