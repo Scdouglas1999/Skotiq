@@ -197,9 +197,8 @@ class _LiveStackingPropertiesState
           onChanged: (v) => _update((n) => n.copyWith(broadcastEnabled: v)),
           title: const Text('Broadcast enabled'),
           subtitle: const Text(
-            'The stack is served at /broadcast on the Skotiq web server '
-            '(Settings > Remote access). When off, the stack still builds '
-            'but that page returns 404.',
+            'Served at /broadcast on the Skotiq web server. When off, the '
+            'stack still builds but the page returns 404.',
           ),
           contentPadding: EdgeInsets.zero,
         ),
