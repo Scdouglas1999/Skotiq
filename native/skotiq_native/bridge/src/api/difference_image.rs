@@ -378,7 +378,7 @@ fn difference_impl(args: DifferenceArgs) -> Result<DifferenceResultJson, String>
             return Ok(TileOutcome::NoTemplate);
         };
         // A tile with no pixel as deep as the gate has nothing to compare.
-        let deepest = template.state.coverage.iter().copied().max().unwrap_or(0);
+        let deepest = template.coverage_max();
         if deepest < args.min_template_coverage {
             return Ok(TileOutcome::Thin);
         }

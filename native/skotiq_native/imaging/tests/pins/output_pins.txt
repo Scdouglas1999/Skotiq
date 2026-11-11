@@ -16,7 +16,7 @@ atlas/fold3 e4970b4d9eae13d9
 atlas/fold4 899086a4a3a8ea9c
 atlas/fold5 b6ce6beb817cd051
 atlas/maps ebac2ad9a11f2c51
-atlas/norm_reference 8b9ca6791a8e88c6
+atlas/norm_reference 775d8ee780abb2ad
 atlas/sidecar c2c8d2b5db0756d2
 atlas/tile_id 0000000000179e5a
 atlas/tiles_for_frame e231f091f80c7580

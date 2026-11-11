@@ -56,7 +56,7 @@ use serde::{Deserialize, Serialize};
 /// final write-then-rename onto the real path stays atomic on the same fs.
 static STORE_TILE_NONCE: AtomicU64 = AtomicU64::new(0);
 
-use crate::master_accumulation::{AccumulationMode, NormalizationReference, PerPixelAccumulator};
+use crate::master_accumulation::{AccumulationMode, PerPixelAccumulator};
 use crate::registration::{kernel_inside, sample_interleaved, Interpolator};
 use crate::robust_stats::median_and_sigma_upper;
 use crate::wcs_sip::SipWcs;
@@ -116,7 +116,7 @@ pub struct PreparedFrame {
     width: usize,
     height: usize,
     channels: u32,
-    norm: NormalizationReference,
+    norm: SkyReference,
     /// The frame's solved CD + SIP astrometry.
     pub wcs: SipWcs,
     /// Integration weight (≤ 0 folds as no contribution).
@@ -146,9 +146,9 @@ impl PreparedFrame {
         let norm = if decodable {
             estimate_frame_norm(&src, ch)
         } else {
-            NormalizationReference {
+            SkyReference {
                 background: vec![0.0; ch.max(1)],
-                scale: vec![1.0; ch.max(1)],
+                noise_sigma: vec![1.0; ch.max(1)],
             }
         };
         Ok(Self {
@@ -682,7 +682,7 @@ pub struct SkyTileAccumulator {
     /// added. This is what makes a cross-telescope / cross-user co-add
     /// photometrically valid — without it the running mean would average raw
     /// instrument ADU across rigs at wildly different gains / focal ratios.
-    pub norm_reference: NormalizationReference,
+    pub norm_reference: SkyReference,
     /// Whether [`norm_reference`] has been frozen from a contribution yet. Until
     /// the first fold establishes it, the reference holds its identity default.
     pub norm_frozen: bool,
@@ -707,9 +707,9 @@ impl SkyTileAccumulator {
             height: TILE_PIXELS,
             channels,
             wcs: tile_wcs(tile_id, order),
-            norm_reference: NormalizationReference {
+            norm_reference: SkyReference {
                 background: vec![0.0; ch],
-                scale: vec![1.0; ch],
+                noise_sigma: vec![1.0; ch],
             },
             norm_frozen: false,
             mode,
@@ -732,9 +732,9 @@ impl SkyTileAccumulator {
     /// normalized their frames against the same reference. A no-op if [`other`] is
     /// not frozen. Must be called before any fold (it would otherwise be ignored,
     /// as the first fold freezes the reference itself).
-    pub fn adopt_reference(&mut self, reference: &NormalizationReference) {
+    pub fn adopt_reference(&mut self, reference: &SkyReference) {
         if reference.background.len() == self.channels as usize
-            && reference.scale.len() == self.channels as usize
+            && reference.noise_sigma.len() == self.channels as usize
         {
             self.norm_reference = reference.clone();
             self.norm_frozen = true;
@@ -743,7 +743,7 @@ impl SkyTileAccumulator {
 
     /// The frozen photometric reference (identity until the first fold or an
     /// [`adopt_reference`](Self::adopt_reference) call).
-    pub fn norm_reference(&self) -> &NormalizationReference {
+    pub fn norm_reference(&self) -> &SkyReference {
         &self.norm_reference
     }
 
@@ -858,15 +858,15 @@ impl SkyTileAccumulator {
                     let v = normalize_sample(
                         raw,
                         frame_norm.background[c],
-                        frame_norm.scale[c],
+                        frame_norm.noise_sigma[c],
                         self.norm_reference.background[c],
-                        self.norm_reference.scale[c],
+                        self.norm_reference.noise_sigma[c],
                     );
                     if !v.is_finite() {
                         continue;
                     }
                     let slot = (ty * tw + tx) * ch + c;
-                    if self.fold_sample(slot, v, weight, clip) {
+                    if self.state.fold(slot, v, weight, clip) {
                         deposited += 1;
                     } else {
                         rejected += 1;
@@ -931,71 +931,28 @@ impl SkyTileAccumulator {
         false
     }
 
-    /// Fold a single sample at `slot` with `weight`, applying the online clip if
-    /// configured. Returns `true` if the sample was accumulated, `false` if the
-    /// online clip rejected it. Identical estimator to the master's `fold_one`.
-    fn fold_sample(
-        &mut self,
-        slot: usize,
-        v: f64,
-        weight: f64,
-        clip: Option<crate::master_accumulation::OnlineClip>,
-    ) -> bool {
-        let st = &mut self.state;
-        if let Some(clip) = clip {
-            if st.coverage[slot] >= MIN_HISTORY_FOR_CLIP {
-                let sw = st.sum_w[slot];
-                let denom = sw - st.sum_w2[slot] / sw;
-                if sw > 0.0 && denom > 0.0 {
-                    let mean = st.sum_wx[slot] / sw;
-                    let weighted_sq_dev = (st.sum_wx2[slot] - mean * mean * sw).max(0.0);
-                    let var = weighted_sq_dev / denom;
-                    let sigma = var.sqrt();
-                    if sigma > 0.0 {
-                        let lo = mean - clip.low * sigma;
-                        let hi = mean + clip.high * sigma;
-                        if v < lo || v > hi {
-                            st.rejected[slot] = st.rejected[slot].saturating_add(1);
-                            return false;
-                        }
-                    }
-                }
-            }
-        }
-        st.sum_w[slot] += weight;
-        st.sum_w2[slot] += weight * weight;
-        st.sum_wx[slot] += weight * v;
-        st.sum_wx2[slot] += weight * v * v;
-        st.coverage[slot] = st.coverage[slot].saturating_add(1);
-        true
-    }
-
     /// The finalized tile: `master(p) = sum_wx / sum_w` per pixel, `F32`. Pixels
     /// with no coverage are zero-filled. Can be called any number of times.
     pub fn finalize(&self) -> ImageData {
-        let len = self.slot_count();
-        let mut data = vec![0.0f32; len];
-        for (i, out) in data.iter_mut().enumerate() {
-            let sw = self.state.sum_w[i];
-            *out = if sw > 0.0 {
-                (self.state.sum_wx[i] / sw) as f32
-            } else {
-                0.0
-            };
-        }
-        ImageData::from_f32(self.width, self.height, self.channels, &data)
+        self.state
+            .mean_image(self.width, self.height, self.channels)
     }
 
     /// Per-pixel coverage depth (`F32`).
     pub fn coverage_map(&self) -> ImageData {
-        let data: Vec<f32> = self.state.coverage.iter().map(|&c| c as f32).collect();
-        ImageData::from_f32(self.width, self.height, self.channels, &data)
+        self.state
+            .coverage_image(self.width, self.height, self.channels)
     }
 
     /// Per-pixel online-clip rejection count (`F32`).
     pub fn rejection_map(&self) -> ImageData {
-        let data: Vec<f32> = self.state.rejected.iter().map(|&c| c as f32).collect();
-        ImageData::from_f32(self.width, self.height, self.channels, &data)
+        self.state
+            .rejection_image(self.width, self.height, self.channels)
+    }
+
+    /// Deepest coverage of any tile pixel.
+    pub fn coverage_max(&self) -> u32 {
+        self.state.coverage.iter().copied().max().unwrap_or(0)
     }
 
     /// Mean coverage depth across all tile pixels (the heat-overlay number).
@@ -1050,24 +1007,7 @@ impl SkyTileAccumulator {
             out.extend_from_slice(&compress_payload(&self.state));
             return out;
         }
-        for &v in &self.state.sum_w {
-            out.extend_from_slice(&v.to_le_bytes());
-        }
-        for &v in &self.state.sum_w2 {
-            out.extend_from_slice(&v.to_le_bytes());
-        }
-        for &v in &self.state.sum_wx {
-            out.extend_from_slice(&v.to_le_bytes());
-        }
-        for &v in &self.state.sum_wx2 {
-            out.extend_from_slice(&v.to_le_bytes());
-        }
-        for &v in &self.state.coverage {
-            out.extend_from_slice(&v.to_le_bytes());
-        }
-        for &v in &self.state.rejected {
-            out.extend_from_slice(&v.to_le_bytes());
-        }
+        self.state.write_le(&mut out);
         out
     }
 
@@ -1137,13 +1077,8 @@ impl SkyTileAccumulator {
             )));
         }
 
-        let mut cursor = header_end;
-        let sum_w = read_f64(bytes, &mut cursor, len);
-        let sum_w2 = read_f64(bytes, &mut cursor, len);
-        let sum_wx = read_f64(bytes, &mut cursor, len);
-        let sum_wx2 = read_f64(bytes, &mut cursor, len);
-        let coverage = read_u32(bytes, &mut cursor, len);
-        let rejected = read_u32(bytes, &mut cursor, len);
+        let state = PerPixelAccumulator::read_le(&bytes[header_end..], len)
+            .ok_or_else(|| AtlasError::Corrupt("truncated payload".into()))?;
 
         Ok(Self {
             version: TILE_STATE_VERSION,
@@ -1156,22 +1091,11 @@ impl SkyTileAccumulator {
             norm_reference: header.norm_reference,
             norm_frozen: header.norm_frozen,
             mode: header.mode,
-            state: PerPixelAccumulator {
-                sum_w,
-                sum_w2,
-                sum_wx,
-                sum_wx2,
-                coverage,
-                rejected,
-            },
+            state,
             provenance: header.provenance,
         })
     }
 }
-
-/// Minimum accumulated samples at a pixel before the online clip may reject
-/// (mirrors the master — σ is too poorly determined below this to clip honestly).
-const MIN_HISTORY_FOR_CLIP: u32 = 5;
 
 /// JSON-serialized portion of the tile sidecar.
 #[derive(Debug, Serialize, Deserialize)]
@@ -1182,7 +1106,7 @@ struct TileHeader {
     height: u32,
     channels: u32,
     wcs: SipWcs,
-    norm_reference: NormalizationReference,
+    norm_reference: SkyReference,
     /// Defaulted for backward-compat with sidecars written before per-tile
     /// photometric normalization (they carry the identity reference, unfrozen).
     #[serde(default)]
@@ -1262,31 +1186,7 @@ fn merge_signed(
         dst.norm_frozen = true;
     }
 
-    let k = sign * trust;
-    // sum_w2 = Σw² is QUADRATIC in the weight, so scaling a contributor's
-    // effective weight by `trust` scales its Σw² by trust² — not trust. The
-    // sign (add vs. subtract) stays linear. Using `k` here would leave a
-    // trust!=1.0 merged tile with an inconsistent Σw² (Σw scaled by trust but
-    // Σw² by trust), which breaks the online clip's effective-sample-size
-    // denominator `sw - sum_w2/sw` (it can even go non-positive), silently
-    // disabling rejection on every later fold into the merged tile. Scaling by
-    // trust² keeps (Σw, Σw²) the exact sums of the trust-scaled weights, so the
-    // clip stays well-defined.
-    let k2 = sign * trust * trust;
-    let len = dst.slot_count();
-    for i in 0..len {
-        dst.state.sum_w[i] += k * other.state.sum_w[i];
-        dst.state.sum_w2[i] += k2 * other.state.sum_w2[i];
-        dst.state.sum_wx[i] += k * other.state.sum_wx[i];
-        dst.state.sum_wx2[i] += k * other.state.sum_wx2[i];
-        if sign >= 0.0 {
-            dst.state.coverage[i] = dst.state.coverage[i].saturating_add(other.state.coverage[i]);
-            dst.state.rejected[i] = dst.state.rejected[i].saturating_add(other.state.rejected[i]);
-        } else {
-            dst.state.coverage[i] = dst.state.coverage[i].saturating_sub(other.state.coverage[i]);
-            dst.state.rejected[i] = dst.state.rejected[i].saturating_sub(other.state.rejected[i]);
-        }
-    }
+    dst.state.merge_scaled(&other.state, trust, sign);
 
     // Provenance union / retraction.
     if sign >= 0.0 {
@@ -1956,12 +1856,24 @@ fn tile_buffer_bytes(channels: u32) -> u64 {
     slots * (8 * 4 + 4 * 2)
 }
 
+/// A frame's or a tile's per-channel photometric baseline: what incoming
+/// frames are mapped onto before they fold into a tile.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SkyReference {
+    /// Sky level (ADU): the median.
+    pub background: Vec<f64>,
+    /// Sky noise (ADU): `1.4826 · MAD`, 1 when the frame has no spread. Stored
+    /// as `scale` in the sidecar.
+    #[serde(rename = "scale")]
+    pub noise_sigma: Vec<f64>,
+}
+
 /// Estimate a frame's per-channel robust photometric baseline: the sky
 /// `background` (median) and signal `scale` (`1.4826·MAD`, the Gaussian-consistent
 /// robust spread). Channels with no finite samples fall back to the identity
 /// `(0, 1)`. A degenerate (zero) spread is floored to 1.0 so a flat frame maps
 /// through as a pure pedestal shift rather than dividing by zero.
-fn estimate_frame_norm(src: &[f64], channels: usize) -> NormalizationReference {
+fn estimate_frame_norm(src: &[f64], channels: usize) -> SkyReference {
     let ch = channels.max(1);
     let mut background = vec![0.0; ch];
     let mut scale = vec![1.0; ch];
@@ -1980,7 +1892,10 @@ fn estimate_frame_norm(src: &[f64], channels: usize) -> NormalizationReference {
         background[c] = median;
         scale[c] = if s.is_finite() && s > 0.0 { s } else { 1.0 };
     }
-    NormalizationReference { background, scale }
+    SkyReference {
+        background,
+        noise_sigma: scale,
+    }
 }
 
 /// Map a raw sample onto the frozen reference's photometric scale:
@@ -2059,30 +1974,6 @@ fn decompress_payload(
         offset += size * len;
     }
     Ok(out)
-}
-
-fn read_f64(bytes: &[u8], cursor: &mut usize, len: usize) -> Vec<f64> {
-    let mut out = Vec::with_capacity(len);
-    for _ in 0..len {
-        let c = *cursor;
-        out.push(f64::from_le_bytes(
-            bytes[c..c + 8].try_into().expect("8 bytes"),
-        ));
-        *cursor += 8;
-    }
-    out
-}
-
-fn read_u32(bytes: &[u8], cursor: &mut usize, len: usize) -> Vec<u32> {
-    let mut out = Vec::with_capacity(len);
-    for _ in 0..len {
-        let c = *cursor;
-        out.push(u32::from_le_bytes(
-            bytes[c..c + 4].try_into().expect("4 bytes"),
-        ));
-        *cursor += 4;
-    }
-    out
 }
 
 #[cfg(test)]
@@ -3110,9 +3001,9 @@ mod tests {
             height: 4,
             channels: 1,
             wcs: tile_wcs(tile_id, order),
-            norm_reference: NormalizationReference {
+            norm_reference: SkyReference {
                 background: vec![0.0],
-                scale: vec![1.0],
+                noise_sigma: vec![1.0],
             },
             norm_frozen: true,
             mode: no_clip(),

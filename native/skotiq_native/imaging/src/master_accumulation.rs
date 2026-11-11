@@ -34,7 +34,7 @@
 //!    ([`crate::registration::register_frame`]) — every frame must match the
 //!    master's `width × height × channels`.
 //! 2. **Normalized** onto the *frozen* photometric reference stored in the
-//!    master at creation (see [`NormalizationReference`]). Freezing the
+//!    master at creation (see [`SignalReference`]). Freezing the
 //!    normalization reference at creation is what makes cross-night
 //!    accumulation valid: every later night is brought onto the same
 //!    background-and-scale footing as the first night, so a pixel's value means
@@ -146,11 +146,13 @@ pub struct OnlineClip {
 /// to document provenance). Freezing it is what keeps cross-night accumulation
 /// photometrically consistent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct NormalizationReference {
-    /// Per-channel reference background level (ADU) at creation.
+pub struct SignalReference {
+    /// Per-channel reference background level (ADU) at creation: the median.
     pub background: Vec<f64>,
-    /// Per-channel reference signal scale (ADU) at creation.
-    pub scale: Vec<f64>,
+    /// Per-channel signal range (ADU) at creation: the 95th percentile minus
+    /// the median, at least 1. Stored as `scale` in the sidecar.
+    #[serde(rename = "scale")]
+    pub signal_range: Vec<f64>,
 }
 
 /// The **frozen** geometric reference (the common grid every sub must align to).
@@ -223,7 +225,7 @@ pub struct PerPixelAccumulator {
 
 impl PerPixelAccumulator {
     /// A zeroed accumulator sized for `len` pixel/channel slots.
-    fn zeroed(len: usize) -> Self {
+    pub(crate) fn zeroed(len: usize) -> Self {
         Self {
             sum_w: vec![0.0; len],
             sum_w2: vec![0.0; len],
@@ -235,13 +237,13 @@ impl PerPixelAccumulator {
     }
 
     /// Length of the per-slot vectors (= `width × height × channels`).
-    fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.sum_w.len()
     }
 
     /// Internal consistency check used on deserialize: every vector must be the
     /// same length and match the declared geometry.
-    fn is_consistent(&self, expected_len: usize) -> bool {
+    pub(crate) fn is_consistent(&self, expected_len: usize) -> bool {
         self.sum_w.len() == expected_len
             && self.sum_w2.len() == expected_len
             && self.sum_wx.len() == expected_len
@@ -249,7 +251,167 @@ impl PerPixelAccumulator {
             && self.coverage.len() == expected_len
             && self.rejected.len() == expected_len
     }
+
+    /// Fold one sample into `slot`. With a clip configured, a sample outside
+    /// the slot's running distribution is counted as rejected and left out;
+    /// the return value says whether the sample was accumulated.
+    ///
+    /// The clip only acts once the slot has [`MIN_HISTORY_FOR_CLIP`] samples:
+    /// before that the running σ is too poorly determined to reject against
+    /// without throwing away the first subs.
+    #[inline]
+    pub(crate) fn fold(
+        &mut self,
+        slot: usize,
+        value: f64,
+        weight: f64,
+        clip: Option<OnlineClip>,
+    ) -> bool {
+        if let Some(clip) = clip {
+            if self.coverage[slot] >= MIN_HISTORY_FOR_CLIP {
+                let sw = self.sum_w[slot];
+                // Unbiased reliability-weighted variance: divide the weighted
+                // squared deviation by the effective sample size
+                // `Σw − Σw²/Σw` (Bessel-style correction), the same estimator
+                // the batch integrator uses. The *biased* population variance
+                // (`Σwx²/Σw − μ²`) systematically underestimates σ when only a
+                // handful of samples have accumulated, which would over-clip
+                // clean tail samples on the first few nights — exactly the
+                // regime the online clip is most exposed to.
+                let denom = sw - self.sum_w2[slot] / sw;
+                if sw > 0.0 && denom > 0.0 {
+                    let mean = self.sum_wx[slot] / sw;
+                    // Σw·(x−μ)² = Σwx² − 2μ·Σwx + μ²·Σw = Σwx² − μ²·Σw.
+                    let weighted_sq_dev = (self.sum_wx2[slot] - mean * mean * sw).max(0.0);
+                    let sigma = (weighted_sq_dev / denom).sqrt();
+                    if sigma > 0.0 {
+                        let lo = mean - clip.low * sigma;
+                        let hi = mean + clip.high * sigma;
+                        if value < lo || value > hi {
+                            self.rejected[slot] = self.rejected[slot].saturating_add(1);
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        self.sum_w[slot] += weight;
+        self.sum_w2[slot] += weight * weight;
+        self.sum_wx[slot] += weight * value;
+        self.sum_wx2[slot] += weight * value * value;
+        self.coverage[slot] = self.coverage[slot].saturating_add(1);
+        true
+    }
+
+    /// Add (`sign = 1`) or retract (`sign = −1`) another accumulator's sums,
+    /// its weights scaled by `trust`. Both must have the same length.
+    ///
+    /// Σw² is quadratic in the weight, so scaling a contributor's weight by
+    /// `trust` scales its Σw² by `trust²`. Scaling it by `trust` would leave
+    /// (Σw, Σw²) inconsistent, and the clip's effective-sample-size
+    /// denominator `Σw − Σw²/Σw` could go non-positive, silently disabling
+    /// rejection on every later fold.
+    pub(crate) fn merge_scaled(&mut self, other: &Self, trust: f64, sign: f64) {
+        let k = sign * trust;
+        let k2 = sign * trust * trust;
+        for i in 0..self.len() {
+            self.sum_w[i] += k * other.sum_w[i];
+            self.sum_w2[i] += k2 * other.sum_w2[i];
+            self.sum_wx[i] += k * other.sum_wx[i];
+            self.sum_wx2[i] += k * other.sum_wx2[i];
+            if sign >= 0.0 {
+                self.coverage[i] = self.coverage[i].saturating_add(other.coverage[i]);
+                self.rejected[i] = self.rejected[i].saturating_add(other.rejected[i]);
+            } else {
+                self.coverage[i] = self.coverage[i].saturating_sub(other.coverage[i]);
+                self.rejected[i] = self.rejected[i].saturating_sub(other.rejected[i]);
+            }
+        }
+    }
+
+    /// The weighted mean per slot, `Σwx / Σw`, as an `F32` image; slots with
+    /// no weight are zero.
+    pub(crate) fn mean_image(&self, width: u32, height: u32, channels: u32) -> ImageData {
+        let data: Vec<f32> = self
+            .sum_w
+            .iter()
+            .zip(&self.sum_wx)
+            .map(|(&sw, &swx)| if sw > 0.0 { (swx / sw) as f32 } else { 0.0 })
+            .collect();
+        ImageData::from_f32(width, height, channels, &data)
+    }
+
+    /// Samples accumulated per slot, as an `F32` image.
+    pub(crate) fn coverage_image(&self, width: u32, height: u32, channels: u32) -> ImageData {
+        let data: Vec<f32> = self.coverage.iter().map(|&c| c as f32).collect();
+        ImageData::from_f32(width, height, channels, &data)
+    }
+
+    /// Samples the online clip rejected per slot, as an `F32` image.
+    pub(crate) fn rejection_image(&self, width: u32, height: u32, channels: u32) -> ImageData {
+        let data: Vec<f32> = self.rejected.iter().map(|&c| c as f32).collect();
+        ImageData::from_f32(width, height, channels, &data)
+    }
+
+    /// Bytes [`Self::write_le`] produces for `len` slots, or `None` on
+    /// overflow.
+    pub(crate) fn encoded_len(len: usize) -> Option<usize> {
+        len.checked_mul(8 * 4 + 4 * 2)
+    }
+
+    /// Append the six arrays as little-endian values, in field order.
+    pub(crate) fn write_le(&self, out: &mut Vec<u8>) {
+        for sums in [&self.sum_w, &self.sum_w2, &self.sum_wx, &self.sum_wx2] {
+            for v in sums {
+                out.extend_from_slice(&v.to_le_bytes());
+            }
+        }
+        for counts in [&self.coverage, &self.rejected] {
+            for v in counts {
+                out.extend_from_slice(&v.to_le_bytes());
+            }
+        }
+    }
+
+    /// Read what [`Self::write_le`] wrote for `len` slots. `None` when `bytes`
+    /// is shorter than that.
+    pub(crate) fn read_le(bytes: &[u8], len: usize) -> Option<Self> {
+        if bytes.len() < Self::encoded_len(len)? {
+            return None;
+        }
+        let (sums, counts) = bytes.split_at(len * 8 * 4);
+        let f64s = |index: usize| -> Vec<f64> {
+            sums[index * len * 8..(index + 1) * len * 8]
+                .as_chunks::<8>()
+                .0
+                .iter()
+                .map(|c| f64::from_le_bytes(*c))
+                .collect()
+        };
+        let u32s = |index: usize| -> Vec<u32> {
+            counts[index * len * 4..(index + 1) * len * 4]
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|c| u32::from_le_bytes(*c))
+                .collect()
+        };
+        Some(Self {
+            sum_w: f64s(0),
+            sum_w2: f64s(1),
+            sum_wx: f64s(2),
+            sum_wx2: f64s(3),
+            coverage: u32s(0),
+            rejected: u32s(1),
+        })
+    }
 }
+
+/// Minimum number of accumulated samples at a slot before the online clip is
+/// allowed to reject. Below this the running σ is too poorly determined to make
+/// an honest rejection decision, so early subs are always accepted (the same
+/// principle the batch rejectors use when they refuse to clip < 3 samples).
+pub(crate) const MIN_HISTORY_FOR_CLIP: u32 = 5;
 
 // Configuration for creating a master
 
@@ -364,7 +526,7 @@ pub struct IntegratedMaster {
     /// Frozen geometric reference (the common grid).
     pub geometry: GeometryReference,
     /// Frozen photometric reference baseline.
-    pub norm_reference: NormalizationReference,
+    pub norm_reference: SignalReference,
     /// Per-pixel running accumulator state.
     pub state: PerPixelAccumulator,
     /// Provenance + summary metadata.
@@ -393,7 +555,7 @@ impl IntegratedMaster {
         let channels = reference.channels as usize;
         let locations = (reference.width as usize) * (reference.height as usize);
 
-        let (background, scale) = reference_baseline(&ref_pixels, locations, channels);
+        let (background, signal_range) = reference_baseline(&ref_pixels, locations, channels);
 
         let len = locations * channels;
         Ok(Self {
@@ -404,7 +566,10 @@ impl IntegratedMaster {
                 height: reference.height,
                 channels: reference.channels,
             },
-            norm_reference: NormalizationReference { background, scale },
+            norm_reference: SignalReference {
+                background,
+                signal_range,
+            },
             state: PerPixelAccumulator::zeroed(len),
             metadata: MasterMetadata {
                 filter: cfg.filter.clone(),
@@ -520,10 +685,7 @@ impl IntegratedMaster {
         locations: usize,
         channels: usize,
     ) -> u64 {
-        let w = f.weight;
         let mut rejected: u64 = 0;
-        let st = &mut self.state;
-
         for loc in 0..locations {
             let covered = f.coverage.map(|m| m.is_valid_at(loc)).unwrap_or(true);
             if !covered {
@@ -532,51 +694,9 @@ impl IntegratedMaster {
             for ch in 0..channels {
                 let slot = loc * channels + ch;
                 let v = f.pixels[slot];
-                if !v.is_finite() {
-                    continue;
+                if v.is_finite() && !self.state.fold(slot, v, f.weight, clip) {
+                    rejected += 1;
                 }
-
-                // Online robust clip against the *current* running distribution.
-                // Only applied once a pixel has enough history to estimate σ;
-                // before that, every sample is accepted (we cannot reject against
-                // an undefined distribution without throwing away the first subs).
-                if let Some(clip) = clip {
-                    if st.coverage[slot] >= MIN_HISTORY_FOR_CLIP {
-                        let sw = st.sum_w[slot];
-                        // Unbiased reliability-weighted variance: divide the
-                        // weighted squared deviation by the effective sample
-                        // size `Σw − Σw²/Σw` (Bessel-style correction), the same
-                        // estimator the batch integrator uses. The *biased*
-                        // population variance (`Σwx²/Σw − μ²`) systematically
-                        // underestimates σ when only a handful of samples have
-                        // accumulated, which would over-clip clean tail samples
-                        // on the first few nights — exactly the regime the online
-                        // clip is most exposed to.
-                        let denom = sw - st.sum_w2[slot] / sw;
-                        if sw > 0.0 && denom > 0.0 {
-                            let mean = st.sum_wx[slot] / sw;
-                            // Σw·(x−μ)² = Σwx² − 2μ·Σwx + μ²·Σw = Σwx² − μ²·Σw.
-                            let weighted_sq_dev = (st.sum_wx2[slot] - mean * mean * sw).max(0.0);
-                            let var = weighted_sq_dev / denom;
-                            let sigma = var.sqrt();
-                            if sigma > 0.0 {
-                                let lo = mean - clip.low * sigma;
-                                let hi = mean + clip.high * sigma;
-                                if v < lo || v > hi {
-                                    st.rejected[slot] = st.rejected[slot].saturating_add(1);
-                                    rejected += 1;
-                                    continue;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                st.sum_w[slot] += w;
-                st.sum_w2[slot] += w * w;
-                st.sum_wx[slot] += w * v;
-                st.sum_wx2[slot] += w * v * v;
-                st.coverage[slot] = st.coverage[slot].saturating_add(1);
             }
         }
 
@@ -589,47 +709,20 @@ impl IntegratedMaster {
     /// number of times; it does not consume or alter the accumulator, so you can
     /// finalize, fold another night, and finalize again.
     pub fn finalize(&self) -> ImageData {
-        let len = self.state.len();
-        let mut data = vec![0.0f32; len];
-        for (i, out) in data.iter_mut().enumerate() {
-            let sw = self.state.sum_w[i];
-            *out = if sw > 0.0 {
-                (self.state.sum_wx[i] / sw) as f32
-            } else {
-                0.0
-            };
-        }
-        ImageData::from_f32(
-            self.geometry.width,
-            self.geometry.height,
-            self.geometry.channels,
-            &data,
-        )
+        let g = &self.geometry;
+        self.state.mean_image(g.width, g.height, g.channels)
     }
 
-    /// A per-pixel **coverage map** (`F32`, one channel per master channel):
-    /// how many samples contributed at each pixel/channel. A diagnostic twin of
-    /// [`finalize`](Self::finalize) (drizzle/edge coverage, depth-of-stack).
+    /// Per-pixel coverage depth as an `F32` image.
     pub fn coverage_map(&self) -> ImageData {
-        let data: Vec<f32> = self.state.coverage.iter().map(|&c| c as f32).collect();
-        ImageData::from_f32(
-            self.geometry.width,
-            self.geometry.height,
-            self.geometry.channels,
-            &data,
-        )
+        let g = &self.geometry;
+        self.state.coverage_image(g.width, g.height, g.channels)
     }
 
-    /// A per-pixel **rejection map** (`F32`): how many samples the online clip
-    /// rejected at each pixel/channel across the master's whole history.
+    /// Per-pixel online-clip rejection count as an `F32` image.
     pub fn rejection_map(&self) -> ImageData {
-        let data: Vec<f32> = self.state.rejected.iter().map(|&c| c as f32).collect();
-        ImageData::from_f32(
-            self.geometry.width,
-            self.geometry.height,
-            self.geometry.channels,
-            &data,
-        )
+        let g = &self.geometry;
+        self.state.rejection_image(g.width, g.height, g.channels)
     }
 
     // Serialization (resumable sidecar)
@@ -665,24 +758,7 @@ impl IntegratedMaster {
         out.extend_from_slice(&(header_json.len() as u32).to_le_bytes());
         out.extend_from_slice(&header_json);
 
-        for &v in &self.state.sum_w {
-            out.extend_from_slice(&v.to_le_bytes());
-        }
-        for &v in &self.state.sum_w2 {
-            out.extend_from_slice(&v.to_le_bytes());
-        }
-        for &v in &self.state.sum_wx {
-            out.extend_from_slice(&v.to_le_bytes());
-        }
-        for &v in &self.state.sum_wx2 {
-            out.extend_from_slice(&v.to_le_bytes());
-        }
-        for &v in &self.state.coverage {
-            out.extend_from_slice(&v.to_le_bytes());
-        }
-        for &v in &self.state.rejected {
-            out.extend_from_slice(&v.to_le_bytes());
-        }
+        self.state.write_le(&mut out);
 
         out
     }
@@ -735,12 +811,8 @@ impl IntegratedMaster {
             return Err(MasterError::InconsistentPayload);
         }
 
-        let f64_bytes = len.checked_mul(8).ok_or(MasterError::InconsistentPayload)?;
-        let u32_bytes = len.checked_mul(4).ok_or(MasterError::InconsistentPayload)?;
-        let payload_len = f64_bytes
-            .checked_mul(4)
-            .and_then(|x| x.checked_add(u32_bytes.checked_mul(2)?))
-            .ok_or(MasterError::InconsistentPayload)?;
+        let payload_len =
+            PerPixelAccumulator::encoded_len(len).ok_or(MasterError::InconsistentPayload)?;
         let total_needed = header_end
             .checked_add(payload_len)
             .ok_or(MasterError::InconsistentPayload)?;
@@ -751,22 +823,8 @@ impl IntegratedMaster {
             });
         }
 
-        let mut cursor = header_end;
-        let sum_w = read_f64_array(bytes, &mut cursor, len);
-        let sum_w2 = read_f64_array(bytes, &mut cursor, len);
-        let sum_wx = read_f64_array(bytes, &mut cursor, len);
-        let sum_wx2 = read_f64_array(bytes, &mut cursor, len);
-        let coverage = read_u32_array(bytes, &mut cursor, len);
-        let rejected = read_u32_array(bytes, &mut cursor, len);
-
-        let state = PerPixelAccumulator {
-            sum_w,
-            sum_w2,
-            sum_wx,
-            sum_wx2,
-            coverage,
-            rejected,
-        };
+        let state = PerPixelAccumulator::read_le(&bytes[header_end..], len)
+            .ok_or(MasterError::InconsistentPayload)?;
         if !state.is_consistent(len) {
             return Err(MasterError::InconsistentPayload);
         }
@@ -782,19 +840,13 @@ impl IntegratedMaster {
     }
 }
 
-/// Minimum number of accumulated samples at a pixel before the online clip is
-/// allowed to reject. Below this the running σ is too poorly determined to make
-/// an honest rejection decision, so early subs are always accepted (the same
-/// principle the batch rejectors use when they refuse to clip < 3 samples).
-const MIN_HISTORY_FOR_CLIP: u32 = 5;
-
 /// The JSON-serialized portion of the sidecar (small structured fields + the
 /// array length, so the raw payload that follows can be sliced exactly).
 #[derive(Debug, Serialize, Deserialize)]
 struct SerializedHeader {
     mode: AccumulationMode,
     geometry: GeometryReference,
-    norm_reference: NormalizationReference,
+    norm_reference: SignalReference,
     metadata: MasterMetadata,
     slot_count: usize,
 }
@@ -844,32 +896,6 @@ fn reference_baseline(
     }
 
     (background, scale)
-}
-
-/// Read `len` little-endian f64 values from `bytes` starting at `*cursor`,
-/// advancing the cursor. The caller has already bounds-checked the total length.
-fn read_f64_array(bytes: &[u8], cursor: &mut usize, len: usize) -> Vec<f64> {
-    let mut out = Vec::with_capacity(len);
-    for _ in 0..len {
-        let c = *cursor;
-        let v = f64::from_le_bytes(bytes[c..c + 8].try_into().expect("8 bytes"));
-        out.push(v);
-        *cursor += 8;
-    }
-    out
-}
-
-/// Read `len` little-endian u32 values from `bytes` starting at `*cursor`,
-/// advancing the cursor. The caller has already bounds-checked the total length.
-fn read_u32_array(bytes: &[u8], cursor: &mut usize, len: usize) -> Vec<u32> {
-    let mut out = Vec::with_capacity(len);
-    for _ in 0..len {
-        let c = *cursor;
-        let v = u32::from_le_bytes(bytes[c..c + 4].try_into().expect("4 bytes"));
-        out.push(v);
-        *cursor += 4;
-    }
-    out
 }
 
 /// Validate that an [`IntegrationFrame`] matches a master's geometry, returning a
@@ -1636,9 +1662,9 @@ mod tests {
                 height: u32::MAX,
                 channels: 2,
             },
-            norm_reference: NormalizationReference {
+            norm_reference: SignalReference {
                 background: vec![0.0],
-                scale: vec![1.0],
+                signal_range: vec![1.0],
             },
             metadata: MasterMetadata::default(),
             slot_count: 0,

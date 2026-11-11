@@ -831,7 +831,11 @@ fn pin_atlas_and_difference(pins: &mut Pins) {
         "atlas/maps",
         image_digest(&tile.coverage_map()) ^ image_digest(&tile.rejection_map()),
     );
-    pins.add("atlas/norm_reference", debug_digest(tile.norm_reference()));
+    let reference = tile.norm_reference();
+    pins.add_debug(
+        "atlas/norm_reference",
+        &(&reference.background, &reference.noise_sigma),
+    );
     pins.add("atlas/sidecar", fnv(&tile.serialize()));
 
     let mut science = perturbed(&frame, 77, 1.04, 30.0, 10.0);
