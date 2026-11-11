@@ -99,7 +99,7 @@ class NightGuideStarSection extends ConsumerWidget {
               'time': ClockFormat.hm(clock.toNightClock(lastLost)),
             },
           );
-    final settle = settings?.settleThreshold;
+    final settle = settings == null ? null : GuideSettle.of(settings).pixels;
 
     // The star view's empty state is an icon over a sentence, so the square
     // grows with the text size rather than clipping it.
@@ -228,8 +228,10 @@ class NightGuideDitherSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final settings = ref.watch(appSettingsProvider).valueOrNull;
+    final settle = settings == null ? null : GuideSettle.of(settings);
     final every = ref.watch(nightDitherEveryProvider);
-    String? seconds(num? value) => value == null ? null : '$value s';
+    String? seconds(double? value) =>
+        value == null ? null : '${value.round()} s';
     return NightPanelSection(
       title: l10n.text('nightScopeGuideDither'),
       trailing: l10n.text('nightScopeGuideDitherUsedBy'),
@@ -247,32 +249,27 @@ class NightGuideDitherSection extends ConsumerWidget {
             ),
             MetricGridItem(
               label: l10n.text('nightScopeGuideAmount'),
-              value: settings == null
-                  ? null
-                  : formatPx(
-                      ditherScalePixels(settings.ditherScale),
-                      decimals: 0,
-                    ),
+              value: formatPx(settle?.ditherPixels, decimals: 0),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeGuideRaOnly'),
-              value: settings == null
+              value: settle == null
                   ? null
                   : l10n.text(
-                      settings.ditherRaOnly ? 'nightScopeYes' : 'nightScopeNo',
+                      settle.ditherRaOnly ? 'nightScopeYes' : 'nightScopeNo',
                     ),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeGuideSettle'),
-              value: formatPx(settings?.settleThreshold, decimals: 1),
+              value: formatPx(settle?.pixels, decimals: 1),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeGuideSettleFor'),
-              value: seconds(settings?.settleTime),
+              value: seconds(settle?.seconds),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeGuideTimeout'),
-              value: seconds(settings?.settleTimeout),
+              value: seconds(settle?.timeoutSeconds),
             ),
           ],
         ),

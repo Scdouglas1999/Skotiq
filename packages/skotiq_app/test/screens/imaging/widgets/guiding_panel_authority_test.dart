@@ -37,12 +37,14 @@ void main() {
       () => serviceA.startGuiding(
         settlePixels: any(named: 'settlePixels'),
         settleTime: any(named: 'settleTime'),
+        settleTimeout: any(named: 'settleTimeout'),
       ),
     ).thenAnswer((_) => resultA.future);
     when(
       () => serviceB.startGuiding(
         settlePixels: any(named: 'settlePixels'),
         settleTime: any(named: 'settleTime'),
+        settleTimeout: any(named: 'settleTimeout'),
       ),
     ).thenAnswer((_) async {});
 
@@ -79,12 +81,14 @@ void main() {
       () => serviceA.startGuiding(
         settlePixels: any(named: 'settlePixels'),
         settleTime: any(named: 'settleTime'),
+        settleTimeout: any(named: 'settleTimeout'),
       ),
     ).called(1);
     verify(
       () => serviceB.startGuiding(
         settlePixels: any(named: 'settlePixels'),
         settleTime: any(named: 'settleTime'),
+        settleTimeout: any(named: 'settleTimeout'),
       ),
     ).called(1);
   });

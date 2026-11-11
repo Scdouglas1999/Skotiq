@@ -39,6 +39,7 @@ import '../models/focuser_backlash_calibration.dart'
 export '../settings/app_settings_state.g.dart';
 export '../settings/capture_format.dart';
 export '../settings/device_retries.dart';
+export '../settings/guide_settle.dart';
 export '../settings/preflight_strictness.dart';
 export '../settings/setting.dart'
     show ExecutorConfig, Setting, SettingSync, SettingValue;

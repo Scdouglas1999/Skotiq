@@ -29,6 +29,10 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
   bool _configExpanded = false;
   ProviderSubscription<DeviceService>? _serviceSubscription;
 
+  /// A guiding setting's slider position while it is dragged, by setting;
+  /// the setting is saved when the drag ends.
+  final Map<String, double> _dragging = {};
+
   @override
   void initState() {
     super.initState();
@@ -56,18 +60,20 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
     if (_isStartingGuiding) return;
     final deviceService = ref.read(deviceServiceProvider);
     setState(() => _isStartingGuiding = true);
-    final ditherSettings = ref.read(ditherSettingsProvider);
+    final settle = _settle;
     try {
       await deviceService.startGuiding(
-        settlePixels: ditherSettings.settlePixels,
-        settleTime: ditherSettings.settleTime,
+        settlePixels: settle.pixels,
+        settleTime: settle.seconds,
+        settleTimeout: settle.timeoutSeconds,
       );
       if (_isCurrentService(deviceService)) {
         ref.read(sessionStateProvider.notifier).setGuiding(true);
       }
     } catch (e) {
       if (mounted && _isCurrentService(deviceService)) {
-        context.showErrorSnackBar('Failed to start guiding: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Failed to start guiding: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(deviceService)) {
@@ -85,7 +91,8 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
       }
     } catch (e) {
       if (mounted && _isCurrentService(deviceService)) {
-        context.showErrorSnackBar('Failed to stop guiding: ${userFacingError(e)}');
+        context
+            .showErrorSnackBar('Failed to stop guiding: ${userFacingError(e)}');
       }
     }
   }
@@ -95,12 +102,14 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
     final deviceService = ref.read(deviceServiceProvider);
     setState(() => _isDithering = true);
     ref.read(sessionStateProvider.notifier).setDithering(true);
-    final ditherSettings = ref.read(ditherSettingsProvider);
+    final settle = _settle;
     try {
       await deviceService.dither(
-        amount: ditherSettings.ditherAmount,
-        settlePixels: ditherSettings.settlePixels,
-        settleTime: ditherSettings.settleTime,
+        amount: settle.ditherPixels,
+        raOnly: settle.ditherRaOnly,
+        settlePixels: settle.pixels,
+        settleTime: settle.seconds,
+        settleTimeout: settle.timeoutSeconds,
       );
     } catch (e) {
       if (mounted && _isCurrentService(deviceService)) {
@@ -112,6 +121,52 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
         ref.read(sessionStateProvider.notifier).setDithering(false);
       }
     }
+  }
+
+  GuideSettle get _settle => GuideSettle.of(
+        ref.read(appSettingsProvider).valueOrNull ?? const AppSettingsState(),
+      );
+
+  Future<void> _saveSetting(String key, Future<void> Function() save) async {
+    try {
+      await save();
+    } catch (e) {
+      if (mounted) {
+        context.showErrorSnackBar(
+          'Could not save the guiding setting: ${userFacingError(e)}',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _dragging.remove(key));
+    }
+  }
+
+  /// A slider for one guiding setting: it follows the finger while dragged
+  /// and saves the setting when the drag ends.
+  Widget _settingSlider({
+    required String key,
+    required String label,
+    required FieldHelpId helpId,
+    required double value,
+    required double min,
+    required double max,
+    required String suffix,
+    required Future<void> Function(double value)? save,
+  }) {
+    return SliderRowInteractive(
+      label: label,
+      helpId: helpId,
+      value: _dragging[key] ?? value,
+      min: min,
+      max: max,
+      suffix: suffix,
+      colors: widget.colors,
+      onChanged: save == null
+          ? null
+          : (value) => setState(() => _dragging[key] = value),
+      onChangeEnd:
+          save == null ? null : (value) => _saveSetting(key, () => save(value)),
+    );
   }
 
   bool _isCurrentService(DeviceService service) =>
@@ -161,7 +216,9 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
   @override
   Widget build(BuildContext context) {
     final guiderState = ref.watch(guiderStateProvider);
-    final ditherSettings = ref.watch(ditherSettingsProvider);
+    final settings = ref.watch(appSettingsProvider).valueOrNull;
+    final settle = GuideSettle.of(settings ?? const AppSettingsState());
+    final settingsNotifier = ref.read(appSettingsProvider.notifier);
     final isConnected =
         guiderState.connectionState == DeviceConnectionState.connected;
     final isGuiding = guiderState.isGuiding;
@@ -379,43 +436,47 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
             colors: widget.colors,
             child: Column(
               children: [
-                SliderRowInteractive(
+                _settingSlider(
+                  key: 'amount',
                   label: 'Amount',
                   helpId: FieldHelpId.ditherAmount,
-                  value: ditherSettings.ditherAmount,
+                  value: settle.ditherPixels,
                   min: 1,
                   max: 20,
                   suffix: 'px',
-                  colors: widget.colors,
-                  onChanged: (value) => ref
-                      .read(ditherSettingsProvider.notifier)
-                      .state = ditherSettings.copyWith(ditherAmount: value),
+                  save: settings == null
+                      ? null
+                      : (value) => settingsNotifier
+                          .setDitherScale(ditherScaleFor(value)),
                 ),
                 const SizedBox(height: 12),
-                SliderRowInteractive(
+                _settingSlider(
+                  key: 'settle',
                   label: 'Settle threshold',
                   helpId: FieldHelpId.settleThreshold,
-                  value: ditherSettings.settlePixels,
-                  min: 0.3,
-                  max: 3.0,
-                  suffix: '"',
-                  colors: widget.colors,
-                  onChanged: (value) => ref
-                      .read(ditherSettingsProvider.notifier)
-                      .state = ditherSettings.copyWith(settlePixels: value),
+                  value: settle.pixels,
+                  min: GuideSettle.minPixels,
+                  max: GuideSettle.maxPixels,
+                  suffix: 'px',
+                  save: settings == null
+                      ? null
+                      : (value) => settingsNotifier.setSettleThreshold(
+                            (value * 10).round() / 10,
+                          ),
                 ),
                 const SizedBox(height: 12),
-                SliderRowInteractive(
+                _settingSlider(
+                  key: 'time',
                   label: 'Settle time',
                   helpId: FieldHelpId.settleTime,
-                  value: ditherSettings.settleTime,
-                  min: 5,
-                  max: 30,
+                  value: settle.seconds,
+                  min: GuideSettle.minSeconds,
+                  max: GuideSettle.maxSeconds,
                   suffix: 's',
-                  colors: widget.colors,
-                  onChanged: (value) => ref
-                      .read(ditherSettingsProvider.notifier)
-                      .state = ditherSettings.copyWith(settleTime: value),
+                  save: settings == null
+                      ? null
+                      : (value) =>
+                          settingsNotifier.setSettleTime(value.round()),
                 ),
               ],
             ),

@@ -288,15 +288,8 @@ class ServiceNightRigOps implements NightRigOps {
   @override
   Future<void> stopGuiding() => _guider.stopGuiding();
 
-  ({double pixels, double time, double timeout}) get _settle {
-    final s = _settings;
-    // The Guiding screen's own clamps (guiding_screen_parts/actions.dart).
-    return (
-      pixels: (s?.settleThreshold ?? 1.5).clamp(0.5, 5.0).toDouble(),
-      time: (s?.settleTime ?? 10).toDouble().clamp(5.0, 60.0),
-      timeout: (s?.settleTimeout ?? 60).toDouble().clamp(30.0, 180.0),
-    );
-  }
+  GuideSettle get _settle =>
+      GuideSettle.of(_settings ?? const AppSettingsState());
 
   @override
   Future<void> startGuidingAndSettle() async {
@@ -322,13 +315,13 @@ class ServiceNightRigOps implements NightRigOps {
     try {
       await _guider.startGuiding(
         settlePixels: settle.pixels,
-        settleTime: settle.time,
-        settleTimeout: settle.timeout,
+        settleTime: settle.seconds,
+        settleTimeout: settle.timeoutSeconds,
       );
       // Calibration can precede the first settle, so allow it a few minutes
       // on top of PHD2's own settle timeout.
       await settled.future.timeout(
-        Duration(seconds: settle.timeout.round() + 300),
+        Duration(seconds: settle.timeoutSeconds.round() + 300),
         onTimeout: () =>
             throw TimeoutException('Guiding did not report settled'),
       );
@@ -340,22 +333,14 @@ class ServiceNightRigOps implements NightRigOps {
   @override
   Future<void> dither() {
     final settle = _settle;
-    final s = _settings;
     return _guider.dither(
-      amount: _ditherPixels(s?.ditherScale),
-      raOnly: s?.ditherRaOnly == true,
+      amount: settle.ditherPixels,
+      raOnly: settle.ditherRaOnly,
       settlePixels: settle.pixels,
-      settleTime: settle.time,
-      settleTimeout: settle.timeout,
+      settleTime: settle.seconds,
+      settleTimeout: settle.timeoutSeconds,
     );
   }
-
-  /// The Guiding screen's scale-to-pixels mapping.
-  static double _ditherPixels(String? scale) => switch (scale) {
-        'Small' => 2.0,
-        'Large' => 10.0,
-        _ => 5.0,
-      };
 
   @override
   Future<String?> flip() async {

@@ -88,13 +88,6 @@ final nightDitherEveryProvider = Provider<int?>((ref) {
   return null;
 });
 
-/// The Guiding screen's mapping from the stored dither size to pixels.
-double ditherScalePixels(String scale) => switch (scale) {
-      'Small' => 2.0,
-      'Large' => 10.0,
-      _ => 5.0,
-    };
-
 /// A guide distance in arcseconds when [arcsecPerPixel] is known, else in
 /// pixels; null stays null.
 String? formatGuide(double? px, double? arcsecPerPixel) =>

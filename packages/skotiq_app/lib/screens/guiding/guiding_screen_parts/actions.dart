@@ -297,21 +297,21 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
     bool follow(String setting, bool changed) =>
         seen == null ||
         (changed && !_guidingWritesPending.containsKey(setting));
+    final settle = GuideSettle.of(settings);
     if (follow('settle', seen?.settleThreshold != settings.settleThreshold)) {
-      _settlePixels = settings.settleThreshold.clamp(0.5, 5.0).toDouble();
+      _settlePixels = settle.pixels;
     }
     if (follow('timeout', seen?.settleTimeout != settings.settleTimeout)) {
-      _settleTimeout = settings.settleTimeout.toDouble().clamp(30.0, 180.0);
+      _settleTimeout = settle.timeoutSeconds;
     }
     if (follow('time', seen?.settleTime != settings.settleTime)) {
-      _settleTime = settings.settleTime.toDouble().clamp(5.0, 60.0);
+      _settleTime = settle.seconds;
     }
     if (follow('dither', seen?.ditherScale != settings.ditherScale)) {
-      _ditherAmount =
-          _ditherScaleToPixels(settings.ditherScale).clamp(1.0, 20.0);
+      _ditherAmount = settle.ditherPixels;
     }
     if (follow('raOnly', seen?.ditherRaOnly != settings.ditherRaOnly)) {
-      _ditherRaOnly = settings.ditherRaOnly;
+      _ditherRaOnly = settle.ditherRaOnly;
     }
   }
 
@@ -331,7 +331,8 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
   }
 
   void _setSettlePixels(double value) {
-    final clamped = value.clamp(0.5, 5.0).toDouble();
+    final clamped =
+        value.clamp(GuideSettle.minPixels, GuideSettle.maxPixels).toDouble();
     final rollback = _settlePixels;
     setState(() => _settlePixels = clamped);
     unawaited(
@@ -339,7 +340,8 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
   }
 
   Future<void> _persistSettlePixels(double value, double rollback) async {
-    final clamped = value.clamp(0.5, 5.0).toDouble();
+    final clamped =
+        value.clamp(GuideSettle.minPixels, GuideSettle.maxPixels).toDouble();
     final current = ref.read(appSettingsProvider).valueOrNull?.settleThreshold;
     if (current != null && (current - clamped).abs() < 0.0001) return;
     try {
@@ -349,15 +351,17 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
       if ((_settlePixels - clamped).abs() < 0.0001) {
         final authoritative =
             ref.read(appSettingsProvider).valueOrNull?.settleThreshold;
-        setState(
-            () => _settlePixels = (authoritative ?? rollback).clamp(0.5, 5.0));
+        setState(() => _settlePixels = (authoritative ?? rollback)
+            .clamp(GuideSettle.minPixels, GuideSettle.maxPixels));
       }
       _showActionError('Could not save the settle threshold: $error');
     }
   }
 
   void _setSettleTimeout(double value) {
-    final clamped = value.clamp(30.0, 180.0).roundToDouble();
+    final clamped = value
+        .clamp(GuideSettle.minTimeoutSeconds, GuideSettle.maxTimeoutSeconds)
+        .roundToDouble();
     final rollback = _settleTimeout;
     setState(() => _settleTimeout = clamped);
     unawaited(_trackGuidingWrite(
@@ -365,7 +369,9 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
   }
 
   Future<void> _persistSettleTimeout(double value, double rollback) async {
-    final clamped = value.clamp(30.0, 180.0).round();
+    final clamped = value
+        .clamp(GuideSettle.minTimeoutSeconds, GuideSettle.maxTimeoutSeconds)
+        .round();
     final current = ref.read(appSettingsProvider).valueOrNull?.settleTimeout;
     if (current == clamped) return;
     try {
@@ -376,8 +382,8 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
         final authoritative =
             ref.read(appSettingsProvider).valueOrNull?.settleTimeout;
         setState(
-          () => _settleTimeout =
-              (authoritative?.toDouble() ?? rollback).clamp(30.0, 180.0),
+          () => _settleTimeout = (authoritative?.toDouble() ?? rollback).clamp(
+              GuideSettle.minTimeoutSeconds, GuideSettle.maxTimeoutSeconds),
         );
       }
       _showActionError('Could not save the settle timeout: $error');
@@ -385,7 +391,9 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
   }
 
   void _setSettleTime(double value) {
-    final clamped = value.clamp(5.0, 60.0).roundToDouble();
+    final clamped = value
+        .clamp(GuideSettle.minSeconds, GuideSettle.maxSeconds)
+        .roundToDouble();
     final rollback = _settleTime;
     setState(() => _settleTime = clamped);
     unawaited(
@@ -393,7 +401,8 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
   }
 
   Future<void> _persistSettleTime(double value, double rollback) async {
-    final clamped = value.clamp(5.0, 60.0).round();
+    final clamped =
+        value.clamp(GuideSettle.minSeconds, GuideSettle.maxSeconds).round();
     final current = ref.read(appSettingsProvider).valueOrNull?.settleTime;
     if (current == clamped) return;
     try {
@@ -404,8 +413,8 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
         final authoritative =
             ref.read(appSettingsProvider).valueOrNull?.settleTime;
         setState(
-          () => _settleTime =
-              (authoritative?.toDouble() ?? rollback).clamp(5.0, 60.0),
+          () => _settleTime = (authoritative?.toDouble() ?? rollback)
+              .clamp(GuideSettle.minSeconds, GuideSettle.maxSeconds),
         );
       }
       _showActionError('Could not save the settle time: $error');
@@ -440,14 +449,13 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
     final rollback = _ditherAmount;
     // The setting holds Small/Medium/Large, so show the amount it stores
     // rather than a pixel value no other screen will see.
-    setState(() =>
-        _ditherAmount = _ditherScaleToPixels(_pixelsToDitherScale(clamped)));
+    setState(() => _ditherAmount = ditherScalePixels(ditherScaleFor(clamped)));
     unawaited(
         _trackGuidingWrite('dither', _persistDitherScale(clamped, rollback)));
   }
 
   Future<void> _persistDitherScale(double pixels, double rollback) async {
-    final scale = _pixelsToDitherScale(pixels);
+    final scale = ditherScaleFor(pixels);
     final current = ref.read(appSettingsProvider).valueOrNull?.ditherScale;
     if (current == scale) return;
     try {
@@ -460,31 +468,10 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
         setState(
           () => _ditherAmount = authoritative == null
               ? rollback
-              : _ditherScaleToPixels(authoritative),
+              : ditherScalePixels(authoritative),
         );
       }
       _showActionError('Could not save the dither amount: $error');
     }
-  }
-
-  /// Canonical AppSettings stores dither strength as a coarse Small/Medium/Large
-  /// bucket; the slider works in pixels. These two helpers are the single,
-  /// documented bridge between the two representations.
-  static double _ditherScaleToPixels(String scale) {
-    switch (scale) {
-      case 'Small':
-        return 2.0;
-      case 'Large':
-        return 10.0;
-      case 'Medium':
-      default:
-        return 5.0;
-    }
-  }
-
-  static String _pixelsToDitherScale(double pixels) {
-    if (pixels < 3.5) return 'Small';
-    if (pixels < 7.5) return 'Medium';
-    return 'Large';
   }
 }

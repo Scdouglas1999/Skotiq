@@ -220,49 +220,6 @@ class FocusSettings extends Equatable {
   ];
 }
 
-/// Dither/Settle settings for guiding (persists across navigation)
-class DitherSettings extends Equatable {
-  /// Dither amount in pixels
-  final double ditherAmount;
-
-  /// Settle threshold in pixels
-  final double settlePixels;
-
-  /// Settle time in seconds
-  final double settleTime;
-
-  final bool settleAfterDither;
-
-  const DitherSettings({
-    this.ditherAmount = 5.0,
-    this.settlePixels = 1.0,
-    this.settleTime = 10.0,
-    this.settleAfterDither = true,
-  });
-
-  DitherSettings copyWith({
-    double? ditherAmount,
-    double? settlePixels,
-    double? settleTime,
-    bool? settleAfterDither,
-  }) {
-    return DitherSettings(
-      ditherAmount: ditherAmount ?? this.ditherAmount,
-      settlePixels: settlePixels ?? this.settlePixels,
-      settleTime: settleTime ?? this.settleTime,
-      settleAfterDither: settleAfterDither ?? this.settleAfterDither,
-    );
-  }
-
-  @override
-  List<Object?> get props => [
-    ditherAmount,
-    settlePixels,
-    settleTime,
-    settleAfterDither,
-  ];
-}
-
 /// Slew coordinates for mount tab (persists across navigation)
 class SlewCoordinates extends Equatable {
   /// Right Ascension in hours

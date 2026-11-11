@@ -469,6 +469,9 @@ class SliderRowInteractive extends StatelessWidget {
   final SkotiqColors colors;
   final ValueChanged<double>? onChanged;
 
+  /// Called once with the final value when a drag or a tap ends.
+  final ValueChanged<double>? onChangeEnd;
+
   /// Optional field-level help. When non-null, a tooltipped help icon is
   /// appended after the label text using copy from [helpFor]. Defaults to null,
   /// preserving the bare-label render for existing call sites.
@@ -483,6 +486,7 @@ class SliderRowInteractive extends StatelessWidget {
     required this.suffix,
     required this.colors,
     this.onChanged,
+    this.onChangeEnd,
     this.helpId,
   });
 
@@ -575,6 +579,7 @@ class SliderRowInteractive extends StatelessWidget {
               min: min,
               max: max,
               onChanged: onChanged,
+              onChangeEnd: onChangeEnd,
             ),
           ),
         ),
