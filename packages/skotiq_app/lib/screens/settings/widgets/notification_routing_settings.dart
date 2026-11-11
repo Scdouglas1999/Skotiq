@@ -1,7 +1,7 @@
 // Notification routing settings panel.
 //
-// Lives alongside `notification_settings.dart` (the legacy push toggles)
-// and is embedded inside that page. Exposes:
+// Embedded inside the Notifications page (`notification_settings.dart`).
+// Exposes:
 //   * Master "Routing enabled" switch
 //   * One row per NotificationCategory showing the current transports +
 //     an "Edit" pencil that opens the per-category editor dialog.
@@ -135,8 +135,7 @@ class NotificationRoutingSettings extends ConsumerWidget {
             SettingRow(
               icon: LucideIcons.share2,
               title: 'Notification routing enabled',
-              subtitle:
-                  'When off, no per-category routing fires (legacy push still works)',
+              subtitle: 'When off, nothing is sent to any transport',
               trailing: SettingsSwitch(
                 value: matrix.enabled,
                 onChanged: (v) {
