@@ -4,6 +4,7 @@
 //! Rust types and the COM `VARIANT` / `SAFEARRAY` representations that
 //! ASCOM drivers exchange via `IDispatch`.
 
+use crate::com::{ComArg, ComKind, ComValue};
 use std::mem::ManuallyDrop;
 use windows::core::BSTR;
 use windows::Win32::Foundation::VARIANT_BOOL;
@@ -150,6 +151,54 @@ pub(super) fn safearray_i32_element_count(
     }
 
     Ok((dim1_size, dim2_size, size))
+}
+
+/// Build the VARIANT a driver receives for one argument.
+pub(super) fn variant_from_arg(arg: &ComArg<'_>) -> VARIANT {
+    match *arg {
+        ComArg::Bool(value) => variant_bool(value),
+        ComArg::I4(value) => variant_i32(value),
+        ComArg::R8(value) => variant_f64(value),
+        ComArg::Date(value) => variant_date(value),
+        ComArg::Bstr(value) => variant_bstr(value),
+    }
+}
+
+/// A returned VARIANT that does not hold the type the call expected.
+pub(super) struct Mismatch {
+    /// The VARIANT type tag the driver returned.
+    pub(super) vt: u16,
+    pub(super) detail: Option<String>,
+}
+
+/// Copy the value of a returned VARIANT out as the type the call expects.
+///
+/// # Safety
+/// `var` must be a VARIANT a driver returned (or a zeroed one); for the array
+/// kinds its SAFEARRAY pointer is dereferenced.
+pub(super) unsafe fn variant_to_value(var: &VARIANT, kind: ComKind) -> Result<ComValue, Mismatch> {
+    let vt = (*var.Anonymous.Anonymous).vt.0;
+    let wrong = || Mismatch { vt, detail: None };
+    match kind {
+        ComKind::Void => Ok(ComValue::Empty),
+        ComKind::Bool => variant_to_bool(var).map(ComValue::Bool).ok_or_else(wrong),
+        ComKind::I4 => variant_to_i32(var).map(ComValue::I4).ok_or_else(wrong),
+        ComKind::R8 => variant_to_f64(var).map(ComValue::R8).ok_or_else(wrong),
+        ComKind::Date => variant_to_date(var).map(ComValue::Date).ok_or_else(wrong),
+        ComKind::Bstr => variant_to_string(var).map(ComValue::Bstr).ok_or_else(wrong),
+        ComKind::BstrArray => extract_safearray_string(var)
+            .map(ComValue::BstrArray)
+            .map_err(|detail| Mismatch {
+                vt,
+                detail: Some(detail),
+            }),
+        ComKind::I4Array => extract_safearray_i32(var)
+            .map(|(data, dim1, dim2)| ComValue::I4Array { data, dim1, dim2 })
+            .map_err(|detail| Mismatch {
+                vt,
+                detail: Some(detail),
+            }),
+    }
 }
 
 /// Create a VARIANT with a boolean value
@@ -332,16 +381,6 @@ pub(super) fn variant_to_string(var: &VARIANT) -> Option<String> {
             None
         }
     }
-}
-
-/// Extract string array from VARIANT (for ASCOM SupportedActions, etc.)
-#[allow(dead_code)]
-pub(super) fn variant_to_string_array(var: &VARIANT) -> Option<Vec<String>> {
-    // SAFETY: `extract_safearray_string` is `unsafe fn` because it dereferences the
-    // SAFEARRAY pointer from inside the VARIANT; we pass an in-scope borrowed VARIANT
-    // and the callee validates the variant tag, array dimensions, and bounds before
-    // any dereference. Errors propagate via `Result`.
-    unsafe { extract_safearray_string(var).ok() }
 }
 
 /// RAII guard that owns an `EXCEPINFO` out-parameter of `IDispatch::Invoke`

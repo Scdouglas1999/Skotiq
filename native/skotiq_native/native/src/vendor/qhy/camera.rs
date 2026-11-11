@@ -58,11 +58,11 @@ pub struct QhyCamera {
 }
 
 // SAFETY: QhyCamera contains a raw `QhyCamHandle` (`Option<*mut c_void>`). All accesses to the
-// handle go through `qhy_mutex()` (see every `unsafe { (sdk.*)(handle, ...) }` site in this
+// handle go through the `QhySdk` lock guard (see every `unsafe { (sdk.*)(handle, ...) }` site in this
 // file), serializing FFI calls across threads.
 unsafe impl Send for QhyCamera {}
 // SAFETY: Same justification — shared references to QhyCamera never invoke the SDK without
-// taking `qhy_mutex()` first.
+// going through the `QhySdk` lock guard.
 unsafe impl Sync for QhyCamera {}
 
 impl QhyCamera {
@@ -105,14 +105,13 @@ impl QhyCamera {
     /// `IsQHYCCDControlAvailable` entry 55 is "Check whether the camera can get
     /// the actual bits of output data" and returns QHYCCD_SUCCESS (0) when it can.
     ///
-    /// SAFETY (callers): `qhy_mutex()` must be held and `handle` must be an
-    /// open, initialized camera handle.
+    /// SAFETY (callers): `handle` must be an open, initialized camera handle.
     pub(crate) fn probe_output_data_actual_bits(
         &self,
         sdk: &QhySdk,
         handle: QhyCamHandle,
     ) -> Option<u32> {
-        // SAFETY: caller holds qhy_mutex() and `handle` came from a successful
+        // SAFETY: `handle` came from a successful
         // OpenQHYCCD/InitQHYCCD pair. Both FFI calls take the handle plus a
         // plain control-id integer, with no out-pointers.
         let available = unsafe {
@@ -148,14 +147,13 @@ impl QhyCamera {
     /// camera: 16-bit output is produced by "low zero padding" of the raw data,
     /// i.e. high alignment.
     ///
-    /// SAFETY (callers): `qhy_mutex()` must be held and `handle` must be an
-    /// open, initialized camera handle.
+    /// SAFETY (callers): `handle` must be an open, initialized camera handle.
     pub(crate) fn probe_output_data_high_aligned(
         &self,
         sdk: &QhySdk,
         handle: QhyCamHandle,
     ) -> bool {
-        // SAFETY: caller holds qhy_mutex() and `handle` came from a successful
+        // SAFETY: `handle` came from a successful
         // OpenQHYCCD/InitQHYCCD pair; control-id integer argument only.
         let available = unsafe {
             (sdk.is_qhyccd_control_available)(handle, QhyControl::OutputDataAlignment as c_int)
@@ -178,9 +176,8 @@ impl QhyCamera {
     }
 
     /// Load camera chip info from SDK
-    pub(crate) fn load_camera_info(&mut self) -> Result<(), NativeError> {
-        let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
+    pub(crate) fn load_camera_info(&mut self, sdk: &QhySdk) -> Result<(), DriverError> {
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
 
         let mut chip_w: c_double = 0.0;
         let mut chip_h: c_double = 0.0;
@@ -190,8 +187,7 @@ impl QhyCamera {
         let mut pixel_h: c_double = 0.0;
         let mut bpp: c_uint = 0;
 
-        // SAFETY: load_camera_info is a private helper called from connect() and check_cfw_available
-        // contexts where qhy_mutex() is already held by the caller; `handle` came from a successful
+        // SAFETY: `handle` came from a successful
         // OpenQHYCCD/InitQHYCCD pair (verified above via self.handle.ok_or). All eight out-pointers
         // are valid stack pointers to the SDK-expected types.
         let result = unsafe {
@@ -217,23 +213,23 @@ impl QhyCamera {
         self.bits_per_pixel = bpp;
 
         // Check capabilities
-        // SAFETY: caller holds qhy_mutex(); `handle` validated above; IsQHYCCDControlAvailable
+        // SAFETY: `handle` validated above; IsQHYCCDControlAvailable
         // takes the handle and a control-id integer with no out-pointers.
         self.has_cooler = unsafe {
             (sdk.is_qhyccd_control_available)(handle, QhyControl::CONTROL_COOLER as c_int)
         } == 0;
-        // SAFETY: caller holds qhy_mutex(); handle validated above; same FFI signature as above.
+        // SAFETY: handle validated above; same FFI signature as above.
         self.has_st4_port = unsafe {
             (sdk.is_qhyccd_control_available)(handle, QhyControl::CONTROL_ST4PORT as c_int)
         } == 0;
-        // SAFETY: caller holds qhy_mutex(); handle validated above; same FFI signature as above.
+        // SAFETY: handle validated above; same FFI signature as above.
         self.is_color =
             unsafe { (sdk.is_qhyccd_control_available)(handle, QhyControl::CAM_IS_COLOR as c_int) }
                 == 0;
 
         // Detect bayer pattern for color cameras
         if self.is_color {
-            // SAFETY: caller holds qhy_mutex(); handle validated above; GetQHYCCDParam returns a
+            // SAFETY: handle validated above; GetQHYCCDParam returns a
             // c_double by value with no out-pointers.
             // Why: GetQHYCCDParam returns c_double encoding a small integer Bayer code
             // (1..=4). The match below treats anything outside that range as None, so
@@ -254,22 +250,23 @@ impl QhyCamera {
     }
 
     /// Get a control value (mutex protected)
-    pub(crate) async fn get_control_async(&self, control: QhyControl) -> Result<f64, NativeError> {
-        let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
+    pub(crate) async fn get_control_async(&self, control: QhyControl) -> Result<f64, DriverError> {
         // Acquire mutex before extracting handle to avoid Send issues
-        let _lock = qhy_mutex().lock().await;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
-        // SAFETY: qhy_mutex held just above; handle was validated via Option::ok_or; control
+        let sdk = QhySdk::lock().await?;
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
+        // SAFETY: handle was validated via Option::ok_or; control
         // discriminant fits in c_int. GetQHYCCDParam returns c_double by value, no out-pointers.
         Ok(unsafe { (sdk.get_qhyccd_param)(handle, control as c_int) })
     }
 
     /// Get a control value (synchronous - caller must hold mutex)
-    pub(crate) fn get_control(&self, control: QhyControl) -> Result<f64, NativeError> {
-        let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
-        // SAFETY: caller must hold qhy_mutex (documented in the function doc comment above);
-        // handle validated; control discriminant fits in c_int. Return by value.
+    pub(crate) fn get_control(
+        &self,
+        sdk: &QhySdk,
+        control: QhyControl,
+    ) -> Result<f64, DriverError> {
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
+        // SAFETY: handle validated; control discriminant fits in c_int. Return by value.
         Ok(unsafe { (sdk.get_qhyccd_param)(handle, control as c_int) })
     }
 
@@ -278,12 +275,11 @@ impl QhyCamera {
         &mut self,
         control: QhyControl,
         value: f64,
-    ) -> Result<(), NativeError> {
-        let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
+    ) -> Result<(), DriverError> {
         // Acquire mutex before extracting handle to avoid Send issues
-        let _lock = qhy_mutex().lock().await;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
-        // SAFETY: qhy_mutex held above; handle validated; control discriminant fits in c_int;
+        let sdk = QhySdk::lock().await?;
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
+        // SAFETY: handle validated; control discriminant fits in c_int;
         // value is pass-by-value c_double. SDK validates the value internally.
         let result = unsafe { (sdk.set_qhyccd_param)(handle, control as c_int, value) };
         check_qhy_error(result, "SetQHYCCDParam")
@@ -292,12 +288,12 @@ impl QhyCamera {
     /// Set a control value (synchronous - caller must hold mutex)
     pub(crate) fn set_control(
         &mut self,
+        sdk: &QhySdk,
         control: QhyControl,
         value: f64,
-    ) -> Result<(), NativeError> {
-        let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
-        // SAFETY: caller must hold qhy_mutex (per the function doc above); handle validated;
+    ) -> Result<(), DriverError> {
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
+        // SAFETY: handle validated;
         // control discriminant fits in c_int; value is pass-by-value c_double.
         let result = unsafe { (sdk.set_qhyccd_param)(handle, control as c_int, value) };
         check_qhy_error(result, "SetQHYCCDParam")
@@ -307,17 +303,16 @@ impl QhyCamera {
     pub(crate) async fn get_control_range_async(
         &self,
         control: QhyControl,
-    ) -> Result<(f64, f64, f64), NativeError> {
-        let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
+    ) -> Result<(f64, f64, f64), DriverError> {
         // Acquire mutex before extracting handle to avoid Send issues
-        let _lock = qhy_mutex().lock().await;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
+        let sdk = QhySdk::lock().await?;
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
 
         let mut min_val: c_double = 0.0;
         let mut max_val: c_double = 0.0;
         let mut step: c_double = 0.0;
 
-        // SAFETY: qhy_mutex held above; handle validated; control discriminant fits in c_int;
+        // SAFETY: handle validated; control discriminant fits in c_int;
         // all three out-pointers are valid stack pointers to c_double.
         let result = unsafe {
             (sdk.get_qhyccd_param_min_max_step)(

@@ -1,9 +1,10 @@
-//! `NativeDevice` / `NativeCamera` implementations for `QhyCamera`.
+//! `DeviceDriver` / `CameraDriver` implementations for `QhyCamera`.
 
 use super::*;
+use crate::camera_core::{unpack_samples, SampleLayout};
 
 #[async_trait]
-impl NativeDevice for QhyCamera {
+impl DeviceDriver for QhyCamera {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -12,15 +13,15 @@ impl NativeDevice for QhyCamera {
         &self.camera_id
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Qhy
+    fn vendor(&self) -> Vendor {
+        Vendor::Qhy
     }
 
     fn is_connected(&self) -> bool {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         if self.connected {
             return Ok(());
         }
@@ -28,51 +29,49 @@ impl NativeDevice for QhyCamera {
         // Ensure SDK is initialized
         QhySdk::ensure_initialized()?;
 
-        let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
-
         // Acquire mutex for SDK operations
-        let _lock = qhy_mutex().lock().await;
+        let sdk = QhySdk::lock().await?;
 
         // Open the camera
         let id_cstring = CString::new(self.camera_id.clone())
-            .map_err(|_| NativeError::InvalidDevice("Invalid camera ID".to_string()))?;
+            .map_err(|_| DriverError::InvalidDevice("Invalid camera ID".to_string()))?;
 
-        // SAFETY: qhy_mutex held above; id_cstring is a valid NUL-terminated CString that
+        // SAFETY: id_cstring is a valid NUL-terminated CString that
         // outlives the call (it lives until the end of this function). OpenQHYCCD returns a
         // handle that we null-check immediately below.
         let handle = unsafe { (sdk.open_qhyccd)(id_cstring.as_ptr()) };
         if handle.is_null() {
-            return Err(NativeError::InvalidDevice(
+            return Err(DriverError::InvalidDevice(
                 "Failed to open QHY camera".to_string(),
             ));
         }
 
         // Set single frame mode
-        // SAFETY: qhy_mutex held; `handle` is the non-null pointer returned by OpenQHYCCD above;
+        // SAFETY: `handle` is the non-null pointer returned by OpenQHYCCD above;
         // mode=0 (single frame) is a documented constant per qhyccd.h.
         let result = unsafe { (sdk.set_qhyccd_stream_mode)(handle, 0) }; // 0 = single frame
         if result != 0 {
-            // SAFETY: qhy_mutex held; handle was successfully opened above. CloseQHYCCD pairs
+            // SAFETY: handle was successfully opened above. CloseQHYCCD pairs
             // with OpenQHYCCD to release the handle on the error path.
             unsafe { (sdk.close_qhyccd)(handle) };
             self.handle = None;
             self.connected = false;
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Failed to set stream mode: {}",
                 result
             )));
         }
 
         // Initialize the camera
-        // SAFETY: qhy_mutex held; handle was successfully opened and stream-mode set above.
+        // SAFETY: handle was successfully opened and stream-mode set above.
         let result = unsafe { (sdk.init_qhyccd)(handle) };
         if result != 0 {
-            // SAFETY: qhy_mutex held; handle was successfully opened above. CloseQHYCCD pairs
+            // SAFETY: handle was successfully opened above. CloseQHYCCD pairs
             // with OpenQHYCCD on the error path.
             unsafe { (sdk.close_qhyccd)(handle) };
             self.handle = None;
             self.connected = false;
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Failed to init camera: {}",
                 result
             )));
@@ -81,8 +80,8 @@ impl NativeDevice for QhyCamera {
         self.handle = Some(handle);
 
         // Load camera info (mutex is already held)
-        if let Err(error) = self.load_camera_info() {
-            // SAFETY: qhy_mutex held; handle was successfully opened and initialized above.
+        if let Err(error) = self.load_camera_info(&sdk) {
+            // SAFETY: handle was successfully opened and initialized above.
             // CloseQHYCCD pairs with OpenQHYCCD on the chip-info error path.
             unsafe { (sdk.close_qhyccd)(handle) };
             self.handle = None;
@@ -91,7 +90,7 @@ impl NativeDevice for QhyCamera {
         }
 
         // Set default settings
-        // SAFETY: qhy_mutex held; handle valid (opened + initialized above); 16 is a documented
+        // SAFETY: handle valid (opened + initialized above); 16 is a documented
         // bit-depth value per qhyccd.h.
         // Why the result is captured rather than discarded: load_camera_info()
         // ran *before* this call, so its GetQHYCCDChipInfo `bpp` describes
@@ -116,14 +115,14 @@ impl NativeDevice for QhyCamera {
         // prescribes; when unavailable we keep the documented default of high
         // alignment with unknown precision, which yields the container ceiling.
         // See [`container_max_adu`].
-        self.actual_output_bits = self.probe_output_data_actual_bits(sdk, handle);
-        self.output_high_aligned = self.probe_output_data_high_aligned(sdk, handle);
+        self.actual_output_bits = self.probe_output_data_actual_bits(&sdk, handle);
+        self.output_high_aligned = self.probe_output_data_high_aligned(&sdk, handle);
         // Assert the default geometry the driver then reports (`current_bin = 1`,
         // full-frame ROI). A camera that refuses either call keeps whatever geometry
         // InitQHYCCD left it in, so log the SDK code rather than dropping it: the
         // frame itself stays self-consistent (download_image reads width/height/bpp
         // back from GetQHYCCDSingleFrame), but the reported binning would not be.
-        // SAFETY: qhy_mutex held; handle valid; (1,1) is the documented identity binning.
+        // SAFETY: handle valid; (1,1) is the documented identity binning.
         let bin_result = unsafe { (sdk.set_qhyccd_binmode)(handle, 1, 1) };
         if bin_result != 0 {
             tracing::warn!(
@@ -132,7 +131,7 @@ impl NativeDevice for QhyCamera {
                 bin_result
             );
         }
-        // SAFETY: qhy_mutex held; handle valid; (0,0,image_width,image_height) is the full sensor
+        // SAFETY: handle valid; (0,0,image_width,image_height) is the full sensor
         // window that the SDK just reported via GetQHYCCDChipInfo in load_camera_info().
         let roi_result = unsafe {
             (sdk.set_qhyccd_resolution)(handle, 0, 0, self.image_width, self.image_height)
@@ -152,12 +151,12 @@ impl NativeDevice for QhyCamera {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
-        // Acquire mutex first to avoid Send issues with raw pointer
-        let _lock = qhy_mutex().lock().await;
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
+        // Take the lock first to avoid Send issues with raw pointer
+        let lock = QhySdk::slot().lock_before_load().await;
         if let Some(handle) = self.handle.take() {
-            if let Some(sdk) = QhySdk::get() {
-                // SAFETY: qhy_mutex held above; `handle` was successfully opened during
+            if let Ok(sdk) = lock.table() {
+                // SAFETY: `handle` was successfully opened during
                 // connect() and stored in self.handle (None case skipped via if-let).
                 // CloseQHYCCD pairs with OpenQHYCCD.
                 let result = unsafe { (sdk.close_qhyccd)(handle) };
@@ -171,7 +170,7 @@ impl NativeDevice for QhyCamera {
 }
 
 #[async_trait]
-impl NativeCamera for QhyCamera {
+impl CameraDriver for QhyCamera {
     fn capabilities(&self) -> CameraCapabilities {
         CameraCapabilities {
             can_cool: self.has_cooler,
@@ -187,9 +186,9 @@ impl NativeCamera for QhyCamera {
         }
     }
 
-    async fn get_status(&self) -> Result<CameraStatus, NativeError> {
+    async fn get_status(&self) -> Result<CameraStatus, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Use async versions with mutex protection
@@ -221,38 +220,36 @@ impl NativeCamera for QhyCamera {
         })
     }
 
-    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), NativeError> {
+    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
-
         // Acquire mutex before extracting handle to avoid Send issues
-        let _lock = qhy_mutex().lock().await;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
+        let sdk = QhySdk::lock().await?;
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
 
         // Set exposure time (in microseconds) - use sync version since we hold mutex
         let exposure_us = params.duration_secs * 1_000_000.0;
-        self.set_control(QhyControl::CONTROL_EXPOSURE, exposure_us)?;
+        self.set_control(&sdk, QhyControl::CONTROL_EXPOSURE, exposure_us)?;
 
         // Track exposure time for timeout handling
         self.current_exposure_time = params.duration_secs;
 
         // Set gain
         if let Some(gain) = params.gain {
-            self.set_control(QhyControl::CONTROL_GAIN, gain as f64)?;
+            self.set_control(&sdk, QhyControl::CONTROL_GAIN, gain as f64)?;
             self.current_gain = gain;
         }
 
         // Set offset if provided
         if let Some(offset) = params.offset {
-            self.set_control(QhyControl::CONTROL_OFFSET, offset as f64)?;
+            self.set_control(&sdk, QhyControl::CONTROL_OFFSET, offset as f64)?;
             self.current_offset = offset;
         }
 
         // Start exposure
-        // SAFETY: qhy_mutex held above; handle was validated via Option::ok_or; self.connected
+        // SAFETY: handle was validated via Option::ok_or; self.connected
         // was true (checked at entry). ExpQHYCCDSingleFrame takes only the handle.
         let result = unsafe { (sdk.exp_single_frame)(handle) };
         // ExpQHYCCDSingleFrame does NOT return QHYCCD_SUCCESS(0) on every camera:
@@ -265,7 +262,7 @@ impl NativeCamera for QhyCamera {
         // aborted every exposure on those cameras with a bogus "Direct read
         // failed". Match the reference: fail only on QHYCCD_ERROR.
         if result == 0xFFFF_FFFF {
-            return Err(NativeError::SdkError(
+            return Err(DriverError::SdkError(
                 "ExpQHYCCDSingleFrame: General error - camera may be in use by another application or disconnected".to_string(),
             ));
         }
@@ -280,18 +277,16 @@ impl NativeCamera for QhyCamera {
         Ok(())
     }
 
-    async fn abort_exposure(&mut self) -> Result<(), NativeError> {
+    async fn abort_exposure(&mut self) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
-
         // Acquire mutex before extracting handle to avoid Send issues
-        let _lock = qhy_mutex().lock().await;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
+        let sdk = QhySdk::lock().await?;
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
 
-        // SAFETY: qhy_mutex held above; handle was validated via Option::ok_or; self.connected
+        // SAFETY: handle was validated via Option::ok_or; self.connected
         // was true (checked at entry). CancelQHYCCDExposingAndReadout takes only the handle.
         let result = unsafe { (sdk.cancel_qhyccd_exposing_and_readout)(handle) };
         check_qhy_error(result, "CancelExposure")?;
@@ -300,25 +295,23 @@ impl NativeCamera for QhyCamera {
         Ok(())
     }
 
-    async fn is_exposure_complete(&self) -> Result<bool, NativeError> {
+    async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
         // QHY SDK uses blocking exposure with GetQHYCCDSingleFrame
         // This is called after the exposure completes
         Ok(true)
     }
 
-    async fn download_image(&mut self) -> Result<ImageData, NativeError> {
+    async fn download_image(&mut self) -> Result<ImageData, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
-
         // Acquire mutex before extracting handle to avoid Send issues
-        let _lock = qhy_mutex().lock().await;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
+        let sdk = QhySdk::lock().await?;
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
 
         // Get required buffer size.
-        // SAFETY: qhy_mutex held above; handle was validated via Option::ok_or; self.connected
+        // SAFETY: handle was validated via Option::ok_or; self.connected
         // was true. GetQHYCCDMemLength returns c_uint by value.
         // Why: c_uint (u32) -> usize is widening on every Tier 1 target (32- or 64-bit usize
         // each holds u32::MAX), so this is always safe.
@@ -332,7 +325,7 @@ impl NativeCamera for QhyCamera {
         let mut bpp: c_uint = 0;
         let mut channels: c_uint = 0;
 
-        // SAFETY: qhy_mutex held; handle valid; four out-pointers are valid stack pointers;
+        // SAFETY: handle valid; four out-pointers are valid stack pointers;
         // pooled_buffer was just resized to buffer_len (the SDK's reported memory length above),
         // so the SDK can safely write up to buffer_len bytes through as_mut_ptr().
         let result = unsafe {
@@ -361,19 +354,19 @@ impl NativeCamera for QhyCamera {
             .and_then(|p| p.checked_mul(bpp_bytes_u64))
             .and_then(|p| p.checked_mul(channels_u64))
             .ok_or_else(|| {
-                NativeError::SdkError(format!(
+                DriverError::SdkError(format!(
                     "QHY frame size overflow: {}x{} bpp={} channels={}",
                     width, height, bpp, channels
                 ))
             })?;
         let actual_size = usize::try_from(actual_size_u64).map_err(|_| {
-            NativeError::SdkError(format!(
+            DriverError::SdkError(format!(
                 "QHY frame size {} does not fit in usize",
                 actual_size_u64
             ))
         })?;
         if actual_size > pooled_buffer.len() {
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "QHY reported frame larger than allocated buffer: {} > {}",
                 actual_size,
                 pooled_buffer.len()
@@ -387,31 +380,26 @@ impl NativeCamera for QhyCamera {
         // hand the SDK a u8 buffer from a pool). We decode each pixel via from_le_bytes so
         // alignment and host endianness are both irrelevant — only SDK length matters,
         // and we already truncated the buffer to actual_size = width*height*(bpp/8)*channels.
-        let data: Vec<u16> = if bpp == 16 {
-            pooled_buffer
-                .as_chunks::<2>()
-                .0
-                .iter()
-                .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
-                .collect()
+        let layout = if bpp == 16 {
+            SampleLayout::U16Little
         } else {
-            // 8-bit to 16-bit scaling
-            pooled_buffer.iter().map(|&x| (x as u16) * 256).collect()
+            SampleLayout::U8Scaled
         };
+        let data = unpack_samples(&pooled_buffer[..], layout);
 
         // Get temperature and vendor features while still holding mutex
-        let temperature = self.get_control(QhyControl::CONTROL_CURTEMP).ok();
+        let temperature = self.get_control(&sdk, QhyControl::CONTROL_CURTEMP).ok();
         let vendor_data = {
             let mut features = VendorFeatures::default();
-            if let Ok(usb_bw) = self.get_control(QhyControl::CONTROL_USBTRAFFIC) {
+            if let Ok(usb_bw) = self.get_control(&sdk, QhyControl::CONTROL_USBTRAFFIC) {
                 features.usb_bandwidth = Some(usb_bw);
             }
-            if let Ok(humidity) = self.get_control(QhyControl::CAM_HUMIDITY) {
+            if let Ok(humidity) = self.get_control(&sdk, QhyControl::CAM_HUMIDITY) {
                 if (0.0..=100.0).contains(&humidity) {
                     features.sensor_chamber_humidity = Some(humidity);
                 }
             }
-            if let Ok(pressure) = self.get_control(QhyControl::CAM_PRESSURE) {
+            if let Ok(pressure) = self.get_control(&sdk, QhyControl::CAM_PRESSURE) {
                 if pressure > 0.0 {
                     features.sensor_chamber_pressure = Some(pressure);
                 }
@@ -452,13 +440,13 @@ impl NativeCamera for QhyCamera {
         &mut self,
         enabled: bool,
         target_temp: Option<f64>,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if !self.has_cooler {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
 
         // Use async versions with mutex protection
@@ -467,7 +455,7 @@ impl NativeCamera for QhyCamera {
             // target is genuinely required on this vendor. Fall back to the
             // last setpoint we commanded rather than inventing a temperature.
             let target = target_temp.or(self.cooler_target_c).ok_or_else(|| {
-                NativeError::InvalidParameter(format!(
+                DriverError::InvalidParameter(format!(
                     "QHY cooler on {} needs a target temperature: CONTROL_COOLER is \
                      the setpoint and no previous setpoint is known for this camera",
                     self.device_id
@@ -475,7 +463,7 @@ impl NativeCamera for QhyCamera {
             })?;
             if let Some((min_temp, max_temp)) = crate::quirks::get_cooler_range(&self.device_id) {
                 if target < min_temp || target > max_temp {
-                    return Err(NativeError::InvalidParameter(format!(
+                    return Err(DriverError::InvalidParameter(format!(
                         "QHY cooler target {target}C is outside the supported range {min_temp}C..={max_temp}C for {}",
                         self.device_id
                     )));
@@ -505,7 +493,7 @@ impl NativeCamera for QhyCamera {
         Ok(())
     }
 
-    async fn get_temperature(&self) -> Result<f64, NativeError> {
+    async fn get_temperature(&self) -> Result<f64, DriverError> {
         if let Some(delay_ms) = crate::quirks::get_temperature_delay_ms(&self.device_id) {
             tracing::debug!(
                 "Applying temperature RequiresDelayMs quirk: sleeping {}ms before reading {}",
@@ -517,68 +505,66 @@ impl NativeCamera for QhyCamera {
         self.get_control_async(QhyControl::CONTROL_CURTEMP).await
     }
 
-    async fn get_cooler_power(&self) -> Result<f64, NativeError> {
+    async fn get_cooler_power(&self) -> Result<f64, DriverError> {
         if !self.has_cooler {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
         self.get_control_async(QhyControl::CONTROL_CURPWM).await
     }
 
-    async fn set_gain(&mut self, gain: i32) -> Result<(), NativeError> {
+    async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
         self.set_control_async(QhyControl::CONTROL_GAIN, gain as f64)
             .await?;
         self.current_gain = gain;
         Ok(())
     }
 
-    async fn get_gain(&self) -> Result<i32, NativeError> {
+    async fn get_gain(&self) -> Result<i32, DriverError> {
         // Why: QHY gain is a small non-negative integer (0..=~1000 across all current
         // models; range-clamped by SDK). f64 -> i32 with saturation is well-defined for
         // finite values, and only the integer portion is meaningful for a gain step.
         Ok(self.get_control_async(QhyControl::CONTROL_GAIN).await? as i32)
     }
 
-    async fn set_offset(&mut self, offset: i32) -> Result<(), NativeError> {
+    async fn set_offset(&mut self, offset: i32) -> Result<(), DriverError> {
         self.set_control_async(QhyControl::CONTROL_OFFSET, offset as f64)
             .await?;
         self.current_offset = offset;
         Ok(())
     }
 
-    async fn get_offset(&self) -> Result<i32, NativeError> {
+    async fn get_offset(&self) -> Result<i32, DriverError> {
         // Why: QHY offset is a small non-negative integer (0..=~1000) clamped by the SDK.
         // f64 -> i32 with saturation is well-defined for finite values in this range.
         Ok(self.get_control_async(QhyControl::CONTROL_OFFSET).await? as i32)
     }
 
-    async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), NativeError> {
+    async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
-
         // Acquire mutex before extracting handle to avoid Send issues
-        let _lock = qhy_mutex().lock().await;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
+        let sdk = QhySdk::lock().await?;
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
 
         // Why: bin must be >= 1 (you cannot bin by zero or a negative factor). We use
         // try_from to surface a caller error rather than silently wrapping a negative i32
         // into a giant c_uint that would underflow image_width/bin on the next line.
         let bin_max = bin_x.max(bin_y);
         if bin_max < 1 {
-            return Err(NativeError::InvalidParameter(format!(
+            return Err(DriverError::InvalidParameter(format!(
                 "QHY binning must be >= 1, got bin_x={} bin_y={}",
                 bin_x, bin_y
             )));
         }
         let bin = c_uint::try_from(bin_max).map_err(|_| {
-            NativeError::InvalidParameter(format!(
+            DriverError::InvalidParameter(format!(
                 "QHY binning does not fit in c_uint: {}",
                 bin_max
             ))
         })?;
-        // SAFETY: qhy_mutex held above; handle was validated via Option::ok_or; self.connected
+        // SAFETY: handle was validated via Option::ok_or; self.connected
         // was true. bin is pass-by-value c_uint and the SDK validates the value.
         let result = unsafe { (sdk.set_qhyccd_binmode)(handle, bin, bin) };
         check_qhy_error(result, "SetQHYCCDBinMode")?;
@@ -586,7 +572,7 @@ impl NativeCamera for QhyCamera {
         // Update resolution for new binning
         let new_width = self.image_width / bin;
         let new_height = self.image_height / bin;
-        // SAFETY: qhy_mutex held; handle valid; new_width/new_height are derived from
+        // SAFETY: handle valid; new_width/new_height are derived from
         // self.image_width/height (loaded by GetQHYCCDChipInfo at connect time) divided by the
         // just-applied bin factor — both ≤ original sensor dimensions.
         let result = unsafe { (sdk.set_qhyccd_resolution)(handle, 0, 0, new_width, new_height) };
@@ -596,25 +582,23 @@ impl NativeCamera for QhyCamera {
         // exceeds i32::MAX. A bin > 2^31 is meaningless physically, but propagate the error
         // rather than wrap.
         self.current_bin = i32::try_from(bin).map_err(|_| {
-            NativeError::InvalidParameter(format!("QHY bin {} does not fit in i32", bin))
+            DriverError::InvalidParameter(format!("QHY bin {} does not fit in i32", bin))
         })?;
         Ok(())
     }
 
-    async fn get_binning(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
         Ok((self.current_bin, self.current_bin))
     }
 
-    async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), NativeError> {
+    async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
-
         // Acquire mutex before extracting handle to avoid Send issues
-        let _lock = qhy_mutex().lock().await;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
+        let sdk = QhySdk::lock().await?;
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
 
         let (x, y, width, height) = if let Some(sf) = subframe {
             (sf.start_x, sf.start_y, sf.width, sf.height)
@@ -623,7 +607,7 @@ impl NativeCamera for QhyCamera {
             // negative value would wrap to a giant u32 here and crash the division below
             // with image_width/0. Fail loudly instead.
             let bin_u32 = u32::try_from(self.current_bin.max(1)).map_err(|_| {
-                NativeError::InvalidParameter(format!(
+                DriverError::InvalidParameter(format!(
                     "QHY current_bin not representable as u32: {}",
                     self.current_bin
                 ))
@@ -636,7 +620,7 @@ impl NativeCamera for QhyCamera {
             )
         };
 
-        // SAFETY: qhy_mutex held above; handle was validated via Option::ok_or; self.connected
+        // SAFETY: handle was validated via Option::ok_or; self.connected
         // was true. x/y/width/height come from the user-supplied SubFrame or from sensor
         // dimensions / current bin — both branches produce in-sensor coordinates the SDK clips.
         let result = unsafe { (sdk.set_qhyccd_resolution)(handle, x, y, width, height) };
@@ -666,19 +650,17 @@ impl NativeCamera for QhyCamera {
         }
     }
 
-    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, NativeError> {
+    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
-
         // Acquire mutex before extracting handle to avoid Send issues
-        let _lock = qhy_mutex().lock().await;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
+        let sdk = QhySdk::lock().await?;
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
 
         let mut num_modes: c_uint = 0;
-        // SAFETY: qhy_mutex held above; handle was validated via Option::ok_or; self.connected
+        // SAFETY: handle was validated via Option::ok_or; self.connected
         // was true; &mut num_modes is a valid stack pointer to c_uint.
         let result = unsafe { (sdk.get_qhyccd_number_of_read_modes)(handle, &mut num_modes) };
         check_qhy_error(result, "GetQHYCCDNumberOfReadModes")?;
@@ -686,7 +668,7 @@ impl NativeCamera for QhyCamera {
         let mut modes = Vec::new();
         for i in 0..num_modes {
             let mut name_buf = [0 as c_char; 256];
-            // SAFETY: qhy_mutex held; handle valid; `i` is in `0..num_modes` reported by the
+            // SAFETY: handle valid; `i` is in `0..num_modes` reported by the
             // SDK above so it is a valid read-mode index; name_buf is a 256-byte stack array.
             let result =
                 unsafe { (sdk.get_qhyccd_read_mode_name)(handle, i, name_buf.as_mut_ptr()) };
@@ -715,24 +697,21 @@ impl NativeCamera for QhyCamera {
         Ok(modes)
     }
 
-    async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), NativeError> {
+    async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
-
         // Acquire mutex before extracting handle to avoid Send issues
-        let _lock = qhy_mutex().lock().await;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
+        let sdk = QhySdk::lock().await?;
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
 
         // Read the current read mode first so we can restore it if the re-init
         // below fails, leaving the camera in its prior working state.
         let mut prev_mode: c_uint = 0;
-        // SAFETY: qhy_mutex is held (acquired above) so no other task is inside the
-        // QHY SDK. `handle` was opened by OpenQHYCCD during connect() and is still
+        // SAFETY: `handle` was opened by OpenQHYCCD during connect() and is still
         // open: it is only ever taken/closed by disconnect(), which needs both the
-        // same mutex and the `&mut self` this method already holds exclusively.
+        // same lock and the `&mut self` this method already holds exclusively.
         // `&mut prev_mode` is a live stack local of exactly the c_uint the SDK writes.
         let prev_mode_result = unsafe { (sdk.get_qhyccd_read_mode)(handle, &mut prev_mode) };
         if prev_mode_result != 0 {
@@ -746,7 +725,7 @@ impl NativeCamera for QhyCamera {
             );
         }
 
-        // SAFETY: qhy_mutex held above; handle was validated via Option::ok_or; self.connected
+        // SAFETY: handle was validated via Option::ok_or; self.connected
         // was true. mode.index originated from a ReadoutMode this driver produced in
         // get_readout_modes() above, so it is a valid SDK read-mode index.
         let result = unsafe { (sdk.set_qhyccd_read_mode)(handle, mode.index as c_uint) };
@@ -759,7 +738,7 @@ impl NativeCamera for QhyCamera {
         // SDK geometry inconsistent with our cached dimensions → misframed frames.
         // The reference driver does SetReadMode -> InitQHYCCD -> re-read chip info
         // -> reset ROI, reverting on failure (qhy_ccd.cpp:2069-2088).
-        // SAFETY: qhy_mutex held; handle valid. InitQHYCCD takes only the handle.
+        // SAFETY: handle valid. InitQHYCCD takes only the handle.
         let init_result = unsafe { (sdk.init_qhyccd)(handle) };
         if check_qhy_error(init_result, "InitQHYCCD (after read-mode change)").is_err() {
             // Restore the previous read mode + re-init so the camera stays usable, and
@@ -767,7 +746,7 @@ impl NativeCamera for QhyCamera {
             // leaves the camera un-initialized in an unknown read mode, and claiming
             // "reverted" would send the caller straight back into a capture.
             let mut rollback_failures: Vec<String> = Vec::new();
-            // SAFETY: qhy_mutex held; handle valid; prev_mode is the mode read above.
+            // SAFETY: handle valid; prev_mode is the mode read above.
             let restore_mode = unsafe { (sdk.set_qhyccd_read_mode)(handle, prev_mode) };
             if restore_mode != 0 {
                 rollback_failures.push(format!(
@@ -781,10 +760,10 @@ impl NativeCamera for QhyCamera {
             if restore_init != 0 {
                 rollback_failures.push(format!("InitQHYCCD error {}", restore_init));
             }
-            if let Err(e) = self.load_camera_info() {
+            if let Err(e) = self.load_camera_info(&sdk) {
                 rollback_failures.push(format!("chip-info refresh failed: {}", e));
             }
-            // SAFETY: qhy_mutex held; handle valid; full-frame ROI from refreshed dims.
+            // SAFETY: handle valid; full-frame ROI from refreshed dims.
             let restore_roi = unsafe {
                 (sdk.set_qhyccd_resolution)(handle, 0, 0, self.image_width, self.image_height)
             };
@@ -793,7 +772,7 @@ impl NativeCamera for QhyCamera {
             }
 
             if rollback_failures.is_empty() {
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "Failed to initialize QHY camera after switching to read mode {}; reverted to read mode {}",
                     mode.index, prev_mode
                 )));
@@ -804,7 +783,7 @@ impl NativeCamera for QhyCamera {
                 prev_mode,
                 rollback_failures.join("; ")
             );
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Failed to initialize QHY camera after switching to read mode {}, and the rollback to read mode {} also failed ({}); the camera is left un-initialized and must be reconnected",
                 mode.index,
                 prev_mode,
@@ -813,15 +792,15 @@ impl NativeCamera for QhyCamera {
         }
 
         // Refresh cached geometry for the new read mode and reset the full-frame ROI.
-        self.load_camera_info()?;
-        // SAFETY: qhy_mutex held; handle valid; dimensions just refreshed by load_camera_info().
+        self.load_camera_info(&sdk)?;
+        // SAFETY: handle valid; dimensions just refreshed by load_camera_info().
         let res_result = unsafe {
             (sdk.set_qhyccd_resolution)(handle, 0, 0, self.image_width, self.image_height)
         };
         check_qhy_error(res_result, "SetQHYCCDResolution (after read-mode change)")
     }
 
-    async fn get_vendor_features(&self) -> Result<VendorFeatures, NativeError> {
+    async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
         let mut features = VendorFeatures::default();
 
         // QHY-specific features - use async versions with mutex protection
@@ -845,9 +824,9 @@ impl NativeCamera for QhyCamera {
         Ok(features)
     }
 
-    async fn get_gain_range(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let (min, max, _step) = self
@@ -858,9 +837,9 @@ impl NativeCamera for QhyCamera {
         Ok((min as i32, max as i32))
     }
 
-    async fn get_offset_range(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let (min, max, _step) = self
@@ -887,16 +866,15 @@ impl NativeCamera for QhyCamera {
     /// documented per-camera in the manual.
     async fn get_recommended_settings(
         &self,
-    ) -> Result<crate::camera::CameraRecommendedSettings, NativeError> {
+    ) -> Result<skotiq_device::camera::CameraRecommendedSettings, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = qhy_mutex().lock().await;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
+        let sdk = QhySdk::lock().await?;
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
 
-        let mut out = crate::camera::CameraRecommendedSettings::default();
+        let mut out = skotiq_device::camera::CameraRecommendedSettings::default();
         let mut notes: Vec<String> = Vec::new();
 
         // QHY returns 0 (QHYCCD_SUCCESS) from IsQHYCCDControlAvailable when the
@@ -904,11 +882,11 @@ impl NativeCamera for QhyCamera {
         // honest "no recommendation", not an error.
 
         // DefaultGain (control 53)
-        // SAFETY: qhy_mutex held; handle validated; IsQHYCCDControlAvailable takes (handle, c_int).
+        // SAFETY: handle validated; IsQHYCCDControlAvailable takes (handle, c_int).
         let default_gain_available =
             unsafe { (sdk.is_qhyccd_control_available)(handle, QhyControl::DefaultGain as c_int) };
         if default_gain_available == 0 {
-            // SAFETY: qhy_mutex held; handle validated; GetQHYCCDParam returns c_double by value.
+            // SAFETY: handle validated; GetQHYCCDParam returns c_double by value.
             let val = unsafe { (sdk.get_qhyccd_param)(handle, QhyControl::DefaultGain as c_int) };
             // QHY returns a sentinel (0xFFFFFFFF as f64) on failure for some
             // firmware versions. Reject obviously bogus values.
@@ -922,12 +900,12 @@ impl NativeCamera for QhyCamera {
         }
 
         // DefaultOffset (control 54)
-        // SAFETY: qhy_mutex held; handle validated; same FFI shape as above.
+        // SAFETY: handle validated; same FFI shape as above.
         let default_offset_available = unsafe {
             (sdk.is_qhyccd_control_available)(handle, QhyControl::DefaultOffset as c_int)
         };
         if default_offset_available == 0 {
-            // SAFETY: qhy_mutex held; handle validated; GetQHYCCDParam returns c_double by value.
+            // SAFETY: handle validated; GetQHYCCDParam returns c_double by value.
             let val = unsafe { (sdk.get_qhyccd_param)(handle, QhyControl::DefaultOffset as c_int) };
             if val.is_finite() && (0.0..10_000.0).contains(&val) {
                 let off = val as i32;

@@ -207,10 +207,10 @@ pub fn api_get_qhy_discovery_status() -> QhyDiscoveryStatus {
 
 /// Helper to get the QHY discovery timeout from quirks
 pub(crate) fn get_qhy_discovery_timeout_ms() -> u64 {
+    use skotiq_device::Vendor;
     use skotiq_native::quirks::{get_quirks_for_vendor, DiscoveryQuirk, Quirk};
-    use skotiq_native::NativeVendor;
 
-    let quirks = get_quirks_for_vendor(&NativeVendor::Qhy);
+    let quirks = get_quirks_for_vendor(&Vendor::Qhy);
     for quirk in quirks {
         if let Quirk::Discovery(DiscoveryQuirk::DiscoveryTimeoutMs(timeout)) = quirk {
             return timeout;

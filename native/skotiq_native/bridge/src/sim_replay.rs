@@ -422,7 +422,7 @@ mod tests {
             bin_x: bin,
             bin_y: bin,
             subframe,
-            frame_type: skotiq_native::camera::FrameType::Light,
+            frame_type: skotiq_device::FrameType::Light,
             max_adu: 65520,
             optics: crate::sim_capture::SimOptics::ImagingTrain,
         }

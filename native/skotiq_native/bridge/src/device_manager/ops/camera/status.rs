@@ -93,22 +93,22 @@ impl DeviceManager {
                         return Ok(crate::device::CameraStatus {
                             connected: true,
                             state: match native_status.state {
-                                skotiq_native::camera::CameraState::Idle => {
+                                skotiq_device::CameraState::Idle => {
                                     crate::device::CameraState::Idle
                                 }
-                                skotiq_native::camera::CameraState::Waiting => {
+                                skotiq_device::CameraState::Waiting => {
                                     crate::device::CameraState::Waiting
                                 }
-                                skotiq_native::camera::CameraState::Exposing => {
+                                skotiq_device::CameraState::Exposing => {
                                     crate::device::CameraState::Exposing
                                 }
-                                skotiq_native::camera::CameraState::Reading => {
+                                skotiq_device::CameraState::Reading => {
                                     crate::device::CameraState::Reading
                                 }
-                                skotiq_native::camera::CameraState::Downloading => {
+                                skotiq_device::CameraState::Downloading => {
                                     crate::device::CameraState::Download
                                 }
-                                skotiq_native::camera::CameraState::Error => {
+                                skotiq_device::CameraState::Error => {
                                     crate::device::CameraState::Error
                                 }
                             },
@@ -219,7 +219,7 @@ impl DeviceManager {
                             skotiq_alpaca::CameraState::Reading => {
                                 crate::device::CameraState::Reading
                             }
-                            skotiq_alpaca::CameraState::Download => {
+                            skotiq_alpaca::CameraState::Downloading => {
                                 crate::device::CameraState::Download
                             }
                             skotiq_alpaca::CameraState::Error => crate::device::CameraState::Error,
@@ -262,24 +262,20 @@ impl DeviceManager {
                     return Ok(crate::device::CameraStatus {
                         connected: camera.is_connected(),
                         state: match native_status.state {
-                            skotiq_native::camera::CameraState::Idle => {
-                                crate::device::CameraState::Idle
-                            }
-                            skotiq_native::camera::CameraState::Waiting => {
+                            skotiq_device::CameraState::Idle => crate::device::CameraState::Idle,
+                            skotiq_device::CameraState::Waiting => {
                                 crate::device::CameraState::Waiting
                             }
-                            skotiq_native::camera::CameraState::Exposing => {
+                            skotiq_device::CameraState::Exposing => {
                                 crate::device::CameraState::Exposing
                             }
-                            skotiq_native::camera::CameraState::Reading => {
+                            skotiq_device::CameraState::Reading => {
                                 crate::device::CameraState::Reading
                             }
-                            skotiq_native::camera::CameraState::Downloading => {
+                            skotiq_device::CameraState::Downloading => {
                                 crate::device::CameraState::Download
                             }
-                            skotiq_native::camera::CameraState::Error => {
-                                crate::device::CameraState::Error
-                            }
+                            skotiq_device::CameraState::Error => crate::device::CameraState::Error,
                         },
                         sensor_temp: native_status.sensor_temp,
                         cooler_power: native_status.cooler_power,
@@ -299,7 +295,7 @@ impl DeviceManager {
                         // quantity: an ASI1600MM (12-bit, Raw16 left-justified)
                         // was published as `maxAdu: 4095` while its frames
                         // measurably contained values up to 65504. See the
-                        // `skotiq_native::camera::SensorInfo` contract.
+                        // `skotiq_device::SensorInfo` contract.
                         // 0 = the driver never populated it; 65535 is the
                         // container ceiling and the documented fallback (see the
                         // `unwrap_or` policy in this module's header).
@@ -513,13 +509,13 @@ impl DeviceManager {
     /// empty struct (all fields `None`).
     ///
     /// On native cameras, propagates the per-vendor implementation in
-    /// [`skotiq_native::traits::NativeCamera::get_recommended_settings`].
+    /// [`skotiq_device::CameraDriver::get_recommended_settings`].
     /// A query failure is logged and reported up — callers must treat it as
     /// "no recommendation" rather than swallowing it.
     pub async fn camera_get_recommended_settings(
         &self,
         device_id: &str,
-    ) -> Result<skotiq_native::camera::CameraRecommendedSettings, DeviceOpError> {
+    ) -> Result<skotiq_device::CameraRecommendedSettings, DeviceOpError> {
         let driver_type = {
             let devices = self.devices.read().await;
             devices.get(device_id).map(|d| d.info.driver_type.clone())
@@ -550,7 +546,7 @@ impl DeviceManager {
             | Some(DriverType::Alpaca)
             | Some(DriverType::Indi)
             | Some(DriverType::Simulator) => {
-                Ok(skotiq_native::camera::CameraRecommendedSettings::default())
+                Ok(skotiq_device::CameraRecommendedSettings::default())
             }
             _ => Err(DeviceOpError::not_connected(
                 Some(device_id.to_string()),

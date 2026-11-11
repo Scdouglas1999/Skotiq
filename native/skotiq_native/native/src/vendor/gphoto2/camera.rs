@@ -179,14 +179,15 @@ impl std::fmt::Debug for GPhoto2Camera {
     }
 }
 
-// SAFETY: GPhoto2Camera is Send+Sync because all gphoto2 SDK calls are protected
-// by the gphoto2_mutex, ensuring only one thread accesses the camera at a time.
-// The raw `gp_camera` / `gp_context` pointers stored in this struct are only
-// dereferenced inside lock-held `unsafe` blocks in the impls below.
+// SAFETY: GPhoto2Camera is Send+Sync because every libgphoto2 call on it goes
+// through an `SdkGuard`, which holds the gphoto2 SDK lock, so only one thread
+// uses the camera at a time. The raw `gp_camera` / `gp_context` pointers stored
+// in this struct are only dereferenced in `unsafe` blocks that run under that
+// guard; the one exception is `Drop`, which owns the camera exclusively.
 unsafe impl Send for GPhoto2Camera {}
-// SAFETY: Same justification as the `Send` impl above — gphoto2_mutex serializes all
-// SDK access, so concurrent `&GPhoto2Camera` references never reach libgphoto2 at the
-// same time.
+// SAFETY: Same justification as the `Send` impl above — the `SdkGuard` serializes
+// all SDK access, so concurrent `&GPhoto2Camera` references never reach libgphoto2
+// at the same time.
 unsafe impl Sync for GPhoto2Camera {}
 
 impl GPhoto2Camera {
@@ -268,12 +269,13 @@ impl GPhoto2Camera {
     }
 
     /// Read a string configuration value from the camera.
-    /// Caller must hold gphoto2_mutex.
-    pub(crate) fn get_config_value_str(&self, name: &str) -> Result<String, NativeError> {
-        let sdk = GPhoto2Sdk::get().ok_or(NativeError::SdkNotLoaded)?;
-
-        // SAFETY: caller holds gphoto2_mutex (documented in the doc-comment above and
-        // checked by all call sites). `self.gp_camera`/`self.gp_context` are non-null
+    /// Runs under the SDK lock the caller already holds.
+    pub(crate) fn get_config_value_str(
+        &self,
+        sdk: &GPhoto2Sdk,
+        name: &str,
+    ) -> Result<String, DriverError> {
+        // SAFETY: `self.gp_camera`/`self.gp_context` are non-null
         // valid pointers obtained from `camera_new`/`context_new` while connected.
         // `root` is a stack out-pointer; `widget_free(root)` runs on every exit path.
         // `CStr::from_ptr(value_ptr)` is gated on a successful (`ret >= GP_OK`) widget
@@ -283,21 +285,21 @@ impl GPhoto2Camera {
             let mut root: *mut CameraWidget = std::ptr::null_mut();
             let ret = (sdk.camera_get_config)(self.gp_camera, &mut root, self.gp_context);
             if ret < GP_OK {
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "gPhoto2: get_config failed for '{}': code {}",
                     name, ret
                 )));
             }
 
             let c_name = CString::new(name).map_err(|_| {
-                NativeError::InvalidParameter(format!("Invalid config name: {}", name))
+                DriverError::InvalidParameter(format!("Invalid config name: {}", name))
             })?;
 
             let mut child: *mut CameraWidget = std::ptr::null_mut();
             let ret = (sdk.widget_get_child_by_name)(root, c_name.as_ptr(), &mut child);
             if ret < GP_OK {
                 (sdk.widget_free)(root);
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "gPhoto2: config '{}' not found on this camera",
                     name
                 )));
@@ -308,7 +310,7 @@ impl GPhoto2Camera {
                 (sdk.widget_get_value)(child, &mut value_ptr as *mut *const c_char as *mut c_void);
             if ret < GP_OK || value_ptr.is_null() {
                 (sdk.widget_free)(root);
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "gPhoto2: failed to read config '{}': code {}",
                     name, ret
                 )));
@@ -321,11 +323,14 @@ impl GPhoto2Camera {
     }
 
     /// Set a string configuration value on the camera.
-    /// Caller must hold gphoto2_mutex.
-    pub(crate) fn set_config_value_str(&self, name: &str, value: &str) -> Result<(), NativeError> {
-        let sdk = GPhoto2Sdk::get().ok_or(NativeError::SdkNotLoaded)?;
-
-        // SAFETY: caller holds gphoto2_mutex (per doc-comment). `self.gp_camera` /
+    /// Runs under the SDK lock the caller already holds.
+    pub(crate) fn set_config_value_str(
+        &self,
+        sdk: &GPhoto2Sdk,
+        name: &str,
+        value: &str,
+    ) -> Result<(), DriverError> {
+        // SAFETY: `self.gp_camera` /
         // `self.gp_context` are valid non-null pointers post-connect. `root` is a stack
         // out-pointer; `widget_free(root)` is called on every exit path. `c_name` /
         // `c_value` are CString owners that outlive their `.as_ptr()` use inside the
@@ -337,27 +342,27 @@ impl GPhoto2Camera {
             check_gp_error(ret, "get_config")?;
 
             let c_name = CString::new(name).map_err(|_| {
-                NativeError::InvalidParameter(format!("Invalid config name: {}", name))
+                DriverError::InvalidParameter(format!("Invalid config name: {}", name))
             })?;
 
             let mut child: *mut CameraWidget = std::ptr::null_mut();
             let ret = (sdk.widget_get_child_by_name)(root, c_name.as_ptr(), &mut child);
             if ret < GP_OK {
                 (sdk.widget_free)(root);
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "gPhoto2: config '{}' not found on this camera",
                     name
                 )));
             }
 
             let c_value = CString::new(value).map_err(|_| {
-                NativeError::InvalidParameter(format!("Invalid config value: {}", value))
+                DriverError::InvalidParameter(format!("Invalid config value: {}", value))
             })?;
 
             let ret = (sdk.widget_set_value)(child, c_value.as_ptr() as *const c_void);
             if ret < GP_OK {
                 (sdk.widget_free)(root);
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "gPhoto2: failed to set config '{}' to '{}': code {}",
                     name, value, ret
                 )));
@@ -372,11 +377,13 @@ impl GPhoto2Camera {
     }
 
     /// Get all available choices for a radio/menu configuration value.
-    /// Caller must hold gphoto2_mutex.
-    pub(crate) fn get_config_choices(&self, name: &str) -> Result<Vec<String>, NativeError> {
-        let sdk = GPhoto2Sdk::get().ok_or(NativeError::SdkNotLoaded)?;
-
-        // SAFETY: caller holds gphoto2_mutex (per doc-comment). `gp_camera`/`gp_context`
+    /// Runs under the SDK lock the caller already holds.
+    pub(crate) fn get_config_choices(
+        &self,
+        sdk: &GPhoto2Sdk,
+        name: &str,
+    ) -> Result<Vec<String>, DriverError> {
+        // SAFETY: `gp_camera`/`gp_context`
         // are valid non-null post-connect; `root` is a stack out-pointer freed on
         // every exit path. Each `widget_get_choice` call's out-pointer (`choice_ptr`)
         // is only dereferenced via `CStr::from_ptr` after the return code is checked
@@ -387,14 +394,14 @@ impl GPhoto2Camera {
             check_gp_error(ret, "get_config")?;
 
             let c_name = CString::new(name).map_err(|_| {
-                NativeError::InvalidParameter(format!("Invalid config name: {}", name))
+                DriverError::InvalidParameter(format!("Invalid config name: {}", name))
             })?;
 
             let mut child: *mut CameraWidget = std::ptr::null_mut();
             let ret = (sdk.widget_get_child_by_name)(root, c_name.as_ptr(), &mut child);
             if ret < GP_OK {
                 (sdk.widget_free)(root);
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "gPhoto2: config '{}' not found",
                     name
                 )));
@@ -419,13 +426,10 @@ impl GPhoto2Camera {
     }
 
     /// Populate camera info (sensor dims, ISO values, etc.) after connecting.
-    /// Caller must hold gphoto2_mutex.
-    pub(crate) fn populate_camera_info(&mut self) -> Result<(), NativeError> {
-        let sdk = GPhoto2Sdk::get().ok_or(NativeError::SdkNotLoaded)?;
-
+    /// Runs under the SDK lock the caller already holds.
+    pub(crate) fn populate_camera_info(&mut self, sdk: &GPhoto2Sdk) -> Result<(), DriverError> {
         // Query camera abilities to determine supported operations
-        // SAFETY: caller holds gphoto2_mutex (per doc-comment on populate_camera_info).
-        // `gp_camera` is valid non-null post-connect; `abilities` is a stack-allocated
+        // SAFETY: `gp_camera` is valid non-null post-connect; `abilities` is a stack-allocated
         // POD struct (`#[derive(Default)]`) whose address is passed as the out-pointer
         // — libgphoto2 fills the struct by value, no internal pointers retained.
         unsafe {
@@ -448,7 +452,7 @@ impl GPhoto2Camera {
         }
 
         // Try to read ISO values
-        match self.get_config_choices("iso") {
+        match self.get_config_choices(sdk, "iso") {
             Ok(isos) => {
                 tracing::info!("gPhoto2: Available ISO values: {:?}", isos);
                 self.iso_values = isos;
@@ -469,7 +473,7 @@ impl GPhoto2Camera {
         }
 
         // Get current ISO and map to gain index
-        match self.get_config_value_str("iso") {
+        match self.get_config_value_str(sdk, "iso") {
             Ok(current_iso) => {
                 // Why: if the reported ISO does not
                 // appear in the enumerated `iso_values` table (e.g. a
@@ -496,14 +500,14 @@ impl GPhoto2Camera {
         }
 
         // Try to read available shutter speeds
-        match self.get_config_choices("shutterspeed") {
+        match self.get_config_choices(sdk, "shutterspeed") {
             Ok(speeds) => {
                 tracing::info!("gPhoto2: Available shutter speeds: {:?}", speeds);
                 self.shutter_speed_values = speeds;
             }
             Err(_) => {
                 // Some cameras use "shutterspeed2" or other names
-                match self.get_config_choices("shutterspeed2") {
+                match self.get_config_choices(sdk, "shutterspeed2") {
                     Ok(speeds) => {
                         self.shutter_speed_values = speeds;
                     }
@@ -516,11 +520,11 @@ impl GPhoto2Camera {
 
         // Discover the bulb widget (Canon eosremoterelease vs generic bulb
         // toggle) so long exposures actually hold the shutter open per-brand.
-        self.discover_bulb_widget();
+        self.discover_bulb_widget(sdk);
 
         // Discover the RAW image-format choice so we can force RAW before every
         // capture (we always LibRaw-decode; a JPEG-configured body would fail).
-        self.discover_raw_format();
+        self.discover_raw_format(sdk);
 
         // Try to detect sensor dimensions from image format or camera model
         // Most DSLRs don't report sensor dims via PTP; we use common values
@@ -530,12 +534,10 @@ impl GPhoto2Camera {
     }
 
     /// Return the widget type (`CameraWidgetType` discriminant) for a config
-    /// name, or `None` if the camera has no such widget. Caller must hold
-    /// gphoto2_mutex.
-    pub(crate) fn widget_type(&self, name: &str) -> Option<c_int> {
-        let sdk = GPhoto2Sdk::get()?;
-
-        // SAFETY: caller holds gphoto2_mutex. `gp_camera`/`gp_context` are valid
+    /// name, or `None` if the camera has no such widget. Runs under the
+    /// SDK lock the caller already holds.
+    pub(crate) fn widget_type(&self, sdk: &GPhoto2Sdk, name: &str) -> Option<c_int> {
+        // SAFETY: `gp_camera`/`gp_context` are valid
         // non-null post-connect. `root` is a stack out-pointer freed on every
         // exit path. `child` is owned by the widget tree (freed with `root`);
         // its type is read into a stack int.
@@ -568,11 +570,14 @@ impl GPhoto2Camera {
     /// Set a TOGGLE (on/off) config value. Unlike `set_config_value_str`, this
     /// writes an INT value, which is what libgphoto2 requires for a
     /// `GP_WIDGET_TOGGLE` widget such as the Nikon/Sony `bulb` control.
-    /// Caller must hold gphoto2_mutex.
-    pub(crate) fn set_config_value_toggle(&self, name: &str, on: bool) -> Result<(), NativeError> {
-        let sdk = GPhoto2Sdk::get().ok_or(NativeError::SdkNotLoaded)?;
-
-        // SAFETY: caller holds gphoto2_mutex. `gp_camera`/`gp_context` are valid
+    /// Runs under the SDK lock the caller already holds.
+    pub(crate) fn set_config_value_toggle(
+        &self,
+        sdk: &GPhoto2Sdk,
+        name: &str,
+        on: bool,
+    ) -> Result<(), DriverError> {
+        // SAFETY: `gp_camera`/`gp_context` are valid
         // non-null post-connect. `root` is a stack out-pointer freed on every
         // exit path. `value` is a stack int whose address is passed as the
         // widget value (TOGGLE widgets take `int*`, per libgphoto2). `child` is
@@ -583,14 +588,14 @@ impl GPhoto2Camera {
             check_gp_error(ret, "get_config")?;
 
             let c_name = CString::new(name).map_err(|_| {
-                NativeError::InvalidParameter(format!("Invalid config name: {}", name))
+                DriverError::InvalidParameter(format!("Invalid config name: {}", name))
             })?;
 
             let mut child: *mut CameraWidget = std::ptr::null_mut();
             let ret = (sdk.widget_get_child_by_name)(root, c_name.as_ptr(), &mut child);
             if ret < GP_OK {
                 (sdk.widget_free)(root);
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "gPhoto2: toggle config '{}' not found on this camera",
                     name
                 )));
@@ -600,7 +605,7 @@ impl GPhoto2Camera {
             let ret = (sdk.widget_set_value)(child, &value as *const c_int as *const c_void);
             if ret < GP_OK {
                 (sdk.widget_free)(root);
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "gPhoto2: failed to set toggle '{}' to {}: code {}",
                     name, value, ret
                 )));
@@ -617,11 +622,11 @@ impl GPhoto2Camera {
     /// Discover how this body opens/closes a bulb exposure. Prefers Canon's
     /// `eosremoterelease` (discovering the Press/Release choice strings
     /// dynamically, since their order varies by libgphoto2 version), else falls
-    /// back to a generic `bulb` toggle widget (Nikon / Sony). Caller must hold
-    /// gphoto2_mutex.
-    pub(crate) fn discover_bulb_widget(&mut self) {
+    /// back to a generic `bulb` toggle widget (Nikon / Sony). Runs under the
+    /// SDK lock the caller already holds.
+    pub(crate) fn discover_bulb_widget(&mut self, sdk: &GPhoto2Sdk) {
         // Canon EOS: eosremoterelease RADIO widget.
-        if let Ok(choices) = self.get_config_choices("eosremoterelease") {
+        if let Ok(choices) = self.get_config_choices(sdk, "eosremoterelease") {
             let (press, release) = pick_eos_bulb_choices(&choices);
             tracing::info!(
                 "gPhoto2: bulb via eosremoterelease (press='{}', release='{}')",
@@ -633,7 +638,7 @@ impl GPhoto2Camera {
         }
 
         // Nikon / Sony: generic `bulb` TOGGLE widget.
-        if let Some(t) = self.widget_type("bulb") {
+        if let Some(t) = self.widget_type(sdk, "bulb") {
             if t == CameraWidgetType::Toggle as c_int {
                 tracing::info!("gPhoto2: bulb via generic 'bulb' toggle widget");
                 self.bulb_widget = Some(BulbWidget::BulbToggle);
@@ -658,11 +663,11 @@ impl GPhoto2Camera {
 
     /// Discover a RAW image-format choice to force before capture. libgphoto2
     /// exposes this as `imageformat` (Canon/Sony) or `imagequality` (Nikon).
-    /// We prefer a pure-RAW choice, then RAW+JPEG. Caller must hold
-    /// gphoto2_mutex.
-    pub(crate) fn discover_raw_format(&mut self) {
+    /// We prefer a pure-RAW choice, then RAW+JPEG. Runs under the
+    /// SDK lock the caller already holds.
+    pub(crate) fn discover_raw_format(&mut self, sdk: &GPhoto2Sdk) {
         for widget in ["imageformat", "imagequality"] {
-            let Ok(choices) = self.get_config_choices(widget) else {
+            let Ok(choices) = self.get_config_choices(sdk, widget) else {
                 continue;
             };
             if let Some(choice) = pick_raw_format_choice(&choices) {
@@ -689,10 +694,10 @@ impl GPhoto2Camera {
 
     /// Force the camera into its RAW image format before capture (best effort;
     /// a failure is warned, not fatal, since some bodies expose no such
-    /// widget). Caller must hold gphoto2_mutex.
-    pub(crate) fn apply_raw_format(&self) {
+    /// widget). Runs under the SDK lock the caller already holds.
+    pub(crate) fn apply_raw_format(&self, sdk: &GPhoto2Sdk) {
         if let Some((widget, choice)) = &self.raw_format {
-            if let Err(e) = self.set_config_value_str(widget, choice) {
+            if let Err(e) = self.set_config_value_str(sdk, widget, choice) {
                 tracing::warn!(
                     "gPhoto2: could not force {}='{}': {}. Capture will use the \
                      camera's current format.",
@@ -846,13 +851,11 @@ impl GPhoto2Camera {
     }
 
     /// Perform a standard (non-bulb) capture. Blocks until the camera completes the exposure.
-    /// Caller must hold gphoto2_mutex.
-    pub(crate) fn do_capture(&mut self) -> Result<(), NativeError> {
-        let sdk = GPhoto2Sdk::get().ok_or(NativeError::SdkNotLoaded)?;
-
+    /// Runs under the SDK lock the caller already holds.
+    pub(crate) fn do_capture(&mut self, sdk: &GPhoto2Sdk) -> Result<(), DriverError> {
         let mut file_path = CameraFilePath::default();
 
-        // SAFETY: caller holds gphoto2_mutex (per doc-comment). `gp_camera` and
+        // SAFETY: `gp_camera` and
         // `gp_context` are valid non-null pointers post-connect. `file_path` is a stack
         // POD that libgphoto2 fills in-place with the folder/name buffers.
         unsafe {
@@ -883,12 +886,12 @@ impl GPhoto2Camera {
     /// the Nikon/Sony `bulb` toggle = ON. Critically this does NOT use
     /// `gp_camera_trigger_capture` for the widget paths: on Nikon/Sony that
     /// never holds the shutter open, so long subs would time out / come back
-    /// black. Caller must hold gphoto2_mutex.
-    pub(crate) fn do_bulb_start(&mut self) -> Result<(), NativeError> {
+    /// black. Runs under the SDK lock the caller already holds.
+    pub(crate) fn do_bulb_start(&mut self, sdk: &GPhoto2Sdk) -> Result<(), DriverError> {
         // Set camera to Bulb shutter speed (needed so the body honours the
         // held-open shutter). Non-fatal if absent on eosremoterelease bodies.
-        if let Err(e) = self.set_config_value_str("shutterspeed", "Bulb") {
-            if let Err(e2) = self.set_config_value_str("shutterspeed", "bulb") {
+        if let Err(e) = self.set_config_value_str(sdk, "shutterspeed", "Bulb") {
+            if let Err(e2) = self.set_config_value_str(sdk, "shutterspeed", "bulb") {
                 // Only hard-fail when we also have no bulb widget to fall back
                 // on; an EOS body may accept the press without a Bulb preset.
                 if self.bulb_widget.is_none() {
@@ -897,7 +900,7 @@ impl GPhoto2Camera {
                         e,
                         e2
                     );
-                    return Err(NativeError::SdkError(
+                    return Err(DriverError::SdkError(
                         "gPhoto2: Camera does not support Bulb mode for long exposures".to_string(),
                     ));
                 }
@@ -911,9 +914,9 @@ impl GPhoto2Camera {
         match self.bulb_widget.clone() {
             Some(BulbWidget::EosRemoteRelease { press, .. }) => {
                 // Canon EOS: Press-Full opens (and holds) the shutter.
-                self.set_config_value_str("eosremoterelease", &press)
+                self.set_config_value_str(sdk, "eosremoterelease", &press)
                     .map_err(|e| {
-                        NativeError::SdkError(format!(
+                        DriverError::SdkError(format!(
                             "gPhoto2: failed to open Canon bulb shutter (eosremoterelease='{}'): {}",
                             press, e
                         ))
@@ -922,20 +925,20 @@ impl GPhoto2Camera {
             }
             Some(BulbWidget::BulbToggle) => {
                 // Nikon / Sony: bulb toggle ON holds the shutter open.
-                self.set_config_value_toggle("bulb", true).map_err(|e| {
-                    NativeError::SdkError(format!(
-                        "gPhoto2: failed to open bulb shutter (bulb toggle ON): {}",
-                        e
-                    ))
-                })?;
+                self.set_config_value_toggle(sdk, "bulb", true)
+                    .map_err(|e| {
+                        DriverError::SdkError(format!(
+                            "gPhoto2: failed to open bulb shutter (bulb toggle ON): {}",
+                            e
+                        ))
+                    })?;
                 tracing::info!("gPhoto2: Bulb open via 'bulb' toggle = ON");
             }
             None => {
                 // Last resort: no internal bulb widget. Trigger a capture; this
                 // does not truly hold the shutter for bulb, but it is the only
                 // option for bodies exposing neither widget.
-                let sdk = GPhoto2Sdk::get().ok_or(NativeError::SdkNotLoaded)?;
-                // SAFETY: caller holds gphoto2_mutex. `gp_camera`/`gp_context`
+                // SAFETY: `gp_camera`/`gp_context`
                 // are valid non-null post-connect; `camera_trigger_capture`
                 // takes them by-value and returns a checked result code.
                 unsafe {
@@ -953,14 +956,14 @@ impl GPhoto2Camera {
 
     /// Close the shutter, ending the bulb exposure, using the same widget that
     /// opened it. Mirrors the reference `stop_bulb` (gphoto_driver.cpp:652-664):
-    /// eosremoterelease = Release, or bulb toggle = OFF. Caller must hold
-    /// gphoto2_mutex.
-    pub(crate) fn do_bulb_stop(&mut self) -> Result<(), NativeError> {
+    /// eosremoterelease = Release, or bulb toggle = OFF. Runs under the
+    /// SDK lock the caller already holds.
+    pub(crate) fn do_bulb_stop(&mut self, sdk: &GPhoto2Sdk) -> Result<(), DriverError> {
         match self.bulb_widget.clone() {
             Some(BulbWidget::EosRemoteRelease { release, .. }) => {
-                self.set_config_value_str("eosremoterelease", &release)
+                self.set_config_value_str(sdk, "eosremoterelease", &release)
                     .map_err(|e| {
-                        NativeError::SdkError(format!(
+                        DriverError::SdkError(format!(
                             "gPhoto2: failed to close Canon bulb shutter (eosremoterelease='{}'): {}",
                             release, e
                         ))
@@ -970,7 +973,7 @@ impl GPhoto2Camera {
                 // its idle "None" choice only matters for the NEXT bulb start, which
                 // re-writes the widget anyway. Report a failure so a camera stuck in the
                 // release position is diagnosable instead of silent.
-                if let Err(e) = self.set_config_value_str("eosremoterelease", "None") {
+                if let Err(e) = self.set_config_value_str(sdk, "eosremoterelease", "None") {
                     tracing::warn!(
                         "gPhoto2: could not return eosremoterelease to 'None' after closing the bulb shutter: {}",
                         e
@@ -979,20 +982,20 @@ impl GPhoto2Camera {
                 Ok(())
             }
             Some(BulbWidget::BulbToggle) => {
-                self.set_config_value_toggle("bulb", false).map_err(|e| {
-                    NativeError::SdkError(format!(
-                        "gPhoto2: failed to close bulb shutter (bulb toggle OFF): {}",
-                        e
-                    ))
-                })?;
+                self.set_config_value_toggle(sdk, "bulb", false)
+                    .map_err(|e| {
+                        DriverError::SdkError(format!(
+                            "gPhoto2: failed to close bulb shutter (bulb toggle OFF): {}",
+                            e
+                        ))
+                    })?;
                 tracing::info!("gPhoto2: Bulb closed via 'bulb' toggle = OFF");
                 Ok(())
             }
             None => {
                 // Trigger-capture fallback: nothing to release. Drain a
                 // file-added event so the subsequent download can proceed.
-                let sdk = GPhoto2Sdk::get().ok_or(NativeError::SdkNotLoaded)?;
-                // SAFETY: caller holds gphoto2_mutex. `gp_camera`/`gp_context`
+                // SAFETY: `gp_camera`/`gp_context`
                 // are valid non-null. `event_type`/`event_data` are stack
                 // out-pointers filled by libgphoto2; we only read `event_type`.
                 unsafe {
@@ -1016,24 +1019,24 @@ impl GPhoto2Camera {
     }
 
     /// Download the last captured image from the camera as raw bytes.
-    /// Caller must hold gphoto2_mutex.
-    pub(crate) fn download_from_camera(&mut self) -> Result<Vec<u8>, NativeError> {
-        let sdk = GPhoto2Sdk::get().ok_or(NativeError::SdkNotLoaded)?;
-
+    /// Runs under the SDK lock the caller already holds.
+    pub(crate) fn download_from_camera(
+        &mut self,
+        sdk: &GPhoto2Sdk,
+    ) -> Result<Vec<u8>, DriverError> {
         let file_path = self.last_capture_path.as_ref().ok_or_else(|| {
-            NativeError::SdkError("gPhoto2: No captured image to download".to_string())
+            DriverError::SdkError("gPhoto2: No captured image to download".to_string())
         })?;
 
         let folder_str = cstr_from_array(&file_path.folder);
         let name_str = cstr_from_array(&file_path.name);
 
         let c_folder = CString::new(folder_str.as_str())
-            .map_err(|_| NativeError::SdkError("gPhoto2: Invalid folder path".to_string()))?;
+            .map_err(|_| DriverError::SdkError("gPhoto2: Invalid folder path".to_string()))?;
         let c_name = CString::new(name_str.as_str())
-            .map_err(|_| NativeError::SdkError("gPhoto2: Invalid file name".to_string()))?;
+            .map_err(|_| DriverError::SdkError("gPhoto2: Invalid file name".to_string()))?;
 
-        // SAFETY: caller holds gphoto2_mutex (per download_from_camera's doc-comment).
-        // `gp_camera`/`gp_context` are valid non-null post-connect. `gp_file` is a
+        // SAFETY: `gp_camera`/`gp_context` are valid non-null post-connect. `gp_file` is a
         // stack out-pointer paired with `file_free` on every exit path. `c_folder`/
         // `c_name` are CString owners that outlive their `.as_ptr()` use. The
         // `data_ptr` / `data_size` out-pointers are read only after checking the
@@ -1056,7 +1059,7 @@ impl GPhoto2Camera {
             );
             if ret < GP_OK {
                 (sdk.file_free)(gp_file);
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "gPhoto2: Failed to download image {}/{}: code {}",
                     folder_str, name_str, ret
                 )));
@@ -1068,7 +1071,7 @@ impl GPhoto2Camera {
             let ret = (sdk.file_get_data_and_size)(gp_file, &mut data_ptr, &mut data_size);
             if ret < GP_OK || data_ptr.is_null() || data_size == 0 {
                 (sdk.file_free)(gp_file);
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "gPhoto2: Failed to read image data: code {}",
                     ret
                 )));
@@ -1118,13 +1121,13 @@ impl GPhoto2Camera {
     pub(crate) fn decode_raw_to_image_data(
         &mut self,
         raw_bytes: &[u8],
-    ) -> Result<ImageData, NativeError> {
+    ) -> Result<ImageData, DriverError> {
         // Detect the RAW format from magic bytes. If it is NOT a recognised
         // RAW (i.e. the body handed us a JPEG because it is in JPEG-only mode),
         // fail with an actionable message instead of feeding JPEG to LibRaw's
         // RAW decoder and emitting an opaque "failed to decode" every frame.
         let Some(extension) = skotiq_imaging::raw_format_extension(raw_bytes) else {
-            return Err(NativeError::SdkError(
+            return Err(DriverError::SdkError(
                 "gPhoto2: the camera returned a non-RAW file (it appears to be JPEG). \
                  Set the camera's image quality to RAW (or RAW+JPEG) — astro capture \
                  requires the linear RAW sensor data."
@@ -1135,7 +1138,7 @@ impl GPhoto2Camera {
         // Decode to the native linear CFA mosaic (single channel, no demosaic).
         let (cfa, metadata) = skotiq_imaging::read_cfa_mosaic_from_bytes(raw_bytes, extension)
             .map_err(|e| {
-                NativeError::SdkError(format!("gPhoto2: Failed to decode RAW image: {}", e))
+                DriverError::SdkError(format!("gPhoto2: Failed to decode RAW image: {}", e))
             })?;
 
         // Contract guard: the mono mosaic MUST be exactly width*height samples.
@@ -1143,7 +1146,7 @@ impl GPhoto2Camera {
         // multi-channel buffer — refuse rather than ship corrupt geometry.
         let expected = (cfa.width as usize) * (cfa.height as usize);
         if cfa.data.len() != expected {
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "gPhoto2: CFA decode produced {} samples for a {}x{} frame (expected {}) — \
                  refusing to emit a corrupt frame",
                 cfa.data.len(),

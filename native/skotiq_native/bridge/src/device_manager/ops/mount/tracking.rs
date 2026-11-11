@@ -169,10 +169,10 @@ impl DeviceManager {
 
         let direction_lower = direction.to_lowercase();
         let dir = match direction_lower.as_str() {
-            "north" | "n" => skotiq_native::traits::GuideDirection::North,
-            "south" | "s" => skotiq_native::traits::GuideDirection::South,
-            "east" | "e" => skotiq_native::traits::GuideDirection::East,
-            "west" | "w" => skotiq_native::traits::GuideDirection::West,
+            "north" | "n" => skotiq_device::GuideDirection::North,
+            "south" | "s" => skotiq_device::GuideDirection::South,
+            "east" | "e" => skotiq_device::GuideDirection::East,
+            "west" | "w" => skotiq_device::GuideDirection::West,
             _ => {
                 return Err(DeviceOpError::invalid_parameter(format!(
                     "Invalid direction: {}",
@@ -216,10 +216,10 @@ impl DeviceManager {
                 let mounts = self.alpaca_mounts.read().await;
                 if let Some(mount) = mounts.get(device_id) {
                     let alpaca_dir = match dir {
-                        skotiq_native::traits::GuideDirection::North => 0,
-                        skotiq_native::traits::GuideDirection::South => 1,
-                        skotiq_native::traits::GuideDirection::East => 2,
-                        skotiq_native::traits::GuideDirection::West => 3,
+                        skotiq_device::GuideDirection::North => 0,
+                        skotiq_device::GuideDirection::South => 1,
+                        skotiq_device::GuideDirection::East => 2,
+                        skotiq_device::GuideDirection::West => 3,
                     };
                     // Why: Alpaca PulseGuide takes i32 ms;
                     // u32 > i32::MAX is ~24.8 days of pulse which is
@@ -247,22 +247,8 @@ impl DeviceManager {
                     let clients = self.indi_clients.read().await;
                     if let Some(client) = clients.get(&server_key) {
                         let mount = skotiq_indi::IndiMount::new(client.clone(), &device_name);
-                        let direction = match dir {
-                            skotiq_native::traits::GuideDirection::North => {
-                                skotiq_indi::IndiMountGuideDirection::North
-                            }
-                            skotiq_native::traits::GuideDirection::South => {
-                                skotiq_indi::IndiMountGuideDirection::South
-                            }
-                            skotiq_native::traits::GuideDirection::East => {
-                                skotiq_indi::IndiMountGuideDirection::East
-                            }
-                            skotiq_native::traits::GuideDirection::West => {
-                                skotiq_indi::IndiMountGuideDirection::West
-                            }
-                        };
                         return mount
-                            .pulse_guide(direction, duration_ms)
+                            .pulse_guide(dir, duration_ms)
                             .await
                             .map_err(DeviceOpError::driver);
                     }
@@ -332,11 +318,11 @@ impl DeviceManager {
                 if let Some(mount) = native_mounts.get_mut(device_id) {
                     // Convert i32 rate to TrackingRate enum
                     let tracking_rate = match rate {
-                        0 => skotiq_native::traits::TrackingRate::Sidereal,
-                        1 => skotiq_native::traits::TrackingRate::Lunar,
-                        2 => skotiq_native::traits::TrackingRate::Solar,
-                        3 => skotiq_native::traits::TrackingRate::King,
-                        4 => skotiq_native::traits::TrackingRate::Custom,
+                        0 => skotiq_device::TrackingRate::Sidereal,
+                        1 => skotiq_device::TrackingRate::Lunar,
+                        2 => skotiq_device::TrackingRate::Solar,
+                        3 => skotiq_device::TrackingRate::King,
+                        4 => skotiq_device::TrackingRate::Custom,
                         _ => {
                             return Err(DeviceOpError::invalid_parameter(format!(
                                 "Invalid tracking rate: {}",

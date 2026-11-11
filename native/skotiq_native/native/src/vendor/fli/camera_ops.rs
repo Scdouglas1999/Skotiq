@@ -1,27 +1,26 @@
-//! `NativeCamera` implementation for `FliCamera`.
+//! `CameraDriver` implementation for `FliCamera`.
 
 use super::*;
+use crate::camera_core::{unpack_samples, SampleLayout};
 
 #[async_trait]
-impl NativeCamera for FliCamera {
+impl CameraDriver for FliCamera {
     fn capabilities(&self) -> CameraCapabilities {
         self.capabilities.clone()
     }
 
-    async fn get_status(&self) -> Result<CameraStatus, NativeError> {
+    async fn get_status(&self) -> Result<CameraStatus, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         // Get temperature
         let sensor_temp = {
             let mut temp: c_double = 0.0;
-            // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked); `temp` is a valid stack pointer.
+            // SAFETY: self.handle is valid (connected=true checked); `temp` is a valid stack pointer.
             if unsafe { (sdk.get_temperature)(self.handle, &mut temp) } == 0 {
                 Some(temp)
             } else {
@@ -32,7 +31,7 @@ impl NativeCamera for FliCamera {
         // Get cooler power
         let cooler_power = {
             let mut power: c_double = 0.0;
-            // SAFETY: fli_mutex held; self.handle is valid (connected=true checked); `power` is a valid stack pointer.
+            // SAFETY: self.handle is valid (connected=true checked); `power` is a valid stack pointer.
             if unsafe { (sdk.get_cooler_power)(self.handle, &mut power) } == 0 {
                 Some(power)
             } else {
@@ -43,7 +42,7 @@ impl NativeCamera for FliCamera {
         // Get exposure remaining
         let exposure_remaining = if self.state == CameraState::Exposing {
             let mut timeleft: c_long = 0;
-            // SAFETY: fli_mutex held; self.handle is valid; `timeleft` is a valid stack pointer.
+            // SAFETY: self.handle is valid; `timeleft` is a valid stack pointer.
             if unsafe { (sdk.get_exposure_status)(self.handle, &mut timeleft) } == 0 {
                 Some(timeleft as f64 / 1000.0) // Convert from ms to seconds
             } else {
@@ -67,9 +66,9 @@ impl NativeCamera for FliCamera {
         })
     }
 
-    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), NativeError> {
+    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // Set binning (has its own mutex lock)
@@ -78,10 +77,8 @@ impl NativeCamera for FliCamera {
         // Set subframe (has its own mutex lock)
         self.set_subframe(params.subframe.clone()).await?;
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         // Dark/bias frames must keep the mechanical shutter CLOSED
         // (FLI_FRAME_TYPE_DARK); light/flat frames open it (FLI_FRAME_TYPE_NORMAL).
@@ -92,18 +89,18 @@ impl NativeCamera for FliCamera {
         } else {
             FLI_FRAME_TYPE_DARK
         };
-        // SAFETY: fli_mutex held; self.handle is valid (connected=true checked at function start); frame type is a valid FLI frame-type constant.
+        // SAFETY: self.handle is valid (connected=true checked at function start); frame type is a valid FLI frame-type constant.
         let result = unsafe { (sdk.set_frame_type)(self.handle, fli_frame_type) };
         check_fli_error(result, "set frame type")?;
 
         // Set exposure time (in milliseconds)
         let exposure_ms = (params.duration_secs * 1000.0) as c_long;
-        // SAFETY: fli_mutex held; self.handle is valid; `exposure_ms` is a pass-by-value c_long.
+        // SAFETY: self.handle is valid; `exposure_ms` is a pass-by-value c_long.
         let result = unsafe { (sdk.set_exposure_time)(self.handle, exposure_ms) };
         check_fli_error(result, "set exposure time")?;
 
         // Start exposure
-        // SAFETY: fli_mutex held; self.handle is valid; FLIExposeFrame takes only the device handle.
+        // SAFETY: self.handle is valid; FLIExposeFrame takes only the device handle.
         let result = unsafe { (sdk.expose_frame)(self.handle) };
         check_fli_error(result, "expose frame")?;
 
@@ -113,17 +110,15 @@ impl NativeCamera for FliCamera {
         Ok(())
     }
 
-    async fn abort_exposure(&mut self) -> Result<(), NativeError> {
+    async fn abort_exposure(&mut self) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
-        // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked).
+        // SAFETY: self.handle is valid (connected=true checked).
         let result = unsafe { (sdk.cancel_exposure)(self.handle) };
         check_fli_error(result, "cancel exposure")?;
 
@@ -131,19 +126,17 @@ impl NativeCamera for FliCamera {
         Ok(())
     }
 
-    async fn is_exposure_complete(&self) -> Result<bool, NativeError> {
+    async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         // Check device status
         let mut status: c_long = 0;
-        // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked); `status` is a valid stack pointer.
+        // SAFETY: self.handle is valid (connected=true checked); `status` is a valid stack pointer.
         let result = unsafe { (sdk.get_device_status)(self.handle, &mut status) };
         check_fli_error(result, "get device status")?;
 
@@ -151,15 +144,13 @@ impl NativeCamera for FliCamera {
         Ok((status & FLI_CAMERA_DATA_READY) != 0)
     }
 
-    async fn download_image(&mut self) -> Result<ImageData, NativeError> {
+    async fn download_image(&mut self) -> Result<ImageData, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         self.state = CameraState::Downloading;
 
@@ -168,19 +159,19 @@ impl NativeCamera for FliCamera {
         // or wrap to a giant usize. Reject explicitly. SubFrame.width/height are u32
         // sensor coords and widening to usize is value-preserving on every Tier 1 target.
         let bin_x_usize = usize::try_from(self.current_bin_x).map_err(|_| {
-            NativeError::InvalidParameter(format!(
+            DriverError::InvalidParameter(format!(
                 "FLI current_bin_x not representable as usize: {}",
                 self.current_bin_x
             ))
         })?;
         let bin_y_usize = usize::try_from(self.current_bin_y).map_err(|_| {
-            NativeError::InvalidParameter(format!(
+            DriverError::InvalidParameter(format!(
                 "FLI current_bin_y not representable as usize: {}",
                 self.current_bin_y
             ))
         })?;
         if bin_x_usize == 0 || bin_y_usize == 0 {
-            return Err(NativeError::InvalidParameter(
+            return Err(DriverError::InvalidParameter(
                 "FLI binning must be >= 1".into(),
             ));
         }
@@ -198,10 +189,10 @@ impl NativeCamera for FliCamera {
             let dx = self.visible_lr_x - self.visible_ul_x;
             let dy = self.visible_lr_y - self.visible_ul_y;
             let dx_usize = usize::try_from(dx).map_err(|_| {
-                NativeError::SdkError(format!("FLI visible width is negative: {}", dx))
+                DriverError::SdkError(format!("FLI visible width is negative: {}", dx))
             })?;
             let dy_usize = usize::try_from(dy).map_err(|_| {
-                NativeError::SdkError(format!("FLI visible height is negative: {}", dy))
+                DriverError::SdkError(format!("FLI visible height is negative: {}", dy))
             })?;
             (dx_usize / bin_x_usize, dy_usize / bin_y_usize)
         };
@@ -214,10 +205,10 @@ impl NativeCamera for FliCamera {
         // the alignment hazard entirely (Vec<u8> is u8-aligned, no transmute needed).
         let row_bytes = width
             .checked_mul(2)
-            .ok_or_else(|| NativeError::SdkError("FLI image width overflows usize".into()))?;
+            .ok_or_else(|| DriverError::SdkError("FLI image width overflows usize".into()))?;
         let total_bytes = row_bytes
             .checked_mul(height)
-            .ok_or_else(|| NativeError::SdkError("FLI image height overflows usize".into()))?;
+            .ok_or_else(|| DriverError::SdkError("FLI image height overflows usize".into()))?;
         let mut byte_buffer: Vec<u8> = vec![0u8; total_bytes];
 
         // Read image row by row (FLI style)
@@ -225,7 +216,7 @@ impl NativeCamera for FliCamera {
             let row_offset = row * row_bytes;
             // SAFETY: row_offset = row * row_bytes is strictly less than total_bytes = height * row_bytes (row < height), so the resulting pointer remains within byte_buffer's allocation (in-bounds, single allocated object); both row and row_bytes are usize derived from validated overflow-checked multiplications above.
             let row_ptr = unsafe { byte_buffer.as_mut_ptr().add(row_offset) };
-            // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked); `row_ptr` points to `row_bytes` bytes inside byte_buffer (verified above). FLIGrabRow's third argument is a PIXEL count, not a byte count — it writes exactly `width` u16 elements = `width * 2` = `row_bytes` bytes into `row_ptr`. Passing `row_bytes` here (the previous bug) told the SDK to write `row_bytes` u16 pixels = 2x the row slot, overrunning the buffer on every bin>=2 frame (bin=1 was masked by the SDK's internal width clamp). Matches the reference (fli_ccd.cpp:667 passes pixel `width`).
+            // SAFETY: self.handle is valid (connected=true checked); `row_ptr` points to `row_bytes` bytes inside byte_buffer (verified above). FLIGrabRow's third argument is a PIXEL count, not a byte count — it writes exactly `width` u16 elements = `width * 2` = `row_bytes` bytes into `row_ptr`. Passing `row_bytes` here (the previous bug) told the SDK to write `row_bytes` u16 pixels = 2x the row slot, overrunning the buffer on every bin>=2 frame (bin=1 was masked by the SDK's internal width clamp). Matches the reference (fli_ccd.cpp:667 passes pixel `width`).
             let result = unsafe { (sdk.grab_row)(self.handle, row_ptr, width) };
             if result != 0 {
                 tracing::error!(
@@ -233,7 +224,7 @@ impl NativeCamera for FliCamera {
                     self.name, row, height, row_bytes, result
                 );
                 self.state = CameraState::Error;
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "Failed to grab row {} of {} from FLI camera '{}'. SDK error: {}. Image download interrupted.",
                     row, height, self.name, result
                 )));
@@ -241,21 +232,16 @@ impl NativeCamera for FliCamera {
         }
 
         // Decode the byte buffer into u16 pixels with explicit little-endian framing.
-        let data: Vec<u16> = byte_buffer
-            .as_chunks::<2>()
-            .0
-            .iter()
-            .map(|b| u16::from_le_bytes([b[0], b[1]]))
-            .collect();
+        let data = unpack_samples(&byte_buffer, SampleLayout::U16Little);
 
         // End exposure
-        // SAFETY: fli_mutex held above; self.handle is valid; FLIEndExposure takes only the handle.
+        // SAFETY: self.handle is valid; FLIEndExposure takes only the handle.
         let _ = unsafe { (sdk.end_exposure)(self.handle) };
 
         // Get temperature for metadata
         let temperature = {
             let mut temp: c_double = 0.0;
-            // SAFETY: fli_mutex held; self.handle is valid; `temp` is a valid stack pointer.
+            // SAFETY: self.handle is valid; `temp` is a valid stack pointer.
             if unsafe { (sdk.get_temperature)(self.handle, &mut temp) } == 0 {
                 Some(temp)
             } else {
@@ -282,10 +268,10 @@ impl NativeCamera for FliCamera {
         // bins >= 1, so they are sensor-bounded. On 64-bit hosts usize is wider than u32;
         // surface overflow rather than truncate if dimensions ever exceed u32::MAX.
         let width_u32 = u32::try_from(width).map_err(|_| {
-            NativeError::SdkError(format!("FLI image width does not fit in u32: {}", width))
+            DriverError::SdkError(format!("FLI image width does not fit in u32: {}", width))
         })?;
         let height_u32 = u32::try_from(height).map_err(|_| {
-            NativeError::SdkError(format!("FLI image height does not fit in u32: {}", height))
+            DriverError::SdkError(format!("FLI image height does not fit in u32: {}", height))
         })?;
         Ok(ImageData {
             width: width_u32,
@@ -301,15 +287,13 @@ impl NativeCamera for FliCamera {
         &mut self,
         enabled: bool,
         target_temp: Option<f64>,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         // FLISetTemperature *is* the enable on this SDK: cooling needs a
         // setpoint, so when the caller names none we reuse the one this driver
@@ -322,7 +306,7 @@ impl NativeCamera for FliCamera {
             25.0
         };
 
-        // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked); `setpoint_c` is a pass-by-value c_double.
+        // SAFETY: self.handle is valid (connected=true checked); `setpoint_c` is a pass-by-value c_double.
         let result = unsafe { (sdk.set_temperature)(self.handle, setpoint_c) };
         check_fli_error(result, "set temperature")?;
 
@@ -333,75 +317,69 @@ impl NativeCamera for FliCamera {
         Ok(())
     }
 
-    async fn get_temperature(&self) -> Result<f64, NativeError> {
+    async fn get_temperature(&self) -> Result<f64, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         let mut temp: c_double = 0.0;
 
-        // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked); `temp` is a valid stack pointer.
+        // SAFETY: self.handle is valid (connected=true checked); `temp` is a valid stack pointer.
         let result = unsafe { (sdk.get_temperature)(self.handle, &mut temp) };
         check_fli_error(result, "get temperature")?;
 
         Ok(temp)
     }
 
-    async fn get_cooler_power(&self) -> Result<f64, NativeError> {
+    async fn get_cooler_power(&self) -> Result<f64, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         let mut power: c_double = 0.0;
 
-        // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked); `power` is a valid stack pointer.
+        // SAFETY: self.handle is valid (connected=true checked); `power` is a valid stack pointer.
         let result = unsafe { (sdk.get_cooler_power)(self.handle, &mut power) };
         check_fli_error(result, "get cooler power")?;
 
         Ok(power)
     }
 
-    async fn set_gain(&mut self, _gain: i32) -> Result<(), NativeError> {
-        Err(NativeError::NotSupported)
+    async fn set_gain(&mut self, _gain: i32) -> Result<(), DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_gain(&self) -> Result<i32, NativeError> {
-        Err(NativeError::NotSupported)
+    async fn get_gain(&self) -> Result<i32, DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn set_offset(&mut self, _offset: i32) -> Result<(), NativeError> {
-        Err(NativeError::NotSupported)
+    async fn set_offset(&mut self, _offset: i32) -> Result<(), DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_offset(&self) -> Result<i32, NativeError> {
-        Err(NativeError::NotSupported)
+    async fn get_offset(&self) -> Result<i32, DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), NativeError> {
+    async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
-        // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked); bin_x is a pass-by-value c_long bounded by max_bin_x=16 in capabilities.
+        // SAFETY: self.handle is valid (connected=true checked); bin_x is a pass-by-value c_long bounded by max_bin_x=16 in capabilities.
         let result = unsafe { (sdk.set_hbin)(self.handle, bin_x as c_long) };
         check_fli_error(result, "set horizontal binning")?;
 
-        // SAFETY: fli_mutex held; self.handle is valid; bin_y is bounded by max_bin_y=16.
+        // SAFETY: self.handle is valid; bin_y is bounded by max_bin_y=16.
         let result = unsafe { (sdk.set_vbin)(self.handle, bin_y as c_long) };
         check_fli_error(result, "set vertical binning")?;
 
@@ -410,19 +388,17 @@ impl NativeCamera for FliCamera {
         Ok(())
     }
 
-    async fn get_binning(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
         Ok((self.current_bin_x, self.current_bin_y))
     }
 
-    async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), NativeError> {
+    async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         // Why: SubFrame.start_x/y/width/height are u32. We convert to i32 with overflow
         // detection (a u32 > i32::MAX would wrap to negative) and add to the validated
@@ -430,40 +406,40 @@ impl NativeCamera for FliCamera {
         let (ul_x, ul_y, lr_x, lr_y) = match &subframe {
             Some(sf) => {
                 let sx = i32::try_from(sf.start_x).map_err(|_| {
-                    NativeError::InvalidParameter(format!(
+                    DriverError::InvalidParameter(format!(
                         "FLI subframe start_x exceeds i32: {}",
                         sf.start_x
                     ))
                 })?;
                 let sy = i32::try_from(sf.start_y).map_err(|_| {
-                    NativeError::InvalidParameter(format!(
+                    DriverError::InvalidParameter(format!(
                         "FLI subframe start_y exceeds i32: {}",
                         sf.start_y
                     ))
                 })?;
                 let sw = i32::try_from(sf.width).map_err(|_| {
-                    NativeError::InvalidParameter(format!(
+                    DriverError::InvalidParameter(format!(
                         "FLI subframe width exceeds i32: {}",
                         sf.width
                     ))
                 })?;
                 let sh = i32::try_from(sf.height).map_err(|_| {
-                    NativeError::InvalidParameter(format!(
+                    DriverError::InvalidParameter(format!(
                         "FLI subframe height exceeds i32: {}",
                         sf.height
                     ))
                 })?;
                 let ul_x = self.visible_ul_x.checked_add(sx).ok_or_else(|| {
-                    NativeError::InvalidParameter("FLI subframe ul_x overflows i32".into())
+                    DriverError::InvalidParameter("FLI subframe ul_x overflows i32".into())
                 })?;
                 let ul_y = self.visible_ul_y.checked_add(sy).ok_or_else(|| {
-                    NativeError::InvalidParameter("FLI subframe ul_y overflows i32".into())
+                    DriverError::InvalidParameter("FLI subframe ul_y overflows i32".into())
                 })?;
                 let lr_x = ul_x.checked_add(sw).ok_or_else(|| {
-                    NativeError::InvalidParameter("FLI subframe lr_x overflows i32".into())
+                    DriverError::InvalidParameter("FLI subframe lr_x overflows i32".into())
                 })?;
                 let lr_y = ul_y.checked_add(sh).ok_or_else(|| {
-                    NativeError::InvalidParameter("FLI subframe lr_y overflows i32".into())
+                    DriverError::InvalidParameter("FLI subframe lr_y overflows i32".into())
                 })?;
                 (ul_x, ul_y, lr_x, lr_y)
             }
@@ -475,7 +451,7 @@ impl NativeCamera for FliCamera {
             ),
         };
 
-        // SAFETY: fli_mutex held above; self.handle is valid (connected=true checked); the coordinates are computed from SDK-reported visible area bounds and the subframe parameters validated by upper layer.
+        // SAFETY: self.handle is valid (connected=true checked); the coordinates are computed from SDK-reported visible area bounds and the subframe parameters validated by upper layer.
         let result = unsafe {
             (sdk.set_image_area)(
                 self.handle,
@@ -495,7 +471,7 @@ impl NativeCamera for FliCamera {
         self.sensor_info.clone()
     }
 
-    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, NativeError> {
+    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
         Ok(vec![ReadoutMode {
             name: "Normal".to_string(),
             description: "Standard readout mode".to_string(),
@@ -507,29 +483,29 @@ impl NativeCamera for FliCamera {
         }])
     }
 
-    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), NativeError> {
+    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), DriverError> {
         Ok(())
     }
 
-    async fn get_vendor_features(&self) -> Result<VendorFeatures, NativeError> {
+    async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
         Ok(VendorFeatures::default())
     }
 
-    async fn get_gain_range(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // libfli exposes no gain control and no gain bounds to report.
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_offset_range(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // libfli exposes no offset control and no offset bounds to report.
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     }
 }

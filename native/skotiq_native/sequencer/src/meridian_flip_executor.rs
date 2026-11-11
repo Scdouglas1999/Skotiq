@@ -2018,15 +2018,7 @@ impl MeridianFlipExecutor {
     // Helper methods
 
     async fn get_pier_side(&self, mount_id: &str) -> Result<PierSide, String> {
-        let ps = self.device_ops.mount_side_of_pier(mount_id).await?;
-        // The trait returns the calculation-internal enum; this executor
-        // emits events using the wire-format enum, so the boundary is
-        // mapped explicitly to keep meridian::PierSide off the event API.
-        Ok(match ps {
-            meridian::PierSide::East => PierSide::East,
-            meridian::PierSide::West => PierSide::West,
-            meridian::PierSide::Unknown => PierSide::Unknown,
-        })
+        self.device_ops.mount_side_of_pier(mount_id).await
     }
 
     /// Hour angle of the J2000 target `ra_hours`/`dec_degrees`, taken against

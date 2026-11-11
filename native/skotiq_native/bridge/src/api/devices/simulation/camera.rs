@@ -180,7 +180,7 @@ pub(crate) fn get_sim_camera_for(device_id: &str) -> &'static Arc<RwLock<Simulat
 ///
 /// `frb(ignore)` enforces that. Living under `api::` is enough for the codegen
 /// to try to bridge it anyway, and it cannot: `frame_type` is
-/// `skotiq_native::camera::FrameType`, which the generator resolves by bare
+/// `skotiq_device::FrameType`, which the generator resolves by bare
 /// name to the unrelated `crate::device::FrameType`, emitting a
 /// `frb_generated.rs` that does not compile. The committed generated file
 /// predates this struct and so hid the problem until the next regeneration.
@@ -188,7 +188,7 @@ pub(crate) fn get_sim_camera_for(device_id: &str) -> &'static Arc<RwLock<Simulat
 #[derive(Debug, Clone)]
 pub(crate) struct SimExposureRequest {
     pub secs: f64,
-    pub frame_type: skotiq_native::camera::FrameType,
+    pub frame_type: skotiq_device::FrameType,
     pub subframe: Option<(u32, u32, u32, u32)>,
 }
 
@@ -196,7 +196,7 @@ impl Default for SimExposureRequest {
     fn default() -> Self {
         Self {
             secs: 1.0,
-            frame_type: skotiq_native::camera::FrameType::Light,
+            frame_type: skotiq_device::FrameType::Light,
             subframe: None,
         }
     }

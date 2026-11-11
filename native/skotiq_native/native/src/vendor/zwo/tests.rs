@@ -65,7 +65,7 @@ fn camera_info_named(model: &str, camera_id: c_int) -> ASICameraInfo {
     info
 }
 
-/// `NativeDevice::name()` must report the model, never the enumeration id.
+/// `DeviceDriver::name()` must report the model, never the enumeration id.
 ///
 /// This is the live-rig defect in one assertion. `native:zwo:1` is the ASI
 /// enumeration index and it swapped from the ASI1600MM-Cool to the ASI178MM
@@ -311,11 +311,11 @@ fn zwo_cached_setting_updates_after_success_only() {
     let err = commit_zwo_cached_setting(
         &mut cached,
         99,
-        Err(NativeError::SdkError("rejected".to_string())),
+        Err(DriverError::SdkError("rejected".to_string())),
     )
     .unwrap_err();
 
-    assert!(matches!(err, NativeError::SdkError(_)));
+    assert!(matches!(err, DriverError::SdkError(_)));
     assert_eq!(cached, 42);
 }
 
@@ -326,11 +326,11 @@ fn zwo_eaf_target_validation_rejects_clamped_positions() {
 
     assert!(matches!(
         validate_zwo_eaf_target(-1, 100),
-        Err(NativeError::InvalidParameter(_))
+        Err(DriverError::InvalidParameter(_))
     ));
     assert!(matches!(
         validate_zwo_eaf_target(101, 100),
-        Err(NativeError::InvalidParameter(_))
+        Err(DriverError::InvalidParameter(_))
     ));
 }
 
@@ -344,7 +344,7 @@ async fn zwo_cooler_temp_range_requires_connection() {
     // Freshly constructed camera is disconnected.
     assert!(matches!(
         camera.get_cooler_temp_range().await,
-        Err(NativeError::NotConnected)
+        Err(DriverError::NotConnected)
     ));
 }
 

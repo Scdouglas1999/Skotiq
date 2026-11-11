@@ -197,40 +197,38 @@ struct RecordingCoolerCamera {
 }
 
 #[async_trait::async_trait]
-impl skotiq_native::traits::NativeDevice for RecordingCoolerCamera {
+impl skotiq_device::DeviceDriver for RecordingCoolerCamera {
     fn id(&self) -> &str {
         "native:test:cooler"
     }
     fn name(&self) -> &str {
         "Recording Cooler Camera"
     }
-    fn vendor(&self) -> skotiq_native::NativeVendor {
-        skotiq_native::NativeVendor::Other("Test".to_string())
+    fn vendor(&self) -> skotiq_device::Vendor {
+        skotiq_device::Vendor::Other("Test".to_string())
     }
     fn is_connected(&self) -> bool {
         true
     }
-    async fn connect(&mut self) -> Result<(), skotiq_native::traits::NativeError> {
+    async fn connect(&mut self) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
-    async fn disconnect(&mut self) -> Result<(), skotiq_native::traits::NativeError> {
+    async fn disconnect(&mut self) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
 }
 
 #[async_trait::async_trait]
-impl skotiq_native::traits::NativeCamera for RecordingCoolerCamera {
-    fn capabilities(&self) -> skotiq_native::camera::CameraCapabilities {
-        skotiq_native::camera::CameraCapabilities {
+impl skotiq_device::CameraDriver for RecordingCoolerCamera {
+    fn capabilities(&self) -> skotiq_device::CameraCapabilities {
+        skotiq_device::CameraCapabilities {
             can_cool: true,
             ..Default::default()
         }
     }
-    async fn get_status(
-        &self,
-    ) -> Result<skotiq_native::camera::CameraStatus, skotiq_native::traits::NativeError> {
-        Ok(skotiq_native::camera::CameraStatus {
-            state: skotiq_native::camera::CameraState::Idle,
+    async fn get_status(&self) -> Result<skotiq_device::CameraStatus, skotiq_device::DriverError> {
+        Ok(skotiq_device::CameraStatus {
+            state: skotiq_device::CameraState::Idle,
             sensor_temp: Some(-10.0),
             cooler_power: Some(0.0),
             target_temp: Some(-10.0),
@@ -244,68 +242,68 @@ impl skotiq_native::traits::NativeCamera for RecordingCoolerCamera {
     }
     async fn start_exposure(
         &mut self,
-        _params: skotiq_native::camera::ExposureParams,
-    ) -> Result<(), skotiq_native::traits::NativeError> {
+        _params: skotiq_device::ExposureParams,
+    ) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
-    async fn abort_exposure(&mut self) -> Result<(), skotiq_native::traits::NativeError> {
+    async fn abort_exposure(&mut self) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
-    async fn is_exposure_complete(&self) -> Result<bool, skotiq_native::traits::NativeError> {
+    async fn is_exposure_complete(&self) -> Result<bool, skotiq_device::DriverError> {
         Ok(true)
     }
     async fn download_image(
         &mut self,
-    ) -> Result<skotiq_native::camera::ImageData, skotiq_native::traits::NativeError> {
-        Err(skotiq_native::traits::NativeError::NotSupported)
+    ) -> Result<skotiq_device::ImageData, skotiq_device::DriverError> {
+        Err(skotiq_device::DriverError::NotSupported)
     }
     async fn set_cooler(
         &mut self,
         enabled: bool,
         target_temp: Option<f64>,
-    ) -> Result<(), skotiq_native::traits::NativeError> {
+    ) -> Result<(), skotiq_device::DriverError> {
         self.calls
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .push((enabled, target_temp));
         Ok(())
     }
-    async fn get_temperature(&self) -> Result<f64, skotiq_native::traits::NativeError> {
+    async fn get_temperature(&self) -> Result<f64, skotiq_device::DriverError> {
         Ok(-10.0)
     }
-    async fn get_cooler_power(&self) -> Result<f64, skotiq_native::traits::NativeError> {
+    async fn get_cooler_power(&self) -> Result<f64, skotiq_device::DriverError> {
         Ok(0.0)
     }
-    async fn set_gain(&mut self, _gain: i32) -> Result<(), skotiq_native::traits::NativeError> {
+    async fn set_gain(&mut self, _gain: i32) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
-    async fn get_gain(&self) -> Result<i32, skotiq_native::traits::NativeError> {
+    async fn get_gain(&self) -> Result<i32, skotiq_device::DriverError> {
         Ok(0)
     }
-    async fn set_offset(&mut self, _offset: i32) -> Result<(), skotiq_native::traits::NativeError> {
+    async fn set_offset(&mut self, _offset: i32) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
-    async fn get_offset(&self) -> Result<i32, skotiq_native::traits::NativeError> {
+    async fn get_offset(&self) -> Result<i32, skotiq_device::DriverError> {
         Ok(0)
     }
     async fn set_binning(
         &mut self,
         _bin_x: i32,
         _bin_y: i32,
-    ) -> Result<(), skotiq_native::traits::NativeError> {
+    ) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
-    async fn get_binning(&self) -> Result<(i32, i32), skotiq_native::traits::NativeError> {
+    async fn get_binning(&self) -> Result<(i32, i32), skotiq_device::DriverError> {
         Ok((1, 1))
     }
     async fn set_subframe(
         &mut self,
-        _subframe: Option<skotiq_native::camera::SubFrame>,
-    ) -> Result<(), skotiq_native::traits::NativeError> {
+        _subframe: Option<skotiq_device::SubFrame>,
+    ) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
-    fn get_sensor_info(&self) -> skotiq_native::camera::SensorInfo {
-        skotiq_native::camera::SensorInfo {
+    fn get_sensor_info(&self) -> skotiq_device::SensorInfo {
+        skotiq_device::SensorInfo {
             width: 4656,
             height: 3520,
             pixel_size_x: 3.8,
@@ -318,24 +316,24 @@ impl skotiq_native::traits::NativeCamera for RecordingCoolerCamera {
     }
     async fn get_readout_modes(
         &self,
-    ) -> Result<Vec<skotiq_native::camera::ReadoutMode>, skotiq_native::traits::NativeError> {
+    ) -> Result<Vec<skotiq_device::ReadoutMode>, skotiq_device::DriverError> {
         Ok(Vec::new())
     }
     async fn set_readout_mode(
         &mut self,
-        _mode: &skotiq_native::camera::ReadoutMode,
-    ) -> Result<(), skotiq_native::traits::NativeError> {
+        _mode: &skotiq_device::ReadoutMode,
+    ) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
     async fn get_vendor_features(
         &self,
-    ) -> Result<skotiq_native::camera::VendorFeatures, skotiq_native::traits::NativeError> {
-        Ok(skotiq_native::camera::VendorFeatures::default())
+    ) -> Result<skotiq_device::VendorFeatures, skotiq_device::DriverError> {
+        Ok(skotiq_device::VendorFeatures::default())
     }
-    async fn get_gain_range(&self) -> Result<(i32, i32), skotiq_native::traits::NativeError> {
+    async fn get_gain_range(&self) -> Result<(i32, i32), skotiq_device::DriverError> {
         Ok((0, 600))
     }
-    async fn get_offset_range(&self) -> Result<(i32, i32), skotiq_native::traits::NativeError> {
+    async fn get_offset_range(&self) -> Result<(i32, i32), skotiq_device::DriverError> {
         Ok((0, 255))
     }
 }

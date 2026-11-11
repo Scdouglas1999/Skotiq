@@ -1,0 +1,19 @@
+== port silent ==
+@ port baud=115200 data=8 parity=none stop=1 flow=none
+> :GU#
+> :GVP#
+> :GR#
+@ port baud=57600 data=8 parity=none stop=1 flow=none
+> :GU#
+> :GVP#
+> :GR#
+@ port baud=19200 data=8 parity=none stop=1 flow=none
+> :GU#
+> :GVP#
+> :GR#
+@ port baud=9600 data=8 parity=none stop=1 flow=none
+> :GU#
+> :GVP#
+> :GR#
+(scan over)
+== found ==

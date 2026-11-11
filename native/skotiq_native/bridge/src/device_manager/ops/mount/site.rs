@@ -55,11 +55,11 @@ impl DeviceManager {
                     Some(mount) => {
                         let can_read_site = !matches!(
                             mount.get_site().await,
-                            Err(skotiq_native::traits::NativeError::NotSupported)
+                            Err(skotiq_device::DriverError::NotSupported)
                         );
                         let can_read_time = !matches!(
                             mount.get_clock().await,
-                            Err(skotiq_native::traits::NativeError::NotSupported)
+                            Err(skotiq_device::DriverError::NotSupported)
                         );
                         // Write support tracks read support in every native
                         // driver: a protocol either has the site commands or
@@ -225,7 +225,7 @@ impl DeviceManager {
                     )
                 })?;
                 mount
-                    .set_site(skotiq_native::traits::MountSiteInfo {
+                    .set_site(skotiq_device::MountSiteInfo {
                         latitude_deg: site.latitude_deg,
                         longitude_deg: site.longitude_deg,
                         elevation_m: site.elevation_m,
@@ -393,7 +393,7 @@ impl DeviceManager {
                     )
                 })?;
                 mount
-                    .set_clock(skotiq_native::traits::MountClock {
+                    .set_clock(skotiq_device::MountClock {
                         utc_unix_seconds: time.utc_unix_seconds,
                         utc_offset_hours: time.utc_offset_hours,
                     })

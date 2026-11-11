@@ -61,40 +61,41 @@ impl AscomRotatorWrapper {
                 };
                 match command {
                     AscomRotatorCommand::Connect(reply) => {
-                        let _ = reply.send(rotator.connect());
+                        let _ = reply.send(rotator.connect().map_err(|e| e.to_string()));
                     }
                     AscomRotatorCommand::Disconnect(reply) => {
-                        let _ = reply.send(rotator.disconnect());
+                        let _ = reply.send(rotator.disconnect().map_err(|e| e.to_string()));
                     }
                     AscomRotatorCommand::Position(reply) => {
-                        let _ = reply.send(rotator.position());
+                        let _ = reply.send(rotator.position().map_err(|e| e.to_string()));
                     }
                     AscomRotatorCommand::MoveAbsolute(position, reply) => {
-                        let _ = reply.send(rotator.move_absolute(position));
+                        let _ =
+                            reply.send(rotator.move_absolute(position).map_err(|e| e.to_string()));
                     }
                     AscomRotatorCommand::Halt(reply) => {
-                        let _ = reply.send(rotator.halt());
+                        let _ = reply.send(rotator.halt().map_err(|e| e.to_string()));
                     }
                     AscomRotatorCommand::IsMoving(reply) => {
-                        let _ = reply.send(rotator.is_moving());
+                        let _ = reply.send(rotator.is_moving().map_err(|e| e.to_string()));
                     }
                     AscomRotatorCommand::Sync(position, reply) => {
-                        let _ = reply.send(rotator.sync(position));
+                        let _ = reply.send(rotator.sync(position).map_err(|e| e.to_string()));
                     }
                     AscomRotatorCommand::SetReverse(reverse, reply) => {
-                        let _ = reply.send(rotator.set_reverse(reverse));
+                        let _ = reply.send(rotator.set_reverse(reverse).map_err(|e| e.to_string()));
                     }
                     AscomRotatorCommand::GetInterfaceVersion(reply) => {
-                        let _ = reply.send(rotator.interface_version());
+                        let _ = reply.send(rotator.interface_version().map_err(|e| e.to_string()));
                     }
                     AscomRotatorCommand::GetDriverVersion(reply) => {
-                        let _ = reply.send(rotator.driver_version());
+                        let _ = reply.send(rotator.driver_version().map_err(|e| e.to_string()));
                     }
                     AscomRotatorCommand::GetDriverInfo(reply) => {
-                        let _ = reply.send(rotator.driver_info());
+                        let _ = reply.send(rotator.driver_info().map_err(|e| e.to_string()));
                     }
                     AscomRotatorCommand::GetSupportedActions(reply) => {
-                        let _ = reply.send(rotator.supported_actions());
+                        let _ = reply.send(rotator.supported_actions().map_err(|e| e.to_string()));
                     }
                 }
                 PumpOutcome::DidWork

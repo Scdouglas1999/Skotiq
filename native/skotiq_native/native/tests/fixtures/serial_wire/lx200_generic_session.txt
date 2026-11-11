@@ -1,0 +1,191 @@
+call connect
+@ port baud=19200 data=8 parity=none stop=1 flow=none
+> :GVP#
+< EQ Controller#
+  -> Ok(())
+  id=native:lx200:<PORT_ID> name=EQ Controller (<PORT>) vendor=Other("LX200") connected=true
+  can_slew=true can_sync=true can_pulse_guide=true can_set_tracking_rate=true can_find_home=false can_set_park=false
+call get_coordinates
+> :GR#
+< 05:30:00#
+> :GD#
+< +20*00:00#
+  -> Ok((5.5, 20.0))
+call slew_to_coordinates(5.5, 20.0)
+> :Sr05:30:00#
+< 1
+> :Sd+20*00:00#
+< 1
+> :MS#
+< 0
+  -> Ok(())
+call is_slewing
+> :D#
+< \x7f#
+  -> Ok(true)
+call is_slewing
+> :D#
+< \x7f#
+  -> Ok(true)
+call is_slewing
+> :D#
+< #
+  -> Ok(false)
+call slew_to_coordinates(1.25, -85.5) [mount refuses]
+> :Sr01:15:00#
+< 1
+> :Sd-85*30:00#
+< 1
+> :MS#
+< 2Below limit#
+  -> Err(SdkError("Slew refused: target is below the altitude limit (Below limit)"))
+call is_slewing
+  -> Ok(false)
+call sync_to_coordinates(5.5123, -20.2512)
+> :Sr05:30:44#
+< 1
+> :Sd-20*15:04#
+< 1
+> :CM#
+<  M31 EX GAL MAG 3.5 SZ178.0'#
+  -> Ok(())
+call set_tracking(false)
+> :Q#
+  -> Ok(())
+call get_tracking
+  -> Ok(false)
+call set_tracking(true)
+> :TQ#
+  -> Ok(())
+call get_tracking
+  -> Ok(true)
+call set_tracking_rate(Sidereal)
+> :TQ#
+  -> Ok(())
+call get_tracking_rate
+  -> Ok(Sidereal)
+call set_tracking_rate(Lunar)
+> :TL#
+  -> Ok(())
+call get_tracking_rate
+  -> Ok(Lunar)
+call set_tracking_rate(Solar)
+> :TS#
+  -> Ok(())
+call get_tracking_rate
+  -> Ok(Solar)
+call set_tracking_rate(King)
+  -> Err(NotSupported)
+call get_tracking_rate
+  -> Ok(Solar)
+call set_tracking_rate(Custom)
+  -> Err(NotSupported)
+call get_tracking_rate
+  -> Ok(Solar)
+call set_tracking_rate(Sidereal)
+> :TQ#
+  -> Ok(())
+call pulse_guide(North, 40)
+> :RG#
+> :Mn#
+> :Qn#
+  -> Ok(())
+call pulse_guide(South, 40)
+> :RG#
+> :Ms#
+> :Qs#
+  -> Ok(())
+call pulse_guide(East, 40)
+> :RG#
+> :Me#
+> :Qe#
+  -> Ok(())
+call pulse_guide(West, 40)
+> :RG#
+> :Mw#
+> :Qw#
+  -> Ok(())
+call pulse_guide(North, 5)
+> :RG#
+> :Mn#
+> :Qn#
+  -> Ok(())
+call abort_slew
+> :Q#
+  -> Ok(())
+call get_side_of_pier
+  -> Ok(Unknown)
+call get_alt_az
+> :GA#
+< +45*30:00#
+> :GZ#
+< 180*15:00#
+  -> Ok((45.5, 180.25))
+call get_sidereal_time
+> :GS#
+< 03:15:42#
+  -> Ok(3.2616666666666667)
+call get_site
+> :Gt#
+< +40*00#
+> :Gg#
+< +075*23#
+  -> Ok(MountSiteInfo { latitude_deg: 40.0, longitude_deg: -75.38333333333334, elevation_m: None })
+call set_site(40.007714, -75.397448)
+> :St+40*00#
+< 1
+> :Sg+075*24#
+< 1
+  -> Ok(())
+call get_clock
+> :GL#
+< 22:30:00#
+> :GC#
+< 09/08/26#
+> :GG#
+< +04#
+  -> Ok(MountClock { utc_unix_seconds: 1788921000, utc_offset_hours: -4.0 })
+call set_clock(1788921000, -4.0)
+> :SG+04#
+< 1
+> :SL22:30:00#
+< 1
+> :SC09/08/26#
+< 1
+  -> Ok(())
+call find_home
+  -> Err(NotSupported)
+call is_slewing
+  -> Ok(false)
+call is_slewing
+  -> Ok(false)
+call at_home
+  -> Err(NotSupported)
+call set_park
+  -> Err(NotSupported)
+call park
+> :hP#
+  -> Ok(())
+call is_parked
+  -> Ok(true)
+call is_slewing
+  -> Ok(false)
+call get_coordinates
+> :GR#
+< 05:30:00#
+> :GD#
+< +20*00:00#
+  -> Ok((5.5, 20.0))
+call unpark
+> :PO#
+  -> Ok(())
+call is_parked
+  -> Ok(false)
+call get_tracking
+  -> Ok(true)
+call disconnect
+> :Q#
+  -> Ok(())
+  connected=false
+call get_coordinates [disconnected]
+  -> Err(NotConnected)

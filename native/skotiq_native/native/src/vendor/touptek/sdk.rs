@@ -29,9 +29,9 @@ pub(crate) struct TouptekSdk {
     pub(crate) version: Option<OgmacamVersion>,
 }
 
-// SAFETY: TouptekSdk owns a `libloading::Library` plus a set of plain function pointers (no interior mutability). The function pointers come from a single shared library and only point to compiled code, so sending the struct between threads is sound. All actual calls into these pointers are serialized by `touptek_mutex()` plus the per-camera `Mutex<HandleWrapper>` so the Send marker reflects the real synchronization discipline.
+// SAFETY: TouptekSdk owns a `libloading::Library` plus a set of plain function pointers (no interior mutability). The function pointers come from a single shared library and only point to compiled code, so sending the struct between threads is sound. All actual calls into these pointers are serialized by `TOUPTEK_SDK_LOCK` plus the per-camera `Mutex<HandleWrapper>` so the Send marker reflects the real synchronization discipline.
 unsafe impl Send for TouptekSdk {}
-// SAFETY: &TouptekSdk only exposes immutable function pointers; the loaded Library is read-only after construction. All FFI calls that mutate camera state go through &TouptekSdk and are wrapped in `touptek_mutex()` lock sections, so concurrent &-access never races on shared state.
+// SAFETY: &TouptekSdk only exposes immutable function pointers; the loaded Library is read-only after construction. All FFI calls that mutate camera state go through &TouptekSdk and are wrapped in `TOUPTEK_SDK_LOCK` lock sections, so concurrent &-access never races on shared state.
 unsafe impl Sync for TouptekSdk {}
 
 /// Supported Touptek white-label brands and their SDK details.
@@ -61,7 +61,10 @@ pub(crate) const TOUPTEK_BRANDS: &[(&str, &str, &str)] = &[
 ];
 
 impl TouptekSdk {
-    pub(crate) fn load(dll_name: &str, func_prefix: &str) -> Result<Self, NativeError> {
+    /// Open one brand's library and resolve its entry points. A library that
+    /// cannot be found or opened is `NotInstalled`; one that opens but lacks a
+    /// required entry point is `Broken`.
+    pub(crate) fn load(dll_name: &str, func_prefix: &str) -> Result<Self, SdkUnavailable> {
         let system_paths = if cfg!(target_os = "linux") {
             vec![
                 format!("/usr/lib/{dll_name}"),
@@ -84,7 +87,7 @@ impl TouptekSdk {
         for path in &candidates {
             // SAFETY: libloading::Library::new performs platform dynamic loading; `dll_name`
             // comes from the compile-time TOUPTEK_BRANDS constant array. Errors are
-            // accumulated and reported as NativeError::SdkError rather than UB.
+            // accumulated and reported as DriverError::SdkError rather than UB.
             match unsafe { Library::new(path) } {
                 Ok(library) => {
                     tracing::info!("Loaded {} SDK from {}", dll_name, path.display());
@@ -97,7 +100,7 @@ impl TouptekSdk {
             }
         }
         let library = loaded.ok_or_else(|| {
-            NativeError::SdkError(format!(
+            SdkUnavailable::NotInstalled(format!(
                 "Failed to load {} from {} candidate paths: {}",
                 dll_name,
                 candidates.len(),
@@ -116,89 +119,89 @@ impl TouptekSdk {
         unsafe {
             Ok(Self {
                 enum_v2: *library.get::<OgmacamEnumV2>(&sym("EnumV2")).map_err(|e| {
-                    NativeError::SdkError(format!("Symbol error in {}: {}", dll_name, e))
+                    SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
                 })?,
                 open: *library.get::<OgmacamOpen>(&sym("Open")).map_err(|e| {
-                    NativeError::SdkError(format!("Symbol error in {}: {}", dll_name, e))
+                    SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
                 })?,
                 close: *library.get::<OgmacamClose>(&sym("Close")).map_err(|e| {
-                    NativeError::SdkError(format!("Symbol error in {}: {}", dll_name, e))
+                    SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
                 })?,
                 stop: *library.get::<OgmacamStop>(&sym("Stop")).map_err(|e| {
-                    NativeError::SdkError(format!("Symbol error in {}: {}", dll_name, e))
+                    SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
                 })?,
                 pull_image_v3: *library
                     .get::<OgmacamPullImageV3>(&sym("PullImageV3"))
                     .map_err(|e| {
-                        NativeError::SdkError(format!("Symbol error in {}: {}", dll_name, e))
+                        SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
                     })?,
                 put_expo_time: *library
                     .get::<OgmacamPutExpoTime>(&sym("put_ExpoTime"))
                     .map_err(|e| {
-                        NativeError::SdkError(format!("Symbol error in {}: {}", dll_name, e))
+                        SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
                     })?,
                 get_expo_again: *library
                     .get::<OgmacamGetExpoAGain>(&sym("get_ExpoAGain"))
                     .map_err(|e| {
-                        NativeError::SdkError(format!("Symbol error in {}: {}", dll_name, e))
+                        SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
                     })?,
                 put_expo_again: *library
                     .get::<OgmacamPutExpoAGain>(&sym("put_ExpoAGain"))
                     .map_err(|e| {
-                        NativeError::SdkError(format!("Symbol error in {}: {}", dll_name, e))
+                        SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
                     })?,
                 get_expo_again_range: *library
                     .get::<OgmacamGetExpoAGainRange>(&sym("get_ExpoAGainRange"))
                     .map_err(|e| {
-                        NativeError::SdkError(format!("Symbol error in {}: {}", dll_name, e))
+                        SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
                     })?,
                 get_temperature: *library
                     .get::<OgmacamGetTemperature>(&sym("get_Temperature"))
                     .map_err(|e| {
-                        NativeError::SdkError(format!("Symbol error in {}: {}", dll_name, e))
+                        SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
                     })?,
                 put_temperature: *library
                     .get::<OgmacamPutTemperature>(&sym("put_Temperature"))
                     .map_err(|e| {
-                        NativeError::SdkError(format!("Symbol error in {}: {}", dll_name, e))
+                        SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
                     })?,
                 get_raw_format: *library
                     .get::<OgmacamGetRawFormat>(&sym("get_RawFormat"))
                     .map_err(|e| {
-                        NativeError::SdkError(format!("Symbol error in {}: {}", dll_name, e))
+                        SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
                     })?,
                 put_option: *library
                     .get::<OgmacamPutOption>(&sym("put_Option"))
                     .map_err(|e| {
-                        NativeError::SdkError(format!("Symbol error in {}: {}", dll_name, e))
+                        SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
                     })?,
                 get_option: *library
                     .get::<OgmacamGetOption>(&sym("get_Option"))
                     .map_err(|e| {
-                        NativeError::SdkError(format!("Symbol error in {}: {}", dll_name, e))
+                        SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
                     })?,
                 get_size: *library
                     .get::<OgmacamGetSize>(&sym("get_Size"))
                     .map_err(|e| {
-                        NativeError::SdkError(format!("Symbol error in {}: {}", dll_name, e))
+                        SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
                     })?,
                 put_roi: *library.get::<OgmacamPutRoi>(&sym("put_Roi")).map_err(|e| {
-                    NativeError::SdkError(format!("Symbol error in {}: {}", dll_name, e))
+                    SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
                 })?,
                 get_serial_number: *library
                     .get::<OgmacamGetSerialNumber>(&sym("get_SerialNumber"))
                     .map_err(|e| {
-                        NativeError::SdkError(format!("Symbol error in {}: {}", dll_name, e))
+                        SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
                     })?,
                 start_pull_mode_with_callback: *library
                     .get::<OgmacamStartPullModeWithCallback>(&sym("StartPullModeWithCallback"))
                     .map_err(|e| {
-                        NativeError::SdkError(format!("Symbol error in {}: {}", dll_name, e))
+                        SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
                     })?,
                 trigger: *library
                     .get::<OgmacamTrigger>(&sym("Trigger"))
                     .map_err(|e| {
-                        NativeError::SdkError(format!("Symbol error in {}: {}", dll_name, e))
+                        SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
                     })?,
                 get_final_size: library
                     .get::<OgmacamGetFinalSize>(&sym("get_FinalSize"))
@@ -214,15 +217,23 @@ impl TouptekSdk {
     }
 }
 
+/// The one lock that serializes every call into any Touptek-family library.
+/// The brands are builds of the same SDK and are not safe to run side by side.
+pub(crate) static TOUPTEK_SDK_LOCK: SdkLock = SdkLock::new();
+
 /// Multi-brand SDK storage. Each brand's SDK is loaded lazily on first use.
-pub(crate) static SDKS: OnceLock<Mutex<HashMap<String, Result<TouptekSdk, String>>>> =
+///
+/// The tables stay in this map instead of one `SdkSlot` per brand because a
+/// brand is chosen at run time by name; [`with_sdk`] is the only way to reach
+/// a table and it demands the held [`TOUPTEK_SDK_LOCK`].
+pub(crate) static SDKS: OnceLock<Mutex<HashMap<String, Result<TouptekSdk, SdkUnavailable>>>> =
     OnceLock::new();
 
-pub(crate) fn get_sdks() -> &'static Mutex<HashMap<String, Result<TouptekSdk, String>>> {
+pub(crate) fn get_sdks() -> &'static Mutex<HashMap<String, Result<TouptekSdk, SdkUnavailable>>> {
     SDKS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-pub(crate) fn get_sdk_for_brand(brand: &str) -> Result<(), NativeError> {
+pub(crate) fn get_sdk_for_brand(brand: &str) -> Result<(), DriverError> {
     let sdks = get_sdks();
     let mut map = sdks.lock().unwrap_or_else(|e| e.into_inner());
     if map.contains_key(brand) {
@@ -231,31 +242,33 @@ pub(crate) fn get_sdk_for_brand(brand: &str) -> Result<(), NativeError> {
             .unwrap()
             .as_ref()
             .map(|_| ())
-            .map_err(|e| NativeError::SdkError(e.clone()));
+            .map_err(SdkUnavailable::to_native_error);
     }
 
     // Find the brand's DLL info
     let brand_info = TOUPTEK_BRANDS
         .iter()
         .find(|(_, _, name)| name.eq_ignore_ascii_case(brand))
-        .ok_or_else(|| NativeError::SdkError(format!("Unknown Touptek brand: {}", brand)))?;
+        .ok_or_else(|| DriverError::SdkError(format!("Unknown Touptek brand: {}", brand)))?;
 
     match TouptekSdk::load(brand_info.0, brand_info.1) {
         Ok(sdk) => {
             map.insert(brand.to_string(), Ok(sdk));
             Ok(())
         }
-        Err(e) => {
-            let msg = e.to_string();
-            map.insert(brand.to_string(), Err(msg.clone()));
-            Err(NativeError::SdkError(msg))
+        Err(unavailable) => {
+            let error = unavailable.to_native_error();
+            map.insert(brand.to_string(), Err(unavailable));
+            Err(error)
         }
     }
 }
 
-pub(crate) fn with_sdk<F, R>(brand: &str, f: F) -> Result<R, NativeError>
+/// Run `f` with a brand's function table. The caller proves it holds
+/// [`TOUPTEK_SDK_LOCK`] by passing the held lock.
+pub(crate) fn with_sdk<F, R>(_held: &SdkLockHeld, brand: &str, f: F) -> Result<R, DriverError>
 where
-    F: FnOnce(&TouptekSdk) -> Result<R, NativeError>,
+    F: FnOnce(&TouptekSdk) -> Result<R, DriverError>,
 {
     get_sdk_for_brand(brand)?;
     let sdks = get_sdks();
@@ -264,16 +277,16 @@ where
         .get(brand)
         .unwrap()
         .as_ref()
-        .map_err(|e| NativeError::SdkError(e.clone()))?;
+        .map_err(SdkUnavailable::to_native_error)?;
     f(sdk)
 }
 
 pub(crate) fn open_touptek_device(
     sdk: &TouptekSdk,
     device_id: &str,
-) -> Result<HOgmacam, NativeError> {
+) -> Result<HOgmacam, DriverError> {
     if device_id.is_empty() {
-        return Err(NativeError::SdkError(
+        return Err(DriverError::SdkError(
             "Touptek SDK returned an empty stable device ID".to_string(),
         ));
     }
@@ -289,7 +302,7 @@ pub(crate) fn open_touptek_device(
     #[cfg(not(windows))]
     {
         let c_id = CString::new(device_id).map_err(|_| {
-            NativeError::SdkError("Touptek device ID contains an interior NUL".to_string())
+            DriverError::SdkError("Touptek device ID contains an interior NUL".to_string())
         })?;
         // SAFETY: `c_id` is a live, NUL-terminated C string matching the non-Windows
         // Touptek-family Open(const char*) ABI. The SDK copies/consumes it during this call.
@@ -321,7 +334,7 @@ pub(crate) fn touptek_temperature_result(
     camera_name: &str,
     sdk_result: i32,
     temperature_tenths_c: i16,
-) -> Result<f64, NativeError> {
+) -> Result<f64, DriverError> {
     if sdk_result >= 0 {
         Ok(temperature_tenths_c as f64 / 10.0)
     } else {
@@ -330,7 +343,7 @@ pub(crate) fn touptek_temperature_result(
             camera_name,
             sdk_result
         );
-        Err(NativeError::SdkError(format!(
+        Err(DriverError::SdkError(format!(
             "Failed to read temperature from Touptek camera '{}'. SDK error: {}. Camera may not have a temperature sensor.",
             camera_name, sdk_result
         )))
@@ -396,16 +409,28 @@ pub(crate) fn max_adu_from_bit_depth(bit_depth: u32) -> u32 {
     }
 }
 
-pub(crate) fn touptek_no_sdk_loaded_error(load_errors: &[(String, String, String)]) -> NativeError {
+/// The discovery error when no brand library could be used. `none_installed`
+/// says every brand failed because its library is absent, which is the normal
+/// case on a host without Touptek-family gear; a library that is present but
+/// broken keeps this an `SdkError`.
+pub(crate) fn touptek_no_sdk_loaded_error(
+    load_errors: &[(String, String, String)],
+    none_installed: bool,
+) -> DriverError {
     let details = load_errors
         .iter()
         .map(|(brand, library, error)| format!("{brand} ({library}): {error}"))
         .collect::<Vec<_>>()
         .join("; ");
 
-    NativeError::SdkError(format!(
+    let message = format!(
         "No Touptek-family SDK libraries could be loaded. Install at least one supported SDK DLL/shared library or add it to the process library path. Tried: {details}"
-    ))
+    );
+    if none_installed {
+        DriverError::SdkNotInstalled(message)
+    } else {
+        DriverError::SdkError(message)
+    }
 }
 
 pub(crate) fn read_touptek_raw_format(
@@ -415,7 +440,7 @@ pub(crate) fn read_touptek_raw_format(
 ) -> (Option<BayerPattern>, Option<u32>) {
     let mut fourcc: c_uint = 0;
     let mut bits_per_pixel: c_uint = 0;
-    // SAFETY: caller holds touptek_mutex and `handle` is the open camera handle.
+    // SAFETY: the caller got `sdk` through `with_sdk`, so it holds the lock; `handle` is the open camera handle.
     // The two out-pointers reference valid, distinct stack locals as required by
     // the ToupCam/Ogmacam SDK's get_RawFormat signature.
     let result = unsafe { (sdk.get_raw_format)(handle, &mut fourcc, &mut bits_per_pixel) };

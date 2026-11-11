@@ -5,13 +5,14 @@
 //!
 //! ## Thread Safety
 //!
-//! The POA SDK is NOT thread-safe. All SDK operations are protected by
-//! `player_one_mutex()` from `crate::sync` to prevent concurrent access.
+//! The POA SDK is NOT thread-safe. The camera and filter-wheel function
+//! tables are only reachable through an `SdkGuard`, and both guards hold the
+//! one `PLAYER_ONE_SDK_LOCK`, so no two Player One calls run concurrently.
 //!
 //! ## `unwrap_or` policy
 //!
 //! POA SDK property reads (`get_control_int`, `get_control_bool`, etc.)
-//! return `Result<T, NativeError>` and may fail with `POA_ERROR_OPERATION_FAILED`
+//! return `Result<T, DriverError>` and may fail with `POA_ERROR_OPERATION_FAILED`
 //! when the camera is mid-exposure or the control hasn't been initialised
 //! yet. The cooler/gain/offset paths here default to the same "fall back to
 //! cached value or zero" semantics as the other vendor crates:
@@ -43,12 +44,11 @@
 #![allow(clippy::unnecessary_cast)]
 #![allow(dead_code)] // FFI types must match SDK headers even if not all variants are used
 
-use crate::camera::*;
-use crate::sync::player_one_mutex;
-use crate::traits::*;
 use crate::utils::{calculate_buffer_size_i32, safe_cstr_to_string, CleanupGuard};
-use crate::NativeVendor;
 use async_trait::async_trait;
+use skotiq_device::camera::*;
+use skotiq_device::Vendor;
+use skotiq_device::*;
 use skotiq_imaging::buffer_pool::global_u8_pool;
 use std::ffi::{c_char, c_int, c_long, CStr};
 use std::sync::Mutex;

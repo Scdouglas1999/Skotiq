@@ -137,34 +137,14 @@ fn native_display_name(
         return "Built-in Multi-Star Guider".to_string();
     }
 
-    let vendor_label = match vendor {
-        "zwo" | "zwo_eaf" | "zwo_efw" => "ZWO",
-        "qhy" | "qhy_cfw" => "QHY",
-        "fli" | "fli_fw" | "fli_focuser" => "FLI",
-        "player_one" | "playerone" => "Player One",
-        "svbony" => "SVBony",
-        "atik" => "Atik",
-        "moravian" => "Moravian",
-        "touptek" => "Touptek",
-        "starlightxpress" => "Starlight Xpress",
-        "fujifilm" => "Fujifilm",
-        "gphoto2" => "gPhoto2",
-        "skywatcher" => "Sky-Watcher",
-        "ioptron" => "iOptron",
-        "lx200" => "LX200",
-        "10micron" => "10Micron",
-        "ascom" => "Native ASCOM",
-        other => other,
+    let labels = skotiq_native::catalog::labels(vendor, device_subtype);
+    let vendor_label = match (labels, vendor) {
+        (Some((label, _)), _) => label,
+        (None, "starlightxpress") => "Starlight Xpress",
+        (None, "ascom") => "Native ASCOM",
+        (None, other) => other,
     };
-
-    let subtype_label = match (vendor, device_subtype) {
-        ("zwo", Some("eaf")) | ("zwo_eaf", _) => Some("EAF"),
-        ("zwo", Some("efw")) | ("zwo_efw", _) => Some("EFW"),
-        ("qhy", Some("cfw")) | ("qhy_cfw", _) => Some("CFW"),
-        ("fli", Some("focuser")) | ("fli_focuser", _) => Some("Focuser"),
-        ("fli", Some("fw")) | ("fli_fw", _) => Some("Filter Wheel"),
-        _ => None,
-    };
+    let subtype_label = labels.and_then(|(_, accessory)| accessory);
 
     let brand = vendor_brand.filter(|brand| !brand.is_empty());
     match (brand, subtype_label) {

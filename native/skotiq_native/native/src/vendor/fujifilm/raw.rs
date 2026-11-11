@@ -75,14 +75,14 @@ pub(crate) fn resolve_max_adu(measured_white_level: Option<u32>, bit_depth: u32)
 pub(crate) fn process_raf_buffer(
     buffer: &[u8],
     _is_xtrans: bool,
-) -> Result<skotiq_imaging::CfaImage, NativeError> {
+) -> Result<skotiq_imaging::CfaImage, DriverError> {
     let (cfa, _metadata) = skotiq_imaging::read_cfa_mosaic_from_bytes(buffer, "raf")
-        .map_err(|e| NativeError::SdkError(format!("LibRaw processing failed: {}", e)))?;
+        .map_err(|e| DriverError::SdkError(format!("LibRaw processing failed: {}", e)))?;
 
     // Contract guard: the mono mosaic MUST be exactly width*height samples.
     let expected = (cfa.width as usize) * (cfa.height as usize);
     if cfa.data.len() != expected {
-        return Err(NativeError::SdkError(format!(
+        return Err(DriverError::SdkError(format!(
             "Fujifilm: CFA decode produced {} samples for a {}x{} frame (expected {}) — \
              refusing to emit a corrupt frame",
             cfa.data.len(),

@@ -1,0 +1,240 @@
+call connect
+@ port baud=9600 data=8 parity=none stop=1 flow=none
+> :j1\r
+< =AAAABA\r
+  -> Ok(())
+  id=native:skywatcher:<PORT_ID> name=Sky-Watcher (<PORT>) vendor=SkyWatcher connected=true
+  can_slew=true can_sync=true can_pulse_guide=true can_set_tracking_rate=false can_find_home=false can_set_park=false
+call get_coordinates
+> :j1\r
+< =AAAABA\r
+> :j2\r
+< =E3388E\r
+  -> Ok((5.499999046325684, 19.999988079071045))
+call slew_to_coordinates(5.5, 20.0)
+> :G102\r
+< =\r
+> :G202\r
+< =\r
+> :S1AAAABA\r
+< =\r
+> :S2E3388E\r
+< =\r
+> :J1\r
+< =\r
+> :J2\r
+< =\r
+  -> Ok(())
+call is_slewing
+> :f1\r
+< =011\r
+> :f2\r
+< =011\r
+  -> Ok(true)
+call is_slewing
+> :f1\r
+< =001\r
+> :f2\r
+< =001\r
+  -> Ok(false)
+call is_slewing
+> :f1\r
+< =001\r
+> :f2\r
+< =001\r
+  -> Ok(false)
+call slew_to_coordinates(1.25, -85.5) [mount refuses]
+> :G102\r
+< =\r
+> :G202\r
+< =\r
+> :S155558D\r
+< =\r
+> :S2343343\r
+< =\r
+> :J1\r
+< !4\r
+  -> Err(SdkError("Mount error: !4"))
+call is_slewing
+> :f1\r
+< =001\r
+> :f2\r
+< =001\r
+  -> Ok(false)
+call sync_to_coordinates(5.5123, -20.2512)
+> :E140CCBA\r
+< =\r
+> :E2629971\r
+< =\r
+  -> Ok(())
+call set_tracking(false)
+> :K1\r
+< =\r
+  -> Ok(())
+call get_tracking
+  -> Ok(false)
+call set_tracking(true)
+> :G101\r
+< =\r
+> :J1\r
+< =\r
+  -> Ok(())
+call get_tracking
+  -> Ok(true)
+call set_tracking_rate(Sidereal)
+  -> Err(NotSupported)
+call get_tracking_rate
+  -> Err(NotSupported)
+call set_tracking_rate(Lunar)
+  -> Err(NotSupported)
+call get_tracking_rate
+  -> Err(NotSupported)
+call set_tracking_rate(Solar)
+  -> Err(NotSupported)
+call get_tracking_rate
+  -> Err(NotSupported)
+call set_tracking_rate(King)
+  -> Err(NotSupported)
+call get_tracking_rate
+  -> Err(NotSupported)
+call set_tracking_rate(Custom)
+  -> Err(NotSupported)
+call get_tracking_rate
+  -> Err(NotSupported)
+call set_tracking_rate(Sidereal)
+  -> Err(NotSupported)
+call pulse_guide(North, 40)
+> :G201\r
+< =\r
+> :J2\r
+< =\r
+> :K2\r
+< =\r
+  -> Ok(())
+call pulse_guide(South, 40)
+> :G203\r
+< =\r
+> :J2\r
+< =\r
+> :K2\r
+< =\r
+  -> Ok(())
+call pulse_guide(East, 40)
+> :G103\r
+< =\r
+> :J1\r
+< =\r
+> :K1\r
+< =\r
+  -> Ok(())
+call pulse_guide(West, 40)
+> :G101\r
+< =\r
+> :J1\r
+< =\r
+> :K1\r
+< =\r
+  -> Ok(())
+call pulse_guide(North, 5)
+> :G201\r
+< =\r
+> :J2\r
+< =\r
+> :K2\r
+< =\r
+  -> Ok(())
+call abort_slew
+> :K1\r
+< =\r
+> :K2\r
+< =\r
+  -> Ok(())
+call get_side_of_pier
+  -> Err(NotSupported)
+call get_alt_az
+  -> Err(NotSupported)
+call get_sidereal_time
+  -> Err(NotSupported)
+call get_site
+  -> Err(NotSupported)
+call set_site(40.007714, -75.397448)
+  -> Err(NotSupported)
+call get_clock
+  -> Err(NotSupported)
+call set_clock(1788921000, -4.0)
+  -> Err(NotSupported)
+call find_home
+  -> Err(NotSupported)
+call is_slewing
+> :f1\r
+< =101\r
+> :f2\r
+< =101\r
+  -> Ok(false)
+call is_slewing
+> :f1\r
+< =101\r
+> :f2\r
+< =101\r
+  -> Ok(false)
+call at_home
+  -> Err(NotSupported)
+call set_park
+  -> Err(NotSupported)
+call park
+> :G102\r
+< =\r
+> :G202\r
+< =\r
+> :S1000080\r
+< =\r
+> :S2000080\r
+< =\r
+> :J1\r
+< =\r
+> :J2\r
+< =\r
+> :f1\r
+< =011\r
+> :f2\r
+< =011\r
+> :f1\r
+< =001\r
+> :f2\r
+< =001\r
+> :K1\r
+< =\r
+  -> Ok(())
+call is_parked
+  -> Ok(true)
+call is_slewing
+> :f1\r
+< =001\r
+> :f2\r
+< =001\r
+  -> Ok(false)
+call get_coordinates
+> :j1\r
+< =AAAABA\r
+> :j2\r
+< =E3388E\r
+  -> Ok((5.499999046325684, 19.999988079071045))
+call unpark
+> :G101\r
+< =\r
+> :J1\r
+< =\r
+  -> Ok(())
+call is_parked
+  -> Ok(false)
+call get_tracking
+  -> Ok(true)
+call disconnect
+> :K1\r
+< =\r
+> :K2\r
+< =\r
+  -> Ok(())
+  connected=false
+call get_coordinates [disconnected]
+  -> Err(NotConnected)

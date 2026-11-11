@@ -1,0 +1,940 @@
+## focuser.connect [ok]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=1]
+= Ok(())
+
+## focuser.connect [ascom 0x400]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.connect [ascom 0x4FF without Value]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(Device error 1279: Unspecified driver fault)
+
+## focuser.connect [http 400]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.connect [http 500]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=true]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.connect [malformed json]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=true]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.connect [connected reads false x1]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=3]
+= Ok(())
+
+## focuser.connect [connected reads false x99]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=3]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=4&Connected=true]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=5]
+= Err(Connection validation failed: Connected=true succeeded, but the device still reports disconnected after 3 attempts)
+
+## focuser.disconnect [ok]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Ok(())
+
+## focuser.disconnect [ascom 0x400]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.disconnect [ascom 0x4FF without Value]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(Device error 1279: Unspecified driver fault)
+
+## focuser.disconnect [http 400]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.disconnect [http 500]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=false]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=false]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.disconnect [malformed json]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=false]
+> PUT /api/v1/focuser/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=false]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.is_connected [ok]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## focuser.is_connected [ascom 0x400]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.is_connected [ascom 0x4FF without Value]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## focuser.is_connected [http 400]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.is_connected [http 500]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.is_connected [malformed json]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.validate_connection [ok]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## focuser.validate_connection [ascom 0x400]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Connection validation failed: Property or method is not implemented)
+
+## focuser.validate_connection [ascom 0x4FF without Value]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Connection validation failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## focuser.validate_connection [http 400]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Connection validation failed: HTTP status: 400 Bad Request)
+
+## focuser.validate_connection [http 500]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Connection validation failed: HTTP status: 500 Internal Server Error)
+
+## focuser.validate_connection [malformed json]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Connection validation failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.heartbeat [ok]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Ok("<ms>")
+
+## focuser.heartbeat [ascom 0x400]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Ok("<ms>")
+
+## focuser.heartbeat [ascom 0x4FF without Value]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## focuser.heartbeat [http 400]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Heartbeat failed)
+
+## focuser.heartbeat [http 500]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 500: Heartbeat failed)
+
+## focuser.heartbeat [malformed json]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.name [ok]
+> GET /api/v1/focuser/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Name")
+
+## focuser.name [ascom 0x400]
+> GET /api/v1/focuser/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.name [ascom 0x4FF without Value]
+> GET /api/v1/focuser/#/name query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/name query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/name query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## focuser.name [http 400]
+> GET /api/v1/focuser/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.name [http 500]
+> GET /api/v1/focuser/#/name query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/name query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/name query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.name [malformed json]
+> GET /api/v1/focuser/#/name query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/name query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/name query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.description [ok]
+> GET /api/v1/focuser/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Description")
+
+## focuser.description [ascom 0x400]
+> GET /api/v1/focuser/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.description [ascom 0x4FF without Value]
+> GET /api/v1/focuser/#/description query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/description query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/description query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## focuser.description [http 400]
+> GET /api/v1/focuser/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.description [http 500]
+> GET /api/v1/focuser/#/description query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/description query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/description query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.description [malformed json]
+> GET /api/v1/focuser/#/description query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/description query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/description query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.driver_version [ok]
+> GET /api/v1/focuser/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Ok("1.2.3")
+
+## focuser.driver_version [ascom 0x400]
+> GET /api/v1/focuser/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.driver_version [ascom 0x4FF without Value]
+> GET /api/v1/focuser/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## focuser.driver_version [http 400]
+> GET /api/v1/focuser/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.driver_version [http 500]
+> GET /api/v1/focuser/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.driver_version [malformed json]
+> GET /api/v1/focuser/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.driver_info [ok]
+> GET /api/v1/focuser/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Driver Info")
+
+## focuser.driver_info [ascom 0x400]
+> GET /api/v1/focuser/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.driver_info [ascom 0x4FF without Value]
+> GET /api/v1/focuser/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## focuser.driver_info [http 400]
+> GET /api/v1/focuser/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.driver_info [http 500]
+> GET /api/v1/focuser/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.driver_info [malformed json]
+> GET /api/v1/focuser/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.interface_version [ok]
+> GET /api/v1/focuser/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Ok(3)
+
+## focuser.interface_version [ascom 0x400]
+> GET /api/v1/focuser/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.interface_version [ascom 0x4FF without Value]
+> GET /api/v1/focuser/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## focuser.interface_version [http 400]
+> GET /api/v1/focuser/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.interface_version [http 500]
+> GET /api/v1/focuser/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.interface_version [malformed json]
+> GET /api/v1/focuser/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.supported_actions [ok]
+> GET /api/v1/focuser/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Ok(["ActionA", "ActionB"])
+
+## focuser.supported_actions [ascom 0x400]
+> GET /api/v1/focuser/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.supported_actions [ascom 0x4FF without Value]
+> GET /api/v1/focuser/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## focuser.supported_actions [http 400]
+> GET /api/v1/focuser/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.supported_actions [http 500]
+> GET /api/v1/focuser/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.supported_actions [malformed json]
+> GET /api/v1/focuser/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.position [ok]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Ok(12345)
+
+## focuser.position [ascom 0x400]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.position [ascom 0x4FF without Value]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## focuser.position [http 400]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.position [http 500]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.position [malformed json]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.position [ascom 0x401]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1025: Invalid value)
+
+## focuser.position [ascom 0x402]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1026: Value not set)
+
+## focuser.position [ascom 0x407]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1031: Not connected)
+
+## focuser.position [ascom 0x408]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1032: Invalid while parked)
+
+## focuser.position [ascom 0x409]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1033: Invalid while slaved)
+
+## focuser.position [ascom 0x40B]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1035: Invalid operation)
+
+## focuser.position [ascom 0x40C without Value]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+
+## focuser.position [ascom 0x500]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1280: Driver specific error)
+
+## focuser.position [http 404]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 404: Not Found)
+
+## focuser.position [http 429 retry-after 0]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+
+## focuser.position [http 503]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+
+## focuser.position [wrong value type]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected i32 at line 1 column 91)
+
+## focuser.max_step [ok]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=0]
+= Ok(50000)
+
+## focuser.max_step [ascom 0x400]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.max_step [ascom 0x4FF without Value]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## focuser.max_step [http 400]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.max_step [http 500]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.max_step [malformed json]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.max_increment [ok]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=0]
+= Ok(5000)
+
+## focuser.max_increment [ascom 0x400]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.max_increment [ascom 0x4FF without Value]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## focuser.max_increment [http 400]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.max_increment [http 500]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.max_increment [malformed json]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.step_size [ok]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=0]
+= Ok(4.5)
+
+## focuser.step_size [ascom 0x400]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.step_size [ascom 0x4FF without Value]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## focuser.step_size [http 400]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.step_size [http 500]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.step_size [malformed json]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.is_moving [ok]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=0]
+= Ok(false)
+
+## focuser.is_moving [ascom 0x400]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.is_moving [ascom 0x4FF without Value]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## focuser.is_moving [http 400]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.is_moving [http 500]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.is_moving [malformed json]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.absolute [ok]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## focuser.absolute [ascom 0x400]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.absolute [ascom 0x4FF without Value]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## focuser.absolute [http 400]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.absolute [http 500]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.absolute [malformed json]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.temp_comp_available [ok]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## focuser.temp_comp_available [ascom 0x400]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.temp_comp_available [ascom 0x4FF without Value]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## focuser.temp_comp_available [http 400]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.temp_comp_available [http 500]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.temp_comp_available [malformed json]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.temp_comp [ok]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=0]
+= Ok(false)
+
+## focuser.temp_comp [ascom 0x400]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.temp_comp [ascom 0x4FF without Value]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## focuser.temp_comp [http 400]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.temp_comp [http 500]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.temp_comp [malformed json]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.set_temp_comp [ok]
+> PUT /api/v1/focuser/#/tempcomp query[] form[ClientID=<id>&ClientTransactionID=0&TempComp=true]
+= Ok(())
+
+## focuser.set_temp_comp [ascom 0x400]
+> PUT /api/v1/focuser/#/tempcomp query[] form[ClientID=<id>&ClientTransactionID=0&TempComp=true]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.set_temp_comp [ascom 0x4FF without Value]
+> PUT /api/v1/focuser/#/tempcomp query[] form[ClientID=<id>&ClientTransactionID=0&TempComp=true]
+= Err(Device error 1279: Unspecified driver fault)
+
+## focuser.set_temp_comp [http 400]
+> PUT /api/v1/focuser/#/tempcomp query[] form[ClientID=<id>&ClientTransactionID=0&TempComp=true]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.set_temp_comp [http 500]
+> PUT /api/v1/focuser/#/tempcomp query[] form[ClientID=<id>&ClientTransactionID=0&TempComp=true]
+> PUT /api/v1/focuser/#/tempcomp query[] form[ClientID=<id>&ClientTransactionID=1&TempComp=true]
+> PUT /api/v1/focuser/#/tempcomp query[] form[ClientID=<id>&ClientTransactionID=2&TempComp=true]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.set_temp_comp [malformed json]
+> PUT /api/v1/focuser/#/tempcomp query[] form[ClientID=<id>&ClientTransactionID=0&TempComp=true]
+> PUT /api/v1/focuser/#/tempcomp query[] form[ClientID=<id>&ClientTransactionID=1&TempComp=true]
+> PUT /api/v1/focuser/#/tempcomp query[] form[ClientID=<id>&ClientTransactionID=2&TempComp=true]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.temperature [ok]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=0]
+= Ok(12.5)
+
+## focuser.temperature [ascom 0x400]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.temperature [ascom 0x4FF without Value]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## focuser.temperature [http 400]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.temperature [http 500]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.temperature [malformed json]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.move_to [ok]
+> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
+= Ok(())
+
+## focuser.move_to [ascom 0x400]
+> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.move_to [ascom 0x4FF without Value]
+> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
+= Err(Device error 1279: Unspecified driver fault)
+
+## focuser.move_to [http 400]
+> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.move_to [http 500]
+> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
+= Err(HTTP error 500: Internal server error)
+
+## focuser.move_to [malformed json]
+> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.move_to [ascom 0x401]
+> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
+= Err(Device error 1025: Invalid value)
+
+## focuser.move_to [ascom 0x402]
+> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
+= Err(Device error 1026: Value not set)
+
+## focuser.move_to [ascom 0x407]
+> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
+= Err(Device error 1031: Not connected)
+
+## focuser.move_to [ascom 0x408]
+> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
+= Err(Device error 1032: Invalid while parked)
+
+## focuser.move_to [ascom 0x409]
+> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
+= Err(Device error 1033: Invalid while slaved)
+
+## focuser.move_to [ascom 0x40B]
+> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
+= Err(Device error 1035: Invalid operation)
+
+## focuser.move_to [ascom 0x40C without Value]
+> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
+= Err(Device error 1036: Action not implemented)
+
+## focuser.move_to [ascom 0x500]
+> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
+= Err(Device error 1280: Driver specific error)
+
+## focuser.move_to [http 404]
+> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
+= Err(HTTP error 404: Not Found)
+
+## focuser.move_to [http 429 retry-after 0]
+> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
+= Err(HTTP error 429: Slow down)
+
+## focuser.move_to [http 503]
+> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
+= Err(HTTP error 503: Service Unavailable)
+
+## focuser.move_to [wrong value type]
+> PUT /api/v1/focuser/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=6620]
+= Ok(())
+
+## focuser.halt [ok]
+> PUT /api/v1/focuser/#/halt query[] form[ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## focuser.halt [ascom 0x400]
+> PUT /api/v1/focuser/#/halt query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.halt [ascom 0x4FF without Value]
+> PUT /api/v1/focuser/#/halt query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## focuser.halt [http 400]
+> PUT /api/v1/focuser/#/halt query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.halt [http 500]
+> PUT /api/v1/focuser/#/halt query[] form[ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/focuser/#/halt query[] form[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/focuser/#/halt query[] form[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.halt [malformed json]
+> PUT /api/v1/focuser/#/halt query[] form[ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/focuser/#/halt query[] form[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/focuser/#/halt query[] form[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.get_status [ok]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
+= Ok(FocuserStatus { connected: true, position: 12345, is_moving: false, temperature: Some(12.5), temp_comp: Some(false) })
+
+## focuser.get_status [ascom 0x400]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.get_status [ascom 0x4FF without Value]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## focuser.get_status [http 400]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.get_status [http 500]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.get_status [malformed json]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## focuser.get_capabilities [ok]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
+= Ok(FocuserCapabilities { absolute: true, max_step: 50000, max_increment: 5000, step_size: Some(4.5), temp_comp_available: true })
+
+## focuser.get_capabilities [ascom 0x400]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Device error 1024: Property or method is not implemented)
+
+## focuser.get_capabilities [ascom 0x4FF without Value]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## focuser.get_capabilities [http 400]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(HTTP error 400: Method not implemented)
+
+## focuser.get_capabilities [http 500]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## focuser.get_capabilities [malformed json]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)

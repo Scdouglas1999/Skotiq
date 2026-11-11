@@ -3,7 +3,7 @@
 //! Provides high-level filter wheel control via INDI protocol.
 
 use crate::client::IndiClient;
-use crate::error::IndiResult;
+use crate::error::{IndiError, IndiResult};
 use crate::protocol::standard_properties::*;
 use std::sync::Arc;
 use std::time::Duration;
@@ -87,7 +87,7 @@ impl IndiFilterWheel {
     /// move for a stall. This waits for the slot reading to equal the target
     /// with the property no longer Busy, and fails when the property goes
     /// Alert or after the filter-change timeout.
-    pub async fn move_to_position(&self, zero_based: i32) -> Result<(), String> {
+    pub async fn move_to_position(&self, zero_based: i32) -> IndiResult<()> {
         let target = self.wire_slot_from_zero_based(zero_based).await;
         let (timeout, poll) = {
             let client = self.client.read().await;
@@ -97,7 +97,7 @@ impl IndiFilterWheel {
                 Duration::from_millis(config.property_poll_interval_ms.clamp(50, 500)),
             )
         };
-        self.set_slot(target).await.map_err(|e| e.to_string())?;
+        self.set_slot(target).await?;
         let start = std::time::Instant::now();
         loop {
             let (state, slot) = {
@@ -112,10 +112,10 @@ impl IndiFilterWheel {
                 )
             };
             if state == Some(crate::IndiPropertyState::Alert) {
-                return Err(format!(
+                return Err(IndiError::Incomplete(format!(
                     "Filter wheel {} reported an alert moving to slot {}",
                     self.device_name, target
-                ));
+                )));
             }
             // Why: INDI wire f64 -> i32 slot (bounded 1..wheel_size).
             let at_target = slot.map(|s| s as i32) == Some(target);
@@ -123,10 +123,10 @@ impl IndiFilterWheel {
                 return Ok(());
             }
             if start.elapsed() >= timeout {
-                return Err(format!(
+                return Err(IndiError::Incomplete(format!(
                     "Filter wheel {} did not reach slot {} within {:?}",
                     self.device_name, target, timeout
-                ));
+                )));
             }
             tokio::time::sleep(poll).await;
         }
@@ -151,7 +151,7 @@ impl IndiFilterWheel {
         &self,
         slot: i32,
         timeout: Option<Duration>,
-    ) -> Result<(), String> {
+    ) -> IndiResult<()> {
         let timeout_duration = match timeout {
             Some(timeout) => timeout,
             None => {
@@ -179,29 +179,32 @@ impl IndiFilterWheel {
         client
             .wait_for_property_not_busy(&self.device_name, FILTER_SLOT, timeout_duration)
             .await
-            .map_err(|e| format!("Filter wheel change to slot {} failed: {}", slot, e))
+            .map_err(|e| IndiError::Failed {
+                what: format!("Filter wheel change to slot {}", slot),
+                cause: Box::new(e),
+            })
     }
 
     /// Get current filter position as a **0-based** index (Skotiq convention).
-    pub async fn get_position(&self) -> Result<i32, String> {
+    pub async fn get_position(&self) -> IndiResult<i32> {
         let wire = self.get_slot().await?;
         Ok(self.zero_based_from_wire_slot(wire).await)
     }
 
     /// Get current filter slot in driver-native numbering (typically 1-based).
-    pub async fn get_slot(&self) -> Result<i32, String> {
+    pub async fn get_slot(&self) -> IndiResult<i32> {
         let client = self.client.read().await;
         client
             .get_number(&self.device_name, FILTER_SLOT, "FILTER_SLOT_VALUE")
             .await
             // Why: INDI wire f64 -> i32 slot (bounded 1..wheel_size); saturates per Rust 1.45.
             .map(|s| s as i32)
-            .ok_or_else(|| "Filter slot not available".to_string())
+            .ok_or_else(|| IndiError::Unavailable("Filter slot not available".to_string()))
     }
 
     /// Get filter names
     /// Get filter names
-    pub async fn get_names(&self) -> Result<Vec<String>, String> {
+    pub async fn get_names(&self) -> IndiResult<Vec<String>> {
         let client = self.client.read().await;
         let props = client.get_properties(&self.device_name).await;
 
@@ -280,7 +283,10 @@ mod tests {
         assert!(result.is_err());
         if let Err(e) = result {
             // Error should mention either the slot or that we're not connected
-            assert!(e.contains("slot 3") || e.to_lowercase().contains("not connected"));
+            assert!(
+                e.to_string().contains("slot 3")
+                    || e.to_string().to_lowercase().contains("not connected")
+            );
         }
     }
 

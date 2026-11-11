@@ -28,7 +28,7 @@ use crate::sim_frame::{
     sim_frame_dimensions, sim_sky_field_radius_deg, synthesize_sim_frame, SimFrameRequest,
     SimSkyView, SIM_SKY_STAR_LIMIT,
 };
-use skotiq_native::camera::FrameType;
+use skotiq_device::FrameType;
 
 /// Matches `storage`'s own default, so a simulator run with no profile renders
 /// the same field the default 1000 mm profile would.

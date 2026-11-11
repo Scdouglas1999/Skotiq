@@ -1,0 +1,3264 @@
+## camera.connect [ok]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=1]
+= Ok(())
+
+## camera.connect [ascom 0x400]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.connect [ascom 0x4FF without Value]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.connect [http 400]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.connect [http 500]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=true]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.connect [malformed json]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=true]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.connect [connected reads false x1]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=3]
+= Ok(())
+
+## camera.connect [connected reads false x99]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=3]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=4&Connected=true]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=5]
+= Err(Connection validation failed: Connected=true succeeded, but the device still reports disconnected after 3 attempts)
+
+## camera.disconnect [ok]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Ok(())
+
+## camera.disconnect [ascom 0x400]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.disconnect [ascom 0x4FF without Value]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.disconnect [http 400]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.disconnect [http 500]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=false]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=false]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.disconnect [malformed json]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=false]
+> PUT /api/v1/camera/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=false]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.is_connected [ok]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## camera.is_connected [ascom 0x400]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.is_connected [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.is_connected [http 400]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.is_connected [http 500]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.is_connected [malformed json]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.validate_connection [ok]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## camera.validate_connection [ascom 0x400]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Connection validation failed: Property or method is not implemented)
+
+## camera.validate_connection [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Connection validation failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.validate_connection [http 400]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Connection validation failed: HTTP status: 400 Bad Request)
+
+## camera.validate_connection [http 500]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Connection validation failed: HTTP status: 500 Internal Server Error)
+
+## camera.validate_connection [malformed json]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Connection validation failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.heartbeat [ok]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Ok("<ms>")
+
+## camera.heartbeat [ascom 0x400]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Ok("<ms>")
+
+## camera.heartbeat [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.heartbeat [http 400]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Heartbeat failed)
+
+## camera.heartbeat [http 500]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 500: Heartbeat failed)
+
+## camera.heartbeat [malformed json]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.name [ok]
+> GET /api/v1/camera/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Name")
+
+## camera.name [ascom 0x400]
+> GET /api/v1/camera/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.name [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/name query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/name query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/name query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.name [http 400]
+> GET /api/v1/camera/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.name [http 500]
+> GET /api/v1/camera/#/name query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/name query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/name query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.name [malformed json]
+> GET /api/v1/camera/#/name query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/name query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/name query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.description [ok]
+> GET /api/v1/camera/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Description")
+
+## camera.description [ascom 0x400]
+> GET /api/v1/camera/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.description [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/description query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/description query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/description query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.description [http 400]
+> GET /api/v1/camera/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.description [http 500]
+> GET /api/v1/camera/#/description query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/description query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/description query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.description [malformed json]
+> GET /api/v1/camera/#/description query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/description query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/description query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.driver_version [ok]
+> GET /api/v1/camera/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Ok("1.2.3")
+
+## camera.driver_version [ascom 0x400]
+> GET /api/v1/camera/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.driver_version [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.driver_version [http 400]
+> GET /api/v1/camera/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.driver_version [http 500]
+> GET /api/v1/camera/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.driver_version [malformed json]
+> GET /api/v1/camera/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.driver_info [ok]
+> GET /api/v1/camera/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Driver Info")
+
+## camera.driver_info [ascom 0x400]
+> GET /api/v1/camera/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.driver_info [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.driver_info [http 400]
+> GET /api/v1/camera/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.driver_info [http 500]
+> GET /api/v1/camera/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.driver_info [malformed json]
+> GET /api/v1/camera/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.interface_version [ok]
+> GET /api/v1/camera/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Ok(3)
+
+## camera.interface_version [ascom 0x400]
+> GET /api/v1/camera/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.interface_version [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.interface_version [http 400]
+> GET /api/v1/camera/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.interface_version [http 500]
+> GET /api/v1/camera/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.interface_version [malformed json]
+> GET /api/v1/camera/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.supported_actions [ok]
+> GET /api/v1/camera/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Ok(["ActionA", "ActionB"])
+
+## camera.supported_actions [ascom 0x400]
+> GET /api/v1/camera/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.supported_actions [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.supported_actions [http 400]
+> GET /api/v1/camera/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.supported_actions [http 500]
+> GET /api/v1/camera/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.supported_actions [malformed json]
+> GET /api/v1/camera/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.camera_x_size [ok]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=0]
+= Ok(4656)
+
+## camera.camera_x_size [ascom 0x400]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.camera_x_size [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.camera_x_size [http 400]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.camera_x_size [http 500]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.camera_x_size [malformed json]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.camera_y_size [ok]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=0]
+= Ok(3520)
+
+## camera.camera_y_size [ascom 0x400]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.camera_y_size [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.camera_y_size [http 400]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.camera_y_size [http 500]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.camera_y_size [malformed json]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.pixel_size_x [ok]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=0]
+= Ok(3.8)
+
+## camera.pixel_size_x [ascom 0x400]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.pixel_size_x [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.pixel_size_x [http 400]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.pixel_size_x [http 500]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.pixel_size_x [malformed json]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.pixel_size_y [ok]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=0]
+= Ok(3.75)
+
+## camera.pixel_size_y [ascom 0x400]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.pixel_size_y [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.pixel_size_y [http 400]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.pixel_size_y [http 500]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.pixel_size_y [malformed json]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.max_adu [ok]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=0]
+= Ok(65535)
+
+## camera.max_adu [ascom 0x400]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.max_adu [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.max_adu [http 400]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.max_adu [http 500]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.max_adu [malformed json]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.sensor_type [ok]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=0]
+= Ok(2)
+
+## camera.sensor_type [ascom 0x400]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.sensor_type [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.sensor_type [http 400]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.sensor_type [http 500]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.sensor_type [malformed json]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.sensor_name [ok]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=0]
+= Ok("MN34230")
+
+## camera.sensor_name [ascom 0x400]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.sensor_name [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.sensor_name [http 400]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.sensor_name [http 500]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.sensor_name [malformed json]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.max_bin_x [ok]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=0]
+= Ok(4)
+
+## camera.max_bin_x [ascom 0x400]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.max_bin_x [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.max_bin_x [http 400]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.max_bin_x [http 500]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.max_bin_x [malformed json]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.max_bin_y [ok]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=0]
+= Ok(3)
+
+## camera.max_bin_y [ascom 0x400]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.max_bin_y [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.max_bin_y [http 400]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.max_bin_y [http 500]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.max_bin_y [malformed json]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.bin_x [ok]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=0]
+= Ok(2)
+
+## camera.bin_x [ascom 0x400]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.bin_x [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.bin_x [http 400]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.bin_x [http 500]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.bin_x [malformed json]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.bin_y [ok]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=0]
+= Ok(1)
+
+## camera.bin_y [ascom 0x400]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.bin_y [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.bin_y [http 400]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.bin_y [http 500]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.bin_y [malformed json]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.set_bin_x [ok]
+> PUT /api/v1/camera/#/binx query[] form[BinX=2&ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## camera.set_bin_x [ascom 0x400]
+> PUT /api/v1/camera/#/binx query[] form[BinX=2&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.set_bin_x [ascom 0x4FF without Value]
+> PUT /api/v1/camera/#/binx query[] form[BinX=2&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.set_bin_x [http 400]
+> PUT /api/v1/camera/#/binx query[] form[BinX=2&ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.set_bin_x [http 500]
+> PUT /api/v1/camera/#/binx query[] form[BinX=2&ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/camera/#/binx query[] form[BinX=2&ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/camera/#/binx query[] form[BinX=2&ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.set_bin_x [malformed json]
+> PUT /api/v1/camera/#/binx query[] form[BinX=2&ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/camera/#/binx query[] form[BinX=2&ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/camera/#/binx query[] form[BinX=2&ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.set_bin_y [ok]
+> PUT /api/v1/camera/#/biny query[] form[BinY=2&ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## camera.set_bin_y [ascom 0x400]
+> PUT /api/v1/camera/#/biny query[] form[BinY=2&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.set_bin_y [ascom 0x4FF without Value]
+> PUT /api/v1/camera/#/biny query[] form[BinY=2&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.set_bin_y [http 400]
+> PUT /api/v1/camera/#/biny query[] form[BinY=2&ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.set_bin_y [http 500]
+> PUT /api/v1/camera/#/biny query[] form[BinY=2&ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/camera/#/biny query[] form[BinY=2&ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/camera/#/biny query[] form[BinY=2&ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.set_bin_y [malformed json]
+> PUT /api/v1/camera/#/biny query[] form[BinY=2&ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/camera/#/biny query[] form[BinY=2&ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/camera/#/biny query[] form[BinY=2&ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.can_set_ccd_temperature [ok]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## camera.can_set_ccd_temperature [ascom 0x400]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.can_set_ccd_temperature [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.can_set_ccd_temperature [http 400]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.can_set_ccd_temperature [http 500]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.can_set_ccd_temperature [malformed json]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.ccd_temperature [ok]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+= Ok(-10.5)
+
+## camera.ccd_temperature [ascom 0x400]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.ccd_temperature [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.ccd_temperature [http 400]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.ccd_temperature [http 500]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.ccd_temperature [malformed json]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.ccd_temperature [ascom 0x401]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1025: Invalid value)
+
+## camera.ccd_temperature [ascom 0x402]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1026: Value not set)
+
+## camera.ccd_temperature [ascom 0x407]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1031: Not connected)
+
+## camera.ccd_temperature [ascom 0x408]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1032: Invalid while parked)
+
+## camera.ccd_temperature [ascom 0x409]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1033: Invalid while slaved)
+
+## camera.ccd_temperature [ascom 0x40B]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1035: Invalid operation)
+
+## camera.ccd_temperature [ascom 0x40C without Value]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+
+## camera.ccd_temperature [ascom 0x500]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1280: Driver specific error)
+
+## camera.ccd_temperature [http 404]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 404: Not Found)
+
+## camera.ccd_temperature [http 429 retry-after 0]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+
+## camera.ccd_temperature [http 503]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+
+## camera.ccd_temperature [wrong value type]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected f64 at line 1 column 91)
+
+## camera.set_ccd_temperature [ok]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-10]
+= Ok(())
+
+## camera.set_ccd_temperature [ascom 0x400]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-10]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.set_ccd_temperature [ascom 0x4FF without Value]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-10]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.set_ccd_temperature [http 400]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-10]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.set_ccd_temperature [http 500]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-10]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=1&SetCCDTemperature=-10]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=2&SetCCDTemperature=-10]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.set_ccd_temperature [malformed json]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-10]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=1&SetCCDTemperature=-10]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=2&SetCCDTemperature=-10]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.set_ccd_temperature [ascom 0x401]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-10]
+= Err(Device error 1025: Invalid value)
+
+## camera.set_ccd_temperature [ascom 0x402]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-10]
+= Err(Device error 1026: Value not set)
+
+## camera.set_ccd_temperature [ascom 0x407]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-10]
+= Err(Device error 1031: Not connected)
+
+## camera.set_ccd_temperature [ascom 0x408]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-10]
+= Err(Device error 1032: Invalid while parked)
+
+## camera.set_ccd_temperature [ascom 0x409]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-10]
+= Err(Device error 1033: Invalid while slaved)
+
+## camera.set_ccd_temperature [ascom 0x40B]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-10]
+= Err(Device error 1035: Invalid operation)
+
+## camera.set_ccd_temperature [ascom 0x40C without Value]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-10]
+= Err(Device error 1036: Action not implemented)
+
+## camera.set_ccd_temperature [ascom 0x500]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-10]
+= Err(Device error 1280: Driver specific error)
+
+## camera.set_ccd_temperature [http 404]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-10]
+= Err(HTTP error 404: Not Found)
+
+## camera.set_ccd_temperature [http 429 retry-after 0]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-10]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=1&SetCCDTemperature=-10]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=2&SetCCDTemperature=-10]
+= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+
+## camera.set_ccd_temperature [http 503]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-10]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=1&SetCCDTemperature=-10]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=2&SetCCDTemperature=-10]
+= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+
+## camera.set_ccd_temperature [wrong value type]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-10]
+= Ok(())
+
+## camera.set_ccd_temperature(fraction) [ok]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-12.5]
+= Ok(())
+
+## camera.set_ccd_temperature(fraction) [ascom 0x400]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-12.5]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.set_ccd_temperature(fraction) [ascom 0x4FF without Value]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-12.5]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.set_ccd_temperature(fraction) [http 400]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-12.5]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.set_ccd_temperature(fraction) [http 500]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-12.5]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=1&SetCCDTemperature=-12.5]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=2&SetCCDTemperature=-12.5]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.set_ccd_temperature(fraction) [malformed json]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-12.5]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=1&SetCCDTemperature=-12.5]
+> PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=2&SetCCDTemperature=-12.5]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.cooler_on [ok]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## camera.cooler_on [ascom 0x400]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.cooler_on [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.cooler_on [http 400]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.cooler_on [http 500]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.cooler_on [malformed json]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.set_cooler_on [ok]
+> PUT /api/v1/camera/#/cooleron query[] form[ClientID=<id>&ClientTransactionID=0&CoolerOn=true]
+= Ok(())
+
+## camera.set_cooler_on [ascom 0x400]
+> PUT /api/v1/camera/#/cooleron query[] form[ClientID=<id>&ClientTransactionID=0&CoolerOn=true]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.set_cooler_on [ascom 0x4FF without Value]
+> PUT /api/v1/camera/#/cooleron query[] form[ClientID=<id>&ClientTransactionID=0&CoolerOn=true]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.set_cooler_on [http 400]
+> PUT /api/v1/camera/#/cooleron query[] form[ClientID=<id>&ClientTransactionID=0&CoolerOn=true]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.set_cooler_on [http 500]
+> PUT /api/v1/camera/#/cooleron query[] form[ClientID=<id>&ClientTransactionID=0&CoolerOn=true]
+> PUT /api/v1/camera/#/cooleron query[] form[ClientID=<id>&ClientTransactionID=1&CoolerOn=true]
+> PUT /api/v1/camera/#/cooleron query[] form[ClientID=<id>&ClientTransactionID=2&CoolerOn=true]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.set_cooler_on [malformed json]
+> PUT /api/v1/camera/#/cooleron query[] form[ClientID=<id>&ClientTransactionID=0&CoolerOn=true]
+> PUT /api/v1/camera/#/cooleron query[] form[ClientID=<id>&ClientTransactionID=1&CoolerOn=true]
+> PUT /api/v1/camera/#/cooleron query[] form[ClientID=<id>&ClientTransactionID=2&CoolerOn=true]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.cooler_power [ok]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=0]
+= Ok(42.5)
+
+## camera.cooler_power [ascom 0x400]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.cooler_power [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.cooler_power [http 400]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.cooler_power [http 500]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.cooler_power [malformed json]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.heat_sink_temperature [ok]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=0]
+= Ok(20.5)
+
+## camera.heat_sink_temperature [ascom 0x400]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.heat_sink_temperature [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.heat_sink_temperature [http 400]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.heat_sink_temperature [http 500]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.heat_sink_temperature [malformed json]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.can_get_cooler_power [ok]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## camera.can_get_cooler_power [ascom 0x400]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.can_get_cooler_power [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.can_get_cooler_power [http 400]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.can_get_cooler_power [http 500]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.can_get_cooler_power [malformed json]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.gain [ok]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
+= Ok(139)
+
+## camera.gain [ascom 0x400]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.gain [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.gain [http 400]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.gain [http 500]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.gain [malformed json]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.gain [ascom 0x401]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1025: Invalid value)
+
+## camera.gain [ascom 0x402]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1026: Value not set)
+
+## camera.gain [ascom 0x407]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1031: Not connected)
+
+## camera.gain [ascom 0x408]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1032: Invalid while parked)
+
+## camera.gain [ascom 0x409]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1033: Invalid while slaved)
+
+## camera.gain [ascom 0x40B]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1035: Invalid operation)
+
+## camera.gain [ascom 0x40C without Value]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+
+## camera.gain [ascom 0x500]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1280: Driver specific error)
+
+## camera.gain [http 404]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 404: Not Found)
+
+## camera.gain [http 429 retry-after 0]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+
+## camera.gain [http 503]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+
+## camera.gain [wrong value type]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected i32 at line 1 column 91)
+
+## camera.set_gain [ok]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=0&Gain=139]
+= Ok(())
+
+## camera.set_gain [ascom 0x400]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=0&Gain=139]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.set_gain [ascom 0x4FF without Value]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=0&Gain=139]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.set_gain [http 400]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=0&Gain=139]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.set_gain [http 500]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=0&Gain=139]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=1&Gain=139]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=2&Gain=139]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.set_gain [malformed json]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=0&Gain=139]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=1&Gain=139]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=2&Gain=139]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.set_gain [ascom 0x401]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=0&Gain=139]
+= Err(Device error 1025: Invalid value)
+
+## camera.set_gain [ascom 0x402]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=0&Gain=139]
+= Err(Device error 1026: Value not set)
+
+## camera.set_gain [ascom 0x407]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=0&Gain=139]
+= Err(Device error 1031: Not connected)
+
+## camera.set_gain [ascom 0x408]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=0&Gain=139]
+= Err(Device error 1032: Invalid while parked)
+
+## camera.set_gain [ascom 0x409]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=0&Gain=139]
+= Err(Device error 1033: Invalid while slaved)
+
+## camera.set_gain [ascom 0x40B]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=0&Gain=139]
+= Err(Device error 1035: Invalid operation)
+
+## camera.set_gain [ascom 0x40C without Value]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=0&Gain=139]
+= Err(Device error 1036: Action not implemented)
+
+## camera.set_gain [ascom 0x500]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=0&Gain=139]
+= Err(Device error 1280: Driver specific error)
+
+## camera.set_gain [http 404]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=0&Gain=139]
+= Err(HTTP error 404: Not Found)
+
+## camera.set_gain [http 429 retry-after 0]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=0&Gain=139]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=1&Gain=139]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=2&Gain=139]
+= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+
+## camera.set_gain [http 503]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=0&Gain=139]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=1&Gain=139]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=2&Gain=139]
+= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+
+## camera.set_gain [wrong value type]
+> PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=0&Gain=139]
+= Ok(())
+
+## camera.gain_min [ok]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=0]
+= Ok(0)
+
+## camera.gain_min [ascom 0x400]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.gain_min [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.gain_min [http 400]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.gain_min [http 500]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.gain_min [malformed json]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.gain_max [ok]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=0]
+= Ok(300)
+
+## camera.gain_max [ascom 0x400]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.gain_max [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.gain_max [http 400]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.gain_max [http 500]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.gain_max [malformed json]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.offset [ok]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=0]
+= Ok(21)
+
+## camera.offset [ascom 0x400]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.offset [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.offset [http 400]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.offset [http 500]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.offset [malformed json]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.set_offset [ok]
+> PUT /api/v1/camera/#/offset query[] form[ClientID=<id>&ClientTransactionID=0&Offset=21]
+= Ok(())
+
+## camera.set_offset [ascom 0x400]
+> PUT /api/v1/camera/#/offset query[] form[ClientID=<id>&ClientTransactionID=0&Offset=21]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.set_offset [ascom 0x4FF without Value]
+> PUT /api/v1/camera/#/offset query[] form[ClientID=<id>&ClientTransactionID=0&Offset=21]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.set_offset [http 400]
+> PUT /api/v1/camera/#/offset query[] form[ClientID=<id>&ClientTransactionID=0&Offset=21]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.set_offset [http 500]
+> PUT /api/v1/camera/#/offset query[] form[ClientID=<id>&ClientTransactionID=0&Offset=21]
+> PUT /api/v1/camera/#/offset query[] form[ClientID=<id>&ClientTransactionID=1&Offset=21]
+> PUT /api/v1/camera/#/offset query[] form[ClientID=<id>&ClientTransactionID=2&Offset=21]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.set_offset [malformed json]
+> PUT /api/v1/camera/#/offset query[] form[ClientID=<id>&ClientTransactionID=0&Offset=21]
+> PUT /api/v1/camera/#/offset query[] form[ClientID=<id>&ClientTransactionID=1&Offset=21]
+> PUT /api/v1/camera/#/offset query[] form[ClientID=<id>&ClientTransactionID=2&Offset=21]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.offset_min [ok]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=0]
+= Ok(1)
+
+## camera.offset_min [ascom 0x400]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.offset_min [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.offset_min [http 400]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.offset_min [http 500]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.offset_min [malformed json]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.offset_max [ok]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=0]
+= Ok(100)
+
+## camera.offset_max [ascom 0x400]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.offset_max [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.offset_max [http 400]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.offset_max [http 500]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.offset_max [malformed json]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.bayer_offset_x [ok]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=0]
+= Ok(0)
+
+## camera.bayer_offset_x [ascom 0x400]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.bayer_offset_x [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.bayer_offset_x [http 400]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.bayer_offset_x [http 500]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.bayer_offset_x [malformed json]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.bayer_offset_y [ok]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=0]
+= Ok(1)
+
+## camera.bayer_offset_y [ascom 0x400]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.bayer_offset_y [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.bayer_offset_y [http 400]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.bayer_offset_y [http 500]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.bayer_offset_y [malformed json]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.camera_state [ok]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
+= Ok(Exposing)
+
+## camera.camera_state [ascom 0x400]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.camera_state [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.camera_state [http 400]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.camera_state [http 500]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.camera_state [malformed json]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.camera_state [ascom 0x401]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1025: Invalid value)
+
+## camera.camera_state [ascom 0x402]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1026: Value not set)
+
+## camera.camera_state [ascom 0x407]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1031: Not connected)
+
+## camera.camera_state [ascom 0x408]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1032: Invalid while parked)
+
+## camera.camera_state [ascom 0x409]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1033: Invalid while slaved)
+
+## camera.camera_state [ascom 0x40B]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1035: Invalid operation)
+
+## camera.camera_state [ascom 0x40C without Value]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+
+## camera.camera_state [ascom 0x500]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1280: Driver specific error)
+
+## camera.camera_state [http 404]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 404: Not Found)
+
+## camera.camera_state [http 429 retry-after 0]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+
+## camera.camera_state [http 503]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+
+## camera.camera_state [wrong value type]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected i32 at line 1 column 91)
+
+## camera.image_ready [ok]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## camera.image_ready [ascom 0x400]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.image_ready [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.image_ready [http 400]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.image_ready [http 500]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.image_ready [malformed json]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.is_pulse_guiding [ok]
+> GET /api/v1/camera/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=0]
+= Ok(false)
+
+## camera.is_pulse_guiding [ascom 0x400]
+> GET /api/v1/camera/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.is_pulse_guiding [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.is_pulse_guiding [http 400]
+> GET /api/v1/camera/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.is_pulse_guiding [http 500]
+> GET /api/v1/camera/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.is_pulse_guiding [malformed json]
+> GET /api/v1/camera/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.percent_completed [ok]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=0]
+= Ok(50)
+
+## camera.percent_completed [ascom 0x400]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.percent_completed [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.percent_completed [http 400]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.percent_completed [http 500]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.percent_completed [malformed json]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.start_exposure(light) [ok]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=120&Light=true]
+= Ok(())
+
+## camera.start_exposure(light) [ascom 0x400]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=120&Light=true]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.start_exposure(light) [ascom 0x4FF without Value]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=120&Light=true]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.start_exposure(light) [http 400]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=120&Light=true]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.start_exposure(light) [http 500]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=120&Light=true]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=1&Duration=120&Light=true]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=2&Duration=120&Light=true]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.start_exposure(light) [malformed json]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=120&Light=true]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=1&Duration=120&Light=true]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=2&Duration=120&Light=true]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.start_exposure(light) [ascom 0x401]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=120&Light=true]
+= Err(Device error 1025: Invalid value)
+
+## camera.start_exposure(light) [ascom 0x402]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=120&Light=true]
+= Err(Device error 1026: Value not set)
+
+## camera.start_exposure(light) [ascom 0x407]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=120&Light=true]
+= Err(Device error 1031: Not connected)
+
+## camera.start_exposure(light) [ascom 0x408]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=120&Light=true]
+= Err(Device error 1032: Invalid while parked)
+
+## camera.start_exposure(light) [ascom 0x409]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=120&Light=true]
+= Err(Device error 1033: Invalid while slaved)
+
+## camera.start_exposure(light) [ascom 0x40B]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=120&Light=true]
+= Err(Device error 1035: Invalid operation)
+
+## camera.start_exposure(light) [ascom 0x40C without Value]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=120&Light=true]
+= Err(Device error 1036: Action not implemented)
+
+## camera.start_exposure(light) [ascom 0x500]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=120&Light=true]
+= Err(Device error 1280: Driver specific error)
+
+## camera.start_exposure(light) [http 404]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=120&Light=true]
+= Err(HTTP error 404: Not Found)
+
+## camera.start_exposure(light) [http 429 retry-after 0]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=120&Light=true]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=1&Duration=120&Light=true]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=2&Duration=120&Light=true]
+= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+
+## camera.start_exposure(light) [http 503]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=120&Light=true]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=1&Duration=120&Light=true]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=2&Duration=120&Light=true]
+= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+
+## camera.start_exposure(light) [wrong value type]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=120&Light=true]
+= Ok(())
+
+## camera.start_exposure(dark) [ok]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=0.001&Light=false]
+= Ok(())
+
+## camera.start_exposure(dark) [ascom 0x400]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=0.001&Light=false]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.start_exposure(dark) [ascom 0x4FF without Value]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=0.001&Light=false]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.start_exposure(dark) [http 400]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=0.001&Light=false]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.start_exposure(dark) [http 500]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=0.001&Light=false]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=1&Duration=0.001&Light=false]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=2&Duration=0.001&Light=false]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.start_exposure(dark) [malformed json]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=0&Duration=0.001&Light=false]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=1&Duration=0.001&Light=false]
+> PUT /api/v1/camera/#/startexposure query[] form[ClientID=<id>&ClientTransactionID=2&Duration=0.001&Light=false]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.abort_exposure [ok]
+> PUT /api/v1/camera/#/abortexposure query[] form[ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## camera.abort_exposure [ascom 0x400]
+> PUT /api/v1/camera/#/abortexposure query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.abort_exposure [ascom 0x4FF without Value]
+> PUT /api/v1/camera/#/abortexposure query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.abort_exposure [http 400]
+> PUT /api/v1/camera/#/abortexposure query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.abort_exposure [http 500]
+> PUT /api/v1/camera/#/abortexposure query[] form[ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/camera/#/abortexposure query[] form[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/camera/#/abortexposure query[] form[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.abort_exposure [malformed json]
+> PUT /api/v1/camera/#/abortexposure query[] form[ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/camera/#/abortexposure query[] form[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/camera/#/abortexposure query[] form[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.stop_exposure [ok]
+> PUT /api/v1/camera/#/stopexposure query[] form[ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## camera.stop_exposure [ascom 0x400]
+> PUT /api/v1/camera/#/stopexposure query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.stop_exposure [ascom 0x4FF without Value]
+> PUT /api/v1/camera/#/stopexposure query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.stop_exposure [http 400]
+> PUT /api/v1/camera/#/stopexposure query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.stop_exposure [http 500]
+> PUT /api/v1/camera/#/stopexposure query[] form[ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/camera/#/stopexposure query[] form[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/camera/#/stopexposure query[] form[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.stop_exposure [malformed json]
+> PUT /api/v1/camera/#/stopexposure query[] form[ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/camera/#/stopexposure query[] form[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/camera/#/stopexposure query[] form[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.readout_mode [ok]
+> GET /api/v1/camera/#/readoutmode query[ClientID=<id>&ClientTransactionID=0]
+= Ok(1)
+
+## camera.readout_mode [ascom 0x400]
+> GET /api/v1/camera/#/readoutmode query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.readout_mode [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/readoutmode query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/readoutmode query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/readoutmode query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.readout_mode [http 400]
+> GET /api/v1/camera/#/readoutmode query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.readout_mode [http 500]
+> GET /api/v1/camera/#/readoutmode query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/readoutmode query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/readoutmode query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.readout_mode [malformed json]
+> GET /api/v1/camera/#/readoutmode query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/readoutmode query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/readoutmode query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.set_readout_mode [ok]
+> PUT /api/v1/camera/#/readoutmode query[] form[ClientID=<id>&ClientTransactionID=0&ReadoutMode=1]
+= Ok(())
+
+## camera.set_readout_mode [ascom 0x400]
+> PUT /api/v1/camera/#/readoutmode query[] form[ClientID=<id>&ClientTransactionID=0&ReadoutMode=1]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.set_readout_mode [ascom 0x4FF without Value]
+> PUT /api/v1/camera/#/readoutmode query[] form[ClientID=<id>&ClientTransactionID=0&ReadoutMode=1]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.set_readout_mode [http 400]
+> PUT /api/v1/camera/#/readoutmode query[] form[ClientID=<id>&ClientTransactionID=0&ReadoutMode=1]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.set_readout_mode [http 500]
+> PUT /api/v1/camera/#/readoutmode query[] form[ClientID=<id>&ClientTransactionID=0&ReadoutMode=1]
+> PUT /api/v1/camera/#/readoutmode query[] form[ClientID=<id>&ClientTransactionID=1&ReadoutMode=1]
+> PUT /api/v1/camera/#/readoutmode query[] form[ClientID=<id>&ClientTransactionID=2&ReadoutMode=1]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.set_readout_mode [malformed json]
+> PUT /api/v1/camera/#/readoutmode query[] form[ClientID=<id>&ClientTransactionID=0&ReadoutMode=1]
+> PUT /api/v1/camera/#/readoutmode query[] form[ClientID=<id>&ClientTransactionID=1&ReadoutMode=1]
+> PUT /api/v1/camera/#/readoutmode query[] form[ClientID=<id>&ClientTransactionID=2&ReadoutMode=1]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.readout_modes [ok]
+> GET /api/v1/camera/#/readoutmodes query[ClientID=<id>&ClientTransactionID=0]
+= Ok(["Normal", "Fast"])
+
+## camera.readout_modes [ascom 0x400]
+> GET /api/v1/camera/#/readoutmodes query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.readout_modes [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/readoutmodes query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/readoutmodes query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/readoutmodes query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.readout_modes [http 400]
+> GET /api/v1/camera/#/readoutmodes query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.readout_modes [http 500]
+> GET /api/v1/camera/#/readoutmodes query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/readoutmodes query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/readoutmodes query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.readout_modes [malformed json]
+> GET /api/v1/camera/#/readoutmodes query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/readoutmodes query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/readoutmodes query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.start_x [ok]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=0]
+= Ok(8)
+
+## camera.start_x [ascom 0x400]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.start_x [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.start_x [http 400]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.start_x [http 500]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.start_x [malformed json]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.start_y [ok]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=0]
+= Ok(16)
+
+## camera.start_y [ascom 0x400]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.start_y [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.start_y [http 400]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.start_y [http 500]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.start_y [malformed json]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.num_x [ok]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+= Ok(2)
+
+## camera.num_x [ascom 0x400]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.num_x [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.num_x [http 400]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.num_x [http 500]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.num_x [malformed json]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.num_y [ok]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=0]
+= Ok(2)
+
+## camera.num_y [ascom 0x400]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.num_y [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.num_y [http 400]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.num_y [http 500]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.num_y [malformed json]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.set_start_x [ok]
+> PUT /api/v1/camera/#/startx query[] form[ClientID=<id>&ClientTransactionID=0&StartX=8]
+= Ok(())
+
+## camera.set_start_x [ascom 0x400]
+> PUT /api/v1/camera/#/startx query[] form[ClientID=<id>&ClientTransactionID=0&StartX=8]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.set_start_x [ascom 0x4FF without Value]
+> PUT /api/v1/camera/#/startx query[] form[ClientID=<id>&ClientTransactionID=0&StartX=8]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.set_start_x [http 400]
+> PUT /api/v1/camera/#/startx query[] form[ClientID=<id>&ClientTransactionID=0&StartX=8]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.set_start_x [http 500]
+> PUT /api/v1/camera/#/startx query[] form[ClientID=<id>&ClientTransactionID=0&StartX=8]
+> PUT /api/v1/camera/#/startx query[] form[ClientID=<id>&ClientTransactionID=1&StartX=8]
+> PUT /api/v1/camera/#/startx query[] form[ClientID=<id>&ClientTransactionID=2&StartX=8]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.set_start_x [malformed json]
+> PUT /api/v1/camera/#/startx query[] form[ClientID=<id>&ClientTransactionID=0&StartX=8]
+> PUT /api/v1/camera/#/startx query[] form[ClientID=<id>&ClientTransactionID=1&StartX=8]
+> PUT /api/v1/camera/#/startx query[] form[ClientID=<id>&ClientTransactionID=2&StartX=8]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.set_start_y [ok]
+> PUT /api/v1/camera/#/starty query[] form[ClientID=<id>&ClientTransactionID=0&StartY=16]
+= Ok(())
+
+## camera.set_start_y [ascom 0x400]
+> PUT /api/v1/camera/#/starty query[] form[ClientID=<id>&ClientTransactionID=0&StartY=16]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.set_start_y [ascom 0x4FF without Value]
+> PUT /api/v1/camera/#/starty query[] form[ClientID=<id>&ClientTransactionID=0&StartY=16]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.set_start_y [http 400]
+> PUT /api/v1/camera/#/starty query[] form[ClientID=<id>&ClientTransactionID=0&StartY=16]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.set_start_y [http 500]
+> PUT /api/v1/camera/#/starty query[] form[ClientID=<id>&ClientTransactionID=0&StartY=16]
+> PUT /api/v1/camera/#/starty query[] form[ClientID=<id>&ClientTransactionID=1&StartY=16]
+> PUT /api/v1/camera/#/starty query[] form[ClientID=<id>&ClientTransactionID=2&StartY=16]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.set_start_y [malformed json]
+> PUT /api/v1/camera/#/starty query[] form[ClientID=<id>&ClientTransactionID=0&StartY=16]
+> PUT /api/v1/camera/#/starty query[] form[ClientID=<id>&ClientTransactionID=1&StartY=16]
+> PUT /api/v1/camera/#/starty query[] form[ClientID=<id>&ClientTransactionID=2&StartY=16]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.set_num_x [ok]
+> PUT /api/v1/camera/#/numx query[] form[ClientID=<id>&ClientTransactionID=0&NumX=4656]
+= Ok(())
+
+## camera.set_num_x [ascom 0x400]
+> PUT /api/v1/camera/#/numx query[] form[ClientID=<id>&ClientTransactionID=0&NumX=4656]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.set_num_x [ascom 0x4FF without Value]
+> PUT /api/v1/camera/#/numx query[] form[ClientID=<id>&ClientTransactionID=0&NumX=4656]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.set_num_x [http 400]
+> PUT /api/v1/camera/#/numx query[] form[ClientID=<id>&ClientTransactionID=0&NumX=4656]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.set_num_x [http 500]
+> PUT /api/v1/camera/#/numx query[] form[ClientID=<id>&ClientTransactionID=0&NumX=4656]
+> PUT /api/v1/camera/#/numx query[] form[ClientID=<id>&ClientTransactionID=1&NumX=4656]
+> PUT /api/v1/camera/#/numx query[] form[ClientID=<id>&ClientTransactionID=2&NumX=4656]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.set_num_x [malformed json]
+> PUT /api/v1/camera/#/numx query[] form[ClientID=<id>&ClientTransactionID=0&NumX=4656]
+> PUT /api/v1/camera/#/numx query[] form[ClientID=<id>&ClientTransactionID=1&NumX=4656]
+> PUT /api/v1/camera/#/numx query[] form[ClientID=<id>&ClientTransactionID=2&NumX=4656]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.set_num_y [ok]
+> PUT /api/v1/camera/#/numy query[] form[ClientID=<id>&ClientTransactionID=0&NumY=3520]
+= Ok(())
+
+## camera.set_num_y [ascom 0x400]
+> PUT /api/v1/camera/#/numy query[] form[ClientID=<id>&ClientTransactionID=0&NumY=3520]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.set_num_y [ascom 0x4FF without Value]
+> PUT /api/v1/camera/#/numy query[] form[ClientID=<id>&ClientTransactionID=0&NumY=3520]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.set_num_y [http 400]
+> PUT /api/v1/camera/#/numy query[] form[ClientID=<id>&ClientTransactionID=0&NumY=3520]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.set_num_y [http 500]
+> PUT /api/v1/camera/#/numy query[] form[ClientID=<id>&ClientTransactionID=0&NumY=3520]
+> PUT /api/v1/camera/#/numy query[] form[ClientID=<id>&ClientTransactionID=1&NumY=3520]
+> PUT /api/v1/camera/#/numy query[] form[ClientID=<id>&ClientTransactionID=2&NumY=3520]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.set_num_y [malformed json]
+> PUT /api/v1/camera/#/numy query[] form[ClientID=<id>&ClientTransactionID=0&NumY=3520]
+> PUT /api/v1/camera/#/numy query[] form[ClientID=<id>&ClientTransactionID=1&NumY=3520]
+> PUT /api/v1/camera/#/numy query[] form[ClientID=<id>&ClientTransactionID=2&NumY=3520]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.last_exposure_start_time [ok]
+> GET /api/v1/camera/#/lastexposurestarttime query[ClientID=<id>&ClientTransactionID=0]
+= Ok("2026-11-10T01:02:03")
+
+## camera.last_exposure_start_time [ascom 0x400]
+> GET /api/v1/camera/#/lastexposurestarttime query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.last_exposure_start_time [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/lastexposurestarttime query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/lastexposurestarttime query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/lastexposurestarttime query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.last_exposure_start_time [http 400]
+> GET /api/v1/camera/#/lastexposurestarttime query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.last_exposure_start_time [http 500]
+> GET /api/v1/camera/#/lastexposurestarttime query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/lastexposurestarttime query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/lastexposurestarttime query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.last_exposure_start_time [malformed json]
+> GET /api/v1/camera/#/lastexposurestarttime query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/lastexposurestarttime query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/lastexposurestarttime query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.last_exposure_duration [ok]
+> GET /api/v1/camera/#/lastexposureduration query[ClientID=<id>&ClientTransactionID=0]
+= Ok(1.5)
+
+## camera.last_exposure_duration [ascom 0x400]
+> GET /api/v1/camera/#/lastexposureduration query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.last_exposure_duration [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/lastexposureduration query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/lastexposureduration query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/lastexposureduration query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.last_exposure_duration [http 400]
+> GET /api/v1/camera/#/lastexposureduration query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.last_exposure_duration [http 500]
+> GET /api/v1/camera/#/lastexposureduration query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/lastexposureduration query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/lastexposureduration query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.last_exposure_duration [malformed json]
+> GET /api/v1/camera/#/lastexposureduration query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/lastexposureduration query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/lastexposureduration query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.can_abort_exposure [ok]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## camera.can_abort_exposure [ascom 0x400]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.can_abort_exposure [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.can_abort_exposure [http 400]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.can_abort_exposure [http 500]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.can_abort_exposure [malformed json]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.can_stop_exposure [ok]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## camera.can_stop_exposure [ascom 0x400]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.can_stop_exposure [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.can_stop_exposure [http 400]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.can_stop_exposure [http 500]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.can_stop_exposure [malformed json]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.can_asymmetric_bin [ok]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## camera.can_asymmetric_bin [ascom 0x400]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.can_asymmetric_bin [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.can_asymmetric_bin [http 400]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.can_asymmetric_bin [http 500]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.can_asymmetric_bin [malformed json]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.can_pulse_guide [ok]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## camera.can_pulse_guide [ascom 0x400]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.can_pulse_guide [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.can_pulse_guide [http 400]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.can_pulse_guide [http 500]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.can_pulse_guide [malformed json]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.can_fast_readout [ok]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## camera.can_fast_readout [ascom 0x400]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.can_fast_readout [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.can_fast_readout [http 400]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.can_fast_readout [http 500]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.can_fast_readout [malformed json]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.has_shutter [ok]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=0]
+= Ok(false)
+
+## camera.has_shutter [ascom 0x400]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.has_shutter [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.has_shutter [http 400]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.has_shutter [http 500]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.has_shutter [malformed json]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.image_array [ok]
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: sequence, expected a string at line 1 column 91)
+
+## camera.image_array [ascom 0x400]
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: sequence, expected a string at line 1 column 131)
+
+## camera.image_array [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.image_array [http 400]
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.image_array [http 500]
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.image_array [malformed json]
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.pulse_guide [ok]
+> PUT /api/v1/camera/#/pulseguide query[] form[ClientID=<id>&ClientTransactionID=0&Direction=3&Duration=500]
+= Ok(())
+
+## camera.pulse_guide [ascom 0x400]
+> PUT /api/v1/camera/#/pulseguide query[] form[ClientID=<id>&ClientTransactionID=0&Direction=3&Duration=500]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.pulse_guide [ascom 0x4FF without Value]
+> PUT /api/v1/camera/#/pulseguide query[] form[ClientID=<id>&ClientTransactionID=0&Direction=3&Duration=500]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.pulse_guide [http 400]
+> PUT /api/v1/camera/#/pulseguide query[] form[ClientID=<id>&ClientTransactionID=0&Direction=3&Duration=500]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.pulse_guide [http 500]
+> PUT /api/v1/camera/#/pulseguide query[] form[ClientID=<id>&ClientTransactionID=0&Direction=3&Duration=500]
+> PUT /api/v1/camera/#/pulseguide query[] form[ClientID=<id>&ClientTransactionID=1&Direction=3&Duration=500]
+> PUT /api/v1/camera/#/pulseguide query[] form[ClientID=<id>&ClientTransactionID=2&Direction=3&Duration=500]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.pulse_guide [malformed json]
+> PUT /api/v1/camera/#/pulseguide query[] form[ClientID=<id>&ClientTransactionID=0&Direction=3&Duration=500]
+> PUT /api/v1/camera/#/pulseguide query[] form[ClientID=<id>&ClientTransactionID=1&Direction=3&Duration=500]
+> PUT /api/v1/camera/#/pulseguide query[] form[ClientID=<id>&ClientTransactionID=2&Direction=3&Duration=500]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.download_image_data [ok]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/imagearrayvariant query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
+= Ok((2, 2, [10, 20, 30, 40]))
+
+## camera.download_image_data [ascom 0x400]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+= Err(Operation failed: Device error 1024: Property or method is not implemented)
+
+## camera.download_image_data [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Operation failed: Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.download_image_data [http 400]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+= Err(Operation failed: HTTP error 400: Method not implemented)
+
+## camera.download_image_data [http 500]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Operation failed: Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.download_image_data [malformed json]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Operation failed: Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.download_image_data [ascom 0x401]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+= Err(Operation failed: Device error 1025: Invalid value)
+
+## camera.download_image_data [ascom 0x402]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+= Err(Operation failed: Device error 1026: Value not set)
+
+## camera.download_image_data [ascom 0x407]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+= Err(Operation failed: Device error 1031: Not connected)
+
+## camera.download_image_data [ascom 0x408]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+= Err(Operation failed: Device error 1032: Invalid while parked)
+
+## camera.download_image_data [ascom 0x409]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+= Err(Operation failed: Device error 1033: Invalid while slaved)
+
+## camera.download_image_data [ascom 0x40B]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+= Err(Operation failed: Device error 1035: Invalid operation)
+
+## camera.download_image_data [ascom 0x40C without Value]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Operation failed: Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+
+## camera.download_image_data [ascom 0x500]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+= Err(Operation failed: Device error 1280: Driver specific error)
+
+## camera.download_image_data [http 404]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+= Err(Operation failed: HTTP error 404: Not Found)
+
+## camera.download_image_data [http 429 retry-after 0]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Operation failed: Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+
+## camera.download_image_data [http 503]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Operation failed: Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+
+## camera.download_image_data [wrong value type]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Operation failed: Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected i32 at line 1 column 91)
+
+## camera.download_image_data [imagebytes]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/imagearrayvariant query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
+= Ok((2, 2, [10, 30, 20, 40]))
+
+## camera.download_image_data [imagebytes error]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/imagearrayvariant query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
+= Err(Device error 1035: No image is ready)
+
+## camera.download_image_array_full [ok]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/imagearrayvariant query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
+= Ok((2, 2, 1, [10, 20, 30, 40], Int32))
+
+## camera.download_image_array_full [ascom 0x400]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+= Err(Operation failed: Device error 1024: Property or method is not implemented)
+
+## camera.download_image_array_full [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Operation failed: Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.download_image_array_full [http 400]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+= Err(Operation failed: HTTP error 400: Method not implemented)
+
+## camera.download_image_array_full [http 500]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Operation failed: Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.download_image_array_full [malformed json]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
+= Err(Operation failed: Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.download_image_array_full [imagebytes]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/imagearrayvariant query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
+= Ok((2, 2, 1, [10, 30, 20, 40], Int32))
+
+## camera.download_image_array_full [imagebytes error]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/imagearrayvariant query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
+= Err(Device error 1035: No image is ready)
+
+## camera.get_status [ok]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+= Ok(CameraStatus { state: Exposing, connected: true, image_ready: true, percent_completed: Some(50), ccd_temperature: Some(-10.5), cooler_on: Some(true), cooler_power: Some(42.5), bin_x: 2, bin_y: 1 })
+
+## camera.get_status [ascom 0x400]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.get_status [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.get_status [http 400]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.get_status [http 500]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.get_status [malformed json]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.get_capabilities [ok]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=<txn>]
+= Ok(CameraCapabilities { can_abort_exposure: true, can_stop_exposure: true, can_asymmetric_bin: true, can_pulse_guide: true, can_fast_readout: true, can_set_ccd_temperature: true, can_get_cooler_power: true, has_shutter: false, max_bin_x: 4, max_bin_y: 3 })
+
+## camera.get_capabilities [ascom 0x400]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.get_capabilities [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.get_capabilities [http 400]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.get_capabilities [http 500]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.get_capabilities [malformed json]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.get_sensor_info [ok]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=<txn>]
+= Ok(CameraSensorInfo { camera_x_size: 4656, camera_y_size: 3520, pixel_size_x: 3.8, pixel_size_y: 3.75, max_adu: 65535, sensor_type: RGGB, sensor_name: "MN34230", bayer_offset_x: Some(0), bayer_offset_y: Some(1) })
+
+## camera.get_sensor_info [ascom 0x400]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.get_sensor_info [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.get_sensor_info [http 400]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.get_sensor_info [http 500]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.get_sensor_info [malformed json]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.get_subframe [ok]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+= Ok(CameraSubframe { start_x: 8, start_y: 16, num_x: 2, num_y: 2 })
+
+## camera.get_subframe [ascom 0x400]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.get_subframe [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.get_subframe [http 400]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.get_subframe [http 500]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.get_subframe [malformed json]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.get_full_status [ok]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+= Ok(CameraFullStatus { state: Exposing, connected: true, image_ready: true, percent_completed: Some(50), ccd_temperature: Some(-10.5), cooler_on: Some(true), cooler_power: Some(42.5), heat_sink_temperature: Some(20.5), gain: Some(139), offset: Some(21), bin_x: 2, bin_y: 1, start_x: 8, start_y: 16, num_x: 2, num_y: 2 })
+
+## camera.get_full_status [ascom 0x400]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.get_full_status [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## camera.get_full_status [http 400]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.get_full_status [http 500]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.get_full_status [malformed json]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)

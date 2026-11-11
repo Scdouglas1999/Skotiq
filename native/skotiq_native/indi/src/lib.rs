@@ -59,13 +59,13 @@ pub use client::*;
 pub use covercalibrator::{IndiCalibratorState, IndiCoverCalibrator, IndiCoverState};
 pub use discovery::{
     discover_common_hosts, discover_local_network, discover_localhost, discover_mdns,
-    discover_server, IndiDeviceInfo, IndiDeviceType, IndiServer,
+    discover_server, IndiDeviceInfo, IndiServer,
 };
 pub use dome::{IndiDome, IndiShutterStatus};
 pub use error::{IndiError, IndiResult};
 pub use filterwheel::IndiFilterWheel;
 pub use focuser::IndiFocuser;
-pub use mount::{IndiMount, IndiMountGuideDirection};
+pub use mount::IndiMount;
 pub use protocol::{standard_properties, CcdFrameType, INDI_PROTOCOL_VERSION};
 pub use rotator::IndiRotator;
 pub use safetymonitor::IndiSafetyMonitor;

@@ -1745,7 +1745,7 @@ const RIGHT_JUSTIFIED_FULL_SCALES: [u16; 4] = [255, 1023, 4095, 16383];
 /// container full scale, NOT `2^bit_depth - 1`. The two differ for every
 /// left-justified sub-16-bit sensor (a 12-bit ASI1600 has `bit_depth: 12` but
 /// `max_adu: 65520`), and conflating them has already shipped as a defect once;
-/// `skotiq_native::camera::SensorInfo` spells out the contract.
+/// `skotiq_device::SensorInfo` spells out the contract.
 ///
 /// `None` means "not usable as a ceiling, keep
 /// [`DEFAULT_SATURATION_THRESHOLD`]".

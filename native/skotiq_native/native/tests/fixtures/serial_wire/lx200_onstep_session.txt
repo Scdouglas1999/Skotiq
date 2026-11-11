@@ -1,0 +1,207 @@
+call connect
+@ port baud=115200 data=8 parity=none stop=1 flow=none
+> :GVP#
+< On-Step#
+  -> Ok(())
+  id=native:onstep:<PORT_ID> name=On-Step (<PORT>) vendor=Other("Pegasus/OnStep") connected=true
+  can_slew=true can_sync=true can_pulse_guide=true can_set_tracking_rate=true can_find_home=true can_set_park=true
+call get_coordinates
+> :GR#
+< 05:30:00#
+> :GD#
+< +20*00:00#
+  -> Ok((5.5, 20.0))
+call slew_to_coordinates(5.5, 20.0)
+> :Sr05:30:00#
+< 1
+> :Sd+20*00:00#
+< 1
+> :MS#
+< 0
+  -> Ok(())
+call is_slewing
+> :GU#
+< pET250#
+  -> Ok(true)
+call is_slewing
+> :GU#
+< pET250#
+  -> Ok(true)
+call is_slewing
+> :GU#
+< NpET250#
+  -> Ok(false)
+call slew_to_coordinates(1.25, -85.5) [mount refuses]
+> :Sr01:15:00#
+< 1
+> :Sd-85*30:00#
+< 1
+> :MS#
+< 6
+  -> Err(SdkError("Slew refused: target is outside the mount's limits"))
+call is_slewing
+> :GU#
+< NpET250#
+  -> Ok(false)
+call sync_to_coordinates(5.5123, -20.2512)
+> :Sr05:30:44#
+< 1
+> :Sd-20*15:04#
+< 1
+> :CM#
+< N/A#
+  -> Ok(())
+call set_tracking(false)
+> :Td#
+  -> Ok(())
+call get_tracking
+> :GU#
+< nNpET250#
+  -> Ok(false)
+call set_tracking(true)
+> :Te#
+  -> Ok(())
+call get_tracking
+> :GU#
+< NpET250#
+  -> Ok(true)
+call set_tracking_rate(Sidereal)
+> :TQ#
+  -> Ok(())
+call get_tracking_rate
+  -> Ok(Sidereal)
+call set_tracking_rate(Lunar)
+> :TL#
+  -> Ok(())
+call get_tracking_rate
+  -> Ok(Lunar)
+call set_tracking_rate(Solar)
+> :TS#
+  -> Ok(())
+call get_tracking_rate
+  -> Ok(Solar)
+call set_tracking_rate(King)
+> :TK#
+  -> Ok(())
+call get_tracking_rate
+  -> Ok(King)
+call set_tracking_rate(Custom)
+  -> Err(NotSupported)
+call get_tracking_rate
+  -> Ok(King)
+call set_tracking_rate(Sidereal)
+> :TQ#
+  -> Ok(())
+call pulse_guide(North, 40)
+> :Mgn40#
+  -> Ok(())
+call pulse_guide(South, 40)
+> :Mgs40#
+  -> Ok(())
+call pulse_guide(East, 40)
+> :Mge40#
+  -> Ok(())
+call pulse_guide(West, 40)
+> :Mgw40#
+  -> Ok(())
+call pulse_guide(North, 5)
+> :Mgn20#
+  -> Ok(())
+call abort_slew
+> :Q#
+  -> Ok(())
+call get_side_of_pier
+> :GU#
+< NpET250#
+  -> Ok(East)
+call get_alt_az
+> :GA#
+< +45*30:00#
+> :GZ#
+< 180*15:00#
+  -> Ok((45.5, 180.25))
+call get_sidereal_time
+> :GS#
+< 03:15:42#
+  -> Ok(3.2616666666666667)
+call get_site
+> :Gt#
+< +40*00#
+> :Gg#
+< +075*23#
+  -> Ok(MountSiteInfo { latitude_deg: 40.0, longitude_deg: -75.38333333333334, elevation_m: None })
+call set_site(40.007714, -75.397448)
+> :St+40*00:28#
+< 1
+> :Sg+075*23:51#
+< 1
+  -> Ok(())
+call get_clock
+> :GL#
+< 22:30:00#
+> :GC#
+< 09/08/26#
+> :GG#
+< +04#
+  -> Ok(MountClock { utc_unix_seconds: 1788921000, utc_offset_hours: -4.0 })
+call set_clock(1788921000, -4.0)
+> :SG+04#
+< 1
+> :SL22:30:00#
+< 1
+> :SC09/08/26#
+< 1
+  -> Ok(())
+call find_home
+> :hF#
+  -> Ok(())
+call is_slewing
+> :GU#
+< pHET250#
+  -> Ok(true)
+call is_slewing
+> :GU#
+< NpHET250#
+  -> Ok(false)
+call at_home
+> :GU#
+< NpHET250#
+  -> Ok(true)
+call set_park
+> :hQ#
+< 1
+  -> Ok(())
+call park
+> :hP#
+  -> Ok(())
+call is_parked
+> :GU#
+< NPHET250#
+  -> Ok(true)
+call is_slewing
+> :GU#
+< NPHET250#
+  -> Ok(false)
+call get_coordinates
+> :GR#
+< 05:30:00#
+> :GD#
+< +20*00:00#
+  -> Ok((5.5, 20.0))
+call unpark
+> :hR#
+  -> Ok(())
+call is_parked
+> :GU#
+< NpHET250#
+  -> Ok(false)
+call get_tracking
+> :GU#
+< NpHET250#
+  -> Ok(true)
+call disconnect
+> :Q#
+  -> Ok(())
+  connected=false
+call get_coordinates [disconnected]
+  -> Err(NotConnected)

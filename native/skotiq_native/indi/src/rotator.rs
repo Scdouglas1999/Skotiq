@@ -3,7 +3,7 @@
 //! Provides high-level rotator control via INDI protocol.
 
 use crate::client::IndiClient;
-use crate::error::IndiResult;
+use crate::error::{IndiError, IndiResult};
 use crate::protocol::standard_properties::*;
 use std::sync::Arc;
 use std::time::Duration;
@@ -60,7 +60,7 @@ impl IndiRotator {
         &self,
         angle: f64,
         timeout: Option<Duration>,
-    ) -> Result<(), String> {
+    ) -> IndiResult<()> {
         // Read config outside the closure - async-friendly
         let timeout_duration = if let Some(t) = timeout {
             t
@@ -82,16 +82,19 @@ impl IndiRotator {
         client
             .wait_for_property_not_busy(&self.device_name, "ABS_ROTATOR_ANGLE", timeout_duration)
             .await
-            .map_err(|e| format!("Rotator move to angle {:.1} degrees failed: {}", angle, e))
+            .map_err(|e| IndiError::Failed {
+                what: format!("Rotator move to angle {:.1} degrees", angle),
+                cause: Box::new(e),
+            })
     }
 
     /// Get current angle
-    pub async fn get_angle(&self) -> Result<f64, String> {
+    pub async fn get_angle(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
             .get_number(&self.device_name, "ABS_ROTATOR_ANGLE", "ANGLE")
             .await
-            .ok_or_else(|| "Angle not available".to_string())
+            .ok_or_else(|| IndiError::Unavailable("Angle not available".to_string()))
     }
 
     /// Abort motion
@@ -119,7 +122,7 @@ impl IndiRotator {
     }
 
     /// Mechanical / encoder angle when the driver publishes it.
-    pub async fn get_mechanical_position(&self) -> Result<f64, String> {
+    pub async fn get_mechanical_position(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         for (property, element) in [
             (ROTATOR_RAW_ANGLE, "ANGLE"),
@@ -133,7 +136,9 @@ impl IndiRotator {
                 return Ok(angle);
             }
         }
-        Err("Mechanical position not available".to_string())
+        Err(IndiError::Unavailable(
+            "Mechanical position not available".to_string(),
+        ))
     }
 
     /// Reverse direction
@@ -176,7 +181,10 @@ mod tests {
         assert!(result.is_err());
         if let Err(e) = result {
             // Error should mention the angle or that we're not connected
-            assert!(e.contains("90") || e.to_lowercase().contains("not connected"));
+            assert!(
+                e.to_string().contains("90")
+                    || e.to_string().to_lowercase().contains("not connected")
+            );
         }
     }
 

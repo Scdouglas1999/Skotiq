@@ -90,7 +90,7 @@ async fn the_manual_capture_path_renders_the_catalogue_sky() {
         1,
         1,
         None,
-        skotiq_native::camera::FrameType::Light,
+        skotiq_device::FrameType::Light,
     )
     .await;
 
@@ -167,7 +167,7 @@ async fn simulated_frame_stats_track_focus_instead_of_a_random_draw() {
             1,
             1,
             None,
-            skotiq_native::camera::FrameType::Light,
+            skotiq_device::FrameType::Light,
         )
         .await
         .expect("simulated exposure should complete");
@@ -213,7 +213,7 @@ async fn simulated_frame_matches_the_advertised_sensor() {
         1,
         1,
         None,
-        skotiq_native::camera::FrameType::Light,
+        skotiq_device::FrameType::Light,
     )
     .await
     .expect("simulated exposure should complete");
@@ -263,7 +263,7 @@ async fn cancelling_a_simulated_exposure_stops_it_and_stores_nothing() {
         1,
         1,
         None,
-        skotiq_native::camera::FrameType::Light,
+        skotiq_device::FrameType::Light,
     )
     .await;
     let elapsed = started.elapsed();
@@ -358,7 +358,7 @@ async fn a_manual_capture_frame_solves_at_the_mounts_pointing() {
         1,
         1,
         None,
-        skotiq_native::camera::FrameType::Light,
+        skotiq_device::FrameType::Light,
     )
     .await;
     let raw = get_last_raw_image_info(&device_id).await;

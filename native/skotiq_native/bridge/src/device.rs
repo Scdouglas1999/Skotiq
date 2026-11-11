@@ -40,6 +40,34 @@ impl DeviceType {
     }
 }
 
+macro_rules! same_kinds {
+    ($($kind:ident),*) => {
+        impl From<skotiq_device::DeviceKind> for DeviceType {
+            fn from(kind: skotiq_device::DeviceKind) -> Self {
+                match kind { $(skotiq_device::DeviceKind::$kind => DeviceType::$kind,)* }
+            }
+        }
+        impl From<DeviceType> for skotiq_device::DeviceKind {
+            fn from(kind: DeviceType) -> Self {
+                match kind { $(DeviceType::$kind => skotiq_device::DeviceKind::$kind,)* }
+            }
+        }
+    };
+}
+same_kinds!(
+    Camera,
+    Mount,
+    Focuser,
+    FilterWheel,
+    Guider,
+    Dome,
+    Rotator,
+    Weather,
+    SafetyMonitor,
+    Switch,
+    CoverCalibrator
+);
+
 /// Connection state of a device
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ConnectionState {

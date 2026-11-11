@@ -6,6 +6,48 @@ use super::*;
 pub(crate) const LX200_BAUD_RATE: u32 = 9600;
 pub(crate) const RESPONSE_TERM: u8 = b'#';
 
+/// OnStep controllers such as the Pegasus NYX terminate a response with `#`
+/// and then emit CRLF. The byte-oriented reader stops at `#`, so those trailing
+/// bytes become the prefix of the next response unless they are discarded.
+pub(crate) const INTER_RESPONSE_FRAMING: &[u8] = b"\r\n\0";
+
+/// A `#`-terminated reply.
+pub(crate) const REPLY: ReplyRule = ReplyRule {
+    terminator: RESPONSE_TERM,
+    leading_framing: INTER_RESPONSE_FRAMING,
+    deadline: REPLY_DEADLINE,
+    timeout_message: "LX200 command response timed out",
+};
+
+/// A one-character `1`/`0` answer with no terminator.
+pub(crate) const BOOL_REPLY: ReplyRule = ReplyRule {
+    timeout_message: "LX200 command bool response timed out",
+    ..REPLY
+};
+
+/// The status character that answers `:MS#`.
+pub(crate) const SLEW_ACK_REPLY: ReplyRule = ReplyRule {
+    timeout_message: "LX200 slew acknowledgement timed out",
+    ..REPLY
+};
+
+pub(crate) const SCAN_PLAN: ScanPlan = ScanPlan {
+    protocol: "LX200",
+    baud_rates: DISCOVERY_BAUD_RATES,
+    on_open_failure: OnOpenFailure::NextPort,
+};
+
+/// Time a mount gets to answer a discovery probe.
+pub(crate) const PROBE_SETTLE: Duration = Duration::from_millis(200);
+
+pub(crate) const fn probe(command: &'static str, reply_capacity: usize) -> Probe<'static> {
+    Probe {
+        command: command.as_bytes(),
+        settle: PROBE_SETTLE,
+        reply_capacity,
+    }
+}
+
 /// How long to wait for the trailing strings Meade firmware sends after `:SC#`.
 pub(crate) const CALENDAR_CHATTER_WINDOW: Duration = Duration::from_millis(750);
 
@@ -99,18 +141,10 @@ pub(crate) mod commands {
 }
 
 pub(crate) fn optional_discovery_response(
-    port: &mut dyn serialport::SerialPort,
-    command: &str,
+    port: &mut ProbedPort<'_>,
+    command: &'static str,
 ) -> Option<String> {
-    if port.write_all(command.as_bytes()).is_err() {
-        return None;
-    }
-    let _ = port.flush();
-
-    let mut buf = [0u8; 64];
-    std::thread::sleep(Duration::from_millis(200));
-    let n = port.read(&mut buf).ok()?;
-    let response = String::from_utf8_lossy(&buf[..n]);
+    let response = port.ask(&probe(command, 64))?;
     let trimmed = response.trim().trim_end_matches('#').trim().to_string();
     if trimmed.is_empty() || trimmed == "\0" {
         None
@@ -226,12 +260,12 @@ pub enum Lx200MountType {
 }
 
 impl Lx200MountType {
-    pub fn vendor(&self) -> NativeVendor {
+    pub fn vendor(&self) -> Vendor {
         match self {
-            Lx200MountType::Meade => NativeVendor::Meade,
-            Lx200MountType::OnStep => NativeVendor::Other("Pegasus/OnStep".to_string()),
+            Lx200MountType::Meade => Vendor::Meade,
+            Lx200MountType::OnStep => Vendor::Other("Pegasus/OnStep".to_string()),
             Lx200MountType::Losmandy | Lx200MountType::TenMicron | Lx200MountType::Generic => {
-                NativeVendor::Other("LX200".to_string())
+                Vendor::Other("LX200".to_string())
             }
         }
     }
@@ -242,93 +276,83 @@ impl Lx200MountType {
     }
 }
 
-pub(crate) fn parse_ra(response: &str) -> Result<f64, NativeError> {
+pub(crate) fn parse_ra(response: &str) -> Result<f64, DriverError> {
     let s = response.trim_end_matches('#');
 
     if let Some((h, rest)) = s.split_once(':') {
         let hours: f64 = h
             .parse()
-            .map_err(|_| NativeError::SdkError("Invalid RA hours".into()))?;
+            .map_err(|_| DriverError::SdkError("Invalid RA hours".into()))?;
 
         if let Some((m, sec)) = rest.split_once(':') {
             let minutes: f64 = m
                 .parse()
-                .map_err(|_| NativeError::SdkError("Invalid RA minutes".into()))?;
+                .map_err(|_| DriverError::SdkError("Invalid RA minutes".into()))?;
             let seconds: f64 = sec
                 .parse()
-                .map_err(|_| NativeError::SdkError("Invalid RA seconds".into()))?;
-            return Ok(hours + minutes / 60.0 + seconds / 3600.0);
+                .map_err(|_| DriverError::SdkError("Invalid RA seconds".into()))?;
+            return Ok(from_parts(hours, minutes, seconds));
         } else if let Some((m, t)) = rest.split_once('.') {
             let minutes: f64 = m
                 .parse()
-                .map_err(|_| NativeError::SdkError("Invalid RA minutes".into()))?;
+                .map_err(|_| DriverError::SdkError("Invalid RA minutes".into()))?;
             let tenths: f64 = t
                 .parse()
-                .map_err(|_| NativeError::SdkError("Invalid RA tenths".into()))?;
-            return Ok(hours + (minutes + tenths / 10.0) / 60.0);
+                .map_err(|_| DriverError::SdkError("Invalid RA tenths".into()))?;
+            return Ok(from_parts(hours, minutes + tenths / 10.0, 0.0));
         }
     }
 
-    Err(NativeError::SdkError(format!("Invalid RA format: {}", s)))
+    Err(DriverError::SdkError(format!("Invalid RA format: {}", s)))
 }
 
-pub(crate) fn parse_dec(response: &str) -> Result<f64, NativeError> {
+pub(crate) fn parse_dec(response: &str) -> Result<f64, DriverError> {
     let s = response.trim_end_matches('#');
 
-    let (sign, rest) = if s.starts_with('-') {
-        (-1.0, &s[1..])
-    } else if s.starts_with('+') {
-        (1.0, &s[1..])
-    } else {
-        (1.0, s)
-    };
+    let (sign, rest) = split_sign(s);
 
     let parts: Vec<&str> = rest.split(['*', '°', ':']).collect();
 
     if parts.len() >= 2 {
         let degrees: f64 = parts[0]
             .parse()
-            .map_err(|_| NativeError::SdkError("Invalid Dec degrees".into()))?;
+            .map_err(|_| DriverError::SdkError("Invalid Dec degrees".into()))?;
         let arcmin: f64 = parts[1]
             .parse()
-            .map_err(|_| NativeError::SdkError("Invalid Dec arcmin".into()))?;
+            .map_err(|_| DriverError::SdkError("Invalid Dec arcmin".into()))?;
 
         let arcsec: f64 = if parts.len() >= 3 {
             parts[2]
                 .parse()
-                .map_err(|_| NativeError::SdkError("Invalid Dec arcsec".into()))?
+                .map_err(|_| DriverError::SdkError("Invalid Dec arcsec".into()))?
         } else {
             0.0
         };
 
-        return Ok(sign * (degrees + arcmin / 60.0 + arcsec / 3600.0));
+        return Ok(sign * from_parts(degrees, arcmin, arcsec));
     }
 
-    Err(NativeError::SdkError(format!("Invalid Dec format: {}", s)))
+    Err(DriverError::SdkError(format!("Invalid Dec format: {}", s)))
 }
 
-// Both goto formatters round at the resolution they print and THEN split, as
-// `format_dms` does: splitting first and rounding the seconds carried 59.6 s up
-// to "60" for about one target in sixty per axis, and firmware that validates
-// the field refuses the target.
-
 pub(crate) fn format_ra(ra_hours: f64) -> String {
-    let total_seconds = ((ra_hours * 3600.0).round() as i64).rem_euclid(24 * 3600);
-    let hours = total_seconds / 3600;
-    let minutes = (total_seconds % 3600) / 60;
-    let seconds = total_seconds % 60;
+    let total_seconds = to_units(ra_hours, 3600).rem_euclid(24 * 3600);
+    let (hours, minutes, seconds) = split_units(total_seconds, 3600);
 
     format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
 }
 
 pub(crate) fn format_dec(dec_degrees: f64) -> String {
-    let sign = if dec_degrees < 0.0 { "-" } else { "+" };
-    let total_arcsec = (dec_degrees.abs() * 3600.0).round() as i64;
-    let degrees = total_arcsec / 3600;
-    let arcmin = (total_arcsec % 3600) / 60;
-    let arcsec = total_arcsec % 60;
+    let total_arcsec = to_units(dec_degrees.abs(), 3600);
+    let (degrees, arcmin, arcsec) = split_units(total_arcsec, 3600);
 
-    format!("{}{}*{:02}:{:02}", sign, degrees, arcmin, arcsec)
+    format!(
+        "{}{}*{:02}:{:02}",
+        sign_char(dec_degrees),
+        degrees,
+        arcmin,
+        arcsec
+    )
 }
 
 // Park-state persistence
@@ -374,20 +398,20 @@ pub(crate) fn lx200_state_file_path() -> PathBuf {
 /// Read the persisted park-state map. `Ok(None)` for that device id means the
 /// file does not exist or contains no entry for this mount; the caller must
 /// then return `NotSupported` rather than guessing.
-pub(crate) fn read_persisted_park_state(device_id: &str) -> Result<Option<bool>, NativeError> {
+pub(crate) fn read_persisted_park_state(device_id: &str) -> Result<Option<bool>, DriverError> {
     let path = lx200_state_file_path();
     if !path.exists() {
         return Ok(None);
     }
 
     let raw = std::fs::read_to_string(&path).map_err(|e| {
-        NativeError::Io(std::io::Error::new(
+        DriverError::Io(std::io::Error::new(
             e.kind(),
             format!("read park state: {}", e),
         ))
     })?;
     let map: HashMap<String, bool> = serde_json::from_str(&raw)
-        .map_err(|e| NativeError::SdkError(format!("parse park state JSON: {}", e)))?;
+        .map_err(|e| DriverError::SdkError(format!("parse park state JSON: {}", e)))?;
     Ok(map.get(device_id).copied())
 }
 
@@ -396,11 +420,11 @@ pub(crate) fn read_persisted_park_state(device_id: &str) -> Result<Option<bool>,
 /// We re-read the full map, mutate the single entry, then write the whole
 /// file back. The file is small (one bool per mount the user owns) so the
 /// rewrite cost is negligible compared to a serial command round-trip.
-pub(crate) fn write_persisted_park_state(device_id: &str, parked: bool) -> Result<(), NativeError> {
+pub(crate) fn write_persisted_park_state(device_id: &str, parked: bool) -> Result<(), DriverError> {
     let path = lx200_state_file_path();
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| {
-            NativeError::Io(std::io::Error::new(
+            DriverError::Io(std::io::Error::new(
                 e.kind(),
                 format!("create park state dir {:?}: {}", parent, e),
             ))
@@ -409,7 +433,7 @@ pub(crate) fn write_persisted_park_state(device_id: &str, parked: bool) -> Resul
 
     let mut map: HashMap<String, bool> = if path.exists() {
         let raw = std::fs::read_to_string(&path).map_err(|e| {
-            NativeError::Io(std::io::Error::new(
+            DriverError::Io(std::io::Error::new(
                 e.kind(),
                 format!("read park state: {}", e),
             ))
@@ -420,7 +444,7 @@ pub(crate) fn write_persisted_park_state(device_id: &str, parked: bool) -> Resul
             HashMap::new()
         } else {
             serde_json::from_str(&raw)
-                .map_err(|e| NativeError::SdkError(format!("parse park state JSON: {}", e)))?
+                .map_err(|e| DriverError::SdkError(format!("parse park state JSON: {}", e)))?
         }
     } else {
         HashMap::new()
@@ -429,9 +453,9 @@ pub(crate) fn write_persisted_park_state(device_id: &str, parked: bool) -> Resul
     map.insert(device_id.to_string(), parked);
 
     let serialized = serde_json::to_string_pretty(&map)
-        .map_err(|e| NativeError::SdkError(format!("serialize park state: {}", e)))?;
+        .map_err(|e| DriverError::SdkError(format!("serialize park state: {}", e)))?;
     std::fs::write(&path, serialized).map_err(|e| {
-        NativeError::Io(std::io::Error::new(
+        DriverError::Io(std::io::Error::new(
             e.kind(),
             format!("write park state: {}", e),
         ))
@@ -609,17 +633,13 @@ pub(crate) fn east_positive_to_lx200_longitude(east_positive: f64) -> f64 {
 }
 
 /// Parse `sDD*MM#`, `sDD*MM:SS#` or `sDDD*MM:SS#` into signed degrees.
-pub(crate) fn parse_dms(response: &str) -> Result<f64, NativeError> {
+pub(crate) fn parse_dms(response: &str) -> Result<f64, DriverError> {
     let cleaned = response.trim().trim_end_matches('#').trim();
     if cleaned.is_empty() {
-        return Err(NativeError::SdkError("Empty DMS response".into()));
+        return Err(DriverError::SdkError("Empty DMS response".into()));
     }
 
-    let (sign, rest) = match cleaned.as_bytes()[0] {
-        b'-' => (-1.0, &cleaned[1..]),
-        b'+' => (1.0, &cleaned[1..]),
-        _ => (1.0, cleaned),
-    };
+    let (sign, rest) = split_sign(cleaned);
 
     // Degrees are separated from minutes by `*` (or `\xdf`, the degree sign
     // some firmware emits in high-precision mode).
@@ -637,53 +657,48 @@ pub(crate) fn parse_dms(response: &str) -> Result<f64, NativeError> {
 
     let degrees: f64 = parts
         .next()
-        .ok_or_else(|| NativeError::SdkError("DMS missing degrees".into()))?
+        .ok_or_else(|| DriverError::SdkError("DMS missing degrees".into()))?
         .trim()
         .parse()
-        .map_err(|_| NativeError::SdkError(format!("Bad DMS degrees in {:?}", response)))?;
+        .map_err(|_| DriverError::SdkError(format!("Bad DMS degrees in {:?}", response)))?;
     let minutes: f64 = match parts.next() {
         Some(m) if !m.trim().is_empty() => m
             .trim()
             .parse()
-            .map_err(|_| NativeError::SdkError(format!("Bad DMS minutes in {:?}", response)))?,
+            .map_err(|_| DriverError::SdkError(format!("Bad DMS minutes in {:?}", response)))?,
         _ => 0.0,
     };
     let seconds: f64 = match parts.next() {
         Some(s) if !s.trim().is_empty() => s
             .trim()
             .parse()
-            .map_err(|_| NativeError::SdkError(format!("Bad DMS seconds in {:?}", response)))?,
+            .map_err(|_| DriverError::SdkError(format!("Bad DMS seconds in {:?}", response)))?,
         _ => 0.0,
     };
 
     if !(0.0..60.0).contains(&minutes) || !(0.0..60.0).contains(&seconds) {
-        return Err(NativeError::SdkError(format!(
+        return Err(DriverError::SdkError(format!(
             "DMS minutes/seconds out of range in {:?}",
             response
         )));
     }
 
-    Ok(sign * (degrees + minutes / 60.0 + seconds / 3600.0))
+    Ok(sign * from_parts(degrees, minutes, seconds))
 }
 
 /// Format signed degrees as `sDD*MM:SS` (high precision) or `sDD*MM`.
 /// `degree_width` is 2 for latitude, 3 for longitude, per the LX200 spec.
 pub(crate) fn format_dms(value: f64, degree_width: usize, with_seconds: bool) -> String {
-    let sign = if value < 0.0 { '-' } else { '+' };
+    let sign = sign_char(value);
     let magnitude = value.abs();
 
-    // Round at the resolution we are about to print, THEN split. Splitting
-    // first and rounding the seconds can carry 59.6" up to 60" and emit an
-    // out-of-range field the mount rejects.
+    // Without seconds the value is rounded to the minute it prints.
     let total_arcsec = if with_seconds {
-        (magnitude * 3600.0).round()
+        to_units(magnitude, 3600)
     } else {
-        (magnitude * 60.0).round() * 60.0
+        to_units(magnitude, 60) * 60
     };
-
-    let degrees = (total_arcsec / 3600.0).floor() as i64;
-    let minutes = ((total_arcsec - degrees as f64 * 3600.0) / 60.0).floor() as i64;
-    let seconds = (total_arcsec - degrees as f64 * 3600.0 - minutes as f64 * 60.0).round() as i64;
+    let (degrees, minutes, seconds) = split_units(total_arcsec, 3600);
 
     if with_seconds {
         format!(
@@ -708,33 +723,29 @@ pub(crate) fn format_dms(value: f64, degree_width: usize, with_seconds: bool) ->
 /// LX200 `:GG#` answers the offset that must be ADDED to local time to reach
 /// UTC — the negative of the usual UTC-offset sign. A site at UTC-5 answers
 /// `+05`. Returned here in the ordinary sense (UTC-5 → -5.0).
-pub(crate) fn parse_utc_offset(response: &str) -> Result<f64, NativeError> {
+pub(crate) fn parse_utc_offset(response: &str) -> Result<f64, DriverError> {
     let cleaned = response.trim().trim_end_matches('#').trim();
     if cleaned.is_empty() {
-        return Err(NativeError::SdkError("Empty UTC offset".into()));
+        return Err(DriverError::SdkError("Empty UTC offset".into()));
     }
 
     // Firmware disagrees about the shape. The spec says `sHH`, the Pegasus
     // NYX-101 answers `+05:00`, and half-hour zones show up as either `+05:30`
     // or `+05.5`. Parsing only the spec form made a real mount's clock
     // unreadable, so all three are accepted here.
-    let (sign, magnitude) = match cleaned.as_bytes()[0] {
-        b'-' => (-1.0, &cleaned[1..]),
-        b'+' => (1.0, &cleaned[1..]),
-        _ => (1.0, cleaned),
-    };
+    let (sign, magnitude) = split_sign(cleaned);
 
     let value = if let Some((hours_text, minutes_text)) = magnitude.split_once(':') {
         let hours: f64 = hours_text
             .trim()
             .parse()
-            .map_err(|_| NativeError::SdkError(format!("Bad UTC offset {:?}", response)))?;
+            .map_err(|_| DriverError::SdkError(format!("Bad UTC offset {:?}", response)))?;
         let minutes: f64 = minutes_text
             .trim()
             .parse()
-            .map_err(|_| NativeError::SdkError(format!("Bad UTC offset {:?}", response)))?;
+            .map_err(|_| DriverError::SdkError(format!("Bad UTC offset {:?}", response)))?;
         if !(0.0..60.0).contains(&minutes) {
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "UTC offset minutes out of range: {:?}",
                 response
             )));
@@ -744,11 +755,11 @@ pub(crate) fn parse_utc_offset(response: &str) -> Result<f64, NativeError> {
         sign * magnitude
             .trim()
             .parse::<f64>()
-            .map_err(|_| NativeError::SdkError(format!("Bad UTC offset {:?}", response)))?
+            .map_err(|_| DriverError::SdkError(format!("Bad UTC offset {:?}", response)))?
     };
 
     if !(-14.0..=14.0).contains(&value) {
-        return Err(NativeError::SdkError(format!(
+        return Err(DriverError::SdkError(format!(
             "UTC offset out of range: {:?}",
             response
         )));
@@ -780,13 +791,13 @@ pub(crate) fn parse_mount_local_datetime(
     date_text: &str,
     time_text: &str,
     utc_offset_hours: f64,
-) -> Result<(i64, chrono::NaiveDateTime), NativeError> {
+) -> Result<(i64, chrono::NaiveDateTime), DriverError> {
     let date_clean = date_text.trim().trim_end_matches('#').trim();
     let time_clean = time_text.trim().trim_end_matches('#').trim();
 
     let date_parts: Vec<&str> = date_clean.split('/').collect();
     if date_parts.len() != 3 {
-        return Err(NativeError::SdkError(format!(
+        return Err(DriverError::SdkError(format!(
             "Bad mount date {:?} (want MM/DD/YY)",
             date_text
         )));
@@ -794,19 +805,19 @@ pub(crate) fn parse_mount_local_datetime(
     let month: u32 = date_parts[0]
         .trim()
         .parse()
-        .map_err(|_| NativeError::SdkError(format!("Bad month in {:?}", date_text)))?;
+        .map_err(|_| DriverError::SdkError(format!("Bad month in {:?}", date_text)))?;
     let day: u32 = date_parts[1]
         .trim()
         .parse()
-        .map_err(|_| NativeError::SdkError(format!("Bad day in {:?}", date_text)))?;
+        .map_err(|_| DriverError::SdkError(format!("Bad day in {:?}", date_text)))?;
     let year_2digit: i32 = date_parts[2]
         .trim()
         .parse()
-        .map_err(|_| NativeError::SdkError(format!("Bad year in {:?}", date_text)))?;
+        .map_err(|_| DriverError::SdkError(format!("Bad year in {:?}", date_text)))?;
 
     let time_parts: Vec<&str> = time_clean.split(':').collect();
     if time_parts.len() < 2 {
-        return Err(NativeError::SdkError(format!(
+        return Err(DriverError::SdkError(format!(
             "Bad mount time {:?} (want HH:MM:SS)",
             time_text
         )));
@@ -814,23 +825,23 @@ pub(crate) fn parse_mount_local_datetime(
     let hour: u32 = time_parts[0]
         .trim()
         .parse()
-        .map_err(|_| NativeError::SdkError(format!("Bad hour in {:?}", time_text)))?;
+        .map_err(|_| DriverError::SdkError(format!("Bad hour in {:?}", time_text)))?;
     let minute: u32 = time_parts[1]
         .trim()
         .parse()
-        .map_err(|_| NativeError::SdkError(format!("Bad minute in {:?}", time_text)))?;
+        .map_err(|_| DriverError::SdkError(format!("Bad minute in {:?}", time_text)))?;
     let second: u32 = match time_parts.get(2) {
         Some(value) => value
             .trim()
             .parse()
-            .map_err(|_| NativeError::SdkError(format!("Bad second in {:?}", time_text)))?,
+            .map_err(|_| DriverError::SdkError(format!("Bad second in {:?}", time_text)))?,
         None => 0,
     };
 
     let local = chrono::NaiveDate::from_ymd_opt(2000 + year_2digit, month, day)
         .and_then(|d| d.and_hms_opt(hour, minute, second))
         .ok_or_else(|| {
-            NativeError::SdkError(format!(
+            DriverError::SdkError(format!(
                 "Mount reported an impossible date/time {:?} {:?}",
                 date_text, time_text
             ))
@@ -846,11 +857,11 @@ pub(crate) fn parse_mount_local_datetime(
 pub(crate) fn format_mount_local_datetime(
     utc_unix_seconds: i64,
     utc_offset_hours: f64,
-) -> Result<(String, String), NativeError> {
+) -> Result<(String, String), DriverError> {
     let offset_seconds = (utc_offset_hours * 3600.0).round() as i64;
     let local = chrono::DateTime::from_timestamp(utc_unix_seconds + offset_seconds, 0)
         .ok_or_else(|| {
-            NativeError::SdkError(format!("Unrepresentable timestamp {}", utc_unix_seconds))
+            DriverError::SdkError(format!("Unrepresentable timestamp {}", utc_unix_seconds))
         })?
         .naive_utc();
 

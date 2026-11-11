@@ -91,7 +91,7 @@ pub enum ConnectionInfo {
     /// Native SDK (ZWO, QHY, etc.)
     Native {
         /// Vendor name (zwo, qhy, playerone, etc.) lower-cased and
-        /// validated against `skotiq_native::SUPPORTED_NATIVE_VENDORS`.
+        /// validated against the vendor catalog (`skotiq_native::catalog`).
         vendor: String,
         /// Device identifier (index, serial, port, etc.). For
         /// multi-segment IDs this is the trailing payload AFTER any
@@ -351,12 +351,12 @@ impl ParsedDeviceId {
         // Validate vendor against the single source of truth. Composite
         // tokens (`zwo_eaf`, `qhy_cfw`, ...) live in the constant
         // because that is what `discovery.rs` emits.
-        if !skotiq_native::SUPPORTED_NATIVE_VENDORS.contains(&vendor.as_str()) {
+        if !native_id_tokens().contains(&vendor) {
             return Err(SkotiqError::invalid_device_id(
                 id,
                 format!(
-                    "Unknown native vendor '{}'. Allow-list lives in \
-                     skotiq_native::SUPPORTED_NATIVE_VENDORS",
+                    "Unknown native vendor '{}'. The known ones are the rows of \
+                     skotiq_native::catalog::FAMILIES",
                     vendor,
                 ),
             ));
@@ -402,10 +402,8 @@ impl ParsedDeviceId {
         // 3-part vendor IDs whose payload happens to contain colons
         // (e.g. `native:lx200:COM3:9600`) still take the default path.
         if segments.len() >= 3 {
-            if let Some((_, subtypes)) = skotiq_native::NATIVE_VENDOR_SUBTYPES
-                .iter()
-                .find(|(v, _)| *v == vendor.as_str())
-            {
+            let subtypes = skotiq_native::catalog::subtypes_of(&vendor);
+            if !subtypes.is_empty() {
                 let candidate = segments[1].to_lowercase();
                 if subtypes.contains(&candidate.as_str()) {
                     // Everything after the subtype is the device id —
@@ -594,7 +592,7 @@ impl ParsedDeviceId {
     }
 
     /// Get the native vendor token, lower-cased and validated against
-    /// `SUPPORTED_NATIVE_VENDORS`. `None` for non-native IDs.
+    /// the vendor catalog. `None` for non-native IDs.
     pub fn native_vendor(&self) -> Option<&str> {
         match &self.connection_info {
             ConnectionInfo::Native { vendor, .. } => Some(vendor.as_str()),
@@ -672,6 +670,14 @@ impl ParsedDeviceId {
 }
 
 // Helper functions
+
+/// The tokens that may follow `native:`: the vendor catalog's, plus the two
+/// devices the bridge itself serves under the native prefix.
+fn native_id_tokens() -> Vec<String> {
+    let mut tokens = skotiq_native::catalog::id_tokens();
+    tokens.extend(["ascom".to_string(), "builtin_guider".to_string()]);
+    tokens
+}
 
 /// Parse a base URL into protocol, host, and port
 fn parse_base_url(url: &str) -> Result<(String, String, u16), &'static str> {

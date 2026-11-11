@@ -147,7 +147,7 @@ async fn test_mount_get_status_uses_ascom_can_park() {
         tracking: true,
         slewing: false,
         parked: false,
-        side_of_pier: skotiq_native::traits::PierSide::East,
+        side_of_pier: skotiq_device::PierSide::East,
         sidereal_time: 5.0,
         can_park: false,
     };

@@ -5,9 +5,9 @@ use super::*;
 // Handle wrapper for Send + Sync
 
 pub(crate) struct HandleWrapper(pub(crate) PCCamera);
-// SAFETY: HandleWrapper wraps a raw `*mut c_void` camera handle. The handle is opaque to us — we never deref it. It is only handed back to the gxccd SDK functions, which serialize through `moravian_mutex()`, so no concurrent access ever happens to the underlying SDK state via this pointer.
+// SAFETY: HandleWrapper wraps a raw `*mut c_void` camera handle. The handle is opaque to us — we never deref it. It is only handed back to the gxccd SDK functions, which are only reachable through the `MoravianSdk` lock guard, so no concurrent access ever happens to the underlying SDK state via this pointer.
 unsafe impl Send for HandleWrapper {}
-// SAFETY: Same justification as `impl Send`. The pointer is opaque and access to it is gated by both the wrapping `Mutex<HandleWrapper>` (held inside MoravianCamera) and the global `moravian_mutex()`.
+// SAFETY: Same justification as `impl Send`. The pointer is opaque and access to it is gated by both the wrapping `Mutex<HandleWrapper>` (held inside MoravianCamera) and the `MoravianSdk` lock guard.
 unsafe impl Sync for HandleWrapper {}
 
 /// Moravian camera instance
@@ -70,7 +70,7 @@ impl MoravianCamera {
 }
 
 #[async_trait]
-impl NativeDevice for MoravianCamera {
+impl DeviceDriver for MoravianCamera {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -79,40 +79,38 @@ impl NativeDevice for MoravianCamera {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Moravian
+    fn vendor(&self) -> Vendor {
+        Vendor::Moravian
     }
 
     fn is_connected(&self) -> bool {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         if self.connected {
             return Ok(());
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = moravian_mutex().lock().await;
+        let sdk = MoravianSdk::lock().await?;
 
         // Initialize camera (gxccd_initialize_usb returns NULL on failure).
-        // SAFETY: moravian_mutex held above (single-threaded gxccd SDK access); `self.camera_id` was set at construction (from MoravianCameraInfo.camera_id emitted by gxccd_enumerate_usb); gxccd_initialize_usb takes the camera ID by value and returns a fresh handle (NULL on failure, checked below).
+        // SAFETY: `self.camera_id` was set at construction (from MoravianCameraInfo.camera_id emitted by gxccd_enumerate_usb); gxccd_initialize_usb takes the camera ID by value and returns a fresh handle (NULL on failure, checked below).
         let handle = unsafe { (sdk.initialize_usb)(self.camera_id) };
         if handle.is_null() {
             tracing::error!(
                 "Moravian gxccd_initialize_usb() returned NULL for camera ID {}. Check USB connection and driver installation.",
                 self.camera_id
             );
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Failed to initialize Moravian camera ID {} - SDK returned NULL handle. Ensure camera is connected and the gxccd driver is installed.",
                 self.camera_id
             )));
         }
 
         let cleanup_guard = CleanupGuard::new(|| {
-            // SAFETY: moravian_mutex remains held for this guard's lifetime and
+            // SAFETY: the SDK lock guard outlives this cleanup guard and
             // handle was returned by the successful gxccd_initialize_usb call above.
             unsafe { (sdk.release)(handle) };
         });
@@ -121,7 +119,7 @@ impl NativeDevice for MoravianCamera {
         {
             // Name
             let mut name_buf = [0 as c_char; 256];
-            // SAFETY: moravian_mutex held above; `handle` is the
+            // SAFETY: `handle` is the
             // just-successfully-initialized camera handle; name_buf is 256 bytes and
             // its truthful length is passed as `size_t`.
             if unsafe {
@@ -161,14 +159,14 @@ impl NativeDevice for MoravianCamera {
             let mut has_subframe: GxBool = 0;
 
             let query_integer =
-                |index: c_int, value: &mut c_int, name: &str| -> Result<(), NativeError> {
-                    // SAFETY: moravian_mutex held; handle is initialized and value is a
+                |index: c_int, value: &mut c_int, name: &str| -> Result<(), DriverError> {
+                    // SAFETY: handle is initialized and value is a
                     // valid c_int out-pointer for gxccd_get_integer_parameter.
                     let result = unsafe { (sdk.get_integer_parameter)(handle, index, value) };
                     if result < 0 {
                         // SAFETY: handle remains valid on this error path.
-                        let detail = unsafe { sdk_last_error(sdk, handle) };
-                        return Err(NativeError::SdkError(format!(
+                        let detail = unsafe { sdk_last_error(&sdk, handle) };
+                        return Err(DriverError::SdkError(format!(
                             "Moravian failed to query {}: {}",
                             name, detail
                         )));
@@ -176,14 +174,14 @@ impl NativeDevice for MoravianCamera {
                     Ok(())
                 };
             let query_boolean =
-                |index: c_int, value: &mut GxBool, name: &str| -> Result<(), NativeError> {
-                    // SAFETY: moravian_mutex held; handle is initialized and value is a
+                |index: c_int, value: &mut GxBool, name: &str| -> Result<(), DriverError> {
+                    // SAFETY: handle is initialized and value is a
                     // valid GxBool out-pointer for gxccd_get_boolean_parameter.
                     let result = unsafe { (sdk.get_boolean_parameter)(handle, index, value) };
                     if result < 0 {
                         // SAFETY: handle remains valid on this error path.
-                        let detail = unsafe { sdk_last_error(sdk, handle) };
-                        return Err(NativeError::SdkError(format!(
+                        let detail = unsafe { sdk_last_error(&sdk, handle) };
+                        return Err(DriverError::SdkError(format!(
                             "Moravian failed to query {}: {}",
                             name, detail
                         )));
@@ -221,7 +219,7 @@ impl NativeDevice for MoravianCamera {
                 || max_bin_y <= 0
                 || max_pixel_value <= 0
             {
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "Moravian reported invalid camera parameters: sensor={}x{}, pixel={}x{}nm, max_bin={}x{}, max_adu={}",
                     width_i,
                     height_i,
@@ -308,20 +306,18 @@ impl NativeDevice for MoravianCamera {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.connected {
             return Ok(());
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = moravian_mutex().lock().await;
+        let sdk = MoravianSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
         // Release camera (no separate Close() in the current SDK).
-        // SAFETY: moravian_mutex held above; handle was Initialize()'d (we're on the connected path); gxccd_release() pairs with gxccd_initialize_usb() and is the required final cleanup per gxccd.h:206-211.
+        // SAFETY: handle was Initialize()'d (we're on the connected path); gxccd_release() pairs with gxccd_initialize_usb() and is the required final cleanup per gxccd.h:206-211.
         unsafe { (sdk.release)(handle) };
 
         {

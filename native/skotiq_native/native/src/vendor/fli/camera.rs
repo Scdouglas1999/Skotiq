@@ -65,7 +65,7 @@ impl FliCamera {
 }
 
 #[async_trait]
-impl NativeDevice for FliCamera {
+impl DeviceDriver for FliCamera {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -74,23 +74,21 @@ impl NativeDevice for FliCamera {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Fli
+    fn vendor(&self) -> Vendor {
+        Vendor::Fli
     }
 
     fn is_connected(&self) -> bool {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         if self.connected {
             return Ok(());
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         // Open device
         let path_cstr = CString::new(self.device_path.clone()).map_err(|_| {
@@ -98,21 +96,21 @@ impl NativeDevice for FliCamera {
                 "FLI camera device path contains null bytes: '{}'",
                 self.device_path
             );
-            NativeError::SdkError(format!(
+            DriverError::SdkError(format!(
                 "Invalid device path '{}' contains null bytes",
                 self.device_path
             ))
         })?;
         let domain = FLIDOMAIN_USB | FLIDEVICE_CAMERA;
 
-        // SAFETY: fli_mutex held above; `self.handle` is a valid pointer into Self (caller holds &mut self); path_cstr is a NUL-terminated CString that outlives the call.
+        // SAFETY: `self.handle` is a valid pointer into Self (caller holds &mut self); path_cstr is a NUL-terminated CString that outlives the call.
         let result = unsafe { (sdk.open)(&mut self.handle, path_cstr.as_ptr(), domain) };
         if result != 0 {
             tracing::error!(
                 "FLI Open() failed for camera at '{}'. Error code: {}. Check USB connection and driver.",
                 self.device_path, result
             );
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Failed to open FLI camera at '{}'. SDK error: {}. Ensure camera is connected and not in use.",
                 self.device_path, result
             )));
@@ -120,7 +118,7 @@ impl NativeDevice for FliCamera {
 
         // Get model name
         let mut model_buf = [0 as c_char; 128];
-        // SAFETY: fli_mutex held; self.handle was just successfully opened above; model_buf is a 128-byte stack array with truthful length passed to SDK.
+        // SAFETY: self.handle was just successfully opened above; model_buf is a 128-byte stack array with truthful length passed to SDK.
         if unsafe { (sdk.get_model)(self.handle, model_buf.as_mut_ptr(), model_buf.len()) } == 0 {
             // SAFETY: model_buf is 128 bytes; FLI SDK guarantees NUL-termination on success.
             self.name = unsafe { CStr::from_ptr(model_buf.as_ptr()) }
@@ -132,10 +130,10 @@ impl NativeDevice for FliCamera {
         // downstream, so a failed read must abort the connect, not pass 0.0 along.
         let mut pixel_x: c_double = 0.0;
         let mut pixel_y: c_double = 0.0;
-        // SAFETY: fli_mutex held; self.handle was successfully opened above; both out-pointers are valid stack pointers.
+        // SAFETY: self.handle was successfully opened above; both out-pointers are valid stack pointers.
         let result = unsafe { (sdk.get_pixel_size)(self.handle, &mut pixel_x, &mut pixel_y) };
         if let Err(error) = check_fli_error(result, "get pixel size") {
-            close_fli_handle(sdk, &mut self.handle);
+            close_fli_handle(&sdk, &mut self.handle);
             return Err(error);
         }
 
@@ -144,12 +142,12 @@ impl NativeDevice for FliCamera {
         let mut ul_y: c_long = 0;
         let mut lr_x: c_long = 0;
         let mut lr_y: c_long = 0;
-        // SAFETY: fli_mutex held; self.handle is open; all four out-pointers are valid stack pointers.
+        // SAFETY: self.handle is open; all four out-pointers are valid stack pointers.
         let result = unsafe {
             (sdk.get_visible_area)(self.handle, &mut ul_x, &mut ul_y, &mut lr_x, &mut lr_y)
         };
         if let Err(error) = check_fli_error(result, "get visible area") {
-            close_fli_handle(sdk, &mut self.handle);
+            close_fli_handle(&sdk, &mut self.handle);
             return Err(error);
         }
 
@@ -160,7 +158,7 @@ impl NativeDevice for FliCamera {
         // Why: lr >= ul is guaranteed by FLI's visible-area contract (lower-right is
         // strictly bottom-right of upper-left). Subtract first, then convert via try_into
         // to fail closed if the SDK ever returns an inverted rectangle.
-        let visible_area: Result<(i32, i32, i32, i32, u32, u32), NativeError> = (|| {
+        let visible_area: Result<(i32, i32, i32, i32, u32, u32), DriverError> = (|| {
             let visible_ul_x = fli_c_long_to_i32(ul_x, "ul_x")?;
             let visible_ul_y = fli_c_long_to_i32(ul_y, "ul_y")?;
             let visible_lr_x = fli_c_long_to_i32(lr_x, "lr_x")?;
@@ -168,13 +166,13 @@ impl NativeDevice for FliCamera {
             let raw_width = lr_x - ul_x;
             let raw_height = lr_y - ul_y;
             let width = u32::try_from(raw_width).map_err(|_| {
-                NativeError::SdkError(format!(
+                DriverError::SdkError(format!(
                     "FLI visible-area width is negative or > u32::MAX: {}",
                     raw_width
                 ))
             })?;
             let height = u32::try_from(raw_height).map_err(|_| {
-                NativeError::SdkError(format!(
+                DriverError::SdkError(format!(
                     "FLI visible-area height is negative or > u32::MAX: {}",
                     raw_height
                 ))
@@ -192,7 +190,7 @@ impl NativeDevice for FliCamera {
             match visible_area {
                 Ok(area) => area,
                 Err(error) => {
-                    close_fli_handle(sdk, &mut self.handle);
+                    close_fli_handle(&sdk, &mut self.handle);
                     return Err(error);
                 }
             };
@@ -212,7 +210,7 @@ impl NativeDevice for FliCamera {
         // not-supported errno, and an FLI body with no selectable depth is 16-bit —
         // the mode being asked for. Refusing those made 16-bit-only bodies impossible
         // to connect, where they had imaged for years.
-        // SAFETY: fli_mutex held; self.handle is open; FLI_MODE_16BIT is a pass-by-value constant.
+        // SAFETY: self.handle is open; FLI_MODE_16BIT is a pass-by-value constant.
         let result = unsafe { (sdk.set_bit_depth)(self.handle, FLI_MODE_16BIT) };
         match fli_capability_answer(result) {
             FliCapabilityAnswer::Done => {}
@@ -225,7 +223,7 @@ impl NativeDevice for FliCamera {
             }
             FliCapabilityAnswer::Failed(code) => {
                 if let Err(error) = check_fli_error(code, "set 16-bit mode") {
-                    close_fli_handle(sdk, &mut self.handle);
+                    close_fli_handle(&sdk, &mut self.handle);
                     return Err(error);
                 }
             }
@@ -236,7 +234,7 @@ impl NativeDevice for FliCamera {
         // temperature has no regulation to offer, but a body that can may still be
         // uncooled, because libfli answers FLIGetTemperature on those too.
         let mut probe_temp: c_double = 0.0;
-        // SAFETY: fli_mutex held; self.handle is open; `&mut probe_temp` is a valid stack out-pointer.
+        // SAFETY: self.handle is open; `&mut probe_temp` is a valid stack out-pointer.
         let temp_result = unsafe { (sdk.get_temperature)(self.handle, &mut probe_temp) };
         let can_cool = temp_result == 0;
         if !can_cool {
@@ -280,10 +278,10 @@ impl NativeDevice for FliCamera {
         };
 
         // Set full frame
-        // SAFETY: fli_mutex held; self.handle is open; ul_x/ul_y/lr_x/lr_y came from the SDK-reported visible area above so they are valid sensor coordinates.
+        // SAFETY: self.handle is open; ul_x/ul_y/lr_x/lr_y came from the SDK-reported visible area above so they are valid sensor coordinates.
         let result = unsafe { (sdk.set_image_area)(self.handle, ul_x, ul_y, lr_x, lr_y) };
         if let Err(error) = check_fli_error(result, "set image area") {
-            close_fli_handle(sdk, &mut self.handle);
+            close_fli_handle(&sdk, &mut self.handle);
             return Err(error);
         }
 
@@ -300,22 +298,20 @@ impl NativeDevice for FliCamera {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.connected {
             return Ok(());
         }
 
-        let sdk = get_sdk()?;
-
         // Acquire global SDK mutex for thread safety
-        let _lock = fli_mutex().lock().await;
+        let sdk = FliSdk::lock().await?;
 
         // Cancel any exposure
-        // SAFETY: fli_mutex held; self.handle is valid because self.connected was true (only set after successful connect()).
+        // SAFETY: self.handle is valid because self.connected was true (only set after successful connect()).
         let _ = unsafe { (sdk.cancel_exposure)(self.handle) };
 
         // Close device
-        // SAFETY: fli_mutex held; self.handle was successfully opened during connect(). FLIClose pairs with FLIOpen.
+        // SAFETY: self.handle was successfully opened during connect(). FLIClose pairs with FLIOpen.
         let result = unsafe { (sdk.close)(self.handle) };
         check_fli_error(result, "close camera")?;
 

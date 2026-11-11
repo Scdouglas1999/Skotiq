@@ -1,0 +1,17 @@
+call connect
+@ port baud=9600 data=8 parity=none stop=1 flow=none
+> :MountInfo#
+@ port baud=115200 data=8 parity=none stop=1 flow=none
+> :MountInfo#
+< CEM60#
+> :GAS#
+< 10000011#
+  -> Ok(())
+  name=iOptron CEM60 (<PORT>) connected=true
+call is_slewing
+> :GAS#
+< 10000011#
+  -> Ok(false)
+call disconnect
+> :Q#
+  -> Ok(())

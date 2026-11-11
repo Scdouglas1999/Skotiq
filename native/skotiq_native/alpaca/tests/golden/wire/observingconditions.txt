@@ -1,0 +1,974 @@
+## observingconditions.connect [ok]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/observingconditions/#/connected query[ClientID=<id>&ClientTransactionID=1]
+= Ok(())
+
+## observingconditions.connect [ascom 0x400]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.connect [ascom 0x4FF without Value]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(Device error 1279: Unspecified driver fault)
+
+## observingconditions.connect [http 400]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.connect [http 500]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=true]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.connect [malformed json]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=true]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.connect [connected reads false x1]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/observingconditions/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+> GET /api/v1/observingconditions/#/connected query[ClientID=<id>&ClientTransactionID=3]
+= Ok(())
+
+## observingconditions.connect [connected reads false x99]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/observingconditions/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+> GET /api/v1/observingconditions/#/connected query[ClientID=<id>&ClientTransactionID=3]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=4&Connected=true]
+> GET /api/v1/observingconditions/#/connected query[ClientID=<id>&ClientTransactionID=5]
+= Err(Connection validation failed: Connected=true succeeded, but the device still reports disconnected after 3 attempts)
+
+## observingconditions.disconnect [ok]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Ok(())
+
+## observingconditions.disconnect [ascom 0x400]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.disconnect [ascom 0x4FF without Value]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(Device error 1279: Unspecified driver fault)
+
+## observingconditions.disconnect [http 400]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.disconnect [http 500]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=false]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=false]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.disconnect [malformed json]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=false]
+> PUT /api/v1/observingconditions/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=false]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.is_connected [ok]
+> GET /api/v1/observingconditions/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## observingconditions.is_connected [ascom 0x400]
+> GET /api/v1/observingconditions/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.is_connected [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/connected query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/connected query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.is_connected [http 400]
+> GET /api/v1/observingconditions/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.is_connected [http 500]
+> GET /api/v1/observingconditions/#/connected query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/connected query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.is_connected [malformed json]
+> GET /api/v1/observingconditions/#/connected query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/connected query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.name [ok]
+> GET /api/v1/observingconditions/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Name")
+
+## observingconditions.name [ascom 0x400]
+> GET /api/v1/observingconditions/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.name [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/name query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/name query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/name query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.name [http 400]
+> GET /api/v1/observingconditions/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.name [http 500]
+> GET /api/v1/observingconditions/#/name query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/name query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/name query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.name [malformed json]
+> GET /api/v1/observingconditions/#/name query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/name query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/name query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.description [ok]
+> GET /api/v1/observingconditions/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Description")
+
+## observingconditions.description [ascom 0x400]
+> GET /api/v1/observingconditions/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.description [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/description query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/description query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/description query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.description [http 400]
+> GET /api/v1/observingconditions/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.description [http 500]
+> GET /api/v1/observingconditions/#/description query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/description query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/description query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.description [malformed json]
+> GET /api/v1/observingconditions/#/description query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/description query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/description query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.driver_version [ok]
+> GET /api/v1/observingconditions/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Ok("1.2.3")
+
+## observingconditions.driver_version [ascom 0x400]
+> GET /api/v1/observingconditions/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.driver_version [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.driver_version [http 400]
+> GET /api/v1/observingconditions/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.driver_version [http 500]
+> GET /api/v1/observingconditions/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.driver_version [malformed json]
+> GET /api/v1/observingconditions/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.driver_info [ok]
+> GET /api/v1/observingconditions/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Driver Info")
+
+## observingconditions.driver_info [ascom 0x400]
+> GET /api/v1/observingconditions/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.driver_info [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.driver_info [http 400]
+> GET /api/v1/observingconditions/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.driver_info [http 500]
+> GET /api/v1/observingconditions/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.driver_info [malformed json]
+> GET /api/v1/observingconditions/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.interface_version [ok]
+> GET /api/v1/observingconditions/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Ok(3)
+
+## observingconditions.interface_version [ascom 0x400]
+> GET /api/v1/observingconditions/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.interface_version [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.interface_version [http 400]
+> GET /api/v1/observingconditions/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.interface_version [http 500]
+> GET /api/v1/observingconditions/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.interface_version [malformed json]
+> GET /api/v1/observingconditions/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.supported_actions [ok]
+> GET /api/v1/observingconditions/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Ok(["ActionA", "ActionB"])
+
+## observingconditions.supported_actions [ascom 0x400]
+> GET /api/v1/observingconditions/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.supported_actions [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.supported_actions [http 400]
+> GET /api/v1/observingconditions/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.supported_actions [http 500]
+> GET /api/v1/observingconditions/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.supported_actions [malformed json]
+> GET /api/v1/observingconditions/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.cloud_cover [ok]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=0]
+= Ok(10.5)
+
+## observingconditions.cloud_cover [ascom 0x400]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.cloud_cover [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.cloud_cover [http 400]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.cloud_cover [http 500]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.cloud_cover [malformed json]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.cloud_cover [ascom 0x401]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1025: Invalid value)
+
+## observingconditions.cloud_cover [ascom 0x402]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1026: Value not set)
+
+## observingconditions.cloud_cover [ascom 0x407]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1031: Not connected)
+
+## observingconditions.cloud_cover [ascom 0x408]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1032: Invalid while parked)
+
+## observingconditions.cloud_cover [ascom 0x409]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1033: Invalid while slaved)
+
+## observingconditions.cloud_cover [ascom 0x40B]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1035: Invalid operation)
+
+## observingconditions.cloud_cover [ascom 0x40C without Value]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+
+## observingconditions.cloud_cover [ascom 0x500]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1280: Driver specific error)
+
+## observingconditions.cloud_cover [http 404]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 404: Not Found)
+
+## observingconditions.cloud_cover [http 429 retry-after 0]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+
+## observingconditions.cloud_cover [http 503]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+
+## observingconditions.cloud_cover [wrong value type]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected f64 at line 1 column 91)
+
+## observingconditions.dew_point [ok]
+> GET /api/v1/observingconditions/#/dewpoint query[ClientID=<id>&ClientTransactionID=0]
+= Ok(3.25)
+
+## observingconditions.dew_point [ascom 0x400]
+> GET /api/v1/observingconditions/#/dewpoint query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.dew_point [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/dewpoint query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/dewpoint query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/dewpoint query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.dew_point [http 400]
+> GET /api/v1/observingconditions/#/dewpoint query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.dew_point [http 500]
+> GET /api/v1/observingconditions/#/dewpoint query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/dewpoint query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/dewpoint query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.dew_point [malformed json]
+> GET /api/v1/observingconditions/#/dewpoint query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/dewpoint query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/dewpoint query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.humidity [ok]
+> GET /api/v1/observingconditions/#/humidity query[ClientID=<id>&ClientTransactionID=0]
+= Ok(55.5)
+
+## observingconditions.humidity [ascom 0x400]
+> GET /api/v1/observingconditions/#/humidity query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.humidity [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/humidity query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/humidity query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/humidity query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.humidity [http 400]
+> GET /api/v1/observingconditions/#/humidity query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.humidity [http 500]
+> GET /api/v1/observingconditions/#/humidity query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/humidity query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/humidity query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.humidity [malformed json]
+> GET /api/v1/observingconditions/#/humidity query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/humidity query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/humidity query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.pressure [ok]
+> GET /api/v1/observingconditions/#/pressure query[ClientID=<id>&ClientTransactionID=0]
+= Ok(1013.25)
+
+## observingconditions.pressure [ascom 0x400]
+> GET /api/v1/observingconditions/#/pressure query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.pressure [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/pressure query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/pressure query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/pressure query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.pressure [http 400]
+> GET /api/v1/observingconditions/#/pressure query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.pressure [http 500]
+> GET /api/v1/observingconditions/#/pressure query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/pressure query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/pressure query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.pressure [malformed json]
+> GET /api/v1/observingconditions/#/pressure query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/pressure query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/pressure query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.rain_rate [ok]
+> GET /api/v1/observingconditions/#/rainrate query[ClientID=<id>&ClientTransactionID=0]
+= Ok(0.0)
+
+## observingconditions.rain_rate [ascom 0x400]
+> GET /api/v1/observingconditions/#/rainrate query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.rain_rate [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/rainrate query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/rainrate query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/rainrate query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.rain_rate [http 400]
+> GET /api/v1/observingconditions/#/rainrate query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.rain_rate [http 500]
+> GET /api/v1/observingconditions/#/rainrate query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/rainrate query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/rainrate query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.rain_rate [malformed json]
+> GET /api/v1/observingconditions/#/rainrate query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/rainrate query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/rainrate query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.sky_brightness [ok]
+> GET /api/v1/observingconditions/#/skybrightness query[ClientID=<id>&ClientTransactionID=0]
+= Ok(0.01)
+
+## observingconditions.sky_brightness [ascom 0x400]
+> GET /api/v1/observingconditions/#/skybrightness query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.sky_brightness [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/skybrightness query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/skybrightness query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/skybrightness query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.sky_brightness [http 400]
+> GET /api/v1/observingconditions/#/skybrightness query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.sky_brightness [http 500]
+> GET /api/v1/observingconditions/#/skybrightness query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/skybrightness query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/skybrightness query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.sky_brightness [malformed json]
+> GET /api/v1/observingconditions/#/skybrightness query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/skybrightness query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/skybrightness query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.sky_quality [ok]
+> GET /api/v1/observingconditions/#/skyquality query[ClientID=<id>&ClientTransactionID=0]
+= Ok(21.5)
+
+## observingconditions.sky_quality [ascom 0x400]
+> GET /api/v1/observingconditions/#/skyquality query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.sky_quality [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/skyquality query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/skyquality query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/skyquality query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.sky_quality [http 400]
+> GET /api/v1/observingconditions/#/skyquality query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.sky_quality [http 500]
+> GET /api/v1/observingconditions/#/skyquality query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/skyquality query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/skyquality query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.sky_quality [malformed json]
+> GET /api/v1/observingconditions/#/skyquality query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/skyquality query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/skyquality query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.sky_temperature [ok]
+> GET /api/v1/observingconditions/#/skytemperature query[ClientID=<id>&ClientTransactionID=0]
+= Ok(-25.5)
+
+## observingconditions.sky_temperature [ascom 0x400]
+> GET /api/v1/observingconditions/#/skytemperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.sky_temperature [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/skytemperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/skytemperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/skytemperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.sky_temperature [http 400]
+> GET /api/v1/observingconditions/#/skytemperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.sky_temperature [http 500]
+> GET /api/v1/observingconditions/#/skytemperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/skytemperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/skytemperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.sky_temperature [malformed json]
+> GET /api/v1/observingconditions/#/skytemperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/skytemperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/skytemperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.temperature [ok]
+> GET /api/v1/observingconditions/#/temperature query[ClientID=<id>&ClientTransactionID=0]
+= Ok(12.5)
+
+## observingconditions.temperature [ascom 0x400]
+> GET /api/v1/observingconditions/#/temperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.temperature [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/temperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/temperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/temperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.temperature [http 400]
+> GET /api/v1/observingconditions/#/temperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.temperature [http 500]
+> GET /api/v1/observingconditions/#/temperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/temperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/temperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.temperature [malformed json]
+> GET /api/v1/observingconditions/#/temperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/temperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/temperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.wind_direction [ok]
+> GET /api/v1/observingconditions/#/winddirection query[ClientID=<id>&ClientTransactionID=0]
+= Ok(270.0)
+
+## observingconditions.wind_direction [ascom 0x400]
+> GET /api/v1/observingconditions/#/winddirection query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.wind_direction [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/winddirection query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/winddirection query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/winddirection query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.wind_direction [http 400]
+> GET /api/v1/observingconditions/#/winddirection query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.wind_direction [http 500]
+> GET /api/v1/observingconditions/#/winddirection query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/winddirection query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/winddirection query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.wind_direction [malformed json]
+> GET /api/v1/observingconditions/#/winddirection query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/winddirection query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/winddirection query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.wind_gust [ok]
+> GET /api/v1/observingconditions/#/windgust query[ClientID=<id>&ClientTransactionID=0]
+= Ok(5.5)
+
+## observingconditions.wind_gust [ascom 0x400]
+> GET /api/v1/observingconditions/#/windgust query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.wind_gust [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/windgust query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/windgust query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/windgust query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.wind_gust [http 400]
+> GET /api/v1/observingconditions/#/windgust query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.wind_gust [http 500]
+> GET /api/v1/observingconditions/#/windgust query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/windgust query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/windgust query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.wind_gust [malformed json]
+> GET /api/v1/observingconditions/#/windgust query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/windgust query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/windgust query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.wind_speed [ok]
+> GET /api/v1/observingconditions/#/windspeed query[ClientID=<id>&ClientTransactionID=0]
+= Ok(3.5)
+
+## observingconditions.wind_speed [ascom 0x400]
+> GET /api/v1/observingconditions/#/windspeed query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.wind_speed [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/windspeed query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/windspeed query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/windspeed query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.wind_speed [http 400]
+> GET /api/v1/observingconditions/#/windspeed query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.wind_speed [http 500]
+> GET /api/v1/observingconditions/#/windspeed query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/windspeed query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/windspeed query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.wind_speed [malformed json]
+> GET /api/v1/observingconditions/#/windspeed query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/windspeed query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/windspeed query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.average_period [ok]
+> GET /api/v1/observingconditions/#/averageperiod query[ClientID=<id>&ClientTransactionID=0]
+= Ok(0.25)
+
+## observingconditions.average_period [ascom 0x400]
+> GET /api/v1/observingconditions/#/averageperiod query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.average_period [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/averageperiod query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/averageperiod query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/averageperiod query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.average_period [http 400]
+> GET /api/v1/observingconditions/#/averageperiod query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.average_period [http 500]
+> GET /api/v1/observingconditions/#/averageperiod query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/averageperiod query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/averageperiod query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.average_period [malformed json]
+> GET /api/v1/observingconditions/#/averageperiod query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/averageperiod query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/averageperiod query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.set_average_period [ok]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## observingconditions.set_average_period [ascom 0x400]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.set_average_period [ascom 0x4FF without Value]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## observingconditions.set_average_period [http 400]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.set_average_period [http 500]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.set_average_period [malformed json]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.set_average_period [ascom 0x401]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1025: Invalid value)
+
+## observingconditions.set_average_period [ascom 0x402]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1026: Value not set)
+
+## observingconditions.set_average_period [ascom 0x407]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1031: Not connected)
+
+## observingconditions.set_average_period [ascom 0x408]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1032: Invalid while parked)
+
+## observingconditions.set_average_period [ascom 0x409]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1033: Invalid while slaved)
+
+## observingconditions.set_average_period [ascom 0x40B]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1035: Invalid operation)
+
+## observingconditions.set_average_period [ascom 0x40C without Value]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1036: Action not implemented)
+
+## observingconditions.set_average_period [ascom 0x500]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1280: Driver specific error)
+
+## observingconditions.set_average_period [http 404]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 404: Not Found)
+
+## observingconditions.set_average_period [http 429 retry-after 0]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+
+## observingconditions.set_average_period [http 503]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+
+## observingconditions.set_average_period [wrong value type]
+> PUT /api/v1/observingconditions/#/averageperiod query[] form[AveragePeriod=0.5&ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## observingconditions.time_since_last_update [ok]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+= Ok(1.5)
+
+## observingconditions.time_since_last_update [ascom 0x400]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.time_since_last_update [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=1&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=2&SensorName=Temperature]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.time_since_last_update [http 400]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.time_since_last_update [http 500]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=1&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=2&SensorName=Temperature]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.time_since_last_update [malformed json]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=1&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=2&SensorName=Temperature]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.time_since_last_update [ascom 0x401]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+= Err(Device error 1025: Invalid value)
+
+## observingconditions.time_since_last_update [ascom 0x402]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+= Err(Device error 1026: Value not set)
+
+## observingconditions.time_since_last_update [ascom 0x407]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+= Err(Device error 1031: Not connected)
+
+## observingconditions.time_since_last_update [ascom 0x408]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+= Err(Device error 1032: Invalid while parked)
+
+## observingconditions.time_since_last_update [ascom 0x409]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+= Err(Device error 1033: Invalid while slaved)
+
+## observingconditions.time_since_last_update [ascom 0x40B]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+= Err(Device error 1035: Invalid operation)
+
+## observingconditions.time_since_last_update [ascom 0x40C without Value]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=1&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=2&SensorName=Temperature]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+
+## observingconditions.time_since_last_update [ascom 0x500]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+= Err(Device error 1280: Driver specific error)
+
+## observingconditions.time_since_last_update [http 404]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+= Err(HTTP error 404: Not Found)
+
+## observingconditions.time_since_last_update [http 429 retry-after 0]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=1&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=2&SensorName=Temperature]
+= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+
+## observingconditions.time_since_last_update [http 503]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=1&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=2&SensorName=Temperature]
+= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+
+## observingconditions.time_since_last_update [wrong value type]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=1&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=2&SensorName=Temperature]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected f64 at line 1 column 91)
+
+## observingconditions.refresh [ok]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## observingconditions.refresh [ascom 0x400]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.refresh [ascom 0x4FF without Value]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## observingconditions.refresh [http 400]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.refresh [http 500]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.refresh [malformed json]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.refresh [ascom 0x401]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1025: Invalid value)
+
+## observingconditions.refresh [ascom 0x402]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1026: Value not set)
+
+## observingconditions.refresh [ascom 0x407]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1031: Not connected)
+
+## observingconditions.refresh [ascom 0x408]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1032: Invalid while parked)
+
+## observingconditions.refresh [ascom 0x409]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1033: Invalid while slaved)
+
+## observingconditions.refresh [ascom 0x40B]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1035: Invalid operation)
+
+## observingconditions.refresh [ascom 0x40C without Value]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1036: Action not implemented)
+
+## observingconditions.refresh [ascom 0x500]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1280: Driver specific error)
+
+## observingconditions.refresh [http 404]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 404: Not Found)
+
+## observingconditions.refresh [http 429 retry-after 0]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+
+## observingconditions.refresh [http 503]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+
+## observingconditions.refresh [wrong value type]
+> PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=0]
+= Ok(())

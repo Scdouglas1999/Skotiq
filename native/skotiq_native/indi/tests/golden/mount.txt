@@ -1,0 +1,77 @@
+## get_coordinates, published
+result: Ok((5.5, 20.0))
+sent: (nothing)
+
+## get_coordinates, nothing published
+result: Err(RA not available on EQUATORIAL_EOD_COORD)
+sent: (nothing)
+
+## get_coordinates, J2000 vector without DEC
+result: Err(Dec not available on EQUATORIAL_COORD)
+sent: (nothing)
+
+## get_horizontal_coordinates, published
+result: Ok((45.0, 180.0))
+sent: (nothing)
+
+## get_horizontal_coordinates, nothing published
+result: Err(Altitude not available)
+sent: (nothing)
+
+## get_horizontal_coordinates, ALT without AZ
+result: Err(Azimuth not available)
+sent: (nothing)
+
+## slew_to_coordinates_with_timeout, Busy then Ok
+result: Ok(())
+sent: <newSwitchVector device="MSlewOk" name="ON_COORD_SET"><oneSwitch name="SLEW">Off</oneSwitch><oneSwitch name="TRACK">On</oneSwitch><oneSwitch name="SYNC">Off</oneSwitch></newSwitchVector>
+sent: <newNumberVector device="MSlewOk" name="EQUATORIAL_EOD_COORD"><oneNumber name="RA">6</oneNumber><oneNumber name="DEC">30</oneNumber></newNumberVector>
+
+## slew_to_coordinates_with_timeout, stays Busy past the timeout
+result: Err(Mount slew to RA=6.0000h, Dec=30.0000° failed: Operation timeout for device 'MSlewBusy', property 'EQUATORIAL_EOD_COORD': Timed out waiting for property to finish (not Busy) after 300ms)
+sent: <newSwitchVector device="MSlewBusy" name="ON_COORD_SET"><oneSwitch name="SLEW">Off</oneSwitch><oneSwitch name="TRACK">On</oneSwitch><oneSwitch name="SYNC">Off</oneSwitch></newSwitchVector>
+sent: <newNumberVector device="MSlewBusy" name="EQUATORIAL_EOD_COORD"><oneNumber name="RA">6</oneNumber><oneNumber name="DEC">30</oneNumber></newNumberVector>
+
+## slew_to_coordinates_with_timeout, vector in Alert
+result: Err(Mount slew to RA=6.0000h, Dec=30.0000° failed: Operation timeout for device 'MSlewAlert', property 'EQUATORIAL_EOD_COORD': Property entered Alert state)
+sent: <newSwitchVector device="MSlewAlert" name="ON_COORD_SET"><oneSwitch name="SLEW">Off</oneSwitch><oneSwitch name="TRACK">On</oneSwitch><oneSwitch name="SYNC">Off</oneSwitch></newSwitchVector>
+sent: <newNumberVector device="MSlewAlert" name="EQUATORIAL_EOD_COORD"><oneNumber name="RA">6</oneNumber><oneNumber name="DEC">30</oneNumber></newNumberVector>
+
+## slew_to_coordinates_with_timeout, RA beyond the driver's limits
+result: Err(Value 30 out of range [0, 24] for Mount.EQUATORIAL_EOD_COORD.RA)
+sent: <newSwitchVector device="Mount" name="ON_COORD_SET"><oneSwitch name="SLEW">Off</oneSwitch><oneSwitch name="TRACK">On</oneSwitch><oneSwitch name="SYNC">Off</oneSwitch></newSwitchVector>
+sent: <newSwitchVector device="Mount" name="ON_COORD_SET"><oneSwitch name="SLEW">Off</oneSwitch><oneSwitch name="TRACK">On</oneSwitch><oneSwitch name="SYNC">Off</oneSwitch></newSwitchVector>
+
+## slew_to_coordinates_with_timeout, no ON_COORD_SET (default timeout)
+result: Ok(())
+sent: <newSwitchVector device="MJ2000RaOnly" name="ON_COORD_SET"><oneSwitch name="SLEW">On</oneSwitch></newSwitchVector>
+sent: <newNumberVector device="MJ2000RaOnly" name="EQUATORIAL_COORD"><oneNumber name="RA">6</oneNumber><oneNumber name="DEC">30</oneNumber></newNumberVector>
+
+## slew_to_coordinates, driver answers Busy
+result: Ok(())
+sent: <newSwitchVector device="MGotoBusy" name="ON_COORD_SET"><oneSwitch name="SLEW">Off</oneSwitch><oneSwitch name="TRACK">On</oneSwitch><oneSwitch name="SYNC">Off</oneSwitch></newSwitchVector>
+sent: <newNumberVector device="MGotoBusy" name="EQUATORIAL_EOD_COORD"><oneNumber name="RA">6</oneNumber><oneNumber name="DEC">30</oneNumber></newNumberVector>
+
+## slew_to_coordinates, driver answers Alert
+result: Err(Device alert: MGotoAlert refused the goto to RA 6.0000h, Dec 30.0000 deg (EQUATORIAL_EOD_COORD went to Alert))
+sent: <newSwitchVector device="MGotoAlert" name="ON_COORD_SET"><oneSwitch name="SLEW">Off</oneSwitch><oneSwitch name="TRACK">On</oneSwitch><oneSwitch name="SYNC">Off</oneSwitch></newSwitchVector>
+sent: <newNumberVector device="MGotoAlert" name="EQUATORIAL_EOD_COORD"><oneNumber name="RA">6</oneNumber><oneNumber name="DEC">30</oneNumber></newNumberVector>
+
+## slew_to_coordinates, already at the target
+result: Ok(())
+sent: <newSwitchVector device="MGotoThere" name="ON_COORD_SET"><oneSwitch name="SLEW">Off</oneSwitch><oneSwitch name="TRACK">On</oneSwitch><oneSwitch name="SYNC">Off</oneSwitch></newSwitchVector>
+sent: <newNumberVector device="MGotoThere" name="EQUATORIAL_EOD_COORD"><oneNumber name="RA">5.5</oneNumber><oneNumber name="DEC">20</oneNumber></newNumberVector>
+
+## slew_to_coordinates, driver never answers
+result: Ok(())
+sent: <newSwitchVector device="MGotoSilent" name="ON_COORD_SET"><oneSwitch name="SLEW">Off</oneSwitch><oneSwitch name="TRACK">On</oneSwitch><oneSwitch name="SYNC">Off</oneSwitch></newSwitchVector>
+sent: <newNumberVector device="MGotoSilent" name="EQUATORIAL_EOD_COORD"><oneNumber name="RA">6</oneNumber><oneNumber name="DEC">30</oneNumber></newNumberVector>
+
+## slew_to_coordinates_with_timeout, client not connected
+result: Err(Not connected to INDI server)
+sent: (client never connected)
+
+## get_coordinates, client not connected
+result: Err(RA not available on EQUATORIAL_EOD_COORD)
+sent: (client never connected)
+

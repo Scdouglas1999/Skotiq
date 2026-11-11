@@ -1,45 +1,45 @@
-//! `NativeMount` implementation for `Lx200Mount`.
+//! `MountDriver` implementation for `Lx200Mount`.
 
 use super::*;
 
 #[async_trait]
-impl NativeMount for Lx200Mount {
+impl MountDriver for Lx200Mount {
     async fn slew_to_coordinates(
         &mut self,
         ra_hours: f64,
         dec_degrees: f64,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         tracing::info!("Slewing to RA={:.4}h, Dec={:.4}°", ra_hours, dec_degrees);
 
         let ra_cmd = format!("{}{}#", commands::SET_TARGET_RA, format_ra(ra_hours));
         if !self.send_command_bool(&ra_cmd)? {
-            return Err(NativeError::SdkError("Failed to set RA target".into()));
+            return Err(DriverError::SdkError("Failed to set RA target".into()));
         }
 
         let dec_cmd = format!("{}{}#", commands::SET_TARGET_DEC, format_dec(dec_degrees));
         if !self.send_command_bool(&dec_cmd)? {
-            return Err(NativeError::SdkError("Failed to set Dec target".into()));
+            return Err(DriverError::SdkError("Failed to set Dec target".into()));
         }
 
         if let SlewAck::Refused { code, message } = self.send_slew_command()? {
-            return Err(NativeError::SdkError(slew_refusal_message(code, &message)));
+            return Err(DriverError::SdkError(slew_refusal_message(code, &message)));
         }
 
         *self
             .is_slewing
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = true;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = true;
 
         Ok(())
     }
 
-    async fn get_coordinates(&self) -> Result<(f64, f64), NativeError> {
+    async fn get_coordinates(&self) -> Result<(f64, f64), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let ra_response = self.send_command(commands::GET_RA)?;
@@ -55,9 +55,9 @@ impl NativeMount for Lx200Mount {
         &mut self,
         ra_hours: f64,
         dec_degrees: f64,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         tracing::info!("Syncing to RA={:.4}h, Dec={:.4}°", ra_hours, dec_degrees);
@@ -68,12 +68,12 @@ impl NativeMount for Lx200Mount {
         // worked.
         let ra_cmd = format!("{}{}#", commands::SET_TARGET_RA, format_ra(ra_hours));
         if !self.send_command_bool(&ra_cmd)? {
-            return Err(NativeError::SdkError("Mount refused the sync RA".into()));
+            return Err(DriverError::SdkError("Mount refused the sync RA".into()));
         }
 
         let dec_cmd = format!("{}{}#", commands::SET_TARGET_DEC, format_dec(dec_degrees));
         if !self.send_command_bool(&dec_cmd)? {
-            return Err(NativeError::SdkError("Mount refused the sync Dec".into()));
+            return Err(DriverError::SdkError("Mount refused the sync Dec".into()));
         }
 
         let _ = self.send_command(commands::SYNC)?;
@@ -81,9 +81,9 @@ impl NativeMount for Lx200Mount {
         Ok(())
     }
 
-    async fn park(&mut self) -> Result<(), NativeError> {
+    async fn park(&mut self) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         tracing::info!("Parking mount");
@@ -96,7 +96,7 @@ impl NativeMount for Lx200Mount {
         *self
             .park_state
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = Some(true);
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = Some(true);
         if let Err(e) = write_persisted_park_state(&self.device_id, true) {
             // Persistence failure must not silently mask a real park — log
             // loudly and propagate so the operator knows the cache is broken.
@@ -111,9 +111,9 @@ impl NativeMount for Lx200Mount {
         Ok(())
     }
 
-    async fn unpark(&mut self) -> Result<(), NativeError> {
+    async fn unpark(&mut self) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         tracing::info!("Unparking mount");
@@ -128,7 +128,7 @@ impl NativeMount for Lx200Mount {
         *self
             .park_state
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = Some(false);
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = Some(false);
         if let Err(e) = write_persisted_park_state(&self.device_id, false) {
             tracing::error!(
                 "Failed to persist LX200 unpark state for {}: {}",
@@ -141,7 +141,7 @@ impl NativeMount for Lx200Mount {
         Ok(())
     }
 
-    async fn is_slewing(&self) -> Result<bool, NativeError> {
+    async fn is_slewing(&self) -> Result<bool, DriverError> {
         if !self.is_connected() {
             return Ok(false);
         }
@@ -172,9 +172,9 @@ impl NativeMount for Lx200Mount {
         Ok(latched)
     }
 
-    async fn is_parked(&self) -> Result<bool, NativeError> {
+    async fn is_parked(&self) -> Result<bool, DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // 1) OnStep exposes parked-ness directly via :GU#. Trust telemetry,
@@ -187,7 +187,7 @@ impl NativeMount for Lx200Mount {
             *self
                 .park_state
                 .lock()
-                .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = Some(is_parked);
+                .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = Some(is_parked);
             // Best-effort persist: a write failure logs but does not mask
             // a successful telemetry read.
             if let Err(e) = write_persisted_park_state(&self.device_id, is_parked) {
@@ -210,7 +210,7 @@ impl NativeMount for Lx200Mount {
                     *self
                         .park_state
                         .lock()
-                        .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? =
+                        .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? =
                         Some(is_parked);
                     if let Err(e) = write_persisted_park_state(&self.device_id, is_parked) {
                         tracing::warn!(
@@ -240,10 +240,10 @@ impl NativeMount for Lx200Mount {
         let cached = *self
             .park_state
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))?;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))?;
         match cached {
             Some(parked) => Ok(parked),
-            None => Err(NativeError::NotSupported),
+            None => Err(DriverError::NotSupported),
         }
     }
 
@@ -251,9 +251,9 @@ impl NativeMount for Lx200Mount {
         &mut self,
         direction: GuideDirection,
         duration_ms: u32,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // OnStep has native pulse guide command: :Mgdnnnn#
@@ -301,7 +301,11 @@ impl NativeMount for Lx200Mount {
         };
         self.send_command_no_response(start_cmd)?;
 
-        let cancelled = self.pulse_guide_wait(duration_ms).await;
+        let cancelled = serial_link::pulse_guide_wait(
+            Duration::from_millis(duration_ms as u64),
+            &self.pulse_guide_cancel,
+        )
+        .await;
 
         let stop_result = self.send_command_no_response(stop_cmd);
 
@@ -315,9 +319,9 @@ impl NativeMount for Lx200Mount {
         stop_result
     }
 
-    async fn abort_slew(&mut self) -> Result<(), NativeError> {
+    async fn abort_slew(&mut self) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         tracing::info!("Aborting slew");
@@ -330,14 +334,14 @@ impl NativeMount for Lx200Mount {
         *self
             .is_slewing
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = false;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = false;
 
         Ok(())
     }
 
-    async fn set_tracking(&mut self, enabled: bool) -> Result<(), NativeError> {
+    async fn set_tracking(&mut self, enabled: bool) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // OnStep uses :Te# (enable) and :Td# (disable)
@@ -361,13 +365,13 @@ impl NativeMount for Lx200Mount {
         *self
             .is_tracking
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = enabled;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = enabled;
         tracing::info!("Tracking {}", if enabled { "enabled" } else { "disabled" });
 
         Ok(())
     }
 
-    async fn get_tracking(&self) -> Result<bool, NativeError> {
+    async fn get_tracking(&self) -> Result<bool, DriverError> {
         if !self.is_connected() {
             return Ok(false);
         }
@@ -384,7 +388,7 @@ impl NativeMount for Lx200Mount {
         Ok(*self.is_tracking.lock().unwrap_or_else(|e| e.into_inner()))
     }
 
-    async fn get_side_of_pier(&self) -> Result<PierSide, NativeError> {
+    async fn get_side_of_pier(&self) -> Result<PierSide, DriverError> {
         if !self.is_connected() {
             return Ok(PierSide::Unknown);
         }
@@ -400,9 +404,9 @@ impl NativeMount for Lx200Mount {
         Ok(PierSide::Unknown)
     }
 
-    async fn get_alt_az(&self) -> Result<(f64, f64), NativeError> {
+    async fn get_alt_az(&self) -> Result<(f64, f64), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let alt_response = self.send_command(commands::GET_ALT)?;
@@ -414,23 +418,23 @@ impl NativeMount for Lx200Mount {
         Ok((alt, az.abs()))
     }
 
-    async fn get_site(&self) -> Result<MountSiteInfo, NativeError> {
+    async fn get_site(&self) -> Result<MountSiteInfo, DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let latitude_deg = parse_dms(&self.send_command(commands::GET_SITE_LATITUDE)?)?;
         let longitude_wire = parse_dms(&self.send_command(commands::GET_SITE_LONGITUDE)?)?;
 
         if !(-90.0..=90.0).contains(&latitude_deg) {
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Mount reported latitude {} outside -90..90",
                 latitude_deg
             )));
         }
         let longitude_deg = lx200_longitude_to_east_positive(longitude_wire);
         if !(-180.0..=180.0).contains(&longitude_deg) {
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Mount reported longitude {} outside -180..180",
                 longitude_deg
             )));
@@ -445,14 +449,14 @@ impl NativeMount for Lx200Mount {
         })
     }
 
-    async fn set_site(&mut self, site: MountSiteInfo) -> Result<(), NativeError> {
+    async fn set_site(&mut self, site: MountSiteInfo) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
         if !(-90.0..=90.0).contains(&site.latitude_deg)
             || !(-180.0..=180.0).contains(&site.longitude_deg)
         {
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Refusing to write site {:.4},{:.4} to the mount: out of range",
                 site.latitude_deg, site.longitude_deg
             )));
@@ -476,12 +480,12 @@ impl NativeMount for Lx200Mount {
         );
 
         if !self.send_command_bool(&format!("{}{}#", commands::SET_SITE_LATITUDE, lat))? {
-            return Err(NativeError::SdkError(
+            return Err(DriverError::SdkError(
                 "Mount rejected the site latitude".into(),
             ));
         }
         if !self.send_command_bool(&format!("{}{}#", commands::SET_SITE_LONGITUDE, lon))? {
-            return Err(NativeError::SdkError(
+            return Err(DriverError::SdkError(
                 "Mount rejected the site longitude".into(),
             ));
         }
@@ -489,9 +493,9 @@ impl NativeMount for Lx200Mount {
         Ok(())
     }
 
-    async fn get_clock(&self) -> Result<MountClock, NativeError> {
+    async fn get_clock(&self) -> Result<MountClock, DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let time_text = self.send_command(commands::GET_LOCAL_TIME)?;
@@ -507,9 +511,9 @@ impl NativeMount for Lx200Mount {
         })
     }
 
-    async fn set_clock(&mut self, clock: MountClock) -> Result<(), NativeError> {
+    async fn set_clock(&mut self, clock: MountClock) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let (date_text, time_text) =
@@ -526,12 +530,12 @@ impl NativeMount for Lx200Mount {
         // Offset first: the mount interprets the local time it is about to be
         // given against whatever offset it currently holds.
         if !self.send_command_bool(&format!("{}{}#", commands::SET_UTC_OFFSET, offset_text))? {
-            return Err(NativeError::SdkError(
+            return Err(DriverError::SdkError(
                 "Mount rejected the UTC offset".into(),
             ));
         }
         if !self.send_command_bool(&format!("{}{}#", commands::SET_LOCAL_TIME, time_text))? {
-            return Err(NativeError::SdkError(
+            return Err(DriverError::SdkError(
                 "Mount rejected the local time".into(),
             ));
         }
@@ -539,14 +543,14 @@ impl NativeMount for Lx200Mount {
         // strings ("Updating planetary data..."). Drain them so the next
         // command does not read them as its own reply.
         if !self.send_command_bool(&format!("{}{}#", commands::SET_CALENDAR_DATE, date_text))? {
-            return Err(NativeError::SdkError("Mount rejected the date".into()));
+            return Err(DriverError::SdkError("Mount rejected the date".into()));
         }
         self.drain_calendar_chatter();
 
         Ok(())
     }
 
-    async fn find_home(&mut self) -> Result<(), NativeError> {
+    async fn find_home(&mut self) -> Result<(), DriverError> {
         // `:hF#` is an OnStep extension. Classic Meade/Losmandy firmware has no
         // home command, and sending one blind would either be ignored or
         // interpreted as something else entirely, so those report NotSupported
@@ -554,11 +558,11 @@ impl NativeMount for Lx200Mount {
         // without a home command does not acquire one by connecting, and
         // answering NotConnected first would imply that it might.
         if !self.mount_type.is_onstep() {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
 
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         tracing::info!("Finding home");
@@ -570,38 +574,38 @@ impl NativeMount for Lx200Mount {
         *self
             .is_slewing
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = true;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = true;
 
         Ok(())
     }
 
-    async fn set_park(&mut self) -> Result<(), NativeError> {
+    async fn set_park(&mut self) -> Result<(), DriverError> {
         // `:hQ#` is an OnStep extension, refused on classic Meade/Losmandy for
         // the same reason as `find_home`, and checked before the connection.
         if !self.mount_type.is_onstep() {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
 
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         tracing::info!("Setting park position to the current position");
         if !self.send_command_bool(commands::ONSTEP_SET_PARK)? {
-            return Err(NativeError::SdkError(
+            return Err(DriverError::SdkError(
                 "Mount refused to store the park position".into(),
             ));
         }
         Ok(())
     }
 
-    async fn at_home(&self) -> Result<bool, NativeError> {
+    async fn at_home(&self) -> Result<bool, DriverError> {
         if !self.mount_type.is_onstep() {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
 
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // `:GU#` already carries the home flag and the parser already reads it;
@@ -612,18 +616,18 @@ impl NativeMount for Lx200Mount {
         Ok(is_homed)
     }
 
-    async fn get_sidereal_time(&self) -> Result<f64, NativeError> {
+    async fn get_sidereal_time(&self) -> Result<f64, DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let response = self.send_command(commands::GET_SIDEREAL_TIME)?;
         parse_ra(&response)
     }
 
-    async fn set_tracking_rate(&mut self, rate: TrackingRate) -> Result<(), NativeError> {
+    async fn set_tracking_rate(&mut self, rate: TrackingRate) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         // OnStep and standard LX200 use the same commands for tracking rates
@@ -636,11 +640,11 @@ impl NativeMount for Lx200Mount {
                 if self.mount_type.is_onstep() {
                     commands::ONSTEP_SET_RATE_KING
                 } else {
-                    return Err(NativeError::NotSupported);
+                    return Err(DriverError::NotSupported);
                 }
             }
             TrackingRate::Custom => {
-                return Err(NativeError::NotSupported);
+                return Err(DriverError::NotSupported);
             }
         };
 
@@ -648,15 +652,15 @@ impl NativeMount for Lx200Mount {
         *self
             .tracking_rate
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = rate;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = rate;
         tracing::info!("Set tracking rate to {:?}", rate);
 
         Ok(())
     }
 
-    async fn get_tracking_rate(&self) -> Result<TrackingRate, NativeError> {
+    async fn get_tracking_rate(&self) -> Result<TrackingRate, DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         Ok(*self.tracking_rate.lock().unwrap_or_else(|e| e.into_inner()))

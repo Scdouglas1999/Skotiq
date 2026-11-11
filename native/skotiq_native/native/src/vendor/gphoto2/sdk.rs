@@ -118,30 +118,30 @@ impl Default for GPCameraText {
     }
 }
 
-/// Check gphoto2 error and convert to NativeError
-pub(crate) fn check_gp_error(code: c_int, operation: &str) -> Result<(), NativeError> {
+/// Check gphoto2 error and convert to DriverError
+pub(crate) fn check_gp_error(code: c_int, operation: &str) -> Result<(), DriverError> {
     if code >= GP_OK {
         return Ok(());
     }
     match code {
-        GP_ERROR => Err(NativeError::SdkError(format!(
+        GP_ERROR => Err(DriverError::SdkError(format!(
             "gPhoto2 {}: general error",
             operation
         ))),
-        GP_ERROR_IO => Err(NativeError::SdkError(format!(
+        GP_ERROR_IO => Err(DriverError::SdkError(format!(
             "gPhoto2 {}: I/O error - camera may be disconnected or in use by another application",
             operation
         ))),
-        GP_ERROR_NOT_SUPPORTED => Err(NativeError::NotSupported),
-        GP_ERROR_CAMERA_BUSY => Err(NativeError::SdkError(format!(
+        GP_ERROR_NOT_SUPPORTED => Err(DriverError::NotSupported),
+        GP_ERROR_CAMERA_BUSY => Err(DriverError::SdkError(format!(
             "gPhoto2 {}: camera busy - another operation is in progress",
             operation
         ))),
-        GP_ERROR_MODEL_NOT_FOUND => Err(NativeError::DeviceNotFound(format!(
+        GP_ERROR_MODEL_NOT_FOUND => Err(DriverError::DeviceNotFound(format!(
             "gPhoto2 {}: camera model not found",
             operation
         ))),
-        _ => Err(NativeError::SdkError(format!(
+        _ => Err(DriverError::SdkError(format!(
             "gPhoto2 {}: error code {}",
             operation, code
         ))),

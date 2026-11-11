@@ -1,6 +1,6 @@
 //! Alpaca Filter Wheel API implementation
 
-use crate::{AlpacaClient, AlpacaDevice, AlpacaDeviceType, AlpacaError};
+use crate::AlpacaError;
 
 /// Filter wheel status aggregate for parallel status query
 #[derive(Debug, Clone)]
@@ -17,134 +17,28 @@ pub struct FilterWheelInfo {
     pub focus_offsets: Vec<i32>,
 }
 
-/// Alpaca Filter Wheel client
-pub struct AlpacaFilterWheel {
-    client: AlpacaClient,
-}
+alpaca_device!(
+    /// Alpaca Filter Wheel client
+    AlpacaFilterWheel,
+    FilterWheel
+);
 
 impl AlpacaFilterWheel {
-    /// Create a new Alpaca filter wheel client
-    pub fn new(device: &AlpacaDevice) -> Self {
-        assert_eq!(device.device_type, AlpacaDeviceType::FilterWheel);
-        Self {
-            client: AlpacaClient::new(device),
-        }
-    }
-
-    /// Create from server details
-    pub fn from_server(base_url: &str, device_number: u32) -> Self {
-        let device =
-            AlpacaDevice::from_server(AlpacaDeviceType::FilterWheel, base_url, device_number);
-        Self::new(&device)
-    }
-
-    /// Get access to the underlying client
-    pub fn client(&self) -> &AlpacaClient {
-        &self.client
-    }
-
-    /// Get the base URL for this device
-    pub fn base_url(&self) -> &str {
-        self.client.base_url()
-    }
-
-    /// Get the device number for this device
-    pub fn device_number(&self) -> u32 {
-        self.client.device_number()
-    }
-
-    // Connection methods
-
-    pub async fn connect(&self) -> Result<(), String> {
-        self.client.connect().await
-    }
-
-    pub async fn disconnect(&self) -> Result<(), String> {
-        self.client.disconnect().await
-    }
-
-    pub async fn is_connected(&self) -> Result<bool, String> {
-        self.client.is_connected().await
-    }
-
-    /// Validate connection is alive
-    pub async fn validate_connection(&self) -> Result<bool, AlpacaError> {
-        self.client.validate_connection().await
-    }
-
-    /// Send heartbeat and get round-trip time
-    pub async fn heartbeat(&self) -> Result<u64, AlpacaError> {
-        self.client.heartbeat().await
-    }
-
-    // Filter Wheel information
-
-    pub async fn name(&self) -> Result<String, String> {
-        self.client.get_name().await
-    }
-
-    pub async fn description(&self) -> Result<String, String> {
-        self.client.get_description().await
-    }
-
-    /// Get the driver version string
-    pub async fn driver_version(&self) -> Result<String, String> {
-        self.client.get_driver_version().await
-    }
-
-    /// Get the driver info string
-    pub async fn driver_info(&self) -> Result<String, String> {
-        self.client.get_driver_info().await
-    }
-
-    /// Get the interface version number
-    pub async fn interface_version(&self) -> Result<i32, String> {
-        self.client.get_interface_version().await
-    }
-
-    /// Get the list of supported custom actions
-    pub async fn supported_actions(&self) -> Result<Vec<String>, String> {
-        self.client.get_supported_actions().await
-    }
+    skotiq_device::ascom_filter_wheel_members!(alpaca_member);
 
     // Position
 
-    /// Get the current filter position (0-based)
-    /// Returns -1 if the wheel is moving
-    pub async fn position(&self) -> Result<i32, String> {
-        self.client.get("position").await
-    }
-
-    /// Set the filter wheel position (0-based)
-    pub async fn set_position(&self, position: i32) -> Result<(), String> {
-        self.client
-            .put("position", &[("Position", &position.to_string())])
-            .await
-    }
-
     /// Check if filter wheel is currently moving
     /// Position returns -1 during movement, so we check for that
-    pub async fn is_moving(&self) -> Result<bool, String> {
+    pub async fn is_moving(&self) -> Result<bool, AlpacaError> {
         let pos = self.position().await?;
         Ok(pos == -1)
-    }
-
-    // Filter information
-
-    /// Get the filter names
-    pub async fn names(&self) -> Result<Vec<String>, String> {
-        self.client.get("names").await
-    }
-
-    /// Get the focus offsets for each filter
-    pub async fn focus_offsets(&self) -> Result<Vec<i32>, String> {
-        self.client.get("focusoffsets").await
     }
 
     // Parallel status methods
 
     /// Get comprehensive filter wheel status in a single query
-    pub async fn get_status(&self) -> Result<FilterWheelStatus, String> {
+    pub async fn get_status(&self) -> Result<FilterWheelStatus, AlpacaError> {
         let (connected, position) = tokio::join!(self.is_connected(), self.position(),);
 
         let pos = position?;
@@ -156,7 +50,7 @@ impl AlpacaFilterWheel {
     }
 
     /// Get filter wheel configuration in a single parallel query
-    pub async fn get_filter_info(&self) -> Result<FilterWheelInfo, String> {
+    pub async fn get_filter_info(&self) -> Result<FilterWheelInfo, AlpacaError> {
         let (names, focus_offsets) = tokio::join!(self.names(), self.focus_offsets(),);
 
         Ok(FilterWheelInfo {
@@ -166,7 +60,7 @@ impl AlpacaFilterWheel {
     }
 
     /// Set filter by name (convenience method)
-    pub async fn set_filter_by_name(&self, filter_name: &str) -> Result<(), String> {
+    pub async fn set_filter_by_name(&self, filter_name: &str) -> Result<(), AlpacaError> {
         let names = self.names().await?;
         for (idx, name) in names.iter().enumerate() {
             if name.eq_ignore_ascii_case(filter_name) {
@@ -175,24 +69,19 @@ impl AlpacaFilterWheel {
                 // ship with ≤10 slots (rarely up to 16). i32::try_from
                 // surfaces an impossible-but-defined wire bug rather than
                 // silently passing a negative position to set_position.
-                let idx_i32 = i32::try_from(idx).map_err(|_| {
-                    format!(
-                        "Filter index {} exceeds i32::MAX; impossible for a \
-                         real filter wheel.",
-                        idx
-                    )
-                })?;
+                let idx_i32 =
+                    i32::try_from(idx).map_err(|_| AlpacaError::FilterIndexOutOfRange(idx))?;
                 return self.set_position(idx_i32).await;
             }
         }
-        Err(format!("Filter '{}' not found", filter_name))
+        Err(AlpacaError::FilterNotFound(filter_name.to_string()))
     }
 
     /// Get the current filter name
-    pub async fn current_filter_name(&self) -> Result<String, String> {
+    pub async fn current_filter_name(&self) -> Result<String, AlpacaError> {
         let pos = self.position().await?;
         if pos < 0 {
-            return Err("Filter wheel is moving".to_string());
+            return Err(AlpacaError::FilterWheelMoving);
         }
         let names = self.names().await?;
         // Why: `pos >= 0` is checked immediately above; i32
@@ -202,14 +91,14 @@ impl AlpacaFilterWheel {
         names
             .get(pos as usize)
             .cloned()
-            .ok_or_else(|| format!("Invalid position: {}", pos))
+            .ok_or(AlpacaError::InvalidFilterPosition(pos))
     }
 
     /// Get the focus offset for the current filter
-    pub async fn current_focus_offset(&self) -> Result<i32, String> {
+    pub async fn current_focus_offset(&self) -> Result<i32, AlpacaError> {
         let pos = self.position().await?;
         if pos < 0 {
-            return Err("Filter wheel is moving".to_string());
+            return Err(AlpacaError::FilterWheelMoving);
         }
         let offsets = self.focus_offsets().await?;
         // Why: same `pos >= 0` invariant as
@@ -218,6 +107,6 @@ impl AlpacaFilterWheel {
         offsets
             .get(pos as usize)
             .copied()
-            .ok_or_else(|| format!("Invalid position: {}", pos))
+            .ok_or(AlpacaError::InvalidFilterPosition(pos))
     }
 }

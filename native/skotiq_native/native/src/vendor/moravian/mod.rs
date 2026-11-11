@@ -19,15 +19,14 @@
 //! it to the top-down orientation the rest of the pipeline expects, mirroring
 //! the reference driver (indi-mi/mi_ccd.cpp `mirror_image`, lines 609-627,657).
 
-use crate::camera::{
+use crate::utils::CleanupGuard;
+use async_trait::async_trait;
+use skotiq_device::camera::{
     BayerPattern, CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData,
     ImageMetadata, ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
 };
-use crate::sync::moravian_mutex;
-use crate::traits::{NativeCamera, NativeDevice, NativeError};
-use crate::utils::CleanupGuard;
-use crate::NativeVendor;
-use async_trait::async_trait;
+use skotiq_device::Vendor;
+use skotiq_device::{CameraDriver, DeviceDriver, DriverError};
 use std::ffi::{c_char, c_double, c_float, c_int, c_void};
 use std::sync::{Arc, Mutex};
 

@@ -25,9 +25,9 @@
 //!    and the `rustc` fallback is the platform-conventional executable name
 //!    used for the bindgen self-check.
 
-use skotiq_native::traits::{
-    NativeCamera, NativeDevice, NativeFilterWheel, NativeFocuser, NativeMount,
-};
+#[cfg(windows)]
+use skotiq_device::ExposureParams;
+use skotiq_device::{CameraDriver, DeviceDriver, FilterWheelDriver, FocuserDriver, MountDriver};
 #[cfg(windows)]
 use skotiq_native::vendor::atik;
 #[cfg(windows)]
@@ -46,8 +46,6 @@ use skotiq_native::vendor::svbony;
 #[cfg(windows)]
 use skotiq_native::vendor::touptek;
 use skotiq_native::vendor::zwo;
-#[cfg(windows)]
-use skotiq_native::ExposureParams;
 
 // SDK loading (no hardware required)
 
@@ -407,7 +405,7 @@ async fn test_svbony_camera_connect_disconnect() {
 #[tokio::test]
 #[ignore = "Requires SVBony camera connected"]
 async fn test_svbony_camera_exposure() {
-    use skotiq_native::camera::ExposureParams;
+    use skotiq_device::ExposureParams;
 
     let devices = svbony::discover_devices()
         .await
@@ -431,7 +429,7 @@ async fn test_svbony_camera_exposure() {
         bin_y: 1,
         subframe: None,
         readout_mode: None,
-        frame_type: skotiq_native::camera::FrameType::Light,
+        frame_type: skotiq_device::FrameType::Light,
     };
 
     println!("Starting 0.1s exposure...");
@@ -567,7 +565,8 @@ async fn test_qhy_cfw_operations() {
 /// Test that the unified discovery finds all device types
 #[tokio::test]
 async fn test_unified_discovery() {
-    use skotiq_native::discovery::{discover_all_devices, DeviceType};
+    use skotiq_device::DeviceKind as DeviceType;
+    use skotiq_native::discovery::discover_all_devices;
 
     let devices = discover_all_devices().await.expect("Discovery should work");
     println!("Unified discovery found {} total devices:", devices.len());
@@ -652,7 +651,8 @@ async fn test_lx200_mount_discovery_no_crash() {
 /// Test that unified discovery includes mounts
 #[tokio::test]
 async fn test_unified_discovery_includes_mounts() {
-    use skotiq_native::discovery::{discover_all_devices, DeviceType};
+    use skotiq_device::DeviceKind as DeviceType;
+    use skotiq_native::discovery::discover_all_devices;
 
     let devices = discover_all_devices().await.expect("Discovery should work");
     let mounts: Vec<_> = devices
@@ -945,7 +945,7 @@ mod fake_sdk_contract {
                 bin_y: 2,
                 subframe: None,
                 readout_mode: None,
-                frame_type: skotiq_native::camera::FrameType::Light,
+                frame_type: skotiq_device::FrameType::Light,
             })
             .await
             .expect("start exposure");
@@ -966,14 +966,14 @@ mod fake_sdk_contract {
                 bin_y: 1,
                 subframe: None,
                 readout_mode: None,
-                frame_type: skotiq_native::camera::FrameType::Light,
+                frame_type: skotiq_device::FrameType::Light,
             })
             .await
             .expect("start exposure before abort");
         camera.abort_exposure().await.expect("abort exposure");
         assert!(matches!(
             camera.get_status().await.expect("status after abort").state,
-            skotiq_native::camera::CameraState::Idle
+            skotiq_device::CameraState::Idle
         ));
         camera.disconnect().await.expect("camera disconnect");
 
@@ -1053,7 +1053,7 @@ mod fake_sdk_contract {
         );
         assert_eq!(
             sensor.bayer_pattern,
-            Some(skotiq_native::BayerPattern::Rggb)
+            Some(skotiq_device::BayerPattern::Rggb)
         );
         camera.set_gain(17).await.expect("Atik set gain");
         camera.set_offset(4).await.expect("Atik set offset");
@@ -1075,7 +1075,7 @@ mod fake_sdk_contract {
                 bin_y: 2,
                 subframe: None,
                 readout_mode: None,
-                frame_type: skotiq_native::camera::FrameType::Light,
+                frame_type: skotiq_device::FrameType::Light,
             })
             .await
             .expect("Atik start exposure");
@@ -1155,7 +1155,7 @@ mod fake_sdk_contract {
                 bin_y: 2,
                 subframe: None,
                 readout_mode: None,
-                frame_type: skotiq_native::camera::FrameType::Light,
+                frame_type: skotiq_device::FrameType::Light,
             })
             .await
             .expect("SVBONY start exposure");
@@ -1266,7 +1266,7 @@ mod fake_sdk_contract {
                 bin_y: 2,
                 subframe: None,
                 readout_mode: None,
-                frame_type: skotiq_native::camera::FrameType::Light,
+                frame_type: skotiq_device::FrameType::Light,
             })
             .await
             .expect_err("undocumented Player One SDK error should propagate");
@@ -1282,7 +1282,7 @@ mod fake_sdk_contract {
                 bin_y: 2,
                 subframe: None,
                 readout_mode: None,
-                frame_type: skotiq_native::camera::FrameType::Light,
+                frame_type: skotiq_device::FrameType::Light,
             })
             .await
             .expect("Player One start exposure");
@@ -1334,7 +1334,7 @@ mod fake_sdk_contract {
                 bin_y: 1,
                 subframe: None,
                 readout_mode: None,
-                frame_type: skotiq_native::camera::FrameType::Light,
+                frame_type: skotiq_device::FrameType::Light,
             })
             .await
             .expect("Player One planetary start exposure");
@@ -1449,7 +1449,7 @@ mod fake_sdk_contract {
                 bin_y: 2,
                 subframe: None,
                 readout_mode: None,
-                frame_type: skotiq_native::camera::FrameType::Light,
+                frame_type: skotiq_device::FrameType::Light,
             })
             .await
             .expect_err("QHY SDK exposure failure should propagate");
@@ -1464,7 +1464,7 @@ mod fake_sdk_contract {
                 bin_y: 2,
                 subframe: None,
                 readout_mode: None,
-                frame_type: skotiq_native::camera::FrameType::Light,
+                frame_type: skotiq_device::FrameType::Light,
             })
             .await
             .expect("QHY start exposure");
@@ -1499,7 +1499,7 @@ mod fake_sdk_contract {
         assert!(guide_sensor.color);
         assert_eq!(
             guide_sensor.bayer_pattern,
-            Some(skotiq_native::BayerPattern::Bggr)
+            Some(skotiq_device::BayerPattern::Bggr)
         );
         guide
             .set_cooler(true, Some(-5.0))
@@ -1567,7 +1567,7 @@ mod fake_sdk_contract {
                 bin_y: 1,
                 subframe: None,
                 readout_mode: None,
-                frame_type: skotiq_native::camera::FrameType::Light,
+                frame_type: skotiq_device::FrameType::Light,
             })
             .await
             .expect("ToupTek start exposure");
@@ -1672,7 +1672,7 @@ mod fake_sdk_contract {
                 bin_y: 2,
                 subframe: None,
                 readout_mode: None,
-                frame_type: skotiq_native::camera::FrameType::Light,
+                frame_type: skotiq_device::FrameType::Light,
             })
             .await
             .expect("FLI start exposure");
@@ -1768,7 +1768,7 @@ mod fake_sdk_contract {
                 bin_y: 2,
                 subframe: None,
                 readout_mode: None,
-                frame_type: skotiq_native::camera::FrameType::Light,
+                frame_type: skotiq_device::FrameType::Light,
             })
             .await
             .expect_err("Moravian begin exposure failure should propagate");
@@ -1783,7 +1783,7 @@ mod fake_sdk_contract {
                 bin_y: 2,
                 subframe: None,
                 readout_mode: None,
-                frame_type: skotiq_native::camera::FrameType::Light,
+                frame_type: skotiq_device::FrameType::Light,
             })
             .await
             .expect("Moravian start exposure");
@@ -1855,7 +1855,7 @@ mod fake_sdk_contract {
             bin_y: 1,
             subframe: None,
             readout_mode: None,
-            frame_type: skotiq_native::camera::FrameType::Light,
+            frame_type: skotiq_device::FrameType::Light,
         })
         .await
         .expect_err("Fujifilm release SDK failure should propagate");
@@ -1869,7 +1869,7 @@ mod fake_sdk_contract {
             bin_y: 1,
             subframe: None,
             readout_mode: None,
-            frame_type: skotiq_native::camera::FrameType::Light,
+            frame_type: skotiq_device::FrameType::Light,
         })
         .await
         .expect("Fujifilm start exposure");

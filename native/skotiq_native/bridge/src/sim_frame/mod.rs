@@ -29,7 +29,7 @@
 //! first and read out once, so binning sums WELLS rather than summing reads —
 //! see [`read_out`] for what the other ordering costs.
 
-use skotiq_native::camera::FrameType;
+use skotiq_device::FrameType;
 
 #[cfg(test)]
 mod tests;

@@ -1,0 +1,92 @@
+## get_azimuth, published
+result: Ok(90.0)
+sent: (nothing)
+
+## get_azimuth, not published
+result: Err(Azimuth not available)
+sent: (nothing)
+
+## get_home_position, published
+result: Ok(10.0)
+sent: (nothing)
+
+## get_home_position, not published
+result: Err(Home position not available)
+sent: (nothing)
+
+## get_park_position, published
+result: Ok(20.0)
+sent: (nothing)
+
+## get_park_position, not published
+result: Err(Park position not available)
+sent: (nothing)
+
+## slew_to_azimuth_with_timeout, Busy then Ok
+result: Ok(())
+sent: <newNumberVector device="DMoveOk" name="ABS_DOME_POSITION"><oneNumber name="DOME_ABSOLUTE_POSITION">180</oneNumber></newNumberVector>
+
+## slew_to_azimuth_with_timeout, stays Busy past the timeout
+result: Err(Dome slew to azimuth 180.2 degrees failed: Operation timeout for device 'DBusy', property 'ABS_DOME_POSITION': Timed out waiting for property to finish (not Busy) after 300ms)
+sent: <newNumberVector device="DBusy" name="ABS_DOME_POSITION"><oneNumber name="DOME_ABSOLUTE_POSITION">180.25</oneNumber></newNumberVector>
+
+## slew_to_azimuth_with_timeout, property in Alert
+result: Err(Dome slew to azimuth 180.0 degrees failed: Operation timeout for device 'DAlert', property 'ABS_DOME_POSITION': Property entered Alert state)
+sent: <newNumberVector device="DAlert" name="ABS_DOME_POSITION"><oneNumber name="DOME_ABSOLUTE_POSITION">180</oneNumber></newNumberVector>
+
+## slew_to_azimuth_with_timeout, azimuth beyond the driver's limits
+result: Err(Value 400 out of range [0, 360] for Dome.ABS_DOME_POSITION.DOME_ABSOLUTE_POSITION)
+sent: (nothing)
+
+## slew_to_azimuth_with_timeout, default timeout
+result: Ok(())
+sent: <newNumberVector device="Dome" name="ABS_DOME_POSITION"><oneNumber name="DOME_ABSOLUTE_POSITION">100</oneNumber></newNumberVector>
+
+## open_shutter_with_timeout, Busy then Ok
+result: Ok(())
+sent: <newSwitchVector device="DMoveOk" name="DOME_SHUTTER"><oneSwitch name="SHUTTER_OPEN">On</oneSwitch><oneSwitch name="SHUTTER_CLOSE">Off</oneSwitch></newSwitchVector>
+
+## open_shutter_with_timeout, stays Busy past the timeout
+result: Err(Dome shutter open operation failed: Operation timeout for device 'DBusy', property 'DOME_SHUTTER': Timed out waiting for property to finish (not Busy) after 300ms)
+sent: <newSwitchVector device="DBusy" name="DOME_SHUTTER"><oneSwitch name="SHUTTER_OPEN">On</oneSwitch><oneSwitch name="SHUTTER_CLOSE">Off</oneSwitch></newSwitchVector>
+
+## open_shutter_with_timeout, property in Alert
+result: Err(Dome shutter open operation failed: Operation timeout for device 'DAlert', property 'DOME_SHUTTER': Property entered Alert state)
+sent: <newSwitchVector device="DAlert" name="DOME_SHUTTER"><oneSwitch name="SHUTTER_OPEN">On</oneSwitch><oneSwitch name="SHUTTER_CLOSE">Off</oneSwitch></newSwitchVector>
+
+## open_shutter_with_timeout, no shutter property
+result: Err(Dome shutter open operation failed: Operation timeout for device 'Bare', property 'DOME_SHUTTER': Timed out waiting for property to finish (not Busy) after 300ms)
+sent: <newSwitchVector device="Bare" name="DOME_SHUTTER"><oneSwitch name="SHUTTER_OPEN">On</oneSwitch></newSwitchVector>
+
+## close_shutter_with_timeout, Busy then Ok
+result: Ok(())
+sent: <newSwitchVector device="DCloseOk" name="DOME_SHUTTER"><oneSwitch name="SHUTTER_OPEN">Off</oneSwitch><oneSwitch name="SHUTTER_CLOSE">On</oneSwitch></newSwitchVector>
+
+## close_shutter_with_timeout, stays Busy past the timeout
+result: Err(Dome shutter close operation failed: Operation timeout for device 'DBusy', property 'DOME_SHUTTER': Timed out waiting for property to finish (not Busy) after 300ms)
+sent: <newSwitchVector device="DBusy" name="DOME_SHUTTER"><oneSwitch name="SHUTTER_OPEN">Off</oneSwitch><oneSwitch name="SHUTTER_CLOSE">On</oneSwitch></newSwitchVector>
+
+## close_shutter_with_timeout, property in Alert
+result: Err(Dome shutter close operation failed: Operation timeout for device 'DAlert', property 'DOME_SHUTTER': Property entered Alert state)
+sent: <newSwitchVector device="DAlert" name="DOME_SHUTTER"><oneSwitch name="SHUTTER_OPEN">Off</oneSwitch><oneSwitch name="SHUTTER_CLOSE">On</oneSwitch></newSwitchVector>
+
+## close_shutter_with_timeout, default timeout
+result: Ok(())
+sent: <newSwitchVector device="Dome" name="DOME_SHUTTER"><oneSwitch name="SHUTTER_OPEN">Off</oneSwitch><oneSwitch name="SHUTTER_CLOSE">On</oneSwitch></newSwitchVector>
+
+## slew_to_azimuth_with_timeout, client not connected
+result: Err(Not connected to INDI server)
+sent: (client never connected)
+
+## open_shutter_with_timeout, client not connected
+result: Err(Not connected to INDI server)
+sent: (client never connected)
+
+## close_shutter_with_timeout, client not connected
+result: Err(Not connected to INDI server)
+sent: (client never connected)
+
+## get_azimuth, client not connected
+result: Err(Azimuth not available)
+sent: (client never connected)
+

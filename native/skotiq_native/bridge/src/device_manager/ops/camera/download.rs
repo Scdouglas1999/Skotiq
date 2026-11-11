@@ -172,7 +172,7 @@ impl DeviceManager {
                         data: pixels,
                         bits_per_pixel: 16,
                         bayer_pattern,
-                        metadata: skotiq_native::camera::ImageMetadata {
+                        metadata: skotiq_device::ImageMetadata {
                             exposure_time,
                             gain,
                             offset,
@@ -182,7 +182,7 @@ impl DeviceManager {
                             timestamp: chrono::Utc::now(),
                             subframe: None,
                             readout_mode: None,
-                            vendor_data: skotiq_native::camera::VendorFeatures::default(),
+                            vendor_data: skotiq_device::VendorFeatures::default(),
                         },
                     });
                 }
@@ -375,7 +375,7 @@ impl DeviceManager {
                                 data: image_data,
                                 bits_per_pixel: 16,
                                 bayer_pattern: None,
-                                metadata: skotiq_native::camera::ImageMetadata {
+                                metadata: skotiq_device::ImageMetadata {
                                     exposure_time: 0.0,
                                     gain,
                                     offset,
@@ -385,7 +385,7 @@ impl DeviceManager {
                                     timestamp: chrono::Utc::now(),
                                     subframe: None,
                                     readout_mode: None,
-                                    vendor_data: skotiq_native::camera::VendorFeatures::default(),
+                                    vendor_data: skotiq_device::VendorFeatures::default(),
                                 },
                             }
                         };
@@ -501,7 +501,7 @@ impl DeviceManager {
                     data: frame.data,
                     bits_per_pixel: 16,
                     bayer_pattern: None,
-                    metadata: skotiq_native::camera::ImageMetadata {
+                    metadata: skotiq_device::ImageMetadata {
                         exposure_time: request.secs,
                         gain: sim.gain,
                         offset: sim.offset,
@@ -510,7 +510,7 @@ impl DeviceManager {
                         temperature: sim.sensor_temp,
                         timestamp: chrono::Utc::now(),
                         subframe: request.subframe.map(|(start_x, start_y, width, height)| {
-                            skotiq_native::camera::SubFrame {
+                            skotiq_device::SubFrame {
                                 start_x,
                                 start_y,
                                 width,
@@ -518,7 +518,7 @@ impl DeviceManager {
                             }
                         }),
                         readout_mode: None,
-                        vendor_data: skotiq_native::camera::VendorFeatures::default(),
+                        vendor_data: skotiq_device::VendorFeatures::default(),
                     },
                 })
             }
@@ -573,7 +573,7 @@ impl DeviceManager {
 #[cfg(test)]
 mod alpaca_bayer_gate_tests {
     use crate::ascom_sensor_type::{bayer_pattern_from_sensor, has_nameable_bayer_order};
-    use skotiq_native::camera::BayerPattern;
+    use skotiq_device::BayerPattern;
     use std::cell::Cell;
 
     /// Stands in for the Alpaca camera's `BayerOffsetX`/`BayerOffsetY`

@@ -162,7 +162,7 @@ async fn set_cooler_propagates_sdk_failure_without_mutating_state() {
     cam.connected = true;
     cam.has_cooler = true;
     // handle is None and the QHY SDK is not loaded in tests, so
-    // set_control_async fails at QhySdk::get() with SdkNotLoaded.
+    // set_control_async fails at QhySdk::lock() with SdkNotInstalled.
 
     let result = cam.set_cooler(true, Some(-15.0)).await;
     assert!(
@@ -189,7 +189,7 @@ async fn set_cooler_rejects_disconnected_camera() {
     // connected stays false.
 
     let result = cam.set_cooler(true, Some(-10.0)).await;
-    assert!(matches!(result, Err(NativeError::NotConnected)));
+    assert!(matches!(result, Err(DriverError::NotConnected)));
     assert!(!cam.cooler_on);
     assert_eq!(cam.cooler_target_c, None);
 }
@@ -203,7 +203,7 @@ async fn set_cooler_rejects_camera_without_cooler() {
     // has_cooler stays false (e.g. a non-cooled QHY model).
 
     let result = cam.set_cooler(true, Some(-10.0)).await;
-    assert!(matches!(result, Err(NativeError::NotSupported)));
+    assert!(matches!(result, Err(DriverError::NotSupported)));
     assert!(!cam.cooler_on);
     assert_eq!(cam.cooler_target_c, None);
 }

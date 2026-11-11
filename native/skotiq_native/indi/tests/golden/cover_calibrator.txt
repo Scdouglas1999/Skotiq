@@ -1,0 +1,282 @@
+## open_cover, CCap
+result: Ok(())
+sent: <newSwitchVector device="CCap" name="CAP_PARK"><oneSwitch name="PARK">Off</oneSwitch><oneSwitch name="UNPARK">On</oneSwitch></newSwitchVector>
+
+## open_cover, CDust
+result: Ok(())
+sent: <newSwitchVector device="CDust" name="DUST_CAP"><oneSwitch name="CAP_UNPARK">On</oneSwitch></newSwitchVector>
+
+## open_cover, CDustRule
+result: Err(Protocol error: Switch element 'DUST_CAP.CAP_UNPARK' not found on device 'CDustRule')
+sent: (nothing)
+
+## open_cover, CDustUnpark
+result: Ok(())
+sent: <newSwitchVector device="CDustUnpark" name="DUST_CAP"><oneSwitch name="CAP_PARK">Off</oneSwitch><oneSwitch name="CAP_UNPARK">On</oneSwitch></newSwitchVector>
+
+## open_cover, CDustcap
+result: Ok(())
+sent: <newSwitchVector device="CDustcap" name="DUSTCAP_CONTROL"><oneSwitch name="OPEN">On</oneSwitch></newSwitchVector>
+
+## open_cover, CLightbox
+result: Ok(())
+sent: <newSwitchVector device="CLightbox" name="LIGHTBOX_CONTROL"><oneSwitch name="OPEN">On</oneSwitch></newSwitchVector>
+
+## open_cover, CAbort
+result: Err(No compatible cover control property found)
+sent: (nothing)
+
+## open_cover, CReadOnly
+result: Err(Permission denied: Property 'CAP_PARK' is read-only)
+sent: (nothing)
+
+## open_cover, Bare
+result: Err(No compatible cover control property found)
+sent: (nothing)
+
+## close_cover, CCap
+result: Ok(())
+sent: <newSwitchVector device="CCap" name="CAP_PARK"><oneSwitch name="PARK">On</oneSwitch><oneSwitch name="UNPARK">Off</oneSwitch></newSwitchVector>
+
+## close_cover, CDust
+result: Ok(())
+sent: <newSwitchVector device="CDust" name="DUST_CAP"><oneSwitch name="CAP_PARK">On</oneSwitch></newSwitchVector>
+
+## close_cover, CDustRule
+result: Err(Protocol error: Switch element 'DUST_CAP.CAP_PARK' not found on device 'CDustRule')
+sent: (nothing)
+
+## close_cover, CDustUnpark
+result: Ok(())
+sent: <newSwitchVector device="CDustUnpark" name="DUST_CAP"><oneSwitch name="CAP_PARK">On</oneSwitch><oneSwitch name="CAP_UNPARK">Off</oneSwitch></newSwitchVector>
+
+## close_cover, CDustcap
+result: Ok(())
+sent: <newSwitchVector device="CDustcap" name="DUSTCAP_CONTROL"><oneSwitch name="CLOSE">On</oneSwitch></newSwitchVector>
+
+## close_cover, CLightbox
+result: Ok(())
+sent: <newSwitchVector device="CLightbox" name="LIGHTBOX_CONTROL"><oneSwitch name="CLOSE">On</oneSwitch></newSwitchVector>
+
+## close_cover, CAbort
+result: Err(No compatible cover control property found)
+sent: (nothing)
+
+## close_cover, CReadOnly
+result: Err(Permission denied: Property 'CAP_PARK' is read-only)
+sent: (nothing)
+
+## close_cover, Bare
+result: Err(No compatible cover control property found)
+sent: (nothing)
+
+## halt_cover, CCap
+result: Ok(())
+sent: <newSwitchVector device="CCap" name="CAP_ABORT"><oneSwitch name="ABORT">On</oneSwitch></newSwitchVector>
+
+## halt_cover, CDust
+result: Ok(())
+sent: <newSwitchVector device="CDust" name="DUST_CAP"><oneSwitch name="ABORT">On</oneSwitch></newSwitchVector>
+
+## halt_cover, CDustRule
+result: Err(Protocol error: Switch element 'DUST_CAP.ABORT' not found on device 'CDustRule')
+sent: (nothing)
+
+## halt_cover, CDustUnpark
+result: Err(Protocol error: Switch element 'DUST_CAP.ABORT' not found on device 'CDustUnpark')
+sent: (nothing)
+
+## halt_cover, CDustcap
+result: Err(No compatible cover abort property found)
+sent: (nothing)
+
+## halt_cover, CLightbox
+result: Err(No compatible cover abort property found)
+sent: (nothing)
+
+## halt_cover, CAbort
+result: Ok(())
+sent: <newSwitchVector device="CAbort" name="ABORT"><oneSwitch name="ABORT">On</oneSwitch></newSwitchVector>
+
+## halt_cover, CReadOnly
+result: Err(Permission denied: Property 'CAP_ABORT' is read-only)
+sent: (nothing)
+
+## halt_cover, Bare
+result: Err(No compatible cover abort property found)
+sent: (nothing)
+
+## calibrator_on(100), CCap
+result: Ok(())
+sent: <newNumberVector device="CCap" name="FLAT_LIGHT_INTENSITY"><oneNumber name="FLAT_LIGHT_INTENSITY_VALUE">100</oneNumber></newNumberVector>
+sent: <newSwitchVector device="CCap" name="FLAT_LIGHT_CONTROL"><oneSwitch name="FLAT_LIGHT_ON">On</oneSwitch><oneSwitch name="FLAT_LIGHT_OFF">Off</oneSwitch></newSwitchVector>
+
+## calibrator_on(100), CLightbox
+result: Ok(())
+sent: <newNumberVector device="CLightbox" name="LIGHTBOX_BRIGHTNESS"><oneNumber name="BRIGHTNESS">100</oneNumber></newNumberVector>
+sent: <newNumberVector device="CLightbox" name="LIGHTBOX_BRIGHTNESS"><oneNumber name="BRIGHTNESS">100</oneNumber></newNumberVector>
+
+## calibrator_on(100), CIntensity
+result: Err(No compatible calibrator control property found)
+sent: <newNumberVector device="CIntensity" name="FLAT_LIGHT_INTENSITY"><oneNumber name="FLAT_LIGHT_INTENSITY_VALUE">100</oneNumber></newNumberVector>
+
+## calibrator_on(100), CNoLimits
+result: Err(No compatible calibrator control property found)
+sent: <newNumberVector device="CNoLimits" name="FLAT_LIGHT_INTENSITY"><oneNumber name="FLAT_LIGHT_INTENSITY_VALUE">100</oneNumber></newNumberVector>
+
+## calibrator_on(100), CReadOnly
+result: Err(Permission denied: Property 'FLAT_LIGHT_INTENSITY' is read-only)
+sent: (nothing)
+
+## calibrator_on(100), Bare
+result: Err(No compatible calibrator control property found)
+sent: (nothing)
+
+## calibrator_on(0), CCap
+result: Ok(())
+sent: <newSwitchVector device="CCap" name="FLAT_LIGHT_CONTROL"><oneSwitch name="FLAT_LIGHT_ON">On</oneSwitch><oneSwitch name="FLAT_LIGHT_OFF">Off</oneSwitch></newSwitchVector>
+
+## calibrator_on(0), CLightbox
+result: Ok(())
+sent: <newNumberVector device="CLightbox" name="LIGHTBOX_BRIGHTNESS"><oneNumber name="BRIGHTNESS">1</oneNumber></newNumberVector>
+
+## calibrator_on(300), beyond the driver's limits, CCap
+result: Err(Value 300 out of range [0, 255] for CCap.FLAT_LIGHT_INTENSITY.FLAT_LIGHT_INTENSITY_VALUE)
+sent: (nothing)
+
+## calibrator_on(300), beyond the driver's limits, CLightbox
+result: Err(Value 300 out of range [0, 100] for CLightbox.LIGHTBOX_BRIGHTNESS.BRIGHTNESS)
+sent: (nothing)
+
+## calibrator_off, CCap
+result: Ok(())
+sent: <newSwitchVector device="CCap" name="FLAT_LIGHT_CONTROL"><oneSwitch name="FLAT_LIGHT_ON">Off</oneSwitch><oneSwitch name="FLAT_LIGHT_OFF">On</oneSwitch></newSwitchVector>
+
+## calibrator_off, CLightbox
+result: Ok(())
+sent: <newNumberVector device="CLightbox" name="LIGHTBOX_BRIGHTNESS"><oneNumber name="BRIGHTNESS">0</oneNumber></newNumberVector>
+
+## calibrator_off, CIntensity
+result: Ok(())
+sent: <newNumberVector device="CIntensity" name="FLAT_LIGHT_INTENSITY"><oneNumber name="FLAT_LIGHT_INTENSITY_VALUE">0</oneNumber></newNumberVector>
+
+## calibrator_off, CNoLimits
+result: Ok(())
+sent: <newNumberVector device="CNoLimits" name="FLAT_LIGHT_INTENSITY"><oneNumber name="FLAT_LIGHT_INTENSITY_VALUE">0</oneNumber></newNumberVector>
+
+## calibrator_off, CReadOnly
+result: Err(Permission denied: Property 'FLAT_LIGHT_CONTROL' is read-only)
+sent: (nothing)
+
+## calibrator_off, Bare
+result: Err(No compatible calibrator control property found)
+sent: (nothing)
+
+## get_brightness, CCap
+result: Ok(100)
+sent: (nothing)
+
+## get_brightness, CLightbox
+result: Ok(50)
+sent: (nothing)
+
+## get_brightness, CIntensity
+result: Ok(100)
+sent: (nothing)
+
+## get_brightness, CNoLimits
+result: Ok(7)
+sent: (nothing)
+
+## get_brightness, CReadOnly
+result: Ok(100)
+sent: (nothing)
+
+## get_brightness, Bare
+result: Err(Brightness property not available)
+sent: (nothing)
+
+## set_brightness(42), CCap
+result: Ok(())
+sent: <newNumberVector device="CCap" name="FLAT_LIGHT_INTENSITY"><oneNumber name="FLAT_LIGHT_INTENSITY_VALUE">42</oneNumber></newNumberVector>
+
+## set_brightness(42), CLightbox
+result: Ok(())
+sent: <newNumberVector device="CLightbox" name="LIGHTBOX_BRIGHTNESS"><oneNumber name="BRIGHTNESS">42</oneNumber></newNumberVector>
+
+## set_brightness(42), CIntensity
+result: Ok(())
+sent: <newNumberVector device="CIntensity" name="FLAT_LIGHT_INTENSITY"><oneNumber name="FLAT_LIGHT_INTENSITY_VALUE">42</oneNumber></newNumberVector>
+
+## set_brightness(42), CNoLimits
+result: Ok(())
+sent: <newNumberVector device="CNoLimits" name="FLAT_LIGHT_INTENSITY"><oneNumber name="FLAT_LIGHT_INTENSITY_VALUE">42</oneNumber></newNumberVector>
+
+## set_brightness(42), CReadOnly
+result: Err(Permission denied: Property 'FLAT_LIGHT_INTENSITY' is read-only)
+sent: (nothing)
+
+## set_brightness(42), Bare
+result: Err(Brightness property not available)
+sent: (nothing)
+
+## set_brightness(300), beyond the driver's limits, CCap
+result: Err(Value 300 out of range [0, 255] for CCap.FLAT_LIGHT_INTENSITY.FLAT_LIGHT_INTENSITY_VALUE)
+sent: (nothing)
+
+## get_max_brightness, CCap
+result: Ok(255)
+sent: (nothing)
+
+## get_max_brightness, CLightbox
+result: Ok(100)
+sent: (nothing)
+
+## get_max_brightness, CIntensity
+result: Ok(255)
+sent: (nothing)
+
+## get_max_brightness, CNoLimits
+result: Err(Brightness property limits not available)
+sent: (nothing)
+
+## get_max_brightness, CReadOnly
+result: Ok(255)
+sent: (nothing)
+
+## get_max_brightness, Bare
+result: Err(Brightness property limits not available)
+sent: (nothing)
+
+## open_cover, client not connected
+result: Err(No compatible cover control property found)
+sent: (client never connected)
+
+## close_cover, client not connected
+result: Err(No compatible cover control property found)
+sent: (client never connected)
+
+## halt_cover, client not connected
+result: Err(No compatible cover abort property found)
+sent: (client never connected)
+
+## calibrator_on, client not connected
+result: Err(No compatible calibrator control property found)
+sent: (client never connected)
+
+## calibrator_off, client not connected
+result: Err(No compatible calibrator control property found)
+sent: (client never connected)
+
+## get_brightness, client not connected
+result: Err(Brightness property not available)
+sent: (client never connected)
+
+## set_brightness, client not connected
+result: Err(Brightness property not available)
+sent: (client never connected)
+
+## get_max_brightness, client not connected
+result: Err(Brightness property limits not available)
+sent: (client never connected)
+

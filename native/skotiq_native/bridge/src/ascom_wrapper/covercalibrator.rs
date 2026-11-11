@@ -93,49 +93,55 @@ impl AscomCoverCalibratorWrapper {
                 };
                 match cmd {
                     AscomCoverCalibratorCommand::Connect(reply) => {
-                        let _ = reply.send(cover_cal.connect());
+                        let _ = reply.send(cover_cal.connect().map_err(|e| e.to_string()));
                     }
                     AscomCoverCalibratorCommand::Disconnect(reply) => {
-                        let _ = reply.send(cover_cal.disconnect());
+                        let _ = reply.send(cover_cal.disconnect().map_err(|e| e.to_string()));
                     }
                     AscomCoverCalibratorCommand::OpenCover(reply) => {
-                        let _ = reply.send(cover_cal.open_cover());
+                        let _ = reply.send(cover_cal.open_cover().map_err(|e| e.to_string()));
                     }
                     AscomCoverCalibratorCommand::CloseCover(reply) => {
-                        let _ = reply.send(cover_cal.close_cover());
+                        let _ = reply.send(cover_cal.close_cover().map_err(|e| e.to_string()));
                     }
                     AscomCoverCalibratorCommand::HaltCover(reply) => {
-                        let _ = reply.send(cover_cal.halt_cover());
+                        let _ = reply.send(cover_cal.halt_cover().map_err(|e| e.to_string()));
                     }
                     AscomCoverCalibratorCommand::CalibratorOn(brightness, reply) => {
-                        let _ = reply.send(cover_cal.calibrator_on(brightness));
+                        let _ = reply.send(
+                            cover_cal
+                                .calibrator_on(brightness)
+                                .map_err(|e| e.to_string()),
+                        );
                     }
                     AscomCoverCalibratorCommand::CalibratorOff(reply) => {
-                        let _ = reply.send(cover_cal.calibrator_off());
+                        let _ = reply.send(cover_cal.calibrator_off().map_err(|e| e.to_string()));
                     }
                     AscomCoverCalibratorCommand::GetCoverState(reply) => {
-                        let _ = reply.send(cover_cal.cover_state());
+                        let _ = reply.send(cover_cal.cover_state().map_err(|e| e.to_string()));
                     }
                     AscomCoverCalibratorCommand::GetCalibratorState(reply) => {
-                        let _ = reply.send(cover_cal.calibrator_state());
+                        let _ = reply.send(cover_cal.calibrator_state().map_err(|e| e.to_string()));
                     }
                     AscomCoverCalibratorCommand::GetBrightness(reply) => {
-                        let _ = reply.send(cover_cal.brightness());
+                        let _ = reply.send(cover_cal.brightness().map_err(|e| e.to_string()));
                     }
                     AscomCoverCalibratorCommand::GetMaxBrightness(reply) => {
-                        let _ = reply.send(cover_cal.max_brightness());
+                        let _ = reply.send(cover_cal.max_brightness().map_err(|e| e.to_string()));
                     }
                     AscomCoverCalibratorCommand::GetInterfaceVersion(reply) => {
-                        let _ = reply.send(cover_cal.interface_version());
+                        let _ =
+                            reply.send(cover_cal.interface_version().map_err(|e| e.to_string()));
                     }
                     AscomCoverCalibratorCommand::GetDriverVersion(reply) => {
-                        let _ = reply.send(cover_cal.driver_version());
+                        let _ = reply.send(cover_cal.driver_version().map_err(|e| e.to_string()));
                     }
                     AscomCoverCalibratorCommand::GetDriverInfo(reply) => {
-                        let _ = reply.send(cover_cal.driver_info());
+                        let _ = reply.send(cover_cal.driver_info().map_err(|e| e.to_string()));
                     }
                     AscomCoverCalibratorCommand::GetSupportedActions(reply) => {
-                        let _ = reply.send(cover_cal.supported_actions());
+                        let _ =
+                            reply.send(cover_cal.supported_actions().map_err(|e| e.to_string()));
                     }
                 }
                 PumpOutcome::DidWork

@@ -343,7 +343,7 @@ impl DeviceOps for UnifiedDeviceOps {
     ) -> DeviceResult<ImageData> {
         let _acquisition = claim_camera_acquisition(camera_id).await?;
         let acquisition_generation = exposure_abort_generation(camera_id).await;
-        let native_frame_type = skotiq_native::camera::FrameType::from_str_lenient(frame_type);
+        let native_frame_type = skotiq_device::FrameType::from_str_lenient(frame_type);
         tracing::info!(
             "Starting {:.1}s exposure on camera {}",
             duration_secs,
@@ -369,13 +369,11 @@ impl DeviceOps for UnifiedDeviceOps {
             ImagingEvent::ExposureStarted {
                 duration_secs,
                 frame_type: match native_frame_type {
-                    skotiq_native::camera::FrameType::Dark => crate::device::FrameType::Dark,
-                    skotiq_native::camera::FrameType::Flat => crate::device::FrameType::Flat,
-                    skotiq_native::camera::FrameType::Bias => crate::device::FrameType::Bias,
-                    skotiq_native::camera::FrameType::DarkFlat => {
-                        crate::device::FrameType::DarkFlat
-                    }
-                    skotiq_native::camera::FrameType::Light => crate::device::FrameType::Light,
+                    skotiq_device::FrameType::Dark => crate::device::FrameType::Dark,
+                    skotiq_device::FrameType::Flat => crate::device::FrameType::Flat,
+                    skotiq_device::FrameType::Bias => crate::device::FrameType::Bias,
+                    skotiq_device::FrameType::DarkFlat => crate::device::FrameType::DarkFlat,
+                    skotiq_device::FrameType::Light => crate::device::FrameType::Light,
                 },
             },
             EventSeverity::Info,
@@ -392,7 +390,7 @@ impl DeviceOps for UnifiedDeviceOps {
             offset,
             bin_x,
             bin_y,
-            subframe.map(|roi| skotiq_native::camera::SubFrame {
+            subframe.map(|roi| skotiq_device::SubFrame {
                 start_x: roi.start_x,
                 start_y: roi.start_y,
                 width: roi.width,
@@ -569,10 +567,10 @@ impl DeviceOps for UnifiedDeviceOps {
         let (sensor_type, bayer_offset) = match &native_image.bayer_pattern {
             Some(pattern) => {
                 let offset = match pattern {
-                    skotiq_native::camera::BayerPattern::Rggb => (0, 0),
-                    skotiq_native::camera::BayerPattern::Grbg => (1, 0),
-                    skotiq_native::camera::BayerPattern::Gbrg => (0, 1),
-                    skotiq_native::camera::BayerPattern::Bggr => (1, 1),
+                    skotiq_device::BayerPattern::Rggb => (0, 0),
+                    skotiq_device::BayerPattern::Grbg => (1, 0),
+                    skotiq_device::BayerPattern::Gbrg => (0, 1),
+                    skotiq_device::BayerPattern::Bggr => (1, 1),
                 };
                 (Some("Color".to_string()), Some(offset))
             }

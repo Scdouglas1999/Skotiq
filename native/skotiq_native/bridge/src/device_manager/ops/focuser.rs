@@ -13,7 +13,7 @@ use crate::timeout_ops::{focuser_move_with_timeout, with_timeout_str, Timeouts};
 use tracing::warn;
 // Windows: trait must be in scope so ASCOM wrapper guards resolve its methods.
 #[cfg(windows)]
-use skotiq_native::traits::NativeFocuser;
+use skotiq_device::FocuserDriver;
 
 impl DeviceManager {
     // Focuser control
@@ -189,7 +189,7 @@ impl DeviceManager {
                     return focuser_move_with_timeout(
                         async {
                             focuser
-                                .move_to_typed(position)
+                                .move_to(position)
                                 .await
                                 .map_err(|e| SkotiqError::OperationFailed(e.to_string()))
                         },
@@ -372,7 +372,7 @@ impl DeviceManager {
                     return focuser_move_with_timeout(
                         async {
                             focuser
-                                .move_to_typed(target_position)
+                                .move_to(target_position)
                                 .await
                                 .map_err(|e| SkotiqError::OperationFailed(e.to_string()))
                         },

@@ -21,14 +21,14 @@
 //! * `AscomSwitchWrapper`, `AscomDomeWrapper`, `AscomCoverCalibratorWrapper`
 //!   return `Result<_, String>` natively — direct passthrough.
 //! * `AscomCameraWrapper`, `AscomMountWrapper`, `AscomFocuserWrapper`,
-//!   `AscomFilterWheelWrapper` return `Result<_, NativeError>` (from
-//!   `skotiq_native::traits::NativeError`) — the impl converts to
+//!   `AscomFilterWheelWrapper` return `Result<_, DriverError>` (from
+//!   `skotiq_device::DriverError`) — the impl converts to
 //!   `String` at the trait boundary via `e.to_string()` so the trait
 //!   contract stays uniform.
 //!
 //! This conversion is deliberately done at the impl boundary rather than
 //! changing the wrapper signatures, because the wrappers' callers in
-//! `device_manager::ops::*` rely on the typed `NativeError` discriminants
+//! `device_manager::ops::*` rely on the typed `DriverError` discriminants
 //! for retry/recovery decisions. The bridge dispatch layer flattens to
 //! `String` anyway, so the conversion is free at this site and contained.
 //!
@@ -47,7 +47,7 @@ use crate::ascom_wrapper::weather::AscomObservingConditionsWrapper;
 use crate::dispatch::device_common_metadata::DeviceCommonMetadata;
 
 // Native-error wrappers (camera, mount, focuser, filter wheel) — convert
-// NativeError → String at the trait boundary via Display.
+// DriverError → String at the trait boundary via Display.
 
 impl DeviceCommonMetadata for AscomCameraWrapper {
     async fn interface_version(&self) -> Result<i32, String> {

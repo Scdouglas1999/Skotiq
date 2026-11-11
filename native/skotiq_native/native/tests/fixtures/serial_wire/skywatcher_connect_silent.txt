@@ -1,0 +1,5 @@
+call connect
+@ port baud=115200 data=8 parity=none stop=1 flow=none
+> :j1\r
+  -> Err(Timeout("SkyWatcher command response timed out"))
+  connected=false

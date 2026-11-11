@@ -1,0 +1,60 @@
+## get_position, one-based driver
+result: Ok(1)
+sent: (nothing)
+
+## get_position, zero-based driver
+result: Ok(2)
+sent: (nothing)
+
+## get_position, not published
+result: Err(Filter slot not available)
+sent: (nothing)
+
+## get_names, published
+result: Ok(["L", "R", "G", "B", "Ha"])
+sent: (nothing)
+
+## get_names, synthesized from the slot range
+result: Ok(["Filter 1", "Filter 2", "Filter 3", "Filter 4", "Filter 5"])
+sent: (nothing)
+
+## get_names, nothing published
+result: Ok([])
+sent: (nothing)
+
+## move_to_position, Busy then Ok at the slot
+result: Ok(())
+sent: <newNumberVector device="WMoveOk" name="FILTER_SLOT"><oneNumber name="FILTER_SLOT_VALUE">4</oneNumber></newNumberVector>
+
+## move_to_position, already at the slot
+result: Ok(())
+sent: <newNumberVector device="Wheel" name="FILTER_SLOT"><oneNumber name="FILTER_SLOT_VALUE">2</oneNumber></newNumberVector>
+
+## move_to_position, zero-based driver
+result: Ok(())
+sent: <newNumberVector device="WZero" name="FILTER_SLOT"><oneNumber name="FILTER_SLOT_VALUE">2</oneNumber></newNumberVector>
+
+## move_to_position, driver answers Alert
+result: Err(Filter wheel WMoveAlert reported an alert moving to slot 4)
+sent: <newNumberVector device="WMoveAlert" name="FILTER_SLOT"><oneNumber name="FILTER_SLOT_VALUE">4</oneNumber></newNumberVector>
+
+## move_to_position, never reaches the slot
+result: Err(Filter wheel WMoveStuck did not reach slot 4 within 1s)
+sent: <newNumberVector device="WMoveStuck" name="FILTER_SLOT"><oneNumber name="FILTER_SLOT_VALUE">4</oneNumber></newNumberVector>
+
+## move_to_position, slot beyond the driver's limits
+result: Err(Value 10 out of range [1, 5] for Wheel.FILTER_SLOT.FILTER_SLOT_VALUE)
+sent: (nothing)
+
+## move_to_position, client not connected
+result: Err(Not connected to INDI server)
+sent: (client never connected)
+
+## get_position, client not connected
+result: Err(Filter slot not available)
+sent: (client never connected)
+
+## get_names, client not connected
+result: Ok([])
+sent: (client never connected)
+

@@ -58,9 +58,9 @@
 use crate::device::*;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
-use skotiq_native::camera::{ExposureParams, ImageData, SubFrame};
 #[cfg(windows)]
-use skotiq_native::traits::NativeCamera;
+use skotiq_device::CameraDriver;
+use skotiq_device::{ExposureParams, ImageData, SubFrame};
 use std::sync::Arc;
 use tracing::warn;
 
@@ -183,7 +183,7 @@ mod sim_camera_tests {
     };
     use crate::api::get_device_manager;
     use crate::device::{CameraState, DeviceInfo, DeviceType, DriverType};
-    use skotiq_native::camera::FrameType;
+    use skotiq_device::FrameType;
 
     /// `expect_err` on a `Result<ImageData, _>` would dump a whole 1920x1080
     /// frame into the failure output, which buries the assertion.
@@ -365,7 +365,7 @@ mod sim_sky_wiring_tests {
     };
     use crate::api::get_device_manager;
     use crate::device::{DeviceInfo, DeviceType, DriverType};
-    use skotiq_native::camera::FrameType;
+    use skotiq_device::FrameType;
 
     /// The declared simulated rig: 3.76 um pixels behind the default 1000 mm
     /// profile. If this number moves, every rendered field is at a scale the

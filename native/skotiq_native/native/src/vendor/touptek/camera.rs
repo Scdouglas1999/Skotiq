@@ -5,7 +5,7 @@ use super::*;
 // Handle wrapper for thread safety
 
 pub(crate) struct HandleWrapper(pub(crate) HOgmacam);
-// SAFETY: HOgmacam is a `*mut c_void` opaque camera handle returned by Ogmacam_Open. The struct is always wrapped in `Mutex<HandleWrapper>` in TouptekCamera; the pointer is never dereferenced or modified outside `touptek_mutex().lock().await` + `handle.lock().unwrap()` sections (see all call sites in this module — every SDK call captures the handle value while both locks are held). Marking Send is therefore equivalent to a hand-serialized capability. Sync is intentionally NOT implemented (see comment block below).
+// SAFETY: HOgmacam is a `*mut c_void` opaque camera handle returned by Ogmacam_Open. The struct is always wrapped in `Mutex<HandleWrapper>` in TouptekCamera; the pointer is never dereferenced or modified outside `TOUPTEK_SDK_LOCK.lock().await` + `handle.lock().unwrap()` sections (see all call sites in this module — every SDK call captures the handle value while both locks are held). Marking Send is therefore equivalent to a hand-serialized capability. Sync is intentionally NOT implemented (see comment block below).
 unsafe impl Send for HandleWrapper {}
 // Note: Sync is intentionally omitted. HandleWrapper contains a raw pointer
 // (*mut c_void) that is not safe to share via &-references across threads. The Mutex<HandleWrapper>
@@ -98,15 +98,19 @@ impl TouptekCamera {
         }
     }
 
-    pub(crate) fn read_gain_locked(&self, handle: HOgmacam) -> Result<i32, NativeError> {
-        with_sdk(&self.brand, |sdk| {
+    pub(crate) fn read_gain_locked(
+        &self,
+        lock: &SdkLockHeld,
+        handle: HOgmacam,
+    ) -> Result<i32, DriverError> {
+        with_sdk(lock, &self.brand, |sdk| {
             let mut gain: u16 = 0;
-            // SAFETY: caller holds touptek_mutex; `handle` is the live SDK handle
+            // SAFETY: `handle` is the live SDK handle
             // associated with this connected camera; `&mut gain` is a valid
             // out-pointer for the SDK's unsigned-short exposure-gain value.
             let result = unsafe { (sdk.get_expo_again)(handle, &mut gain) };
             if result < 0 {
-                return Err(NativeError::SdkError(format!(
+                return Err(DriverError::SdkError(format!(
                     "Failed to read gain from Touptek camera '{}'. SDK error: {}",
                     self.name, result
                 )));

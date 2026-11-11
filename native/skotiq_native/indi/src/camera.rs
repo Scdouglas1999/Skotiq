@@ -261,12 +261,12 @@ impl IndiCamera {
     }
 
     /// Get current temperature
-    pub async fn get_temperature(&self) -> Result<f64, String> {
+    pub async fn get_temperature(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
             .get_number(&self.device_name, CCD_TEMPERATURE, "CCD_TEMPERATURE_VALUE")
             .await
-            .ok_or_else(|| "Temperature not available".to_string())
+            .ok_or_else(|| IndiError::Unavailable("Temperature not available".to_string()))
     }
 
     /// Enable/disable cooler
@@ -303,7 +303,7 @@ impl IndiCamera {
     }
 
     /// Get gain
-    pub async fn get_gain(&self) -> Result<i32, String> {
+    pub async fn get_gain(&self) -> IndiResult<i32> {
         let client = self.client.read().await;
         client
             .get_number(&self.device_name, CCD_GAIN, "GAIN")
@@ -311,7 +311,7 @@ impl IndiCamera {
             // Why: INDI wire f64 -> i32. Gain is bounded by sensor (typically
             // 0..600); f64 -> i32 saturates per Rust 1.45 spec on driver bug.
             .map(|g| g as i32)
-            .ok_or_else(|| "Gain not available".to_string())
+            .ok_or_else(|| IndiError::Unavailable("Gain not available".to_string()))
     }
 
     /// Set offset
@@ -324,7 +324,7 @@ impl IndiCamera {
     }
 
     /// Get offset
-    pub async fn get_offset(&self) -> Result<i32, String> {
+    pub async fn get_offset(&self) -> IndiResult<i32> {
         let client = self.client.read().await;
         client
             .get_number(&self.device_name, CCD_OFFSET, "OFFSET")
@@ -332,7 +332,7 @@ impl IndiCamera {
             // Why: INDI wire f64 -> i32; offset bounded by sensor (typically 0..255).
             // f64 -> i32 saturates per Rust 1.45 spec.
             .map(|o| o as i32)
-            .ok_or_else(|| "Offset not available".to_string())
+            .ok_or_else(|| IndiError::Unavailable("Offset not available".to_string()))
     }
 
     /// Enable BLOB transfer for image data
@@ -685,18 +685,16 @@ impl IndiCamera {
     // Reset to full frame
 
     /// Reset frame to full sensor size
-    pub async fn reset_frame(&self) -> Result<(), String> {
+    pub async fn reset_frame(&self) -> IndiResult<()> {
         let width = self
             .get_sensor_width()
             .await
-            .ok_or("Sensor width not available")?;
+            .ok_or_else(|| IndiError::Unavailable("Sensor width not available".to_string()))?;
         let height = self
             .get_sensor_height()
             .await
-            .ok_or("Sensor height not available")?;
-        self.set_frame(0, 0, width, height)
-            .await
-            .map_err(|e| e.to_string())
+            .ok_or_else(|| IndiError::Unavailable("Sensor height not available".to_string()))?;
+        self.set_frame(0, 0, width, height).await
     }
 
     // Cooler power
@@ -714,7 +712,7 @@ impl IndiCamera {
         &self,
         duration_secs: f64,
         timeout_buffer: Option<Duration>,
-    ) -> Result<Vec<u8>, String> {
+    ) -> IndiResult<Vec<u8>> {
         let buffer_secs = match timeout_buffer {
             Some(buffer) => buffer,
             None => {
@@ -741,11 +739,11 @@ impl IndiCamera {
 
         loop {
             if start_time.elapsed() > timeout {
-                return Err(format!(
+                return Err(IndiError::Incomplete(format!(
                     "Timeout waiting for image from device '{}' after exposure of {:.1}s + buffer of {:?}. \
                     The camera may have failed to complete the exposure or transfer the image.",
                     self.device_name, duration_secs, buffer_secs
-                ));
+                )));
             }
 
             match tokio::time::timeout(Duration::from_secs(1), rx.recv()).await {
@@ -771,10 +769,10 @@ impl IndiCamera {
                             );
                     }
                     tokio::sync::broadcast::error::RecvError::Closed => {
-                        return Err(format!(
+                        return Err(IndiError::Incomplete(format!(
                                 "Event channel closed for device '{}'. The connection may have been lost.",
                                 self.device_name
-                            ));
+                            )));
                     }
                 },
                 Err(_) => {

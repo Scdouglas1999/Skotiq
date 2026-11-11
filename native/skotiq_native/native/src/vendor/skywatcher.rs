@@ -5,10 +5,13 @@
 //!
 //! Communication: Serial 9600/115200 baud or UDP (192.168.4.1:11880)
 
-use crate::traits::*;
-use crate::NativeVendor;
+use super::serial_link::{
+    self, OnOpenFailure, Probe, ProbedPort, ReplyRule, ScanPlan, SerialLink, REPLY_DEADLINE,
+};
+use super::sexagesimal::{degrees_to_hours, hours_to_degrees};
 use async_trait::async_trait;
-use std::io::{Read, Write};
+use skotiq_device::Vendor;
+use skotiq_device::*;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::Notify;
@@ -18,12 +21,28 @@ use tokio::sync::Notify;
 /// Default serial baud rate for SynScan protocol (older mounts, hand controller)
 const SYNSCAN_BAUD_RATE: u32 = 9600;
 
-/// High-speed baud rate for newer mounts (EQ6-R Pro, etc.) via USB
-
 /// Baud rates to try during discovery, in order of preference
 /// - 115200: Newer mounts (EQ6-R Pro, EQ8, etc.) via USB
 /// - 9600: Older mounts, hand controller connections
 const SYNSCAN_DISCOVERY_BAUD_RATES: &[u32] = &[115200, 9600];
+
+/// Replies end in CR; the motor controller sends nothing between them.
+const SYNSCAN_REPLY: ReplyRule = ReplyRule {
+    terminator: b'\r',
+    leading_framing: &[],
+    deadline: REPLY_DEADLINE,
+    timeout_message: "SkyWatcher command response timed out",
+};
+
+const SCAN_PLAN: ScanPlan = ScanPlan {
+    protocol: "Sky-Watcher",
+    baud_rates: SYNSCAN_DISCOVERY_BAUD_RATES,
+    on_open_failure: OnOpenFailure::NextPort,
+};
+
+/// Time the motor controller gets to answer a discovery probe.
+const PROBE_SETTLE: Duration = Duration::from_millis(100);
+const PROBE_REPLY_CAPACITY: usize = 32;
 
 /// Default UDP port for WiFi-enabled mounts
 const SYNSCAN_UDP_PORT: u16 = 11880;
@@ -109,20 +128,20 @@ fn encode_24bit(value: i64) -> String {
 }
 
 /// Decode SynScan hex format to 24-bit value
-fn decode_24bit(hex: &str) -> Result<i64, NativeError> {
+fn decode_24bit(hex: &str) -> Result<i64, DriverError> {
     if hex.len() != 6 {
-        return Err(NativeError::InvalidParameter(format!(
+        return Err(DriverError::InvalidParameter(format!(
             "Expected 6 hex chars, got {}",
             hex.len()
         )));
     }
 
     let b0 = u8::from_str_radix(&hex[0..2], 16)
-        .map_err(|_| NativeError::SdkError("Invalid hex".into()))?;
+        .map_err(|_| DriverError::SdkError("Invalid hex".into()))?;
     let b1 = u8::from_str_radix(&hex[2..4], 16)
-        .map_err(|_| NativeError::SdkError("Invalid hex".into()))?;
+        .map_err(|_| DriverError::SdkError("Invalid hex".into()))?;
     let b2 = u8::from_str_radix(&hex[4..6], 16)
-        .map_err(|_| NativeError::SdkError("Invalid hex".into()))?;
+        .map_err(|_| DriverError::SdkError("Invalid hex".into()))?;
 
     Ok((b0 as i64) | ((b1 as i64) << 8) | ((b2 as i64) << 16))
 }
@@ -135,16 +154,6 @@ fn steps_to_degrees(steps: i64) -> f64 {
 /// Convert degrees to encoder steps
 fn degrees_to_steps(degrees: f64) -> i64 {
     ((degrees / 360.0) * STEPS_PER_REVOLUTION) as i64
-}
-
-/// Convert hours to degrees (for RA)
-fn hours_to_degrees(hours: f64) -> f64 {
-    hours * 15.0
-}
-
-/// Convert degrees to hours (for RA)
-fn degrees_to_hours(degrees: f64) -> f64 {
-    degrees / 15.0
 }
 
 fn normalize_motor_board_version_response(response: &str) -> Option<String> {
@@ -176,18 +185,30 @@ fn format_motor_board_versions(ra: Option<String>, dec: Option<String>) -> Optio
     }
 }
 
-fn query_motor_board_version(port: &mut dyn serialport::SerialPort, axis: char) -> Option<String> {
-    let cmd = format!(":{}{}\r", commands::GET_MOTOR_BOARD_VERSION, axis);
-    if port.write_all(cmd.as_bytes()).is_err() {
-        return None;
+fn probe(command: &[u8]) -> Probe<'_> {
+    Probe {
+        command,
+        settle: PROBE_SETTLE,
+        reply_capacity: PROBE_REPLY_CAPACITY,
     }
-    let _ = port.flush();
+}
 
-    let mut buf = [0u8; 32];
-    std::thread::sleep(Duration::from_millis(100));
-    let n = port.read(&mut buf).ok()?;
-    let response = String::from_utf8_lossy(&buf[..n]);
+fn query_motor_board_version(port: &mut ProbedPort<'_>, axis: char) -> Option<String> {
+    let cmd = format!(":{}{}\r", commands::GET_MOTOR_BOARD_VERSION, axis);
+    let response = port.ask(&probe(cmd.as_bytes()))?;
     normalize_motor_board_version_response(&response)
+}
+
+/// A reply is `=` and a payload, or `!` and an error code.
+fn decode_reply(reply: String) -> Result<String, DriverError> {
+    if reply.starts_with(commands::RESPONSE_ERROR) {
+        return Err(DriverError::SdkError(format!("Mount error: {}", reply)));
+    }
+
+    Ok(match reply.strip_prefix(commands::RESPONSE_OK) {
+        Some(payload) => payload.to_string(),
+        None => reply,
+    })
 }
 
 // Connection types
@@ -217,7 +238,7 @@ pub struct SkyWatcherMount {
     device_id: String,
     name: String,
     connection_config: SynScanConnection,
-    serial_port: Mutex<Option<Box<dyn serialport::SerialPort + Send>>>,
+    link: SerialLink,
     connected: Mutex<bool>,
     is_tracking: Mutex<bool>,
     is_slewing: Mutex<bool>,
@@ -240,7 +261,7 @@ impl<'a> AxisMotionStopGuard<'a> {
         }
     }
 
-    fn stop(mut self) -> Result<(), NativeError> {
+    fn stop(mut self) -> Result<(), DriverError> {
         self.armed = false;
         self.mount.stop_axis_motion(self.axis)
     }
@@ -274,7 +295,7 @@ impl SkyWatcherMount {
     pub fn new_serial(port: String, baud_rate: Option<u32>) -> Self {
         let device_id = format!(
             "native:skywatcher:{}",
-            port.replace("/", "_").replace("\\", "_")
+            serial_link::sanitize_port_name(&port)
         );
         Self {
             device_id,
@@ -283,7 +304,7 @@ impl SkyWatcherMount {
                 port,
                 baud_rate: baud_rate.unwrap_or(SYNSCAN_BAUD_RATE),
             },
-            serial_port: Mutex::new(None),
+            link: SerialLink::new(),
             connected: Mutex::new(false),
             is_tracking: Mutex::new(false),
             is_slewing: Mutex::new(false),
@@ -301,7 +322,7 @@ impl SkyWatcherMount {
             device_id,
             name: format!("Sky-Watcher WiFi ({}:{})", ip, port),
             connection_config: SynScanConnection::Udp { ip, port },
-            serial_port: Mutex::new(None),
+            link: SerialLink::new(),
             connected: Mutex::new(false),
             is_tracking: Mutex::new(false),
             is_slewing: Mutex::new(false),
@@ -310,70 +331,12 @@ impl SkyWatcherMount {
         }
     }
 
-    /// Send a command and receive response (internal, takes lock)
-    fn send_command_internal(
-        port: &mut Box<dyn serialport::SerialPort + Send>,
-        command: &str,
-    ) -> Result<String, NativeError> {
-        // Send command with CR terminator
-        let cmd_bytes = format!("{}\r", command);
-        port.write_all(cmd_bytes.as_bytes())
-            .map_err(NativeError::Io)?;
-        port.flush().map_err(NativeError::Io)?;
-
-        // Read response until CR
-        let mut response = Vec::new();
-        let mut buf = [0u8; 1];
-        let timeout = std::time::Instant::now();
-
-        loop {
-            if timeout.elapsed() > Duration::from_secs(5) {
-                return Err(NativeError::Timeout(
-                    "SkyWatcher command response timed out".to_string(),
-                ));
-            }
-
-            match port.read(&mut buf) {
-                Ok(1) => {
-                    if buf[0] == b'\r' {
-                        break;
-                    }
-                    response.push(buf[0]);
-                }
-                Ok(_) => continue,
-                Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => continue,
-                Err(e) => return Err(NativeError::Io(e)),
-            }
-        }
-
-        let response_str = String::from_utf8_lossy(&response).to_string();
-
-        // Check for error response
-        if response_str.starts_with(commands::RESPONSE_ERROR) {
-            return Err(NativeError::SdkError(format!(
-                "Mount error: {}",
-                response_str
-            )));
-        }
-
-        // Strip leading '=' if present
-        let result = if response_str.starts_with(commands::RESPONSE_OK) {
-            response_str[1..].to_string()
-        } else {
-            response_str
-        };
-
-        Ok(result)
-    }
-
-    /// Send a command (acquires lock internally)
-    fn send_command(&self, command: &str) -> Result<String, NativeError> {
-        let mut port_guard = self
-            .serial_port
-            .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))?;
-        let port = port_guard.as_mut().ok_or(NativeError::NotConnected)?;
-        Self::send_command_internal(port, command)
+    /// Send a command (CR appended) and return the payload of its reply.
+    fn send_command(&self, command: &str) -> Result<String, DriverError> {
+        let reply = self
+            .link
+            .command(format!("{}\r", command).as_bytes(), &SYNSCAN_REPLY)?;
+        decode_reply(reply)
     }
 
     /// Send axis command (format: :CMD{axis}{data})
@@ -382,7 +345,7 @@ impl SkyWatcherMount {
         cmd: char,
         axis: char,
         data: Option<&str>,
-    ) -> Result<String, NativeError> {
+    ) -> Result<String, DriverError> {
         let command = match data {
             Some(d) => format!(":{}{}{}", cmd, axis, d),
             None => format!(":{}{}", cmd, axis),
@@ -391,17 +354,17 @@ impl SkyWatcherMount {
     }
 
     /// Get axis position in encoder steps
-    fn get_axis_position(&self, axis: char) -> Result<i64, NativeError> {
+    fn get_axis_position(&self, axis: char) -> Result<i64, DriverError> {
         let response = self.send_axis_command(commands::GET_POSITION, axis, None)?;
         let raw = decode_24bit(&response)?;
         Ok(raw - POSITION_OFFSET)
     }
 
     /// Get axis status
-    fn get_axis_status(&self, axis: char) -> Result<u16, NativeError> {
+    fn get_axis_status(&self, axis: char) -> Result<u16, DriverError> {
         let response = self.send_axis_command(commands::GET_STATUS, axis, None)?;
         u16::from_str_radix(&response, 16)
-            .map_err(|_| NativeError::SdkError("Invalid status".into()))
+            .map_err(|_| DriverError::SdkError("Invalid status".into()))
     }
 
     /// Whether the axis is running a goto (from status).
@@ -412,7 +375,7 @@ impl SkyWatcherMount {
     /// of the whole value is the controller's "initialized", which read every
     /// initialized axis as slewing. A motor running in tracking mode is
     /// tracking or pulse guiding, not slewing.
-    fn is_axis_slewing(&self, axis: char) -> Result<bool, NativeError> {
+    fn is_axis_slewing(&self, axis: char) -> Result<bool, DriverError> {
         let status = self.get_axis_status(axis)?;
         let running = (status >> 4) & 0x01 != 0;
         let goto_mode = (status >> 8) & 0x01 == 0;
@@ -420,41 +383,33 @@ impl SkyWatcherMount {
     }
 
     /// Set axis goto target
-    fn set_axis_target(&self, axis: char, steps: i64) -> Result<(), NativeError> {
+    fn set_axis_target(&self, axis: char, steps: i64) -> Result<(), DriverError> {
         let encoded = encode_24bit(steps + POSITION_OFFSET);
         self.send_axis_command(commands::SET_GOTO_TARGET, axis, Some(&encoded))?;
         Ok(())
     }
 
     /// Start axis motion
-    fn start_axis_motion(&self, axis: char) -> Result<(), NativeError> {
+    fn start_axis_motion(&self, axis: char) -> Result<(), DriverError> {
         self.send_axis_command(commands::START_MOTION, axis, None)?;
         Ok(())
     }
 
     /// Stop axis motion
-    fn stop_axis_motion(&self, axis: char) -> Result<(), NativeError> {
+    fn stop_axis_motion(&self, axis: char) -> Result<(), DriverError> {
         self.send_axis_command(commands::STOP_MOTION, axis, None)?;
         Ok(())
     }
 
     /// Set motion mode for axis
-    fn set_axis_motion_mode(&self, axis: char, mode: u8) -> Result<(), NativeError> {
+    fn set_axis_motion_mode(&self, axis: char, mode: u8) -> Result<(), DriverError> {
         let encoded = format!("{:02X}", mode);
         self.send_axis_command(commands::SET_MOTION_MODE, axis, Some(&encoded))?;
         Ok(())
     }
 
-    async fn pulse_guide_wait(&self, duration: Duration) -> bool {
-        let cancel = Arc::clone(&self.pulse_guide_cancel);
-        tokio::select! {
-            _ = tokio::time::sleep(duration) => false,
-            _ = cancel.notified() => true,
-        }
-    }
-
     /// Sync axis position
-    fn sync_axis_position(&self, axis: char, steps: i64) -> Result<(), NativeError> {
+    fn sync_axis_position(&self, axis: char, steps: i64) -> Result<(), DriverError> {
         let encoded = encode_24bit(steps + POSITION_OFFSET);
         self.send_axis_command(commands::SYNC_POSITION, axis, Some(&encoded))?;
         Ok(())
@@ -462,7 +417,7 @@ impl SkyWatcherMount {
 }
 
 #[async_trait]
-impl NativeDevice for SkyWatcherMount {
+impl DeviceDriver for SkyWatcherMount {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -471,36 +426,30 @@ impl NativeDevice for SkyWatcherMount {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::SkyWatcher
+    fn vendor(&self) -> Vendor {
+        Vendor::SkyWatcher
     }
 
     fn is_connected(&self) -> bool {
         *self.connected.lock().unwrap_or_else(|e| e.into_inner())
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         if self.is_connected() {
             return Ok(());
         }
 
         match &self.connection_config {
             SynScanConnection::Serial { port, baud_rate } => {
-                let _serial_access = crate::vendor::serial_mount_access().await;
-                let serial = serialport::new(port, *baud_rate)
-                    .timeout(Duration::from_millis(500))
-                    .open()
-                    .map_err(|e| {
-                        NativeError::SdkError(format!("Failed to open serial port: {}", e))
-                    })?;
+                let _serial_access = serial_link::serial_mount_access().await;
+                let serial = serial_link::open_port(port, *baud_rate).map_err(|e| {
+                    DriverError::SdkError(format!("Failed to open serial port: {}", e))
+                })?;
 
-                *self
-                    .serial_port
-                    .lock()
-                    .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = Some(serial);
+                self.link.attach(serial)?;
             }
             SynScanConnection::Udp { ip: _, port: _ } => {
-                return Err(NativeError::NotSupported);
+                return Err(DriverError::NotSupported);
             }
         }
 
@@ -510,13 +459,13 @@ impl NativeDevice for SkyWatcherMount {
         *self
             .connected
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = true;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = true;
         tracing::info!("Connected to Sky-Watcher mount");
 
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.is_connected() {
             return Ok(());
         }
@@ -525,14 +474,11 @@ impl NativeDevice for SkyWatcherMount {
         let _ = self.stop_axis_motion(AXIS_RA);
         let _ = self.stop_axis_motion(AXIS_DEC);
 
-        *self
-            .serial_port
-            .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = None;
+        self.link.detach()?;
         *self
             .connected
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = false;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = false;
 
         tracing::info!("Disconnected from Sky-Watcher mount");
 
@@ -541,14 +487,14 @@ impl NativeDevice for SkyWatcherMount {
 }
 
 #[async_trait]
-impl NativeMount for SkyWatcherMount {
+impl MountDriver for SkyWatcherMount {
     async fn slew_to_coordinates(
         &mut self,
         ra_hours: f64,
         dec_degrees: f64,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         tracing::info!("Slewing to RA={:.4}h, Dec={:.4}°", ra_hours, dec_degrees);
@@ -569,7 +515,7 @@ impl NativeMount for SkyWatcherMount {
         *self
             .is_slewing
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = true;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = true;
 
         // A commanded slew means the mount has left its parked position; clear
         // the software park flag so park/unpark state tracks physical reality.
@@ -580,9 +526,9 @@ impl NativeMount for SkyWatcherMount {
         Ok(())
     }
 
-    async fn get_coordinates(&self) -> Result<(f64, f64), NativeError> {
+    async fn get_coordinates(&self) -> Result<(f64, f64), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let ra_steps = self.get_axis_position(AXIS_RA)?;
@@ -600,9 +546,9 @@ impl NativeMount for SkyWatcherMount {
         &mut self,
         ra_hours: f64,
         dec_degrees: f64,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         tracing::info!("Syncing to RA={:.4}h, Dec={:.4}°", ra_hours, dec_degrees);
@@ -620,9 +566,9 @@ impl NativeMount for SkyWatcherMount {
         Ok(())
     }
 
-    async fn park(&mut self) -> Result<(), NativeError> {
+    async fn park(&mut self) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         tracing::info!("Parking mount");
@@ -647,20 +593,20 @@ impl NativeMount for SkyWatcherMount {
         *self
             .is_parked
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = true;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = true;
 
         Ok(())
     }
 
-    async fn unpark(&mut self) -> Result<(), NativeError> {
+    async fn unpark(&mut self) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         *self
             .is_parked
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = false;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = false;
 
         self.set_tracking(true).await?;
 
@@ -669,9 +615,9 @@ impl NativeMount for SkyWatcherMount {
         Ok(())
     }
 
-    async fn is_slewing(&self) -> Result<bool, NativeError> {
+    async fn is_slewing(&self) -> Result<bool, DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let ra_slewing = self.is_axis_slewing(AXIS_RA)?;
@@ -680,7 +626,7 @@ impl NativeMount for SkyWatcherMount {
         Ok(ra_slewing || dec_slewing)
     }
 
-    async fn is_parked(&self) -> Result<bool, NativeError> {
+    async fn is_parked(&self) -> Result<bool, DriverError> {
         Ok(*self.is_parked.lock().unwrap_or_else(|e| e.into_inner()))
     }
 
@@ -688,9 +634,9 @@ impl NativeMount for SkyWatcherMount {
         &mut self,
         direction: GuideDirection,
         duration_ms: u32,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let (axis, is_positive) = match direction {
@@ -709,7 +655,8 @@ impl NativeMount for SkyWatcherMount {
         let stop_guard = AxisMotionStopGuard::new(self, axis);
 
         let remaining = requested_duration.saturating_sub(started_at.elapsed());
-        let cancelled = stop_guard.mount.pulse_guide_wait(remaining).await;
+        let cancelled =
+            serial_link::pulse_guide_wait(remaining, &stop_guard.mount.pulse_guide_cancel).await;
 
         stop_guard.stop()?;
 
@@ -724,9 +671,9 @@ impl NativeMount for SkyWatcherMount {
         Ok(())
     }
 
-    async fn abort_slew(&mut self) -> Result<(), NativeError> {
+    async fn abort_slew(&mut self) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         tracing::info!("Aborting slew");
@@ -738,14 +685,14 @@ impl NativeMount for SkyWatcherMount {
         *self
             .is_slewing
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = false;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = false;
 
         Ok(())
     }
 
-    async fn set_tracking(&mut self, enabled: bool) -> Result<(), NativeError> {
+    async fn set_tracking(&mut self, enabled: bool) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if enabled {
@@ -759,14 +706,14 @@ impl NativeMount for SkyWatcherMount {
         *self
             .is_tracking
             .lock()
-            .map_err(|_| NativeError::SdkError("Lock poisoned".into()))? = enabled;
+            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = enabled;
 
         tracing::info!("Tracking {}", if enabled { "enabled" } else { "disabled" });
 
         Ok(())
     }
 
-    async fn get_tracking(&self) -> Result<bool, NativeError> {
+    async fn get_tracking(&self) -> Result<bool, DriverError> {
         Ok(*self.is_tracking.lock().unwrap_or_else(|e| e.into_inner()))
     }
 
@@ -778,24 +725,24 @@ impl NativeMount for SkyWatcherMount {
     // explicit so the status layer marks it unavailable and the sequencer
     // refuses to schedule a flip on this driver. Encoder-based decode is
     // tracked as a follow-up ( long-term).
-    async fn get_side_of_pier(&self) -> Result<PierSide, NativeError> {
-        Err(NativeError::NotSupported)
+    async fn get_side_of_pier(&self) -> Result<PierSide, DriverError> {
+        Err(DriverError::NotSupported)
     }
 
     // Why: Alt/Az is a derived quantity (RA/Dec + LST + observer location).
     // None of those inputs are tracked at the driver level here, and the
     // SynScan protocol exposes no native Alt/Az query. Surfacing
     // `NotSupported` is correct until the higher-level math is wired in.
-    async fn get_alt_az(&self) -> Result<(f64, f64), NativeError> {
-        Err(NativeError::NotSupported)
+    async fn get_alt_az(&self) -> Result<(f64, f64), DriverError> {
+        Err(DriverError::NotSupported)
     }
 
     // Why: Local sidereal time depends on system UTC + observer longitude;
     // the SynScan protocol has no LST query and this driver has no observer
     // context. Returning a fabricated value would silently corrupt any
     // downstream flip / pier-side / hour-angle calculation.
-    async fn get_sidereal_time(&self) -> Result<f64, NativeError> {
-        Err(NativeError::NotSupported)
+    async fn get_sidereal_time(&self) -> Result<f64, DriverError> {
+        Err(DriverError::NotSupported)
     }
 
     // Why: The `:G` (set motion mode) command in this driver hard-codes
@@ -806,22 +753,22 @@ impl NativeMount for SkyWatcherMount {
     // Until per-rate programming is implemented, every variant must return
     // `NotSupported` so the status layer marks the rate unavailable and
     // callers (sequencer, UI) cannot rely on a fabricated value.
-    async fn set_tracking_rate(&mut self, _rate: TrackingRate) -> Result<(), NativeError> {
+    async fn set_tracking_rate(&mut self, _rate: TrackingRate) -> Result<(), DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     }
 
     // Why: There is no SynScan query that reads back the active tracking-rate
     // selection. Returning a hardcoded `Sidereal` would falsely confirm a
     // rate that may never have been programmed. `NotSupported` is the honest
     // answer until the driver tracks rate state itself.
-    async fn get_tracking_rate(&self) -> Result<TrackingRate, NativeError> {
+    async fn get_tracking_rate(&self) -> Result<TrackingRate, DriverError> {
         if !self.is_connected() {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     }
 
     fn can_slew(&self) -> bool {
@@ -854,114 +801,49 @@ pub struct SkyWatcherMountInfo {
 
 /// Discover Sky-Watcher mounts on serial ports
 /// Tries multiple baud rates to support both older and newer mounts
-pub async fn discover_mounts() -> Result<Vec<SkyWatcherMountInfo>, NativeError> {
-    crate::vendor::run_serial_scan("Sky-Watcher", scan_serial_ports).await
+pub async fn discover_mounts() -> Result<Vec<SkyWatcherMountInfo>, DriverError> {
+    serial_link::run_serial_scan("Sky-Watcher", scan_serial_ports).await
 }
 
-fn scan_serial_ports() -> Result<Vec<SkyWatcherMountInfo>, NativeError> {
-    let mut mounts = Vec::new();
+fn scan_serial_ports() -> Result<Vec<SkyWatcherMountInfo>, DriverError> {
+    serial_link::scan_ports(&SCAN_PLAN, identify_mount)
+}
 
-    let ports = serialport::available_ports()
-        .map_err(|e| NativeError::SdkError(format!("Failed to enumerate ports: {}", e)))?;
+/// The same scan over ports a test supplies.
+#[cfg(all(test, target_os = "linux"))]
+pub(crate) fn scan_port_list(ports: Vec<serialport::SerialPortInfo>) -> Vec<SkyWatcherMountInfo> {
+    serial_link::scan_port_list(&SCAN_PLAN, ports, identify_mount)
+}
 
-    tracing::info!(
-        "Sky-Watcher discovery: found {} serial ports to scan",
-        ports.len()
+/// A motor controller answers the initialization check with `=` or `!`.
+fn identify_mount(port: &mut ProbedPort<'_>) -> Option<SkyWatcherMountInfo> {
+    let init_check = format!("{}\r", commands::INIT_CHECK);
+    let response = port.ask(&probe(init_check.as_bytes()))?;
+    tracing::debug!(
+        "Sky-Watcher response from {} at {} baud: {:?}",
+        port.name,
+        port.baud_rate,
+        response
     );
-
-    for port_info in ports {
-        let port_name = port_info.port_name.clone();
-        let mut found_mount = false;
-
-        // Try multiple baud rates - newer mounts like EQ6-R Pro use 115200
-        for &baud_rate in SYNSCAN_DISCOVERY_BAUD_RATES {
-            if found_mount {
-                break;
-            }
-
-            tracing::debug!("Trying {} at {} baud for Sky-Watcher", port_name, baud_rate);
-
-            let result = serialport::new(&port_name, baud_rate)
-                .timeout(Duration::from_millis(500))
-                .open();
-
-            match result {
-                Err(e) => {
-                    // Common on Windows: port is busy/locked by another app -> don't spam logs.
-                    let msg = e.to_string();
-                    let is_access_denied = msg.contains("Access is denied")
-                        || msg.contains("access is denied")
-                        || msg.contains("Permission denied")
-                        || msg.contains("permission denied");
-
-                    if is_access_denied {
-                        tracing::trace!(
-                            "Skipping busy port {} at {} baud for Sky-Watcher detection: {}",
-                            port_name,
-                            baud_rate,
-                            msg
-                        );
-                    } else {
-                        tracing::debug!(
-                            "Could not open port {} at {} baud for Sky-Watcher detection: {}",
-                            port_name,
-                            baud_rate,
-                            msg
-                        );
-                    }
-                    // If we can't open at any baud rate, skip to next port
-                    break;
-                }
-                Ok(mut port) => {
-                    let cmd = format!("{}\r", commands::INIT_CHECK);
-                    if port.write_all(cmd.as_bytes()).is_ok() {
-                        let _ = port.flush();
-
-                        let mut buf = [0u8; 32];
-                        std::thread::sleep(Duration::from_millis(100));
-
-                        if let Ok(n) = port.read(&mut buf) {
-                            let response = String::from_utf8_lossy(&buf[..n]);
-                            tracing::debug!(
-                                "Sky-Watcher response from {} at {} baud: {:?}",
-                                port_name,
-                                baud_rate,
-                                response
-                            );
-                            if response.contains('=') || response.contains('!') {
-                                let display_name = format!("Sky-Watcher ({})", port_name);
-                                let firmware_version = format_motor_board_versions(
-                                    query_motor_board_version(&mut *port, AXIS_RA),
-                                    query_motor_board_version(&mut *port, AXIS_DEC),
-                                );
-                                mounts.push(SkyWatcherMountInfo {
-                                    port: port_name.clone(),
-                                    name: display_name.clone(),
-                                    firmware_version,
-                                    baud_rate,
-                                });
-                                tracing::info!(
-                                    "Found Sky-Watcher mount on {} at {} baud",
-                                    port_name,
-                                    baud_rate
-                                );
-                                found_mount = true;
-                            }
-                        }
-                    }
-                    // Explicit drop + sleep for Windows to fully release the COM port handle
-                    drop(port);
-                    std::thread::sleep(Duration::from_millis(50));
-                }
-            }
-        }
+    if !(response.contains(commands::RESPONSE_OK) || response.contains(commands::RESPONSE_ERROR)) {
+        return None;
     }
 
-    tracing::info!(
-        "Sky-Watcher discovery complete: found {} mounts",
-        mounts.len()
+    let firmware_version = format_motor_board_versions(
+        query_motor_board_version(port, AXIS_RA),
+        query_motor_board_version(port, AXIS_DEC),
     );
-    Ok(mounts)
+    tracing::info!(
+        "Found Sky-Watcher mount on {} at {} baud",
+        port.name,
+        port.baud_rate
+    );
+    Some(SkyWatcherMountInfo {
+        port: port.name.to_string(),
+        name: format!("Sky-Watcher ({})", port.name),
+        firmware_version,
+        baud_rate: port.baud_rate,
+    })
 }
 
 #[cfg(test)]
@@ -978,9 +860,9 @@ mod tests {
         mount
     }
 
-    fn assert_not_supported<T: std::fmt::Debug>(result: Result<T, NativeError>) {
+    fn assert_not_supported<T: std::fmt::Debug>(result: Result<T, DriverError>) {
         match result {
-            Err(NativeError::NotSupported) => {}
+            Err(DriverError::NotSupported) => {}
             other => panic!("expected Err(NotSupported), got {:?}", other),
         }
     }
@@ -1033,28 +915,26 @@ mod tests {
         assert_not_supported(mount.get_tracking_rate().await);
     }
 
+    /// The UDP transport is declared but not implemented: connecting says so
+    /// and opens nothing. (A pseudo-terminal cannot stand in for it, so the
+    /// wire transcripts do not cover it.)
+    #[tokio::test]
+    async fn a_udp_mount_reports_not_supported_on_connect() {
+        let mut mount = SkyWatcherMount::new_udp(None, None);
+        assert_eq!(mount.id(), "native:skywatcher:192.168.4.1:11880");
+        assert_eq!(mount.name(), "Sky-Watcher WiFi (192.168.4.1:11880)");
+        assert_not_supported(mount.connect().await);
+        assert!(!mount.is_connected());
+        assert!(matches!(
+            mount.get_coordinates().await,
+            Err(DriverError::NotConnected)
+        ));
+    }
+
     // Why: the motion-mode byte intentionally overloads bit `0x02`
     // with two meanings depending on bit `0x01`. Lock the encoding behavior
     // in tests so the protocol overload cannot be silently broken by a
     // refactor that "fixes" the apparent duplication.
-    #[tokio::test]
-    async fn pulse_guide_wait_wakes_on_cancel_notify() {
-        let mount = fake_connected_mount();
-        let cancel = Arc::clone(&mount.pulse_guide_cancel);
-
-        tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_millis(10)).await;
-            cancel.notify_waiters();
-        });
-
-        let started = tokio::time::Instant::now();
-        assert!(mount.pulse_guide_wait(Duration::from_secs(5)).await);
-        assert!(
-            started.elapsed() < Duration::from_secs(1),
-            "cancel notification should end the guide wait promptly"
-        );
-    }
-
     #[test]
     fn build_motion_mode_goto_uses_bit2_for_fast_and_bit4_for_ccw() {
         // Goto, slow, CW
@@ -1110,6 +990,7 @@ mod tests {
     /// three-digit status. Returns the slave path the mount opens.
     #[cfg(target_os = "linux")]
     fn spawn_synscan_pty(ra_status: &'static str, dec_status: &'static str) -> String {
+        use std::io::{Read, Write};
         use std::os::fd::FromRawFd;
 
         let mut master: libc::c_int = 0;

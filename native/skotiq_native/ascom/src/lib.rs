@@ -7,6 +7,26 @@
 #[cfg(windows)]
 mod windows;
 
+// The device wrappers and what a COM call consists of are not gated: they
+// reach the driver only through `com::ComDispatch`, so the tests drive them
+// with a recording stand-in on any host. Only `windows` talks to COM.
+#[macro_use]
+mod members;
+
+mod camera;
+pub mod com;
+mod cover_calibrator;
+mod dome;
+mod error;
+mod filter_wheel;
+mod focuser;
+mod health;
+mod mount;
+mod observing_conditions;
+mod rotator;
+mod safety_monitor;
+mod switch;
+
 // Not gated: the connect read-back policy is pure timing and message logic, so
 // it stays testable on the Linux workstation where the COM plumbing cannot even
 // compile.
@@ -73,62 +93,44 @@ pub fn discover_devices(_device_type: AscomDeviceType) -> Vec<AscomDevice> {
     Vec::new()
 }
 
-// Re-export Windows-specific types when on Windows
-#[cfg(windows)]
-pub use windows::{
-    // COM initialization
-    init_com,
-    uninit_com,
-    // Device types
-    AscomCamera,
-    AscomCoverCalibrator,
-    // Device connection wrapper
-    AscomDeviceConnection,
-    AscomDome,
-    // Error types
-    AscomError,
-    AscomFilterWheel,
-    AscomFocuser,
-    AscomMount,
-    AscomObservingConditions,
-    AscomResult,
-    AscomRotator,
-    AscomSafetyMonitor,
-    AscomSwitch,
-    CameraExposureSettings,
-    CameraFullStatus,
-    CameraSensorConfig,
-    // Batch status types - Camera
-    CameraThermalStatus,
-    // Health monitoring
-    ConnectionHealth,
-    // Batch status types - Cover Calibrator
-    CoverCalibratorFullStatus,
-    // Batch status types - Dome
-    DomeFullStatus,
-    // Batch status types - Filter Wheel
-    FilterWheelFullStatus,
-    // Batch status types - Focuser
-    FocuserCapabilities,
-    FocuserFullStatus,
-    HealthMonitor,
-    MountCapabilities,
-    MountFullStatus,
-    MountGuideRates,
-    MountMotionStatus,
-    // Batch status types - Mount
-    MountPositionStatus,
-    MountSiteStatus,
-    ObservingConditionsFullStatus,
-    // Batch status types - Rotator
-    RotatorFullStatus,
-    // Batch status types - Safety Monitor
-    SafetyMonitorFullStatus,
-    SkyStatus,
-    // Batch status types - Switch
-    SwitchChannelState,
-    SwitchFullStatus,
-    // Batch status types - Observing Conditions
-    WeatherStatus,
-    WindStatus,
+pub use camera::{
+    Camera, CameraExposureSettings, CameraFullStatus, CameraSensorConfig, CameraThermalStatus,
 };
+pub use cover_calibrator::{CoverCalibrator, CoverCalibratorFullStatus};
+pub use dome::{Dome, DomeFullStatus};
+pub use error::{AscomError, AscomResult};
+pub use filter_wheel::{FilterWheel, FilterWheelFullStatus};
+pub use focuser::{Focuser, FocuserCapabilities, FocuserFullStatus};
+pub use health::{ConnectionHealth, HealthMonitor};
+pub use mount::{
+    Mount, MountCapabilities, MountFullStatus, MountGuideRates, MountMotionStatus,
+    MountPositionStatus, MountSiteStatus,
+};
+pub use observing_conditions::{
+    ObservingConditions, ObservingConditionsFullStatus, SkyStatus, WeatherStatus, WindStatus,
+};
+pub use rotator::{Rotator, RotatorFullStatus};
+pub use safety_monitor::{SafetyMonitor, SafetyMonitorFullStatus};
+pub use switch::{Switch, SwitchChannelState, SwitchFullStatus};
+
+#[cfg(windows)]
+pub use windows::{init_com, uninit_com, AscomDeviceConnection};
+
+/// The device wrappers over a real COM connection.
+#[cfg(windows)]
+mod com_devices {
+    use super::*;
+
+    pub type AscomCamera = Camera<AscomDeviceConnection>;
+    pub type AscomCoverCalibrator = CoverCalibrator<AscomDeviceConnection>;
+    pub type AscomDome = Dome<AscomDeviceConnection>;
+    pub type AscomFilterWheel = FilterWheel<AscomDeviceConnection>;
+    pub type AscomFocuser = Focuser<AscomDeviceConnection>;
+    pub type AscomMount = Mount<AscomDeviceConnection>;
+    pub type AscomObservingConditions = ObservingConditions<AscomDeviceConnection>;
+    pub type AscomRotator = Rotator<AscomDeviceConnection>;
+    pub type AscomSafetyMonitor = SafetyMonitor<AscomDeviceConnection>;
+    pub type AscomSwitch = Switch<AscomDeviceConnection>;
+}
+#[cfg(windows)]
+pub use com_devices::*;

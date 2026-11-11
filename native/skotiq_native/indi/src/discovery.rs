@@ -5,6 +5,7 @@
 use crate::{IndiClient, IndiProperty, INDI_DEFAULT_PORT};
 use if_addrs::get_if_addrs;
 use mdns_sd::{ServiceDaemon, ServiceEvent};
+use skotiq_device::DeviceKind;
 use std::collections::HashSet;
 use std::time::Duration;
 
@@ -20,24 +21,10 @@ pub struct IndiServer {
 #[derive(Debug, Clone)]
 pub struct IndiDeviceInfo {
     pub name: String,
-    pub device_type: IndiDeviceType,
+    /// What the device's properties show it to be; `None` when they show
+    /// nothing Skotiq drives.
+    pub device_type: Option<DeviceKind>,
     pub properties: Vec<String>,
-}
-
-/// INDI device type (inferred from properties)
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum IndiDeviceType {
-    Camera,
-    Telescope,
-    Focuser,
-    FilterWheel,
-    Dome,
-    Rotator,
-    Guider,
-    Weather,
-    SafetyMonitor,
-    CoverCalibrator,
-    Unknown,
 }
 
 /// Scan localhost for INDI server on default port
@@ -299,7 +286,7 @@ async fn check_port_open(addr: &str, timeout: Duration) -> bool {
 }
 
 /// Infer device type from its properties
-fn infer_device_type(properties: &[IndiProperty]) -> IndiDeviceType {
+fn infer_device_type(properties: &[IndiProperty]) -> Option<DeviceKind> {
     let prop_names: Vec<&str> = properties.iter().map(|p| p.name.as_str()).collect();
 
     // Check for camera-specific properties
@@ -307,7 +294,7 @@ fn infer_device_type(properties: &[IndiProperty]) -> IndiDeviceType {
         .iter()
         .any(|p| *p == "CCD_EXPOSURE" || *p == "CCD_INFO" || *p == "CCD_FRAME" || *p == "CCD1")
     {
-        return IndiDeviceType::Camera;
+        return Some(DeviceKind::Camera);
     }
 
     // Check for mount/telescope properties
@@ -317,7 +304,7 @@ fn infer_device_type(properties: &[IndiProperty]) -> IndiDeviceType {
             || *p == "TELESCOPE_TRACK_MODE"
             || *p == "TELESCOPE_MOTION_NS"
     }) {
-        return IndiDeviceType::Telescope;
+        return Some(DeviceKind::Mount);
     }
 
     // Check for focuser properties
@@ -325,7 +312,7 @@ fn infer_device_type(properties: &[IndiProperty]) -> IndiDeviceType {
         .iter()
         .any(|p| *p == "ABS_FOCUS_POSITION" || *p == "REL_FOCUS_POSITION" || *p == "FOCUS_MOTION")
     {
-        return IndiDeviceType::Focuser;
+        return Some(DeviceKind::Focuser);
     }
 
     // Check for filter wheel properties
@@ -333,7 +320,7 @@ fn infer_device_type(properties: &[IndiProperty]) -> IndiDeviceType {
         .iter()
         .any(|p| *p == "FILTER_SLOT" || *p == "FILTER_NAME")
     {
-        return IndiDeviceType::FilterWheel;
+        return Some(DeviceKind::FilterWheel);
     }
 
     // Check for dome properties
@@ -341,7 +328,7 @@ fn infer_device_type(properties: &[IndiProperty]) -> IndiDeviceType {
         .iter()
         .any(|p| *p == "DOME_SHUTTER" || *p == "DOME_MOTION" || *p == "ABS_DOME_POSITION")
     {
-        return IndiDeviceType::Dome;
+        return Some(DeviceKind::Dome);
     }
 
     // Check for rotator properties
@@ -349,7 +336,7 @@ fn infer_device_type(properties: &[IndiProperty]) -> IndiDeviceType {
         .iter()
         .any(|p| *p == "ABS_ROTATOR_ANGLE" || *p == "ROTATOR_ANGLE")
     {
-        return IndiDeviceType::Rotator;
+        return Some(DeviceKind::Rotator);
     }
 
     // Check for guider properties
@@ -357,7 +344,7 @@ fn infer_device_type(properties: &[IndiProperty]) -> IndiDeviceType {
         .iter()
         .any(|p| *p == "TELESCOPE_TIMED_GUIDE_NS" || *p == "TELESCOPE_TIMED_GUIDE_WE")
     {
-        return IndiDeviceType::Guider;
+        return Some(DeviceKind::Guider);
     }
 
     // Check for safety monitor properties (before weather since safety may include weather)
@@ -365,7 +352,7 @@ fn infer_device_type(properties: &[IndiProperty]) -> IndiDeviceType {
         .iter()
         .any(|p| *p == "SAFETY_STATUS" || *p == "AUX_SAFETY")
     {
-        return IndiDeviceType::SafetyMonitor;
+        return Some(DeviceKind::SafetyMonitor);
     }
 
     // Check for weather properties
@@ -375,9 +362,9 @@ fn infer_device_type(properties: &[IndiProperty]) -> IndiDeviceType {
     {
         // Weather devices with safety status are primarily safety monitors
         if prop_names.iter().any(|p| p.contains("SAFE")) {
-            return IndiDeviceType::SafetyMonitor;
+            return Some(DeviceKind::SafetyMonitor);
         }
-        return IndiDeviceType::Weather;
+        return Some(DeviceKind::Weather);
     }
 
     // Check for cover calibrator / flat panel properties
@@ -389,10 +376,10 @@ fn infer_device_type(properties: &[IndiProperty]) -> IndiDeviceType {
             || *p == "DUSTCAP_CONTROL"
             || *p == "LIGHTBOX_BRIGHTNESS"
     }) {
-        return IndiDeviceType::CoverCalibrator;
+        return Some(DeviceKind::CoverCalibrator);
     }
 
-    IndiDeviceType::Unknown
+    None
 }
 
 /// Get local subnet prefixes (first 3 octets of local IPs)

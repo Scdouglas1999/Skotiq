@@ -33,12 +33,12 @@ pub enum AlpacaError {
     },
 
     // Why: color (rank 3) image arrays carry a channel dimension that
-    // `download_image_data_typed` flattens away. Until a typed multi-plane
+    // `download_image_data` flattens away. Until a typed multi-plane
     // consumer exists, surface the situation explicitly rather than silently
     // dropping data.
     #[error(
         "Color image array (rank 3, {width}x{height}x{planes}) requires multi-plane consumer; \
-         use `download_image_array_full_typed` instead"
+         use `download_image_array_full` instead"
     )]
     ColorImageUnsupported {
         width: u32,
@@ -109,6 +109,18 @@ pub enum AlpacaError {
 
     #[error("HTTP client initialization failed: {0}")]
     ClientInitializationFailed(String),
+
+    #[error("Filter '{0}' not found")]
+    FilterNotFound(String),
+
+    #[error("Filter wheel is moving")]
+    FilterWheelMoving,
+
+    #[error("Invalid position: {0}")]
+    InvalidFilterPosition(i32),
+
+    #[error("Filter index {0} exceeds i32::MAX; impossible for a real filter wheel.")]
+    FilterIndexOutOfRange(usize),
 }
 
 impl AlpacaError {
@@ -153,6 +165,10 @@ impl AlpacaError {
             AlpacaError::ValidationFailed(_) => false,
             AlpacaError::RetryExhausted { .. } => false,
             AlpacaError::ClientInitializationFailed(_) => false,
+            AlpacaError::FilterNotFound(_) => false,
+            AlpacaError::FilterWheelMoving => false,
+            AlpacaError::InvalidFilterPosition(_) => false,
+            AlpacaError::FilterIndexOutOfRange(_) => false,
         }
     }
 

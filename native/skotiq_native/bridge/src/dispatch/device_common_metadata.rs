@@ -67,7 +67,7 @@ use crate::device::DeviceApiVersion;
 ///
 /// All four methods return `Result<_, String>` — the bridge dispatch layer
 /// works in stringified errors throughout, so ASCOM impls that natively
-/// return `NativeError` convert via `e.to_string()` at the impl boundary.
+/// return `DriverError` convert via `e.to_string()` at the impl boundary.
 pub(crate) trait DeviceCommonMetadata {
     /// ASCOM `InterfaceVersion` — small positive integer (currently 1..=4)
     /// per the ASCOM spec. `Err` means the property is missing or the

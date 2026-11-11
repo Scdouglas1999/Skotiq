@@ -177,11 +177,7 @@ crate::load_vendor_sdk! {
     }
 }
 
-pub(crate) fn get_sdk() -> Result<&'static AtikSdk, NativeError> {
-    AtikSdk::get_or_reason().map_err(|reason| NativeError::SdkError(reason.to_string()))
-}
-
-pub(crate) fn check_artemis_error(result: c_int, operation: &str) -> Result<(), NativeError> {
+pub(crate) fn check_artemis_error(result: c_int, operation: &str) -> Result<(), DriverError> {
     let err = ArtemisError::from_i32(result);
     if err == ArtemisError::Ok {
         Ok(())
@@ -190,7 +186,7 @@ pub(crate) fn check_artemis_error(result: c_int, operation: &str) -> Result<(), 
     }
 }
 
-pub(crate) fn require_efw_api(sdk: &AtikSdk) -> Result<(), NativeError> {
+pub(crate) fn require_efw_api(sdk: &AtikSdk) -> Result<(), DriverError> {
     if sdk.efw_is_present.is_some()
         && sdk.efw_get_device_details.is_some()
         && sdk.efw_connect.is_some()
@@ -202,7 +198,7 @@ pub(crate) fn require_efw_api(sdk: &AtikSdk) -> Result<(), NativeError> {
     {
         Ok(())
     } else {
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     }
 }
 
@@ -231,7 +227,7 @@ pub(crate) fn discovered_efw_serials() -> &'static Mutex<HashMap<c_int, String>>
 ///
 /// # Preconditions
 ///
-/// The caller MUST already hold [`atik_mutex`]. The Artemis SDK keeps its device
+/// The caller MUST already hold the Atik SDK lock. The Artemis SDK keeps its device
 /// table in process-global state and is not thread-safe, so both the enumeration
 /// and the index-keyed queries below are only coherent (and the index only stays
 /// meaningful between calls) while that lock is held. The sole caller,
@@ -239,9 +235,9 @@ pub(crate) fn discovered_efw_serials() -> &'static Mutex<HashMap<c_int, String>>
 pub(crate) fn camera_index_for_serial(
     sdk: &AtikSdk,
     serial_number: &str,
-) -> Result<c_int, NativeError> {
+) -> Result<c_int, DriverError> {
     let count = match sdk.refresh_devices_count {
-        // SAFETY: atik_mutex is held by the caller (see preconditions), so no other
+        // SAFETY: so no other
         // task is inside the Artemis SDK. ArtemisRefreshDevicesCount takes no
         // arguments and returns a plain c_int, so there is no pointer to invalidate.
         // `sdk` is borrowed from the process-lifetime `SDK` OnceLock, whose library
@@ -254,14 +250,14 @@ pub(crate) fn camera_index_for_serial(
     };
 
     for index in 0..count {
-        // SAFETY: atik_mutex is held by the caller; `index` comes from `0..count`
+        // SAFETY: `index` comes from `0..count`
         // where `count` is the SDK's own device count read above under the same
         // lock, which is exactly the range ArtemisDevicePresent accepts. Only that
         // c_int is passed; no pointers are involved.
         if unsafe { (sdk.device_present)(index) } == 0 {
             continue;
         }
-        // SAFETY: atik_mutex is held by the caller; `index` is in enumeration range
+        // SAFETY: `index` is in enumeration range
         // AND was just confirmed present, which is ArtemisDeviceIsCamera's
         // precondition. This is kept as a separate `if` rather than folded into the
         // presence check with `||` so the short-circuit survives: an absent slot must
@@ -271,7 +267,7 @@ pub(crate) fn camera_index_for_serial(
         }
 
         let mut serial_buf = [0 as c_char; 100];
-        // SAFETY: caller holds atik_mutex; index is present and serial_buf is a valid
+        // SAFETY: index is present and serial_buf is a valid
         // 100-byte output buffer.
         if unsafe { (sdk.device_serial)(index, serial_buf.as_mut_ptr()) } == 0 {
             continue;
@@ -283,7 +279,7 @@ pub(crate) fn camera_index_for_serial(
         }
     }
 
-    Err(NativeError::DeviceNotFound(format!(
+    Err(DriverError::DeviceNotFound(format!(
         "Atik camera serial {}",
         serial_number
     )))
@@ -292,21 +288,21 @@ pub(crate) fn camera_index_for_serial(
 pub(crate) fn efw_index_for_serial(
     sdk: &AtikSdk,
     serial_number: &str,
-) -> Result<c_int, NativeError> {
+) -> Result<c_int, DriverError> {
     let efw_is_present = sdk.efw_is_present.unwrap();
     let efw_get_device_details = sdk.efw_get_device_details.unwrap();
 
-    // SAFETY: caller holds atik_mutex; ArtemisDeviceCount takes no arguments.
+    // SAFETY: ArtemisDeviceCount takes no arguments.
     let count = unsafe { (sdk.device_count)() };
     for index in 0..count {
-        // SAFETY: caller holds atik_mutex; index is inside the SDK enumeration range.
+        // SAFETY: index is inside the SDK enumeration range.
         if unsafe { efw_is_present(index) } == 0 {
             continue;
         }
 
         let mut efw_type: c_int = 0;
         let mut serial_buf = [0 as c_char; 100];
-        // SAFETY: caller holds atik_mutex; index is present and both out-pointers are valid.
+        // SAFETY: index is present and both out-pointers are valid.
         if unsafe { efw_get_device_details(index, &mut efw_type, serial_buf.as_mut_ptr()) }
             != ArtemisError::Ok as c_int
         {
@@ -319,7 +315,7 @@ pub(crate) fn efw_index_for_serial(
         }
     }
 
-    Err(NativeError::DeviceNotFound(format!(
+    Err(DriverError::DeviceNotFound(format!(
         "Atik EFW serial {}",
         serial_number
     )))

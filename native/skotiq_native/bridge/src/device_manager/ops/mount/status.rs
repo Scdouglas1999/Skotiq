@@ -345,7 +345,7 @@ impl DeviceManager {
                                     );
                                     (Some(Self::tracking_rate_from_native(rate)), true)
                                 }
-                                Err(skotiq_native::traits::NativeError::NotSupported) => {
+                                Err(skotiq_device::DriverError::NotSupported) => {
                                     Self::set_mount_availability(
                                         &mut availability,
                                         mount_status_field::TRACKING_RATE,
@@ -402,9 +402,7 @@ impl DeviceManager {
                     let slewing = mount.is_slewing().await.map_err(DeviceOpError::driver)?;
                     let (parked, can_park, parked_readable) = match mount.is_parked().await {
                         Ok(p) => (p, true, true),
-                        Err(skotiq_native::traits::NativeError::NotSupported) => {
-                            (false, false, false)
-                        }
+                        Err(skotiq_device::DriverError::NotSupported) => (false, false, false),
                         Err(e) => {
                             return Err(DeviceOpError::hardware(
                                 Some(device_id.to_string()),
@@ -429,11 +427,11 @@ impl DeviceManager {
                         );
                     }
 
-                    // get_side_of_pier on `NativeMount` returns Unknown rather than Err
+                    // get_side_of_pier on `MountDriver` returns Unknown rather than Err
                     // for unsupported mounts (e.g. SkyWatcher), so distinguish here:
                     // Unknown → Unsupported availability; East/West → Available.
                     let side_of_pier_opt = match mount.get_side_of_pier().await {
-                        Ok(skotiq_native::traits::PierSide::Unknown) => {
+                        Ok(skotiq_device::PierSide::Unknown) => {
                             Self::set_mount_availability(
                                 &mut availability,
                                 mount_status_field::SIDE_OF_PIER,
@@ -449,7 +447,7 @@ impl DeviceManager {
                             );
                             Some(Self::pier_side_from_native(other))
                         }
-                        Err(skotiq_native::traits::NativeError::NotSupported) => {
+                        Err(skotiq_device::DriverError::NotSupported) => {
                             Self::set_mount_availability(
                                 &mut availability,
                                 mount_status_field::SIDE_OF_PIER,
@@ -590,22 +588,22 @@ impl DeviceManager {
                     // see the underlying reason verbatim. UI can match on the prefix
                     // "PropertyNotImplemented" if it wants to render Unsupported.
                     let alt_opt = Self::availability_from_string_result(
-                        mount.altitude().await,
+                        mount.altitude().await.map_err(|e| e.to_string()),
                         mount_status_field::ALTITUDE,
                         &mut availability,
                     );
                     let az_opt = Self::availability_from_string_result(
-                        mount.azimuth().await,
+                        mount.azimuth().await.map_err(|e| e.to_string()),
                         mount_status_field::AZIMUTH,
                         &mut availability,
                     );
                     let at_home_opt = Self::availability_from_string_result(
-                        mount.at_home().await,
+                        mount.at_home().await.map_err(|e| e.to_string()),
                         mount_status_field::AT_HOME,
                         &mut availability,
                     );
                     let sidereal_time_opt = Self::availability_from_string_result(
-                        mount.sidereal_time().await,
+                        mount.sidereal_time().await.map_err(|e| e.to_string()),
                         mount_status_field::SIDEREAL_TIME,
                         &mut availability,
                     );
@@ -637,7 +635,7 @@ impl DeviceManager {
                             Self::set_mount_availability(
                                 &mut availability,
                                 mount_status_field::SIDE_OF_PIER,
-                                FieldAvailability::Error(e),
+                                FieldAvailability::Error(e.to_string()),
                             );
                             None
                         }
@@ -687,7 +685,7 @@ impl DeviceManager {
                             Self::set_mount_availability(
                                 &mut availability,
                                 mount_status_field::TRACKING_RATE,
-                                FieldAvailability::Error(e),
+                                FieldAvailability::Error(e.to_string()),
                             );
                             None
                         }
@@ -779,12 +777,12 @@ impl DeviceManager {
                             Self::set_mount_availability(
                                 &mut availability,
                                 mount_status_field::ALTITUDE,
-                                FieldAvailability::Error(e.clone()),
+                                FieldAvailability::Error(e.to_string()),
                             );
                             Self::set_mount_availability(
                                 &mut availability,
                                 mount_status_field::AZIMUTH,
-                                FieldAvailability::Error(e),
+                                FieldAvailability::Error(e.to_string()),
                             );
                             (None, None)
                         }
@@ -914,13 +912,13 @@ impl DeviceManager {
         availability.insert(field.to_owned(), value);
     }
 
-    /// Convert a `Result<T, NativeError>` into `(Option<T>, FieldAvailability)`,
+    /// Convert a `Result<T, DriverError>` into `(Option<T>, FieldAvailability)`,
     /// inserting the availability entry under `field` and returning the value.
     ///
     /// Used by `mount_get_status` so each per-field branch shrinks to one call
     /// instead of duplicating the same availability/log scaffolding.
     fn availability_from_native_result<T>(
-        result: Result<T, skotiq_native::traits::NativeError>,
+        result: Result<T, skotiq_device::DriverError>,
         field: &'static str,
         availability: &mut HashMap<String, FieldAvailability>,
     ) -> Option<T> {
@@ -929,7 +927,7 @@ impl DeviceManager {
                 Self::set_mount_availability(availability, field, FieldAvailability::Available);
                 Some(v)
             }
-            Err(skotiq_native::traits::NativeError::NotSupported) => {
+            Err(skotiq_device::DriverError::NotSupported) => {
                 Self::set_mount_availability(availability, field, FieldAvailability::Unsupported);
                 None
             }
@@ -964,11 +962,11 @@ impl DeviceManager {
         }
     }
 
-    fn pier_side_from_native(side: skotiq_native::traits::PierSide) -> crate::device::PierSide {
+    fn pier_side_from_native(side: skotiq_device::PierSide) -> crate::device::PierSide {
         match side {
-            skotiq_native::traits::PierSide::East => crate::device::PierSide::East,
-            skotiq_native::traits::PierSide::West => crate::device::PierSide::West,
-            skotiq_native::traits::PierSide::Unknown => crate::device::PierSide::Unknown,
+            skotiq_device::PierSide::East => crate::device::PierSide::East,
+            skotiq_device::PierSide::West => crate::device::PierSide::West,
+            skotiq_device::PierSide::Unknown => crate::device::PierSide::Unknown,
         }
     }
 
@@ -983,13 +981,13 @@ impl DeviceManager {
         }
     }
 
-    fn tracking_rate_from_native(rate: skotiq_native::traits::TrackingRate) -> TrackingRate {
+    fn tracking_rate_from_native(rate: skotiq_device::TrackingRate) -> TrackingRate {
         match rate {
-            skotiq_native::traits::TrackingRate::Sidereal => TrackingRate::Sidereal,
-            skotiq_native::traits::TrackingRate::Lunar => TrackingRate::Lunar,
-            skotiq_native::traits::TrackingRate::Solar => TrackingRate::Solar,
-            skotiq_native::traits::TrackingRate::King => TrackingRate::King,
-            skotiq_native::traits::TrackingRate::Custom => TrackingRate::Custom,
+            skotiq_device::TrackingRate::Sidereal => TrackingRate::Sidereal,
+            skotiq_device::TrackingRate::Lunar => TrackingRate::Lunar,
+            skotiq_device::TrackingRate::Solar => TrackingRate::Solar,
+            skotiq_device::TrackingRate::King => TrackingRate::King,
+            skotiq_device::TrackingRate::Custom => TrackingRate::Custom,
         }
     }
 }

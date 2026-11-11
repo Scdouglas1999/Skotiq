@@ -4,6 +4,9 @@
 //! This provides network-based access to astronomical equipment without
 //! requiring platform-specific COM or INDI interfaces.
 
+#[macro_use]
+mod members;
+
 mod camera;
 mod client;
 mod covercalibrator;
@@ -29,6 +32,12 @@ pub use rotator::*;
 pub use safetymonitor::*;
 pub use switch::*;
 pub use telescope::*;
+
+// The ASCOM enumerations are shared with the COM transport.
+pub use skotiq_device::ascom::{
+    AlignmentMode, AxisRate, CalibratorStatus, CameraState, CoverStatus, DriveRate, PierSide,
+    SensorType, ShutterStatus, TelescopeAxis,
+};
 
 /// Default Alpaca discovery port
 pub const ALPACA_DISCOVERY_PORT: u16 = 32227;

@@ -933,7 +933,7 @@ pub async fn api_camera_start_exposure_configured(
         bin_x,
         bin_y,
         subframe,
-        skotiq_native::camera::FrameType::from_str_lenient(&frame_type),
+        skotiq_device::FrameType::from_str_lenient(&frame_type),
     )
     .await
 }
@@ -961,7 +961,7 @@ pub(crate) async fn camera_start_exposure_opt(
         bin_x,
         bin_y,
         None,
-        skotiq_native::camera::FrameType::Light,
+        skotiq_device::FrameType::Light,
     )
     .await
 }
@@ -1014,7 +1014,7 @@ pub(crate) async fn camera_start_exposure_configured_opt(
     bin_x: i32,
     bin_y: i32,
     subframe: Option<skotiq_sequencer::CameraSubframe>,
-    frame_type: skotiq_native::camera::FrameType,
+    frame_type: skotiq_device::FrameType,
 ) -> Result<(), SkotiqError> {
     tracing::info!(
         "Starting {}s exposure with gain={:?}, offset={:?}, bin={}x{}",

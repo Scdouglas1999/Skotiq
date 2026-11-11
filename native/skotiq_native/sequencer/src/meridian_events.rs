@@ -2,13 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Pier side of the mount
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-pub enum PierSide {
-    East,
-    West,
-    Unknown,
-}
+pub use skotiq_device::PierSide;
 
 /// Steps in the meridian flip sequence
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]

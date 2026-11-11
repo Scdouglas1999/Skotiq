@@ -43,7 +43,7 @@ pub(crate) async fn get_native_capabilities(
                 let readout_modes = camera.get_readout_modes().await.unwrap_or_default();
                 let status = camera.get_status().await.ok();
                 let cooler_power = status.as_ref().and_then(|s| s.cooler_power);
-                // Why: the NativeCamera trait's get_cooler_temp_range default
+                // Why: the CameraDriver trait's get_cooler_temp_range default
                 // returns Ok(None); only drivers that publish the achievable
                 // regulated-cooling range (currently ZWO, via C2) override it.
                 // `.ok().flatten()` collapses a transient SDK error to None
@@ -184,7 +184,7 @@ pub(crate) async fn get_native_capabilities(
                     current_position: position,
                     filter_names: names,
                     is_moving,
-                    // The `NativeFilterWheel` trait requires `set_filter_name`,
+                    // The `FilterWheelDriver` trait requires `set_filter_name`,
                     // so every native wheel can be renamed. Leaving this at the
                     // `Default::default()` `false` under-reported a working
                     // feature: on the live rig a real ZWO EFW advertised

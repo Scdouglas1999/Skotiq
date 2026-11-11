@@ -3,14 +3,16 @@
 //! Native driver for Atik cameras using their official Artemis SDK.
 //! Supports Atik Horizon, ACIS, APX, and older series cameras.
 
-use crate::camera::{
-    BayerPattern, CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData,
-    ImageMetadata, ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
+use crate::camera_core::{
+    image_dimension, unpack_samples, CameraCore, Frame, SampleLayout, SdkHandle,
 };
-use crate::sync::atik_mutex;
-use crate::traits::{NativeCamera, NativeDevice, NativeError, NativeFilterWheel};
-use crate::NativeVendor;
 use async_trait::async_trait;
+use skotiq_device::camera::{
+    BayerPattern, CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData,
+    ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
+};
+use skotiq_device::Vendor;
+use skotiq_device::{CameraDriver, DeviceDriver, DriverError, FilterWheelDriver};
 use std::collections::HashMap;
 use std::ffi::{c_char, c_float, c_int, c_void, CStr};
 use std::sync::{Mutex, OnceLock};

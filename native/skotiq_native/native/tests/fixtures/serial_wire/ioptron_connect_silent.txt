@@ -1,0 +1,7 @@
+call connect
+@ port baud=9600 data=8 parity=none stop=1 flow=none
+> :MountInfo#
+@ port baud=115200 data=8 parity=none stop=1 flow=none
+> :MountInfo#
+  -> Err(Timeout("iOptron command response timed out"))
+  connected=false

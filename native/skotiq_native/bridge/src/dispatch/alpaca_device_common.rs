@@ -16,150 +16,190 @@ use crate::dispatch::device_common_metadata::DeviceCommonMetadata;
 
 impl DeviceCommonMetadata for skotiq_alpaca::AlpacaCamera {
     async fn interface_version(&self) -> Result<i32, String> {
-        Self::interface_version(self).await
+        Self::interface_version(self)
+            .await
+            .map_err(|e| e.to_string())
     }
     async fn driver_version(&self) -> Result<String, String> {
-        Self::driver_version(self).await
+        Self::driver_version(self).await.map_err(|e| e.to_string())
     }
     async fn driver_info(&self) -> Result<String, String> {
-        Self::driver_info(self).await
+        Self::driver_info(self).await.map_err(|e| e.to_string())
     }
     async fn supported_actions(&self) -> Result<Vec<String>, String> {
-        Self::supported_actions(self).await
+        Self::supported_actions(self)
+            .await
+            .map_err(|e| e.to_string())
     }
 }
 
 impl DeviceCommonMetadata for skotiq_alpaca::AlpacaTelescope {
     async fn interface_version(&self) -> Result<i32, String> {
-        Self::interface_version(self).await
+        Self::interface_version(self)
+            .await
+            .map_err(|e| e.to_string())
     }
     async fn driver_version(&self) -> Result<String, String> {
-        Self::driver_version(self).await
+        Self::driver_version(self).await.map_err(|e| e.to_string())
     }
     async fn driver_info(&self) -> Result<String, String> {
-        Self::driver_info(self).await
+        Self::driver_info(self).await.map_err(|e| e.to_string())
     }
     async fn supported_actions(&self) -> Result<Vec<String>, String> {
-        Self::supported_actions(self).await
+        Self::supported_actions(self)
+            .await
+            .map_err(|e| e.to_string())
     }
 }
 
 impl DeviceCommonMetadata for skotiq_alpaca::AlpacaFocuser {
     async fn interface_version(&self) -> Result<i32, String> {
-        Self::interface_version(self).await
+        Self::interface_version(self)
+            .await
+            .map_err(|e| e.to_string())
     }
     async fn driver_version(&self) -> Result<String, String> {
-        Self::driver_version(self).await
+        Self::driver_version(self).await.map_err(|e| e.to_string())
     }
     async fn driver_info(&self) -> Result<String, String> {
-        Self::driver_info(self).await
+        Self::driver_info(self).await.map_err(|e| e.to_string())
     }
     async fn supported_actions(&self) -> Result<Vec<String>, String> {
-        Self::supported_actions(self).await
+        Self::supported_actions(self)
+            .await
+            .map_err(|e| e.to_string())
     }
 }
 
 impl DeviceCommonMetadata for skotiq_alpaca::AlpacaFilterWheel {
     async fn interface_version(&self) -> Result<i32, String> {
-        Self::interface_version(self).await
+        Self::interface_version(self)
+            .await
+            .map_err(|e| e.to_string())
     }
     async fn driver_version(&self) -> Result<String, String> {
-        Self::driver_version(self).await
+        Self::driver_version(self).await.map_err(|e| e.to_string())
     }
     async fn driver_info(&self) -> Result<String, String> {
-        Self::driver_info(self).await
+        Self::driver_info(self).await.map_err(|e| e.to_string())
     }
     async fn supported_actions(&self) -> Result<Vec<String>, String> {
-        Self::supported_actions(self).await
+        Self::supported_actions(self)
+            .await
+            .map_err(|e| e.to_string())
     }
 }
 
 impl DeviceCommonMetadata for skotiq_alpaca::AlpacaRotator {
     async fn interface_version(&self) -> Result<i32, String> {
-        Self::interface_version(self).await
+        Self::interface_version(self)
+            .await
+            .map_err(|e| e.to_string())
     }
     async fn driver_version(&self) -> Result<String, String> {
-        Self::driver_version(self).await
+        Self::driver_version(self).await.map_err(|e| e.to_string())
     }
     async fn driver_info(&self) -> Result<String, String> {
-        Self::driver_info(self).await
+        Self::driver_info(self).await.map_err(|e| e.to_string())
     }
     async fn supported_actions(&self) -> Result<Vec<String>, String> {
-        Self::supported_actions(self).await
+        Self::supported_actions(self)
+            .await
+            .map_err(|e| e.to_string())
     }
 }
 
 impl DeviceCommonMetadata for skotiq_alpaca::AlpacaDome {
     async fn interface_version(&self) -> Result<i32, String> {
-        Self::interface_version(self).await
+        Self::interface_version(self)
+            .await
+            .map_err(|e| e.to_string())
     }
     async fn driver_version(&self) -> Result<String, String> {
-        Self::driver_version(self).await
+        Self::driver_version(self).await.map_err(|e| e.to_string())
     }
     async fn driver_info(&self) -> Result<String, String> {
-        Self::driver_info(self).await
+        Self::driver_info(self).await.map_err(|e| e.to_string())
     }
     async fn supported_actions(&self) -> Result<Vec<String>, String> {
-        Self::supported_actions(self).await
+        Self::supported_actions(self)
+            .await
+            .map_err(|e| e.to_string())
     }
 }
 
 impl DeviceCommonMetadata for skotiq_alpaca::AlpacaSafetyMonitor {
     async fn interface_version(&self) -> Result<i32, String> {
-        Self::interface_version(self).await
+        Self::interface_version(self)
+            .await
+            .map_err(|e| e.to_string())
     }
     async fn driver_version(&self) -> Result<String, String> {
-        Self::driver_version(self).await
+        Self::driver_version(self).await.map_err(|e| e.to_string())
     }
     async fn driver_info(&self) -> Result<String, String> {
-        Self::driver_info(self).await
+        Self::driver_info(self).await.map_err(|e| e.to_string())
     }
     async fn supported_actions(&self) -> Result<Vec<String>, String> {
-        Self::supported_actions(self).await
+        Self::supported_actions(self)
+            .await
+            .map_err(|e| e.to_string())
     }
 }
 
 impl DeviceCommonMetadata for skotiq_alpaca::AlpacaSwitch {
     async fn interface_version(&self) -> Result<i32, String> {
-        Self::interface_version(self).await
+        Self::interface_version(self)
+            .await
+            .map_err(|e| e.to_string())
     }
     async fn driver_version(&self) -> Result<String, String> {
-        Self::driver_version(self).await
+        Self::driver_version(self).await.map_err(|e| e.to_string())
     }
     async fn driver_info(&self) -> Result<String, String> {
-        Self::driver_info(self).await
+        Self::driver_info(self).await.map_err(|e| e.to_string())
     }
     async fn supported_actions(&self) -> Result<Vec<String>, String> {
-        Self::supported_actions(self).await
+        Self::supported_actions(self)
+            .await
+            .map_err(|e| e.to_string())
     }
 }
 
 impl DeviceCommonMetadata for skotiq_alpaca::AlpacaCoverCalibrator {
     async fn interface_version(&self) -> Result<i32, String> {
-        Self::interface_version(self).await
+        Self::interface_version(self)
+            .await
+            .map_err(|e| e.to_string())
     }
     async fn driver_version(&self) -> Result<String, String> {
-        Self::driver_version(self).await
+        Self::driver_version(self).await.map_err(|e| e.to_string())
     }
     async fn driver_info(&self) -> Result<String, String> {
-        Self::driver_info(self).await
+        Self::driver_info(self).await.map_err(|e| e.to_string())
     }
     async fn supported_actions(&self) -> Result<Vec<String>, String> {
-        Self::supported_actions(self).await
+        Self::supported_actions(self)
+            .await
+            .map_err(|e| e.to_string())
     }
 }
 
 impl DeviceCommonMetadata for skotiq_alpaca::AlpacaObservingConditions {
     async fn interface_version(&self) -> Result<i32, String> {
-        Self::interface_version(self).await
+        Self::interface_version(self)
+            .await
+            .map_err(|e| e.to_string())
     }
     async fn driver_version(&self) -> Result<String, String> {
-        Self::driver_version(self).await
+        Self::driver_version(self).await.map_err(|e| e.to_string())
     }
     async fn driver_info(&self) -> Result<String, String> {
-        Self::driver_info(self).await
+        Self::driver_info(self).await.map_err(|e| e.to_string())
     }
     async fn supported_actions(&self) -> Result<Vec<String>, String> {
-        Self::supported_actions(self).await
+        Self::supported_actions(self)
+            .await
+            .map_err(|e| e.to_string())
     }
 }

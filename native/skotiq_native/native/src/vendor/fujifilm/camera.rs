@@ -5,9 +5,9 @@ use super::*;
 /// Wrapper for camera handle to implement Send/Sync
 /// SAFETY: The SDK mutex ensures exclusive access, making it safe to send between threads
 pub(crate) struct HandleWrapper(pub(crate) XsdkHandle);
-// SAFETY: The XsdkHandle raw pointer is never dereferenced or modified outside `fujifilm_mutex().lock().await` sections (see all call sites in this module — every `unsafe { (sdk.<fn>)(self.camera_handle.0, ...) }` block is inside an acquired-mutex scope). Marking Send is therefore equivalent to a hand-serialized capability.
+// SAFETY: The XsdkHandle raw pointer is never dereferenced or modified outside sections that hold the `FujifilmSdk` lock guard, apart from the bulb helpers below (see all call sites in this module — every `unsafe { (sdk.<fn>)(self.camera_handle.0, ...) }` block is inside an acquired-mutex scope). Marking Send is therefore equivalent to a hand-serialized capability.
 unsafe impl Send for HandleWrapper {}
-// SAFETY: Same justification as Send — every shared-reference use of HandleWrapper goes through the fujifilm_mutex, which serializes all SDK access. No interior mutability is reachable without the mutex.
+// SAFETY: Same justification as Send — every shared-reference use of HandleWrapper goes through the `FujifilmSdk` lock guard (bulb helpers excepted, see above), which serializes SDK access. The wrapper has no interior mutability.
 unsafe impl Sync for HandleWrapper {}
 
 impl std::fmt::Debug for HandleWrapper {
@@ -148,18 +148,22 @@ impl FujifilmCamera {
     pub(crate) async fn start_bulb_exposure(
         &mut self,
         duration_secs: f64,
-    ) -> Result<(), NativeError> {
-        let sdk = FujifilmSdk::get().ok_or(NativeError::SdkNotLoaded)?;
+    ) -> Result<(), DriverError> {
+        // Unlocked on purpose: the bulb helpers sleep while the shutter is held, so
+        // their callers release the SDK lock first (download_image, abort_exposure,
+        // start_exposure) and only disconnect() still holds it. Taking the lock here
+        // would deadlock in disconnect(), so these calls stay unserialized as before.
+        let sdk = FujifilmSdk::installed()?.unlocked();
         let mut shot_opt: c_long = 0;
         let mut af_status: c_long = 0;
 
         // Set shutter to BULB mode
-        // SAFETY: caller (start_exposure) holds fujifilm_mutex; `self.camera_handle.0` was opened via XSDK_OpenEx in connect() and is still valid (connected==true); XSDK_SetShutterSpeed takes (handle, c_long, c_long) all POD arguments per XAPI.h.
+        // SAFETY: `self.camera_handle.0` was opened via XSDK_OpenEx in connect() and is still valid (connected==true); XSDK_SetShutterSpeed takes (handle, c_long, c_long) all POD arguments per XAPI.h.
         unsafe { (sdk.set_shutter_speed)(self.camera_handle.0, XSDK_SHUTTER_BULB, 0) };
         tokio::time::sleep(Duration::from_millis(100)).await;
 
         // Start bulb: Half-press (S1ON)
-        // SAFETY: caller holds fujifilm_mutex; `self.camera_handle.0` is the valid XSDK_OpenEx handle; `&mut shot_opt` and `&mut af_status` are valid stack out-pointers to c_long; XSDK_RELEASE_S1ON is the documented half-press release flag from XAPI.h.
+        // SAFETY: `self.camera_handle.0` is the valid XSDK_OpenEx handle; `&mut shot_opt` and `&mut af_status` are valid stack out-pointers to c_long; XSDK_RELEASE_S1ON is the documented half-press release flag from XAPI.h.
         let result = unsafe {
             (sdk.release)(
                 self.camera_handle.0,
@@ -174,7 +178,7 @@ impl FujifilmCamera {
         tokio::time::sleep(Duration::from_millis(50)).await;
 
         // Full press to open shutter (BULBS2_ON)
-        // SAFETY: caller holds fujifilm_mutex; `self.camera_handle.0` still valid; out-pointers valid c_long stack locals; XSDK_RELEASE_BULBS2_ON opens the shutter in bulb mode per XAPI.h's mandatory S1ON→BULBS2_ON sequence (also documented in this module's header).
+        // SAFETY: `self.camera_handle.0` still valid; out-pointers valid c_long stack locals; XSDK_RELEASE_BULBS2_ON opens the shutter in bulb mode per XAPI.h's mandatory S1ON→BULBS2_ON sequence (also documented in this module's header).
         let result = unsafe {
             (sdk.release)(
                 self.camera_handle.0,
@@ -196,13 +200,17 @@ impl FujifilmCamera {
     }
 
     /// Stop a bulb exposure
-    pub(crate) async fn stop_bulb_exposure(&mut self) -> Result<(), NativeError> {
-        let sdk = FujifilmSdk::get().ok_or(NativeError::SdkNotLoaded)?;
+    pub(crate) async fn stop_bulb_exposure(&mut self) -> Result<(), DriverError> {
+        // Unlocked on purpose: the bulb helpers sleep while the shutter is held, so
+        // their callers release the SDK lock first (download_image, abort_exposure,
+        // start_exposure) and only disconnect() still holds it. Taking the lock here
+        // would deadlock in disconnect(), so these calls stay unserialized as before.
+        let sdk = FujifilmSdk::installed()?.unlocked();
         let mut shot_opt: c_long = 0;
         let mut af_status: c_long = 0;
 
         // End bulb: Release S2 and S1
-        // SAFETY: caller holds fujifilm_mutex (acquired in start_exposure → start_bulb_exposure, kept by stop_bulb_exposure callers); `self.camera_handle.0` valid since `connected == true`; out-pointers valid c_long stack locals; XSDK_RELEASE_N_BULBS1OFF closes the shutter, completing the documented bulb sequence (header §Important SDK Behaviors).
+        // SAFETY: `self.camera_handle.0` valid since `connected == true`; out-pointers valid c_long stack locals; XSDK_RELEASE_N_BULBS1OFF closes the shutter, completing the documented bulb sequence (header §Important SDK Behaviors).
         let result = unsafe {
             (sdk.release)(
                 self.camera_handle.0,
@@ -232,13 +240,12 @@ impl FujifilmCamera {
     /// This method queries the SDK for focus position range. If the lens supports
     /// electronic focus control, `has_focus_control` will be set to true and
     /// `focus_min`/`focus_max` will contain the valid range.
-    pub async fn query_focus_capabilities(&mut self) -> Result<(), NativeError> {
+    pub async fn query_focus_capabilities(&mut self) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = FujifilmSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = fujifilm_mutex().lock().await;
+        let sdk = FujifilmSdk::lock().await?;
 
         // Query focus position capabilities via get_prop
         // The SDK returns min position (near/MOD) and max position (infinity)
@@ -247,7 +254,7 @@ impl FujifilmCamera {
         let mut focus_cap: c_long = 0;
 
         // Use blocking operations to avoid raw pointer issues across await points
-        // SAFETY: fujifilm_mutex held above; `self.camera_handle.0` is the connected XSDK handle; the three `&mut c_long` out-pointers reference distinct stack locals. The `API_CODE_CAP_FOCUS_POS` variant of XSDK_GetProp is the variadic form that takes three out-pointers per XAPI.h (returns capability + min/max focus position).
+        // SAFETY: `self.camera_handle.0` is the connected XSDK handle; the three `&mut c_long` out-pointers reference distinct stack locals. The `API_CODE_CAP_FOCUS_POS` variant of XSDK_GetProp is the variadic form that takes three out-pointers per XAPI.h (returns capability + min/max focus position).
         let result = unsafe {
             (sdk.get_prop)(
                 self.camera_handle.0,
@@ -282,20 +289,19 @@ impl FujifilmCamera {
     ///
     /// Returns the current focus motor position within the range [focus_min, focus_max].
     /// Returns an error if focus control is not available.
-    pub async fn get_focus_position(&self) -> Result<i32, NativeError> {
+    pub async fn get_focus_position(&self) -> Result<i32, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if !self.has_focus_control {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
 
-        let sdk = FujifilmSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = fujifilm_mutex().lock().await;
+        let sdk = FujifilmSdk::lock().await?;
 
         let mut pos: c_long = 0;
-        // SAFETY: fujifilm_mutex held above; `self.camera_handle.0` valid; `&mut pos` is a valid stack out-pointer to c_long; the `API_CODE_GET_FOCUS_POS` variant of XSDK_GetProp takes a single c_long out-pointer per XAPI.h.
+        // SAFETY: `self.camera_handle.0` valid; `&mut pos` is a valid stack out-pointer to c_long; the `API_CODE_GET_FOCUS_POS` variant of XSDK_GetProp takes a single c_long out-pointer per XAPI.h.
         let result = unsafe {
             (sdk.get_prop)(
                 self.camera_handle.0,
@@ -306,9 +312,9 @@ impl FujifilmCamera {
         };
 
         if result != XSDK_COMPLETE {
-            check_xapi_error(self.camera_handle.0, sdk)?;
+            check_xapi_error(self.camera_handle.0, &sdk)?;
             // If check_xapi_error didn't return an error, return a generic one
-            return Err(NativeError::SdkError("Failed to get focus position".into()));
+            return Err(DriverError::SdkError("Failed to get focus position".into()));
         }
 
         Ok(pos as i32)
@@ -319,27 +325,26 @@ impl FujifilmCamera {
     ///
     /// The motor settling delay uses a blocking `std::thread::sleep` so no raw
     /// pointer is held across an await point.
-    pub async fn set_focus_position(&mut self, position: i32) -> Result<(), NativeError> {
+    pub async fn set_focus_position(&mut self, position: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if !self.has_focus_control {
-            return Err(NativeError::NotSupported);
+            return Err(DriverError::NotSupported);
         }
 
         // Validate position is within range
         if position < self.focus_min || position > self.focus_max {
-            return Err(NativeError::InvalidParameter(format!(
+            return Err(DriverError::InvalidParameter(format!(
                 "Focus position {} out of range [{}, {}]",
                 position, self.focus_min, self.focus_max
             )));
         }
 
-        let sdk = FujifilmSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = fujifilm_mutex().lock().await;
+        let sdk = FujifilmSdk::lock().await?;
 
-        // SAFETY: fujifilm_mutex held above; `self.camera_handle.0` valid; `position` was range-checked above (`position >= focus_min && position <= focus_max`); XSDK_SetProp's value-form takes a c_long input value (no out-pointers) per XAPI.h.
+        // SAFETY: `self.camera_handle.0` valid; `position` was range-checked above (`position >= focus_min && position <= focus_max`); XSDK_SetProp's value-form takes a c_long input value (no out-pointers) per XAPI.h.
         let result = unsafe {
             (sdk.set_prop)(
                 self.camera_handle.0,
@@ -350,7 +355,7 @@ impl FujifilmCamera {
         };
 
         if result != XSDK_COMPLETE {
-            return check_xapi_error(self.camera_handle.0, sdk);
+            return check_xapi_error(self.camera_handle.0, &sdk);
         }
 
         // Use blocking sleep to allow focus motor to settle
@@ -384,9 +389,9 @@ impl FujifilmCamera {
     ///
     /// The waits between SDK calls use a blocking `std::thread::sleep` so no raw
     /// pointer is held across an await point.
-    pub async fn start_live_view(&mut self, quality: LiveViewQuality) -> Result<(), NativeError> {
+    pub async fn start_live_view(&mut self, quality: LiveViewQuality) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if self.live_view_active {
@@ -394,15 +399,14 @@ impl FujifilmCamera {
             return Ok(());
         }
 
-        let sdk = FujifilmSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = fujifilm_mutex().lock().await;
+        let sdk = FujifilmSdk::lock().await?;
 
         // Copy handle to local variable to avoid packed struct issues across FFI calls
         let handle = self.camera_handle.0;
 
         // Set quality via XSDK_SetProp(hCamera, API_CODE, 0, value)
         let quality_code = quality.to_sdk_code();
-        // SAFETY: fujifilm_mutex held above; `handle` was copied from `self.camera_handle.0` (the connected XSDK handle); XSDK_SetProp's value-form takes four POD c_long arguments (handle, api_code, api_param, value) with no out-pointers per XAPI.h. `quality_code` comes from the LiveViewQuality enum's documented SDK code mapping.
+        // SAFETY: `handle` was copied from `self.camera_handle.0` (the connected XSDK handle); XSDK_SetProp's value-form takes four POD c_long arguments (handle, api_code, api_param, value) with no out-pointers per XAPI.h. `quality_code` comes from the LiveViewQuality enum's documented SDK code mapping.
         let result = unsafe {
             (sdk.set_prop)(
                 handle,
@@ -420,7 +424,7 @@ impl FujifilmCamera {
         std::thread::sleep(Duration::from_millis(50));
 
         // Set size (use Large for best framing assistance in astrophotography)
-        // SAFETY: fujifilm_mutex held above; `handle` valid; XSDK_SetProp value-form with POD c_long inputs only; `SDK_LIVEVIEW_SIZE_L` is the documented "Large" size constant from XAPI.h.
+        // SAFETY: `handle` valid; XSDK_SetProp value-form with POD c_long inputs only; `SDK_LIVEVIEW_SIZE_L` is the documented "Large" size constant from XAPI.h.
         let result = unsafe {
             (sdk.set_prop)(
                 handle,
@@ -437,10 +441,10 @@ impl FujifilmCamera {
         std::thread::sleep(Duration::from_millis(50));
 
         // Start live view
-        // SAFETY: fujifilm_mutex held above; `handle` valid; XSDK_SetProp's 3-argument start-action form takes (handle, api_code, api_param) with no value — this is the variadic action invocation per XAPI.h for API_CODE_START_LIVE_VIEW.
+        // SAFETY: `handle` valid; XSDK_SetProp's 3-argument start-action form takes (handle, api_code, api_param) with no value — this is the variadic action invocation per XAPI.h for API_CODE_START_LIVE_VIEW.
         let result = unsafe { (sdk.set_prop)(handle, API_CODE_START_LIVE_VIEW, 0) };
         if result != XSDK_COMPLETE {
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Failed to start live view: SDK returned {}",
                 result
             )));
@@ -456,24 +460,23 @@ impl FujifilmCamera {
     ///
     /// Packed struct fields are copied to locals before use, because reading them
     /// in place would be a misaligned reference.
-    pub async fn read_live_view_frame(&self) -> Result<Vec<u8>, NativeError> {
+    pub async fn read_live_view_frame(&self) -> Result<Vec<u8>, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if !self.live_view_active {
-            return Err(NativeError::SdkError("Live view is not active".into()));
+            return Err(DriverError::SdkError("Live view is not active".into()));
         }
 
-        let sdk = FujifilmSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = fujifilm_mutex().lock().await;
+        let sdk = FujifilmSdk::lock().await?;
 
         // Copy handle to local variable for safety
         let handle = self.camera_handle.0;
 
         // Live view frames come through ReadImageInfo with XSDK_IMAGEFORMAT_LIVE
         let mut img_info = XsdkImageInformation::default();
-        // SAFETY: fujifilm_mutex held above (in read_live_view_frame); `handle` is a valid open XSDK handle (we early-return on !connected); `&mut img_info` is a valid stack out-pointer to a `#[repr(C, packed)]` XsdkImageInformation that the SDK populates per XAPI.h. We deliberately copy packed fields out into locals (`img_format`, `data_size`) on subsequent lines before reading to avoid misaligned-reference UB.
+        // SAFETY: `handle` is a valid open XSDK handle (we early-return on !connected); `&mut img_info` is a valid stack out-pointer to a `#[repr(C, packed)]` XsdkImageInformation that the SDK populates per XAPI.h. We deliberately copy packed fields out into locals (`img_format`, `data_size`) on subsequent lines before reading to avoid misaligned-reference UB.
         let result = unsafe { (sdk.read_image_info)(handle, &mut img_info) };
 
         // Copy packed struct fields to local variables before using them
@@ -481,36 +484,36 @@ impl FujifilmCamera {
         let data_size = img_info.l_data_size;
 
         if result != XSDK_COMPLETE {
-            return Err(NativeError::SdkError(
+            return Err(DriverError::SdkError(
                 "Failed to read live view frame info".into(),
             ));
         }
 
         if img_format != XSDK_IMAGEFORMAT_LIVE {
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Expected live view format ({}), got format {}",
                 XSDK_IMAGEFORMAT_LIVE, img_format
             )));
         }
 
         if data_size <= 0 {
-            return Err(NativeError::SdkError("No live view frame available".into()));
+            return Err(DriverError::SdkError("No live view frame available".into()));
         }
 
         let buffer_size = data_size as usize;
         let mut buffer = vec![0u8; buffer_size];
-        // SAFETY: fujifilm_mutex held; `handle` valid; `buffer.as_mut_ptr()` points to a Vec<u8> of exactly `buffer_size` bytes (just allocated above with vec![0u8; buffer_size]); we pass that same size as the third argument so XSDK_ReadImage will not write past the allocation per XAPI.h (the SDK clamps to the supplied buffer size).
+        // SAFETY: `handle` valid; `buffer.as_mut_ptr()` points to a Vec<u8> of exactly `buffer_size` bytes (just allocated above with vec![0u8; buffer_size]); we pass that same size as the third argument so XSDK_ReadImage will not write past the allocation per XAPI.h (the SDK clamps to the supplied buffer size).
         let result =
             unsafe { (sdk.read_image)(handle, buffer.as_mut_ptr(), buffer_size as c_ulong) };
 
         if result != XSDK_COMPLETE {
-            return Err(NativeError::SdkError(
+            return Err(DriverError::SdkError(
                 "Failed to read live view frame data".into(),
             ));
         }
 
         // Delete the image from the buffer to make room for the next frame
-        // SAFETY: fujifilm_mutex held; `handle` valid; XSDK_DeleteImage takes only the handle and clears the SDK-side image queue entry per XAPI.h. No out-pointers.
+        // SAFETY: `handle` valid; XSDK_DeleteImage takes only the handle and clears the SDK-side image queue entry per XAPI.h. No out-pointers.
         unsafe { (sdk.delete_image)(handle) };
 
         Ok(buffer) // Returns JPEG data
@@ -521,9 +524,9 @@ impl FujifilmCamera {
     /// # Returns
     ///
     /// `Ok(())` if live view stopped successfully, or an error if it failed.
-    pub async fn stop_live_view(&mut self) -> Result<(), NativeError> {
+    pub async fn stop_live_view(&mut self) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if !self.live_view_active {
@@ -531,13 +534,12 @@ impl FujifilmCamera {
             return Ok(());
         }
 
-        let sdk = FujifilmSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = fujifilm_mutex().lock().await;
+        let sdk = FujifilmSdk::lock().await?;
 
         // Copy handle to local variable for safety
         let handle = self.camera_handle.0;
 
-        // SAFETY: fujifilm_mutex held above (in stop_live_view); `handle` was copied from `self.camera_handle.0` which is valid while `connected == true`; XSDK_SetProp's 3-argument action form for API_CODE_STOP_LIVE_VIEW takes only (handle, api_code, api_param) per XAPI.h.
+        // SAFETY: `handle` was copied from `self.camera_handle.0` which is valid while `connected == true`; XSDK_SetProp's 3-argument action form for API_CODE_STOP_LIVE_VIEW takes only (handle, api_code, api_param) per XAPI.h.
         let result = unsafe { (sdk.set_prop)(handle, API_CODE_STOP_LIVE_VIEW, 0) };
 
         if result != XSDK_COMPLETE {

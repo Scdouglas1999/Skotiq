@@ -203,7 +203,7 @@ pub(crate) async fn query_indi_serials_for_server(
 
 /// Auto-discover INDI servers on localhost
 pub async fn api_discover_indi_localhost() -> Result<Vec<DeviceInfo>, SkotiqError> {
-    use skotiq_indi::{discover_localhost, IndiDeviceType as IndiType};
+    use skotiq_indi::discover_localhost;
 
     tracing::debug!("Auto-discovering INDI servers on localhost...");
 
@@ -224,19 +224,10 @@ pub async fn api_discover_indi_localhost() -> Result<Vec<DeviceInfo>, SkotiqErro
         let serials = query_indi_serials_for_server(&server.host, server.port, &device_names).await;
 
         for device in server.devices {
-            let device_type = match device.device_type {
-                IndiType::Camera => DeviceType::Camera,
-                IndiType::Telescope => DeviceType::Mount,
-                IndiType::Focuser => DeviceType::Focuser,
-                IndiType::FilterWheel => DeviceType::FilterWheel,
-                IndiType::Dome => DeviceType::Dome,
-                IndiType::Rotator => DeviceType::Rotator,
-                IndiType::Guider => DeviceType::Guider,
-                IndiType::Weather => DeviceType::Weather,
-                IndiType::SafetyMonitor => DeviceType::SafetyMonitor,
-                IndiType::CoverCalibrator => DeviceType::CoverCalibrator,
-                IndiType::Unknown => continue,
+            let Some(kind) = device.device_type else {
+                continue;
             };
+            let device_type = DeviceType::from(kind);
 
             let device_id = format!("indi:{}:{}:{}", server.host, server.port, device.name);
             let serial_number = serials.get(&device.name).cloned();
@@ -262,7 +253,7 @@ pub async fn api_discover_indi_localhost() -> Result<Vec<DeviceInfo>, SkotiqErro
 
 /// Auto-discover INDI servers on common hostnames (localhost, raspberrypi, stellarmate, etc.)
 pub async fn api_discover_indi_common_hosts() -> Result<Vec<DeviceInfo>, SkotiqError> {
-    use skotiq_indi::{discover_common_hosts, IndiDeviceType as IndiType};
+    use skotiq_indi::discover_common_hosts;
 
     tracing::debug!("Auto-discovering INDI servers on common hosts...");
 
@@ -279,19 +270,10 @@ pub async fn api_discover_indi_common_hosts() -> Result<Vec<DeviceInfo>, SkotiqE
             .collect::<Vec<_>>();
         let serials = query_indi_serials_for_server(&server.host, server.port, &device_names).await;
         for device in server.devices {
-            let device_type = match device.device_type {
-                IndiType::Camera => DeviceType::Camera,
-                IndiType::Telescope => DeviceType::Mount,
-                IndiType::Focuser => DeviceType::Focuser,
-                IndiType::FilterWheel => DeviceType::FilterWheel,
-                IndiType::Dome => DeviceType::Dome,
-                IndiType::Rotator => DeviceType::Rotator,
-                IndiType::Guider => DeviceType::Guider,
-                IndiType::Weather => DeviceType::Weather,
-                IndiType::SafetyMonitor => DeviceType::SafetyMonitor,
-                IndiType::CoverCalibrator => DeviceType::CoverCalibrator,
-                IndiType::Unknown => continue,
+            let Some(kind) = device.device_type else {
+                continue;
             };
+            let device_type = DeviceType::from(kind);
 
             let device_id = format!("indi:{}:{}:{}", server.host, server.port, device.name);
             let serial_number = serials.get(&device.name).cloned();
@@ -317,7 +299,7 @@ pub async fn api_discover_indi_common_hosts() -> Result<Vec<DeviceInfo>, SkotiqE
 
 /// Auto-discover INDI servers on the local network (scans subnet)
 pub async fn api_discover_indi_network() -> Result<Vec<DeviceInfo>, SkotiqError> {
-    use skotiq_indi::{discover_local_network, IndiDeviceType as IndiType};
+    use skotiq_indi::discover_local_network;
     use std::time::Duration;
 
     tracing::debug!("Scanning local network for INDI servers...");
@@ -335,19 +317,10 @@ pub async fn api_discover_indi_network() -> Result<Vec<DeviceInfo>, SkotiqError>
             .collect::<Vec<_>>();
         let serials = query_indi_serials_for_server(&server.host, server.port, &device_names).await;
         for device in server.devices {
-            let device_type = match device.device_type {
-                IndiType::Camera => DeviceType::Camera,
-                IndiType::Telescope => DeviceType::Mount,
-                IndiType::Focuser => DeviceType::Focuser,
-                IndiType::FilterWheel => DeviceType::FilterWheel,
-                IndiType::Dome => DeviceType::Dome,
-                IndiType::Rotator => DeviceType::Rotator,
-                IndiType::Guider => DeviceType::Guider,
-                IndiType::Weather => DeviceType::Weather,
-                IndiType::SafetyMonitor => DeviceType::SafetyMonitor,
-                IndiType::CoverCalibrator => DeviceType::CoverCalibrator,
-                IndiType::Unknown => continue,
+            let Some(kind) = device.device_type else {
+                continue;
             };
+            let device_type = DeviceType::from(kind);
 
             let device_id = format!("indi:{}:{}:{}", server.host, server.port, device.name);
             let serial_number = serials.get(&device.name).cloned();
@@ -764,13 +737,7 @@ async fn scan_native_for_type_with(
 
     let mut out = Vec::new();
     for native_dev in native_devices {
-        let dev_type = match native_dev.device_type {
-            skotiq_native::DeviceType::Camera => DeviceType::Camera,
-            skotiq_native::DeviceType::Mount => DeviceType::Mount,
-            skotiq_native::DeviceType::Focuser => DeviceType::Focuser,
-            skotiq_native::DeviceType::FilterWheel => DeviceType::FilterWheel,
-            skotiq_native::DeviceType::Rotator => DeviceType::Rotator,
-        };
+        let dev_type = DeviceType::from(native_dev.device_type);
         if dev_type != device_type {
             continue;
         }

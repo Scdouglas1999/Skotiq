@@ -7,70 +7,9 @@ mod image_bytes;
 use image_array::*;
 use image_bytes::*;
 
-use crate::{AlpacaClient, AlpacaDevice, AlpacaDeviceType, AlpacaError};
+use crate::AlpacaError;
+use skotiq_device::ascom::{CameraState, SensorType};
 use std::time::Duration;
-
-/// Camera state enum matching ASCOM CameraState
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CameraState {
-    Idle = 0,
-    Waiting = 1,
-    Exposing = 2,
-    Reading = 3,
-    Download = 4,
-    Error = 5,
-}
-
-impl From<i32> for CameraState {
-    fn from(value: i32) -> Self {
-        match value {
-            0 => CameraState::Idle,
-            1 => CameraState::Waiting,
-            2 => CameraState::Exposing,
-            3 => CameraState::Reading,
-            4 => CameraState::Download,
-            _ => CameraState::Error,
-        }
-    }
-}
-
-impl std::fmt::Display for CameraState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CameraState::Idle => write!(f, "Idle"),
-            CameraState::Waiting => write!(f, "Waiting"),
-            CameraState::Exposing => write!(f, "Exposing"),
-            CameraState::Reading => write!(f, "Reading"),
-            CameraState::Download => write!(f, "Downloading"),
-            CameraState::Error => write!(f, "Error"),
-        }
-    }
-}
-
-/// Sensor type enum matching ASCOM SensorType
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SensorType {
-    Monochrome = 0,
-    Color = 1,
-    RGGB = 2,
-    CMYG = 3,
-    CMYG2 = 4,
-    LRGB = 5,
-}
-
-impl From<i32> for SensorType {
-    fn from(value: i32) -> Self {
-        match value {
-            0 => SensorType::Monochrome,
-            1 => SensorType::Color,
-            2 => SensorType::RGGB,
-            3 => SensorType::CMYG,
-            4 => SensorType::CMYG2,
-            5 => SensorType::LRGB,
-            _ => SensorType::Monochrome,
-        }
-    }
-}
 
 /// Camera status aggregate for parallel status query
 #[derive(Debug, Clone)]
@@ -217,401 +156,26 @@ pub struct ImageArrayResult {
     pub element_type: ImageArrayElementType,
 }
 
-/// Alpaca Camera client
-pub struct AlpacaCamera {
-    client: AlpacaClient,
-}
+alpaca_device!(
+    /// Alpaca Camera client
+    AlpacaCamera,
+    Camera
+);
 
 impl AlpacaCamera {
-    /// Create a new Alpaca camera client
-    pub fn new(device: &AlpacaDevice) -> Self {
-        assert_eq!(device.device_type, AlpacaDeviceType::Camera);
-        Self {
-            client: AlpacaClient::new(device),
-        }
-    }
+    skotiq_device::ascom_camera_members!(alpaca_member);
 
-    /// Create from server details
-    pub fn from_server(base_url: &str, device_number: u32) -> Self {
-        let device = AlpacaDevice::from_server(AlpacaDeviceType::Camera, base_url, device_number);
-        Self::new(&device)
-    }
-
-    /// Get access to the underlying client
-    pub fn client(&self) -> &AlpacaClient {
-        &self.client
-    }
-
-    /// Get the base URL for this device
-    pub fn base_url(&self) -> &str {
-        self.client.base_url()
-    }
-
-    /// Get the device number for this device
-    pub fn device_number(&self) -> u32 {
-        self.client.device_number()
-    }
-
-    // Connection methods
-
-    pub async fn connect(&self) -> Result<(), String> {
-        self.client.connect().await
-    }
-
-    pub async fn disconnect(&self) -> Result<(), String> {
-        self.client.disconnect().await
-    }
-
-    pub async fn is_connected(&self) -> Result<bool, String> {
-        self.client.is_connected().await
-    }
-
-    /// Validate connection is alive
-    pub async fn validate_connection(&self) -> Result<bool, AlpacaError> {
-        self.client.validate_connection().await
-    }
-
-    /// Send heartbeat and get round-trip time
-    pub async fn heartbeat(&self) -> Result<u64, AlpacaError> {
-        self.client.heartbeat().await
-    }
-
-    // Camera information
-
-    pub async fn name(&self) -> Result<String, String> {
-        self.client.get_name().await
-    }
-
-    pub async fn description(&self) -> Result<String, String> {
-        self.client.get_description().await
-    }
-
-    /// Get the driver version string
-    pub async fn driver_version(&self) -> Result<String, String> {
-        self.client.get_driver_version().await
-    }
-
-    /// Get the driver info string
-    pub async fn driver_info(&self) -> Result<String, String> {
-        self.client.get_driver_info().await
-    }
-
-    /// Get the interface version number
-    pub async fn interface_version(&self) -> Result<i32, String> {
-        self.client.get_interface_version().await
-    }
-
-    /// Get the list of supported custom actions
-    pub async fn supported_actions(&self) -> Result<Vec<String>, String> {
-        self.client.get_supported_actions().await
-    }
-
-    pub async fn camera_x_size(&self) -> Result<i32, String> {
-        self.client.get("cameraxsize").await
-    }
-
-    pub async fn camera_y_size(&self) -> Result<i32, String> {
-        self.client.get("cameraysize").await
-    }
-
-    pub async fn pixel_size_x(&self) -> Result<f64, String> {
-        self.client.get("pixelsizex").await
-    }
-
-    pub async fn pixel_size_y(&self) -> Result<f64, String> {
-        self.client.get("pixelsizey").await
-    }
-
-    pub async fn max_adu(&self) -> Result<i32, String> {
-        self.client.get("maxadu").await
-    }
-
-    pub async fn sensor_type(&self) -> Result<i32, String> {
-        self.client.get("sensortype").await
-    }
-
-    pub async fn sensor_name(&self) -> Result<String, String> {
-        self.client.get("sensorname").await
-    }
-
-    // Binning
-
-    pub async fn max_bin_x(&self) -> Result<i32, String> {
-        self.client.get("maxbinx").await
-    }
-
-    pub async fn max_bin_y(&self) -> Result<i32, String> {
-        self.client.get("maxbiny").await
-    }
-
-    pub async fn bin_x(&self) -> Result<i32, String> {
-        self.client.get("binx").await
-    }
-
-    pub async fn bin_y(&self) -> Result<i32, String> {
-        self.client.get("biny").await
-    }
-
-    pub async fn set_bin_x(&self, value: i32) -> Result<(), String> {
-        self.client
-            .put("binx", &[("BinX", &value.to_string())])
-            .await
-    }
-
-    pub async fn set_bin_y(&self, value: i32) -> Result<(), String> {
-        self.client
-            .put("biny", &[("BinY", &value.to_string())])
-            .await
-    }
-
-    // Cooling
-
-    pub async fn can_set_ccd_temperature(&self) -> Result<bool, String> {
-        self.client.get("cansetccdtemperature").await
-    }
-
-    pub async fn ccd_temperature(&self) -> Result<f64, String> {
-        self.client.get("ccdtemperature").await
-    }
-
-    pub async fn set_ccd_temperature(&self, temp: f64) -> Result<(), String> {
-        self.client
-            .put(
-                "setccdtemperature",
-                &[("SetCCDTemperature", &temp.to_string())],
-            )
-            .await
-    }
-
-    pub async fn cooler_on(&self) -> Result<bool, String> {
-        self.client.get("cooleron").await
-    }
-
-    pub async fn set_cooler_on(&self, on: bool) -> Result<(), String> {
-        self.client
-            .put("cooleron", &[("CoolerOn", &on.to_string())])
-            .await
-    }
-
-    pub async fn cooler_power(&self) -> Result<f64, String> {
-        self.client.get("coolerpower").await
-    }
-
-    pub async fn heat_sink_temperature(&self) -> Result<f64, String> {
-        self.client.get("heatsinktemperature").await
-    }
-
-    // Gain and offset
-
-    pub async fn can_get_cooler_power(&self) -> Result<bool, String> {
-        self.client.get("cangetcoolerpower").await
-    }
-
-    pub async fn gain(&self) -> Result<i32, String> {
-        self.client.get("gain").await
-    }
-
-    pub async fn set_gain(&self, gain: i32) -> Result<(), String> {
-        self.client
-            .put("gain", &[("Gain", &gain.to_string())])
-            .await
-    }
-
-    pub async fn gain_min(&self) -> Result<i32, String> {
-        self.client.get("gainmin").await
-    }
-
-    pub async fn gain_max(&self) -> Result<i32, String> {
-        self.client.get("gainmax").await
-    }
-
-    pub async fn offset(&self) -> Result<i32, String> {
-        self.client.get("offset").await
-    }
-
-    pub async fn set_offset(&self, offset: i32) -> Result<(), String> {
-        self.client
-            .put("offset", &[("Offset", &offset.to_string())])
-            .await
-    }
-
-    pub async fn offset_min(&self) -> Result<i32, String> {
-        self.client.get("offsetmin").await
-    }
-
-    pub async fn offset_max(&self) -> Result<i32, String> {
-        self.client.get("offsetmax").await
-    }
-
-    pub async fn bayer_offset_x(&self) -> Result<i32, String> {
-        self.client.get("bayeroffsetx").await
-    }
-
-    pub async fn bayer_offset_y(&self) -> Result<i32, String> {
-        self.client.get("bayeroffsety").await
-    }
-
-    // Exposure state
-
-    pub async fn camera_state(&self) -> Result<CameraState, String> {
-        let state: i32 = self.client.get("camerastate").await?;
-        Ok(CameraState::from(state))
-    }
-
-    pub async fn image_ready(&self) -> Result<bool, String> {
-        self.client.get("imageready").await
-    }
-
-    pub async fn is_pulse_guiding(&self) -> Result<bool, String> {
-        self.client.get("ispulseguiding").await
-    }
-
-    pub async fn percent_completed(&self) -> Result<i32, String> {
-        self.client.get("percentcompleted").await
-    }
-
-    // Exposure control
-
-    pub async fn start_exposure(&self, duration: f64, light: bool) -> Result<(), String> {
-        self.client
-            .put(
-                "startexposure",
-                &[
-                    ("Duration", &duration.to_string()),
-                    ("Light", &light.to_string()),
-                ],
-            )
-            .await
-    }
-
-    pub async fn abort_exposure(&self) -> Result<(), String> {
-        self.client.put("abortexposure", &[]).await
-    }
-
-    pub async fn stop_exposure(&self) -> Result<(), String> {
-        self.client.put("stopexposure", &[]).await
-    }
-
-    // Readout mode
-
-    pub async fn readout_mode(&self) -> Result<i32, String> {
-        self.client.get("readoutmode").await
-    }
-
-    pub async fn set_readout_mode(&self, mode: i32) -> Result<(), String> {
-        self.client
-            .put("readoutmode", &[("ReadoutMode", &mode.to_string())])
-            .await
-    }
-
-    pub async fn readout_modes(&self) -> Result<Vec<String>, String> {
-        self.client.get("readoutmodes").await
-    }
-
-    // Subframe
-
-    pub async fn start_x(&self) -> Result<i32, String> {
-        self.client.get("startx").await
-    }
-
-    pub async fn start_y(&self) -> Result<i32, String> {
-        self.client.get("starty").await
-    }
-
-    pub async fn num_x(&self) -> Result<i32, String> {
-        self.client.get("numx").await
-    }
-
-    pub async fn num_y(&self) -> Result<i32, String> {
-        self.client.get("numy").await
-    }
-
-    pub async fn set_start_x(&self, value: i32) -> Result<(), String> {
-        self.client
-            .put("startx", &[("StartX", &value.to_string())])
-            .await
-    }
-
-    pub async fn set_start_y(&self, value: i32) -> Result<(), String> {
-        self.client
-            .put("starty", &[("StartY", &value.to_string())])
-            .await
-    }
-
-    pub async fn set_num_x(&self, value: i32) -> Result<(), String> {
-        self.client
-            .put("numx", &[("NumX", &value.to_string())])
-            .await
-    }
-
-    pub async fn set_num_y(&self, value: i32) -> Result<(), String> {
-        self.client
-            .put("numy", &[("NumY", &value.to_string())])
-            .await
-    }
-
-    // Last exposure info
-
-    pub async fn last_exposure_start_time(&self) -> Result<String, String> {
-        self.client.get("lastexposurestarttime").await
-    }
-
-    pub async fn last_exposure_duration(&self) -> Result<f64, String> {
-        self.client.get("lastexposureduration").await
-    }
-
-    // Capabilities
-
-    pub async fn can_abort_exposure(&self) -> Result<bool, String> {
-        self.client.get("canabortexposure").await
-    }
-
-    pub async fn can_stop_exposure(&self) -> Result<bool, String> {
-        self.client.get("canstopexposure").await
-    }
-
-    pub async fn can_asymmetric_bin(&self) -> Result<bool, String> {
-        self.client.get("canasymmetricbin").await
-    }
-
-    pub async fn can_pulse_guide(&self) -> Result<bool, String> {
-        self.client.get("canpulseguide").await
-    }
-
-    pub async fn can_fast_readout(&self) -> Result<bool, String> {
-        self.client.get("canfastreadout").await
-    }
-
-    pub async fn has_shutter(&self) -> Result<bool, String> {
-        self.client.get("hasshutter").await
-    }
-
-    // Image retrieval - returns 2D array of pixel values
-    // The Alpaca imagearray endpoint returns a JSON object with:
     // - Value: 2D/3D array of i32 pixel values
     // - Type: data type (1=Int16, 2=Int32, 3=Double, etc.)
     // - Rank: 2 for mono, 3 for color
-    pub async fn image_array(&self) -> Result<String, String> {
+    pub async fn image_array(&self) -> Result<String, AlpacaError> {
         self.client.get("imagearray").await
-    }
-
-    /// Pulse guide in a direction
-    pub async fn pulse_guide(&self, direction: i32, duration_ms: i32) -> Result<(), String> {
-        self.client
-            .put(
-                "pulseguide",
-                &[
-                    ("Direction", &direction.to_string()),
-                    ("Duration", &duration_ms.to_string()),
-                ],
-            )
-            .await
     }
 
     // Parallel status methods
 
     /// Get comprehensive camera status in a single parallel query
-    pub async fn get_status(&self) -> Result<CameraStatus, String> {
+    pub async fn get_status(&self) -> Result<CameraStatus, AlpacaError> {
         let (
             state,
             connected,
@@ -648,7 +212,7 @@ impl AlpacaCamera {
     }
 
     /// Get camera capabilities in a single parallel query
-    pub async fn get_capabilities(&self) -> Result<CameraCapabilities, String> {
+    pub async fn get_capabilities(&self) -> Result<CameraCapabilities, AlpacaError> {
         let (
             can_abort_exposure,
             can_stop_exposure,
@@ -688,7 +252,7 @@ impl AlpacaCamera {
     }
 
     /// Get camera sensor information in a single parallel query
-    pub async fn get_sensor_info(&self) -> Result<CameraSensorInfo, String> {
+    pub async fn get_sensor_info(&self) -> Result<CameraSensorInfo, AlpacaError> {
         let (
             camera_x_size,
             camera_y_size,
@@ -725,7 +289,7 @@ impl AlpacaCamera {
     }
 
     /// Get camera subframe settings in a single parallel query
-    pub async fn get_subframe(&self) -> Result<CameraSubframe, String> {
+    pub async fn get_subframe(&self) -> Result<CameraSubframe, AlpacaError> {
         let (start_x, start_y, num_x, num_y) =
             tokio::join!(self.start_x(), self.start_y(), self.num_x(), self.num_y(),);
 
@@ -740,7 +304,7 @@ impl AlpacaCamera {
     /// Get comprehensive camera status in a single parallel query
     /// This includes state, temperature, cooling, gain/offset, binning, and subframe
     /// Use this for efficient status polling instead of making multiple individual calls
-    pub async fn get_full_status(&self) -> Result<CameraFullStatus, String> {
+    pub async fn get_full_status(&self) -> Result<CameraFullStatus, AlpacaError> {
         // Query all status properties in parallel for maximum efficiency
         // This reduces the number of network round-trips from ~16 to 1
         let (

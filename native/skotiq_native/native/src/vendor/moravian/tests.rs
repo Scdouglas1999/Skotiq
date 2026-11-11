@@ -7,7 +7,7 @@ async fn moravian_offset_write_reports_not_supported_without_mutating_cache() {
 
     let err = camera.set_offset(22).await.unwrap_err();
 
-    assert!(matches!(err, NativeError::NotSupported));
+    assert!(matches!(err, DriverError::NotSupported));
     assert_eq!(camera.current_offset, 7);
 }
 
@@ -20,7 +20,7 @@ async fn moravian_gain_write_reports_not_supported_without_mutating_cache() {
 
     let err = camera.set_gain(42).await.unwrap_err();
 
-    assert!(matches!(err, NativeError::NotSupported));
+    assert!(matches!(err, DriverError::NotSupported));
     assert_eq!(camera.current_gain, 11);
 }
 
@@ -186,7 +186,7 @@ async fn moravian_gain_range_reports_not_supported() {
 
     assert!(matches!(
         camera.get_gain_range().await,
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     ));
 }
 
@@ -198,6 +198,6 @@ async fn moravian_offset_range_reports_not_supported() {
 
     assert!(matches!(
         camera.get_offset_range().await,
-        Err(NativeError::NotSupported)
+        Err(DriverError::NotSupported)
     ));
 }

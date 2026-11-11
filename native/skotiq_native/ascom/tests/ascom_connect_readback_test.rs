@@ -70,7 +70,7 @@ fn connect_refuses_a_driver_that_never_reports_connected() {
                  which hangs any wait-for-slew for the rest of the night."
             );
         }
-        Err(e) => e,
+        Err(e) => e.to_string(),
     };
 
     // The operator-facing message has to name the driver and the real causes,

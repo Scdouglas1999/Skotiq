@@ -180,7 +180,7 @@ pub(crate) async fn capture_guide_frame() -> Result<GuideFrame, SkotiqError> {
             config.binning,
             config.binning,
             // Guide frames are always light frames (shutter open).
-            skotiq_native::camera::FrameType::Light,
+            skotiq_device::FrameType::Light,
         )
         .await
         .map_err(SkotiqError::from)?;

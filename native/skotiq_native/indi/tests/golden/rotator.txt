@@ -1,0 +1,52 @@
+## get_angle, published
+result: Ok(45.0)
+sent: (nothing)
+
+## get_angle, not published
+result: Err(Angle not available)
+sent: (nothing)
+
+## get_mechanical_position, RRaw
+result: Ok(11.0)
+sent: (nothing)
+
+## get_mechanical_position, RPosition
+result: Ok(12.0)
+sent: (nothing)
+
+## get_mechanical_position, RMechanical
+result: Ok(13.0)
+sent: (nothing)
+
+## get_mechanical_position, Bare
+result: Err(Mechanical position not available)
+sent: (nothing)
+
+## move_to_with_timeout, Busy then Ok
+result: Ok(())
+sent: <newNumberVector device="RMoveOk" name="ABS_ROTATOR_ANGLE"><oneNumber name="ANGLE">90</oneNumber></newNumberVector>
+
+## move_to_with_timeout, stays Busy past the timeout
+result: Err(Rotator move to angle 90.2 degrees failed: Operation timeout for device 'RMoveBusy', property 'ABS_ROTATOR_ANGLE': Timed out waiting for property to finish (not Busy) after 300ms)
+sent: <newNumberVector device="RMoveBusy" name="ABS_ROTATOR_ANGLE"><oneNumber name="ANGLE">90.25</oneNumber></newNumberVector>
+
+## move_to_with_timeout, property in Alert
+result: Err(Rotator move to angle 90.0 degrees failed: Operation timeout for device 'RMoveAlert', property 'ABS_ROTATOR_ANGLE': Property entered Alert state)
+sent: <newNumberVector device="RMoveAlert" name="ABS_ROTATOR_ANGLE"><oneNumber name="ANGLE">90</oneNumber></newNumberVector>
+
+## move_to_with_timeout, angle beyond the driver's limits
+result: Err(Value 400 out of range [0, 360] for Rotator.ABS_ROTATOR_ANGLE.ANGLE)
+sent: (nothing)
+
+## move_to_with_timeout, default timeout
+result: Ok(())
+sent: <newNumberVector device="Rotator" name="ABS_ROTATOR_ANGLE"><oneNumber name="ANGLE">100</oneNumber></newNumberVector>
+
+## move_to_with_timeout, client not connected
+result: Err(Not connected to INDI server)
+sent: (client never connected)
+
+## get_angle, client not connected
+result: Err(Angle not available)
+sent: (client never connected)
+
