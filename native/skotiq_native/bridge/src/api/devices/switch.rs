@@ -63,17 +63,6 @@ pub async fn api_switch_get_name(device_id: String, switch_id: i32) -> Result<St
         .map_err(SkotiqError::from)
 }
 
-/// Get the description of a switch
-pub async fn api_switch_get_description(
-    device_id: String,
-    switch_id: i32,
-) -> Result<String, SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.switch_get_description(&device_id, switch_id)
-        .await
-        .map_err(SkotiqError::from)
-}
-
 /// Get the numeric value of a switch
 pub async fn api_switch_get_value(device_id: String, switch_id: i32) -> Result<f64, SkotiqError> {
     let mgr = get_device_manager();
@@ -90,36 +79,6 @@ pub async fn api_switch_set_value(
 ) -> Result<(), SkotiqError> {
     let mgr = get_device_manager();
     mgr.switch_set_value(&device_id, switch_id, value)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Get the minimum value for a switch
-pub async fn api_switch_get_min_value(
-    device_id: String,
-    switch_id: i32,
-) -> Result<f64, SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.switch_get_min_value(&device_id, switch_id)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Get the maximum value for a switch
-pub async fn api_switch_get_max_value(
-    device_id: String,
-    switch_id: i32,
-) -> Result<f64, SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.switch_get_max_value(&device_id, switch_id)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Check if a switch can be written to
-pub async fn api_switch_can_write(device_id: String, switch_id: i32) -> Result<bool, SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.switch_can_write(&device_id, switch_id)
         .await
         .map_err(SkotiqError::from)
 }

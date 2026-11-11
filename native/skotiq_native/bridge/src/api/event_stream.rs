@@ -110,10 +110,3 @@ pub async fn api_event_stream(
 
     Ok(())
 }
-
-/// Get the total number of events dropped since app start.
-/// Useful for diagnostics and monitoring event stream health.
-#[flutter_rust_bridge::frb(sync)]
-pub fn api_get_dropped_event_count() -> u64 {
-    TOTAL_DROPPED_EVENTS.load(Ordering::Relaxed)
-}

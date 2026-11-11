@@ -7,40 +7,6 @@ import '../../error.dart';
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-/// Move focuser to absolute position
-Future<void> focuserMoveAbs({
-  required String deviceId,
-  required int position,
-}) => RustLib.instance.api.crateApiDevicesFocuserFocuserMoveAbs(
-  deviceId: deviceId,
-  position: position,
-);
-
-/// Move focuser relative
-Future<void> focuserMoveRel({required String deviceId, required int steps}) =>
-    RustLib.instance.api.crateApiDevicesFocuserFocuserMoveRel(
-      deviceId: deviceId,
-      steps: steps,
-    );
-
 /// Halt focuser
 Future<void> focuserHalt({required String deviceId}) =>
     RustLib.instance.api.crateApiDevicesFocuserFocuserHalt(deviceId: deviceId);
-
-/// Get focuser position
-Future<int> focuserGetPosition({required String deviceId}) => RustLib
-    .instance
-    .api
-    .crateApiDevicesFocuserFocuserGetPosition(deviceId: deviceId);
-
-/// Get focuser temperature
-Future<double?> focuserGetTemp({required String deviceId}) => RustLib
-    .instance
-    .api
-    .crateApiDevicesFocuserFocuserGetTemp(deviceId: deviceId);
-
-/// Get focuser details (max pos, step size)
-Future<(int, double)> focuserGetDetails({required String deviceId}) => RustLib
-    .instance
-    .api
-    .crateApiDevicesFocuserFocuserGetDetails(deviceId: deviceId);

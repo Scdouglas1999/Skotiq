@@ -65,30 +65,6 @@ pub async fn api_dome_park(device_id: String) -> Result<(), SkotiqError> {
     mgr.dome_park(&device_id).await.map_err(SkotiqError::from)
 }
 
-/// Get dome azimuth
-pub async fn api_dome_get_azimuth(device_id: String) -> Result<f64, SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.dome_get_azimuth(&device_id)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Get dome shutter status
-pub async fn api_dome_get_shutter_status(device_id: String) -> Result<i32, SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.dome_get_shutter_status(&device_id)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Check if dome is slewing
-pub async fn api_dome_is_slewing(device_id: String) -> Result<bool, SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.dome_is_slewing(&device_id)
-        .await
-        .map_err(SkotiqError::from)
-}
-
 /// Enable or disable dome slaving to the mount
 pub async fn api_dome_set_slaved(device_id: String, slaved: bool) -> Result<(), SkotiqError> {
     let mgr = get_device_manager();

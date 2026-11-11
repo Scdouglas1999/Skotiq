@@ -47,8 +47,6 @@
 //! }
 //! ```
 
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 // Poller configuration
@@ -84,12 +82,6 @@ impl PollerConfig {
     /// Set optional auto-reset behavior
     pub fn with_auto_reset(mut self, after_ticks: u32) -> Self {
         self.auto_reset_after = Some(after_ticks);
-        self
-    }
-
-    /// Set a name for debugging
-    pub fn with_name(mut self, name: &'static str) -> Self {
-        self.name = name;
         self
     }
 }
@@ -222,24 +214,6 @@ impl PollerMetrics {
             .checked_div(self.total_ticks)
             .map_or(Duration::ZERO, Duration::from_millis)
     }
-
-    /// Get the backoff ratio (how often we backed off vs total ticks)
-    pub fn backoff_ratio(&self) -> f64 {
-        if self.total_ticks == 0 {
-            0.0
-        } else {
-            self.backoff_count as f64 / self.total_ticks as f64
-        }
-    }
-
-    /// Get the value change ratio
-    pub fn change_ratio(&self) -> f64 {
-        if self.total_ticks == 0 {
-            0.0
-        } else {
-            self.value_changes as f64 / self.total_ticks as f64
-        }
-    }
 }
 
 // Adaptive poller (non-thread-safe version)
@@ -361,105 +335,6 @@ impl<T: PartialEq + Clone> AdaptivePoller<T> {
     }
 }
 
-// Thread-safe adaptive poller
-
-/// Thread-safe adaptive poller using atomic operations and mutex.
-///
-/// This version can be safely shared across threads and used from async contexts.
-/// It wraps the core AdaptivePoller with synchronization primitives.
-#[derive(Debug)]
-pub struct SyncAdaptivePoller<T: PartialEq + Clone + Send> {
-    inner: Mutex<AdaptivePoller<T>>,
-}
-
-impl<T: PartialEq + Clone + Send> SyncAdaptivePoller<T> {
-    /// Create a new thread-safe adaptive poller with custom configuration
-    pub fn new(config: PollerConfig) -> Self {
-        Self {
-            inner: Mutex::new(AdaptivePoller::new(config)),
-        }
-    }
-
-    /// Create a new thread-safe adaptive poller from a preset
-    pub fn from_preset(preset: PollerPreset) -> Self {
-        Self::new(preset.to_config())
-    }
-
-    /// Process a polled value and return the next wait duration (thread-safe)
-    pub fn tick(&self, current_value: &T) -> Duration {
-        let mut guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
-        guard.tick(current_value)
-    }
-
-    /// Force reset to base interval (thread-safe)
-    pub fn reset(&self) {
-        let mut guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
-        guard.reset();
-    }
-
-    /// Get the current polling interval (thread-safe)
-    pub fn current_interval(&self) -> Duration {
-        let guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
-        guard.current_interval()
-    }
-
-    /// Get a snapshot of the metrics (thread-safe)
-    pub fn metrics(&self) -> PollerMetrics {
-        let guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
-        guard.metrics().clone()
-    }
-
-    /// Check if the poller is currently at max backoff (thread-safe)
-    pub fn is_at_max(&self) -> bool {
-        let guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
-        guard.is_at_max()
-    }
-}
-
-// String-based poller (convenience type)
-
-/// Type alias for the common case of polling string-based status values
-pub type StringPoller = AdaptivePoller<String>;
-
-/// Type alias for thread-safe string-based polling
-pub type SyncStringPoller = SyncAdaptivePoller<String>;
-
-// Numeric tolerance poller
-
-/// A wrapper type for floating-point values that compares with tolerance.
-///
-/// This is useful when polling values like position or temperature where
-/// small fluctuations should not be considered "changes".
-#[derive(Debug, Clone)]
-pub struct ToleranceValue {
-    pub value: f64,
-    pub tolerance: f64,
-}
-
-impl ToleranceValue {
-    /// Create a new tolerance value
-    pub fn new(value: f64, tolerance: f64) -> Self {
-        Self { value, tolerance }
-    }
-
-    /// Create with default tolerance of 0.001
-    pub fn default_tolerance(value: f64) -> Self {
-        Self::new(value, 0.001)
-    }
-}
-
-impl PartialEq for ToleranceValue {
-    fn eq(&self, other: &Self) -> bool {
-        (self.value - other.value).abs() <= self.tolerance
-    }
-}
-
-/// Type alias for tolerance-based numeric polling
-pub type TolerancePoller = AdaptivePoller<ToleranceValue>;
-
-/// Type alias for thread-safe tolerance-based polling
-pub type SyncTolerancePoller = SyncAdaptivePoller<ToleranceValue>;
-
 // Consecutive failure backoff
 
 /// Exponential retry gate for a poll that should remain fail-loud until its
@@ -546,225 +421,6 @@ impl ConsecutiveFailureBackoff {
     }
 }
 
-// Lightweight atomic poller (no value tracking)
-
-/// A lightweight poller that doesn't track values, only time-based backoff.
-///
-/// Use this when you just need exponential backoff without value comparison,
-/// or when comparing values externally.
-#[derive(Debug)]
-pub struct AtomicPoller {
-    config: PollerConfig,
-    current_interval_ms: AtomicU64,
-    consecutive_no_change: AtomicU64,
-    total_ticks: AtomicU64,
-    backoff_count: AtomicU64,
-    reset_count: AtomicU64,
-}
-
-impl AtomicPoller {
-    /// Create a new atomic poller
-    pub fn new(config: PollerConfig) -> Self {
-        let base_ms = config.base_interval.as_millis() as u64;
-        Self {
-            config,
-            current_interval_ms: AtomicU64::new(base_ms),
-            consecutive_no_change: AtomicU64::new(0),
-            total_ticks: AtomicU64::new(0),
-            backoff_count: AtomicU64::new(0),
-            reset_count: AtomicU64::new(0),
-        }
-    }
-
-    /// Create from preset
-    pub fn from_preset(preset: PollerPreset) -> Self {
-        Self::new(preset.to_config())
-    }
-
-    /// Signal that the value changed - reset to base interval
-    pub fn signal_change(&self) -> Duration {
-        self.total_ticks.fetch_add(1, Ordering::Relaxed);
-        self.reset_count.fetch_add(1, Ordering::Relaxed);
-        self.consecutive_no_change.store(0, Ordering::Relaxed);
-
-        let base_ms = self.config.base_interval.as_millis() as u64;
-        self.current_interval_ms.store(base_ms, Ordering::Relaxed);
-
-        self.config.base_interval
-    }
-
-    /// Signal that the value stayed the same - apply backoff
-    pub fn signal_no_change(&self) -> Duration {
-        self.total_ticks.fetch_add(1, Ordering::Relaxed);
-        self.backoff_count.fetch_add(1, Ordering::Relaxed);
-
-        let no_change = self.consecutive_no_change.fetch_add(1, Ordering::Relaxed) + 1;
-
-        // Check auto-reset
-        if let Some(reset_after) = self.config.auto_reset_after {
-            if no_change >= reset_after as u64 {
-                return self.signal_change();
-            }
-        }
-
-        // Apply backoff
-        let current_ms = self.current_interval_ms.load(Ordering::Relaxed);
-        let new_ms = (current_ms as f64 * self.config.backoff_multiplier) as u64;
-        let max_ms = self.config.max_interval.as_millis() as u64;
-        let capped_ms = new_ms.min(max_ms);
-
-        self.current_interval_ms.store(capped_ms, Ordering::Relaxed);
-
-        Duration::from_millis(capped_ms)
-    }
-
-    /// Force reset to base interval
-    pub fn reset(&self) {
-        let base_ms = self.config.base_interval.as_millis() as u64;
-        self.current_interval_ms.store(base_ms, Ordering::Relaxed);
-        self.consecutive_no_change.store(0, Ordering::Relaxed);
-        self.reset_count.fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// Get current interval
-    pub fn current_interval(&self) -> Duration {
-        Duration::from_millis(self.current_interval_ms.load(Ordering::Relaxed))
-    }
-
-    /// Get basic metrics snapshot
-    pub fn metrics(&self) -> PollerMetrics {
-        let total = self.total_ticks.load(Ordering::Relaxed);
-        let backoffs = self.backoff_count.load(Ordering::Relaxed);
-        let resets = self.reset_count.load(Ordering::Relaxed);
-
-        PollerMetrics {
-            total_ticks: total,
-            backoff_count: backoffs,
-            reset_count: resets,
-            total_interval_ms: 0,              // Not tracked in atomic version
-            max_interval_used: Duration::ZERO, // Not tracked in atomic version
-            value_changes: resets,             // Each reset indicates a value change
-        }
-    }
-}
-
-// Poller builder (fluent API)
-
-/// Builder for creating custom poller configurations
-#[derive(Debug, Clone)]
-pub struct PollerBuilder {
-    base_interval: Duration,
-    max_interval: Duration,
-    backoff_multiplier: f64,
-    auto_reset_after: Option<u32>,
-    name: &'static str,
-}
-
-impl PollerBuilder {
-    /// Start building with default values
-    pub fn new() -> Self {
-        Self {
-            base_interval: Duration::from_millis(200),
-            max_interval: Duration::from_millis(2000),
-            backoff_multiplier: 1.5,
-            auto_reset_after: None,
-            name: "custom",
-        }
-    }
-
-    /// Start from a preset and customize
-    pub fn from_preset(preset: PollerPreset) -> Self {
-        let config = preset.to_config();
-        Self {
-            base_interval: config.base_interval,
-            max_interval: config.max_interval,
-            backoff_multiplier: config.backoff_multiplier,
-            auto_reset_after: config.auto_reset_after,
-            name: config.name,
-        }
-    }
-
-    /// Set base polling interval
-    pub fn base_interval(mut self, interval: Duration) -> Self {
-        self.base_interval = interval;
-        self
-    }
-
-    /// Set base polling interval in milliseconds
-    pub fn base_interval_ms(mut self, ms: u64) -> Self {
-        self.base_interval = Duration::from_millis(ms);
-        self
-    }
-
-    /// Set maximum polling interval
-    pub fn max_interval(mut self, interval: Duration) -> Self {
-        self.max_interval = interval;
-        self
-    }
-
-    /// Set maximum polling interval in milliseconds
-    pub fn max_interval_ms(mut self, ms: u64) -> Self {
-        self.max_interval = Duration::from_millis(ms);
-        self
-    }
-
-    /// Set the backoff multiplier
-    pub fn backoff_multiplier(mut self, multiplier: f64) -> Self {
-        self.backoff_multiplier = multiplier;
-        self
-    }
-
-    /// Set auto-reset behavior
-    pub fn auto_reset_after(mut self, ticks: u32) -> Self {
-        self.auto_reset_after = Some(ticks);
-        self
-    }
-
-    /// Disable auto-reset
-    pub fn no_auto_reset(mut self) -> Self {
-        self.auto_reset_after = None;
-        self
-    }
-
-    /// Set name for debugging
-    pub fn name(mut self, name: &'static str) -> Self {
-        self.name = name;
-        self
-    }
-
-    /// Build the configuration
-    pub fn build_config(self) -> PollerConfig {
-        PollerConfig {
-            base_interval: self.base_interval,
-            max_interval: self.max_interval,
-            backoff_multiplier: self.backoff_multiplier,
-            auto_reset_after: self.auto_reset_after,
-            name: self.name,
-        }
-    }
-
-    /// Build a poller directly
-    pub fn build<T: PartialEq + Clone>(self) -> AdaptivePoller<T> {
-        AdaptivePoller::new(self.build_config())
-    }
-
-    /// Build a thread-safe poller
-    pub fn build_sync<T: PartialEq + Clone + Send>(self) -> SyncAdaptivePoller<T> {
-        SyncAdaptivePoller::new(self.build_config())
-    }
-
-    /// Build an atomic poller
-    pub fn build_atomic(self) -> AtomicPoller {
-        AtomicPoller::new(self.build_config())
-    }
-}
-
-impl Default for PollerBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 // Tests
 
 #[cfg(test)]
@@ -838,16 +494,6 @@ mod tests {
     }
 
     #[test]
-    fn test_tolerance_value() {
-        let v1 = ToleranceValue::new(1.0, 0.01);
-        let v2 = ToleranceValue::new(1.005, 0.01);
-        let v3 = ToleranceValue::new(1.02, 0.01);
-
-        assert_eq!(v1, v2); // Within tolerance
-        assert_ne!(v1, v3); // Outside tolerance
-    }
-
-    #[test]
     fn consecutive_failure_backoff_waits_for_threshold() {
         let now = Instant::now();
         let mut backoff = ConsecutiveFailureBackoff::new(
@@ -883,34 +529,6 @@ mod tests {
     }
 
     #[test]
-    fn test_atomic_poller() {
-        let poller = AtomicPoller::from_preset(PollerPreset::Fast);
-
-        let interval1 = poller.signal_change();
-        assert_eq!(interval1, Duration::from_millis(100));
-
-        let interval2 = poller.signal_no_change();
-        assert!(interval2 > interval1);
-
-        let interval3 = poller.signal_change();
-        assert_eq!(interval3, Duration::from_millis(100));
-    }
-
-    #[test]
-    fn test_builder() {
-        let poller: AdaptivePoller<i32> = PollerBuilder::new()
-            .base_interval_ms(50)
-            .max_interval_ms(1000)
-            .backoff_multiplier(1.5)
-            .name("test")
-            .build();
-
-        assert_eq!(poller.config().base_interval, Duration::from_millis(50));
-        assert_eq!(poller.config().max_interval, Duration::from_millis(1000));
-        assert_eq!(poller.config().name, "test");
-    }
-
-    #[test]
     fn test_preset_values() {
         let exposure = PollerPreset::Exposure.to_config();
         assert_eq!(exposure.base_interval, Duration::from_millis(200));
@@ -924,21 +542,6 @@ mod tests {
         assert_eq!(idle.base_interval, Duration::from_millis(1000));
         assert_eq!(idle.max_interval, Duration::from_millis(5000));
         assert!(idle.auto_reset_after.is_some());
-    }
-
-    #[test]
-    fn test_sync_poller() {
-        let poller = SyncAdaptivePoller::<i32>::from_preset(PollerPreset::Fast);
-
-        // Can be used from multiple threads
-        let interval1 = poller.tick(&1);
-        let interval2 = poller.tick(&1);
-
-        assert!(interval2 > interval1);
-
-        poller.reset();
-        let interval3 = poller.tick(&1);
-        assert_eq!(interval3, interval1);
     }
 
     #[test]

@@ -77,18 +77,6 @@ pub enum ProgressDetail {
         rms_total: Option<f64>,
         is_settled: bool,
     },
-    /// Mosaic panel progress. `panel_row` / `panel_col` are
-    /// derived from the mosaic grid plan so the Run Dashboard can render
-    /// "Panel 5/9 (row 2, col 2)" without crossreferencing the panel
-    /// plan. `None` for legacy code paths that emit Mosaic progress
-    /// without grid context — the dashboard hides the row/col annotation
-    /// when both are absent.
-    Mosaic {
-        panel_index: u32,
-        total_panels: u32,
-        panel_row: Option<u32>,
-        panel_col: Option<u32>,
-    },
     /// Flat wizard ADU tuning.
     FlatWizard {
         current_adu: Option<u16>,
@@ -413,20 +401,6 @@ impl ProgressDetail {
                 Some(rms) if *is_settled => format!("settled (RMS {:.2}\")", rms),
                 Some(rms) => format!("settling (RMS {:.2}\")", rms),
                 None => "starting".to_string(),
-            },
-            ProgressDetail::Mosaic {
-                panel_index,
-                total_panels,
-                panel_row,
-                panel_col,
-            } => match (panel_row, panel_col) {
-                (Some(r), Some(c)) => {
-                    format!(
-                        "panel {}/{} (row {}, col {})",
-                        panel_index, total_panels, r, c
-                    )
-                }
-                _ => format!("panel {}/{}", panel_index, total_panels),
             },
             ProgressDetail::FlatWizard {
                 current_adu,

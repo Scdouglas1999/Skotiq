@@ -8,7 +8,6 @@ import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `run_decision_event_loop`, `run_sequencer_event_loop`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `api_sequencer_event_stream`
 
 /// Subscribe to sequencer events and forward them to the main event stream
 Future<void> apiSequencerSubscribeEvents() => RustLib.instance.api

@@ -127,7 +127,6 @@ pub async fn api_invalidate_discovery_cache() {
 
 // Submodule declarations (api.rs decomposition).
 
-pub(crate) mod api_version;
 pub(crate) mod connection;
 pub mod darkroom;
 pub mod depthlock;
@@ -155,11 +154,9 @@ pub mod polar_alignment;
 pub mod post_session;
 pub mod secondary_rig;
 pub mod sequencer;
-pub mod session;
 pub mod sky_atlas;
 pub(crate) mod storage;
 
-pub use api_version::*;
 pub use connection::*;
 // Re-exported by name, not by glob: `darkroom` and `post_session` both carry an
 // `entrypoints` submodule, and two globs re-exporting that name make it
@@ -197,6 +194,5 @@ pub use polar_alignment::*;
 pub use post_session::*;
 pub use secondary_rig::*;
 pub use sequencer::*;
-pub use session::*;
 pub use sky_atlas::*;
 pub use storage::*;

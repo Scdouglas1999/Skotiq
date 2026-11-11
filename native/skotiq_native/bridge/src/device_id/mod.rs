@@ -669,23 +669,6 @@ impl ParsedDeviceId {
             _ => None,
         }
     }
-
-    /// Check if this device uses a network connection
-    pub fn is_network_device(&self) -> bool {
-        matches!(
-            &self.connection_info,
-            ConnectionInfo::Alpaca { .. } | ConnectionInfo::Indi { .. }
-        )
-    }
-
-    /// Get the network address if this is a network device
-    pub fn network_address(&self) -> Option<String> {
-        match &self.connection_info {
-            ConnectionInfo::Alpaca { host, port, .. } => Some(format!("{}:{}", host, port)),
-            ConnectionInfo::Indi { host, port, .. } => Some(format!("{}:{}", host, port)),
-            _ => None,
-        }
-    }
 }
 
 // Helper functions

@@ -25,8 +25,3 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// is tracked for diagnostics.
 Stream<SkotiqEvent> apiEventStream() =>
     RustLib.instance.api.crateApiEventStreamApiEventStream();
-
-/// Get the total number of events dropped since app start.
-/// Useful for diagnostics and monitoring event stream health.
-BigInt apiGetDroppedEventCount() =>
-    RustLib.instance.api.crateApiEventStreamApiGetDroppedEventCount();

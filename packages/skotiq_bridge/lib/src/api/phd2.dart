@@ -9,11 +9,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `await_settle`, `find_fresh_star`, `finish_pending_settle`, `guide_exposure`, `guider_stop_for_run`, `known_pixel_scale`, `note_operator_stop`, `phd2_client`, `phd2_stop_guiding`, `reported_stop_reason`, `resolve_guider_backend`, `settle_done_event`, `stop_capture_and_wait`, `stop_capture_completely`, `wait_for_looping_frame`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `GuiderBackend`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `get_active_guider_id_for_ops`, `get_phd2_storage`, `guiding_stop_reason`, `select_fresh_guide_star`, `set_guiding_stop_reason`
-
-/// Check if PHD2 is running
-bool apiIsPhd2Running() => RustLib.instance.api.crateApiPhd2ApiIsPhd2Running();
 
 /// Connect to PHD2
 Future<void> apiPhd2Connect({String? host, int? port}) =>
@@ -92,10 +89,6 @@ Future<void> apiPhd2SetAlgoParam({
   name: name,
   value: value,
 );
-
-/// Get all PHD2 algorithm parameters for an axis
-Future<List<Phd2AlgoParam>> apiPhd2GetAllAlgoParams({required String axis}) =>
-    RustLib.instance.api.crateApiPhd2ApiPhd2GetAllAlgoParams(axis: axis);
 
 /// Pause or resume PHD2 guiding
 Future<void> apiPhd2SetPaused({required bool paused}) =>
@@ -321,28 +314,6 @@ class BuiltinGuiderConfig {
           settleSleepMs == other.settleSleepMs &&
           minPulseMs == other.minPulseMs &&
           maxPulseMs == other.maxPulseMs;
-}
-
-/// PHD2 Brain algorithm parameter
-class Phd2AlgoParam {
-  /// Parameter name
-  final String name;
-
-  /// Parameter value
-  final double value;
-
-  const Phd2AlgoParam({required this.name, required this.value});
-
-  @override
-  int get hashCode => name.hashCode ^ value.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Phd2AlgoParam &&
-          runtimeType == other.runtimeType &&
-          name == other.name &&
-          value == other.value;
 }
 
 /// PHD2 calibration data

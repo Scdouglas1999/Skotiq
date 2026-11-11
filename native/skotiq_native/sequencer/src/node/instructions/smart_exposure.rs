@@ -54,8 +54,8 @@ use crate::node::context::ExecutionContext;
 use crate::node::progress::{ProgressDetail, ProgressUpdate};
 use crate::node::registry::{registry, InstructionNode};
 use crate::{
-    smart_exposure_checkpoint_key, DitherConfig, ExposureConfig, FilterConfig, FilterPlan,
-    NodeStatus, NodeType, SmartExposureCheckpoint, SmartExposureConfig,
+    DitherConfig, ExposureConfig, FilterConfig, FilterPlan, NodeStatus, NodeType,
+    SmartExposureCheckpoint, SmartExposureConfig,
 };
 use async_trait::async_trait;
 use std::collections::HashSet;
@@ -895,13 +895,6 @@ async fn save_checkpoint(
     let mut states = context.smart_exposure_states.write().await;
     states.insert(node_id.to_string(), state.clone());
     drop(states);
-
-    // Stable key for future cross-process persistence: when the executor
-    // plumbs a `CheckpointManager` through ExecutionContext, this is the
-    // key under which the JSON-serialized state would land in
-    // `SessionCheckpoint::wizard_states`. Computed here so the format is
-    // centralized in one place.
-    let _ = smart_exposure_checkpoint_key(&node_id.to_string());
 }
 
 async fn clear_checkpoint(node_id: &str, context: &ExecutionContext) {
@@ -1128,14 +1121,6 @@ mod tests {
         state.per_filter_completed.insert("L".into(), 1);
         state.current_plan_index = 1;
         assert_eq!(next_plan(&cfg, &state), Some(1));
-    }
-
-    #[test]
-    fn checkpoint_key_namespacing_is_per_node() {
-        let k1 = smart_exposure_checkpoint_key(&"node_a".to_string());
-        let k2 = smart_exposure_checkpoint_key(&"node_b".to_string());
-        assert_ne!(k1, k2);
-        assert!(k1.starts_with("smart_exposure:"));
     }
 
     #[test]

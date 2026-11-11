@@ -123,7 +123,6 @@ impl InstructionRegistry {
             Box::new(i::close_dome::CloseDomeInstruction)
         });
         factories.insert("ParkDome", || Box::new(i::park_dome::ParkDomeInstruction));
-        factories.insert("Mosaic", || Box::new(i::mosaic::MosaicInstruction));
         factories.insert("FlatWizard", || {
             Box::new(i::flat_wizard::FlatWizardInstruction)
         });
@@ -206,7 +205,6 @@ pub fn node_type_discriminant(node_type: &NodeType) -> Option<&'static str> {
         NodeType::OpenDome(_) => Some("OpenDome"),
         NodeType::CloseDome(_) => Some("CloseDome"),
         NodeType::ParkDome(_) => Some("ParkDome"),
-        NodeType::Mosaic(_) => Some("Mosaic"),
         NodeType::FlatWizard(_) => Some("FlatWizard"),
         NodeType::OpenCover(_) => Some("OpenCover"),
         NodeType::CloseCover(_) => Some("CloseCover"),
@@ -270,7 +268,6 @@ mod tests {
             NodeType::OpenDome(Default::default()),
             NodeType::CloseDome(Default::default()),
             NodeType::ParkDome(Default::default()),
-            NodeType::Mosaic(Default::default()),
             NodeType::FlatWizard(Default::default()),
             NodeType::OpenCover(Default::default()),
             NodeType::CloseCover(Default::default()),
@@ -364,7 +361,6 @@ mod tests {
             (NodeType::OpenDome(Default::default()), "Open Dome"),
             (NodeType::CloseDome(Default::default()), "Close Dome"),
             (NodeType::ParkDome(Default::default()), "Park Dome"),
-            (NodeType::Mosaic(Default::default()), "Mosaic"),
             (NodeType::FlatWizard(Default::default()), "Flat Wizard"),
             (NodeType::OpenCover(Default::default()), "Open Cover"),
             (NodeType::CloseCover(Default::default()), "Close Cover"),

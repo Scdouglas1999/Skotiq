@@ -29,7 +29,6 @@ pub mod home_mount;
 // LiveStacking — EAA / outreach broadcast node.
 pub mod live_stacking;
 pub mod meridian_flip;
-pub mod mosaic;
 pub mod move_rotator;
 pub mod notification;
 // PluginNode — Rust↔Dart roundtrip dispatcher for

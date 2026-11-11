@@ -59,23 +59,6 @@ Future<void> apiMountSetTracking({
   enabled: enabled,
 );
 
-/// Slew mount to alt/az coordinates (simulator handler)
-Future<void> apiMountSlewAltAz({
-  required String deviceId,
-  required double altitude,
-  required double azimuth,
-}) => RustLib.instance.api.crateApiDevicesSimulationMountApiMountSlewAltAz(
-  deviceId: deviceId,
-  altitude: altitude,
-  azimuth: azimuth,
-);
-
-/// Find mount home position (simulator handler)
-Future<void> apiMountFindHome({required String deviceId}) => RustLib
-    .instance
-    .api
-    .crateApiDevicesSimulationMountApiMountFindHome(deviceId: deviceId);
-
 /// Pulse guide the mount in a direction for a duration
 Future<void> apiMountPulseGuide({
   required String deviceId,

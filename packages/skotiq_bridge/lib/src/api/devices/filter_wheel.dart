@@ -17,18 +17,6 @@ Future<void> filterWheelSetPosition({
   position: position,
 );
 
-/// Get filter wheel position
-Future<int> filterWheelGetPosition({required String deviceId}) => RustLib
-    .instance
-    .api
-    .crateApiDevicesFilterWheelFilterWheelGetPosition(deviceId: deviceId);
-
-/// Get filter wheel configuration (count, names)
-Future<(int, List<String>)> filterWheelGetConfig({required String deviceId}) =>
-    RustLib.instance.api.crateApiDevicesFilterWheelFilterWheelGetConfig(
-      deviceId: deviceId,
-    );
-
 /// Set camera gain
 Future<void> setCameraGain({required String deviceId, required int gain}) =>
     RustLib.instance.api.crateApiDevicesFilterWheelSetCameraGain(

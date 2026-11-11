@@ -264,18 +264,6 @@ pub struct ExecutionContext {
     /// allocation (matches the rest of this struct's shared-state pattern).
     pub smart_exposure_states:
         Arc<RwLock<std::collections::HashMap<NodeId, crate::SmartExposureCheckpoint>>>,
-    /// The running session's checkpoint manager, when the executor was
-    /// given a checkpoint directory. Wizards that own step-level resume
-    /// state (mosaic panels today) wrap this in a
-    /// [`crate::checkpoint::SessionWizardCheckpointSink`] so their
-    /// progress lands in `SessionCheckpoint::wizard_states` alongside the
-    /// session checkpoint. `None` (no checkpoint dir, or a wizard run
-    /// outside a session) means nothing is persisted and the next run
-    /// starts at step 0.
-    ///
-    /// The same `Arc` the executor holds, so the wizard sink and the
-    /// streaming-checkpoint task share one manager (and one info cache).
-    pub checkpoint_manager: Option<Arc<crate::checkpoint::CheckpointManager>>,
     /// DepthLock verdict source, installed by the host at start. `None`
     /// when the host has no goal store; a bound plan then warns once and
     /// stays count-bounded.
@@ -690,7 +678,6 @@ impl ExecutionContext {
             // No checkpoint manager outside a session: wizard step state
             // is not persisted and every run starts at step 0. The
             // executor installs its own Arc at start().
-            checkpoint_manager: None,
             depth_goal_ops: None,
             budget_registry: BudgetRegistry::new(),
             // Image Grading: a non-empty session id is preferred to
@@ -1228,20 +1215,6 @@ impl ExecutionContext {
         // horizon — the IAU-adopted definition; deep-sky imaging targets this
         // boundary because any brighter sky elevates the background floor.
         Some(sun_alt < -18.0)
-    }
-
-    /// Set the next meridian flip time in the trigger state (if available)
-    /// If trigger state is not accessible, the timestamp is skipped.
-    pub async fn set_next_meridian_flip_time(&self, timestamp: Option<i64>) {
-        if let Some(trigger_state_lock) = &self.trigger_state {
-            let mut trigger_state = trigger_state_lock.write().await;
-            trigger_state.next_meridian_flip_time = timestamp;
-        } else if let Some(ts) = timestamp {
-            tracing::debug!(
-                "Meridian flip timestamp {} calculated but trigger state is unavailable",
-                ts
-            );
-        }
     }
 
     /// Build an InstructionContext from this ExecutionContext.

@@ -811,14 +811,6 @@ pub async fn api_sequencer_set_active_sequence_run_id(
     Ok(())
 }
 
-/// Replay Debug — read back the currently-stamped
-/// `sequence_runs.id`. Used by tests and as a sanity check from the
-/// Dart side.
-pub async fn api_sequencer_get_active_sequence_run_id() -> Result<Option<i64>, SkotiqError> {
-    let executor = get_sequence_executor().read().await;
-    Ok(executor.active_sequence_run_id())
-}
-
 /// Replay Debug — runtime toggle for decision emission. When
 /// `enabled = false`, the executor short-circuits all decision sends
 /// (no channel publish, no allocation) so power users who don't want
@@ -831,12 +823,6 @@ pub async fn api_sequencer_set_decision_logging_enabled(enabled: bool) -> Result
         if enabled { "ENABLED" } else { "DISABLED" }
     );
     Ok(())
-}
-
-/// Replay Debug — readback for the runtime toggle.
-pub async fn api_sequencer_get_decision_logging_enabled() -> Result<bool, SkotiqError> {
-    let executor = get_sequence_executor().read().await;
-    Ok(executor.decision_logging_enabled())
 }
 
 // Adaptive sky-conditions target swap

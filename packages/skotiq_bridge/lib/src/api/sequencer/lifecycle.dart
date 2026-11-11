@@ -17,12 +17,6 @@ Future<void> apiSequencerLoadJson({required String json}) => RustLib
     .api
     .crateApiSequencerLifecycleApiSequencerLoadJson(json: json);
 
-/// Load a sequence from a definition struct
-Future<void> apiSequencerLoad({required SequenceDefinitionApi definition}) =>
-    RustLib.instance.api.crateApiSequencerLifecycleApiSequencerLoad(
-      definition: definition,
-    );
-
 /// Start the sequence executor
 Future<void> apiSequencerStart() =>
     RustLib.instance.api.crateApiSequencerLifecycleApiSequencerStart();

@@ -26,67 +26,6 @@ use super::*;
 
 // Device discovery for ASCOM and Alpaca
 
-/// Discover available Alpaca devices on the network
-pub async fn api_discover_alpaca_devices() -> Result<Vec<DeviceInfo>, SkotiqError> {
-    use skotiq_alpaca::{discover_all_devices, AlpacaDeviceType};
-    use std::time::Duration;
-
-    tracing::debug!("Discovering Alpaca devices on network...");
-
-    let alpaca_devices = discover_all_devices(Duration::from_secs(3)).await;
-
-    let mut devices = Vec::new();
-    for alpaca_dev in alpaca_devices {
-        let device_type = match alpaca_dev.device_type {
-            AlpacaDeviceType::Camera => DeviceType::Camera,
-            AlpacaDeviceType::Telescope => DeviceType::Mount,
-            AlpacaDeviceType::Focuser => DeviceType::Focuser,
-            AlpacaDeviceType::FilterWheel => DeviceType::FilterWheel,
-            AlpacaDeviceType::Rotator => DeviceType::Rotator,
-            AlpacaDeviceType::Dome => DeviceType::Dome,
-            AlpacaDeviceType::SafetyMonitor => DeviceType::SafetyMonitor,
-            AlpacaDeviceType::ObservingConditions => DeviceType::Weather,
-            AlpacaDeviceType::Switch => DeviceType::Switch,
-            AlpacaDeviceType::CoverCalibrator => DeviceType::CoverCalibrator,
-        };
-
-        tracing::debug!(
-            "Found Alpaca device: {} at {} (unique_id: {})",
-            alpaca_dev.device_name,
-            alpaca_dev.base_url,
-            alpaca_dev.unique_id
-        );
-
-        // Generate display name using unique_id for disambiguation
-        let unique_id = if alpaca_dev.unique_id.is_empty() {
-            None
-        } else {
-            Some(alpaca_dev.unique_id.clone())
-        };
-        let display_name = DeviceInfo::generate_display_name(
-            &alpaca_dev.device_name,
-            None, // No serial number from Alpaca
-            unique_id.as_deref(),
-            None, // No index needed
-        );
-
-        devices.push(DeviceInfo {
-            id: alpaca_dev.id(),
-            name: alpaca_dev.device_name.clone(),
-            device_type,
-            driver_type: DriverType::Alpaca,
-            description: format!("Alpaca device at {}", alpaca_dev.base_url),
-            driver_version: "Alpaca".to_string(),
-            serial_number: None,
-            unique_id,
-            display_name,
-        });
-    }
-
-    tracing::debug!("Found {} Alpaca devices", devices.len());
-    Ok(devices)
-}
-
 /// Discover Alpaca devices at a specific server address
 pub async fn api_discover_alpaca_at_address(
     host: String,
@@ -674,8 +613,7 @@ fn alpaca_device_type(t: skotiq_alpaca::AlpacaDeviceType) -> DeviceType {
 }
 
 /// Build a `DeviceInfo` from an Alpaca discovery record (shared by the full
-/// sweep so every type maps identically — IDs and display names match the
-/// public `api_discover_alpaca_devices` path).
+/// sweep so every type maps identically).
 fn alpaca_device_info(
     alpaca_dev: &skotiq_alpaca::AlpacaDevice,
     device_type: DeviceType,

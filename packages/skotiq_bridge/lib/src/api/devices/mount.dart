@@ -8,17 +8,6 @@ import '../../error.dart';
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-/// Slew mount to coordinates
-Future<void> mountSlew({
-  required String deviceId,
-  required double ra,
-  required double dec,
-}) => RustLib.instance.api.crateApiDevicesMountMountSlew(
-  deviceId: deviceId,
-  ra: ra,
-  dec: dec,
-);
-
 /// Sync mount to coordinates
 Future<void> mountSync({
   required String deviceId,
@@ -38,23 +27,9 @@ Future<void> mountPark({required String deviceId}) =>
 Future<void> mountUnpark({required String deviceId}) =>
     RustLib.instance.api.crateApiDevicesMountMountUnpark(deviceId: deviceId);
 
-/// Get mount coordinates
-Future<(double, double)> mountGetCoordinates({required String deviceId}) =>
-    RustLib.instance.api.crateApiDevicesMountMountGetCoordinates(
-      deviceId: deviceId,
-    );
-
 /// Abort mount slew
 Future<void> mountAbort({required String deviceId}) =>
     RustLib.instance.api.crateApiDevicesMountMountAbort(deviceId: deviceId);
-
-/// Stop mount motion (abort slew without disconnecting)
-Future<void> mountStop({required String deviceId}) =>
-    RustLib.instance.api.crateApiDevicesMountMountStop(deviceId: deviceId);
-
-/// Query whether a mount supports parking
-Future<bool> mountCanPark({required String deviceId}) =>
-    RustLib.instance.api.crateApiDevicesMountMountCanPark(deviceId: deviceId);
 
 /// Set mount tracking
 ///
@@ -93,12 +68,6 @@ Future<void> mountPulseGuide({
 /// Get mount status
 Future<MountStatus> mountGetStatus({required String deviceId}) =>
     RustLib.instance.api.crateApiDevicesMountMountGetStatus(deviceId: deviceId);
-
-/// Get mount tracking rate (0=Sidereal, 1=Lunar, 2=Solar, 3=King)
-Future<int> mountGetTrackingRate({required String deviceId}) => RustLib
-    .instance
-    .api
-    .crateApiDevicesMountMountGetTrackingRate(deviceId: deviceId);
 
 /// Move mount axis at specified rate (degrees/second)
 /// axis: 0=RA/Azimuth (primary), 1=Dec/Altitude (secondary)

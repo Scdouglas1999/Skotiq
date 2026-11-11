@@ -132,27 +132,6 @@ fn test_heartbeat_config_for_device_type() {
 }
 
 #[test]
-fn test_heartbeat_config_with_interval() {
-    let config = HeartbeatConfig::with_interval(30);
-    assert_eq!(config.base_interval_secs, 30);
-    // Other fields should be default
-    assert_eq!(config.failure_threshold, 3);
-}
-
-#[test]
-fn test_heartbeat_config_builder_pattern() {
-    let config = HeartbeatConfig::with_interval(20)
-        .with_auto_reconnect(true)
-        .with_failure_threshold(5)
-        .with_max_reconnect_attempts(10);
-
-    assert_eq!(config.base_interval_secs, 20);
-    assert!(config.auto_reconnect);
-    assert_eq!(config.failure_threshold, 5);
-    assert_eq!(config.max_reconnect_attempts, 10);
-}
-
-#[test]
 fn test_heartbeat_config_device_type_variations() {
     // All device types should return valid configurations
     let device_types = vec![

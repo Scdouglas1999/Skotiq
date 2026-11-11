@@ -27,14 +27,6 @@ use super::*;
 
 // Mount control
 
-/// Slew mount to coordinates
-pub async fn mount_slew(device_id: String, ra: f64, dec: f64) -> Result<(), SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.mount_slew(&device_id, ra, dec)
-        .await
-        .map_err(SkotiqError::from)
-}
-
 /// Sync mount to coordinates
 pub async fn mount_sync(device_id: String, ra: f64, dec: f64) -> Result<(), SkotiqError> {
     let mgr = get_device_manager();
@@ -57,32 +49,10 @@ pub async fn mount_unpark(device_id: String) -> Result<(), SkotiqError> {
         .map_err(SkotiqError::from)
 }
 
-/// Get mount coordinates
-pub async fn mount_get_coordinates(device_id: String) -> Result<(f64, f64), SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.mount_get_coordinates(&device_id)
-        .await
-        .map_err(SkotiqError::from)
-}
-
 /// Abort mount slew
 pub async fn mount_abort(device_id: String) -> Result<(), SkotiqError> {
     let mgr = get_device_manager();
     mgr.mount_abort(&device_id).await.map_err(SkotiqError::from)
-}
-
-/// Stop mount motion (abort slew without disconnecting)
-pub async fn mount_stop(device_id: String) -> Result<(), SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.mount_stop(&device_id).await.map_err(SkotiqError::from)
-}
-
-/// Query whether a mount supports parking
-pub async fn mount_can_park(device_id: String) -> Result<bool, SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.mount_can_park(&device_id)
-        .await
-        .map_err(SkotiqError::from)
 }
 
 /// Set mount tracking
@@ -128,14 +98,6 @@ pub async fn mount_pulse_guide(
 pub async fn mount_get_status(device_id: String) -> Result<MountStatus, SkotiqError> {
     let mgr = get_device_manager();
     mgr.mount_get_status(&device_id)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Get mount tracking rate (0=Sidereal, 1=Lunar, 2=Solar, 3=King)
-pub async fn mount_get_tracking_rate(device_id: String) -> Result<i32, SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.mount_get_tracking_rate(&device_id)
         .await
         .map_err(SkotiqError::from)
 }

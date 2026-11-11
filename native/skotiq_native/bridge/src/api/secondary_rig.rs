@@ -305,11 +305,6 @@ pub async fn api_secondary_rig_get_status() -> SecondaryRigStatusApi {
     }
 }
 
-/// Whether a secondary rig is currently armed.
-pub async fn api_secondary_rig_is_armed() -> bool {
-    manager().lock().await.rig.is_some()
-}
-
 async fn await_rig_teardown(rig: SecondaryRig) -> Result<(), SkotiqError> {
     let mut handle = rig.stop();
     let joined = tokio::time::timeout(std::time::Duration::from_secs(10), &mut handle)

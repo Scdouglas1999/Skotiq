@@ -124,13 +124,6 @@ impl TriggerManager {
         Some(trigger)
     }
 
-    /// Enable/disable a trigger
-    pub fn set_trigger_enabled(&mut self, id: &str, enabled: bool) {
-        if let Some(trigger) = self.triggers.iter_mut().find(|t| t.id == id) {
-            trigger.enabled = enabled;
-        }
-    }
-
     /// Enable/disable all triggers
     pub fn set_all_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;

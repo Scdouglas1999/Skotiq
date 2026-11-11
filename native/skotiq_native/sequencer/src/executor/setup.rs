@@ -120,16 +120,6 @@ impl SequenceExecutor {
         self.trigger_manager.clone()
     }
 
-    /// Enable or disable trigger monitoring at the gating level.
-    ///
-    /// `false` keeps the trigger manager wired but skips evaluation
-    /// inside the spawned task — used by the bridge when the operator
-    /// has opted out of all unattended-imaging triggers (rare, mostly
-    /// for diagnostic runs).
-    pub fn set_triggers_enabled(&mut self, enabled: bool) {
-        self.triggers_enabled = enabled;
-    }
-
     /// Run a closure against the live [`TriggerState`] inside the
     /// trigger manager. Holds the write lock for the duration of the
     /// closure so callers can atomically update multiple fields without
@@ -159,13 +149,6 @@ impl SequenceExecutor {
     /// and runs to its authored count.
     pub fn set_depth_goal_ops(&mut self, ops: Option<crate::depth_goal::SharedDepthGoalOps>) {
         self.depth_goal_ops = ops;
-    }
-
-    /// Diagnostic accessor — `true` iff [`Self::set_device_ops`] has
-    /// been called. The bridge surfaces this on the connect-readiness
-    /// indicator so the operator can see why `start()` would refuse.
-    pub fn has_device_ops(&self) -> bool {
-        self.device_ops.is_some()
     }
 
     /// Wire the five core imaging device ids (camera, mount, focuser,

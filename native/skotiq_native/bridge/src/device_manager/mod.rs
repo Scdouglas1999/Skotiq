@@ -109,32 +109,6 @@ impl Default for HeartbeatConfig {
 }
 
 impl HeartbeatConfig {
-    /// Create a new config with the specified interval
-    pub fn with_interval(interval_secs: u64) -> Self {
-        Self {
-            base_interval_secs: interval_secs,
-            ..Default::default()
-        }
-    }
-
-    /// Create a config with auto-reconnect enabled
-    pub fn with_auto_reconnect(mut self, enabled: bool) -> Self {
-        self.auto_reconnect = enabled;
-        self
-    }
-
-    /// Set the failure threshold
-    pub fn with_failure_threshold(mut self, threshold: u32) -> Self {
-        self.failure_threshold = threshold;
-        self
-    }
-
-    /// Set max reconnection attempts
-    pub fn with_max_reconnect_attempts(mut self, attempts: u32) -> Self {
-        self.max_reconnect_attempts = attempts;
-        self
-    }
-
     /// Camera liveness checks keep a fixed cadence after failures.
     pub fn for_camera() -> Self {
         Self {
@@ -767,76 +741,6 @@ impl DeviceManager {
             observed_identities: RwLock::new(HashMap::new()),
             expected_models: Default::default(),
             reconnect_config: ReconnectConfig::default(),
-            stop_reconnect: Arc::new(RwLock::new(false)),
-            native_devices: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_cameras: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_mounts: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_focusers: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_filter_wheels: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_rotators: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_domes: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_weather: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_safety_monitors: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_switches: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_cover_calibrators: RwLock::new(HashMap::new()),
-            indi_clients: RwLock::new(HashMap::new()),
-            alpaca_cameras: RwLock::new(HashMap::new()),
-            alpaca_mounts: RwLock::new(HashMap::new()),
-            alpaca_focusers: RwLock::new(HashMap::new()),
-            alpaca_filter_wheels: RwLock::new(HashMap::new()),
-            alpaca_rotators: RwLock::new(HashMap::new()),
-            alpaca_domes: RwLock::new(HashMap::new()),
-            alpaca_weather: RwLock::new(HashMap::new()),
-            alpaca_safety_monitors: RwLock::new(HashMap::new()),
-            alpaca_switches: RwLock::new(HashMap::new()),
-            alpaca_cover_calibrators: RwLock::new(HashMap::new()),
-            native_cameras: RwLock::new(HashMap::new()),
-            native_focusers: RwLock::new(HashMap::new()),
-            native_filter_wheels: RwLock::new(HashMap::new()),
-            native_mounts: RwLock::new(HashMap::new()),
-            heartbeat_tasks: RwLock::new(HashMap::new()),
-            reconnect_cancel_tokens: RwLock::new(HashMap::new()),
-            active_operations: Arc::new(std::sync::Mutex::new(std::collections::HashSet::new())),
-            usb_contention: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
-            command_activity: Default::default(),
-            published_temperatures: Default::default(),
-            status_reads: Default::default(),
-        });
-
-        // Start the reconnection background task
-        // Note: Must have runtime available - ensured by api_init() calling ensure_runtime()
-        let manager_clone = Arc::clone(&manager);
-        // Get the runtime handle and spawn the task
-        // We use the crate-level runtime which must be initialized first
-        if let Ok(runtime) = crate::ensure_runtime() {
-            runtime.handle().spawn(async move {
-                manager_clone.reconnection_loop().await;
-            });
-        } else {
-            tracing::error!("Cannot start reconnection loop: runtime initialization failed");
-        }
-
-        manager
-    }
-
-    /// Create with custom reconnection config
-    pub fn with_config(app_state: SharedAppState, config: ReconnectConfig) -> Arc<Self> {
-        let manager = Arc::new(Self {
-            app_state,
-            devices: RwLock::new(HashMap::new()),
-            observed_identities: RwLock::new(HashMap::new()),
-            expected_models: Default::default(),
-            reconnect_config: config,
             stop_reconnect: Arc::new(RwLock::new(false)),
             native_devices: RwLock::new(HashMap::new()),
             #[cfg(windows)]

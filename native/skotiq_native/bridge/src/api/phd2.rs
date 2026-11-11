@@ -173,21 +173,6 @@ pub struct Phd2StarImage {
     pub pixels: Vec<u8>,
 }
 
-/// PHD2 Brain algorithm parameter
-#[derive(Debug, Clone)]
-pub struct Phd2AlgoParam {
-    /// Parameter name
-    pub name: String,
-    /// Parameter value
-    pub value: f64,
-}
-
-/// Check if PHD2 is running
-#[flutter_rust_bridge::frb(sync)]
-pub fn api_is_phd2_running() -> bool {
-    skotiq_imaging::is_phd2_running()
-}
-
 /// Canonical PHD2 guider device id.
 ///
 /// PHD2 lives in two independent registries and this constant is the join key
@@ -871,23 +856,6 @@ pub async fn api_phd2_set_algo_param(
     client
         .set_algo_param(&axis, &name, value)
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to set algo param: {}", e)))
-}
-
-/// Get all PHD2 algorithm parameters for an axis
-pub async fn api_phd2_get_all_algo_params(axis: String) -> Result<Vec<Phd2AlgoParam>, SkotiqError> {
-    let mut client = phd2_client().await?;
-
-    let params = client.get_all_algo_params(&axis).map_err(|e| {
-        SkotiqError::OperationFailed(format!("Failed to get all algo params: {}", e))
-    })?;
-
-    Ok(params
-        .into_iter()
-        .map(|p| Phd2AlgoParam {
-            name: p.name,
-            value: p.value,
-        })
-        .collect())
 }
 
 /// Pause or resume PHD2 guiding

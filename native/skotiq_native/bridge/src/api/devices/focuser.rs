@@ -27,50 +27,10 @@ use super::*;
 
 // Focuser control
 
-/// Move focuser to absolute position
-pub async fn focuser_move_abs(device_id: String, position: i32) -> Result<(), SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.focuser_move_abs(&device_id, position)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Move focuser relative
-pub async fn focuser_move_rel(device_id: String, steps: i32) -> Result<(), SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.focuser_move_rel(&device_id, steps)
-        .await
-        .map_err(SkotiqError::from)
-}
-
 /// Halt focuser
 pub async fn focuser_halt(device_id: String) -> Result<(), SkotiqError> {
     let mgr = get_device_manager();
     mgr.focuser_halt(&device_id)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Get focuser position
-pub async fn focuser_get_position(device_id: String) -> Result<i32, SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.focuser_get_position(&device_id)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Get focuser temperature
-pub async fn focuser_get_temp(device_id: String) -> Result<Option<f64>, SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.focuser_get_temp(&device_id)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Get focuser details (max pos, step size)
-pub async fn focuser_get_details(device_id: String) -> Result<(i32, f64), SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.focuser_get_details(&device_id)
         .await
         .map_err(SkotiqError::from)
 }

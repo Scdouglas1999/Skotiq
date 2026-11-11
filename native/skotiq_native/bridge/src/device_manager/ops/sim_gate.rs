@@ -360,19 +360,6 @@ pub(crate) async fn read_filterwheel_status() -> Result<FilterWheelStatus, Strin
     Ok(fw.status.clone())
 }
 
-/// Write-side gate for filter wheel ops.
-///
-/// See `require_focuser_connected` for why this stays in the API surface
-/// even when not currently invoked.
-#[allow(dead_code)]
-pub(crate) async fn require_filterwheel_connected() -> Result<(), String> {
-    faults("filterwheel.command").await?;
-    if !get_sim_filterwheel().read().await.status.connected {
-        return Err(not_connected("filter wheel"));
-    }
-    Ok(())
-}
-
 /// Read-side helper for rotator ops.
 pub(crate) async fn read_rotator_status() -> Result<RotatorStatus, String> {
     faults("rotator.status").await?;
@@ -381,19 +368,6 @@ pub(crate) async fn read_rotator_status() -> Result<RotatorStatus, String> {
         return Err(not_connected("rotator"));
     }
     Ok(rotator.status.clone())
-}
-
-/// Write-side gate for rotator ops.
-///
-/// See `require_focuser_connected` for why this stays in the API surface
-/// even when not currently invoked.
-#[allow(dead_code)]
-pub(crate) async fn require_rotator_connected() -> Result<(), String> {
-    faults("rotator.command").await?;
-    if !get_sim_rotator().read().await.status.connected {
-        return Err(not_connected("rotator"));
-    }
-    Ok(())
 }
 
 /// Loud-error helper for a simulator device type with no matching singleton in

@@ -611,12 +611,6 @@ pub struct PlateSolveResult {
     pub sip_bp_coeffs: Vec<f64>,
 }
 
-/// Check if a plate solver is available
-#[flutter_rust_bridge::frb(sync)]
-pub fn api_is_plate_solver_available() -> bool {
-    skotiq_imaging::is_solver_available()
-}
-
 /// Get the path to the installed plate solver
 #[flutter_rust_bridge::frb(sync)]
 pub fn api_get_plate_solver_path() -> Option<String> {

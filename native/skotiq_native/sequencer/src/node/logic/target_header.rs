@@ -170,25 +170,6 @@ async fn run_target_body(
         );
     }
 
-    // Pre-compute the meridian-crossing timestamp once per target. The
-    // MeridianFlip trigger compares now() against this stored value; doing
-    // the math here avoids each trigger evaluation recomputing it.
-    if let (Some(_lat), Some(lon)) = (context.latitude, context.longitude) {
-        let now = context.clock.now_utc();
-        let meridian_crossing =
-            crate::meridian::calculate_meridian_crossing(config.ra_hours, lon, now);
-
-        tracing::debug!(
-            "Target {} meridian crossing at {}",
-            display_name,
-            meridian_crossing
-        );
-
-        context
-            .set_next_meridian_flip_time(Some(meridian_crossing.timestamp()))
-            .await;
-    }
-
     // integration budget setup.
     //
     // Register the target with the budget registry on entry. We register

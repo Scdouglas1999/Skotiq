@@ -134,34 +134,6 @@ pub async fn api_get_cover_calibrator_capabilities(
     }
 }
 
-/// Get weather capabilities for a specific weather/observing conditions device.
-pub async fn api_get_weather_capabilities(
-    device_id: String,
-) -> Result<crate::device_capabilities::WeatherCapabilities, SkotiqError> {
-    let caps = crate::device_capabilities::get_device_capabilities(&device_id).await?;
-    match caps {
-        crate::device_capabilities::DeviceCapabilities::Weather(w) => Ok(w),
-        _ => Err(SkotiqError::not_supported(
-            &device_id,
-            "Device is not a weather station",
-        )),
-    }
-}
-
-/// Get safety monitor capabilities for a specific safety monitor device.
-pub async fn api_get_safety_monitor_capabilities(
-    device_id: String,
-) -> Result<crate::device_capabilities::SafetyMonitorCapabilities, SkotiqError> {
-    let caps = crate::device_capabilities::get_device_capabilities(&device_id).await?;
-    match caps {
-        crate::device_capabilities::DeviceCapabilities::SafetyMonitor(sm) => Ok(sm),
-        _ => Err(SkotiqError::not_supported(
-            &device_id,
-            "Device is not a safety monitor",
-        )),
-    }
-}
-
 /// Get switch capabilities for a specific switch device.
 pub async fn api_get_switch_capabilities(
     device_id: String,
