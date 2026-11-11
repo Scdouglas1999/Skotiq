@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../utils/startup_surface_coordinator.dart';
+import '../../startup/startup_surface_queue.dart';
 import '../../utils/startup_ui_context.dart';
 
 /// Watches for a pending site/time disagreement and puts the card up once.
@@ -59,7 +59,7 @@ class _MountSiteReconciliationListenerState
     }
     _showing = true;
     unawaited(
-      ref.read(startupSurfaceCoordinatorProvider).run(() async {
+      ref.read(startupSurfaceQueueProvider).run(() async {
         try {
           if (!uiContext.mounted) return;
           await showDialog<void>(

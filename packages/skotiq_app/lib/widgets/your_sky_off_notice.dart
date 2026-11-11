@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../utils/startup_surface_coordinator.dart';
+import '../startup/startup_surface_queue.dart';
 import '../utils/startup_ui_context.dart';
 import 'your_sky_opt_in.dart';
 
@@ -25,21 +25,19 @@ class YourSkyOffNoticeChecker extends ConsumerStatefulWidget {
 class _YourSkyOffNoticeCheckerState
     extends ConsumerState<YourSkyOffNoticeChecker> {
   bool _checked = false;
-  Timer? _delay;
+  late final StartupSurfaceQueue _queue;
 
   @override
   void initState() {
     super.initState();
-    // After the recovery and Quick Start prompts have had their turn.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _delay = Timer(const Duration(seconds: 2), () => unawaited(_check()));
-    });
+    _queue = ref.read(startupSurfaceQueueProvider)
+      ..expect(StartupSurface.yourSkyOffNotice);
+    WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_check()));
   }
 
   @override
   void dispose() {
-    _delay?.cancel();
+    _queue.pass(StartupSurface.yourSkyOffNotice);
     super.dispose();
   }
 
@@ -50,14 +48,18 @@ class _YourSkyOffNoticeCheckerState
     try {
       bytes = await ref.read(skyAtlasOffNoticeProvider.future);
     } catch (e) {
+      _queue.pass(StartupSurface.yourSkyOffNotice);
       ref.read(loggingServiceProvider).warning(
             'Could not check the Your Sky notice: $e',
             source: 'YourSkyOffNotice',
           );
       return;
     }
-    if (bytes == null || !mounted) return;
-    await ref.read(startupSurfaceCoordinatorProvider).run<void>(() async {
+    if (bytes == null || !mounted) {
+      _queue.pass(StartupSurface.yourSkyOffNotice);
+      return;
+    }
+    await _queue.turn<void>(StartupSurface.yourSkyOffNotice, () async {
       final uiContext = resolveStartupUiContext(ref, context);
       if (uiContext == null || !uiContext.mounted) return;
       await showDialog<void>(

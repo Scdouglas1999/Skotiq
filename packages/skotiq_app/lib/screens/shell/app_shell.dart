@@ -12,7 +12,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../localization/skotiq_localizations.dart';
-import '../../utils/startup_surface_coordinator.dart';
+import '../../startup/startup_surface_queue.dart';
 import '../../widgets/command_palette/command_palette.dart';
 import '../../widgets/onboarding_tour_replay_launcher.dart';
 import '../../widgets/tutorial_overlay.dart';
@@ -76,6 +76,7 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   bool _fallbackSideNavExpanded = true;
   Future<AppStartupCheckpointOutcome>? _checkpointCheck;
+  late final StartupSurfaceQueue _startupQueue;
 
   @override
   void initState() {
@@ -86,7 +87,8 @@ class _AppShellState extends ConsumerState<AppShell> {
         onCloseRequested: _onCloseRequested,
       );
     }
-    // Decide checkpoint recovery before showing any other startup modal.
+    _startupQueue = ref.read(startupSurfaceQueueProvider)
+      ..expect(StartupSurface.checkpointRecovery);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_runStartupChecks());
     });
@@ -214,11 +216,14 @@ class _AppShellState extends ConsumerState<AppShell> {
     if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
       window_impl.disposeWindowManager(this);
     }
+    _startupQueue.pass(StartupSurface.checkpointRecovery);
     super.dispose();
   }
 
   Future<AppStartupCheckpointOutcome> _checkCheckpointIfNeeded() {
-    return _checkpointCheck ??= _performCheckpointCheck().then((outcome) async {
+    return _checkpointCheck ??= _performCheckpointCheck().whenComplete(() {
+      _startupQueue.pass(StartupSurface.checkpointRecovery);
+    }).then((outcome) async {
       if (outcome == AppStartupCheckpointOutcome.noRecovery) {
         await _restoreEditorDraft();
       }
@@ -298,7 +303,8 @@ class _AppShellState extends ConsumerState<AppShell> {
 
       if (!mounted) return AppStartupCheckpointOutcome.failed;
 
-      return ref.read(startupSurfaceCoordinatorProvider).run(
+      return _startupQueue.turn(
+            StartupSurface.checkpointRecovery,
             () => runAppCheckpointRecovery(
               choose: (lastFailure) async {
                 if (!mounted) return null;
@@ -435,36 +441,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     final currentLocation = _getCurrentLocation(context);
     final currentIndex = _getCurrentIndex(context);
 
-    // Activate the error notification bridge so backend errors show as toast notifications
-    ref.watch(errorNotificationBridgeProvider);
-    // A mount that moves on its own or loses its position sounds the alarm on
-    // every screen, and the host's guard follows the operator's settings.
-    ref.watch(mountGuardAlarmProvider);
-    ref.watch(mountGuardSettingsSyncProvider);
-    // Why: keep the meridian-flip disconnect guard alive
-    // for the shell's lifetime so a mount disconnect during an in-flight flip
-    // resets `flipExecutionStateProvider` to `aborted` and unsticks the UI.
-    ref.watch(meridianFlipDisconnectGuardProvider);
-    // Why: the standalone meridian monitor must be kept
-    // alive while the shell is mounted so the Sequencer Settings ->
-    // "Standalone monitoring" toggle actually does something — when enabled,
-    // it polls mount HA against the configured trigger and alerts the
-    // operator when the meridian is crossed outside of a sequence run.
-    ref.watch(meridianFlipStandaloneMonitorProvider);
-    // Scheduler lifetime: keep auto-reevaluation listeners mounted
-    // with the shell, not only while Plan Tonight -> Target Queue is visible.
-    // Otherwise target/goals/constraint edits made elsewhere can stop waking
-    // the scheduler once the operator navigates away from that tab.
-    ref.watch(schedulerAutoReevalProvider);
-    // Keep the longitude-baton scheduler mounted for the shell's lifetime so a
-    // co-imaging session hands the night east on the rise/set even while the
-    // operator is on another tab. Lazy otherwise, so this
-    // read is what makes it tick in the GUI (the headless host eager-reads it in
-    // main_headless). No-op until a session is joined and a site is configured.
-    ref.watch(coImagingBatonSchedulerProvider);
-    // The end of a run has to be seen whichever screen is open, so Tonight
-    // can still show it as the finished night when the operator returns.
-    ref.listen(lastEndedRunProvider, (_, __) {});
     final isSideNavExpanded =
         sidebarCollapsed != null ? !sidebarCollapsed : _fallbackSideNavExpanded;
 

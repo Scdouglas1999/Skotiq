@@ -32,6 +32,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_event;
 import '../models/backend/event_types.dart' as core_events;
 import '../models/sequencer/recovery_status.dart';
 import '../models/sequence/sequence_models.dart';
+import '../services/logging_service.dart';
 import 'backend_provider.dart';
 import 'critical_alert_provider.dart';
 import 'event_provider.dart';
@@ -169,9 +170,9 @@ class RecoveryEventEnvelope {
 /// Side-effect provider: subscribes to [skotiqEventsProvider] (typed
 /// bridge events from local FRB or reconstructed from
 /// [NetworkBackend.eventStream]) and forwards Recovery* events to
-/// [currentRecoveryProvider] and [recoveryHistoryProvider]. Must be
-/// `ref.watch`-ed somewhere in the widget tree (the Run Dashboard
-/// scaffolding watches it).
+/// [currentRecoveryProvider] and [recoveryHistoryProvider]. An always-on
+/// service: the session record reads the history whether or not a screen
+/// that shows a recovery is open.
 ///
 /// A recovery ends with the run it belongs to. A run that ends while a
 /// recovery is in flight (a dawn park, a stop) gets no recovery outcome event,
@@ -476,6 +477,16 @@ final recoveryAudibleBridgeProvider = Provider<void>((ref) {
     if (!settings.recoveryAudibleAlertWhenEntered) return;
     if (!settings.audibleAlertsOnCritical) return;
     final player = ref.read(criticalAlertPlayerProvider);
+    ref
+        .read(loggingServiceProvider)
+        .info(
+          'Recovery alert sounded',
+          source: 'Recovery',
+          fields: {
+            'cause': next.cause.wireKey,
+            'sound': settings.criticalAlertSound,
+          },
+        );
     // Fire-and-forget; surface platform failures in developer.log.
     // ignore: discarded_futures
     player.play(sound: settings.criticalAlertSound).catchError((Object e) {
@@ -517,6 +528,13 @@ final recoveryPushBridgeProvider = Provider<void>((ref) {
         eventType: eventType,
         category: core_events.EventCategory.sequencer,
       );
+      ref
+          .read(loggingServiceProvider)
+          .info(
+            'Recovery push queued: $title',
+            source: 'Recovery',
+            fields: {'eventType': eventType},
+          );
     } catch (e, st) {
       // Fail-soft: a push failure must never break the run.
       developer.log(

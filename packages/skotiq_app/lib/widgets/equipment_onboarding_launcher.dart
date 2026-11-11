@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../router/app_router.dart';
+import '../startup/startup_surface_queue.dart';
 import '../utils/startup_ui_context.dart';
 
 /// Wraps the app shell and routes a brand-new user (no profiles, no
@@ -12,9 +13,9 @@ import '../utils/startup_ui_context.dart';
 ///
 /// Why a launcher widget rather than a router redirect: GoRouter
 /// redirects fire on every navigation, and we only want to forcibly
-/// route on the first frame after app launch. Inside the launcher we
-/// also defer the check so any higher-priority startup dialogs
-/// (database recovery, session recovery) get to render first.
+/// route on the first frame after app launch. The move to `/onboarding`
+/// takes its turn in the [StartupSurfaceQueue], after the recovery and
+/// Quick Start prompts have been answered.
 class EquipmentOnboardingLauncher extends ConsumerStatefulWidget {
   final Widget child;
 
@@ -28,13 +29,15 @@ class EquipmentOnboardingLauncher extends ConsumerStatefulWidget {
 class _EquipmentOnboardingLauncherState
     extends ConsumerState<EquipmentOnboardingLauncher> {
   bool _hasChecked = false;
-  Timer? _deferTimer;
+  late final StartupSurfaceQueue _queue;
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
   int _checkGeneration = 0;
 
   @override
   void initState() {
     super.initState();
+    _queue = ref.read(startupSurfaceQueueProvider)
+      ..expect(StartupSurface.equipmentOnboarding);
     _backendSubscription = ref.listenManual<SkotiqBackend>(
       backendProvider,
       (previous, next) {
@@ -44,29 +47,20 @@ class _EquipmentOnboardingLauncherState
         _checkGeneration++;
         _hasChecked = false;
         ref.invalidate(shouldRunEquipmentOnboardingProvider);
-        _scheduleCheck(delay: const Duration(milliseconds: 100));
+        unawaited(_maybeLaunch());
       },
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scheduleCheck());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => unawaited(_maybeLaunch()),
+    );
   }
 
   @override
   void dispose() {
     _backendSubscription?.close();
     _checkGeneration++;
-    _deferTimer?.cancel();
+    _queue.pass(StartupSurface.equipmentOnboarding);
     super.dispose();
-  }
-
-  void _scheduleCheck({
-    Duration delay = const Duration(milliseconds: 800),
-  }) {
-    if (_hasChecked || !mounted) return;
-    // Defer by 800 ms so that DatabaseRecoveryLauncher and any session
-    // recovery flow get to claim the navigator first. Once those flows
-    // have rendered, the navigator is stable enough to push /onboarding.
-    _deferTimer?.cancel();
-    _deferTimer = Timer(delay, () => unawaited(_maybeLaunch()));
   }
 
   Future<void> _maybeLaunch() async {
@@ -79,7 +73,10 @@ class _EquipmentOnboardingLauncherState
       final shouldRun =
           await ref.read(shouldRunEquipmentOnboardingProvider.future);
       if (!_isCurrentCheck(authority, generation)) return;
-      if (!shouldRun) return;
+      if (!shouldRun) {
+        _queue.pass(StartupSurface.equipmentOnboarding);
+        return;
+      }
 
       // Only auto-launch if the user is still parked on the default
       // dashboard route — otherwise they navigated somewhere themselves
@@ -89,14 +86,17 @@ class _EquipmentOnboardingLauncherState
       // this widget sits above MaterialApp.router in the widget tree, so
       // there is no GoRouter ancestor and GoRouter.of returns null. The
       // provider exposes the same singleton instance directly.
-      final router = ref.read(appRouterProvider);
-      final currentLocation =
-          router.routerDelegate.currentConfiguration.uri.toString();
-      if (_isCurrentCheck(authority, generation) &&
-          (currentLocation == '/' || currentLocation == '/dashboard')) {
-        router.go('/onboarding');
-      }
+      await _queue.turn<void>(StartupSurface.equipmentOnboarding, () async {
+        final router = ref.read(appRouterProvider);
+        final currentLocation =
+            router.routerDelegate.currentConfiguration.uri.toString();
+        if (_isCurrentCheck(authority, generation) &&
+            (currentLocation == '/' || currentLocation == '/dashboard')) {
+          router.go('/onboarding');
+        }
+      });
     } catch (error, stackTrace) {
+      _queue.pass(StartupSurface.equipmentOnboarding);
       if (!_isCurrentCheck(authority, generation)) return;
       ref.read(loggingServiceProvider).warning(
         '[EquipmentOnboarding] Could not evaluate startup gate: $error',
@@ -120,7 +120,7 @@ class _EquipmentOnboardingLauncherState
               if (!mounted) return;
               _hasChecked = false;
               ref.invalidate(shouldRunEquipmentOnboardingProvider);
-              _scheduleCheck(delay: Duration.zero);
+              unawaited(_maybeLaunch());
             },
           ),
         ),

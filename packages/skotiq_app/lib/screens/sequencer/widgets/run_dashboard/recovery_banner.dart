@@ -83,11 +83,6 @@ class _RunDashboardRecoveryBannerState
 
   @override
   Widget build(BuildContext context) {
-    // The bridge feeds currentRecoveryProvider from the executor's recovery
-    // events and only runs while something watches it. The banner is where
-    // the state is shown, so the banner keeps it running; nothing else in the
-    // app did, and a recovery (a weather hold included) never appeared.
-    ref.watch(recoveryEventBridgeProvider);
     final ctx = ref.watch(currentRecoveryProvider);
     _syncTicker(needsCountdown: ctx != null && ctx.isWaiting);
     if (ctx == null) return const SizedBox.shrink();

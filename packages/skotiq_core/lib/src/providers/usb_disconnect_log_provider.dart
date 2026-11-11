@@ -9,11 +9,10 @@
 //   3. Periodically prunes entries older than 24 h so the in-memory
 //      list stays bounded for long unattended sessions.
 //
-// The bridge provider (`usbDisconnectEventBridgeProvider`) MUST be
-// `ref.watch`-ed somewhere in the widget tree to stay alive — same
-// pattern as `recoveryEventBridgeProvider`. The Run Dashboard
-// scaffolding does this so the log is populated as soon as the app
-// boots, independent of whether a sequence is running.
+// The bridge provider (`usbDisconnectEventBridgeProvider`) is an always-on
+// service: it is started at launch from the table in
+// `skotiq_app/startup/always_on_services.dart`, so the log fills from the
+// moment the app is up, whether or not a sequence is running.
 
 import 'dart:async';
 import 'dart:developer' as developer;
@@ -21,6 +20,7 @@ import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/backend/event_types.dart' as core_events;
+import '../services/logging_service.dart';
 import '../services/usb_disconnect_log.dart';
 import 'backend_provider.dart';
 
@@ -35,9 +35,8 @@ final usbDisconnectLogProvider = Provider<UsbDisconnectLog>((ref) {
 
 /// Bridge that listens to the backend's event stream and feeds the log.
 ///
-/// Side-effecting; produces no state. The Run Dashboard scaffolding
-/// watches this so the disconnect history accumulates even when the
-/// settings UI / pre-flight dialog hasn't been opened yet.
+/// Side-effecting; produces no state. Started at launch as an always-on
+/// service, so the history accumulates before any screen asks for it.
 final usbDisconnectEventBridgeProvider = Provider<void>((ref) {
   final backend = ref.watch(diagnosticsBackendProvider);
   final log = ref.watch(usbDisconnectLogProvider);
@@ -76,6 +75,19 @@ final usbDisconnectEventBridgeProvider = Provider<void>((ref) {
         deviceType: deviceType,
         reason: reason,
       );
+      ref
+          .read(loggingServiceProvider)
+          .warning(
+            isDisconnect
+                ? 'Device disconnect recorded'
+                : 'Device error recorded',
+            source: 'UsbDisconnectLog',
+            fields: {
+              'device': deviceId,
+              if (deviceType != null) 'type': deviceType,
+              if (reason != null) 'reason': reason,
+            },
+          );
     },
     onError: (Object error) {
       // Log-only — a stream error must not block subsequent events.

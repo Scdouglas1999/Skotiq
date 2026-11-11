@@ -1,54 +1,9 @@
 import 'dart:io';
 
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
-
-import '../headless_api_server.dart';
 
 const _headlessLogSource = 'HeadlessMain';
 
-/// LAN UDP discovery broadcaster and mDNS registration handles.
-///
-/// These were top-level state in `main_headless.dart`: the startup path
-/// assigns them and the shutdown path tears them down. They are owned here so
-/// the discovery concern lives in one module, exposed through start/stop
-/// helpers that preserve the original behaviour exactly.
-DiscoveryBroadcaster? _discoverySocket;
-MdnsServiceRegistration? _mdnsRegistration;
-
-/// Start the UDP discovery broadcaster, advertising the live bound port.
-///
-/// The handle is retained internally for [stopDiscoverySocket]; the original
-/// startup stored it in a top-level `_discoverySocket` for the same reason.
-Future<void> startDiscoveryServer({
-  required LoggingService logger,
-  required HeadlessApiServer apiServer,
-  required String appVersion,
-}) async {
-  _discoverySocket = await SkotiqDiscovery.startBroadcasting(
-    webPort: apiServer.actualPort,
-    signalingPort: apiServer.actualPort,
-    name: hostComputerName(),
-    hostName: hostComputerName(),
-    hostMode: SkotiqHostMode.headless.wire,
-    version: appVersion,
-    scheme: apiServer.isTlsActive ? 'https' : 'http',
-    fingerprint: apiServer.serverFingerprint,
-    authRequired: apiServer.isAuthRequired,
-    authenticationMode: apiServer.isAuthRequired ? 'token' : 'none',
-    pairingSupported: true,
-  );
-  logger.info(
-    'Broadcasting headless server discovery beacons for port '
-    '${apiServer.actualPort}',
-    source: _headlessLogSource,
-  );
-}
-
-/// Stop the UDP discovery broadcaster if one is running. No-op otherwise.
-void stopDiscoverySocket() {
-  _discoverySocket?.stop();
-}
 
 /// Directory avahi-daemon watches for static service files on the appliance.
 const _avahiServicesDir = '/etc/avahi/services';
@@ -140,53 +95,4 @@ String _renderAvahiServiceFile({
   </service>
 </service-group>
 ''';
-}
-
-/// register `_skotiq._tcp` via mDNS so phones on modern Wi-Fi
-/// (client-isolation enabled) and Tailscale segments discover the server
-/// without UDP broadcast. The registration handle is retained internally so
-/// [stopMdnsAdvertisement] can unregister it before the HTTP server stops.
-///
-/// The registration is additive — failures (Avahi missing, Bonjour service
-/// stopped, no permission) log a warning and continue. The UDP broadcaster
-/// above remains the fallback for `nsd`-free clients.
-Future<void> startMdnsAdvertisement({
-  required LoggingService logger,
-  required HeadlessApiServer apiServer,
-  required String appVersion,
-}) async {
-  final txt = <String, String>{
-    'version': appVersion,
-    'scheme': apiServer.isTlsActive ? 'https' : 'http',
-    'fingerprint': apiServer.serverFingerprint,
-    'pairingSupported': 'true',
-    'name': hostComputerName(),
-    'hostName': hostComputerName(),
-    'hostMode': SkotiqHostMode.headless.wire,
-  };
-  final registration = MdnsServiceRegistration(
-    name: 'Skotiq on ${hostComputerName()}',
-    port: apiServer.actualPort,
-    txt: txt,
-    onWarning: (msg) => logger.warning(msg, source: _headlessLogSource),
-  );
-  await registration.start();
-  _mdnsRegistration = registration;
-  if (registration.isRegistered) {
-    logger.info(
-      'mDNS advertisement active: _skotiq._tcp port=${apiServer.actualPort} '
-      'scheme=${txt['scheme']} fingerprint=${apiServer.serverFingerprint}',
-      source: _headlessLogSource,
-    );
-  }
-}
-
-/// Unregister the mDNS advertisement (if any) and clear the handle.
-///
-/// Called BEFORE the HTTP server stops so peers stop trying to dial a port
-/// that is about to go away. Failures inside `stop()` are already swallowed
-/// and logged by the registration class itself.
-Future<void> stopMdnsAdvertisement() async {
-  await _mdnsRegistration?.stop();
-  _mdnsRegistration = null;
 }

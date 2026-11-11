@@ -7,6 +7,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/skotiq_app.dart';
+import 'package:skotiq_app/startup/app_overrides.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
     show kDefaultHeadlessPort;
@@ -20,6 +21,8 @@ import 'desktop_shutdown_safing.dart';
 import 'desktop_logging_init.dart';
 import 'desktop_relaunch.dart';
 import 'frame_timing_probe.dart';
+import 'host/host_startup.dart';
+import 'host/host_steps.dart';
 import 'main_headless.dart' as headless;
 
 /// A remote rig the desktop GUI should drive as a thin client instead of
@@ -268,47 +271,10 @@ void main(List<String> args) async {
           log: (message) => relaunchLog(message),
         ),
       ),
-      // Initialize backendProvider for the desktop GUI. Default: the local
-      // FfiBackend (this machine owns the hardware). With --remote-host, run as
-      // a thin client against a remote headless rig via NetworkBackend instead,
-      // so the GUI drives that rig as if its devices were attached locally.
-      backendProvider.overrideWith((ref) {
-        final notifier = BackendNotifier(ref);
-        // In remote mode we connect explicitly AFTER the container is built (see
-        // below) so we can await the handshake and then invalidate the
-        // host-backed providers — doing it here, fire-and-forget, lets profiles
-        // and settings cache an empty disconnected value that never refreshes.
-        if (remoteTarget == null) {
-          notifier.useLocalBackend();
-        }
-        return notifier;
-      }),
-      // Why: appVersionProvider throws by default to surface misconfiguration
-      // loudly (an unset version masks OTA update logic). The desktop entry
-      // is the canonical place to wire it.
-      appVersionProvider.overrideWithValue(appVersion),
-      pluginHostAppVersionOverride(appVersion.version),
-      // wire `pluginNodeDispatcherProvider` (defined in
-      // skotiq_core) to the real `PluginNodeExecutor` (defined in
-      // skotiq_plugins). Without this override the Rust executor would
-      // receive a structured "dispatcher not wired" failure for every
-      // PluginNode invocation.
-      pluginNodeDispatcherOverride(),
-      // surface plugin-contributed sequence nodes in the
-      // sequencer palette. Without this override the palette never shows
-      // plugin nodes even when the dispatcher above is fully wired (the
-      // user could not author a sequence containing a plugin node from
-      // the GUI).
-      pluginNodePaletteBlueprintsOverride(),
-      // C4 — make the bundled-plugin registration honour the user's
-      // persisted enable/disable choices. Without this override C3's
-      // `pluginEnablementStoreProvider` resolves to the default
-      // `AllEnabledPluginEnablementStore`, which reports every plugin
-      // enabled, so a plugin the user disabled on the Integrations page
-      // would silently come back ENABLED on the next launch. The
-      // settings-backed store reads the persisted `plugin_enablement`
-      // map so the registration-time decision matches the saved state.
-      pluginEnablementStoreOverride(),
+      // A host's backend is installed by the 'local backend' start-up step; a
+      // linked client connects below, once the container exists, so the
+      // handshake can be awaited.
+      ...appProviderOverrides(appVersion),
     ],
   );
 
@@ -406,29 +372,39 @@ void main(List<String> args) async {
   // a silent death.
   ShellExit.register(lastGasp.recordCleanExit);
 
-  // Plugin nodes execute on the machine that owns the imaging hardware, so
-  // bundled plugins must be registered before the UI can start a sequence.
-  if (remoteTarget == null) {
-    try {
-      await initializeBundledPluginRuntime(container);
-      logger.info('Bundled plugin runtime initialized', source: 'desktop.main');
-    } catch (error, stackTrace) {
-      logger.error(
-        'Bundled plugin runtime failed to initialize: $error\n$stackTrace',
-        source: 'desktop.main',
-      );
-    }
-  }
+  // The window is prepared while the host start-up's core steps run, so
+  // neither waits for the other. It is NOT shown yet: showing a
+  // TitleBarStyle.hidden surface before runApp paints leaves a black,
+  // undraggable window on Linux (no Flutter chrome / DragToMoveArea yet). The
+  // GTK runner also defers gtk_widget_show until first-frame for the same
+  // reason.
+  final windowReady = windowManager.waitUntilReadyToShow(
+    windowOptions,
+    () async {},
+  );
 
-  await initialiseCatalogManager(logger);
+  // A host runs the shared host start-up; a linked client owns no hardware
+  // and needs only its catalogs.
+  final host = remoteTarget != null
+      ? null
+      : HostStartup(
+          kind: HostKind.gui,
+          container: container,
+          logger: logger,
+          logSource: 'desktop.main',
+          appVersion: appVersion,
+          args: launchArgs,
+          forceServe: serveRequested,
+        );
+  if (host != null) {
+    await runHostStartup(host, HostStartupPhase.core, hostStartupSteps);
+  } else {
+    await initialiseCatalogManager(logger);
+  }
 
   final shouldMinimize = await shouldStartMinimized(container);
 
-  // Prepare the window but do NOT show it yet. Showing a TitleBarStyle.hidden
-  // surface before runApp paints leaves a black, undraggable window on Linux
-  // (no Flutter chrome / DragToMoveArea yet). The GTK runner also defers
-  // gtk_widget_show until first-frame for the same reason.
-  await windowManager.waitUntilReadyToShow(windowOptions, () async {});
+  await windowReady;
 
   // Remote-client mode: connect to the headless rig now that the container is
   // live, then invalidate the host-backed providers so they re-fetch against
@@ -455,45 +431,16 @@ void main(List<String> args) async {
     }
     container.invalidate(appSettingsProvider);
     container.invalidate(equipmentProfilesProvider);
-    // The host's run, target, flip and device events become this window's
-    // in-app banners, as they do on the host. The router is in-app only on a
-    // NetworkBackend (external delivery stays with the host), and listening
-    // rather than reading keeps it re-attached when the connection is
-    // replaced.
-    container.listen(notificationRouterProvider, (_, _) {});
   }
 
-  // In remote-client mode this GUI is a consumer of a remote rig, not a host,
-  // so it must NOT stand up its own embedded API server / discovery / host-side
-  // seed listeners (those belong to the machine that owns the hardware).
-  if (remoteTarget == null) {
-    // Automatic backups are host-owned and must start even when the Settings
-    // screen is never opened. Do NOT await this before first paint: a Riverpod
-    // future that transitively waits on the widget tree / first frame will
-    // hang main() forever and leave a blank frameless window (same class of
-    // bug as awaiting appSettingsProvider.future before runApp below).
-    // The Builder's unsaved plan survives a crash or a killed process.
-    container.read(editorDraftLifecycleProvider);
-    unawaited(() async {
-      try {
-        await container.read(autoSaveLifecycleProvider.future);
-      } catch (error, stackTrace) {
-        logger.error(
-          'Automatic backup service failed to start',
-          source: 'desktop.main',
-          fields: {'error': '$error', 'stack': '$stackTrace'},
-        );
-      }
-    }());
-
+  if (host != null) {
     // --serve/--master turns the embedded host server on for this run only;
     // the stored Remote Access setting stays as the user left it.
     container.read(remoteAccessForcedProvider.notifier).state = serveRequested;
-    startBackgroundServices(
-      container,
-      appVersion: appVersion.version,
-      appBuildNumber: appVersion.buildNumber,
-      forceServe: serveRequested,
+    // Not awaited: the window does not wait for the server, the update
+    // receiver or a device scan.
+    unawaited(
+      runHostStartup(host, HostStartupPhase.services, hostStartupSteps),
     );
   }
 
