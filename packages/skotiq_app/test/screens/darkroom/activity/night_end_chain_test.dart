@@ -353,6 +353,50 @@ void main() {
   });
 
   test(
+      'a night-end run cut short between its build and its delivery carries '
+      'on at the delivery at the next launch, without building again',
+      () async {
+    final tonight = await night(
+      DateTime(2026, 10, 22, 20),
+      ['L', 'R'],
+      runId: ++run,
+    );
+    final first = launch();
+    dawnEnds(first, tonight, run);
+    final built = await nightEndRun(first, 1);
+    expect(built.targets.single.build.state, NightEndStepState.done);
+    expect(native.built, ['L', 'R']);
+
+    // The process dies after the build was recorded and before anything was
+    // delivered or sent: the saved run is exactly what it wrote at that seam.
+    await first.read(nightEndRunnerProvider).idle();
+    final cut = built
+        .copyWith(clearFinishedAt: true, message: NightEndStep.pending)
+        .withTarget(
+          'NGC891',
+          (t) => t.copyWith(deliver: NightEndStep.pending),
+        );
+    await DarkroomStateStore(db).write(nightEndRunsStateKey, {
+      'runs': [cut.toJson()],
+    });
+    native.built.clear();
+    notifications.sent.clear();
+    for (final entry in drop.listSync()) {
+      entry.deleteSync(recursive: true);
+    }
+
+    final restarted = launch();
+    final resumed = await nightEndRun(restarted, 1);
+    expect(resumed.id, built.id);
+    expect(native.built, isEmpty,
+        reason: 'the masters were finished; only the delivery was owed');
+    expect(resumed.targets.single.build.state, NightEndStepState.done);
+    expect(resumed.targets.single.deliver.state, NightEndStepState.done);
+    expect(drop.listSync(recursive: true).whereType<File>(), isNotEmpty);
+    expect(notifications.sent.single.title, 'Masters ready: NGC891');
+  });
+
+  test(
       'with every step but the build switched off, the run says so and '
       'sends nothing', () async {
     await db.settingsDao
