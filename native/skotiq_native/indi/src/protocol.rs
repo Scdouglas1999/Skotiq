@@ -1,9 +1,7 @@
 //! INDI XML Protocol definitions
 
-/// INDI protocol version
 pub const INDI_PROTOCOL_VERSION: &str = "1.7";
 
-/// CCD frame type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CcdFrameType {
     Light,
@@ -19,10 +17,8 @@ pub mod standard_properties {
     pub const CONNECT: &str = "CONNECT";
     pub const DISCONNECT: &str = "DISCONNECT";
 
-    /// Device port
     pub const DEVICE_PORT: &str = "DEVICE_PORT";
 
-    // Camera properties
     pub const CCD_EXPOSURE: &str = "CCD_EXPOSURE";
     pub const CCD_ABORT_EXPOSURE: &str = "CCD_ABORT_EXPOSURE";
     pub const CCD_FRAME: &str = "CCD_FRAME";
@@ -62,7 +58,6 @@ pub mod standard_properties {
     pub const CCD_MAX_PIXEL_VALUE: &str = "CCD_MAX_PIXEL_VALUE";
     pub const CCD_SENSOR_TYPE: &str = "CCD_SENSOR_TYPE";
 
-    // Focuser properties
     pub const FOCUS_MOTION: &str = "FOCUS_MOTION";
     pub const FOCUS_SPEED: &str = "FOCUS_SPEED";
     pub const FOCUS_TIMER: &str = "FOCUS_TIMER";
@@ -77,24 +72,20 @@ pub mod standard_properties {
     pub const FOCUS_TEMPERATURE_COMP: &str = "FOCUS_TEMPERATURE_COMP";
     pub const FOCUS_TEMP_COMP: &str = "FOCUS_TEMP_COMP";
 
-    // Rotator properties
     pub const SYNC_ROTATOR_ANGLE: &str = "SYNC_ROTATOR_ANGLE";
     pub const ROTATOR_RAW_ANGLE: &str = "ROTATOR_RAW_ANGLE";
 
     // Cover / flat panel
     pub const LIGHTBOX_CONTROL: &str = "LIGHTBOX_CONTROL";
 
-    // Filter wheel properties
     pub const FILTER_SLOT: &str = "FILTER_SLOT";
     pub const FILTER_NAME: &str = "FILTER_NAME";
 
-    // Dome properties
     pub const DOME_SHUTTER: &str = "DOME_SHUTTER";
     pub const DOME_MOTION: &str = "DOME_MOTION";
     pub const ABS_DOME_POSITION: &str = "ABS_DOME_POSITION";
     pub const DOME_ABORT_MOTION: &str = "DOME_ABORT_MOTION";
 
-    // Weather properties
     pub const WEATHER_STATUS: &str = "WEATHER_STATUS";
     pub const WEATHER_TEMPERATURE: &str = "WEATHER_TEMPERATURE";
     pub const WEATHER_HUMIDITY: &str = "WEATHER_HUMIDITY";

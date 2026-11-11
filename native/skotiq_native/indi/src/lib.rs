@@ -75,14 +75,12 @@ pub use weather::{IndiWeather, IndiWeatherStatus, DEFAULT_WEATHER_STALE_MS};
 /// Default INDI server port
 pub const INDI_DEFAULT_PORT: u16 = 7624;
 
-/// INDI device information
 #[derive(Debug, Clone)]
 pub struct IndiDevice {
     pub name: String,
     pub driver: String,
 }
 
-/// INDI property types
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IndiPropertyType {
     Text,
@@ -92,7 +90,6 @@ pub enum IndiPropertyType {
     Blob,
 }
 
-/// INDI property state
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IndiPropertyState {
     Idle,
@@ -110,7 +107,6 @@ pub enum IndiSwitchRule {
     OneOfManyZeroOff,
 }
 
-/// An INDI property
 #[derive(Debug, Clone)]
 pub struct IndiProperty {
     pub device: String,
@@ -125,7 +121,6 @@ pub struct IndiProperty {
     pub switch_rule: Option<IndiSwitchRule>,
 }
 
-/// INDI property permission
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IndiPermission {
     ReadOnly,
@@ -192,23 +187,19 @@ impl Default for IndiTimeoutConfig {
 }
 
 impl IndiTimeoutConfig {
-    /// Get the message timeout as a Duration
     pub fn message_timeout(&self) -> std::time::Duration {
         std::time::Duration::from_secs(self.message_timeout_secs)
     }
 
-    /// Get the BLOB timeout as a Duration
     pub fn blob_timeout(&self) -> std::time::Duration {
         std::time::Duration::from_secs(self.blob_timeout_secs)
     }
 
-    /// Get the connection timeout as a Duration
     pub fn connection_timeout(&self) -> std::time::Duration {
         std::time::Duration::from_secs(self.connection_timeout_secs)
     }
 }
 
-/// Timeout error with context
 #[derive(Debug, Clone, thiserror::Error)]
 #[error("Operation timeout for device '{device}', property '{property}': {context}")]
 pub struct IndiTimeoutError {

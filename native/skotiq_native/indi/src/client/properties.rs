@@ -3,12 +3,10 @@
 use super::*;
 
 impl IndiClient {
-    /// Get the list of discovered devices
     pub async fn get_devices(&self) -> Vec<IndiDevice> {
         self.devices.read().await.values().cloned().collect()
     }
 
-    /// Get properties for a device
     pub async fn get_properties(&self, device_name: &str) -> Vec<IndiProperty> {
         self.properties
             .read()
@@ -19,13 +17,11 @@ impl IndiClient {
             .collect()
     }
 
-    /// Get a property
     pub async fn get_property(&self, device: &str, property: &str) -> Option<IndiProperty> {
         let props = self.properties.read().await;
         map_get_2(&props, device, property).cloned()
     }
 
-    /// Get a property value
     pub async fn get_property_value(
         &self,
         device: &str,
@@ -36,7 +32,6 @@ impl IndiClient {
         map_get_3(&vals, device, property, element).cloned()
     }
 
-    /// Get number limits for a property element
     pub async fn get_number_limits(
         &self,
         device: &str,
@@ -47,21 +42,18 @@ impl IndiClient {
         map_get_3(&limits, device, property, element).cloned()
     }
 
-    /// Get a number property value
     pub async fn get_number(&self, device: &str, property: &str, element: &str) -> Option<f64> {
         self.get_property_value(device, property, element)
             .await
             .and_then(|v| parse_indi_number_value(device, property, element, &v))
     }
 
-    /// Get a switch property value
     pub async fn get_switch(&self, device: &str, property: &str, element: &str) -> Option<bool> {
         self.get_property_value(device, property, element)
             .await
             .map(|v| v.eq_ignore_ascii_case("on"))
     }
 
-    /// Get property state
     pub async fn get_property_state(
         &self,
         device: &str,
@@ -71,7 +63,6 @@ impl IndiClient {
         map_get_2(&props, device, property).map(|p| p.state)
     }
 
-    /// Get property permission
     pub async fn get_property_permission(
         &self,
         device: &str,
@@ -81,7 +72,6 @@ impl IndiClient {
         map_get_2(&props, device, property).map(|p| p.perm)
     }
 
-    /// Check if a property is in the busy state
     pub async fn is_property_busy(&self, device: &str, property: &str) -> bool {
         self.get_property_state(device, property)
             .await
@@ -92,7 +82,6 @@ impl IndiClient {
             .unwrap_or(false)
     }
 
-    /// Check if a property exists for a device
     pub async fn has_property(&self, device: &str, property: &str) -> bool {
         let props = self.properties.read().await;
         map_contains_2(&props, device, property)
@@ -116,7 +105,6 @@ impl IndiClient {
             })
     }
 
-    /// Enable BLOB mode for a device
     pub async fn enable_blob(&mut self, device: &str) -> IndiResult<()> {
         let cmd = format!(
             "<enableBLOB device=\"{}\" name=\"\">Also</enableBLOB>",
@@ -125,7 +113,6 @@ impl IndiClient {
         self.send_command(&cmd).await
     }
 
-    /// Check property permission before write
     pub(super) fn check_write_permission(
         &self,
         perm: IndiPermission,
@@ -140,7 +127,6 @@ impl IndiClient {
         }
     }
 
-    /// Validate number value against limits
     pub(super) async fn validate_number_limits(
         &self,
         device: &str,
@@ -195,7 +181,6 @@ impl IndiClient {
             return self.set_switch_exclusive(device, property, element).await;
         }
 
-        // Check permission
         if let Some(perm) = self.get_property_permission(device, property).await {
             self.check_write_permission(perm, property)?;
         }
@@ -262,12 +247,10 @@ impl IndiClient {
         element: &str,
         value: f64,
     ) -> IndiResult<()> {
-        // Check permission
         if let Some(perm) = self.get_property_permission(device, property).await {
             self.check_write_permission(perm, property)?;
         }
 
-        // Validate against limits
         self.validate_number_limits(device, property, element, value)
             .await?;
 
@@ -287,12 +270,10 @@ impl IndiClient {
         property: &str,
         values: &[(&str, f64)],
     ) -> IndiResult<()> {
-        // Check permission
         if let Some(perm) = self.get_property_permission(device, property).await {
             self.check_write_permission(perm, property)?;
         }
 
-        // Validate all values
         for (element, value) in values {
             self.validate_number_limits(device, property, element, *value)
                 .await?;
@@ -317,7 +298,6 @@ impl IndiClient {
         element: &str,
         value: &str,
     ) -> IndiResult<()> {
-        // Check permission
         if let Some(perm) = self.get_property_permission(device, property).await {
             self.check_write_permission(perm, property)?;
         }
@@ -331,20 +311,16 @@ impl IndiClient {
         self.send_command(&cmd).await
     }
 
-    // High-level device control methods
-
     /// Connect to a device (turn on CONNECTION switch)
     pub async fn connect_device(&mut self, device: &str) -> IndiResult<()> {
         self.set_switch(device, "CONNECTION", "CONNECT", true).await
     }
 
-    /// Disconnect from a device
     pub async fn disconnect_device(&mut self, device: &str) -> IndiResult<()> {
         self.set_switch(device, "CONNECTION", "DISCONNECT", true)
             .await
     }
 
-    /// Check if a device is connected
     pub async fn is_device_connected(&self, device: &str) -> bool {
         self.get_switch(device, "CONNECTION", "CONNECT")
             .await
@@ -356,11 +332,9 @@ impl IndiClient {
             .unwrap_or(false)
     }
 
-    /// Get filter names for a filter wheel device
     pub async fn get_filter_names(&self, device: &str) -> Result<Vec<String>, String> {
         let props = self.get_properties(device).await;
 
-        // Look for the FILTER_NAME property
         if let Some(prop) = props.iter().find(|p| p.name == "FILTER_NAME") {
             let mut names = Vec::new();
             for elem in &prop.elements {
@@ -394,8 +368,6 @@ impl IndiClient {
         Ok(Vec::new())
     }
 
-    // Timeout and reliability methods
-
     /// Wait for a property to reach a specific state with timeout
     pub async fn wait_for_property_state(
         &self,
@@ -409,7 +381,6 @@ impl IndiClient {
         let mut last_state = None;
 
         loop {
-            // Check timeout
             if start.elapsed() >= timeout_duration {
                 return Err(IndiTimeoutError {
                     device: device.to_string(),
@@ -422,7 +393,6 @@ impl IndiClient {
                 });
             }
 
-            // Check current state
             if let Some(state) = self.get_property_state(device, property).await {
                 last_state = Some(state);
 
@@ -430,7 +400,6 @@ impl IndiClient {
                     return Ok(());
                 }
 
-                // If state is Alert, return early with error
                 if state == IndiPropertyState::Alert {
                     return Err(IndiTimeoutError {
                         device: device.to_string(),
@@ -444,7 +413,6 @@ impl IndiClient {
                 }
             }
 
-            // Wait before polling again
             sleep(poll_interval).await;
         }
     }
@@ -461,7 +429,6 @@ impl IndiClient {
         let mut last_state = None;
 
         loop {
-            // Check timeout
             if start.elapsed() >= timeout_duration {
                 return Err(IndiTimeoutError {
                     device: device.to_string(),
@@ -474,16 +441,13 @@ impl IndiClient {
                 });
             }
 
-            // Check current state
             if let Some(state) = self.get_property_state(device, property).await {
                 last_state = Some(state);
 
-                // Success if Ok or Idle
                 if state == IndiPropertyState::Ok || state == IndiPropertyState::Idle {
                     return Ok(());
                 }
 
-                // Alert is an error condition
                 if state == IndiPropertyState::Alert {
                     return Err(IndiTimeoutError {
                         device: device.to_string(),
@@ -494,7 +458,6 @@ impl IndiClient {
                 }
             }
 
-            // Wait before polling again
             sleep(poll_interval).await;
         }
     }

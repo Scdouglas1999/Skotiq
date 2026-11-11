@@ -41,7 +41,6 @@ fn resolve_equatorial_coord_property(has_eod: bool, has_j2000: bool) -> Equatori
     }
 }
 
-/// INDI Mount device wrapper
 pub struct IndiMount {
     client: Arc<RwLock<IndiClient>>,
     device_name: String,
@@ -104,7 +103,6 @@ impl IndiMount {
         }
     }
 
-    /// Create a new INDI mount wrapper
     pub fn new(client: Arc<RwLock<IndiClient>>, device_name: &str) -> Self {
         Self {
             client,
@@ -160,12 +158,10 @@ impl IndiMount {
         }
     }
 
-    /// Get the device name
     pub fn device_name(&self) -> &str {
         &self.device_name
     }
 
-    /// Connect to the mount
     pub async fn connect(&self) -> IndiResult<()> {
         {
             let mut client = self.client.write().await;
@@ -175,7 +171,6 @@ impl IndiMount {
         Ok(())
     }
 
-    /// Disconnect from the mount
     pub async fn disconnect(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         let result = client.disconnect_device(&self.device_name).await;
@@ -183,7 +178,6 @@ impl IndiMount {
         result
     }
 
-    /// Check if connected
     pub async fn is_connected(&self) -> bool {
         let client = self.client.read().await;
         client.is_device_connected(&self.device_name).await
@@ -227,7 +221,6 @@ impl IndiMount {
             .set_switch(&self.device_name, ON_COORD_SET, goto_mode, true)
             .await?;
 
-        // Set target coordinates
         if let Err(error) = client
             .set_numbers(
                 &self.device_name,
@@ -341,7 +334,6 @@ impl IndiMount {
         let coord = self.equatorial_coord_property().await;
         let coord_prop = coord.as_str();
 
-        // Start the slew
         {
             let mut client = self.client.write().await;
             let previous_mode = Self::current_on_coord_set_mode(&client, &self.device_name).await;
@@ -363,7 +355,6 @@ impl IndiMount {
             }
         }
 
-        // Wait for slew to complete
         let client = self.client.read().await;
         client
             .wait_for_property_not_busy(&self.device_name, coord_prop, timeout_duration)
@@ -379,12 +370,10 @@ impl IndiMount {
         let coord = self.equatorial_coord_property().await;
         let mut client = self.client.write().await;
 
-        // Set coordinate mode to SYNC
         client
             .set_switch(&self.device_name, ON_COORD_SET, "SYNC", true)
             .await?;
 
-        // Set target coordinates
         client
             .set_numbers(
                 &self.device_name,
@@ -394,7 +383,6 @@ impl IndiMount {
             .await
     }
 
-    /// Abort slew
     pub async fn abort_slew(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
@@ -402,7 +390,6 @@ impl IndiMount {
             .await
     }
 
-    /// Park the mount
     pub async fn park(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
@@ -410,7 +397,6 @@ impl IndiMount {
             .await
     }
 
-    /// Unpark the mount
     pub async fn unpark(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
@@ -441,7 +427,6 @@ impl IndiMount {
         }
     }
 
-    /// Set tracking state
     pub async fn set_tracking(&self, enabled: bool) -> IndiResult<()> {
         let mut client = self.client.write().await;
         if enabled {
@@ -504,7 +489,6 @@ impl IndiMount {
         }
     }
 
-    /// Move north
     pub async fn move_north(&self, start: bool) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
@@ -517,7 +501,6 @@ impl IndiMount {
             .await
     }
 
-    /// Move south
     pub async fn move_south(&self, start: bool) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
@@ -530,7 +513,6 @@ impl IndiMount {
             .await
     }
 
-    /// Move west
     pub async fn move_west(&self, start: bool) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
@@ -538,7 +520,6 @@ impl IndiMount {
             .await
     }
 
-    /// Move east
     pub async fn move_east(&self, start: bool) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
@@ -1242,7 +1223,6 @@ mod tests {
         )));
         let _mount = IndiMount::new(client.clone(), "TestMount");
 
-        // Verify the timeout config is accessible
         let timeout_secs = {
             let c = client.read().await;
             c.timeout_config().mount_slew_timeout_secs

@@ -49,7 +49,6 @@ pub async fn discover_server(host: &str, port: u16) -> Option<IndiServer> {
     // Wait a short time for device definitions to come in
     tokio::time::sleep(Duration::from_millis(1500)).await;
 
-    // Get discovered devices
     let devices = client.get_devices().await;
     let mut device_infos = Vec::new();
 
@@ -65,7 +64,6 @@ pub async fn discover_server(host: &str, port: u16) -> Option<IndiServer> {
         });
     }
 
-    // Disconnect
     let _ = client.disconnect().await;
 
     Some(IndiServer {
@@ -79,7 +77,6 @@ pub async fn discover_server(host: &str, port: u16) -> Option<IndiServer> {
 pub async fn discover_common_hosts() -> Vec<IndiServer> {
     let mut servers = Vec::new();
 
-    // Common hosts to check
     let hosts = vec![
         "127.0.0.1",
         "localhost",
@@ -103,7 +100,6 @@ pub async fn discover_common_hosts() -> Vec<IndiServer> {
 pub async fn discover_mdns(timeout: Duration) -> Vec<IndiServer> {
     let mut discovered_servers = Vec::new();
 
-    // Create mDNS service daemon
     let mdns = match ServiceDaemon::new() {
         Ok(d) => d,
         Err(e) => {
@@ -118,7 +114,6 @@ pub async fn discover_mdns(timeout: Duration) -> Vec<IndiServer> {
     // Service type for INDI servers
     let service_type = "_indi._tcp.local.";
 
-    // Browse for INDI services
     let receiver = match mdns.browse(service_type) {
         Ok(r) => r,
         Err(e) => {
@@ -135,7 +130,6 @@ pub async fn discover_mdns(timeout: Duration) -> Vec<IndiServer> {
     let start = std::time::Instant::now();
     let mut discovered_addresses = std::collections::HashSet::new();
 
-    // Listen for mDNS responses
     while start.elapsed() < timeout {
         let remaining = timeout - start.elapsed();
 
@@ -153,7 +147,6 @@ pub async fn discover_mdns(timeout: Duration) -> Vec<IndiServer> {
                     ServiceEvent::ServiceResolved(info) => {
                         tracing::debug!("mDNS service resolved: {:?}", info);
 
-                        // Extract host and port
                         let _host = info.get_hostname().to_string();
                         let port = info.get_port();
 
@@ -162,7 +155,6 @@ pub async fn discover_mdns(timeout: Duration) -> Vec<IndiServer> {
                             let host_ip = addr.to_string();
                             let key = format!("{}:{}", host_ip, port);
 
-                            // Avoid duplicates
                             if !discovered_addresses.contains(&key) {
                                 discovered_addresses.insert(key);
 
@@ -211,7 +203,6 @@ pub async fn discover_mdns(timeout: Duration) -> Vec<IndiServer> {
         }
     }
 
-    // Shutdown mDNS daemon
     if let Err(e) = mdns.shutdown() {
         tracing::warn!("Failed to shutdown mDNS daemon: {}", e);
     }
@@ -261,7 +252,6 @@ pub async fn discover_local_network(timeout: Duration) -> Vec<IndiServer> {
             }
         }
 
-        // Process remaining handles
         for handle in handles {
             if let Ok(Some(server)) = handle.await {
                 servers.push(server);
@@ -272,7 +262,6 @@ pub async fn discover_local_network(timeout: Duration) -> Vec<IndiServer> {
     servers
 }
 
-/// Quick TCP port check
 async fn check_port_open(addr: &str, timeout: Duration) -> bool {
     tokio::time::timeout(timeout, tokio::net::TcpStream::connect(addr))
         .await
@@ -285,11 +274,9 @@ async fn check_port_open(addr: &str, timeout: Duration) -> bool {
         .unwrap_or(false)
 }
 
-/// Infer device type from its properties
 fn infer_device_type(properties: &[IndiProperty]) -> Option<DeviceKind> {
     let prop_names: Vec<&str> = properties.iter().map(|p| p.name.as_str()).collect();
 
-    // Check for camera-specific properties
     if prop_names
         .iter()
         .any(|p| *p == "CCD_EXPOSURE" || *p == "CCD_INFO" || *p == "CCD_FRAME" || *p == "CCD1")
@@ -297,7 +284,6 @@ fn infer_device_type(properties: &[IndiProperty]) -> Option<DeviceKind> {
         return Some(DeviceKind::Camera);
     }
 
-    // Check for mount/telescope properties
     if prop_names.iter().any(|p| {
         *p == "EQUATORIAL_EOD_COORD"
             || *p == "ON_COORD_SET"
@@ -307,7 +293,6 @@ fn infer_device_type(properties: &[IndiProperty]) -> Option<DeviceKind> {
         return Some(DeviceKind::Mount);
     }
 
-    // Check for focuser properties
     if prop_names
         .iter()
         .any(|p| *p == "ABS_FOCUS_POSITION" || *p == "REL_FOCUS_POSITION" || *p == "FOCUS_MOTION")
@@ -315,7 +300,6 @@ fn infer_device_type(properties: &[IndiProperty]) -> Option<DeviceKind> {
         return Some(DeviceKind::Focuser);
     }
 
-    // Check for filter wheel properties
     if prop_names
         .iter()
         .any(|p| *p == "FILTER_SLOT" || *p == "FILTER_NAME")
@@ -323,7 +307,6 @@ fn infer_device_type(properties: &[IndiProperty]) -> Option<DeviceKind> {
         return Some(DeviceKind::FilterWheel);
     }
 
-    // Check for dome properties
     if prop_names
         .iter()
         .any(|p| *p == "DOME_SHUTTER" || *p == "DOME_MOTION" || *p == "ABS_DOME_POSITION")
@@ -331,7 +314,6 @@ fn infer_device_type(properties: &[IndiProperty]) -> Option<DeviceKind> {
         return Some(DeviceKind::Dome);
     }
 
-    // Check for rotator properties
     if prop_names
         .iter()
         .any(|p| *p == "ABS_ROTATOR_ANGLE" || *p == "ROTATOR_ANGLE")
@@ -339,7 +321,6 @@ fn infer_device_type(properties: &[IndiProperty]) -> Option<DeviceKind> {
         return Some(DeviceKind::Rotator);
     }
 
-    // Check for guider properties
     if prop_names
         .iter()
         .any(|p| *p == "TELESCOPE_TIMED_GUIDE_NS" || *p == "TELESCOPE_TIMED_GUIDE_WE")
@@ -355,7 +336,6 @@ fn infer_device_type(properties: &[IndiProperty]) -> Option<DeviceKind> {
         return Some(DeviceKind::SafetyMonitor);
     }
 
-    // Check for weather properties
     if prop_names
         .iter()
         .any(|p| *p == "WEATHER_STATUS" || *p == "WEATHER_PARAMETERS")

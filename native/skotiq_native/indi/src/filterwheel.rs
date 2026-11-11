@@ -9,14 +9,12 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 
-/// INDI Filter Wheel device wrapper
 pub struct IndiFilterWheel {
     client: Arc<RwLock<IndiClient>>,
     device_name: String,
 }
 
 impl IndiFilterWheel {
-    /// Create a new INDI filter wheel wrapper
     pub fn new(client: Arc<RwLock<IndiClient>>, device_name: &str) -> Self {
         Self {
             client,
@@ -24,24 +22,20 @@ impl IndiFilterWheel {
         }
     }
 
-    /// Get the device name
     pub fn device_name(&self) -> &str {
         &self.device_name
     }
 
-    /// Connect to the filter wheel
     pub async fn connect(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client.connect_device(&self.device_name).await
     }
 
-    /// Disconnect from the filter wheel
     pub async fn disconnect(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client.disconnect_device(&self.device_name).await
     }
 
-    /// Check if connected
     pub async fn is_connected(&self) -> bool {
         let client = self.client.read().await;
         client.is_device_connected(&self.device_name).await
@@ -160,7 +154,6 @@ impl IndiFilterWheel {
             }
         };
 
-        // Start the filter change
         {
             let mut client = self.client.write().await;
             client
@@ -174,7 +167,6 @@ impl IndiFilterWheel {
                 .await?;
         }
 
-        // Wait for filter change to complete
         let client = self.client.read().await;
         client
             .wait_for_property_not_busy(&self.device_name, FILTER_SLOT, timeout_duration)
@@ -202,8 +194,6 @@ impl IndiFilterWheel {
             .ok_or_else(|| IndiError::Unavailable("Filter slot not available".to_string()))
     }
 
-    /// Get filter names
-    /// Get filter names
     pub async fn get_names(&self) -> IndiResult<Vec<String>> {
         let client = self.client.read().await;
         let props = client.get_properties(&self.device_name).await;
@@ -249,7 +239,6 @@ impl IndiFilterWheel {
         Ok(Vec::new())
     }
 
-    /// Check if filter wheel is currently moving
     pub async fn is_moving(&self) -> bool {
         let client = self.client.read().await;
         client
@@ -313,7 +302,6 @@ mod tests {
         )));
         let _fw = IndiFilterWheel::new(client.clone(), "TestFilterWheel");
 
-        // Verify the timeout config is accessible
         let timeout_secs = {
             let c = client.read().await;
             c.timeout_config().filter_change_timeout_secs

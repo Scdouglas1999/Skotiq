@@ -284,7 +284,6 @@ pub(super) fn map_get_3<'a, V>(
         .map(|(_, v)| v)
 }
 
-/// Helper to get attribute from XML event
 pub(super) fn get_attribute(e: &quick_xml::events::BytesStart, name: &str) -> Option<String> {
     e.attributes()
         .filter_map(|a| a.ok())
@@ -337,7 +336,6 @@ pub(super) fn detect_blob_format(data: &[u8]) -> Option<&'static str> {
 pub(super) fn validate_blob_format(declared_format: &str, data: &[u8]) -> String {
     let detected = detect_blob_format(data).unwrap_or(declared_format);
 
-    // Log warning if formats don't match
     if !declared_format.is_empty() && detected != declared_format {
         tracing::debug!(
             "BLOB format mismatch: declared '{}', detected '{}'",

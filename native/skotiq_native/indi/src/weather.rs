@@ -45,14 +45,12 @@ pub enum IndiWeatherStatus {
     Unknown,
 }
 
-/// INDI Weather device wrapper
 pub struct IndiWeather {
     client: Arc<RwLock<IndiClient>>,
     device_name: String,
 }
 
 impl IndiWeather {
-    /// Create a new INDI weather device wrapper
     pub fn new(client: Arc<RwLock<IndiClient>>, device_name: &str) -> Self {
         Self {
             client,
@@ -60,32 +58,24 @@ impl IndiWeather {
         }
     }
 
-    /// Get the device name
     pub fn device_name(&self) -> &str {
         &self.device_name
     }
 
-    // Connection
-
-    /// Connect to the weather device
     pub async fn connect(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client.connect_device(&self.device_name).await
     }
 
-    /// Disconnect from the weather device
     pub async fn disconnect(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client.disconnect_device(&self.device_name).await
     }
 
-    /// Check if connected
     pub async fn is_connected(&self) -> bool {
         let client = self.client.read().await;
         client.is_device_connected(&self.device_name).await
     }
-
-    // Weather measurements
 
     /// Age of the last `WEATHER_PARAMETERS` update in milliseconds, if known.
     pub async fn parameters_age_ms(&self) -> Option<u64> {
@@ -238,8 +228,6 @@ impl IndiWeather {
             .await
     }
 
-    // Overall status
-
     /// Get overall weather status from WEATHER_STATUS light property
     ///
     /// INDI light states: Idle (0), Ok (1), Busy (2), Alert (3)
@@ -306,9 +294,6 @@ impl IndiWeather {
         }
     }
 
-    // Alert states
-
-    /// Check if there's a rain alert
     pub async fn has_rain_alert(&self) -> bool {
         let client = self.client.read().await;
         client
@@ -319,7 +304,6 @@ impl IndiWeather {
             .unwrap_or(false)
     }
 
-    /// Check if there's a wind alert
     pub async fn has_wind_alert(&self) -> bool {
         let client = self.client.read().await;
         client
@@ -330,7 +314,6 @@ impl IndiWeather {
             .unwrap_or(false)
     }
 
-    /// Check if there's a cloud alert
     pub async fn has_cloud_alert(&self) -> bool {
         let client = self.client.read().await;
         client
@@ -341,7 +324,6 @@ impl IndiWeather {
             .unwrap_or(false)
     }
 
-    /// Check if there's a humidity alert
     pub async fn has_humidity_alert(&self) -> bool {
         let client = self.client.read().await;
         client
@@ -351,8 +333,6 @@ impl IndiWeather {
             // Why: see the module's `unwrap_or(false)` policy — parameter not published → no alert (observability only).
             .unwrap_or(false)
     }
-
-    // Sensor availability
 
     /// Check if WEATHER_STATUS property is available (device reports weather states)
     pub async fn has_weather_status(&self) -> bool {
@@ -370,47 +350,38 @@ impl IndiWeather {
             .await
     }
 
-    /// Check if temperature sensor is available
     pub async fn has_temperature(&self) -> bool {
         self.get_temperature().await.is_some()
     }
 
-    /// Check if humidity sensor is available
     pub async fn has_humidity(&self) -> bool {
         self.get_humidity().await.is_some()
     }
 
-    /// Check if pressure sensor is available
     pub async fn has_pressure(&self) -> bool {
         self.get_pressure().await.is_some()
     }
 
-    /// Check if wind speed sensor is available
     pub async fn has_wind_speed(&self) -> bool {
         self.get_wind_speed().await.is_some()
     }
 
-    /// Check if cloud cover sensor is available
     pub async fn has_cloud_cover(&self) -> bool {
         self.get_cloud_cover().await.is_some()
     }
 
-    /// Check if rain rate sensor is available
     pub async fn has_rain_rate(&self) -> bool {
         self.get_rain_rate().await.is_some()
     }
 
-    /// Check if sky quality sensor is available
     pub async fn has_sky_quality(&self) -> bool {
         self.get_sky_quality().await.is_some()
     }
 
-    /// Check if sky temperature sensor is available
     pub async fn has_sky_temperature(&self) -> bool {
         self.get_sky_temperature().await.is_some()
     }
 
-    /// Check if sky brightness sensor is available
     pub async fn has_sky_brightness(&self) -> bool {
         self.get_sky_brightness().await.is_some()
     }

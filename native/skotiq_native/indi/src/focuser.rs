@@ -9,14 +9,12 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 
-/// INDI Focuser device wrapper
 pub struct IndiFocuser {
     client: Arc<RwLock<IndiClient>>,
     device_name: String,
 }
 
 impl IndiFocuser {
-    /// Create a new INDI focuser wrapper
     pub fn new(client: Arc<RwLock<IndiClient>>, device_name: &str) -> Self {
         Self {
             client,
@@ -24,24 +22,20 @@ impl IndiFocuser {
         }
     }
 
-    /// Get the device name
     pub fn device_name(&self) -> &str {
         &self.device_name
     }
 
-    /// Connect to the focuser
     pub async fn connect(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client.connect_device(&self.device_name).await
     }
 
-    /// Disconnect from the focuser
     pub async fn disconnect(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client.disconnect_device(&self.device_name).await
     }
 
-    /// Check if connected
     pub async fn is_connected(&self) -> bool {
         let client = self.client.read().await;
         client.is_device_connected(&self.device_name).await
@@ -146,7 +140,6 @@ impl IndiFocuser {
         }
     }
 
-    /// Move to absolute position with timeout
     pub async fn move_to_with_timeout(
         &self,
         position: i32,
@@ -164,7 +157,6 @@ impl IndiFocuser {
         // the property still reads not-Busy from the last move.
         self.move_to(position).await?;
 
-        // Wait for move to complete
         let client = self.client.read().await;
         client
             .wait_for_property_not_busy(&self.device_name, ABS_FOCUS_POSITION, timeout_duration)
@@ -179,11 +171,9 @@ impl IndiFocuser {
     pub async fn move_relative(&self, steps: i32) -> IndiResult<()> {
         let mut client = self.client.write().await;
 
-        // Determine direction
         let direction = if steps > 0 { "FOCUS_IN" } else { "FOCUS_OUT" };
         let abs_steps = steps.abs();
 
-        // Set direction switch
         client
             .set_switch(&self.device_name, FOCUS_MOTION, direction, true)
             .await?;
@@ -194,7 +184,6 @@ impl IndiFocuser {
         let answer_timeout =
             Duration::from_secs(client.timeout_config().property_timeout_secs.max(1));
 
-        // Set relative steps
         client
             .set_number(
                 &self.device_name,
@@ -227,7 +216,6 @@ impl IndiFocuser {
         // Start the move, and wait for the driver to take it up.
         self.move_relative(steps).await?;
 
-        // Wait for move to complete
         let client = self.client.read().await;
         client
             .wait_for_property_not_busy(&self.device_name, REL_FOCUS_POSITION, timeout_duration)
@@ -238,7 +226,6 @@ impl IndiFocuser {
             })
     }
 
-    /// Abort motion
     pub async fn abort_motion(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
@@ -246,7 +233,6 @@ impl IndiFocuser {
             .await
     }
 
-    /// Get current position
     pub async fn get_position(&self) -> IndiResult<i32> {
         let client = self.client.read().await;
         client
@@ -262,7 +248,6 @@ impl IndiFocuser {
             .ok_or_else(|| IndiError::Unavailable("Position not available".to_string()))
     }
 
-    /// Check if moving
     pub async fn is_moving(&self) -> bool {
         let client = self.client.read().await;
         for property in [ABS_FOCUS_POSITION, REL_FOCUS_POSITION, FOCUS_MOTION] {
@@ -275,7 +260,6 @@ impl IndiFocuser {
         false
     }
 
-    /// Get temperature
     pub async fn get_temperature(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
@@ -454,7 +438,6 @@ mod tests {
         )));
         let _focuser = IndiFocuser::new(client.clone(), "TestFocuser");
 
-        // Verify the timeout config is accessible
         let timeout_secs = {
             let c = client.read().await;
             c.timeout_config().focuser_move_timeout_secs

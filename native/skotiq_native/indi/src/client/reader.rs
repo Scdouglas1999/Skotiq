@@ -92,16 +92,13 @@ impl IndiClient {
             }
             _ = &mut shutdown_rx => {
                 tracing::info!("INDI reader task received shutdown signal - graceful stop");
-                // Graceful shutdown - reset failure counter
                 reader_consecutive_failures.store(0, Ordering::SeqCst);
                 Ok(())
             }
         };
 
-        // Update status based on result
         match result {
             Ok(_) => {
-                // Graceful shutdown - reset failure counter and update status
                 *reader_status.write().await = ReaderStatus::Stopped;
                 send_indi_event(
                     &event_tx,
@@ -115,7 +112,6 @@ impl IndiClient {
                 tracing::info!("INDI reader task stopped gracefully");
             }
             Err(ref e) => {
-                // Failure - increment failure counter
                 let failures = reader_consecutive_failures.fetch_add(1, Ordering::SeqCst) + 1;
                 let max_failures = reader_task_config.max_consecutive_failures;
 
@@ -126,17 +122,14 @@ impl IndiClient {
                     e
                 );
 
-                // Update status to Crashed
                 *reader_status.write().await = ReaderStatus::Crashed;
 
-                // Emit ReaderDied event with error details
                 send_indi_event(
                     &event_tx,
                     IndiEvent::ReaderDied(e.to_string()),
                     "supervised_reader.reader_died",
                 );
 
-                // Emit health changed event
                 send_indi_event(
                     &event_tx,
                     IndiEvent::ReaderHealthChanged {
@@ -147,7 +140,6 @@ impl IndiClient {
                     "supervised_reader.crashed_health",
                 );
 
-                // Check if we've exceeded max failures
                 if failures >= max_failures {
                     tracing::error!(
                         "INDI reader task exceeded max consecutive failures ({}) - giving up",
@@ -162,7 +154,6 @@ impl IndiClient {
                         "supervised_reader.restart_failed",
                     );
                 } else if reader_task_config.auto_restart {
-                    // Calculate restart delay and emit restart event
                     let delay = reader_task_config.calculate_restart_delay(failures, &jitter_rng);
                     tracing::info!(
                         "INDI reader task will suggest restart in {:?} (attempt {}/{})",
@@ -240,10 +231,8 @@ impl IndiClient {
         let mut current_blob_active = false;
         let mut current_blob_size: usize = 0;
 
-        // XML parse timeout tracking - use configured timeout
         let xml_timeout = timeout_config.message_timeout();
 
-        // BLOB reception timeout tracking
         let mut blob_start_time: Option<Instant> = None;
         let blob_timeout = timeout_config.blob_timeout();
 
@@ -275,7 +264,6 @@ impl IndiClient {
                 }
             }
 
-            // Check for BLOB reception timeout
             if let Some(start) = blob_start_time {
                 if start.elapsed() > blob_timeout {
                     tracing::error!(
@@ -293,7 +281,6 @@ impl IndiClient {
                         )),
                         "reader.blob_timeout",
                     );
-                    // Reset BLOB state
                     blob_start_time = None;
                     current_blob_format = None;
                     current_blob_active = false;
@@ -301,7 +288,6 @@ impl IndiClient {
                 }
             }
 
-            // Use timeout for reading events
             let read_timeout = Duration::from_secs(5);
             let read_result = timeout(read_timeout, reader.read_event_into_async(&mut buf)).await;
 
@@ -318,7 +304,6 @@ impl IndiClient {
                         Event::Start(b) | Event::Empty(b) => b,
                         _ => unreachable!("matched Start/Empty above"),
                     };
-                    // Reset incomplete message tracking on successful event
                     incomplete_message_start = None;
                     incomplete_message_bytes = 0;
                     // Work with raw bytes to avoid allocating a String for every XML element name.
@@ -375,7 +360,6 @@ impl IndiClient {
                                     None
                                 };
 
-                                // Add device if new
                                 {
                                     let mut devs = devices.write().await;
                                     if !devs.contains_key(&current_device) {
@@ -391,7 +375,6 @@ impl IndiClient {
                                     }
                                 }
 
-                                // Add property
                                 {
                                     let mut props = properties.write().await;
                                     props.insert(
@@ -434,7 +417,6 @@ impl IndiClient {
                             if let Some(elem_name) = get_attribute(e, "name") {
                                 current_element = elem_name.clone();
 
-                                // Add element to property
                                 let mut props = properties.write().await;
                                 if let Some(prop) =
                                     map_get_mut_2(&mut props, &current_device, &current_property)
@@ -442,7 +424,6 @@ impl IndiClient {
                                     prop.elements.push(elem_name.clone());
                                 }
 
-                                // Extract min/max/step/format for number elements
                                 if name_bytes == b"defNumber" {
                                     let limits = NumberLimits {
                                         min: get_attribute(e, "min").and_then(|s| {
@@ -475,7 +456,6 @@ impl IndiClient {
                                         format: get_attribute(e, "format"),
                                     };
 
-                                    // Store limits
                                     let mut limits_map = number_limits.write().await;
                                     limits_map.insert(
                                         (
@@ -548,7 +528,6 @@ impl IndiClient {
                                 Some(trimmed)
                             }
                         });
-                        // Extract size attribute
                         current_blob_size = get_attribute(e, "size")
                             .and_then(|s| {
                                 parse_indi_usize_attribute(
@@ -560,7 +539,6 @@ impl IndiClient {
                                 )
                             })
                             .unwrap_or(0);
-                        // Start BLOB reception timeout tracking
                         blob_start_time = Some(Instant::now());
                         tracing::debug!(
                             "Starting BLOB reception for {}.{}.{}: expected size {} bytes",
@@ -656,7 +634,6 @@ impl IndiClient {
                     }
                 }
                 Ok(Ok(Event::Text(e))) => {
-                    // Reset incomplete message tracking on successful event
                     incomplete_message_start = None;
                     incomplete_message_bytes = 0;
                     // Why: `unescape()` returns Err only on malformed XML
@@ -753,7 +730,6 @@ impl IndiClient {
                                     );
                                 }
                             }
-                            // Reset BLOB tracking state
                             current_blob_format = None;
                             current_blob_active = false;
                             current_blob_size = 0;
@@ -771,7 +747,6 @@ impl IndiClient {
                     }
                 }
                 Ok(Ok(Event::End(e))) => {
-                    // Reset incomplete message tracking on successful event
                     incomplete_message_start = None;
                     incomplete_message_bytes = 0;
                     // Use byte comparison to avoid allocating a String for every end tag
@@ -919,7 +894,6 @@ impl IndiClient {
                         }
                         incomplete_message_bytes = buf.len();
                     }
-                    // Continue waiting for data
                 }
                 _ => {}
             }

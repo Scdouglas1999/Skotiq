@@ -32,13 +32,10 @@ pub enum IndiCoverState {
     NotPresent,
     /// Cover is closed/parked
     Closed,
-    /// Cover is moving
     Moving,
     /// Cover is open/unparked
     Open,
-    /// Cover state is unknown
     Unknown,
-    /// Error condition
     Error,
 }
 
@@ -61,15 +58,12 @@ impl IndiCoverState {
 pub enum IndiCalibratorState {
     /// Device does not have a calibrator/light
     NotPresent,
-    /// Calibrator is off
     Off,
     /// Calibrator is stabilizing
     NotReady,
     /// Calibrator is on and ready
     Ready,
-    /// Calibrator state is unknown
     Unknown,
-    /// Error condition
     Error,
 }
 
@@ -87,14 +81,12 @@ impl IndiCalibratorState {
     }
 }
 
-/// INDI Cover Calibrator device wrapper
 pub struct IndiCoverCalibrator {
     client: Arc<RwLock<IndiClient>>,
     device_name: String,
 }
 
 impl IndiCoverCalibrator {
-    /// Create a new INDI cover calibrator wrapper
     pub fn new(client: Arc<RwLock<IndiClient>>, device_name: &str) -> Self {
         Self {
             client,
@@ -102,32 +94,24 @@ impl IndiCoverCalibrator {
         }
     }
 
-    /// Get the device name
     pub fn device_name(&self) -> &str {
         &self.device_name
     }
 
-    // Connection
-
-    /// Connect to the cover calibrator
     pub async fn connect(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client.connect_device(&self.device_name).await
     }
 
-    /// Disconnect from the cover calibrator
     pub async fn disconnect(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client.disconnect_device(&self.device_name).await
     }
 
-    /// Check if connected
     pub async fn is_connected(&self) -> bool {
         let client = self.client.read().await;
         client.is_device_connected(&self.device_name).await
     }
-
-    // Cover control (Dust Cap)
 
     /// Open the cover (unpark dust cap)
     pub async fn open_cover(&self) -> IndiResult<()> {
@@ -225,11 +209,9 @@ impl IndiCoverCalibrator {
         ))
     }
 
-    /// Get cover state
     pub async fn get_cover_state(&self) -> IndiCoverState {
         let client = self.client.read().await;
 
-        // Check CAP_PARK property
         let is_parked = client
             .get_switch(&self.device_name, "CAP_PARK", "PARK")
             .await
@@ -405,8 +387,6 @@ impl IndiCoverCalibrator {
         }
     }
 
-    // Calibrator control (Flat Light)
-
     /// Turn on the calibrator light at specified brightness
     pub async fn calibrator_on(&self, brightness: i32) -> IndiResult<()> {
         let mut client = self.client.write().await;
@@ -468,7 +448,6 @@ impl IndiCoverCalibrator {
         ))
     }
 
-    /// Turn off the calibrator light
     pub async fn calibrator_off(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
 
@@ -515,11 +494,9 @@ impl IndiCoverCalibrator {
         ))
     }
 
-    /// Get calibrator state
     pub async fn get_calibrator_state(&self) -> IndiCalibratorState {
         let client = self.client.read().await;
 
-        // Check FLAT_LIGHT_CONTROL property
         let is_on = client
             .get_switch(&self.device_name, "FLAT_LIGHT_CONTROL", "FLAT_LIGHT_ON")
             .await
@@ -588,8 +565,6 @@ impl IndiCoverCalibrator {
             IndiCalibratorState::NotPresent
         }
     }
-
-    // Brightness control
 
     /// Get current brightness (0-max)
     pub async fn get_brightness(&self) -> IndiResult<i32> {
@@ -661,7 +636,6 @@ impl IndiCoverCalibrator {
         ))
     }
 
-    /// Get maximum brightness
     pub async fn get_max_brightness(&self) -> IndiResult<i32> {
         let client = self.client.read().await;
 

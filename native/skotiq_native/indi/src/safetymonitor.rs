@@ -32,14 +32,12 @@ use crate::error::{IndiError, IndiResult};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-/// INDI Safety Monitor device wrapper
 pub struct IndiSafetyMonitor {
     client: Arc<RwLock<IndiClient>>,
     device_name: String,
 }
 
 impl IndiSafetyMonitor {
-    /// Create a new INDI safety monitor wrapper
     pub fn new(client: Arc<RwLock<IndiClient>>, device_name: &str) -> Self {
         Self {
             client,
@@ -47,32 +45,24 @@ impl IndiSafetyMonitor {
         }
     }
 
-    /// Get the device name
     pub fn device_name(&self) -> &str {
         &self.device_name
     }
 
-    // Connection
-
-    /// Connect to the safety monitor
     pub async fn connect(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client.connect_device(&self.device_name).await
     }
 
-    /// Disconnect from the safety monitor
     pub async fn disconnect(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client.disconnect_device(&self.device_name).await
     }
 
-    /// Check if connected
     pub async fn is_connected(&self) -> bool {
         let client = self.client.read().await;
         client.is_device_connected(&self.device_name).await
     }
-
-    // Safety status
 
     /// Check if conditions are safe for observing
     ///
@@ -145,11 +135,9 @@ impl IndiSafetyMonitor {
         )))
     }
 
-    /// Check if any safety monitoring is available
     pub async fn is_monitoring_available(&self) -> bool {
         let client = self.client.read().await;
 
-        // Check for various safety-related properties
         client
             .has_property(&self.device_name, "WEATHER_STATUS")
             .await
@@ -158,8 +146,6 @@ impl IndiSafetyMonitor {
                 .await
             || client.has_property(&self.device_name, "AUX_SAFETY").await
     }
-
-    // Weather parameters (if available)
 
     /// Get temperature in Celsius (if available)
     pub async fn get_temperature(&self) -> Option<f64> {
@@ -253,9 +239,6 @@ impl IndiSafetyMonitor {
             .await
     }
 
-    // Alert states
-
-    /// Check if there's a rain alert
     pub async fn has_rain_alert(&self) -> bool {
         let client = self.client.read().await;
         client
@@ -266,7 +249,6 @@ impl IndiSafetyMonitor {
             .unwrap_or(false)
     }
 
-    /// Check if there's a wind alert
     pub async fn has_wind_alert(&self) -> bool {
         let client = self.client.read().await;
         client
@@ -277,7 +259,6 @@ impl IndiSafetyMonitor {
             .unwrap_or(false)
     }
 
-    /// Check if there's a cloud alert
     pub async fn has_cloud_alert(&self) -> bool {
         let client = self.client.read().await;
         client
@@ -288,7 +269,6 @@ impl IndiSafetyMonitor {
             .unwrap_or(false)
     }
 
-    /// Check if there's a humidity alert
     pub async fn has_humidity_alert(&self) -> bool {
         let client = self.client.read().await;
         client

@@ -30,18 +30,15 @@ pub struct IndiSwitchInfo {
     pub label: String,
     /// Current state (true = On)
     pub state: bool,
-    /// Whether this switch can be written
     pub writable: bool,
 }
 
-/// INDI Switch device wrapper
 pub struct IndiSwitchDevice {
     client: Arc<RwLock<IndiClient>>,
     device_name: String,
 }
 
 impl IndiSwitchDevice {
-    /// Create a new INDI switch device wrapper
     pub fn new(client: Arc<RwLock<IndiClient>>, device_name: &str) -> Self {
         Self {
             client,
@@ -49,32 +46,24 @@ impl IndiSwitchDevice {
         }
     }
 
-    /// Get the device name
     pub fn device_name(&self) -> &str {
         &self.device_name
     }
 
-    // Connection
-
-    /// Connect to the switch device
     pub async fn connect(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client.connect_device(&self.device_name).await
     }
 
-    /// Disconnect from the switch device
     pub async fn disconnect(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client.disconnect_device(&self.device_name).await
     }
 
-    /// Check if connected
     pub async fn is_connected(&self) -> bool {
         let client = self.client.read().await;
         client.is_device_connected(&self.device_name).await
     }
-
-    // Switch discovery
 
     /// Get all switch-type properties on this device
     ///
@@ -139,9 +128,6 @@ impl IndiSwitchDevice {
         switches
     }
 
-    // Switch control
-
-    /// Get the state of a specific switch element
     pub async fn get_switch_state(&self, property_name: &str, element: &str) -> Option<bool> {
         let client = self.client.read().await;
         client
@@ -193,7 +179,6 @@ impl IndiSwitchDevice {
             .await
     }
 
-    /// Check if a switch property is read-only
     pub async fn is_switch_read_only(&self, property_name: &str) -> bool {
         let client = self.client.read().await;
         match client.get_property(&self.device_name, property_name).await {

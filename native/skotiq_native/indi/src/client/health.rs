@@ -11,7 +11,6 @@ impl IndiClient {
         self.last_keepalive_ms
             .store(current_time_ms(), Ordering::SeqCst);
 
-        // Use configured protocol version
         let version = &self.protocol_config.preferred_version;
         self.send_command(&format!("<getProperties version=\"{}\"/>", version))
             .await
@@ -27,7 +26,6 @@ impl IndiClient {
     /// Returns Ok(()) if keepalive was sent or not needed
     /// Returns Err if keepalive response timeout was detected (connection may be dead)
     pub async fn check_keepalive(&mut self) -> IndiResult<()> {
-        // Skip keepalive if not connected
         if !self.connected.load(Ordering::SeqCst) {
             return Ok(());
         }
@@ -46,15 +44,12 @@ impl IndiClient {
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .is_err()
         {
-            // Another keepalive is already in progress, skip this one
             tracing::debug!("Skipping keepalive: another keepalive check is in progress");
             return Ok(());
         }
 
-        // Ensure we release the lock when done (using a scope guard pattern)
         let result = self.do_keepalive_check().await;
 
-        // Release the keepalive lock
         self.keepalive_in_progress.store(false, Ordering::SeqCst);
 
         result
@@ -99,7 +94,6 @@ impl IndiClient {
         Ok(())
     }
 
-    /// Check if a keepalive is currently in progress
     pub fn is_keepalive_in_progress(&self) -> bool {
         self.keepalive_in_progress.load(Ordering::SeqCst)
     }
@@ -180,7 +174,6 @@ impl IndiClient {
         .await
     }
 
-    /// Check if reconnection is currently in progress
     pub fn is_reconnecting(&self) -> bool {
         self.reconnecting.load(Ordering::SeqCst)
     }
@@ -198,7 +191,6 @@ impl IndiClient {
     ///
     /// Returns Ok(()) if reconnection succeeds, Err if it fails.
     pub async fn recover_reader(&mut self) -> IndiResult<()> {
-        // Check if we've already exceeded max failures
         if self.is_reader_failed_permanently() {
             let failures = self.reader_consecutive_failures();
             return Err(IndiError::ReconnectionFailed {
@@ -219,10 +211,8 @@ impl IndiClient {
             reader_status: Some(self.reader_status.clone()),
         };
 
-        // Get current failure count for delay calculation
         let failures = self.reader_consecutive_failures();
 
-        // Update status to Restarting
         *self.reader_status.write().await = ReaderStatus::Restarting;
         send_indi_event(
             &self.event_tx,
@@ -234,7 +224,6 @@ impl IndiClient {
             "recover_reader.reader_health_restarting",
         );
 
-        // Calculate and wait for delay
         if failures > 0 {
             let delay = self
                 .reader_task_config
@@ -247,7 +236,6 @@ impl IndiClient {
             sleep(delay).await;
         }
 
-        // Attempt to reconnect
         match self.connect().await {
             Ok(_) => {
                 tracing::info!("Reader recovery successful after {} attempts", failures);
@@ -304,7 +292,6 @@ impl IndiClient {
             return false;
         }
 
-        // Check if reconnection is already in progress
         if self.reconnecting.load(Ordering::SeqCst) {
             return false;
         }
@@ -318,7 +305,6 @@ impl IndiClient {
         reconnect_attempts == 0
     }
 
-    /// Get the number of reconnection attempts
     pub async fn reconnect_attempts(&self) -> u32 {
         self.reconnect_attempts.load(Ordering::SeqCst)
     }
