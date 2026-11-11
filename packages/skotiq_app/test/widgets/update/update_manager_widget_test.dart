@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/services/app_update.dart';
@@ -37,7 +38,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Update verification failed'), findsNothing);
-    expect(find.byType(UpdateReceivedBanner), findsNothing);
+    expect(find.byType(UpdateReadyBanner), findsNothing);
 
     // Drain the widget's startup checks and stale error-dismiss timer so the
     // binding can verify that this test leaves no scheduled work behind.
@@ -45,7 +46,8 @@ void main() {
     await tester.pump();
   });
 
-  testWidgets('a download that ends verified and staged raises no LAN push '
+  testWidgets(
+      'a download that ends verified and staged raises no LAN push '
       'banner', (tester) async {
     final tempDir = Directory.systemTemp.createTempSync(
       'skotiq-update-manager-',
@@ -76,15 +78,58 @@ void main() {
       await tester.pump();
     }
 
-    expect(find.byType(UpdateReceivedBanner), findsNothing);
+    expect(find.byType(UpdateReadyBanner), findsNothing);
 
     await tester.pump(const Duration(seconds: 10));
+    await tester.pump();
+  });
+
+  testWidgets(
+      'an update staged before launch is offered without claiming it '
+      'came over the LAN, its title on one line at 1280 px', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1280, 800);
+    addTearDown(tester.view.reset);
+    final tempDir = Directory.systemTemp.createTempSync(
+      'skotiq-update-manager-',
+    );
+    addTearDown(() {
+      if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+    });
+    final notifier = _TestUpdateNotifier(tempDir, stagedAtLaunch: true);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [updateProvider.overrideWith((ref) => notifier)],
+        child: const MaterialApp(
+          home: UpdateManagerWidget(child: Scaffold(body: Text('App'))),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 4));
+
+    final banner = find.byType(UpdateReadyBanner);
+    expect(banner, findsOneWidget);
+    expect(
+      find.descendant(of: banner, matching: find.textContaining('LAN')),
+      findsNothing,
+    );
+    final title = tester.renderObject<RenderParagraph>(
+      find.descendant(of: banner, matching: find.byType(RichText)).first,
+    );
+    expect(
+      title.size.width,
+      greaterThanOrEqualTo(title.getMaxIntrinsicWidth(double.infinity) - 0.5),
+      reason: 'the banner title wrapped',
+    );
+
+    await tester.pump(const Duration(seconds: 70));
     await tester.pump();
   });
 }
 
 class _TestUpdateNotifier extends UpdateNotifier {
-  _TestUpdateNotifier(Directory supportDirectory)
+  _TestUpdateNotifier(Directory supportDirectory, {this.stagedAtLaunch = false})
       : super(
           currentVersion: '1.0.0',
           currentBuildNumber: 1,
@@ -120,6 +165,11 @@ class _TestUpdateNotifier extends UpdateNotifier {
   @override
   Future<void> checkForUpdates({DateTime? now}) async {}
 
+  /// An update downloaded from the update server by an earlier run.
+  final bool stagedAtLaunch;
+
   @override
-  Future<void> checkStagedUpdate() async {}
+  Future<void> checkStagedUpdate() async {
+    if (stagedAtLaunch) emitStatus(UpdateStatus.staged);
+  }
 }
