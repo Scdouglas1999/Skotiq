@@ -11,9 +11,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/weather/weather_screen.dart';
-import 'package:skotiq_app/widgets/weather/dashboard_weather_widget.dart';
 import 'package:skotiq_app/widgets/weather/radar_timeline_scrubber.dart';
-import 'package:skotiq_app/widgets/weather/weather_radar_map.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../harness/harness.dart';
@@ -143,36 +141,4 @@ void main() {
     });
   });
 
-  group('dashboard radar preview', () {
-    testWidgets('the thumbnail shows the live edge, not the oldest frame',
-        (tester) async {
-      final frames = _loop(past: 6);
-
-      await pumpAppScreen(
-        tester,
-        const SizedBox(width: 460, child: DashboardWeatherWidget()),
-        size: const Size(1280, 800),
-        settle: false,
-        extraOverrides: [
-          backendProvider.overrideWith(
-            (ref) => TestBackendNotifier(ref, DisconnectedBackend()),
-          ),
-          appSettingsProvider.overrideWith(_SiteSettingsNotifier.new),
-          weatherStatusProvider.overrideWithValue(
-            WeatherStatus(radarFrames: frames),
-          ),
-        ],
-      );
-      for (var i = 0; i < 4; i++) {
-        await tester.pump(const Duration(milliseconds: 100));
-      }
-
-      final map = tester.widget<WeatherRadarMap>(find.byType(WeatherRadarMap));
-      expect(
-        map.currentFrame?.timestamp,
-        frames.last.timestamp,
-        reason: 'frames arrive oldest -> newest; .first is the STALEST frame',
-      );
-    });
-  });
 }

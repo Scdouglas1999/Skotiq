@@ -32,30 +32,19 @@ export 'screens/shell/widgets/window_chrome.dart'
     show WindowResizeEdges, WindowChromeState;
 
 // Widgets
-export 'widgets/adaptive_shell.dart';
 export 'widgets/animated_tab_bar_view.dart';
-export 'widgets/animated_tab_indicator.dart';
-export 'widgets/catalog_setup_dialog.dart';
-export 'widgets/staggered_animation.dart';
 export 'widgets/startup_splash_gate.dart';
-export 'widgets/annotation_painter.dart';
 export 'widgets/sequence_progress_card.dart';
 export 'widgets/mobile_sequence_overlay.dart';
-export 'widgets/session_recovery_checker.dart';
 export 'widgets/session_recovery_dialog.dart';
 export 'widgets/auto_discovery_launcher.dart';
 export 'widgets/database_recovery_launcher.dart';
 export 'widgets/tutorial_overlay.dart';
 export 'widgets/connection_stale_banner.dart';
-export 'widgets/equipment_status_indicator.dart';
 export 'widgets/ios_background_banner.dart';
 export 'widgets/android_notifications_banner.dart';
 export 'widgets/remote_connection_indicator.dart';
-// Diagnostic cards — phone-friendly cards that the mobile
-// companion dashboard surfaces alongside its existing device cards.
-export 'widgets/guide_health_card.dart';
 export 'widgets/focus_model_curve_card.dart';
-export 'screens/sequencer/widgets/run_dashboard/weather_safety_card.dart';
 
 // Sequencer Wizards (Priority 2)
 export 'screens/sequencer/widgets/mosaic_wizard_dialog.dart';

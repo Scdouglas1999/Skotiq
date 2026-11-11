@@ -491,7 +491,7 @@ class _BannerTitle extends StatelessWidget {
 }
 
 /// Small trailing chip showing the mount-reported side of pier, hinting at flip
-/// direction. Matches the `_InfoChip` styling from [MeridianFlipProgressDialog].
+/// direction.
 class _PierSideChip extends StatelessWidget {
   const _PierSideChip({required this.sideOfPier});
 

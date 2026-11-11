@@ -26,11 +26,9 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 /// as produced by [GuideStatsNotifier] is the rolling RMS of PHD2's
 /// `RADistanceRaw`/`DECDistanceRaw` (and its `AvgDist` fallback), which PHD2
 /// reports in arcseconds once the guider is calibrated — see the field docs on
-/// [Phd2GuideStats.rmsTotal] ("Total RMS error (arcseconds)") and the app's
-/// primary readout `GuideHealthCard`, which renders the same value with an
-/// arcsecond (`"`) suffix and arcsecond traffic-light thresholds. We label the
-/// value `"` to match that established convention; there is no pixel domain to
-/// reconcile and no scale conversion to apply.
+/// [Phd2GuideStats.rmsTotal] ("Total RMS error (arcseconds)"). The value is
+/// labeled `"`; there is no pixel domain to reconcile and no scale conversion
+/// to apply.
 ///
 /// The host widget positions this chip at the bottom-left of the preview.
 class GuidingActiveChip extends ConsumerWidget {

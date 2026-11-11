@@ -79,8 +79,8 @@ IconData readinessItemIcon(ReadinessItemId id) {
 
 /// Opens the itemized [ReadinessPanel] in a standard [SkotiqDialog].
 ///
-/// Shared by [ReadinessStatusChip], the dashboard card, and the equipment
-/// panel's "View all" overflow button so every entry point presents an
+/// Shared by the dashboard card and the equipment panel's "View all" overflow
+/// button so every entry point presents an
 /// identical full checklist. The panel's Fix buttons close this dialog (via
 /// [ReadinessPanel.onFixTapped]) after navigating.
 Future<void> showReadinessDialog(BuildContext context) {
