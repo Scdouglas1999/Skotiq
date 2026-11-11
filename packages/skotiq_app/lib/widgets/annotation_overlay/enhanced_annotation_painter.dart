@@ -1,6 +1,5 @@
 part of '../annotation_overlay.dart';
 
-/// Enhanced painter that uses customizable marker styles
 class EnhancedAnnotationPainter extends CustomPainter {
   final ImageAnnotation annotation;
   final AnnotationSettings settings;
@@ -20,7 +19,6 @@ class EnhancedAnnotationPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (!annotation.visible) return;
 
-    // Filter and sort objects
     final visibleObjects = annotation.objects.where((obj) {
       if (!obj.visible) return false;
       if (obj.magnitude != null) {
@@ -30,7 +28,6 @@ class EnhancedAnnotationPainter extends CustomPainter {
       return _isTypeVisible(obj.type, settings.visibleTypes);
     }).toList();
 
-    // Limit displayed objects
     if (visibleObjects.length > settings.maxObjectsToDisplay) {
       visibleObjects
           .sort((a, b) => (a.magnitude ?? 20).compareTo(b.magnitude ?? 20));
@@ -114,40 +111,33 @@ class EnhancedAnnotationPainter extends CustomPainter {
 
     switch (object.type) {
       case ObjectType.galaxy:
-        // Draw elegant ellipse for galaxies
         _drawGalaxyMarker(canvas, x, y, markerSize, paint);
         break;
 
       case ObjectType.nebula:
-        // Draw cloud-like shape for nebulae
         _drawNebulaMarker(canvas, x, y, markerSize, paint);
         break;
 
       case ObjectType.planetaryNebula:
-        // Draw double circle for planetary nebulae
         _drawPlanetaryNebulaMarker(canvas, x, y, markerSize, paint);
         break;
 
       case ObjectType.starCluster:
-        // Draw open circle with dots for clusters
         _drawClusterMarker(canvas, x, y, markerSize, paint);
         break;
 
       case ObjectType.star:
       case ObjectType.doubleStar:
-        // Draw crosshair for stars
         _drawStarMarker(canvas, x, y, markerSize, paint);
         break;
 
       default:
-        // Draw simple circle for unknown types
         canvas.drawCircle(Offset(x, y), markerSize / 2, paint);
     }
   }
 
   void _drawGalaxyMarker(
       Canvas canvas, double x, double y, double size, Paint paint) {
-    // Draw tilted ellipse to represent galaxy shape
     canvas.save();
     canvas.translate(x, y);
     canvas.rotate(0.3); // Slight tilt
@@ -181,7 +171,6 @@ class EnhancedAnnotationPainter extends CustomPainter {
 
   void _drawNebulaMarker(
       Canvas canvas, double x, double y, double size, Paint paint) {
-    // Draw rounded rectangle for nebula shape
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromCenter(center: Offset(x, y), width: size, height: size * 0.8),
@@ -193,17 +182,14 @@ class EnhancedAnnotationPainter extends CustomPainter {
 
   void _drawPlanetaryNebulaMarker(
       Canvas canvas, double x, double y, double size, Paint paint) {
-    // Outer circle
     canvas.drawCircle(Offset(x, y), size / 2, paint);
 
-    // Inner circle (smaller)
     final innerPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = markerStyle.strokeWidth
       ..color = paint.color.withValues(alpha: 0.6);
     canvas.drawCircle(Offset(x, y), size / 4, innerPaint);
 
-    // Center dot
     final dotPaint = Paint()
       ..style = PaintingStyle.fill
       ..color = paint.color.withValues(alpha: 0.8);
@@ -212,10 +198,8 @@ class EnhancedAnnotationPainter extends CustomPainter {
 
   void _drawClusterMarker(
       Canvas canvas, double x, double y, double size, Paint paint) {
-    // Dashed circle outline
     canvas.drawCircle(Offset(x, y), size / 2, paint);
 
-    // Small dots to represent stars in cluster
     final dotPaint = Paint()
       ..style = PaintingStyle.fill
       ..color = paint.color.withValues(alpha: 0.5);
@@ -234,7 +218,6 @@ class EnhancedAnnotationPainter extends CustomPainter {
 
   void _drawStarMarker(
       Canvas canvas, double x, double y, double size, Paint paint) {
-    // Draw four-pointed star crosshair
     final halfSize = size / 2;
 
     canvas.drawLine(
@@ -283,7 +266,6 @@ class EnhancedAnnotationPainter extends CustomPainter {
 
     textPainter.layout();
 
-    // Position label below marker
     final markerSize = _getMarkerSize(object);
     final offset = Offset(
       x - textPainter.width / 2,

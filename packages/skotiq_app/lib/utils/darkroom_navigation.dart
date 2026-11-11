@@ -23,7 +23,6 @@ import 'snackbar_helper.dart';
 
 export '../screens/darkroom/darkroom_route.dart' show DarkroomTab;
 
-/// The Darkroom location for a saved recipe row.
 String darkroomRecipeLocation(int recipeId) => '/darkroom?recipe=$recipeId';
 
 /// The Darkroom location for a linear master; the screen loads its newest
@@ -34,7 +33,6 @@ String darkroomMasterLocation(int masterId) => '/darkroom?master=$masterId';
 String darkroomPassLocation(String runId) =>
     '/darkroom?tab=activity&pass=${Uri.encodeQueryComponent(runId)}';
 
-/// The Darkroom opened on one of its tabs.
 String darkroomTabLocation(DarkroomTab tab) => DarkroomRoute(tab: tab).location;
 
 /// The Targets tab with [target] selected. [target] is the key the build
@@ -314,7 +312,6 @@ Future<int?> resolveSessionForDarkroomMaster(
 /// answers "cannot say".
 const int _sessionScanLimit = 32;
 
-/// The session review location for [sessionId].
 String sessionReviewLocation(int sessionId) =>
     '/session-review?session=$sessionId';
 

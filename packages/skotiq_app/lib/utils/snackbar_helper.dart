@@ -63,7 +63,6 @@ extension SnackBarHelper on BuildContext {
     return EdgeInsets.fromLTRB(left, 5, 15, 10 + lift);
   }
 
-  /// Shows an error SnackBar with red background.
   void showErrorSnackBar(String message, {Duration? duration}) {
     if (!mounted) return;
     final colors = SkotiqColors.of(this);
@@ -77,7 +76,6 @@ extension SnackBarHelper on BuildContext {
     );
   }
 
-  /// Shows a success SnackBar with green background.
   void showSuccessSnackBar(String message, {Duration? duration}) {
     if (!mounted) return;
     final colors = SkotiqColors.of(this);
@@ -91,7 +89,6 @@ extension SnackBarHelper on BuildContext {
     );
   }
 
-  /// Shows a warning SnackBar with amber/yellow background.
   void showWarningSnackBar(String message, {Duration? duration}) {
     if (!mounted) return;
     final colors = SkotiqColors.of(this);
@@ -105,7 +102,6 @@ extension SnackBarHelper on BuildContext {
     );
   }
 
-  /// Shows an info SnackBar with default background.
   void showInfoSnackBar(String message, {Duration? duration}) {
     if (!mounted) return;
     ScaffoldMessenger.of(this).showSnackBar(

@@ -26,8 +26,6 @@ Future<bool> addTargetHeaderWithPrompt({
       notifier.addTargetHeader(targetNode);
       return true;
     } on NoActiveSequenceException {
-      // Caller-aware fallback — prompt the user to create a sequence
-      // pre-named after the target, then retry.
       final shouldCreate = await showDialog<bool>(
         context: context,
         builder: (ctx) => SkotiqDialog(

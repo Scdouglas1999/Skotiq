@@ -6,13 +6,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 /// This eliminates duplicate AlertDialog patterns across the codebase.
 /// Use this instead of implementing inline `showDialog<bool>` patterns.
 class ConfirmDialog {
-  /// Shows a confirmation dialog and returns true if confirmed.
-  ///
-  /// [title] - The dialog title
-  /// [message] - The dialog message/content
-  /// [confirmLabel] - Label for the confirm button (default: 'Confirm')
-  /// [cancelLabel] - Label for the cancel button (default: 'Cancel')
-  /// [isDestructive] - If true, uses error color for confirm button
   static Future<bool> show({
     required BuildContext context,
     required String title,
@@ -52,9 +45,6 @@ class ConfirmDialog {
     return result ?? false;
   }
 
-  /// Convenience method for delete confirmations.
-  ///
-  /// Shows a destructive-styled confirmation with "Delete" as the confirm label.
   static Future<bool> delete({
     required BuildContext context,
     required String itemName,
@@ -67,9 +57,6 @@ class ConfirmDialog {
         isDestructive: true,
       );
 
-  /// Convenience method for discard/cancel confirmations.
-  ///
-  /// Shows a destructive-styled confirmation for discarding unsaved changes.
   static Future<bool> discard({
     required BuildContext context,
     String itemName = 'changes',
@@ -82,9 +69,6 @@ class ConfirmDialog {
         isDestructive: true,
       );
 
-  /// Convenience method for restore confirmations.
-  ///
-  /// Shows a confirmation for restoring from backup.
   static Future<bool> restore({
     required BuildContext context,
     required String backupName,
