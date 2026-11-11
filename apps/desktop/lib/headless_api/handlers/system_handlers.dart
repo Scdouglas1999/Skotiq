@@ -23,6 +23,7 @@
 /// The `/pair` browser pairing page is in `system_pair_page_handler.dart`.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -364,20 +365,33 @@ class SystemHandlers implements RouteSource {
     final requestId = requestIdFrom(request);
     _logInfo('[API][$requestId] GET /api/openapi.json');
     try {
-      return jsonOk(
-        buildOpenApiSpec(
-          routes: [
-            for (final endpoint in apiEndpoints)
-              if (endpoint.route.path.startsWith('/api/')) endpoint.route,
-          ],
-          port: view.port(),
-        ),
-      );
+      return Response.ok(_openApiJson(), headers: jsonResponseHeaders);
     } catch (e, stackTrace) {
       _logError('[API][$requestId] OpenAPI generation error: $e\n$stackTrace');
       return jsonInternalServerError({'error': 'Internal server error'});
     }
   }
+
+  /// The document depends only on the route declarations and the port, so it
+  /// is built and encoded (about 400 KB) once per port.
+  String _openApiJson() {
+    final port = view.port();
+    final cached = _openApiDocument;
+    if (cached != null && cached.$1 == port) return cached.$2;
+    final json = jsonEncode(
+      buildOpenApiSpec(
+        routes: [
+          for (final endpoint in apiEndpoints)
+            if (endpoint.route.path.startsWith('/api/')) endpoint.route,
+        ],
+        port: port,
+      ),
+    );
+    _openApiDocument = (port, json);
+    return json;
+  }
+
+  (int, String)? _openApiDocument;
 
   Map<String, String> _apiCompatibilityHeaders() {
     return {

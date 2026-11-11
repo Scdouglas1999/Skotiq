@@ -152,10 +152,13 @@ final List<String> publicApiPaths = () {
       if (endpoint.route.scope == ApiScope.public) endpoint.route.path,
   };
   return List<String>.unmodifiable(
-    paths.where(
-      (path) => !paths.any(
-        (root) => root != '/' && path != root && path.startsWith('$root/'),
-      ),
-    ).toList()..sort(),
+    paths
+        .where(
+          (path) => !paths.any(
+            (root) => root != '/' && path != root && path.startsWith('$root/'),
+          ),
+        )
+        .toList()
+      ..sort(),
   );
 }();
