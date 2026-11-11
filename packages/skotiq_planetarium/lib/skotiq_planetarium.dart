@@ -1,15 +1,12 @@
 /// Skotiq Planetarium - Flutter GPU sky renderer
 library;
 
-// Rendering
 export 'src/rendering/sky_renderer.dart';
 export 'src/rendering/render_quality.dart';
 export 'src/rendering/fov_overlays.dart';
 
-// Services
 export 'src/services/geolocation_service.dart';
 
-// Providers
 export 'src/providers/planetarium_providers.dart';
 export 'src/providers/catalog_providers.dart';
 export 'src/providers/target_queue_provider.dart';
@@ -21,7 +18,6 @@ export 'src/providers/minor_planet_providers.dart';
 export 'src/providers/deep_star_providers.dart';
 export 'src/providers/element_refresh_providers.dart';
 
-// Widgets
 export 'src/widgets/interactive_sky_view.dart';
 export 'src/widgets/framing_view.dart';
 export 'src/widgets/time_control_panel.dart';

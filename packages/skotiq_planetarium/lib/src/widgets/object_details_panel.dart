@@ -12,27 +12,19 @@ part 'object_details_panel/visibility_sections.dart';
 part 'object_details_panel/action_sections.dart';
 part 'object_details_panel/chart_painters.dart';
 
-/// Enhanced object details panel showing comprehensive information
 class ObjectDetailsPanel extends ConsumerWidget {
-  /// The celestial object to display
   final CelestialObject object;
 
-  /// Background color
   final Color? backgroundColor;
 
-  /// Text color
   final Color? textColor;
 
-  /// Accent color
   final Color? accentColor;
 
-  /// Whether to show the visibility graph
   final bool showVisibilityGraph;
 
-  /// Callback when "Go To" is pressed
   final VoidCallback? onGoTo;
 
-  /// Callback when "Add to Targets" is pressed
   final VoidCallback? onAddToTargets;
 
   /// Callback when "Frame target" is pressed. When provided, a "Frame target"
@@ -119,7 +111,6 @@ class ObjectDetailsPanel extends ConsumerWidget {
               _buildNoSiteNote(txtColor),
               const SizedBox(height: 16),
             ] else ...[
-              // Visibility score indicator (new)
               Center(
                 child: _buildVisibilityIndicator(
                   _calculateVisibilityScore(ref, site, altAz!.$1),
@@ -127,25 +118,20 @@ class ObjectDetailsPanel extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
 
-              // Quick stats bar (new)
               _buildQuickStats(ref, site, altAz.$1, txtColor),
               const SizedBox(height: 16),
             ],
 
-            // Coordinates section
             _buildCoordinatesSection(txtColor),
             const SizedBox(height: 16),
 
-            // Catalog IDs section
             _buildCatalogSection(txtColor, accent),
             const SizedBox(height: 16),
 
-            // Physical properties section
             _buildPhysicalPropertiesSection(txtColor),
             const SizedBox(height: 16),
 
             if (site != null) ...[
-              // Current visibility section
               _buildVisibilitySection(altAz!.$1, altAz.$2, txtColor, accent),
 
               if (showVisibilityGraph) ...[
@@ -153,17 +139,14 @@ class ObjectDetailsPanel extends ConsumerWidget {
                 // Visibility graph (altitude over time)
                 _buildVisibilityGraph(ref, txtColor, accent),
                 const SizedBox(height: 16),
-                // Airmass chart
                 _buildAirmassChart(ref, txtColor, accent),
               ],
 
               const SizedBox(height: 16),
 
-              // Rise/Transit/Set times
               _buildRiseTransitSetSection(ref, site, txtColor),
             ],
 
-            // Extra content slot (e.g. imaging history)
             if (extraContent != null) ...[
               const SizedBox(height: 16),
               extraContent!,
@@ -171,7 +154,6 @@ class ObjectDetailsPanel extends ConsumerWidget {
 
             const SizedBox(height: 16),
 
-            // Action buttons
             _buildActionButtons(accent),
           ],
         ),

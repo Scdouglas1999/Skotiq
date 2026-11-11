@@ -24,10 +24,8 @@ part 'interactive_sky_view/hit_testing.dart';
 
 /// Interactive sky view widget with pan, zoom, and object selection
 class InteractiveSkyView extends ConsumerStatefulWidget {
-  /// Callback when an object is selected
   final ValueChanged<CelestialObject?>? onObjectSelected;
 
-  /// Callback when coordinates are tapped
   final ValueChanged<CelestialCoordinate>? onCoordinateTapped;
 
   /// Callback when an object is tapped with position info for popup display.
@@ -41,7 +39,6 @@ class InteractiveSkyView extends ConsumerStatefulWidget {
   )?
   onObjectTapped;
 
-  /// Whether to show the FOV indicator
   final bool showFOV;
   final bool showCrosshair;
 
@@ -118,7 +115,6 @@ class _InteractiveSkyViewState extends ConsumerState<InteractiveSkyView>
   Offset? _lastFocalPoint;
   double? _lastScale;
 
-  // Smooth zoom animation
   late AnimationController _zoomController;
   Animation<double>? _zoomAnimation;
   double _targetFOV = 60.0;
@@ -140,10 +136,8 @@ class _InteractiveSkyViewState extends ConsumerState<InteractiveSkyView>
   Animation<double>? _flyToDecAnimation;
   int? _lastFlyToToken;
 
-  // Star twinkle animation
   AnimationController? _twinkleController;
 
-  // Selection pulse animation
   late AnimationController _selectionController;
   CelestialCoordinate? _lastSelection;
 
@@ -358,7 +352,6 @@ class _InteractiveSkyViewState extends ConsumerState<InteractiveSkyView>
       _startFlyTo(next.target);
     });
 
-    // Handle selection animation
     if (qualityConfig.enableSelectionAnimation) {
       if (selectedObject.coordinates != _lastSelection) {
         _lastSelection = selectedObject.coordinates;
@@ -783,7 +776,6 @@ class _NoObservingSiteSky extends StatelessWidget {
   }
 }
 
-/// Helper class for tracking pan velocity samples
 class _PanSample {
   final Offset position;
   final DateTime time;

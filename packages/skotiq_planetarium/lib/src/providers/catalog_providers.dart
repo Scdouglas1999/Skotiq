@@ -57,7 +57,6 @@ class CatalogStateNotifier extends StateNotifier<CatalogState> {
   }
 }
 
-/// Provider for catalog state
 final catalogStateProvider =
     StateNotifierProvider<CatalogStateNotifier, CatalogState>(
       (ref) => CatalogStateNotifier(),

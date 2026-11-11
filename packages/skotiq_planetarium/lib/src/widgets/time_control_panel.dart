@@ -14,13 +14,10 @@ import '../providers/planetarium_providers.dart';
 /// - Jump to specific date/time
 /// - Jump to tonight's astronomical dusk
 class TimeControlPanel extends ConsumerStatefulWidget {
-  /// Background color
   final Color? backgroundColor;
 
-  /// Text color
   final Color? textColor;
 
-  /// Accent color for buttons
   final Color? accentColor;
 
   /// Whether to show compact mode (icon-only buttons)
@@ -102,15 +99,12 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Time display
         _buildTimeDisplay(timeState, txtColor, showSeconds: !narrow),
         const SizedBox(width: 8),
-        // Play/Pause
         _buildPlayPauseButton(timeState, accent),
         // Speed controls
         _buildSpeedButton(isForward: false, color: txtColor),
         _buildSpeedButton(isForward: true, color: txtColor),
-        // Now button
         narrow ? _buildCompactNowButton(accent) : _buildNowButton(accent),
       ],
     );
@@ -130,13 +124,10 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Date button
             _buildDateButton(timeState.time, txtColor),
             const SizedBox(width: 8),
-            // Time display
             _buildTimeDisplay(timeState, txtColor),
             const SizedBox(width: 8),
-            // Speed indicator
             _buildSpeedIndicator(timeState, txtColor),
           ],
         ),
@@ -161,7 +152,6 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
               ),
             ),
             const SizedBox(width: 4),
-            // Play/Pause
             _buildPlayPauseButton(timeState, accent, large: true),
             const SizedBox(width: 4),
             // Step forward

@@ -15,13 +15,10 @@ class SkyMinimap extends StatelessWidget {
   /// View rotation in degrees
   final double rotation;
 
-  /// Size of the mini-map
   final double size;
 
-  /// Callback when user taps on the mini-map
   final void Function(double azimuth, double altitude)? onTap;
 
-  /// Optional: show cardinal direction labels
   final bool showLabels;
 
   const SkyMinimap({
@@ -115,14 +112,12 @@ class _SkyMinimapPainter extends CustomPainter {
     // Draw altitude circles (30°, 60°)
     _drawAltitudeCircles(canvas, center, radius);
 
-    // Draw cardinal directions
     _drawCardinalDirections(canvas, center, radius);
 
     // Draw horizon (outer edge is already the border)
     // Draw zenith marker
     _drawZenithMarker(canvas, center);
 
-    // Draw current FOV indicator
     _drawFOVIndicator(canvas, center, radius);
   }
 
@@ -245,7 +240,6 @@ class _SkyMinimapPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
     canvas.drawRect(fovRect, fillPaint);
 
-    // Border
     final borderPaint = Paint()
       ..color = SkyPlotColors.openCluster
       ..style = PaintingStyle.stroke

@@ -5,14 +5,9 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import 'element_refresh_providers.dart';
 import 'planetarium_providers.dart';
 
-// Minor planet toggle provider
-
 /// Whether asteroid/comet overlay is enabled
 final showMinorPlanetsProvider = StateProvider<bool>((ref) => false);
 
-// Minor planet position provider
-
-/// State for minor planet positions.
 class MinorPlanetPositionState {
   final List<MinorBodyData> bodies;
   final DateTime lastUpdate;
@@ -33,7 +28,6 @@ class MinorPlanetPositionNotifier
 
   MinorPlanetPositionNotifier(this._ref)
     : super(MinorPlanetPositionState(lastUpdate: DateTime.now())) {
-    // Listen for toggle changes
     _ref.listen(showMinorPlanetsProvider, (prev, next) {
       if (next) {
         _startUpdates();
@@ -48,7 +42,6 @@ class MinorPlanetPositionNotifier
       }
     });
 
-    // Start if already enabled
     if (_ref.read(showMinorPlanetsProvider)) {
       _startUpdates();
     }
@@ -60,7 +53,6 @@ class MinorPlanetPositionNotifier
     _timer = Timer.periodic(const Duration(seconds: 30), (_) {
       _updatePositions();
     });
-    // Initial update
     _updatePositions();
   }
 

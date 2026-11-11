@@ -7,16 +7,12 @@ import '../providers/planetarium_providers.dart';
 
 /// Framing view widget for imaging planning
 class FramingView extends ConsumerStatefulWidget {
-  /// Target coordinates
   final CelestialCoordinate? target;
 
-  /// Callback when target changes
   final ValueChanged<CelestialCoordinate>? onTargetChanged;
 
-  /// Callback when rotation changes
   final ValueChanged<double>? onRotationChanged;
 
-  /// Whether mosaic mode is enabled
   final bool showMosaic;
   final bool showCrosshair;
 
@@ -114,7 +110,6 @@ class _FramingViewState extends ConsumerState<FramingView> {
             ),
           ),
 
-        // Mosaic panels
         if (widget.showMosaic && mosaicPlan.plan != null)
           CustomPaint(
             painter: _MosaicOverlayPainter(
@@ -125,7 +120,6 @@ class _FramingViewState extends ConsumerState<FramingView> {
             size: Size.infinite,
           ),
 
-        // Center crosshair
         if (widget.showCrosshair)
           Center(
             child: CustomPaint(
@@ -151,7 +145,6 @@ class _FramingViewState extends ConsumerState<FramingView> {
           ),
         ),
 
-        // Scale indicator
         Positioned(left: 16, bottom: 16, child: _ScaleIndicator(zoom: _zoom)),
       ],
     );
@@ -295,17 +288,14 @@ class _FOVPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
     canvas.drawRect(rect, fillPaint);
 
-    // Draw border
     final borderPaint = Paint()
       ..color = FieldOfViewColors.green
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
     canvas.drawRect(rect, borderPaint);
 
-    // Draw corner indicators
     _drawCorners(canvas, rect, borderPaint);
 
-    // Draw rotation handle
     final handlePaint = Paint()
       ..color = FieldOfViewColors.green
       ..style = PaintingStyle.fill;
@@ -318,7 +308,6 @@ class _FOVPainter extends CustomPainter {
       borderPaint,
     );
 
-    // Draw cardinal directions
     _drawCardinalLabels(canvas, rect);
 
     canvas.restore();

@@ -1,14 +1,9 @@
 part of '../planetarium_providers.dart';
 
-// HUD toggle providers
-
-/// Whether to show the compass HUD
 final showCompassHudProvider = StateProvider<bool>((ref) => true);
 
-/// Whether to show the mini-map
 final showMinimapProvider = StateProvider<bool>((ref) => true);
 
-/// Whether to show the ground plane
 final showGroundPlaneProvider = StateProvider<bool>((ref) => true);
 
 /// Whether to render the entire planetarium in night-vision (red) mode.
@@ -30,8 +25,6 @@ final showFovRingsProvider = StateProvider<bool>((ref) => false);
 /// Off by default. The [InteractiveSkyView] reads this flag to switch its drag
 /// handling and draw the measurement overlay.
 final measurementModeProvider = StateProvider<bool>((ref) => false);
-
-// Sky render config provider
 
 class SkyRenderConfigNotifier extends StateNotifier<SkyRenderConfig> {
   /// Nullable so existing tests that construct the notifier bare keep working;
@@ -205,23 +198,17 @@ final effectiveSkyRenderConfigProvider = Provider<SkyRenderConfig>((ref) {
   return config.copyWith(showGroundPlane: showGroundPlane);
 });
 
-// Render quality provider
-
-/// Notifier for managing render quality settings
 class RenderQualityNotifier extends StateNotifier<RenderQualityConfig> {
   RenderQualityNotifier() : super(const RenderQualityConfig.balanced());
 
-  /// Set the quality tier
   void setQuality(RenderQuality quality) {
     state = RenderQualityConfig.fromQuality(quality);
   }
 
-  /// Set a custom configuration
   void setConfig(RenderQualityConfig config) {
     state = config;
   }
 
-  /// Toggle a specific setting
   void toggleBlurEffects() {
     state = state.copyWith(useBlurEffects: !state.useBlurEffects);
   }
@@ -272,7 +259,6 @@ enum LodTier {
   narrow,
 }
 
-/// Determines the current LOD tier based on FOV
 final lodTierProvider = Provider<LodTier>((ref) {
   final fov = ref.watch(skyViewStateProvider.select((s) => s.fieldOfView));
   if (fov > 60) return LodTier.wide;
@@ -434,7 +420,6 @@ final dynamicMagnitudeLimitsProvider = Provider<(double, double)>((ref) {
     skyRenderConfigProvider.select((c) => c.showStars),
   );
 
-  // Base limits from quality tier
   final baseStarLimit = quality.starMagnitudeLimit;
   final baseDsoLimit = quality.dsoMagnitudeLimit;
 

@@ -1,7 +1,5 @@
 part of '../planetarium_providers.dart';
 
-// Location provider
-
 /// The site the planetarium computes against.
 ///
 /// [latitude] / [longitude] are null until a site is on record. No coordinates
@@ -105,8 +103,6 @@ final observerLocationProvider =
 final planetariumEffectiveHorizonDegProvider = StateProvider<double>(
   (ref) => 0.0,
 );
-
-// Observation time provider
 
 /// Current observation time (can be simulated or real-time)
 class ObservationTimeState {

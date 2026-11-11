@@ -5,8 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:skotiq_astro/skotiq_astro.dart';
 
-// Live MPC orbital-element refresh
-
 /// The element-refresh service over the shared catalog directory.
 final elementRefreshServiceProvider = Provider<ElementRefreshService>((ref) {
   return ElementRefreshService();

@@ -174,7 +174,6 @@ extension _SkyCanvasPainterSolarBodies on SkyCanvasPainter {
       final offset = _celestialToScreen(coord, center, scale);
       if (offset == null) continue;
 
-      // Convert int color to Color
       final planetColor = Color(planet.color);
 
       // Planet glow - use cached blur

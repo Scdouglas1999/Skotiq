@@ -151,7 +151,6 @@ extension _SkyViewMotion on _InteractiveSkyViewState {
     _lastMomentumElapsed = Duration.zero;
   }
 
-  /// Calculate pan velocity from recent samples
   Offset _calculatePanVelocity() {
     if (_panSamples.length < 2) return Offset.zero;
 
@@ -302,7 +301,6 @@ extension _SkyViewMotion on _InteractiveSkyViewState {
     }
   }
 
-  /// Animate FOV to a new target value
   void _animateZoom(double newFOV) {
     // The tween BEGINS at the live FOV so the glide stays visually continuous
     // when a new step lands mid-animation; only the END accumulates.
@@ -382,7 +380,6 @@ extension _SkyViewMotion on _InteractiveSkyViewState {
     _flyToController.forward(from: 0.0);
   }
 
-  /// Map provider mount status to renderer mount status
   MountRenderStatus _mapMountStatus(MountTrackingStatus status) {
     return switch (status) {
       MountTrackingStatus.disconnected => MountRenderStatus.disconnected,
