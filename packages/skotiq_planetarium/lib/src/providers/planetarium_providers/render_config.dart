@@ -359,6 +359,19 @@ RenderQualityConfig _lodAdaptedQuality(
   }
 }
 
+/// The Sun's altitude in degrees at the site for the sky time on screen, to
+/// the minute. Null with no site on record.
+final planetariumSunAltitudeProvider = Provider<double?>((ref) {
+  final site = ref.watch(observerLocationProvider).site;
+  if (site == null) return null;
+  final time = ref.watch(_currentMinuteProvider);
+  return AstronomyCalculations.sunAltitude(
+    dt: time,
+    latitudeDeg: site.latitude,
+    longitudeDeg: site.longitude,
+  );
+});
+
 /// How many magnitudes of limiting depth the current sky brightness costs, from
 /// the Sun's altitude:
 ///
@@ -381,15 +394,8 @@ RenderQualityConfig _lodAdaptedQuality(
 /// applied: this is a rendering depth knob, and the alternative is dimming the
 /// chart on a guess about where the observer is standing.
 final _skyBrightnessPenaltyProvider = Provider<double>((ref) {
-  final site = ref.watch(observerLocationProvider).site;
-  if (site == null) return 0.0;
-  final time = ref.watch(_currentMinuteProvider);
-
-  final sunAlt = AstronomyCalculations.sunAltitude(
-    dt: time,
-    latitudeDeg: site.latitude,
-    longitudeDeg: site.longitude,
-  );
+  final sunAlt = ref.watch(planetariumSunAltitudeProvider);
+  if (sunAlt == null) return 0.0;
 
   if (sunAlt >= 0) return 6.0;
   // sunAlt is negative below here, so each ramp is linear in sunAlt.
