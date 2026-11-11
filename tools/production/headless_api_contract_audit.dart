@@ -11,7 +11,7 @@ import 'dart:convert';
 import 'dart:io';
 
 // ignore: avoid_relative_lib_imports
-import '../../packages/skotiq_remote_protocol/lib/wire.dart';
+import '../../packages/skotiq_remote_protocol/lib/routes.dart';
 
 const _networkBackendPath =
     'packages/skotiq_core/lib/src/backend/network_backend.dart';
