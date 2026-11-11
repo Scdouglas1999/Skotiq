@@ -90,7 +90,6 @@ class _SpotlightHitTestRenderBox extends RenderProxyBox {
       return true;
     }
 
-    // Check if the hit is within the spotlight hole
     final spotlightRect = _targetRect!.inflate(_padding);
     if (spotlightRect.contains(position)) {
       // Hit is in the spotlight - let it pass through to underlying widget
@@ -129,7 +128,6 @@ class _SpotlightPainter extends CustomPainter {
 
     final paint = Paint()..color = dimColor;
 
-    // Draw dim with spotlight cutout based on shape
     final path = Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
 
     final inflatedRect = target.inflate(padding);
@@ -148,7 +146,6 @@ class _SpotlightPainter extends CustomPainter {
         break;
 
       case SpotlightShape.pill:
-        // Horizontal oval/capsule shape
         final verticalRadius = inflatedRect.height / 2;
         final horizontalRadius = inflatedRect.width / 2 + verticalRadius * 0.5;
         path.addRRect(
@@ -186,7 +183,6 @@ class _SpotlightPainter extends CustomPainter {
   }
 }
 
-/// Painter for the expanding ring pulse effect
 class _ExpandingRingPainter extends CustomPainter {
   final Rect targetRect;
   final double padding;
@@ -204,7 +200,6 @@ class _ExpandingRingPainter extends CustomPainter {
     required this.shape,
   });
 
-  /// Build a positioned widget containing the ring painter
   static Widget buildWidget({
     required Rect targetRect,
     required double padding,
@@ -213,12 +208,10 @@ class _ExpandingRingPainter extends CustomPainter {
     required Color ringColor,
     required SpotlightShape shape,
   }) {
-    // Calculate the maximum expansion distance
     const maxExpansion = 24.0;
     final currentExpansion = maxExpansion * ringProgress;
     final expandedPadding = padding + currentExpansion;
 
-    // Calculate bounds for the ring
     final inflatedRect = targetRect.inflate(expandedPadding + 4);
 
     return Positioned(

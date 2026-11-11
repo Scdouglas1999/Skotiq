@@ -202,7 +202,6 @@ class AtlasGrowthCurvePanel extends StatelessWidget {
   static String _shortLabel(AtlasGrowthPoint point) {
     final date = point.date;
     if (date == null) {
-      // Non-dated session-id label: show it verbatim (trimmed).
       final label = point.label.trim();
       return label.length > 8 ? label.substring(0, 8) : label;
     }

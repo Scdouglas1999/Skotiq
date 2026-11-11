@@ -1,4 +1,3 @@
-// Pure numeric helpers used by report summary tables.
 part of '../observation_report_service.dart';
 
 double _listMin(List<double> values) {

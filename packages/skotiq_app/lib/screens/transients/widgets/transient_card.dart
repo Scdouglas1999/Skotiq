@@ -5,15 +5,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/transient_type_style.dart';
 
-/// Card widget displaying a transient alert with its details and actions.
-///
-/// Shows:
-/// - Type icon and alert name
-/// - Coordinates (RA/Dec)
-/// - Magnitude and brightness indicator
-/// - Discovery info (source, time)
-/// - State badge (New, Queued, Observed, Dismissed)
-/// - Action buttons (Queue, View in Framing, Dismiss)
 class TransientCard extends StatefulWidget {
   final TransientAlert alert;
   final TransientAlertState? state;
@@ -83,7 +74,6 @@ class _TransientCardState extends State<TransientCard> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Type icon
         Container(
           padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
           decoration: SkotiqDecorations.tintedBadge(
@@ -98,7 +88,6 @@ class _TransientCardState extends State<TransientCard> {
 
         const SizedBox(width: SkotiqTokens.spaceMd),
 
-        // Name and type
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -132,7 +121,6 @@ class _TransientCardState extends State<TransientCard> {
           ),
         ),
 
-        // State badge
         _StateBadge(state: effectiveState, colors: colors),
       ],
     );
@@ -141,7 +129,6 @@ class _TransientCardState extends State<TransientCard> {
   Widget _buildInfoRow(SkotiqColors colors) {
     return Row(
       children: [
-        // Coordinates
         Expanded(
           child: Row(
             children: [
@@ -164,7 +151,6 @@ class _TransientCardState extends State<TransientCard> {
           ),
         ),
 
-        // Magnitude
         if (widget.alert.magnitude != null) ...[
           const SizedBox(width: SkotiqTokens.spaceMd),
           _MagnitudeIndicator(
@@ -186,7 +172,6 @@ class _TransientCardState extends State<TransientCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Discovery info
           _DetailRow(
             icon: SkotiqIcons.search,
             label: 'Source',
@@ -408,7 +393,6 @@ class _TransientCardState extends State<TransientCard> {
   }
 }
 
-/// Badge showing the current state of the alert.
 class _StateBadge extends StatelessWidget {
   final TransientAlertState state;
   final SkotiqColors colors;
@@ -454,7 +438,6 @@ class _StateBadge extends StatelessWidget {
   }
 }
 
-/// Magnitude indicator with brightness color coding.
 class _MagnitudeIndicator extends StatelessWidget {
   final double magnitude;
   final SkotiqColors colors;
@@ -527,7 +510,6 @@ class _MagnitudeIndicator extends StatelessWidget {
   }
 }
 
-/// Row for displaying a detail item in the expanded view.
 class _DetailRow extends StatelessWidget {
   final IconData icon;
   final String label;

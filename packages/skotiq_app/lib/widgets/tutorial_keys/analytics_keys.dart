@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 
-/// GlobalKeys for Analytics tutorial targets
 class AnalyticsTutorialKeys {
   static final sessionTab = GlobalKey(debugLabel: 'analytics_session_tab');
   static final historyTab = GlobalKey(debugLabel: 'analytics_history_tab');

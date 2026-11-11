@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 
-/// GlobalKeys for Guiding tutorial targets
 class GuidingTutorialKeys {
   static final connectBtn = GlobalKey(debugLabel: 'guiding_connect_btn');
   static final statusBar = GlobalKey(debugLabel: 'guiding_status_bar');

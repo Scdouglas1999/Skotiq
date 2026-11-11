@@ -10,13 +10,10 @@ import '../tutorial_keys/weather_keys.dart';
 /// [Glass] over the map or in a [SkotiqPanel] under it, so there is one
 /// block rendered two ways rather than two blocks (02 rule 4).
 class WeatherStatusCard extends StatelessWidget {
-  /// Current weather alert (if any)
   final WeatherAlert? alert;
 
-  /// Cloud motion data (if available)
   final CloudMotion? motion;
 
-  /// Last data update time
   final DateTime? lastUpdate;
 
   const WeatherStatusCard({
@@ -26,7 +23,6 @@ class WeatherStatusCard extends StatelessWidget {
     this.lastUpdate,
   });
 
-  /// Icon for an alert level.
   static IconData _alertIcon(AlertLevel level) {
     switch (level) {
       case AlertLevel.clear:
@@ -40,7 +36,6 @@ class WeatherStatusCard extends StatelessWidget {
     }
   }
 
-  /// Colour for an alert level.
   static Color _alertColor(AlertLevel level, SkotiqColors colors) {
     switch (level) {
       case AlertLevel.clear:
@@ -53,7 +48,6 @@ class WeatherStatusCard extends StatelessWidget {
     }
   }
 
-  /// Text label for an alert level.
   static String _alertLabel(AlertLevel level) {
     switch (level) {
       case AlertLevel.clear:
@@ -67,7 +61,6 @@ class WeatherStatusCard extends StatelessWidget {
     }
   }
 
-  /// Format ETA duration.
   static String _formatEta(Duration eta) {
     final minutes = eta.inMinutes;
     if (minutes < 2) return 'Imminent';
@@ -76,7 +69,6 @@ class WeatherStatusCard extends StatelessWidget {
     return '~${hours}h ${minutes % 60}m';
   }
 
-  /// Convert degrees to a cardinal direction.
   static String _degreesToCardinal(double degrees) {
     final normalized = degrees % 360;
     const directions = [
@@ -100,7 +92,6 @@ class WeatherStatusCard extends StatelessWidget {
     return directions[((normalized + 11.25) / 22.5).floor() % 16];
   }
 
-  /// Format last update time as relative.
   static String _formatLastUpdate(DateTime time) {
     final difference = DateTime.now().difference(time);
     if (difference.inSeconds < 60) return '${difference.inSeconds} sec ago';
@@ -113,7 +104,6 @@ class WeatherStatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
 
-    // Default to clear if no alert
     final level = alert?.level ?? AlertLevel.clear;
     final tone = _alertColor(level, colors);
     final eta = alert?.eta;

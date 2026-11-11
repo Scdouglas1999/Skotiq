@@ -32,16 +32,13 @@ extension Phd2GuidingStateIcon on Phd2GuidingState {
   }
 }
 
-/// Panel containing main guiding controls
 class GuideControlsPanel extends StatefulWidget {
   /// Key of the inline "why that control is unavailable" banner, raised when
   /// the operator presses a control that cannot act.
   static const Key noticeBannerKey = ValueKey('guideControlsNotice');
 
-  /// Current guiding state
   final Phd2GuidingState state;
 
-  /// Whether PHD2 is connected
   final bool isConnected;
 
   /// Callbacks for main controls.
@@ -76,14 +73,12 @@ class GuideControlsPanel extends StatefulWidget {
   /// suspended — the one thing pause exists to tell them.
   final String? pauseUnavailableReason;
 
-  /// Dither controls
   final double ditherAmount;
   final bool ditherRaOnly;
   final void Function(double)? onDitherAmountChanged;
   final void Function(bool)? onDitherRaOnlyChanged;
   final Future<void> Function()? onDither;
 
-  /// Settle parameters
   final double settlePixels;
   final double settleTime;
   final double settleTimeout;
@@ -199,12 +194,6 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
   }
 
   /// The panel sizes to its content and never scrolls on its own.
-  ///
-  /// It used to be a bordered card with its own scroll view inside the side
-  /// panel's: a column of full-width 44px buttons whose Dither and Settle
-  /// sections sat below the fold of the inner scroll, announced only by a
-  /// fade. The buttons are a compact grid now, and the host scrolls the whole
-  /// column if a short window needs it.
   @override
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;

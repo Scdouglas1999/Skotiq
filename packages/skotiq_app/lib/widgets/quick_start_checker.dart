@@ -37,7 +37,6 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
   @override
   void initState() {
     super.initState();
-    // Schedule check after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkForStartupOptions();
     });
@@ -91,7 +90,6 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
       }
 
       if (incompleteSessions.isNotEmpty && mounted) {
-        // Show recovery dialog for interrupted sessions (takes priority)
         await Future.delayed(const Duration(milliseconds: 500));
 
         if (mounted && _isCurrentAuthority(authority)) {
@@ -136,7 +134,6 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
           quickStartContext.isRecent &&
           !sessionIsFinished(quickStartContext) &&
           mounted) {
-        // Show quick start dialog
         await Future.delayed(const Duration(milliseconds: 500));
 
         if (mounted && _isCurrentAuthority(authority)) {
@@ -326,7 +323,6 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
       // snackbar would announce a restore over a no-op.
       final restored = <String>[];
 
-      // Load the equipment profile
       if (context.profileId != null) {
         final profilesNotifier = ref.read(equipmentProfilesProvider.notifier);
         await profilesNotifier.setActiveProfile(context.profileId!);
@@ -354,7 +350,6 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
         }
       }
 
-      // Apply equipment settings from snapshot
       final snapshotResult = await _applyEquipmentSnapshot(
         context.equipmentSnapshot,
         authority,
@@ -442,7 +437,6 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
         throw StateError('No resumable execution checkpoint is available');
       }
 
-      // Load the equipment profile
       if (context.profileId != null) {
         final profilesNotifier = ref.read(equipmentProfilesProvider.notifier);
         await profilesNotifier.setActiveProfile(context.profileId!);
@@ -512,7 +506,6 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
       return _SnapshotRestore(applied: applied, failures: failures);
     }
 
-    // Apply camera settings
     final cameraNotifier = ref.read(cameraStateProvider.notifier);
     if (snapshot.coolerTargetTemp != null) {
       cameraNotifier.setTargetTemp(snapshot.coolerTargetTemp!);
@@ -540,7 +533,6 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
       );
     }
 
-    // Apply filter position
     if (snapshot.filterPosition != null) {
       if (!_isCurrentAuthority(authority)) {
         return _SnapshotRestore(applied: applied, failures: failures);
@@ -571,7 +563,6 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
       }
     }
 
-    // Apply focus position
     if (snapshot.focuserPosition != null) {
       if (!_isCurrentAuthority(authority)) {
         return _SnapshotRestore(applied: applied, failures: failures);

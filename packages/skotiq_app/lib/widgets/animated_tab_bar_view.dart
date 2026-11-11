@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// An animated TabBarView with smooth transitions between tabs
 class AnimatedTabBarView extends StatefulWidget {
   final TabController controller;
   final List<Widget> children;

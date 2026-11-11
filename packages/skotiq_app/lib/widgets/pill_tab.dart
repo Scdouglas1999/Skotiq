@@ -15,22 +15,18 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 ///  * unselected => surface/surfaceHover fill, 8px radius, border/borderHighlight
 ///  * icon size 16, label fontSize 10 (w600 selected / w500 otherwise)
 class PillTab extends StatefulWidget {
-  /// Icon shown above the label.
   final IconData icon;
 
   /// Text label shown below the icon (and used as the tooltip/semantics label).
   final String label;
 
-  /// Whether this pill is the currently-selected tab.
   final bool isSelected;
 
-  /// Invoked when the pill is tapped.
   final VoidCallback onTap;
 
   /// Optional tooltip override. Defaults to [label] when null.
   final String? tooltip;
 
-  /// Theme colors used for the fill, border, and text.
   final SkotiqColors colors;
 
   /// Compact density for phones (especially landscape, where vertical space is

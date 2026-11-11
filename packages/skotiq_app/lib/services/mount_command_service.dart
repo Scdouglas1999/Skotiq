@@ -3,7 +3,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 
 import '../models/command_action_result.dart';
 
-/// Provider for the MountCommandService.
 final mountCommandServiceProvider = Provider((ref) {
   final backend = ref.watch(deviceBackendProvider);
   final deviceService = ref.watch(deviceServiceProvider);
@@ -44,7 +43,6 @@ class MountCommandService {
     return mount.deviceId;
   }
 
-  /// Returns true if a mount is currently connected.
   bool get isConnected => _connectedMountId != null;
 
   Future<MountCapabilities> _getCapabilities(String deviceId) async {
@@ -102,7 +100,6 @@ class MountCommandService {
     return null;
   }
 
-  /// Toggles between parked and unparked state.
   Future<CommandActionResult> togglePark() async {
     return _runExclusive((deviceId) async {
       final unparkRequested = _mountState.isParked;
@@ -133,7 +130,6 @@ class MountCommandService {
     });
   }
 
-  /// Parks the mount.
   Future<CommandActionResult> park() async {
     return _runExclusive((deviceId) async {
       try {
@@ -153,7 +149,6 @@ class MountCommandService {
     });
   }
 
-  /// Unparks the mount.
   Future<CommandActionResult> unpark() async {
     return _runExclusive((deviceId) async {
       try {
@@ -240,7 +235,6 @@ class MountCommandService {
     }
   }
 
-  /// Sets the mount tracking state.
   Future<CommandActionResult> setTracking(bool enabled) async {
     return _runExclusive((deviceId) async {
       try {
@@ -260,7 +254,6 @@ class MountCommandService {
     });
   }
 
-  /// Toggles the mount tracking state.
   Future<CommandActionResult> toggleTracking() async {
     if (!isConnected) {
       return const CommandActionResult.failure('No mount connected');
@@ -294,7 +287,6 @@ class MountCommandService {
     });
   }
 
-  /// Syncs the mount to the specified RA/Dec coordinates.
   Future<CommandActionResult> sync(double ra, double dec) async {
     final coordinateError = _equatorialCoordinateError(ra, dec);
     if (coordinateError != null) {
@@ -419,7 +411,6 @@ class MountCommandService {
     return null;
   }
 
-  /// Why Home refuses a parked mount.
   static const String homeWhileParkedMessage =
       'The mount is parked. Unpark it before sending it home.';
 
@@ -427,7 +418,6 @@ class MountCommandService {
   static const String homeUnconfirmedMessage =
       'The mount moved and stopped, but its driver cannot confirm it is at home';
 
-  /// Sends a pulse guide command in the specified direction.
   Future<CommandActionResult> pulseGuide(
     String direction, {
     int durationMs = 500,

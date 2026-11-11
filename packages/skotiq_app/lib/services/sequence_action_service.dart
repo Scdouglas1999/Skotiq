@@ -5,7 +5,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 
 import '../models/command_action_result.dart';
 
-/// Provider for the SequenceActionService.
 final sequenceActionServiceProvider =
     Provider((ref) => SequenceActionService(ref));
 
@@ -94,7 +93,6 @@ class SequenceActionService {
         }
       });
 
-  /// Pauses the running sequence.
   Future<CommandActionResult> pause() => _single(
       _SequenceCommand.pause,
       () => _afterStart(() async {
@@ -110,7 +108,6 @@ class SequenceActionService {
             }
           }));
 
-  /// Resumes a paused sequence.
   Future<CommandActionResult> resume() => _single(
       _SequenceCommand.resume,
       () => _afterStart(() async {

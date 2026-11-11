@@ -8,7 +8,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:uuid/uuid.dart';
 import '../widgets/auto_build_options_dialog.dart';
 
-/// Build a multi-filter Smart Night sequence for a Plan Tonight target.
 Future<SingleTargetSequenceResult> buildPlanTonightTargetSequence({
   required WidgetRef ref,
   required TargetSuggestion target,
@@ -205,7 +204,6 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
   );
 }
 
-/// Build a [TargetSuggestion] from a framed target.
 Future<TargetSuggestion> framingTargetSuggestion({
   required WidgetRef ref,
   required FramingTarget target,
@@ -330,7 +328,6 @@ Future<TargetSuggestion> catalogTargetSuggestion({
   );
 }
 
-/// Build and load a Plan Tonight multi-filter sequence into the editor.
 Future<bool> addPlanTonightTargetToSequencer({
   required BuildContext context,
   required WidgetRef ref,
@@ -387,7 +384,6 @@ Future<bool> addFramedTargetToSequencer({
 }) async {
   final framingState = ref.read(framingProvider);
 
-  // Mosaic dispatch — only when the user has actually generated panels.
   if (framingState.mosaicEnabled && framingState.mosaicPanels.isNotEmpty) {
     return _addFramedMosaicToSequencer(
       context: context,

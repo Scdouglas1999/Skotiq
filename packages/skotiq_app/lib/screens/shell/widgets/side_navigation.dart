@@ -268,9 +268,6 @@ class SideNavigation extends ConsumerWidget {
                   ),
                 ),
 
-                // The Rig card: run state, one row per device, the in-flight
-                // operation strip and the save path — everything the old
-                // bottom instrument bar carried.
                 RigCard(isExpanded: isExpanded),
               ],
             ),

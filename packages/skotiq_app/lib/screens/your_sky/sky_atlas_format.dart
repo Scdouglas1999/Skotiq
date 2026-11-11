@@ -31,7 +31,6 @@ String formatDecDeg(double decDeg) => CoordinateFormat.decDm(
       minutes: MinutesPrecision.rounded,
     );
 
-/// `RA · Dec` coordinate label for a region/tile centre.
 String formatCenter(double raDeg, double decDeg) =>
     '${formatRaDeg(raDeg)} · ${formatDecDeg(decDeg)}';
 

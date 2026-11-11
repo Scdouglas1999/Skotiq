@@ -132,7 +132,6 @@ Future<FileDownloadOutcome> downloadFileToDevice({
   }
 }
 
-/// Extract the friendliest available message from a download failure.
 String downloadErrorMessage(Object e) {
   // SkotiqException / IoException (thrown by the resumable downloader)
   // carry a user-facing `userMessage`, but the type isn't exported from the

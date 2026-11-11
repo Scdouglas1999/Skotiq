@@ -1,7 +1,3 @@
-// The window's own chrome, drawn inside the single slate of glass: the drag
-// surface, the minimize / maximize / close controls, the main area's top
-// band, the sidebar's header (lockup + command field), and the invisible
-// resize edges an undecorated Linux window needs.
 import 'dart:developer' as developer;
 import 'dart:io' show Platform;
 
@@ -19,7 +15,6 @@ import '../shell_chrome.dart';
 import 'shell_clock.dart';
 import 'shell_help_popover.dart';
 
-// Conditional import for window_manager (desktop only)
 import 'window_chrome_stub.dart'
     if (dart.library.io) 'window_chrome_desktop.dart' as window_impl;
 
@@ -329,7 +324,6 @@ class ShellTopBand extends StatelessWidget {
             // Remote connection. Tap opens the details sheet, which carries
             // the "Reconnect now" button and the share action.
             const RemoteConnectionIndicator(compact: true),
-            // Transient alerts.
             Builder(
               builder: (context) => TransientAlertBadge(
                 showDropdown: true,
@@ -347,7 +341,6 @@ class ShellTopBand extends StatelessWidget {
                 },
               ),
             ),
-            // Help for this screen: the tour, the shortcuts, the manual.
             const ShellHelpButton(),
             // Settings — keyed for the onboarding overlay so the first-launch
             // tour can spotlight where Plate Solving lives.

@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 
-/// GlobalKeys for Polar Alignment tutorial targets
 class PolarAlignmentTutorialKeys {
   static final hemisphere = GlobalKey(debugLabel: 'polar_hemisphere');
   static final exposure = GlobalKey(debugLabel: 'polar_exposure');

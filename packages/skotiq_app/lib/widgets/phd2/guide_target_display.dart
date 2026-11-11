@@ -7,16 +7,10 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 // app can share one canonical model rather than duplicating it per layer.
 
 /// Widget that displays a PHD2-style target display showing guide error history
-///
-/// Shows concentric circles representing error thresholds with:
-/// - Current error position (red X)
-/// - Historical error positions (fading blue dots)
-/// - Center crosshairs
 class GuideTargetDisplay extends StatelessWidget {
   /// List of historical error points (newest last)
   final List<GuideErrorPoint> errorHistory;
 
-  /// Maximum number of historical points to display
   final int maxHistoryPoints;
 
   /// Scale in [unitSuffix] units per ring
@@ -27,10 +21,8 @@ class GuideTargetDisplay extends StatelessWidget {
   /// scale is known, so the label must not claim arcseconds unconditionally.
   final String unitSuffix;
 
-  /// Number of rings to display
   final int numRings;
 
-  /// Whether to show the current error marker prominently
   final bool showCurrentError;
 
   /// Current RA error in arcseconds
@@ -115,23 +107,17 @@ class _TargetDisplayPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = math.min(size.width, size.height) / 2 - 12;
 
-    // Calculate pixels per arcsecond
     final maxArcsec = scaleArcsec * numRings;
     final pixelsPerArcsec = radius / maxArcsec;
 
-    // Draw background rings
     _drawRings(canvas, center, radius);
 
-    // Draw crosshairs
     _drawCrosshairs(canvas, center, radius);
 
-    // Draw scale labels
     _drawScaleLabels(canvas, center, radius);
 
-    // Draw historical points
     _drawHistory(canvas, center, pixelsPerArcsec);
 
-    // Draw current error
     if (showCurrentError) {
       _drawCurrentError(canvas, center, pixelsPerArcsec);
     }
@@ -148,7 +134,6 @@ class _TargetDisplayPainter extends CustomPainter {
       canvas.drawCircle(center, ringRadius, paint);
     }
 
-    // Draw outer ring with gradient effect
     final outerPaint = Paint()
       ..shader = RadialGradient(
         colors: [
@@ -164,21 +149,18 @@ class _TargetDisplayPainter extends CustomPainter {
       ..color = colors.border.withValues(alpha: 0.3)
       ..strokeWidth = 1;
 
-    // Vertical line
     canvas.drawLine(
       Offset(center.dx, center.dy - radius),
       Offset(center.dx, center.dy + radius),
       paint,
     );
 
-    // Horizontal line
     canvas.drawLine(
       Offset(center.dx - radius, center.dy),
       Offset(center.dx + radius, center.dy),
       paint,
     );
 
-    // Center dot
     final centerPaint = Paint()
       ..color = colors.primary.withValues(alpha: 0.5)
       ..style = PaintingStyle.fill;
@@ -246,14 +228,12 @@ class _TargetDisplayPainter extends CustomPainter {
     final x = center.dx + currentRaError * pixelsPerArcsec;
     final y = center.dy - currentDecError * pixelsPerArcsec; // Invert Y
 
-    // Draw glow effect
     final glowPaint = Paint()
       ..color = colors.error.withValues(alpha: 0.3)
       ..style = PaintingStyle.fill
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
     canvas.drawCircle(Offset(x, y), 8, glowPaint);
 
-    // Draw X marker
     final paint = Paint()
       ..color = colors.error
       ..strokeWidth = 2.5

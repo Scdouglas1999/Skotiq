@@ -35,7 +35,6 @@ enum SpotlightShape {
   pill,
 }
 
-/// Global keys for tutorial targets
 class TutorialKeys {
   // Navigation keys (used by multiple tutorials)
   static final sideNavigation = GlobalKey(debugLabel: 'side_navigation');
@@ -86,7 +85,6 @@ class TutorialKeys {
         return navSettings;
     }
 
-    // Delegate to screen-specific key classes based on prefix
     if (keyId.startsWith('equipment_')) {
       return EquipmentTutorialKeys.getKey(keyId);
     }
@@ -182,7 +180,6 @@ int? tutorialStepIndexPastMissingTarget({
   return null;
 }
 
-/// Tutorial overlay that displays coach marks with spotlight effect
 class TutorialOverlay extends ConsumerStatefulWidget {
   final Widget child;
 
@@ -269,7 +266,6 @@ class _TutorialOverlayState extends ConsumerState<TutorialOverlay>
       duration: const Duration(milliseconds: 2000),
     );
 
-    // Ring expands from 0 to 1 (spotlight edge to outer ring)
     _ringAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _pulseController,
@@ -277,7 +273,6 @@ class _TutorialOverlayState extends ConsumerState<TutorialOverlay>
       ),
     );
 
-    // Ring fades out as it expands
     _ringOpacityAnimation = Tween<double>(begin: 0.8, end: 0.0).animate(
       CurvedAnimation(
         parent: _pulseController,
@@ -387,7 +382,6 @@ class _TutorialOverlayState extends ConsumerState<TutorialOverlay>
       _passOverMissingTarget(tutorialState);
     }
 
-    // Listen for tutorial state changes to navigate to appropriate tabs
     ref.listen<TutorialProgress>(tutorialProvider, (previous, current) {
       if (current.activeCategory != previous?.activeCategory) {
         _routeRequestedForTour = null;
@@ -422,7 +416,6 @@ class _TutorialOverlayState extends ConsumerState<TutorialOverlay>
       children: [
         widget.child,
 
-        // Tutorial overlay
         if (tutorialState.activeCategory != null)
           FadeTransition(
             opacity: _fadeAnimation,

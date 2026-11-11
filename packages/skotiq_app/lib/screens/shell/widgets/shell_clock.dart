@@ -1,4 +1,3 @@
-// Wall-clock and LST readout at the left of the main area's top band.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';

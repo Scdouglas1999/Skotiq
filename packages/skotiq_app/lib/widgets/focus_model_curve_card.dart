@@ -204,7 +204,6 @@ class _FocusModelCurveCardState extends ConsumerState<FocusModelCurveCard> {
     );
 
     if (widget.compact) {
-      // Tappable summary preview on the camera tab.
       final router = GoRouter.maybeOf(context);
       final onOpenFullScreen = widget.onOpenFullScreen;
       return Material(

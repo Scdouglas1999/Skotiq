@@ -8,13 +8,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 import '../utils/snackbar_helper.dart';
 
 /// Widget that displays the current operation progress in a compact status bar format.
-///
-/// Shows:
-/// - Operation type icon
-/// - Description / current step
-/// - Progress bar (determinate or indeterminate)
-/// - Elapsed time
-/// - Cancel button (if operation is cancellable)
 class OperationStatusBar extends ConsumerStatefulWidget {
   const OperationStatusBar({super.key});
 
@@ -156,7 +149,6 @@ class _OperationStatusBarState extends ConsumerState<OperationStatusBar>
     final hasOperation = ref.watch(hasActiveOperationProvider);
     final operation = ref.watch(primaryOperationProvider);
 
-    // Handle animation and timer based on operation presence
     if (hasOperation && operation != null) {
       if (!_slideController.isCompleted) {
         _slideController.forward();
@@ -191,14 +183,12 @@ class _OperationStatusBarState extends ConsumerState<OperationStatusBar>
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(width: 8),
-          // Operation icon
           Icon(
             _getOperationIcon(operation.type),
             size: 14,
             color: colors.primary,
           ),
           const SizedBox(width: 8),
-          // Description / current step
           Flexible(
             child: Text(
               operation.currentStep ?? operation.description,
@@ -212,7 +202,6 @@ class _OperationStatusBarState extends ConsumerState<OperationStatusBar>
             ),
           ),
           const SizedBox(width: 12),
-          // Progress indicator
           SizedBox(
             width: 80,
             child: operation.progress != null
@@ -229,7 +218,6 @@ class _OperationStatusBarState extends ConsumerState<OperationStatusBar>
                   ),
           ),
           const SizedBox(width: 12),
-          // Elapsed time
           Text(
             operation.elapsedFormatted,
             style: TextStyle(
@@ -239,7 +227,6 @@ class _OperationStatusBarState extends ConsumerState<OperationStatusBar>
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
-          // Cancel button (if cancellable)
           if (operation.canCancel) ...[
             const SizedBox(width: 8),
             MouseRegion(

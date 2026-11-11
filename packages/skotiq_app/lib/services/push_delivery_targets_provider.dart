@@ -92,7 +92,6 @@ final pushDeliveryTargetsProvider = FutureProvider<PushDeliveryTargets>((
     }
   }
 
-  // Local host.
   try {
     final db = ref.watch(pushPairingDatabaseProvider);
     final tokens = await db.getAllPushTokens();

@@ -1,4 +1,3 @@
-// Action menu rows, stat rows and the linear RGBA renderers.
 part of '../stack_result_screen.dart';
 
 /// Export/share actions, all of them surfaced through the header's single
@@ -26,8 +25,6 @@ class _ActionMenuRow extends StatelessWidget {
       children: [
         Icon(icon, size: SkotiqTokens.iconSm, color: colors.textSecondary),
         const SizedBox(width: SkotiqTokens.spaceMd),
-        // Flexible, not min-sized: the menu is 256px wide on a phone and a
-        // label that grows by a word must wrap rather than overflow the row.
         // Flexible, not min-sized: the menu is 256px wide on a phone and a
         // label that grows by a word must wrap rather than overflow the row.
         Flexible(

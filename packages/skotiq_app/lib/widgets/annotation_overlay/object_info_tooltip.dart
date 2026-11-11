@@ -1,6 +1,5 @@
 part of '../annotation_overlay.dart';
 
-/// Compact object info tooltip widget
 class ObjectInfoTooltip extends ConsumerWidget {
   final CelestialObjectAnnotation object;
   final VoidCallback? onClose;
@@ -20,10 +19,8 @@ class ObjectInfoTooltip extends ConsumerWidget {
 
     int? targetListId;
     if (lists.isEmpty) {
-      // Create a default list
       targetListId = await notifier.createList(name: 'My Observing List');
     } else {
-      // Use the active list, or the first available
       targetListId = ref.read(activeObservingListIdProvider) ?? lists.first.id;
     }
 
@@ -176,7 +173,6 @@ class ObjectInfoTooltip extends ConsumerWidget {
             value: _formatDec(object.dec),
           ),
           const SizedBox(height: 8),
-          // Action buttons row
           Row(
             children: [
               Expanded(

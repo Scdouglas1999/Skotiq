@@ -20,10 +20,6 @@ import 'window_chrome.dart' show commandPaletteShortcutLabel;
 const String kManualUrl = 'https://github.com/Scdouglas1999/Skotiq';
 
 /// The top bar's help button (05 §11).
-///
-/// This is what replaced ten per-screen tour nudges. The tours themselves are
-/// unchanged and still run through `TutorialOverlay`; what changed is that the
-/// operator asks for one instead of being interrupted by an offer of one.
 class ShellHelpButton extends ConsumerWidget {
   const ShellHelpButton({super.key});
 
@@ -155,7 +151,6 @@ class ShellHelpButton extends ConsumerWidget {
     );
   }
 
-  /// The screen the operator is looking at, and the tour that covers it.
   _HelpScreen _currentScreen(BuildContext context) {
     final location = GoRouter.of(context)
         .routerDelegate

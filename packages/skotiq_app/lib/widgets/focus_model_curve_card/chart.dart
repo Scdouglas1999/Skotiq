@@ -89,7 +89,6 @@ class _HfrCurvePainter extends CustomPainter {
 
     if (plotRect.width <= 0 || plotRect.height <= 0) return;
 
-    // Data bounds.
     double minPos = points.first.focusPosition.toDouble();
     double maxPos = points.first.focusPosition.toDouble();
     double minHfr = points.first.hfr;
@@ -123,11 +122,9 @@ class _HfrCurvePainter extends CustomPainter {
         plotRect.bottom -
         ((hfr - minHfr) / (maxHfr - minHfr)) * plotRect.height;
 
-    // Grid.
     final gridPaint = Paint()
       ..color = gridColor.withValues(alpha: 0.3)
       ..strokeWidth = 0.5;
-    // Horizontal grid (HFR labels).
     final hfrStep = _niceStep(maxHfr - minHfr, 4);
     final hfrStart = (minHfr / hfrStep).ceil() * hfrStep;
     for (double v = hfrStart; v <= maxHfr; v += hfrStep) {
@@ -147,7 +144,6 @@ class _HfrCurvePainter extends CustomPainter {
       )..layout();
       tp.paint(canvas, Offset(plotRect.left - tp.width - 4, y - tp.height / 2));
     }
-    // Vertical grid (position labels).
     final posStep = _niceStep(maxPos - minPos, 4);
     final posStart = (minPos / posStep).ceil() * posStep;
     for (double v = posStart; v <= maxPos; v += posStep) {
@@ -168,7 +164,6 @@ class _HfrCurvePainter extends CustomPainter {
       tp.paint(canvas, Offset(x - tp.width / 2, plotRect.bottom + 4));
     }
 
-    // Border.
     final borderPaint = Paint()
       ..color = gridColor
       ..strokeWidth = 1
@@ -258,7 +253,6 @@ class _HfrCurvePainter extends CustomPainter {
       );
     }
 
-    // Axis labels.
     final xLabel = TextPainter(
       text: TextSpan(
         text: 'Focuser position',

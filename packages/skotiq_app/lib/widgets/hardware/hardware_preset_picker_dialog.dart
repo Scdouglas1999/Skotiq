@@ -204,8 +204,6 @@ class _HardwarePresetPickerDialogState
         '${preset.sensorWidthPx}×${preset.sensorHeightPx}';
   }
 
-  // Mutations. each opens the editor or confirms deletion, surfacing errors.
-
   Future<void> _addCustom() async {
     if (_isTelescope) {
       final saved = await HardwarePresetEditorDialog.editTelescope(context);
@@ -298,9 +296,6 @@ class _HardwarePresetPickerDialogState
   }
 }
 
-/// A single selectable preset row: a tappable [SkotiqCard] with the display
-/// name, a monospace spec line, an optional "Built-in" badge, and edit/delete
-/// affordances.
 class _PresetRow extends StatelessWidget {
   final String title;
   final String spec;

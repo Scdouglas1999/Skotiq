@@ -298,7 +298,6 @@ List<CommandEntry> buildActionEntries(BuildContext context, WidgetRef ref) {
   ];
 }
 
-/// Most target rows the palette shows for one query.
 const int _maxTargetEntries = 8;
 
 String _normalizeDesignation(String text) =>

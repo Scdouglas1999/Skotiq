@@ -47,7 +47,6 @@ class _TutorialOverlayContentState extends State<_TutorialOverlayContent> {
   @override
   void initState() {
     super.initState();
-    // Request focus when the overlay is shown
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
       _announceStep();
@@ -57,7 +56,6 @@ class _TutorialOverlayContentState extends State<_TutorialOverlayContent> {
   @override
   void didUpdateWidget(_TutorialOverlayContent oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Announce step change to screen readers
     if (oldWidget.currentIndex != widget.currentIndex) {
       _announceStep();
     }
@@ -108,24 +106,19 @@ class _TutorialOverlayContentState extends State<_TutorialOverlayContent> {
     return KeyEventResult.ignored;
   }
 
-  /// Determine spotlight shape based on target dimensions
   SpotlightShape _getSpotlightShape(Rect? targetRect) {
     if (targetRect == null) return SpotlightShape.roundedRect;
 
-    // Use aspect ratio to guess appropriate shape
     final aspectRatio = targetRect.width / targetRect.height;
 
-    // Square-ish elements (icons, circular buttons) -> circle
     if (aspectRatio > 0.8 && aspectRatio < 1.2) {
       return SpotlightShape.circle;
     }
 
-    // Wide elements (text buttons, labels) -> pill
     if (aspectRatio > 2.0) {
       return SpotlightShape.pill;
     }
 
-    // Default to rounded rect
     return SpotlightShape.roundedRect;
   }
 
@@ -194,7 +187,6 @@ class _TutorialOverlayContentState extends State<_TutorialOverlayContent> {
               ),
             ),
 
-            // Expanding ring pulse effect around target
             if (targetRect != null)
               AnimatedBuilder(
                 animation: widget.ringAnimation,
@@ -210,7 +202,6 @@ class _TutorialOverlayContentState extends State<_TutorialOverlayContent> {
                 },
               ),
 
-            // Tooltip
             _TooltipWidget(
               step: widget.step!,
               targetRect: targetRect,

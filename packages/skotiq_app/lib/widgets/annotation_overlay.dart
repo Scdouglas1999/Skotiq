@@ -26,11 +26,9 @@ class AnnotationOverlay extends ConsumerStatefulWidget {
   final void Function(CelestialObjectAnnotation object)? onObjectTapped;
   final void Function(double x, double y)? onIdentifyAt;
 
-  /// Called when the mouse hovers over a celestial object
   final void Function(CelestialObjectAnnotation object, Offset screenPosition)?
       onObjectHovered;
 
-  /// Called when the mouse moves away from all objects
   final VoidCallback? onObjectUnhovered;
 
   const AnnotationOverlay({
@@ -59,7 +57,6 @@ class _AnnotationOverlayState extends ConsumerState<AnnotationOverlay>
   /// tapping anywhere on the image instead of using mouse hover fade.
   bool _touchAnnotationsVisible = true;
 
-  // Hover detection state
   CelestialObjectAnnotation? _currentHoveredObject;
   Timer? _hoverDebounceTimer;
   static const _hoverDebounceMs = 75; // Delay before showing tooltip
@@ -112,17 +109,14 @@ class _AnnotationOverlayState extends ConsumerState<AnnotationOverlay>
 
     final localPosition = event.localPosition;
 
-    // Convert screen position to image coordinates
     final imagePoint = viewportToImage(
       viewportPoint: localPosition,
       imageOffset: widget.imageOffset,
       zoomLevel: widget.zoomLevel,
     );
 
-    // Find the object under the cursor (if any)
     CelestialObjectAnnotation? foundObject;
     for (final object in widget.annotation!.objects) {
-      // Skip objects that wouldn't be visible based on settings
       if (!object.visible) continue;
       if (object.magnitude != null) {
         if (object.magnitude! > settings.magnitudeCutoff) continue;
@@ -141,7 +135,6 @@ class _AnnotationOverlayState extends ConsumerState<AnnotationOverlay>
       }
     }
 
-    // Only update if the hovered object changed
     if (foundObject?.name != _currentHoveredObject?.name) {
       _hoverDebounceTimer?.cancel();
 
@@ -153,7 +146,6 @@ class _AnnotationOverlayState extends ConsumerState<AnnotationOverlay>
           if (!mounted) return;
           _currentHoveredObject = objectToShow;
 
-          // Calculate screen position for the tooltip
           final screenPosition = imageToViewport(
             imagePoint: Offset(objectToShow.x, objectToShow.y),
             imageOffset: widget.imageOffset,
@@ -217,7 +209,6 @@ class _AnnotationOverlayState extends ConsumerState<AnnotationOverlay>
       _fadeController.forward();
     } else {
       _fadeController.reverse();
-      // When mouse leaves the overlay entirely, clear hover state
       _clearHoverState();
     }
   }

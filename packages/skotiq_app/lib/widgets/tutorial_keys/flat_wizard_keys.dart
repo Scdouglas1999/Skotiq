@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 
-/// GlobalKeys for Flat Wizard tutorial targets
 class FlatWizardTutorialKeys {
   static final tabs = GlobalKey(debugLabel: 'flat_tabs');
   static final filterSelect = GlobalKey(debugLabel: 'flat_filter_select');

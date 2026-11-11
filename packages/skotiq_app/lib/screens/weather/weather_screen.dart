@@ -35,10 +35,6 @@ const double _narrowMapFraction = 0.5;
 /// which is the ceiling 05 §14 sets: the source stamp (top-left) and the zoom
 /// group (bottom-right) belong to [WeatherRadarMap]; the conditions HUD
 /// (top-right) and the radar control bar (bottom) are built here.
-///
-/// Behaviour is unchanged from the card-grid version: the same providers, the
-/// same 5-minute refresh, the same frame selection and the same snooze
-/// controls.
 class WeatherScreen extends ConsumerStatefulWidget {
   const WeatherScreen({super.key});
 
@@ -51,8 +47,6 @@ class _WeatherScreenState extends ConsumerState<WeatherScreen>
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
-  // Animation state.
-  //
   // Null means "nobody has scrubbed": the timeline then follows the live edge
   // of the loop (see [latestObservedRadarFrameIndex]) and keeps following it
   // across the 5-minute refresh. A fixed 0 opened the screen on the OLDEST
@@ -86,7 +80,6 @@ class _WeatherScreenState extends ConsumerState<WeatherScreen>
 
     _startRefreshTimer();
 
-    // Initial fetch
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshWeatherData();
     });
@@ -123,12 +116,9 @@ class _WeatherScreenState extends ConsumerState<WeatherScreen>
   }
 
   void _refreshWeatherData() {
-    // Invalidate the radar frames provider to trigger a fresh fetch
     ref.invalidate(weatherRadarFramesProvider);
-    // Also refresh motion analysis and alert evaluation
     ref.invalidate(analyzeCloudMotionProvider);
     ref.invalidate(evaluateWeatherConditionsProvider);
-    // Refresh cloud cover percentage
     ref.invalidate(cloudCoverPercentageProvider);
   }
 
@@ -146,7 +136,6 @@ class _WeatherScreenState extends ConsumerState<WeatherScreen>
     final safetyState = ref.watch(weatherSafetyProvider);
     final weatherSettings = ref.watch(weatherSettingsProvider);
 
-    // Get location from settings
     final latitude = appSettings?.latitude ?? 0.0;
     final longitude = appSettings?.longitude ?? 0.0;
     final hasLocation = !(latitude == 0.0 && longitude == 0.0);
@@ -236,7 +225,6 @@ class _WeatherScreenState extends ConsumerState<WeatherScreen>
     required double? cloudCoverPercent,
     required RadarSourceInfo radarSource,
   }) {
-    // Clamp frame index to valid range
     final validFrameIndex = radarFrames.isEmpty
         ? 0
         : (_selectedFrameIndex ?? latestObservedRadarFrameIndex(radarFrames))

@@ -13,7 +13,6 @@ import 'window_chrome.dart';
 final ValueNotifier<WindowChromeState> windowChromeState =
     ValueNotifier(const WindowChromeState());
 
-/// Updates [windowChromeState] from window_manager events.
 class _WindowChromeListener extends wm.WindowListener {
   @override
   void onWindowMaximize() =>

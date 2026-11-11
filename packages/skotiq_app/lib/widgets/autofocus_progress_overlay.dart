@@ -237,10 +237,8 @@ class _AutofocusProgressOverlayState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Title bar
         _buildTitleBar(colors, overlayState),
 
-        // V-curve chart area
         Expanded(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
@@ -305,10 +303,8 @@ class _AutofocusProgressOverlayState
           ),
         ),
 
-        // Stats row
         _buildStatsRow(colors, overlayState),
 
-        // Progress bar (only while running)
         if (overlayState.isRunning && overlayState.totalPoints > 0)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
@@ -320,7 +316,6 @@ class _AutofocusProgressOverlayState
             ),
           ),
 
-        // Status line
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
           child: Text(
@@ -378,7 +373,6 @@ class _AutofocusProgressOverlayState
             ),
           ),
           const Spacer(),
-          // Minimize button
           _buildIconButton(
             icon: LucideIcons.minus,
             tooltip: 'Minimize',
@@ -387,7 +381,6 @@ class _AutofocusProgressOverlayState
             colors: colors,
           ),
           const SizedBox(width: 2),
-          // Close button
           _buildCloseButton(colors, overlayState),
         ],
       ),

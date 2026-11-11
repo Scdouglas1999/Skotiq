@@ -8,7 +8,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../utils/transient_type_style.dart';
 import 'widgets/transient_card.dart';
 
-/// Filter options for the transient alerts list.
 enum TransientFilter {
   all('All'),
   newAlerts('New'),
@@ -19,16 +18,9 @@ enum TransientFilter {
   final String label;
 }
 
-/// Provider for tracking the current filter selection.
 final _transientFilterProvider = StateProvider<TransientFilter>((ref) {
   return TransientFilter.all;
 });
-
-// The set of upstreams this build can actually query now lives beside
-// TransientSource itself (`kFetchableTransientSources`), so this sheet and
-// TransientAlertService.getAllAlerts cannot drift apart about which sources
-// are real. Manual is not in it: manual alerts are entered locally, never
-// fetched.
 
 /// When the alert feed last produced a result (or an error), so the operator
 /// can tell "no transients tonight" from "the fetch never ran".
@@ -137,7 +129,6 @@ class TransientsView extends ConsumerWidget {
   ) {
     final states = ref.watch(transientAlertStatesProvider);
 
-    // Filter alerts based on current filter
     final filteredAlerts = _filterAlerts(alerts, states, filter);
 
     if (filteredAlerts.isEmpty) {
@@ -316,7 +307,6 @@ void showTransientSettingsDialog(BuildContext context, WidgetRef ref) {
   );
 }
 
-/// Framing strip presenting transient alerts as a citizen-science feed.
 class _CitizenScienceStrip extends StatelessWidget {
   final SkotiqColors colors;
 
@@ -472,7 +462,6 @@ String _sourceLabel(TransientSource source) {
   }
 }
 
-/// Filter tab bar for switching between alert categories.
 class _FilterTabBar extends StatelessWidget {
   final SkotiqColors colors;
   final TransientFilter currentFilter;
@@ -514,7 +503,6 @@ class _FilterTabBar extends StatelessWidget {
   }
 }
 
-/// Skeleton loading cards for transient items.
 class _TransientCardSkeleton extends StatelessWidget {
   const _TransientCardSkeleton();
 
@@ -569,7 +557,6 @@ class _TransientCardSkeleton extends StatelessWidget {
   }
 }
 
-/// Settings dialog for configuring transient alert preferences.
 class _TransientSettingsDialog extends ConsumerStatefulWidget {
   const _TransientSettingsDialog();
 

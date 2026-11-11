@@ -154,10 +154,6 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
       children: [
         PageHeader(
           title: 'Stack result',
-          // The target qualifies the title. The frame count and the
-          // integration used to be a subtitle sentence here; they are Readouts
-          // in the side panel now, where every other number about this stack
-          // already lived.
           context: result.targetName,
           icon: SkotiqIcons.image,
           actions: [_buildActions(context, colors, result, rgba)],
@@ -585,7 +581,6 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
     return durablePreview;
   }
 
-  /// True while a stretch is in flight and nothing has been painted yet.
   bool get _renderPending => _renderingBuffer != null && _displayRgba == null;
 
   /// Kick a render of [buffer] under the current stretch, at most once per
@@ -695,9 +690,6 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
     };
   }
 
-  // Export / share
-
-  /// Suggested file name (no directory) for [result] in [format].
   String _suggestedFileName(StackAndShareResult result, String extension) {
     final base = (result.targetName ?? 'stack')
         .replaceAll(RegExp(r'[^A-Za-z0-9_\- ]'), '')

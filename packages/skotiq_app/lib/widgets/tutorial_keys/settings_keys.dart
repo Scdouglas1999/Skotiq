@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 
-/// GlobalKeys for Settings tutorial targets
 class SettingsTutorialKeys {
   static final categories = GlobalKey(debugLabel: 'settings_categories');
   static final connection = GlobalKey(debugLabel: 'settings_connection');

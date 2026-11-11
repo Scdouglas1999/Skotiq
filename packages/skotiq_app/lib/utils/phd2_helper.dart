@@ -26,9 +26,6 @@ String phd2FailureMessage(Object error) {
 /// This eliminates duplicate PHD2 connection code across screens.
 /// All PHD2 connect buttons should use this helper instead of implementing
 /// their own async settings lookup and connect logic.
-///
-/// [ref] - The WidgetRef for provider access
-/// [context] - Optional BuildContext for error snackbars
 Future<void> connectPhd2(WidgetRef ref, {BuildContext? context}) async {
   try {
     final settings = await ref.read(appSettingsProvider.future);
@@ -52,9 +49,6 @@ Future<void> connectPhd2(WidgetRef ref, {BuildContext? context}) async {
 /// relaunch backoff, mark the disconnect user-initiated) SYNCHRONOUSLY before
 /// its first await, so the auto-relaunch path is already suppressed regardless
 /// of how this Future settles.
-///
-/// [ref] - The WidgetRef for provider access
-/// [context] - Optional BuildContext for error snackbars
 Future<void> disconnectPhd2(WidgetRef ref, {BuildContext? context}) async {
   try {
     await ref.read(phd2ControllerProvider).disconnect();

@@ -29,7 +29,6 @@ class NarratorAction {
 /// detectors in the v1 catalog. Lookups for an unknown event type return
 /// `null`, and the detail sheet simply hides the explainer block.
 const Map<String, String> narratorExplainers = <String, String>{
-  // Discovery
   'discovery.moving_object':
       "Something in your field moved between frames against the fixed stars — "
           "usually an asteroid, a comet, or a satellite caught mid-pass. The rate "
@@ -48,7 +47,6 @@ const Map<String, String> narratorExplainers = <String, String>{
           "period is a physical clock — an orbit, a rotation, or a pulsation. "
           "It's the kind of result that makes a night's worth of subs worth it.",
 
-  // First light (difference imaging)
   'first_light.transient':
       "A clean, round point of light is sitting in your difference image where "
           "your deep template of this field was empty — and it matches nothing in "
@@ -69,7 +67,6 @@ const Map<String, String> narratorExplainers = <String, String>{
           "mid-pass. A short follow-up set, timed and measured, can turn a "
           "passing streak into a real astrometric position.",
 
-  // Milestone
   'milestone.limiting_mag':
       "This is how faint your rig is actually reaching tonight, measured from "
           "real stars rather than a spec sheet. Deeper limiting magnitude means "
@@ -93,7 +90,6 @@ const Map<String, String> narratorExplainers = <String, String>{
           "detail surviving the stretch. Steady progress is how deep images get "
           "made.",
 
-  // Conditions
   'conditions.transparency_trend':
       "The sky's clarity has been trending in one direction long enough to be "
           "a real change, not a passing wisp. Improving transparency lets more "
@@ -119,7 +115,6 @@ const Map<String, String> narratorExplainers = <String, String>{
           "your narrowest filters and faintest objects pay off the most. If "
           "you've been saving a hard target, now is the moment.",
 
-  // Equipment
   'equipment.tilt':
       "Stars toward one side of the frame are consistently softer than the "
           "rest, which points to the sensor sitting slightly out of plane with "
@@ -146,7 +141,6 @@ const Map<String, String> narratorExplainers = <String, String>{
           "stars and can trip your frame grader into rejecting subs; the guide "
           "graph usually shows whether it is balance, wind, or seeing.",
 
-  // Quality / pipeline
   'quality.clipping':
       "Several frames in a row are clipping — pixels pinned at the bright or "
           "dark rail where real data should be. Clipped highlights burn out star "

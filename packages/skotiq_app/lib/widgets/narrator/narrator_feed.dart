@@ -34,7 +34,6 @@ class NarratorFeed extends StatefulWidget {
   /// Scroll physics override. `null` lets the framework decide.
   final ScrollPhysics? physics;
 
-  /// Outer padding around the list.
   final EdgeInsets padding;
 
   const NarratorFeed({
@@ -188,7 +187,6 @@ class _NarratorFeedState extends State<NarratorFeed> {
   }
 }
 
-/// Subtle slide + fade insertion/removal wrapper for a feed row.
 class _AnimatedRow extends StatelessWidget {
   final Animation<double> animation;
   final Widget child;

@@ -78,7 +78,6 @@ class CommandPalette extends ConsumerStatefulWidget {
   static const double width = 560.0;
   static const double inputHeight = 40.0;
 
-  /// How tall the results list is allowed to get before it scrolls.
   static const double maxResultsHeight = 420.0;
 
   @override

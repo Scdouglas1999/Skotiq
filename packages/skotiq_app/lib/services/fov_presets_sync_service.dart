@@ -62,13 +62,11 @@ final fovPresetsSyncProvider = Provider<void>((ref) {
     }
   }
 
-  // React to every collection change.
   ref.listen<FovPresetsState>(fovPresetsProvider, (previous, next) {
     // Defer to a microtask to avoid touching providers during build and to
     // coalesce same-frame bursts.
     Future.microtask(() => persist(next));
   });
 
-  // Kick off hydration after the current build.
   Future.microtask(hydrate);
 });

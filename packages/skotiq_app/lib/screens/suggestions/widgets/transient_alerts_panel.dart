@@ -99,7 +99,6 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 8, 0),
             child: Row(
@@ -116,7 +115,6 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
                     ),
                   ),
                 ),
-                // Unacknowledged badge
                 _UnacknowledgedBadge(colors: colors),
                 const SizedBox(width: 4),
                 // Checking is otherwise on a 15-minute timer with no way to ask
@@ -166,7 +164,6 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
               ),
             )
           else
-            // Alert list
             alertsAsync.when(
               data: (alerts) {
                 if (alerts.isEmpty) {
@@ -235,7 +232,6 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
                   );
                 }
 
-                // Show up to 10 alerts, with actionable ones first
                 final displayAlerts = _sortForDisplay(alerts, alertStates);
                 final limited = displayAlerts.take(10).toList();
 
@@ -374,7 +370,6 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
       final aState = resolveTransientAlertState(a, states);
       final bState = resolveTransientAlertState(b, states);
 
-      // New/unacknowledged first
       final aActionable = aState == TransientAlertState.newAlert ||
           aState == TransientAlertState.acknowledged;
       final bActionable = bState == TransientAlertState.newAlert ||
@@ -383,7 +378,6 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
       if (aActionable && !bActionable) return -1;
       if (!aActionable && bActionable) return 1;
 
-      // Then by priority
       return a.priority.compareTo(b.priority);
     });
     return sorted;

@@ -1,7 +1,3 @@
-// The Rig card pinned to the bottom of the desktop sidebar. It carries every
-// fact the old bottom instrument bar carried — run state, one row per device,
-// the in-flight operation strip, and the save path — recomposed as a card of
-// dot-and-value rows instead of a strip of pills.
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -486,8 +482,6 @@ class RigCard extends ConsumerWidget {
                   deviceRows: deviceRows,
                 ),
               _SavePathRow(isExpanded: isExpanded),
-              // The in-flight operation strip, in the same style it wore in
-              // the old bar: icon, step, progress, elapsed, cancel.
               const OperationStatusBar(),
             ],
           ),
@@ -496,7 +490,6 @@ class RigCard extends ConsumerWidget {
     );
   }
 
-  /// The filter the wheel is actually on, or null when it cannot say.
   String? _currentFilterName(FilterWheelState state) {
     final position = state.currentPosition;
     if (position == null) return null;
@@ -1159,7 +1152,6 @@ class _TempCompMark extends ConsumerWidget {
     final focuserConnected =
         focuserState.connectionState == DeviceConnectionState.connected;
 
-    // Only show when focuser is connected and reports temperature
     if (!focuserConnected || focuserState.temperature == null) {
       return const SizedBox.shrink();
     }
@@ -1177,7 +1169,6 @@ class _TempCompMark extends ConsumerWidget {
     final model = profileData?.temperatureModel;
     final hasReliableModel = model != null && model.isReliable;
 
-    // Determine state
     InstrumentTone indicatorTone;
     String tooltip;
 

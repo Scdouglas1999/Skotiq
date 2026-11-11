@@ -169,7 +169,6 @@ class _WeatherConditions extends ConsumerWidget {
   }
 }
 
-/// A hairline between blocks inside the conditions HUD.
 class _ConditionsDivider extends StatelessWidget {
   const _ConditionsDivider();
 
@@ -205,7 +204,6 @@ class _ConditionsEyebrow extends StatelessWidget {
   }
 }
 
-/// "just now" / "3m ago" / "2h ago".
 String _relativeAge(DateTime time) {
   final diff = DateTime.now().difference(time);
   if (diff.inSeconds < 60) return 'just now';

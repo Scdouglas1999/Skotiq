@@ -11,13 +11,10 @@ import 'focuser_backlash/focuser_backlash_offer.dart';
 /// This eliminates duplicate focuser button implementations across screens.
 /// Use this widget instead of implementing custom _FocusButton or _MoveButton classes.
 class FocuserControls extends ConsumerStatefulWidget {
-  /// Whether to use compact sizing for the controls.
   final bool compact;
 
-  /// Whether to show the autofocus button.
   final bool showAutofocus;
 
-  /// Callback invoked when autofocus completes successfully.
   final VoidCallback? onAutofocusComplete;
 
   const FocuserControls({

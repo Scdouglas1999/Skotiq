@@ -9,13 +9,6 @@ export 'file_download_service.dart'
 
 /// Result of a "download the full-resolution capture to this device" flow.
 ///
-/// Why this service exists: the host exposes `GET /api/images/<id>/download`
-/// (resumable, byte-streamed) and `NetworkBackend.downloadImage` is a robust
-/// resumable client — but NOTHING in the UI ever called it. A phone paired to
-/// the Pi could see 512px thumbnails yet had no way to pull the real
-/// FITS/processed frame onto the device. This wires that gap with a single
-/// reusable entry point (see `downloadImageToDevice`).
-///
 /// The destination handling (temp file → share sheet / save picker) is the
 /// generic [downloadFileToDevice]; these aliases keep the image-flavoured
 /// names its callers and tests use.

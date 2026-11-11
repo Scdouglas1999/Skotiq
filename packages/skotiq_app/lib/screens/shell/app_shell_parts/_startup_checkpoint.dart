@@ -1,4 +1,3 @@
-// Startup checkpoint discovery, recovery dialog and close-confirmation helpers.
 part of '../app_shell.dart';
 
 enum AppStartupCheckpointOutcome {

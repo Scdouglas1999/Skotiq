@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 
-/// GlobalKeys for Weather tutorial targets
 class WeatherTutorialKeys {
   static final radarMap = GlobalKey(debugLabel: 'weather_radar_map');
   static final timeline = GlobalKey(debugLabel: 'weather_timeline');

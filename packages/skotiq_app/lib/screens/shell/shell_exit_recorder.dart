@@ -20,10 +20,8 @@ typedef ShellExitRecorder = void Function(String reason);
 abstract final class ShellExit {
   static ShellExitRecorder? _recorder;
 
-  /// Install the recorder. Replaces any previous one.
   static void register(ShellExitRecorder recorder) => _recorder = recorder;
 
-  /// Remove [recorder] if it is the one currently installed.
   static void unregister(ShellExitRecorder recorder) {
     if (identical(_recorder, recorder)) _recorder = null;
   }

@@ -7,13 +7,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Global weather alert banner that appears at the top of the app
 /// when weather conditions reach warning or critical levels.
-///
-/// Features:
-/// - Animated entrance/exit
-/// - Color-coded by severity (warning = orange, critical = red)
-/// - Shows alert message and ETA if available
-/// - Snooze button for temporary dismissal
-/// - Tap to navigate to weather screen
 class WeatherAlertBanner extends ConsumerStatefulWidget {
   const WeatherAlertBanner({super.key});
 
@@ -70,7 +63,6 @@ class _WeatherAlertBannerState extends ConsumerState<WeatherAlertBanner>
             alertLevel == AlertLevel.critical) &&
         status == WeatherSafetyStatus.unsafe;
 
-    // Animate in/out
     if (shouldShow) {
       _animationController.forward();
     } else {
@@ -111,7 +103,6 @@ class _WeatherAlertBannerState extends ConsumerState<WeatherAlertBanner>
   }
 }
 
-/// The actual banner content
 class _BannerContent extends StatelessWidget {
   final SkotiqColors colors;
   final AlertLevel alertLevel;
@@ -219,7 +210,6 @@ class _BannerContent extends StatelessWidget {
 
                 const SizedBox(width: 12),
 
-                // Title and message
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -249,7 +239,6 @@ class _BannerContent extends StatelessWidget {
 
                 const SizedBox(width: 12),
 
-                // Snooze button
                 _SnoozeButton(
                   onPressed: onSnooze,
                   inverted: isCritical,
@@ -257,7 +246,6 @@ class _BannerContent extends StatelessWidget {
 
                 const SizedBox(width: 8),
 
-                // Navigate arrow
                 Icon(
                   LucideIcons.chevronRight,
                   size: 18,
@@ -270,7 +258,6 @@ class _BannerContent extends StatelessWidget {
   }
 }
 
-/// Snooze button
 class _SnoozeButton extends StatelessWidget {
   final VoidCallback onPressed;
   final bool inverted;

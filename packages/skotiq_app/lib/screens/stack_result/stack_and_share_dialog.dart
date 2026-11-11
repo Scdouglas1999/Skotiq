@@ -111,7 +111,6 @@ StackShareFailure describeStackShareFailure(String raw) {
 /// Show it with [StackAndShareDialog.show], which wires the dialog into a
 /// [SkotiqDialog] scaffold via `showDialog`.
 class StackAndShareDialog extends ConsumerStatefulWidget {
-  /// Imaging session whose lights are stacked.
   final int sessionId;
 
   /// Pre-computed selection summary for [sessionId], used to render the summary
@@ -126,8 +125,6 @@ class StackAndShareDialog extends ConsumerStatefulWidget {
     required this.selection,
   });
 
-  /// Show the Stack-and-Share launcher for [sessionId] with its [selection]
-  /// preview. Resolves when the dialog is dismissed.
   static Future<void> show(
     BuildContext context, {
     required int sessionId,
@@ -177,7 +174,6 @@ class _StackAndShareDialogState extends ConsumerState<StackAndShareDialog> {
   /// once (e.g. a rebuild after the post-frame callback is already scheduled).
   bool _navigated = false;
 
-  /// Whether the raw exception text is expanded under the failure alert.
   bool _showTechnicalDetail = false;
 
   @override
@@ -299,7 +295,6 @@ class _StackAndShareDialogState extends ConsumerState<StackAndShareDialog> {
   Widget build(BuildContext context) {
     final state = ref.watch(stackAndShareProvider);
 
-    // Navigate to the result viewer as soon as a run completes successfully.
     ref.listen<StackAndShareState>(stackAndShareProvider, (prev, next) {
       if (next.isComplete && next.result != null) {
         _onComplete(next.result!);
@@ -431,7 +426,6 @@ class _StackAndShareDialogState extends ConsumerState<StackAndShareDialog> {
       ref.read(stackAndShareProvider.notifier).reset();
     } catch (e) {
       if (!mounted) return;
-      // Surface the stop failure rather than leaving the user stuck.
       messenger?.showSnackBar(
         SnackBar(content: Text('Could not stop live stacking: $e')),
       );
@@ -532,8 +526,6 @@ class _StackAndShareDialogState extends ConsumerState<StackAndShareDialog> {
         toggle,
         const SizedBox(height: SkotiqTokens.spaceMd),
         if (detected != null) ...[
-          // Live colour camera detected: surface the auto-detection read-only,
-          // with the manual override behind an expander.
           SkotiqBanner(
             title: 'Color camera detected',
             message: 'Auto-detected: OSC $detected',
@@ -577,8 +569,6 @@ class _StackAndShareDialogState extends ConsumerState<StackAndShareDialog> {
   }
 }
 
-/// The selection-summary well: target name, per-filter pill rows, total
-/// integration, and frame count.
 class _SelectionSummary extends StatelessWidget {
   final StackSelectionSummary selection;
 
@@ -650,7 +640,6 @@ class _SelectionSummary extends StatelessWidget {
   }
 }
 
-/// A label-over-value metric using tabular telemetry type for the value.
 class _MetricColumn extends StatelessWidget {
   final String label;
   final String value;
@@ -682,9 +671,6 @@ class _MetricColumn extends StatelessWidget {
   }
 }
 
-/// Live progress display while a run is in flight: a bar bound to
-/// [StackAndShareProgress.fraction], the current phase label, and the
-/// `frame X/Y, Z rejected` counter.
 class _RunProgress extends StatelessWidget {
   final StackAndShareProgress progress;
 

@@ -22,7 +22,6 @@ class ManualCaptureState {
   /// A single frame is being exposed, downloaded or saved.
   final bool isSnapshot;
 
-  /// A loop is running.
   final bool isLooping;
 
   /// Stop was requested and the current exposure is being aborted.

@@ -67,7 +67,6 @@ class _MarkerPulseOverlayState extends ConsumerState<_MarkerPulseOverlay>
 
     _pulseController.addStatusListener((status) {
       if (status == AnimationStatus.completed && mounted) {
-        // Clear the pulse provider after animation completes
         ref.read(annotationPulseObjectProvider.notifier).state = null;
         setState(() {
           _currentPulseId = null;
@@ -86,7 +85,6 @@ class _MarkerPulseOverlayState extends ConsumerState<_MarkerPulseOverlay>
   Widget build(BuildContext context) {
     final pulseId = ref.watch(annotationPulseObjectProvider);
 
-    // Trigger animation when a new pulse ID arrives
     if (pulseId != null && pulseId != _currentPulseId) {
       _currentPulseId = pulseId;
       _pulseController.forward(from: 0.0);
@@ -96,7 +94,6 @@ class _MarkerPulseOverlayState extends ConsumerState<_MarkerPulseOverlay>
       return const SizedBox.shrink();
     }
 
-    // Find the object to pulse
     final object = widget.annotation.objects
         .where((obj) => obj.id == _currentPulseId)
         .firstOrNull;
@@ -142,7 +139,6 @@ class _MarkerPulseOverlayState extends ConsumerState<_MarkerPulseOverlay>
   }
 }
 
-/// Painter for the pulse circle highlight on selected annotations
 class _PulseCirclePainter extends CustomPainter {
   final Offset center;
   final double radius;
@@ -158,14 +154,12 @@ class _PulseCirclePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (opacity <= 0.0 || radius <= 0.0) return;
 
-    // Outer ring
     final ringPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5
       ..color = ImageOverlayColors.foreground.withValues(alpha: opacity);
     canvas.drawCircle(center, radius, ringPaint);
 
-    // Glow
     final glowPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 6.0

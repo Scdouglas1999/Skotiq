@@ -9,12 +9,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../utils/transient_type_style.dart';
 
 /// A badge widget that displays the count of unacknowledged transient alerts.
-///
-/// Features:
-/// - Bell icon with count badge overlay
-/// - Pulsing animation when new alerts arrive
-/// - Optional dropdown showing alert summary
-/// - Handles loading/error/empty states
 class TransientAlertBadge extends ConsumerStatefulWidget {
   /// Callback when the badge is tapped (if [showDropdown] is false)
   final VoidCallback? onTap;
@@ -74,7 +68,6 @@ class _TransientAlertBadgeState extends ConsumerState<TransientAlertBadge>
 
   void _handleCountChange(int newCount) {
     if (newCount > _previousCount && newCount > 0) {
-      // New alerts arrived - trigger pulse animation
       _pulseController.repeat(
         reverse: false,
         period: const Duration(milliseconds: 1200),
@@ -151,7 +144,6 @@ class _TransientAlertBadgeState extends ConsumerState<TransientAlertBadge>
     final alertsAsync = ref.watch(activeTransientAlertsProvider);
     final unacknowledgedCount = ref.watch(unacknowledgedAlertCountProvider);
 
-    // Trigger pulse animation when count increases
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _handleCountChange(unacknowledgedCount);
     });
@@ -187,7 +179,6 @@ class _TransientAlertBadgeState extends ConsumerState<TransientAlertBadge>
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // Base icon
                   alertsAsync.when(
                     data: (_) => Icon(
                       LucideIcons.radio,
@@ -198,7 +189,6 @@ class _TransientAlertBadgeState extends ConsumerState<TransientAlertBadge>
                     error: (_, __) => _ErrorIcon(colors: colors),
                   ),
 
-                  // Badge overlay
                   if (unacknowledgedCount > 0)
                     Positioned(
                       right: -6,
@@ -227,7 +217,6 @@ class _TransientAlertBadgeState extends ConsumerState<TransientAlertBadge>
   }
 }
 
-/// Loading state icon with subtle animation
 class _LoadingIcon extends StatelessWidget {
   final SkotiqColors colors;
 
@@ -256,7 +245,6 @@ class _LoadingIcon extends StatelessWidget {
   }
 }
 
-/// Error state icon with orange indicator
 class _ErrorIcon extends StatelessWidget {
   final SkotiqColors colors;
 
@@ -292,7 +280,6 @@ class _ErrorIcon extends StatelessWidget {
   }
 }
 
-/// Count badge showing the number of unacknowledged alerts
 class _CountBadge extends StatelessWidget {
   final int count;
   final SkotiqColors colors;
@@ -343,7 +330,6 @@ class _CountBadge extends StatelessWidget {
   }
 }
 
-/// Dropdown content showing alert summary
 class _TransientAlertDropdownContent extends ConsumerWidget {
   final VoidCallback onViewAll;
 
@@ -369,7 +355,6 @@ class _TransientAlertDropdownContent extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Row(
@@ -399,14 +384,12 @@ class _TransientAlertDropdownContent extends ConsumerWidget {
           ),
           Divider(height: 1, color: colors.border),
 
-          // Alert list
           alertsAsync.when(
             data: (alerts) => _buildAlertList(context, alerts, states, colors),
             loading: () => _buildLoadingState(colors),
             error: (error, _) => _buildErrorState(error, colors),
           ),
 
-          // Footer
           Divider(height: 1, color: colors.border),
           // The tap lived on a bare gesture wrapper, which publishes an action
           // and no role, so assistive tech read a live control as an inert
@@ -474,7 +457,6 @@ class _TransientAlertDropdownContent extends ConsumerWidget {
       );
     }
 
-    // Show first 5 alerts
     final displayedAlerts = alerts.take(5).toList();
 
     return Column(
@@ -555,7 +537,6 @@ class _TransientAlertDropdownContent extends ConsumerWidget {
   }
 }
 
-/// Individual alert item in the dropdown list
 class _AlertListItem extends StatelessWidget {
   final TransientAlert alert;
   final bool isNew;
@@ -579,7 +560,6 @@ class _AlertListItem extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Type icon
           Container(
             width: 28,
             height: 28,
@@ -598,7 +578,6 @@ class _AlertListItem extends StatelessWidget {
           ),
           const SizedBox(width: 10),
 
-          // Name and type
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -625,7 +604,6 @@ class _AlertListItem extends StatelessWidget {
             ),
           ),
 
-          // Magnitude
           if (alert.magnitude != null) ...[
             const SizedBox(width: 8),
             Container(
@@ -646,7 +624,6 @@ class _AlertListItem extends StatelessWidget {
             ),
           ],
 
-          // New badge
           if (isNew) ...[
             const SizedBox(width: 8),
             Container(
