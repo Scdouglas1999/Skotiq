@@ -7,6 +7,8 @@ import '../../providers/database_provider.dart';
 import '../database.dart';
 import '../epoch_seconds.dart';
 
+part 'delivery_targets_dao.g.dart';
+
 /// A destination row was addressed by an id that has no row.
 class ArtifactDestinationMissingException implements Exception {
   final int destinationId;
@@ -73,11 +75,8 @@ class DeliveryTargetsRead {
   });
 }
 
-/// Data-access object for the v58 `delivery_targets` table — the configured
-/// places the night's artifacts are delivered to.
-///
-/// The table is declared in `database/schema/darkroom.drift`; this DAO queries
-/// with SQL through the database's `customSelect` / `customStatement` APIs.
+/// Reads and writes for `delivery_targets`: the configured places the night's
+/// artifacts are delivered to.
 ///
 /// NO SECRETS IN `config_json`. Every write runs [assertNoSecretsInConfig],
 /// which throws [DeliveryConfigSecretException] when the config carries key
@@ -88,14 +87,10 @@ class DeliveryTargetsRead {
 /// keyring-backed store that already holds the WebDAV password, the S3 secret
 /// key, and the TNS API key. [ArtifactDestination.secretRef] names the keyring
 /// entry; reading it belongs to the delivery service, in a later workstream.
-class DeliveryTargetsDao {
-  DeliveryTargetsDao(this._db);
-
-  final SkotiqDatabase _db;
-
-  static const String _columns =
-      'id, name, kind, config_json, enabled, content_json, secret_ref, '
-      'created_at, updated_at';
+@DriftAccessor(include: {'../schema/darkroom.drift'})
+class DeliveryTargetsDao extends DatabaseAccessor<SkotiqDatabase>
+    with _$DeliveryTargetsDaoMixin {
+  DeliveryTargetsDao(super.db);
 
   /// Insert a destination row and return its id.
   ///
@@ -122,57 +117,46 @@ class DeliveryTargetsDao {
 
     final created = toEpochSeconds(createdAt ?? DateTime.now());
     final updated = updatedAt == null ? created : toEpochSeconds(updatedAt);
-    return _db.customInsert(
-      'INSERT INTO delivery_targets('
-      'name, kind, config_json, enabled, content_json, secret_ref, '
-      'created_at, updated_at'
-      ') VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      variables: [
-        Variable<String>(name),
-        Variable<String>(kind.wire),
-        Variable<String>(configJson),
-        Variable<int>(enabled ? 1 : 0),
-        Variable<String>(ArtifactContent.encodeSelection(content)),
-        Variable<String>(secretRef),
-        Variable<int>(created),
-        Variable<int>(updated),
-      ],
+    return into(deliveryTargets).insert(
+      DeliveryTargetsCompanion.insert(
+        name: name,
+        kind: kind.wire,
+        configJson: Value(configJson),
+        enabled: Value(enabled ? 1 : 0),
+        contentJson: Value(ArtifactContent.encodeSelection(content)),
+        secretRef: Value(secretRef),
+        createdAt: created,
+        updatedAt: updated,
+      ),
     );
   }
 
   Future<ArtifactDestination?> getById(int id) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM delivery_targets WHERE id = ? LIMIT 1',
-          variables: [Variable<int>(id)],
-        )
-        .get();
-    if (rows.isEmpty) return null;
-    return _map(rows.first);
+    final row = await (select(
+      deliveryTargets,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _map(row);
   }
 
   /// All destinations, in configuration order (oldest first), with the rows
   /// this build cannot decode named separately rather than raised.
   Future<DeliveryTargetsRead> readAll() async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM delivery_targets '
-          'ORDER BY created_at ASC, id ASC',
-        )
-        .get();
-    return _read(rows);
+    return _read(
+      await _rawRows(
+        'SELECT * FROM delivery_targets ORDER BY created_at ASC, id ASC',
+      ),
+    );
   }
 
   /// The destinations delivery should actually visit tonight, in configuration
   /// order, with the undecodable rows named separately rather than raised.
   Future<DeliveryTargetsRead> readEnabled() async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM delivery_targets WHERE enabled = 1 '
-          'ORDER BY created_at ASC, id ASC',
-        )
-        .get();
-    return _read(rows);
+    return _read(
+      await _rawRows(
+        'SELECT * FROM delivery_targets WHERE enabled = 1 '
+        'ORDER BY created_at ASC, id ASC',
+      ),
+    );
   }
 
   /// Update the fields a caller passes and leave the rest alone, bumping
@@ -181,7 +165,7 @@ class DeliveryTargetsDao {
   /// Throws [ArtifactDestinationMissingException] when the row is gone, and
   /// [DeliveryConfigSecretException] when a new [configJson] carries key
   /// material.
-  Future<ArtifactDestination> update(
+  Future<ArtifactDestination> updateDestination(
     int id, {
     String? name,
     String? configJson,
@@ -194,41 +178,34 @@ class DeliveryTargetsDao {
     await _require(id);
 
     final at = toEpochSeconds(now ?? DateTime.now());
-    await _db.customUpdate(
-      'UPDATE delivery_targets SET '
-      'name = COALESCE(?, name), '
-      'config_json = COALESCE(?, config_json), '
-      'content_json = COALESCE(?, content_json), '
-      'secret_ref = COALESCE(?, secret_ref), '
-      'enabled = COALESCE(?, enabled), '
-      'updated_at = ? WHERE id = ?',
-      variables: [
-        Variable<String>(name),
-        Variable<String>(configJson),
-        Variable<String>(
+    await _write(
+      id,
+      DeliveryTargetsCompanion(
+        name: Value.absentIfNull(name),
+        configJson: Value.absentIfNull(configJson),
+        contentJson: Value.absentIfNull(
           content == null ? null : ArtifactContent.encodeSelection(content),
         ),
-        Variable<String>(secretRef),
-        Variable<int>(enabled == null ? null : (enabled ? 1 : 0)),
-        Variable<int>(at),
-        Variable<int>(id),
-      ],
-      updateKind: UpdateKind.update,
+        secretRef: Value.absentIfNull(secretRef),
+        enabled: Value.absentIfNull(enabled == null ? null : (enabled ? 1 : 0)),
+        updatedAt: Value(at),
+      ),
     );
     return _require(id);
   }
 
   /// Clear this destination's keyring reference — the row keeps its transport
-  /// config and stops claiming to hold key material. `COALESCE` in [update]
-  /// cannot express a null, so clearing has its own call.
+  /// config and stops claiming to hold key material. [updateDestination] reads a null
+  /// argument as "leave it", so clearing has its own call.
   Future<ArtifactDestination> clearSecretRef(int id, {DateTime? now}) async {
     await _require(id);
     final at = toEpochSeconds(now ?? DateTime.now());
-    await _db.customUpdate(
-      'UPDATE delivery_targets SET secret_ref = NULL, updated_at = ? '
-      'WHERE id = ?',
-      variables: [Variable<int>(at), Variable<int>(id)],
-      updateKind: UpdateKind.update,
+    await _write(
+      id,
+      DeliveryTargetsCompanion(
+        secretRef: const Value(null),
+        updatedAt: Value(at),
+      ),
     );
     return _require(id);
   }
@@ -239,26 +216,20 @@ class DeliveryTargetsDao {
   /// entry of a row that will not decode can still be found and removed with
   /// it — otherwise deleting an unreadable destination would leave its private
   /// key in the keyring under a name nothing points at any more.
-  Future<String?> secretRefOf(int id) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT secret_ref FROM delivery_targets WHERE id = ? LIMIT 1',
-          variables: [Variable<int>(id)],
-        )
-        .get();
-    if (rows.isEmpty) return null;
-    return rows.first.readNullable<String>('secret_ref');
+  Future<String?> secretRefOf(int id) {
+    final secretRef = deliveryTargets.secretRef;
+    return (selectOnly(deliveryTargets)
+          ..addColumns([secretRef])
+          ..where(deliveryTargets.id.equals(id))
+          ..limit(1))
+        .map((row) => row.read(secretRef))
+        .getSingleOrNull();
   }
 
   /// Delete a destination by id. Its `delivery_journal` rows cascade. Returns
   /// the number of rows changed.
-  Future<int> deleteTarget(int id) {
-    return _db.customUpdate(
-      'DELETE FROM delivery_targets WHERE id = ?',
-      variables: [Variable<int>(id)],
-      updateKind: UpdateKind.delete,
-    );
-  }
+  Future<int> deleteTarget(int id) =>
+      (delete(deliveryTargets)..where((t) => t.id.equals(id))).go();
 
   Future<ArtifactDestination> _require(int id) async {
     final destination = await getById(id);
@@ -266,13 +237,25 @@ class DeliveryTargetsDao {
     return destination;
   }
 
+  /// The rows [sql] selects from `delivery_targets`, not yet decoded.
+  ///
+  /// SQL text on purpose: drift's typed select decodes every row inside the
+  /// query, so one row with an unreadable column (a hand-edited `created_at`,
+  /// say) would fail the whole list. [_read] decodes each row on its own
+  /// through the table's generated mapper instead.
+  Future<List<QueryRow>> _rawRows(String sql) =>
+      customSelect(sql, readsFrom: {deliveryTargets}).get();
+
+  Future<int> _write(int id, DeliveryTargetsCompanion changes) =>
+      (update(deliveryTargets)..where((t) => t.id.equals(id))).write(changes);
+
   /// Decode each row on its own, so an undecodable one costs only itself.
   DeliveryTargetsRead _read(List<QueryRow> rows) {
     final destinations = <ArtifactDestination>[];
     final undecodable = <UndecodableDeliveryTarget>[];
     for (final row in rows) {
       try {
-        destinations.add(_map(row));
+        destinations.add(_map(deliveryTargets.map(row.data)));
       } on Object catch (error) {
         // The id and the name are read straight off the row map rather than
         // through `_map`, which is the thing that just refused: whichever
@@ -337,19 +320,17 @@ class DeliveryTargetsDao {
     return '$error';
   }
 
-  ArtifactDestination _map(QueryRow row) {
+  ArtifactDestination _map(DeliveryTargetRow row) {
     return ArtifactDestination(
-      id: row.read<int>('id'),
-      name: row.read<String>('name'),
-      kind: ArtifactDestinationKind.fromWire(row.read<String>('kind')),
-      configJson: row.read<String>('config_json'),
-      enabled: row.read<int>('enabled') != 0,
-      content: ArtifactContent.decodeSelection(
-        row.read<String>('content_json'),
-      ),
-      secretRef: row.readNullable<String>('secret_ref'),
-      createdAt: fromEpochSeconds(row.read<int>('created_at')),
-      updatedAt: fromEpochSeconds(row.read<int>('updated_at')),
+      id: row.id,
+      name: row.name,
+      kind: ArtifactDestinationKind.fromWire(row.kind),
+      configJson: row.configJson,
+      enabled: row.enabled != 0,
+      content: ArtifactContent.decodeSelection(row.contentJson),
+      secretRef: row.secretRef,
+      createdAt: fromEpochSeconds(row.createdAt),
+      updatedAt: fromEpochSeconds(row.updatedAt),
     );
   }
 }

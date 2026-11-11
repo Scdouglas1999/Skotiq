@@ -1,0 +1,750 @@
+{
+  "empty getResultById": null,
+  "empty getResultsForSession": [],
+  "empty getRecentResults": [],
+  "getRecentResults zero": {
+    "threw": "ArgumentError",
+    "message": "Invalid argument (limit): must be a positive integer: 0"
+  },
+  "insert full": 1,
+  "insert nulls": 2,
+  "insert session tie": 3,
+  "insert older": 4,
+  "after inserts :: stacked_results": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_name": {
+        "v": "M31",
+        "t": "text"
+      },
+      "width": {
+        "v": 3000,
+        "t": "integer"
+      },
+      "height": {
+        "v": 2000,
+        "t": "integer"
+      },
+      "frames_stacked": {
+        "v": 41,
+        "t": "integer"
+      },
+      "frames_attempted": {
+        "v": 45,
+        "t": "integer"
+      },
+      "integration_secs": {
+        "v": 4920.0,
+        "t": "real"
+      },
+      "avg_alignment_residual": {
+        "v": 0.42,
+        "t": "real"
+      },
+      "avg_hfr": {
+        "v": 2.1,
+        "t": "real"
+      },
+      "filter": {
+        "v": "L",
+        "t": "text"
+      },
+      "is_color": {
+        "v": 1,
+        "t": "integer"
+      },
+      "channels": {
+        "v": 3,
+        "t": "integer"
+      },
+      "exported_image_path": {
+        "v": "/share/m31.jpg",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740869400,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": null,
+        "t": "null"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "target_name": {
+        "v": null,
+        "t": "null"
+      },
+      "width": {
+        "v": 10,
+        "t": "integer"
+      },
+      "height": {
+        "v": 20,
+        "t": "integer"
+      },
+      "frames_stacked": {
+        "v": 0,
+        "t": "integer"
+      },
+      "frames_attempted": {
+        "v": 0,
+        "t": "integer"
+      },
+      "integration_secs": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "avg_alignment_residual": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "avg_hfr": {
+        "v": null,
+        "t": "null"
+      },
+      "filter": {
+        "v": null,
+        "t": "null"
+      },
+      "is_color": {
+        "v": 0,
+        "t": "integer"
+      },
+      "channels": {
+        "v": 1,
+        "t": "integer"
+      },
+      "exported_image_path": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740869400,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "target_name": {
+        "v": null,
+        "t": "null"
+      },
+      "width": {
+        "v": 1,
+        "t": "integer"
+      },
+      "height": {
+        "v": 1,
+        "t": "integer"
+      },
+      "frames_stacked": {
+        "v": 2,
+        "t": "integer"
+      },
+      "frames_attempted": {
+        "v": 3,
+        "t": "integer"
+      },
+      "integration_secs": {
+        "v": 60.5,
+        "t": "real"
+      },
+      "avg_alignment_residual": {
+        "v": 1.0,
+        "t": "real"
+      },
+      "avg_hfr": {
+        "v": null,
+        "t": "null"
+      },
+      "filter": {
+        "v": null,
+        "t": "null"
+      },
+      "is_color": {
+        "v": 0,
+        "t": "integer"
+      },
+      "channels": {
+        "v": 1,
+        "t": "integer"
+      },
+      "exported_image_path": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740869400,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "target_name": {
+        "v": null,
+        "t": "null"
+      },
+      "width": {
+        "v": 5,
+        "t": "integer"
+      },
+      "height": {
+        "v": 5,
+        "t": "integer"
+      },
+      "frames_stacked": {
+        "v": 5,
+        "t": "integer"
+      },
+      "frames_attempted": {
+        "v": 5,
+        "t": "integer"
+      },
+      "integration_secs": {
+        "v": 5.0,
+        "t": "real"
+      },
+      "avg_alignment_residual": {
+        "v": 0.5,
+        "t": "real"
+      },
+      "avg_hfr": {
+        "v": null,
+        "t": "null"
+      },
+      "filter": {
+        "v": null,
+        "t": "null"
+      },
+      "is_color": {
+        "v": 0,
+        "t": "integer"
+      },
+      "channels": {
+        "v": 1,
+        "t": "integer"
+      },
+      "exported_image_path": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740866100,
+        "t": "integer"
+      }
+    }
+  ],
+  "getResultById 1": {
+    "id": 1,
+    "sessionId": 1,
+    "targetId": 1,
+    "targetName": "M31",
+    "width": 3000,
+    "height": 2000,
+    "framesStacked": 41,
+    "framesAttempted": 45,
+    "integrationSecs": 4920.0,
+    "avgAlignmentResidual": 0.42,
+    "avgHfr": 2.1,
+    "filter": "L",
+    "isColor": true,
+    "channels": 3,
+    "createdAt": "2025-03-01T22:50:00.000Z",
+    "exportedImagePath": "/share/m31.jpg",
+    "stats": {
+      "stackedFrameCount": 41,
+      "totalFramesAttempted": 45,
+      "rejectedAlignmentFailures": 0,
+      "avgMatchedPairs": 0.0,
+      "avgAlignmentResidual": 0.42,
+      "totalSigmaRejectedPixels": 0
+    }
+  },
+  "getResultById 2 nulls": {
+    "id": 2,
+    "sessionId": null,
+    "targetId": null,
+    "targetName": null,
+    "width": 10,
+    "height": 20,
+    "framesStacked": 0,
+    "framesAttempted": 0,
+    "integrationSecs": 0.0,
+    "avgAlignmentResidual": 0.0,
+    "avgHfr": null,
+    "filter": null,
+    "isColor": false,
+    "channels": 1,
+    "createdAt": "2025-03-01T22:50:00.000Z",
+    "exportedImagePath": null,
+    "stats": {
+      "stackedFrameCount": 0,
+      "totalFramesAttempted": 0,
+      "rejectedAlignmentFailures": 0,
+      "avgMatchedPairs": 0.0,
+      "avgAlignmentResidual": 0.0,
+      "totalSigmaRejectedPixels": 0
+    }
+  },
+  "getResultById missing": null,
+  "getResultsForSession s0": [
+    {
+      "id": 3,
+      "sessionId": 1,
+      "targetId": null,
+      "targetName": null,
+      "width": 1,
+      "height": 1,
+      "framesStacked": 2,
+      "framesAttempted": 3,
+      "integrationSecs": 60.5,
+      "avgAlignmentResidual": 1.0,
+      "avgHfr": null,
+      "filter": null,
+      "isColor": false,
+      "channels": 1,
+      "createdAt": "2025-03-01T22:50:00.000Z",
+      "exportedImagePath": null,
+      "stats": {
+        "stackedFrameCount": 2,
+        "totalFramesAttempted": 3,
+        "rejectedAlignmentFailures": 0,
+        "avgMatchedPairs": 0.0,
+        "avgAlignmentResidual": 1.0,
+        "totalSigmaRejectedPixels": 0
+      }
+    },
+    {
+      "id": 1,
+      "sessionId": 1,
+      "targetId": 1,
+      "targetName": "M31",
+      "width": 3000,
+      "height": 2000,
+      "framesStacked": 41,
+      "framesAttempted": 45,
+      "integrationSecs": 4920.0,
+      "avgAlignmentResidual": 0.42,
+      "avgHfr": 2.1,
+      "filter": "L",
+      "isColor": true,
+      "channels": 3,
+      "createdAt": "2025-03-01T22:50:00.000Z",
+      "exportedImagePath": "/share/m31.jpg",
+      "stats": {
+        "stackedFrameCount": 41,
+        "totalFramesAttempted": 45,
+        "rejectedAlignmentFailures": 0,
+        "avgMatchedPairs": 0.0,
+        "avgAlignmentResidual": 0.42,
+        "totalSigmaRejectedPixels": 0
+      }
+    }
+  ],
+  "getRecentResults 2": [
+    {
+      "id": 3,
+      "sessionId": 1,
+      "targetId": null,
+      "targetName": null,
+      "width": 1,
+      "height": 1,
+      "framesStacked": 2,
+      "framesAttempted": 3,
+      "integrationSecs": 60.5,
+      "avgAlignmentResidual": 1.0,
+      "avgHfr": null,
+      "filter": null,
+      "isColor": false,
+      "channels": 1,
+      "createdAt": "2025-03-01T22:50:00.000Z",
+      "exportedImagePath": null,
+      "stats": {
+        "stackedFrameCount": 2,
+        "totalFramesAttempted": 3,
+        "rejectedAlignmentFailures": 0,
+        "avgMatchedPairs": 0.0,
+        "avgAlignmentResidual": 1.0,
+        "totalSigmaRejectedPixels": 0
+      }
+    },
+    {
+      "id": 2,
+      "sessionId": null,
+      "targetId": null,
+      "targetName": null,
+      "width": 10,
+      "height": 20,
+      "framesStacked": 0,
+      "framesAttempted": 0,
+      "integrationSecs": 0.0,
+      "avgAlignmentResidual": 0.0,
+      "avgHfr": null,
+      "filter": null,
+      "isColor": false,
+      "channels": 1,
+      "createdAt": "2025-03-01T22:50:00.000Z",
+      "exportedImagePath": null,
+      "stats": {
+        "stackedFrameCount": 0,
+        "totalFramesAttempted": 0,
+        "rejectedAlignmentFailures": 0,
+        "avgMatchedPairs": 0.0,
+        "avgAlignmentResidual": 0.0,
+        "totalSigmaRejectedPixels": 0
+      }
+    }
+  ],
+  "getRecentResults all": [
+    {
+      "id": 3,
+      "sessionId": 1,
+      "targetId": null,
+      "targetName": null,
+      "width": 1,
+      "height": 1,
+      "framesStacked": 2,
+      "framesAttempted": 3,
+      "integrationSecs": 60.5,
+      "avgAlignmentResidual": 1.0,
+      "avgHfr": null,
+      "filter": null,
+      "isColor": false,
+      "channels": 1,
+      "createdAt": "2025-03-01T22:50:00.000Z",
+      "exportedImagePath": null,
+      "stats": {
+        "stackedFrameCount": 2,
+        "totalFramesAttempted": 3,
+        "rejectedAlignmentFailures": 0,
+        "avgMatchedPairs": 0.0,
+        "avgAlignmentResidual": 1.0,
+        "totalSigmaRejectedPixels": 0
+      }
+    },
+    {
+      "id": 2,
+      "sessionId": null,
+      "targetId": null,
+      "targetName": null,
+      "width": 10,
+      "height": 20,
+      "framesStacked": 0,
+      "framesAttempted": 0,
+      "integrationSecs": 0.0,
+      "avgAlignmentResidual": 0.0,
+      "avgHfr": null,
+      "filter": null,
+      "isColor": false,
+      "channels": 1,
+      "createdAt": "2025-03-01T22:50:00.000Z",
+      "exportedImagePath": null,
+      "stats": {
+        "stackedFrameCount": 0,
+        "totalFramesAttempted": 0,
+        "rejectedAlignmentFailures": 0,
+        "avgMatchedPairs": 0.0,
+        "avgAlignmentResidual": 0.0,
+        "totalSigmaRejectedPixels": 0
+      }
+    },
+    {
+      "id": 1,
+      "sessionId": 1,
+      "targetId": 1,
+      "targetName": "M31",
+      "width": 3000,
+      "height": 2000,
+      "framesStacked": 41,
+      "framesAttempted": 45,
+      "integrationSecs": 4920.0,
+      "avgAlignmentResidual": 0.42,
+      "avgHfr": 2.1,
+      "filter": "L",
+      "isColor": true,
+      "channels": 3,
+      "createdAt": "2025-03-01T22:50:00.000Z",
+      "exportedImagePath": "/share/m31.jpg",
+      "stats": {
+        "stackedFrameCount": 41,
+        "totalFramesAttempted": 45,
+        "rejectedAlignmentFailures": 0,
+        "avgMatchedPairs": 0.0,
+        "avgAlignmentResidual": 0.42,
+        "totalSigmaRejectedPixels": 0
+      }
+    },
+    {
+      "id": 4,
+      "sessionId": 2,
+      "targetId": null,
+      "targetName": null,
+      "width": 5,
+      "height": 5,
+      "framesStacked": 5,
+      "framesAttempted": 5,
+      "integrationSecs": 5.0,
+      "avgAlignmentResidual": 0.5,
+      "avgHfr": null,
+      "filter": null,
+      "isColor": false,
+      "channels": 1,
+      "createdAt": "2025-03-01T21:55:00.000Z",
+      "exportedImagePath": null,
+      "stats": {
+        "stackedFrameCount": 5,
+        "totalFramesAttempted": 5,
+        "rejectedAlignmentFailures": 0,
+        "avgMatchedPairs": 0.0,
+        "avgAlignmentResidual": 0.5,
+        "totalSigmaRejectedPixels": 0
+      }
+    }
+  ],
+  "updateExportedPath": 1,
+  "updateExportedPath missing": 0,
+  "deleteResult 3": 1,
+  "deleteResult missing": 0,
+  "after updates :: stacked_results": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_name": {
+        "v": "M31",
+        "t": "text"
+      },
+      "width": {
+        "v": 3000,
+        "t": "integer"
+      },
+      "height": {
+        "v": 2000,
+        "t": "integer"
+      },
+      "frames_stacked": {
+        "v": 41,
+        "t": "integer"
+      },
+      "frames_attempted": {
+        "v": 45,
+        "t": "integer"
+      },
+      "integration_secs": {
+        "v": 4920.0,
+        "t": "real"
+      },
+      "avg_alignment_residual": {
+        "v": 0.42,
+        "t": "real"
+      },
+      "avg_hfr": {
+        "v": 2.1,
+        "t": "real"
+      },
+      "filter": {
+        "v": "L",
+        "t": "text"
+      },
+      "is_color": {
+        "v": 1,
+        "t": "integer"
+      },
+      "channels": {
+        "v": 3,
+        "t": "integer"
+      },
+      "exported_image_path": {
+        "v": "/share/m31.jpg",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740869400,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": null,
+        "t": "null"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "target_name": {
+        "v": null,
+        "t": "null"
+      },
+      "width": {
+        "v": 10,
+        "t": "integer"
+      },
+      "height": {
+        "v": 20,
+        "t": "integer"
+      },
+      "frames_stacked": {
+        "v": 0,
+        "t": "integer"
+      },
+      "frames_attempted": {
+        "v": 0,
+        "t": "integer"
+      },
+      "integration_secs": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "avg_alignment_residual": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "avg_hfr": {
+        "v": null,
+        "t": "null"
+      },
+      "filter": {
+        "v": null,
+        "t": "null"
+      },
+      "is_color": {
+        "v": 0,
+        "t": "integer"
+      },
+      "channels": {
+        "v": 1,
+        "t": "integer"
+      },
+      "exported_image_path": {
+        "v": "/s.png",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740869400,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "target_name": {
+        "v": null,
+        "t": "null"
+      },
+      "width": {
+        "v": 5,
+        "t": "integer"
+      },
+      "height": {
+        "v": 5,
+        "t": "integer"
+      },
+      "frames_stacked": {
+        "v": 5,
+        "t": "integer"
+      },
+      "frames_attempted": {
+        "v": 5,
+        "t": "integer"
+      },
+      "integration_secs": {
+        "v": 5.0,
+        "t": "real"
+      },
+      "avg_alignment_residual": {
+        "v": 0.5,
+        "t": "real"
+      },
+      "avg_hfr": {
+        "v": null,
+        "t": "null"
+      },
+      "filter": {
+        "v": null,
+        "t": "null"
+      },
+      "is_color": {
+        "v": 0,
+        "t": "integer"
+      },
+      "channels": {
+        "v": 1,
+        "t": "integer"
+      },
+      "exported_image_path": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740866100,
+        "t": "integer"
+      }
+    }
+  ]
+}

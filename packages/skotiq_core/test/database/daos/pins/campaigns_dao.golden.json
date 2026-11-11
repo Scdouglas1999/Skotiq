@@ -1,0 +1,210 @@
+{
+  "empty getForTarget": [],
+  "empty getForTargetFilter": null,
+  "empty remaining": null,
+  "upsertDesired new": 1,
+  "upsertDesired same pair other case": 1,
+  "recordAccepted existing": 1,
+  "recordAccepted zero delta": null,
+  "recordAccepted negative delta": null,
+  "recordAccepted creates": 2,
+  "recordAccepted default time": 3,
+  "upsertDesired default time": 4,
+  "upsertDesired after accepted": 2,
+  "after writes :: campaigns": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "filter": {
+        "v": "Ha",
+        "t": "text"
+      },
+      "accepted_count": {
+        "v": 3,
+        "t": "integer"
+      },
+      "desired_count": {
+        "v": 40,
+        "t": "integer"
+      },
+      "last_date": {
+        "v": 1740866580,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740866460,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740866580,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "filter": {
+        "v": "B",
+        "t": "text"
+      },
+      "accepted_count": {
+        "v": 50,
+        "t": "integer"
+      },
+      "desired_count": {
+        "v": 20,
+        "t": "integer"
+      },
+      "last_date": {
+        "v": 1740866640,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740866640,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740866760,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "filter": {
+        "v": "L",
+        "t": "text"
+      },
+      "accepted_count": {
+        "v": 1,
+        "t": "integer"
+      },
+      "desired_count": {
+        "v": 0,
+        "t": "integer"
+      },
+      "last_date": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "filter": {
+        "v": "R",
+        "t": "text"
+      },
+      "accepted_count": {
+        "v": 0,
+        "t": "integer"
+      },
+      "desired_count": {
+        "v": 5,
+        "t": "integer"
+      },
+      "last_date": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      }
+    }
+  ],
+  "getForTarget t0": [
+    {
+      "id": 2,
+      "targetId": 1,
+      "filter": "B",
+      "acceptedCount": 50,
+      "desiredCount": 20,
+      "lastCaptureAt": "2025-03-01T22:04:00.000Z",
+      "createdAt": "2025-03-01T22:04:00.000Z",
+      "updatedAt": "2025-03-01T22:06:00.000Z"
+    },
+    {
+      "id": 1,
+      "targetId": 1,
+      "filter": "Ha",
+      "acceptedCount": 3,
+      "desiredCount": 40,
+      "lastCaptureAt": "2025-03-01T22:03:00.000Z",
+      "createdAt": "2025-03-01T22:01:00.000Z",
+      "updatedAt": "2025-03-01T22:03:00.000Z"
+    }
+  ],
+  "getForTarget t1": [
+    {
+      "id": 3,
+      "targetId": 2,
+      "filter": "L",
+      "acceptedCount": 1,
+      "desiredCount": 0,
+      "lastCaptureAt": "<now utc>",
+      "createdAt": "<now utc>",
+      "updatedAt": "<now utc>"
+    },
+    {
+      "id": 4,
+      "targetId": 2,
+      "filter": "R",
+      "acceptedCount": 0,
+      "desiredCount": 5,
+      "lastCaptureAt": null,
+      "createdAt": "<now utc>",
+      "updatedAt": "<now utc>"
+    }
+  ],
+  "getForTargetFilter case": {
+    "id": 1,
+    "targetId": 1,
+    "filter": "Ha",
+    "acceptedCount": 3,
+    "desiredCount": 40,
+    "lastCaptureAt": "2025-03-01T22:03:00.000Z",
+    "createdAt": "2025-03-01T22:01:00.000Z",
+    "updatedAt": "2025-03-01T22:03:00.000Z"
+  },
+  "getForTargetFilter missing": null,
+  "remaining Ha": 37,
+  "remaining B over goal": 0,
+  "remaining missing": null
+}

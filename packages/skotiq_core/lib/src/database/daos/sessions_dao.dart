@@ -146,18 +146,17 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
   /// happened, and a resumed night that shows no sign of it is the History card
   /// that made a two-part night look continuous.
   Future<void> reopenSession(int id) async {
-    final note = resumedSessionNote(DateTime.now());
-    await customUpdate(
-      "UPDATE imaging_sessions SET status = 'active', end_time = NULL, "
-      "notes = CASE WHEN notes IS NULL OR notes = '' THEN ? "
-      "ELSE notes || char(10) || ? END WHERE id = ?",
-      variables: [
-        Variable<String>(note),
-        Variable<String>(note),
-        Variable<int>(id),
-      ],
-      updates: {imagingSessions},
-      updateKind: UpdateKind.update,
+    final note = Variable(resumedSessionNote(DateTime.now()));
+    final notes = imagingSessions.notes;
+    await (update(imagingSessions)..where((s) => s.id.equals(id))).write(
+      ImagingSessionsCompanion.custom(
+        status: const Constant('active'),
+        endTime: const Constant(null),
+        notes: CaseWhenExpression(
+          cases: [CaseWhen(notes.isNull() | notes.equals(''), then: note)],
+          orElse: notes + const Constant('\n') + note,
+        ),
+      ),
     );
   }
 
@@ -189,19 +188,16 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
   Future<void> abortSession(int id) async {
     final session = await getSessionById(id);
     if (session == null) return;
-    final lastFrame = await customSelect(
-      'SELECT MAX(captured_at) AS last_at FROM captured_images '
-      'WHERE session_id = ?',
-      variables: [Variable<int>(id)],
-      readsFrom: {attachedDatabase.capturedImages},
-    ).getSingleOrNull();
-    final lastAt = lastFrame?.data['last_at'] as int?;
+    final frames = attachedDatabase.capturedImages;
+    final lastCapturedAt = frames.capturedAt.max();
+    final lastAt =
+        await (selectOnly(frames)
+              ..addColumns([lastCapturedAt])
+              ..where(frames.sessionId.equals(id)))
+            .map((row) => row.read(lastCapturedAt))
+            .getSingle();
     final now = DateTime.now();
-    // Drift stores DateTime columns as unix seconds and decodes them as local
-    // instants; matching that here keeps the round trip lossless.
-    var endTime = lastAt == null
-        ? session.startTime
-        : DateTime.fromMillisecondsSinceEpoch(lastAt * 1000);
+    var endTime = lastAt ?? session.startTime;
     if (endTime.isBefore(session.startTime)) endTime = session.startTime;
     if (endTime.isAfter(now)) endTime = now;
 

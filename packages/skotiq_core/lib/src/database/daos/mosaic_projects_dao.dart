@@ -6,25 +6,18 @@ import '../../providers/database_provider.dart';
 import '../database.dart';
 import '../epoch_seconds.dart';
 
-/// Data-access object for the v45 `mosaic_projects` table (Mosaic M2) — the
-/// durable record that makes a mosaic a first-class entity linking grid config →
-/// per-panel targets → per-panel masters → the stitched output.
-///
-/// The table is declared in `database/schema/mosaic.drift`; this DAO queries
-/// with SQL through the database's `customSelect` / `customStatement` APIs.
+part 'mosaic_projects_dao.g.dart';
+
+/// Reads and writes for `mosaic_projects`: the durable record that makes a
+/// mosaic a first-class entity linking grid config → per-panel targets →
+/// per-panel masters → the stitched output.
 ///
 /// SQLite errors propagate; reads map nullable columns to the model's nullable
 /// fields.
-class MosaicProjectsDao {
-  MosaicProjectsDao(this._db);
-
-  final SkotiqDatabase _db;
-
-  static const String _columns =
-      'id, target_id, name, rows, cols, overlap_pct, position_angle_deg, '
-      'status, output_master_id, created_at, updated_at, '
-      // v56: collaborative publish/role/status.
-      'hub_mosaic_id, collab_role, collab_status';
+@DriftAccessor(include: {'../schema/mosaic.drift'})
+class MosaicProjectsDao extends DatabaseAccessor<SkotiqDatabase>
+    with _$MosaicProjectsDaoMixin {
+  MosaicProjectsDao(super.db);
 
   /// Insert a mosaic project row and return its id. [createdAt]/[updatedAt]
   /// default to "now" (UTC seconds) when omitted.
@@ -42,91 +35,60 @@ class MosaicProjectsDao {
   }) {
     final created = toEpochSeconds(createdAt ?? DateTime.now());
     final updated = updatedAt == null ? created : toEpochSeconds(updatedAt);
-    return _db.customInsert(
-      'INSERT INTO mosaic_projects('
-      'target_id, name, rows, cols, overlap_pct, position_angle_deg, '
-      'status, output_master_id, created_at, updated_at'
-      ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      variables: [
-        Variable<int>(targetId),
-        Variable<String>(name),
-        Variable<int>(rows),
-        Variable<int>(cols),
-        Variable<double>(overlapPct),
-        Variable<double>(positionAngleDeg),
-        Variable<String>(status.wire),
-        Variable<int>(outputMasterId),
-        Variable<int>(created),
-        Variable<int>(updated),
-      ],
+    return into(mosaicProjects).insert(
+      MosaicProjectsCompanion.insert(
+        targetId: Value(targetId),
+        name: name,
+        rows: rows,
+        cols: cols,
+        overlapPct: Value(overlapPct),
+        positionAngleDeg: Value(positionAngleDeg),
+        status: Value(status.wire),
+        outputMasterId: Value(outputMasterId),
+        createdAt: created,
+        updatedAt: updated,
+      ),
     );
   }
 
   Future<MosaicProject?> getById(int id) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM mosaic_projects WHERE id = ? LIMIT 1',
-          variables: [Variable<int>(id)],
-        )
-        .get();
-    if (rows.isEmpty) return null;
-    return _map(rows.first);
+    final row = await (select(
+      mosaicProjects,
+    )..where((p) => p.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _map(row);
   }
 
   /// All projects, newest first.
-  Future<List<MosaicProject>> listAll() async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM mosaic_projects '
-          'ORDER BY created_at DESC, id DESC',
-        )
-        .get();
-    return rows.map(_map).toList();
-  }
+  Future<List<MosaicProject>> listAll() => _newestFirst();
 
   /// Collaborative projects the unattended owner/participant poller still has
   /// work to drive: published to a hub (`hub_mosaic_id` set) and not yet
   /// `complete`. Scopes the poll sweep to the handful of in-flight collaborative
   /// mosaics rather than every local project. Newest first.
-  Future<List<MosaicProject>> listActiveCollaborative() async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM mosaic_projects '
-          "WHERE hub_mosaic_id IS NOT NULL AND hub_mosaic_id != '' "
-          "AND (collab_status IS NULL OR collab_status != 'complete') "
-          'ORDER BY created_at DESC, id DESC',
-        )
-        .get();
-    return rows.map(_map).toList();
-  }
+  Future<List<MosaicProject>> listActiveCollaborative() => _newestFirst(
+    where: (p) =>
+        p.hubMosaicId.isNotNull() &
+        p.hubMosaicId.equals('').not() &
+        (p.collabStatus.isNull() | p.collabStatus.equals('complete').not()),
+  );
 
   /// Fetch the local project linked to [hubMosaicId], or null when this
   /// device has not joined/published that hub mosaic. Used by the join flow to
   /// reuse an existing local mirror instead of creating a duplicate project.
   Future<MosaicProject?> getByHubMosaicId(String hubMosaicId) async {
     if (hubMosaicId.isEmpty) return null;
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM mosaic_projects WHERE hub_mosaic_id = ? '
-          'ORDER BY id ASC LIMIT 1',
-          variables: [Variable<String>(hubMosaicId)],
-        )
-        .get();
-    if (rows.isEmpty) return null;
-    return _map(rows.first);
+    final row =
+        await (select(mosaicProjects)
+              ..where((p) => p.hubMosaicId.equals(hubMosaicId))
+              ..orderBy([(p) => OrderingTerm.asc(p.id)])
+              ..limit(1))
+            .getSingleOrNull();
+    return row == null ? null : _map(row);
   }
 
   /// Projects with the given lifecycle [status], newest first.
-  Future<List<MosaicProject>> listByStatus(MosaicProjectStatus status) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM mosaic_projects '
-          'WHERE status = ? ORDER BY created_at DESC, id DESC',
-          variables: [Variable<String>(status.wire)],
-        )
-        .get();
-    return rows.map(_map).toList();
-  }
+  Future<List<MosaicProject>> listByStatus(MosaicProjectStatus status) =>
+      _newestFirst(where: (p) => p.status.equals(status.wire));
 
   /// Update a project's lifecycle [status] (and `updated_at`). Returns the
   /// number of rows changed.
@@ -134,36 +96,20 @@ class MosaicProjectsDao {
     int id,
     MosaicProjectStatus status, {
     DateTime? now,
-  }) {
-    final at = toEpochSeconds(now ?? DateTime.now());
-    return _db.customUpdate(
-      'UPDATE mosaic_projects SET status = ?, updated_at = ? WHERE id = ?',
-      variables: [
-        Variable<String>(status.wire),
-        Variable<int>(at),
-        Variable<int>(id),
-      ],
-      updateKind: UpdateKind.update,
-    );
-  }
+  }) => _write(id, now, MosaicProjectsCompanion(status: Value(status.wire)));
 
   /// Attach the stitched output's `integrated_masters.id` to the project and
   /// mark it [MosaicProjectStatus.complete] (and bump `updated_at`). Returns the
   /// number of rows changed.
-  Future<int> setOutputMaster(int id, int outputMasterId, {DateTime? now}) {
-    final at = toEpochSeconds(now ?? DateTime.now());
-    return _db.customUpdate(
-      'UPDATE mosaic_projects SET output_master_id = ?, status = ?, '
-      'updated_at = ? WHERE id = ?',
-      variables: [
-        Variable<int>(outputMasterId),
-        Variable<String>(MosaicProjectStatus.complete.wire),
-        Variable<int>(at),
-        Variable<int>(id),
-      ],
-      updateKind: UpdateKind.update,
-    );
-  }
+  Future<int> setOutputMaster(int id, int outputMasterId, {DateTime? now}) =>
+      _write(
+        id,
+        now,
+        MosaicProjectsCompanion(
+          outputMasterId: Value(outputMasterId),
+          status: Value(MosaicProjectStatus.complete.wire),
+        ),
+      );
 
   /// Record that this project was published to the hub as a collaborative
   /// mosaic: persist the hub mosaic id, the collaborative [role]
@@ -174,62 +120,66 @@ class MosaicProjectsDao {
     String hubMosaicId,
     String role, {
     DateTime? now,
-  }) {
-    final at = toEpochSeconds(now ?? DateTime.now());
-    return _db.customUpdate(
-      'UPDATE mosaic_projects SET hub_mosaic_id = ?, collab_role = ?, '
-      "collab_status = 'published', updated_at = ? WHERE id = ?",
-      variables: [
-        Variable<String>(hubMosaicId),
-        Variable<String>(role),
-        Variable<int>(at),
-        Variable<int>(id),
-      ],
-      updateKind: UpdateKind.update,
-    );
-  }
+  }) => _write(
+    id,
+    now,
+    MosaicProjectsCompanion(
+      hubMosaicId: Value(hubMosaicId),
+      collabRole: Value(role),
+      collabStatus: const Value('published'),
+    ),
+  );
 
   /// Update a published project's hub-side collaborative lifecycle
   /// (`published`|`assembling`|`complete`). Returns the number of rows changed.
-  Future<int> setCollabStatus(int id, String collabStatus, {DateTime? now}) {
-    final at = toEpochSeconds(now ?? DateTime.now());
-    return _db.customUpdate(
-      'UPDATE mosaic_projects SET collab_status = ?, updated_at = ? WHERE id = ?',
-      variables: [
-        Variable<String>(collabStatus),
-        Variable<int>(at),
-        Variable<int>(id),
-      ],
-      updateKind: UpdateKind.update,
-    );
-  }
+  Future<int> setCollabStatus(int id, String collabStatus, {DateTime? now}) =>
+      _write(
+        id,
+        now,
+        MosaicProjectsCompanion(collabStatus: Value(collabStatus)),
+      );
 
   /// Delete a project by id. `mosaic_panels` rows cascade
   /// (`ON DELETE CASCADE`). Returns the number of rows changed.
-  Future<int> deleteProject(int id) {
-    return _db.customUpdate(
-      'DELETE FROM mosaic_projects WHERE id = ?',
-      variables: [Variable<int>(id)],
-      updateKind: UpdateKind.delete,
+  Future<int> deleteProject(int id) =>
+      (delete(mosaicProjects)..where((p) => p.id.equals(id))).go();
+
+  Future<List<MosaicProject>> _newestFirst({
+    Expression<bool> Function(MosaicProjects p)? where,
+  }) async {
+    final query = select(mosaicProjects)
+      ..orderBy([
+        (p) => OrderingTerm.desc(p.createdAt),
+        (p) => OrderingTerm.desc(p.id),
+      ]);
+    if (where != null) query.where(where);
+    final rows = await query.get();
+    return rows.map(_map).toList();
+  }
+
+  /// Writes [changes] to project [id] and bumps `updated_at` to [now].
+  Future<int> _write(int id, DateTime? now, MosaicProjectsCompanion changes) {
+    return (update(mosaicProjects)..where((p) => p.id.equals(id))).write(
+      changes.copyWith(updatedAt: Value(toEpochSeconds(now ?? DateTime.now()))),
     );
   }
 
-  MosaicProject _map(QueryRow row) {
+  MosaicProject _map(MosaicProjectRow row) {
     return MosaicProject(
-      id: row.read<int>('id'),
-      targetId: row.readNullable<int>('target_id'),
-      name: row.read<String>('name'),
-      rows: row.read<int>('rows'),
-      cols: row.read<int>('cols'),
-      overlapPct: row.read<double>('overlap_pct'),
-      positionAngleDeg: row.read<double>('position_angle_deg'),
-      status: MosaicProjectStatus.fromWire(row.read<String>('status')),
-      outputMasterId: row.readNullable<int>('output_master_id'),
-      createdAt: fromEpochSeconds(row.read<int>('created_at')),
-      updatedAt: fromEpochSeconds(row.read<int>('updated_at')),
-      hubMosaicId: row.readNullable<String>('hub_mosaic_id'),
-      collabRole: row.readNullable<String>('collab_role'),
-      collabStatus: row.readNullable<String>('collab_status'),
+      id: row.id,
+      targetId: row.targetId,
+      name: row.name,
+      rows: row.rows,
+      cols: row.cols,
+      overlapPct: row.overlapPct,
+      positionAngleDeg: row.positionAngleDeg,
+      status: MosaicProjectStatus.fromWire(row.status),
+      outputMasterId: row.outputMasterId,
+      createdAt: fromEpochSeconds(row.createdAt),
+      updatedAt: fromEpochSeconds(row.updatedAt),
+      hubMosaicId: row.hubMosaicId,
+      collabRole: row.collabRole,
+      collabStatus: row.collabStatus,
     );
   }
 }

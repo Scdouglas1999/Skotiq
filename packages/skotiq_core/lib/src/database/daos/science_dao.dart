@@ -219,27 +219,37 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
   /// science product (frame quality, photometric calibration, PSF tiles or
   /// photometry), keyed by the frame's own session.
   Future<Set<int>> getCapturedImageIdsWithScience(int sessionId) async {
-    final rows = await customSelect(
-      'SELECT ci.id AS id FROM captured_images ci '
-      'WHERE ci.session_id = ? AND ('
-      'EXISTS (SELECT 1 FROM science_frame_quality_metrics m '
-      'WHERE m.captured_image_id = ci.id) OR '
-      'EXISTS (SELECT 1 FROM frame_photometric_calibration c '
-      'WHERE c.captured_image_id = ci.id) OR '
-      'EXISTS (SELECT 1 FROM psf_field_tiles t '
-      'WHERE t.captured_image_id = ci.id) OR '
-      'EXISTS (SELECT 1 FROM photometry_measurements p '
-      'WHERE p.captured_image_id = ci.id))',
-      variables: [Variable.withInt(sessionId)],
-      readsFrom: {
-        attachedDatabase.capturedImages,
-        scienceFrameQualityMetrics,
-        framePhotometricCalibration,
-        psfFieldTiles,
-        photometryMeasurements,
-      },
-    ).get();
-    return rows.map((row) => row.read<int>('id')).toSet();
+    final frames = attachedDatabase.capturedImages;
+    Expression<bool> hasRow<T extends HasResultSet, R>(
+      ResultSetImplementation<T, R> product,
+      GeneratedColumn<int> imageId,
+    ) => existsQuery(
+      selectOnly(product)
+        ..addColumns([const Constant(1)])
+        ..where(imageId.equalsExp(frames.id)),
+    );
+
+    final rows =
+        await (selectOnly(frames)
+              ..addColumns([frames.id])
+              ..where(
+                frames.sessionId.equals(sessionId) &
+                    (hasRow(
+                          scienceFrameQualityMetrics,
+                          scienceFrameQualityMetrics.capturedImageId,
+                        ) |
+                        hasRow(
+                          framePhotometricCalibration,
+                          framePhotometricCalibration.capturedImageId,
+                        ) |
+                        hasRow(psfFieldTiles, psfFieldTiles.capturedImageId) |
+                        hasRow(
+                          photometryMeasurements,
+                          photometryMeasurements.capturedImageId,
+                        )),
+              ))
+            .get();
+    return rows.map((row) => row.read(frames.id)!).toSet();
   }
 
   Future<void> insertFrameCalibration(
@@ -389,6 +399,10 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
   /// Replaced spatial maps have new autoincrement row IDs. A count/max-ID
   /// fingerprint per image detects additions, replacements and deletions
   /// without materializing hundreds of thousands of pixel-map rows.
+  ///
+  /// SQL text on purpose: the Science views ask this on every refresh, one
+  /// row per frame with spatial maps, and drift's typed results map rows
+  /// 2-5x slower than this (measured on the per-frame queries in ImagesDao).
   Future<Map<String, String>> spatialMapVersions(
     int sessionId,
     String product,

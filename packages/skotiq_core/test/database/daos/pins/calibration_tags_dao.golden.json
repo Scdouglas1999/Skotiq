@@ -1,0 +1,604 @@
+{
+  "empty getForMaster": null,
+  "empty getAllKeyed": {},
+  "upsert new tags": null,
+  "after first upsert :: calibration_tags": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "master_type": {
+        "v": "dark",
+        "t": "text"
+      },
+      "master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "tags_json": {
+        "v": "[\"winter\",\"gain100\"]",
+        "t": "text"
+      },
+      "notes": {
+        "v": null,
+        "t": "null"
+      },
+      "camera_id": {
+        "v": null,
+        "t": "null"
+      },
+      "shared_by": {
+        "v": null,
+        "t": "null"
+      },
+      "shared_at": {
+        "v": null,
+        "t": "null"
+      },
+      "license": {
+        "v": null,
+        "t": "null"
+      },
+      "provenance_json": {
+        "v": null,
+        "t": "null"
+      },
+      "published_remote_id": {
+        "v": null,
+        "t": "null"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      }
+    }
+  ],
+  "upsert camera keeps tags": null,
+  "upsert notes": null,
+  "upsert shared": null,
+  "upsert clear notes and remote id": null,
+  "upsert clear remote id on shared": null,
+  "upsert defect map": null,
+  "after upserts :: calibration_tags": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "master_type": {
+        "v": "dark",
+        "t": "text"
+      },
+      "master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "tags_json": {
+        "v": "[\"winter\",\"gain100\"]",
+        "t": "text"
+      },
+      "notes": {
+        "v": null,
+        "t": "null"
+      },
+      "camera_id": {
+        "v": "ZWO ASI2600MM",
+        "t": "text"
+      },
+      "shared_by": {
+        "v": null,
+        "t": "null"
+      },
+      "shared_at": {
+        "v": null,
+        "t": "null"
+      },
+      "license": {
+        "v": null,
+        "t": "null"
+      },
+      "provenance_json": {
+        "v": null,
+        "t": "null"
+      },
+      "published_remote_id": {
+        "v": null,
+        "t": "null"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "master_type": {
+        "v": "flat",
+        "t": "text"
+      },
+      "master_id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "tags_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "notes": {
+        "v": null,
+        "t": "null"
+      },
+      "camera_id": {
+        "v": null,
+        "t": "null"
+      },
+      "shared_by": {
+        "v": "someone",
+        "t": "text"
+      },
+      "shared_at": {
+        "v": 1740868800,
+        "t": "integer"
+      },
+      "license": {
+        "v": "CC-BY-4.0",
+        "t": "text"
+      },
+      "provenance_json": {
+        "v": "{\"rig\":\"x\"}",
+        "t": "text"
+      },
+      "published_remote_id": {
+        "v": null,
+        "t": "null"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "master_type": {
+        "v": "defectMap",
+        "t": "text"
+      },
+      "master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "tags_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "notes": {
+        "v": "hot",
+        "t": "text"
+      },
+      "camera_id": {
+        "v": null,
+        "t": "null"
+      },
+      "shared_by": {
+        "v": null,
+        "t": "null"
+      },
+      "shared_at": {
+        "v": null,
+        "t": "null"
+      },
+      "license": {
+        "v": null,
+        "t": "null"
+      },
+      "provenance_json": {
+        "v": null,
+        "t": "null"
+      },
+      "published_remote_id": {
+        "v": null,
+        "t": "null"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      }
+    }
+  ],
+  "getForMaster dark 1": {
+    "id": 1,
+    "masterType": "CalibrationMasterType.dark",
+    "masterId": 1,
+    "tags": [
+      "winter",
+      "gain100"
+    ],
+    "notes": null,
+    "cameraId": "ZWO ASI2600MM",
+    "updatedAt": "<now utc>",
+    "sharedBy": null,
+    "sharedAt": null,
+    "license": null,
+    "provenanceJson": null,
+    "publishedRemoteId": null
+  },
+  "getForMaster flat 3": {
+    "id": 2,
+    "masterType": "CalibrationMasterType.flat",
+    "masterId": 3,
+    "tags": [],
+    "notes": null,
+    "cameraId": null,
+    "updatedAt": "<now utc>",
+    "sharedBy": "someone",
+    "sharedAt": "2025-03-01T22:40:00.000Z",
+    "license": "CC-BY-4.0",
+    "provenanceJson": "{\"rig\":\"x\"}",
+    "publishedRemoteId": null
+  },
+  "getForMaster other type": null,
+  "getAllKeyed": {
+    "dark:1": {
+      "id": 1,
+      "masterType": "CalibrationMasterType.dark",
+      "masterId": 1,
+      "tags": [
+        "winter",
+        "gain100"
+      ],
+      "notes": null,
+      "cameraId": "ZWO ASI2600MM",
+      "updatedAt": "<now utc>",
+      "sharedBy": null,
+      "sharedAt": null,
+      "license": null,
+      "provenanceJson": null,
+      "publishedRemoteId": null
+    },
+    "flat:3": {
+      "id": 2,
+      "masterType": "CalibrationMasterType.flat",
+      "masterId": 3,
+      "tags": [],
+      "notes": null,
+      "cameraId": null,
+      "updatedAt": "<now utc>",
+      "sharedBy": "someone",
+      "sharedAt": "2025-03-01T22:40:00.000Z",
+      "license": "CC-BY-4.0",
+      "provenanceJson": "{\"rig\":\"x\"}",
+      "publishedRemoteId": null
+    },
+    "defectMap:1": {
+      "id": 3,
+      "masterType": "CalibrationMasterType.defectMap",
+      "masterId": 1,
+      "tags": [],
+      "notes": "hot",
+      "cameraId": null,
+      "updatedAt": "<now utc>",
+      "sharedBy": null,
+      "sharedAt": null,
+      "license": null,
+      "provenanceJson": null,
+      "publishedRemoteId": null
+    },
+    "bias:6": {
+      "id": 5,
+      "masterType": "CalibrationMasterType.bias",
+      "masterId": 6,
+      "tags": [],
+      "notes": null,
+      "cameraId": null,
+      "updatedAt": "2025-03-01T22:00:00.000Z",
+      "sharedBy": null,
+      "sharedAt": null,
+      "license": null,
+      "provenanceJson": null,
+      "publishedRemoteId": null
+    },
+    "bias:7": {
+      "id": 6,
+      "masterType": "CalibrationMasterType.bias",
+      "masterId": 7,
+      "tags": [],
+      "notes": null,
+      "cameraId": null,
+      "updatedAt": "2025-03-01T22:00:00.000Z",
+      "sharedBy": null,
+      "sharedAt": null,
+      "license": null,
+      "provenanceJson": null,
+      "publishedRemoteId": null
+    }
+  },
+  "getForMaster unknown type row": {
+    "id": 5,
+    "masterType": "CalibrationMasterType.bias",
+    "masterId": 6,
+    "tags": [],
+    "notes": null,
+    "cameraId": null,
+    "updatedAt": "2025-03-01T22:00:00.000Z",
+    "sharedBy": null,
+    "sharedAt": null,
+    "license": null,
+    "provenanceJson": null,
+    "publishedRemoteId": null
+  },
+  "getForMaster bad json": {
+    "id": 6,
+    "masterType": "CalibrationMasterType.bias",
+    "masterId": 7,
+    "tags": [],
+    "notes": null,
+    "cameraId": null,
+    "updatedAt": "2025-03-01T22:00:00.000Z",
+    "sharedBy": null,
+    "sharedAt": null,
+    "license": null,
+    "provenanceJson": null,
+    "publishedRemoteId": null
+  },
+  "deleteForMaster": 1,
+  "deleteForMaster missing": 0,
+  "after delete :: calibration_tags": [
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "master_type": {
+        "v": "flat",
+        "t": "text"
+      },
+      "master_id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "tags_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "notes": {
+        "v": null,
+        "t": "null"
+      },
+      "camera_id": {
+        "v": null,
+        "t": "null"
+      },
+      "shared_by": {
+        "v": "someone",
+        "t": "text"
+      },
+      "shared_at": {
+        "v": 1740868800,
+        "t": "integer"
+      },
+      "license": {
+        "v": "CC-BY-4.0",
+        "t": "text"
+      },
+      "provenance_json": {
+        "v": "{\"rig\":\"x\"}",
+        "t": "text"
+      },
+      "published_remote_id": {
+        "v": null,
+        "t": "null"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "master_type": {
+        "v": "defectMap",
+        "t": "text"
+      },
+      "master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "tags_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "notes": {
+        "v": "hot",
+        "t": "text"
+      },
+      "camera_id": {
+        "v": null,
+        "t": "null"
+      },
+      "shared_by": {
+        "v": null,
+        "t": "null"
+      },
+      "shared_at": {
+        "v": null,
+        "t": "null"
+      },
+      "license": {
+        "v": null,
+        "t": "null"
+      },
+      "provenance_json": {
+        "v": null,
+        "t": "null"
+      },
+      "published_remote_id": {
+        "v": null,
+        "t": "null"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "master_type": {
+        "v": "future-kind",
+        "t": "text"
+      },
+      "master_id": {
+        "v": 5,
+        "t": "integer"
+      },
+      "tags_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "notes": {
+        "v": null,
+        "t": "null"
+      },
+      "camera_id": {
+        "v": null,
+        "t": "null"
+      },
+      "shared_by": {
+        "v": null,
+        "t": "null"
+      },
+      "shared_at": {
+        "v": null,
+        "t": "null"
+      },
+      "license": {
+        "v": null,
+        "t": "null"
+      },
+      "provenance_json": {
+        "v": null,
+        "t": "null"
+      },
+      "published_remote_id": {
+        "v": null,
+        "t": "null"
+      },
+      "updated_at": {
+        "v": 1740866400,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 5,
+        "t": "integer"
+      },
+      "master_type": {
+        "v": "bias",
+        "t": "text"
+      },
+      "master_id": {
+        "v": 6,
+        "t": "integer"
+      },
+      "tags_json": {
+        "v": "{\"not\":\"a list\"}",
+        "t": "text"
+      },
+      "notes": {
+        "v": null,
+        "t": "null"
+      },
+      "camera_id": {
+        "v": null,
+        "t": "null"
+      },
+      "shared_by": {
+        "v": null,
+        "t": "null"
+      },
+      "shared_at": {
+        "v": null,
+        "t": "null"
+      },
+      "license": {
+        "v": null,
+        "t": "null"
+      },
+      "provenance_json": {
+        "v": null,
+        "t": "null"
+      },
+      "published_remote_id": {
+        "v": null,
+        "t": "null"
+      },
+      "updated_at": {
+        "v": 1740866400,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 6,
+        "t": "integer"
+      },
+      "master_type": {
+        "v": "bias",
+        "t": "text"
+      },
+      "master_id": {
+        "v": 7,
+        "t": "integer"
+      },
+      "tags_json": {
+        "v": "broken",
+        "t": "text"
+      },
+      "notes": {
+        "v": null,
+        "t": "null"
+      },
+      "camera_id": {
+        "v": null,
+        "t": "null"
+      },
+      "shared_by": {
+        "v": null,
+        "t": "null"
+      },
+      "shared_at": {
+        "v": null,
+        "t": "null"
+      },
+      "license": {
+        "v": null,
+        "t": "null"
+      },
+      "provenance_json": {
+        "v": null,
+        "t": "null"
+      },
+      "published_remote_id": {
+        "v": null,
+        "t": "null"
+      },
+      "updated_at": {
+        "v": 1740866400,
+        "t": "integer"
+      }
+    }
+  ]
+}

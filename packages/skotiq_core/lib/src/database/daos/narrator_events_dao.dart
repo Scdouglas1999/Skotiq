@@ -105,24 +105,23 @@ class NarratorEventsDao extends DatabaseAccessor<SkotiqDatabase>
   /// idle cockpit tile, which has no session selector of its own. Capped to
   /// [limit]. Yields empty until at least one event exists.
   Stream<List<NarratorEventRow>> watchRecentFeed({int limit = 50}) {
-    // Scope to the session of the most-recent event via a scalar subquery,
-    // using `IS` so the sessionless bucket (NULL) matches itself rather than
-    // SQL's never-true `= NULL`. Pinned-first / newest-first within that scope.
-    return customSelect(
-      'SELECT * FROM narrator_events '
-      'WHERE session_id IS ('
-      '  SELECT session_id FROM narrator_events '
-      '  ORDER BY timestamp DESC LIMIT 1'
-      ') '
-      'ORDER BY pinned DESC, timestamp DESC '
-      'LIMIT ?',
-      variables: [Variable.withInt(limit)],
-      readsFrom: {narratorEvents},
-    ).watch().map(
-      (rows) => rows
-          .map((row) => narratorEvents.map(row.data))
-          .toList(growable: false),
+    // `IS` so the sessionless bucket (NULL) matches itself rather than SQL's
+    // never-true `= NULL`.
+    final newest = alias(narratorEvents, 'newest');
+    final newestSession = subqueryExpression<int>(
+      selectOnly(newest)
+        ..addColumns([newest.sessionId])
+        ..orderBy([OrderingTerm.desc(newest.timestamp)])
+        ..limit(1),
     );
+    return (select(narratorEvents)
+          ..where((t) => t.sessionId.isExp(newestSession))
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.pinned),
+            (t) => OrderingTerm.desc(t.timestamp),
+          ])
+          ..limit(limit))
+        .watch();
   }
 
   /// The session id of the most-recent event (null = sessionless bucket, or no

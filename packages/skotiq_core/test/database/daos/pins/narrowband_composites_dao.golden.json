@@ -1,0 +1,343 @@
+{
+  "empty getAll": [],
+  "empty getById": null,
+  "empty getForTarget": [],
+  "insert full": 1,
+  "insert tie": 2,
+  "insert no target": 3,
+  "insert default time": 4,
+  "after inserts :: narrowband_composites": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "palette": {
+        "v": "SHO",
+        "t": "text"
+      },
+      "component_master_ids": {
+        "v": "[4,2,9]",
+        "t": "text"
+      },
+      "output_path": {
+        "v": "/out/sho.tif",
+        "t": "text"
+      },
+      "width": {
+        "v": 6248,
+        "t": "integer"
+      },
+      "height": {
+        "v": 4176,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740868200,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "palette": {
+        "v": "HOO",
+        "t": "text"
+      },
+      "component_master_ids": {
+        "v": "[]",
+        "t": "text"
+      },
+      "output_path": {
+        "v": "/out/hoo.tif",
+        "t": "text"
+      },
+      "width": {
+        "v": 0,
+        "t": "integer"
+      },
+      "height": {
+        "v": 0,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740868200,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "palette": {
+        "v": "",
+        "t": "text"
+      },
+      "component_master_ids": {
+        "v": "[1]",
+        "t": "text"
+      },
+      "output_path": {
+        "v": "/out/x.tif",
+        "t": "text"
+      },
+      "width": {
+        "v": 0,
+        "t": "integer"
+      },
+      "height": {
+        "v": 0,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740866460,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "palette": {
+        "v": "RGB",
+        "t": "text"
+      },
+      "component_master_ids": {
+        "v": "[7]",
+        "t": "text"
+      },
+      "output_path": {
+        "v": "/out/now.tif",
+        "t": "text"
+      },
+      "width": {
+        "v": 0,
+        "t": "integer"
+      },
+      "height": {
+        "v": 0,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      }
+    }
+  ],
+  "getAll": [
+    {
+      "id": 4,
+      "targetId": 2,
+      "palette": "RGB",
+      "componentMasterIds": [
+        7
+      ],
+      "outputPath": "/out/now.tif",
+      "width": 0,
+      "height": 0,
+      "createdAt": "<now utc>"
+    },
+    {
+      "id": 2,
+      "targetId": 1,
+      "palette": "HOO",
+      "componentMasterIds": [],
+      "outputPath": "/out/hoo.tif",
+      "width": 0,
+      "height": 0,
+      "createdAt": "2025-03-01T22:30:00.000Z"
+    },
+    {
+      "id": 1,
+      "targetId": 1,
+      "palette": "SHO",
+      "componentMasterIds": [
+        4,
+        2,
+        9
+      ],
+      "outputPath": "/out/sho.tif",
+      "width": 6248,
+      "height": 4176,
+      "createdAt": "2025-03-01T22:30:00.000Z"
+    },
+    {
+      "id": 3,
+      "targetId": null,
+      "palette": "",
+      "componentMasterIds": [
+        1
+      ],
+      "outputPath": "/out/x.tif",
+      "width": 0,
+      "height": 0,
+      "createdAt": "2025-03-01T22:01:00.000Z"
+    }
+  ],
+  "getById 3": {
+    "id": 3,
+    "targetId": null,
+    "palette": "",
+    "componentMasterIds": [
+      1
+    ],
+    "outputPath": "/out/x.tif",
+    "width": 0,
+    "height": 0,
+    "createdAt": "2025-03-01T22:01:00.000Z"
+  },
+  "getById missing": null,
+  "getForTarget t0": [
+    {
+      "id": 2,
+      "targetId": 1,
+      "palette": "HOO",
+      "componentMasterIds": [],
+      "outputPath": "/out/hoo.tif",
+      "width": 0,
+      "height": 0,
+      "createdAt": "2025-03-01T22:30:00.000Z"
+    },
+    {
+      "id": 1,
+      "targetId": 1,
+      "palette": "SHO",
+      "componentMasterIds": [
+        4,
+        2,
+        9
+      ],
+      "outputPath": "/out/sho.tif",
+      "width": 6248,
+      "height": 4176,
+      "createdAt": "2025-03-01T22:30:00.000Z"
+    }
+  ],
+  "getForTarget t2": [],
+  "delete 1": 1,
+  "delete missing": 0,
+  "after delete :: narrowband_composites": [
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "palette": {
+        "v": "HOO",
+        "t": "text"
+      },
+      "component_master_ids": {
+        "v": "[]",
+        "t": "text"
+      },
+      "output_path": {
+        "v": "/out/hoo.tif",
+        "t": "text"
+      },
+      "width": {
+        "v": 0,
+        "t": "integer"
+      },
+      "height": {
+        "v": 0,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740868200,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "palette": {
+        "v": "",
+        "t": "text"
+      },
+      "component_master_ids": {
+        "v": "[1]",
+        "t": "text"
+      },
+      "output_path": {
+        "v": "/out/x.tif",
+        "t": "text"
+      },
+      "width": {
+        "v": 0,
+        "t": "integer"
+      },
+      "height": {
+        "v": 0,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740866460,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "palette": {
+        "v": "RGB",
+        "t": "text"
+      },
+      "component_master_ids": {
+        "v": "[7]",
+        "t": "text"
+      },
+      "output_path": {
+        "v": "/out/now.tif",
+        "t": "text"
+      },
+      "width": {
+        "v": 0,
+        "t": "integer"
+      },
+      "height": {
+        "v": 0,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      }
+    }
+  ]
+}

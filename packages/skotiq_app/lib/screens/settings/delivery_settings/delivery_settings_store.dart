@@ -372,7 +372,7 @@ class DaoDeliverySettingsStore implements DeliverySettingsStore {
     Set<ArtifactContent>? content,
     bool? enabled,
   }) async {
-    await _targets.update(
+    await _targets.updateDestination(
       id,
       name: name,
       configJson: configJson,
@@ -421,7 +421,7 @@ class DaoDeliverySettingsStore implements DeliverySettingsStore {
     // delivery with `credentialMissing`, which is a worse lie than a row that
     // does not claim to hold a key yet.
     await _secrets.write(ref, value);
-    await _targets.update(destinationId, secretRef: ref);
+    await _targets.updateDestination(destinationId, secretRef: ref);
   }
 
   @override

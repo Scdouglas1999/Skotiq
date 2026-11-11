@@ -6,24 +6,19 @@ import '../../providers/database_provider.dart';
 import '../database.dart';
 import '../epoch_seconds.dart';
 
-/// Data-access object for the v42 `night_reports` table — the persisted Night
-/// Doctor verdict for each session (and/or target) the Smart Morning Report
-/// pipeline produces.
+part 'night_reports_dao.g.dart';
+
+/// Reads and writes for `night_reports`: the persisted Night Doctor verdict
+/// for each session (and/or target) the Smart Morning Report pipeline
+/// produces.
 ///
-/// The table is declared in `database/schema/post_session.drift`; this DAO queries
-/// with SQL through the database's `customSelect` / `customStatement` APIs.
-///
-/// SQLite errors propagate; reads map nullable columns to the model's nullable
-/// fields. The `findings_json` column round-trips through
+/// The `findings_json` column round-trips through
 /// [NightReport.decodeFindings] / [NightReport.encodeFindings], so a corrupt
 /// blob degrades to an empty findings list rather than crashing a read.
-class NightReportsDao {
-  NightReportsDao(this._db);
-
-  final SkotiqDatabase _db;
-
-  static const String _columns =
-      'id, session_id, target_id, score, headline, findings_json, created_at';
+@DriftAccessor(include: {'../schema/post_session.drift'})
+class NightReportsDao extends DatabaseAccessor<SkotiqDatabase>
+    with _$NightReportsDaoMixin {
+  NightReportsDao(super.db);
 
   /// Insert a new report row and return its id. [createdAt] defaults to "now"
   /// (UTC seconds) when omitted. [findings] is serialized to the
@@ -36,88 +31,67 @@ class NightReportsDao {
     List<NightFinding> findings = const [],
     DateTime? createdAt,
   }) {
-    final now = DateTime.now().toUtc();
-    return _db.customInsert(
-      'INSERT INTO night_reports('
-      'session_id, target_id, score, headline, findings_json, created_at'
-      ') VALUES (?, ?, ?, ?, ?, ?)',
-      variables: [
-        Variable<int>(sessionId),
-        Variable<int>(targetId),
-        Variable<int>(score),
-        Variable<String>(headline),
-        Variable<String>(NightReport.encodeFindings(findings)),
-        Variable<int>(toEpochSeconds(createdAt ?? now)),
-      ],
+    return into(nightReports).insert(
+      NightReportsCompanion.insert(
+        sessionId: Value(sessionId),
+        targetId: Value(targetId),
+        score: Value(score),
+        headline: Value(headline),
+        findingsJson: Value(NightReport.encodeFindings(findings)),
+        createdAt: toEpochSeconds(createdAt ?? DateTime.now().toUtc()),
+      ),
     );
   }
 
   Future<NightReport?> getById(int id) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM night_reports WHERE id = ? LIMIT 1',
-          variables: [Variable<int>(id)],
-        )
-        .get();
-    if (rows.isEmpty) return null;
-    return _mapReport(rows.first);
+    final row = await (select(
+      nightReports,
+    )..where((r) => r.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _mapReport(row);
   }
 
   /// All reports for a given session, newest first.
   Future<List<NightReport>> getForSession(int sessionId) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM night_reports '
-          'WHERE session_id = ? ORDER BY created_at DESC, id DESC',
-          variables: [Variable<int>(sessionId)],
-        )
-        .get();
+    final rows = await _newestFirst((r) => r.sessionId.equals(sessionId)).get();
     return rows.map(_mapReport).toList();
   }
 
   /// All reports for a given target, newest first.
   Future<List<NightReport>> getForTarget(int targetId) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM night_reports '
-          'WHERE target_id = ? ORDER BY created_at DESC, id DESC',
-          variables: [Variable<int>(targetId)],
-        )
-        .get();
+    final rows = await _newestFirst((r) => r.targetId.equals(targetId)).get();
     return rows.map(_mapReport).toList();
   }
 
   /// The most recent report for a session, or null when none exists.
   Future<NightReport?> latestForSession(int sessionId) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM night_reports '
-          'WHERE session_id = ? ORDER BY created_at DESC, id DESC LIMIT 1',
-          variables: [Variable<int>(sessionId)],
-        )
-        .get();
-    if (rows.isEmpty) return null;
-    return _mapReport(rows.first);
+    final row = await (_newestFirst(
+      (r) => r.sessionId.equals(sessionId),
+    )..limit(1)).getSingleOrNull();
+    return row == null ? null : _mapReport(row);
   }
 
-  Future<int> deleteReport(int id) {
-    return _db.customUpdate(
-      'DELETE FROM night_reports WHERE id = ?',
-      variables: [Variable<int>(id)],
-      updateKind: UpdateKind.delete,
-    );
+  Future<int> deleteReport(int id) =>
+      (delete(nightReports)..where((r) => r.id.equals(id))).go();
+
+  SimpleSelectStatement<NightReports, NightReportRow> _newestFirst(
+    Expression<bool> Function(NightReports r) filter,
+  ) {
+    return select(nightReports)
+      ..where(filter)
+      ..orderBy([
+        (r) => OrderingTerm.desc(r.createdAt),
+        (r) => OrderingTerm.desc(r.id),
+      ]);
   }
 
-  NightReport _mapReport(QueryRow row) {
+  NightReport _mapReport(NightReportRow row) {
     return NightReport(
-      sessionId: row.readNullable<int>('session_id'),
-      targetId: row.readNullable<int>('target_id'),
-      score: row.read<int>('score'),
-      headline: row.read<String>('headline'),
-      findings: NightReport.decodeFindings(
-        row.readNullable<String>('findings_json'),
-      ),
-      createdAt: fromEpochSeconds(row.read<int>('created_at')),
+      sessionId: row.sessionId,
+      targetId: row.targetId,
+      score: row.score,
+      headline: row.headline,
+      findings: NightReport.decodeFindings(row.findingsJson),
+      createdAt: fromEpochSeconds(row.createdAt),
     );
   }
 }

@@ -1,0 +1,767 @@
+{
+  "empty getEntry": null,
+  "empty listForJob": [],
+  "empty listPendingRetry": [],
+  "recordAttempt new no bytes": {
+    "id": 1,
+    "targetId": 1,
+    "jobId": 1,
+    "filePath": "/m/L.fits",
+    "bytes": 0,
+    "checksum": null,
+    "state": "DeliveryAttemptState.retrying",
+    "attempts": 1,
+    "lastError": null,
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:10:00.000Z",
+    "deliveredAt": null
+  },
+  "recordAttempt again with bytes": {
+    "id": 1,
+    "targetId": 1,
+    "jobId": 1,
+    "filePath": "/m/L.fits",
+    "bytes": 4096,
+    "checksum": null,
+    "state": "DeliveryAttemptState.retrying",
+    "attempts": 2,
+    "lastError": null,
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:11:00.000Z",
+    "deliveredAt": null
+  },
+  "recordAttempt again zero bytes keeps size": {
+    "id": 1,
+    "targetId": 1,
+    "jobId": 1,
+    "filePath": "/m/L.fits",
+    "bytes": 4096,
+    "checksum": null,
+    "state": "DeliveryAttemptState.retrying",
+    "attempts": 3,
+    "lastError": null,
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:12:00.000Z",
+    "deliveredAt": null
+  },
+  "recordAttempt negative bytes": {
+    "threw": "ArgumentError",
+    "message": "Invalid argument (bytes): a file size cannot be negative: -1"
+  },
+  "recordAttempt second file": {
+    "id": 4,
+    "targetId": 1,
+    "jobId": 1,
+    "filePath": "/m/Ha.fits",
+    "bytes": 100,
+    "checksum": null,
+    "state": "DeliveryAttemptState.retrying",
+    "attempts": 1,
+    "lastError": null,
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:10:00.000Z",
+    "deliveredAt": null
+  },
+  "recordAttempt peer default now": {
+    "id": 5,
+    "targetId": 2,
+    "jobId": 2,
+    "filePath": "/m/report.html",
+    "bytes": 0,
+    "checksum": null,
+    "state": "DeliveryAttemptState.retrying",
+    "attempts": 1,
+    "lastError": null,
+    "createdAt": "<now utc>",
+    "updatedAt": "<now utc>",
+    "deliveredAt": null
+  },
+  "after attempts :: delivery_journal": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "job_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "file_path": {
+        "v": "/m/L.fits",
+        "t": "text"
+      },
+      "bytes": {
+        "v": 4096,
+        "t": "integer"
+      },
+      "checksum": {
+        "v": null,
+        "t": "null"
+      },
+      "state": {
+        "v": "retrying",
+        "t": "text"
+      },
+      "attempts": {
+        "v": 3,
+        "t": "integer"
+      },
+      "last_error": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867120,
+        "t": "integer"
+      },
+      "delivered_at": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "job_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "file_path": {
+        "v": "/m/Ha.fits",
+        "t": "text"
+      },
+      "bytes": {
+        "v": 100,
+        "t": "integer"
+      },
+      "checksum": {
+        "v": null,
+        "t": "null"
+      },
+      "state": {
+        "v": "retrying",
+        "t": "text"
+      },
+      "attempts": {
+        "v": 1,
+        "t": "integer"
+      },
+      "last_error": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "delivered_at": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 5,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "job_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "file_path": {
+        "v": "/m/report.html",
+        "t": "text"
+      },
+      "bytes": {
+        "v": 0,
+        "t": "integer"
+      },
+      "checksum": {
+        "v": null,
+        "t": "null"
+      },
+      "state": {
+        "v": "retrying",
+        "t": "text"
+      },
+      "attempts": {
+        "v": 1,
+        "t": "integer"
+      },
+      "last_error": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "delivered_at": {
+        "v": null,
+        "t": "null"
+      }
+    }
+  ],
+  "markDelivered": {
+    "id": 1,
+    "targetId": 1,
+    "jobId": 1,
+    "filePath": "/m/L.fits",
+    "bytes": 4096,
+    "checksum": "sha256:aa",
+    "state": "DeliveryAttemptState.delivered",
+    "attempts": 3,
+    "lastError": null,
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:13:00.000Z",
+    "deliveredAt": "2025-03-01T22:13:00.000Z"
+  },
+  "recordAttempt on delivered untouched": {
+    "id": 1,
+    "targetId": 1,
+    "jobId": 1,
+    "filePath": "/m/L.fits",
+    "bytes": 4096,
+    "checksum": "sha256:aa",
+    "state": "DeliveryAttemptState.delivered",
+    "attempts": 3,
+    "lastError": null,
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:13:00.000Z",
+    "deliveredAt": "2025-03-01T22:13:00.000Z"
+  },
+  "markFailed on delivered untouched": {
+    "id": 1,
+    "targetId": 1,
+    "jobId": 1,
+    "filePath": "/m/L.fits",
+    "bytes": 4096,
+    "checksum": "sha256:aa",
+    "state": "DeliveryAttemptState.delivered",
+    "attempts": 3,
+    "lastError": null,
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:13:00.000Z",
+    "deliveredAt": "2025-03-01T22:13:00.000Z"
+  },
+  "recordStillOwed on delivered untouched": {
+    "id": 1,
+    "targetId": 1,
+    "jobId": 1,
+    "filePath": "/m/L.fits",
+    "bytes": 4096,
+    "checksum": "sha256:aa",
+    "state": "DeliveryAttemptState.delivered",
+    "attempts": 3,
+    "lastError": null,
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:13:00.000Z",
+    "deliveredAt": "2025-03-01T22:13:00.000Z"
+  },
+  "markRetrying Ha": {
+    "id": 4,
+    "targetId": 1,
+    "jobId": 1,
+    "filePath": "/m/Ha.fits",
+    "bytes": 100,
+    "checksum": null,
+    "state": "DeliveryAttemptState.retrying",
+    "attempts": 1,
+    "lastError": "share offline",
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:16:00.000Z",
+    "deliveredAt": null
+  },
+  "markFailed Ha": {
+    "id": 4,
+    "targetId": 1,
+    "jobId": 1,
+    "filePath": "/m/Ha.fits",
+    "bytes": 100,
+    "checksum": null,
+    "state": "DeliveryAttemptState.failed",
+    "attempts": 1,
+    "lastError": "budget spent",
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:17:00.000Z",
+    "deliveredAt": null
+  },
+  "markRetrying missing": {
+    "threw": "DeliveryJournalMissingException",
+    "message": "No delivery journal entry for target 1, job 2, file /nope"
+  },
+  "markDelivered missing": {
+    "threw": "DeliveryJournalMissingException",
+    "message": "No delivery journal entry for target 1, job 2, file /nope"
+  },
+  "recordStillOwed new": {
+    "id": 8,
+    "targetId": 1,
+    "jobId": 2,
+    "filePath": "/m/OIII.fits",
+    "bytes": 55,
+    "checksum": null,
+    "state": "DeliveryAttemptState.retrying",
+    "attempts": 0,
+    "lastError": "operator stopped the pass",
+    "createdAt": "2025-03-01T22:18:00.000Z",
+    "updatedAt": "2025-03-01T22:18:00.000Z",
+    "deliveredAt": null
+  },
+  "recordStillOwed existing failed": {
+    "id": 4,
+    "targetId": 1,
+    "jobId": 1,
+    "filePath": "/m/Ha.fits",
+    "bytes": 100,
+    "checksum": null,
+    "state": "DeliveryAttemptState.retrying",
+    "attempts": 1,
+    "lastError": "stopped again",
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:19:00.000Z",
+    "deliveredAt": null
+  },
+  "recordStillOwed negative": {
+    "threw": "ArgumentError",
+    "message": "Invalid argument (bytes): a file size cannot be negative: -3"
+  },
+  "markDelivered keeps checksum when null": {
+    "id": 8,
+    "targetId": 1,
+    "jobId": 2,
+    "filePath": "/m/OIII.fits",
+    "bytes": 77,
+    "checksum": null,
+    "state": "DeliveryAttemptState.delivered",
+    "attempts": 0,
+    "lastError": "operator stopped the pass",
+    "createdAt": "2025-03-01T22:18:00.000Z",
+    "updatedAt": "2025-03-01T22:20:00.000Z",
+    "deliveredAt": "2025-03-01T22:20:00.000Z"
+  },
+  "requeueForRetry delivered": {
+    "id": 1,
+    "targetId": 1,
+    "jobId": 1,
+    "filePath": "/m/L.fits",
+    "bytes": 4096,
+    "checksum": "sha256:aa",
+    "state": "DeliveryAttemptState.retrying",
+    "attempts": 0,
+    "lastError": null,
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:21:00.000Z",
+    "deliveredAt": null
+  },
+  "requeueForRetry missing": {
+    "threw": "DeliveryJournalMissingException",
+    "message": "No delivery journal entry for target 2, job 1, file /x"
+  },
+  "markRetrying peer default now": {
+    "id": 5,
+    "targetId": 2,
+    "jobId": 2,
+    "filePath": "/m/report.html",
+    "bytes": 0,
+    "checksum": null,
+    "state": "DeliveryAttemptState.retrying",
+    "attempts": 1,
+    "lastError": "not pulled yet",
+    "createdAt": "<now utc>",
+    "updatedAt": "<now utc>",
+    "deliveredAt": null
+  },
+  "after outcomes :: delivery_journal": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "job_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "file_path": {
+        "v": "/m/L.fits",
+        "t": "text"
+      },
+      "bytes": {
+        "v": 4096,
+        "t": "integer"
+      },
+      "checksum": {
+        "v": "sha256:aa",
+        "t": "text"
+      },
+      "state": {
+        "v": "retrying",
+        "t": "text"
+      },
+      "attempts": {
+        "v": 0,
+        "t": "integer"
+      },
+      "last_error": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867660,
+        "t": "integer"
+      },
+      "delivered_at": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "job_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "file_path": {
+        "v": "/m/Ha.fits",
+        "t": "text"
+      },
+      "bytes": {
+        "v": 100,
+        "t": "integer"
+      },
+      "checksum": {
+        "v": null,
+        "t": "null"
+      },
+      "state": {
+        "v": "retrying",
+        "t": "text"
+      },
+      "attempts": {
+        "v": 1,
+        "t": "integer"
+      },
+      "last_error": {
+        "v": "stopped again",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867540,
+        "t": "integer"
+      },
+      "delivered_at": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 5,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "job_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "file_path": {
+        "v": "/m/report.html",
+        "t": "text"
+      },
+      "bytes": {
+        "v": 0,
+        "t": "integer"
+      },
+      "checksum": {
+        "v": null,
+        "t": "null"
+      },
+      "state": {
+        "v": "retrying",
+        "t": "text"
+      },
+      "attempts": {
+        "v": 1,
+        "t": "integer"
+      },
+      "last_error": {
+        "v": "not pulled yet",
+        "t": "text"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "delivered_at": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 8,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "job_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "file_path": {
+        "v": "/m/OIII.fits",
+        "t": "text"
+      },
+      "bytes": {
+        "v": 77,
+        "t": "integer"
+      },
+      "checksum": {
+        "v": null,
+        "t": "null"
+      },
+      "state": {
+        "v": "delivered",
+        "t": "text"
+      },
+      "attempts": {
+        "v": 0,
+        "t": "integer"
+      },
+      "last_error": {
+        "v": "operator stopped the pass",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740867480,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867600,
+        "t": "integer"
+      },
+      "delivered_at": {
+        "v": 1740867600,
+        "t": "integer"
+      }
+    }
+  ],
+  "listForJob job1": [
+    {
+      "id": 1,
+      "targetId": 1,
+      "jobId": 1,
+      "filePath": "/m/L.fits",
+      "bytes": 4096,
+      "checksum": "sha256:aa",
+      "state": "DeliveryAttemptState.retrying",
+      "attempts": 0,
+      "lastError": null,
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "updatedAt": "2025-03-01T22:21:00.000Z",
+      "deliveredAt": null
+    },
+    {
+      "id": 4,
+      "targetId": 1,
+      "jobId": 1,
+      "filePath": "/m/Ha.fits",
+      "bytes": 100,
+      "checksum": null,
+      "state": "DeliveryAttemptState.retrying",
+      "attempts": 1,
+      "lastError": "stopped again",
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "updatedAt": "2025-03-01T22:19:00.000Z",
+      "deliveredAt": null
+    }
+  ],
+  "listForJob job2": [
+    {
+      "id": 8,
+      "targetId": 1,
+      "jobId": 2,
+      "filePath": "/m/OIII.fits",
+      "bytes": 77,
+      "checksum": null,
+      "state": "DeliveryAttemptState.delivered",
+      "attempts": 0,
+      "lastError": "operator stopped the pass",
+      "createdAt": "2025-03-01T22:18:00.000Z",
+      "updatedAt": "2025-03-01T22:20:00.000Z",
+      "deliveredAt": "2025-03-01T22:20:00.000Z"
+    },
+    {
+      "id": 5,
+      "targetId": 2,
+      "jobId": 2,
+      "filePath": "/m/report.html",
+      "bytes": 0,
+      "checksum": null,
+      "state": "DeliveryAttemptState.retrying",
+      "attempts": 1,
+      "lastError": "not pulled yet",
+      "createdAt": "<now utc>",
+      "updatedAt": "<now utc>",
+      "deliveredAt": null
+    }
+  ],
+  "listForTarget nas": [
+    {
+      "id": 1,
+      "targetId": 1,
+      "jobId": 1,
+      "filePath": "/m/L.fits",
+      "bytes": 4096,
+      "checksum": "sha256:aa",
+      "state": "DeliveryAttemptState.retrying",
+      "attempts": 0,
+      "lastError": null,
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "updatedAt": "2025-03-01T22:21:00.000Z",
+      "deliveredAt": null
+    },
+    {
+      "id": 8,
+      "targetId": 1,
+      "jobId": 2,
+      "filePath": "/m/OIII.fits",
+      "bytes": 77,
+      "checksum": null,
+      "state": "DeliveryAttemptState.delivered",
+      "attempts": 0,
+      "lastError": "operator stopped the pass",
+      "createdAt": "2025-03-01T22:18:00.000Z",
+      "updatedAt": "2025-03-01T22:20:00.000Z",
+      "deliveredAt": "2025-03-01T22:20:00.000Z"
+    },
+    {
+      "id": 4,
+      "targetId": 1,
+      "jobId": 1,
+      "filePath": "/m/Ha.fits",
+      "bytes": 100,
+      "checksum": null,
+      "state": "DeliveryAttemptState.retrying",
+      "attempts": 1,
+      "lastError": "stopped again",
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "updatedAt": "2025-03-01T22:19:00.000Z",
+      "deliveredAt": null
+    }
+  ],
+  "listForTarget peer": [
+    {
+      "id": 5,
+      "targetId": 2,
+      "jobId": 2,
+      "filePath": "/m/report.html",
+      "bytes": 0,
+      "checksum": null,
+      "state": "DeliveryAttemptState.retrying",
+      "attempts": 1,
+      "lastError": "not pulled yet",
+      "createdAt": "<now utc>",
+      "updatedAt": "<now utc>",
+      "deliveredAt": null
+    }
+  ],
+  "listPendingRetry": [
+    {
+      "id": 4,
+      "targetId": 1,
+      "jobId": 1,
+      "filePath": "/m/Ha.fits",
+      "bytes": 100,
+      "checksum": null,
+      "state": "DeliveryAttemptState.retrying",
+      "attempts": 1,
+      "lastError": "stopped again",
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "updatedAt": "2025-03-01T22:19:00.000Z",
+      "deliveredAt": null
+    },
+    {
+      "id": 1,
+      "targetId": 1,
+      "jobId": 1,
+      "filePath": "/m/L.fits",
+      "bytes": 4096,
+      "checksum": "sha256:aa",
+      "state": "DeliveryAttemptState.retrying",
+      "attempts": 0,
+      "lastError": null,
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "updatedAt": "2025-03-01T22:21:00.000Z",
+      "deliveredAt": null
+    },
+    {
+      "id": 5,
+      "targetId": 2,
+      "jobId": 2,
+      "filePath": "/m/report.html",
+      "bytes": 0,
+      "checksum": null,
+      "state": "DeliveryAttemptState.retrying",
+      "attempts": 1,
+      "lastError": "not pulled yet",
+      "createdAt": "<now utc>",
+      "updatedAt": "<now utc>",
+      "deliveredAt": null
+    }
+  ]
+}

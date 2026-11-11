@@ -137,15 +137,14 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   Future<void> toggleFavorite(int id) async {
-    await customStatement(
-      '''
-      UPDATE targets
-      SET
-        is_favorite = CASE is_favorite WHEN 1 THEN 0 ELSE 1 END,
-        updated_at = ?
-      WHERE id = ?
-      ''',
-      [DateTime.now().millisecondsSinceEpoch ~/ 1000, id],
+    await (update(targets)..where((t) => t.id.equals(id))).write(
+      TargetsCompanion.custom(
+        isFavorite: targets.isFavorite.caseMatch(
+          when: {const Constant(true): const Constant(false)},
+          orElse: const Constant(true),
+        ),
+        updatedAt: Variable(DateTime.now()),
+      ),
     );
   }
 

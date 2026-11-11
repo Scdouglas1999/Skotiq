@@ -1,4 +1,3 @@
-
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -33,11 +32,9 @@ class SkyAtlasDao extends DatabaseAccessor<SkotiqDatabase>
           integrationSeconds: Value(0),
         ),
       );
-      await customUpdate(
-        'UPDATE captured_images SET atlas_folded_at = NULL '
-        'WHERE atlas_folded_at IS NOT NULL',
-        updates: {attachedDatabase.capturedImages},
-        updateKind: UpdateKind.update,
+      final frames = attachedDatabase.capturedImages;
+      await (update(frames)..where((i) => i.atlasFoldedAt.isNotNull())).write(
+        const CapturedImagesCompanion(atlasFoldedAt: Value(null)),
       );
     });
   }
@@ -190,44 +187,55 @@ class SkyAtlasDao extends DatabaseAccessor<SkotiqDatabase>
   /// Distinct-frame totals from the fold timeline. A frame is one
   /// (label, contributor) pair; its exposure is the largest seconds any of its
   /// tile rows recorded (every row of a frame records the frame's own
-  /// exposure). [where] narrows the fold rows (an SQL predicate on `f`).
-  Future<({int frames, double seconds})> _distinctFrameTotals(
-    String where,
-    List<Variable<Object>> variables,
-  ) async {
-    final row = await customSelect(
-      'SELECT COUNT(*) AS frames, COALESCE(SUM(s), 0.0) AS seconds FROM ('
-      'SELECT f.label, f.contributor, MAX(f.integration_seconds_added) AS s '
-      'FROM sky_atlas_folds f WHERE f.frames_added > 0 AND ($where) '
-      'GROUP BY f.label, f.contributor)',
-      variables: variables,
-      readsFrom: {skyAtlasFolds, skyTiles},
-    ).getSingle();
-    return (
-      frames: row.read<int>('frames'),
-      seconds: row.read<double>('seconds'),
-    );
+  /// exposure). [where] narrows the fold rows.
+  Future<({int frames, double seconds})> _distinctFrameTotals([
+    Expression<bool> Function($SkyAtlasFoldsTable f)? where,
+  ]) async {
+    final f = skyAtlasFolds;
+    final frameSeconds = f.integrationSecondsAdded.max();
+    final perFrame = selectOnly(f)
+      ..addColumns([f.label, f.contributor, frameSeconds])
+      ..where(
+        where == null
+            ? f.framesAdded.isBiggerThanValue(0)
+            : f.framesAdded.isBiggerThanValue(0) & where(f),
+      )
+      ..groupBy([f.label, f.contributor]);
+    final perFrameRows = Subquery(perFrame, 'frames');
+    final frames = countAll();
+    final seconds = coalesce([
+      perFrameRows.ref(frameSeconds).sum(),
+      const Constant(0.0),
+    ]);
+    final row = await (selectOnly(
+      perFrameRows,
+    )..addColumns([frames, seconds])).getSingle();
+    return (frames: row.read(frames)!, seconds: row.read(seconds)!);
   }
 
   /// Distinct frames and their exposure across the whole atlas.
   Future<({int frames, double seconds})> atlasTotals() =>
-      _distinctFrameTotals('1 = 1', const []);
+      _distinctFrameTotals();
 
   /// Distinct frames and their exposure for one tile.
   Future<({int frames, double seconds})> tileTotals(
     int tileId, {
     int healpixOrder = skyAtlasHealpixOrder,
-  }) => _distinctFrameTotals('f.tile_id = ? AND f.healpix_order = ?', [
-    Variable.withInt(tileId),
-    Variable.withInt(healpixOrder),
-  ]);
+  }) => _distinctFrameTotals(
+    (f) => f.tileId.equals(tileId) & f.healpixOrder.equals(healpixOrder),
+  );
 
   /// Distinct frames and their exposure over the tiles of a region.
   Future<({int frames, double seconds})> regionTotals(int regionId) =>
       _distinctFrameTotals(
-        'EXISTS (SELECT 1 FROM sky_tiles t WHERE t.tile_id = f.tile_id '
-        'AND t.healpix_order = f.healpix_order AND t.region_id = ?)',
-        [Variable.withInt(regionId)],
+        (f) => existsQuery(
+          select(skyTiles)..where(
+            (t) =>
+                t.tileId.equalsExp(f.tileId) &
+                t.healpixOrder.equalsExp(f.healpixOrder) &
+                t.regionId.equals(regionId),
+          ),
+        ),
       );
 
   /// All tiles, ordered by depth (most integration first) for coverage views.

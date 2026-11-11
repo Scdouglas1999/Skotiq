@@ -6,23 +6,19 @@ import '../../providers/database_provider.dart';
 import '../database.dart';
 import '../epoch_seconds.dart';
 
-/// Data-access object for the v41 `flat_library` table — the master-flat
-/// artifact library, the missing counterpart to `dark_library`.
+part 'flat_library_dao.g.dart';
+
+/// Reads and writes for `flat_library`: the master-flat artifact library, the
+/// counterpart to `dark_library`.
 ///
-/// The table is declared in `database/schema/post_session.drift`; this DAO
-/// queries with SQL through `customSelect` / `customStatement`. Its match
-/// API ([findBestMatch]) deliberately mirrors `DarkLibraryDao.findBestMatch`:
-/// exact gain/offset/binning + filter, temperature within tolerance, preferring
-/// the closest temperature then the newest.
-class FlatLibraryDao {
-  FlatLibraryDao(this._db);
-
-  final SkotiqDatabase _db;
-
-  static const String _columns =
-      'id, file_path, filter, equipment_profile_id, '
-      'optical_train_id, temperature, gain, offset, bin_x, bin_y, width, '
-      'height, flat_kind, master_frame_count, created_at';
+/// Its match API ([findBestMatch]) deliberately mirrors
+/// `DarkLibraryDao.findBestMatch`: exact gain/offset/binning + filter,
+/// temperature within tolerance, preferring the closest temperature then the
+/// newest.
+@DriftAccessor(include: {'../schema/post_session.drift'})
+class FlatLibraryDao extends DatabaseAccessor<SkotiqDatabase>
+    with _$FlatLibraryDaoMixin {
+  FlatLibraryDao(super.db);
 
   /// Insert (or replace on duplicate file path) a master-flat entry; returns id.
   Future<int> addEntry({
@@ -42,86 +38,54 @@ class FlatLibraryDao {
     DateTime? createdAt,
   }) async {
     // Dedup by file path (a master flat is rebuilt to the same path on rerun).
-    final existing = await _db
-        .customSelect(
-          'SELECT id FROM flat_library WHERE file_path = ? LIMIT 1',
-          variables: [Variable<String>(filePath)],
-        )
-        .get();
-    final createdSecs = toEpochSeconds((createdAt ?? DateTime.now()).toUtc());
-
-    if (existing.isNotEmpty) {
-      final id = existing.first.read<int>('id');
-      await _db.customUpdate(
-        'UPDATE flat_library SET filter = ?, equipment_profile_id = ?, '
-        'optical_train_id = ?, temperature = ?, gain = ?, offset = ?, '
-        'bin_x = ?, bin_y = ?, width = ?, height = ?, flat_kind = ?, '
-        'master_frame_count = ?, created_at = ? WHERE id = ?',
-        variables: [
-          Variable<String>(filter),
-          Variable<int>(equipmentProfileId),
-          Variable<String>(opticalTrainId),
-          Variable<double>(temperature),
-          Variable<int>(gain),
-          Variable<int>(offset),
-          Variable<int>(binX),
-          Variable<int>(binY),
-          Variable<int>(width),
-          Variable<int>(height),
-          Variable<String>(flatKind),
-          Variable<int>(masterFrameCount),
-          Variable<int>(createdSecs),
-          Variable<int>(id),
-        ],
-        updateKind: UpdateKind.update,
-      );
-      return id;
-    }
-
-    return _db.customInsert(
-      'INSERT INTO flat_library('
-      'file_path, filter, equipment_profile_id, optical_train_id, temperature, '
-      'gain, offset, bin_x, bin_y, width, height, flat_kind, '
-      'master_frame_count, created_at'
-      ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      variables: [
-        Variable<String>(filePath),
-        Variable<String>(filter),
-        Variable<int>(equipmentProfileId),
-        Variable<String>(opticalTrainId),
-        Variable<double>(temperature),
-        Variable<int>(gain),
-        Variable<int>(offset),
-        Variable<int>(binX),
-        Variable<int>(binY),
-        Variable<int>(width),
-        Variable<int>(height),
-        Variable<String>(flatKind),
-        Variable<int>(masterFrameCount),
-        Variable<int>(createdSecs),
-      ],
+    final existing =
+        await (selectOnly(flatLibrary)
+              ..addColumns([flatLibrary.id])
+              ..where(flatLibrary.filePath.equals(filePath))
+              ..limit(1))
+            .map((row) => row.read(flatLibrary.id)!)
+            .getSingleOrNull();
+    final entry = FlatLibraryCompanion(
+      filter: Value(filter),
+      equipmentProfileId: Value(equipmentProfileId),
+      opticalTrainId: Value(opticalTrainId),
+      temperature: Value(temperature),
+      gain: Value(gain),
+      offset: Value(offset),
+      binX: Value(binX),
+      binY: Value(binY),
+      width: Value(width),
+      height: Value(height),
+      flatKind: Value(flatKind),
+      masterFrameCount: Value(masterFrameCount),
+      createdAt: Value(toEpochSeconds((createdAt ?? DateTime.now()).toUtc())),
     );
+
+    if (existing != null) {
+      await (update(
+        flatLibrary,
+      )..where((f) => f.id.equals(existing))).write(entry);
+      return existing;
+    }
+    return into(flatLibrary).insert(entry.copyWith(filePath: Value(filePath)));
   }
 
   /// All entries, newest first.
   Future<List<FlatLibraryEntry>> getAllEntries() async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM flat_library ORDER BY created_at DESC, id DESC',
-        )
-        .get();
+    final rows =
+        await (select(flatLibrary)..orderBy([
+              (f) => OrderingTerm.desc(f.createdAt),
+              (f) => OrderingTerm.desc(f.id),
+            ]))
+            .get();
     return rows.map(_mapRow).toList();
   }
 
   Future<FlatLibraryEntry?> getEntryById(int id) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM flat_library WHERE id = ? LIMIT 1',
-          variables: [Variable<int>(id)],
-        )
-        .get();
-    if (rows.isEmpty) return null;
-    return _mapRow(rows.first);
+    final row = await (select(
+      flatLibrary,
+    )..where((f) => f.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _mapRow(row);
   }
 
   /// Find the best master flat for a light frame's parameters.
@@ -144,34 +108,28 @@ class FlatLibraryDao {
     double? temperature,
     double temperatureToleranceC = 5.0,
   }) async {
-    final clauses = <String>[
-      'gain = ?',
-      'offset = ?',
-      'bin_x = ?',
-      'bin_y = ?',
-    ];
-    final vars = <Variable<Object>>[
-      Variable<int>(gain),
-      Variable<int>(offset),
-      Variable<int>(binX),
-      Variable<int>(binY),
-    ];
-    if (filter != null && filter.trim().isNotEmpty) {
-      clauses.add('filter = ?');
-      vars.add(Variable<String>(filter.trim()));
-    }
-    if (opticalTrainId != null && opticalTrainId.trim().isNotEmpty) {
-      // Accept rows with a matching tag OR no tag at all (a generic flat).
-      clauses.add('(optical_train_id = ? OR optical_train_id IS NULL)');
-      vars.add(Variable<String>(opticalTrainId.trim()));
-    }
-
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM flat_library WHERE ${clauses.join(' AND ')}',
-          variables: vars,
-        )
-        .get();
+    final train = opticalTrainId?.trim();
+    final rows =
+        await (select(flatLibrary)..where((f) {
+              var matches =
+                  f.gain.equals(gain) &
+                  f.offset.equals(offset) &
+                  f.binX.equals(binX) &
+                  f.binY.equals(binY);
+              if (filter != null && filter.trim().isNotEmpty) {
+                matches = matches & f.filter.equals(filter.trim());
+              }
+              if (train != null && train.isNotEmpty) {
+                // Accept rows with a matching tag OR no tag at all (a generic
+                // flat).
+                matches =
+                    matches &
+                    (f.opticalTrainId.equals(train) |
+                        f.opticalTrainId.isNull());
+              }
+              return matches;
+            }))
+            .get();
     if (rows.isEmpty) return null;
 
     var candidates = rows.map(_mapRow).toList();
@@ -203,31 +161,26 @@ class FlatLibraryDao {
     return candidates.first;
   }
 
-  Future<int> deleteEntry(int id) {
-    return _db.customUpdate(
-      'DELETE FROM flat_library WHERE id = ?',
-      variables: [Variable<int>(id)],
-      updateKind: UpdateKind.delete,
-    );
-  }
+  Future<int> deleteEntry(int id) =>
+      (delete(flatLibrary)..where((f) => f.id.equals(id))).go();
 
-  FlatLibraryEntry _mapRow(QueryRow row) {
+  FlatLibraryEntry _mapRow(FlatLibraryRow row) {
     return FlatLibraryEntry(
-      id: row.read<int>('id'),
-      filePath: row.read<String>('file_path'),
-      filter: row.readNullable<String>('filter'),
-      equipmentProfileId: row.readNullable<int>('equipment_profile_id'),
-      opticalTrainId: row.readNullable<String>('optical_train_id'),
-      temperature: row.readNullable<double>('temperature'),
-      gain: row.read<int>('gain'),
-      offset: row.read<int>('offset'),
-      binX: row.read<int>('bin_x'),
-      binY: row.read<int>('bin_y'),
-      width: row.readNullable<int>('width'),
-      height: row.readNullable<int>('height'),
-      flatKind: row.read<String>('flat_kind'),
-      masterFrameCount: row.read<int>('master_frame_count'),
-      createdAt: fromEpochSeconds(row.read<int>('created_at')),
+      id: row.id,
+      filePath: row.filePath,
+      filter: row.filter,
+      equipmentProfileId: row.equipmentProfileId,
+      opticalTrainId: row.opticalTrainId,
+      temperature: row.temperature,
+      gain: row.gain,
+      offset: row.offset,
+      binX: row.binX,
+      binY: row.binY,
+      width: row.width,
+      height: row.height,
+      flatKind: row.flatKind,
+      masterFrameCount: row.masterFrameCount,
+      createdAt: fromEpochSeconds(row.createdAt),
     );
   }
 }

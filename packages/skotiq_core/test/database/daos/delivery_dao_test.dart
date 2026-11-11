@@ -164,7 +164,10 @@ void main() {
           configJson: '{"path":"/mnt/nas/astro"}',
         );
         await expectLater(
-          targets.update(id, configJson: '{"path":"/mnt","token":"t"}'),
+          targets.updateDestination(
+            id,
+            configJson: '{"path":"/mnt","token":"t"}',
+          ),
           throwsA(isA<DeliveryConfigSecretException>()),
         );
         expect(
@@ -187,7 +190,7 @@ void main() {
           createdAt: DateTime.utc(2026, 8, 16, 5),
         );
 
-        var destination = await targets.update(
+        var destination = await targets.updateDestination(
           id,
           enabled: false,
           now: DateTime.utc(2026, 8, 16, 9),
@@ -204,7 +207,7 @@ void main() {
           ArtifactContent.draftRender,
         });
 
-        destination = await targets.update(
+        destination = await targets.updateDestination(
           id,
           content: const <ArtifactContent>{ArtifactContent.linearMasters},
         );
@@ -225,7 +228,7 @@ void main() {
           throwsA(isA<ArgumentError>()),
         );
         await expectLater(
-          targets.update(id + 9999, enabled: true),
+          targets.updateDestination(id + 9999, enabled: true),
           throwsA(isA<ArtifactDestinationMissingException>()),
         );
       },

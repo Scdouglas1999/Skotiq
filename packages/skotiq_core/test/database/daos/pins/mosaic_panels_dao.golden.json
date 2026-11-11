@@ -1,0 +1,776 @@
+{
+  "empty getForProject": [],
+  "empty getByIndex": null,
+  "empty getById": null,
+  "upsert p1 #2": 1,
+  "upsert p1 #0": 2,
+  "upsert p1 #1": 3,
+  "upsert p2 #0": 4,
+  "after insert :: mosaic_panels": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "project_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "panel_index": {
+        "v": 2,
+        "t": "integer"
+      },
+      "center_ra": {
+        "v": 10.5,
+        "t": "real"
+      },
+      "center_dec": {
+        "v": 41.25,
+        "t": "real"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "integrated_master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "captured_count": {
+        "v": 0,
+        "t": "integer"
+      },
+      "status": {
+        "v": "pending",
+        "t": "text"
+      },
+      "assigned_rig_id": {
+        "v": null,
+        "t": "null"
+      },
+      "assigned_user_id": {
+        "v": null,
+        "t": "null"
+      },
+      "claim_token": {
+        "v": null,
+        "t": "null"
+      },
+      "uploaded_master_id": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "project_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "panel_index": {
+        "v": 0,
+        "t": "integer"
+      },
+      "center_ra": {
+        "v": 10.0,
+        "t": "real"
+      },
+      "center_dec": {
+        "v": 41.0,
+        "t": "real"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "integrated_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "captured_count": {
+        "v": 0,
+        "t": "integer"
+      },
+      "status": {
+        "v": "pending",
+        "t": "text"
+      },
+      "assigned_rig_id": {
+        "v": null,
+        "t": "null"
+      },
+      "assigned_user_id": {
+        "v": null,
+        "t": "null"
+      },
+      "claim_token": {
+        "v": null,
+        "t": "null"
+      },
+      "uploaded_master_id": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "project_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "panel_index": {
+        "v": 1,
+        "t": "integer"
+      },
+      "center_ra": {
+        "v": 9.0,
+        "t": "real"
+      },
+      "center_dec": {
+        "v": 40.0,
+        "t": "real"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "integrated_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "captured_count": {
+        "v": 0,
+        "t": "integer"
+      },
+      "status": {
+        "v": "pending",
+        "t": "text"
+      },
+      "assigned_rig_id": {
+        "v": null,
+        "t": "null"
+      },
+      "assigned_user_id": {
+        "v": null,
+        "t": "null"
+      },
+      "claim_token": {
+        "v": null,
+        "t": "null"
+      },
+      "uploaded_master_id": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "project_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "panel_index": {
+        "v": 0,
+        "t": "integer"
+      },
+      "center_ra": {
+        "v": 3.0,
+        "t": "real"
+      },
+      "center_dec": {
+        "v": -5.0,
+        "t": "real"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "integrated_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "captured_count": {
+        "v": 0,
+        "t": "integer"
+      },
+      "status": {
+        "v": "pending",
+        "t": "text"
+      },
+      "assigned_rig_id": {
+        "v": null,
+        "t": "null"
+      },
+      "assigned_user_id": {
+        "v": null,
+        "t": "null"
+      },
+      "claim_token": {
+        "v": null,
+        "t": "null"
+      },
+      "uploaded_master_id": {
+        "v": null,
+        "t": "null"
+      }
+    }
+  ],
+  "incrementCaptured": 1,
+  "incrementCaptured default": 1,
+  "incrementCaptured zero": 0,
+  "incrementCaptured missing": 0,
+  "updateStatus": 1,
+  "re-upsert keeps progress": 1,
+  "setMaster": 1,
+  "setMaster missing": 0,
+  "clearMaster": 1,
+  "setClaim": 1,
+  "setClaim nulls": 1,
+  "setUploaded": 1,
+  "setCaptured": 1,
+  "setCaptured zero": 1,
+  "setCaptured negative": 0,
+  "after updates :: mosaic_panels": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "project_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "panel_index": {
+        "v": 2,
+        "t": "integer"
+      },
+      "center_ra": {
+        "v": 11.0,
+        "t": "real"
+      },
+      "center_dec": {
+        "v": 42.0,
+        "t": "real"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "integrated_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "captured_count": {
+        "v": 5,
+        "t": "integer"
+      },
+      "status": {
+        "v": "captured",
+        "t": "text"
+      },
+      "assigned_rig_id": {
+        "v": null,
+        "t": "null"
+      },
+      "assigned_user_id": {
+        "v": null,
+        "t": "null"
+      },
+      "claim_token": {
+        "v": null,
+        "t": "null"
+      },
+      "uploaded_master_id": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "project_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "panel_index": {
+        "v": 0,
+        "t": "integer"
+      },
+      "center_ra": {
+        "v": 10.0,
+        "t": "real"
+      },
+      "center_dec": {
+        "v": 41.0,
+        "t": "real"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "integrated_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "captured_count": {
+        "v": 0,
+        "t": "integer"
+      },
+      "status": {
+        "v": "integrated",
+        "t": "text"
+      },
+      "assigned_rig_id": {
+        "v": null,
+        "t": "null"
+      },
+      "assigned_user_id": {
+        "v": null,
+        "t": "null"
+      },
+      "claim_token": {
+        "v": null,
+        "t": "null"
+      },
+      "uploaded_master_id": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "project_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "panel_index": {
+        "v": 1,
+        "t": "integer"
+      },
+      "center_ra": {
+        "v": 9.0,
+        "t": "real"
+      },
+      "center_dec": {
+        "v": 40.0,
+        "t": "real"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "integrated_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "captured_count": {
+        "v": 17,
+        "t": "integer"
+      },
+      "status": {
+        "v": "pending",
+        "t": "text"
+      },
+      "assigned_rig_id": {
+        "v": "rig-1",
+        "t": "text"
+      },
+      "assigned_user_id": {
+        "v": "u1",
+        "t": "text"
+      },
+      "claim_token": {
+        "v": "tok",
+        "t": "text"
+      },
+      "uploaded_master_id": {
+        "v": 2,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "project_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "panel_index": {
+        "v": 0,
+        "t": "integer"
+      },
+      "center_ra": {
+        "v": 3.0,
+        "t": "real"
+      },
+      "center_dec": {
+        "v": -5.0,
+        "t": "real"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "integrated_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "captured_count": {
+        "v": 0,
+        "t": "integer"
+      },
+      "status": {
+        "v": "pending",
+        "t": "text"
+      },
+      "assigned_rig_id": {
+        "v": null,
+        "t": "null"
+      },
+      "assigned_user_id": {
+        "v": null,
+        "t": "null"
+      },
+      "claim_token": {
+        "v": "tok2",
+        "t": "text"
+      },
+      "uploaded_master_id": {
+        "v": null,
+        "t": "null"
+      }
+    }
+  ],
+  "clearClaim": 1,
+  "clearClaim missing": 0,
+  "after clearClaim :: mosaic_panels": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "project_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "panel_index": {
+        "v": 2,
+        "t": "integer"
+      },
+      "center_ra": {
+        "v": 11.0,
+        "t": "real"
+      },
+      "center_dec": {
+        "v": 42.0,
+        "t": "real"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "integrated_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "captured_count": {
+        "v": 5,
+        "t": "integer"
+      },
+      "status": {
+        "v": "captured",
+        "t": "text"
+      },
+      "assigned_rig_id": {
+        "v": null,
+        "t": "null"
+      },
+      "assigned_user_id": {
+        "v": null,
+        "t": "null"
+      },
+      "claim_token": {
+        "v": null,
+        "t": "null"
+      },
+      "uploaded_master_id": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "project_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "panel_index": {
+        "v": 0,
+        "t": "integer"
+      },
+      "center_ra": {
+        "v": 10.0,
+        "t": "real"
+      },
+      "center_dec": {
+        "v": 41.0,
+        "t": "real"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "integrated_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "captured_count": {
+        "v": 0,
+        "t": "integer"
+      },
+      "status": {
+        "v": "integrated",
+        "t": "text"
+      },
+      "assigned_rig_id": {
+        "v": null,
+        "t": "null"
+      },
+      "assigned_user_id": {
+        "v": null,
+        "t": "null"
+      },
+      "claim_token": {
+        "v": null,
+        "t": "null"
+      },
+      "uploaded_master_id": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "project_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "panel_index": {
+        "v": 1,
+        "t": "integer"
+      },
+      "center_ra": {
+        "v": 9.0,
+        "t": "real"
+      },
+      "center_dec": {
+        "v": 40.0,
+        "t": "real"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "integrated_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "captured_count": {
+        "v": 17,
+        "t": "integer"
+      },
+      "status": {
+        "v": "pending",
+        "t": "text"
+      },
+      "assigned_rig_id": {
+        "v": null,
+        "t": "null"
+      },
+      "assigned_user_id": {
+        "v": null,
+        "t": "null"
+      },
+      "claim_token": {
+        "v": null,
+        "t": "null"
+      },
+      "uploaded_master_id": {
+        "v": 2,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "project_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "panel_index": {
+        "v": 0,
+        "t": "integer"
+      },
+      "center_ra": {
+        "v": 3.0,
+        "t": "real"
+      },
+      "center_dec": {
+        "v": -5.0,
+        "t": "real"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "integrated_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "captured_count": {
+        "v": 0,
+        "t": "integer"
+      },
+      "status": {
+        "v": "pending",
+        "t": "text"
+      },
+      "assigned_rig_id": {
+        "v": null,
+        "t": "null"
+      },
+      "assigned_user_id": {
+        "v": null,
+        "t": "null"
+      },
+      "claim_token": {
+        "v": "tok2",
+        "t": "text"
+      },
+      "uploaded_master_id": {
+        "v": null,
+        "t": "null"
+      }
+    }
+  ],
+  "getForProject p1": [
+    {
+      "id": 2,
+      "projectId": 1,
+      "panelIndex": 0,
+      "centerRa": 10.0,
+      "centerDec": 41.0,
+      "targetId": null,
+      "integratedMasterId": null,
+      "capturedCount": 0,
+      "status": "MosaicPanelStatus.integrated",
+      "assignedRigId": null,
+      "assignedUserId": null,
+      "claimToken": null,
+      "uploadedMasterId": null
+    },
+    {
+      "id": 3,
+      "projectId": 1,
+      "panelIndex": 1,
+      "centerRa": 9.0,
+      "centerDec": 40.0,
+      "targetId": null,
+      "integratedMasterId": null,
+      "capturedCount": 17,
+      "status": "MosaicPanelStatus.pending",
+      "assignedRigId": null,
+      "assignedUserId": null,
+      "claimToken": null,
+      "uploadedMasterId": 2
+    },
+    {
+      "id": 1,
+      "projectId": 1,
+      "panelIndex": 2,
+      "centerRa": 11.0,
+      "centerDec": 42.0,
+      "targetId": null,
+      "integratedMasterId": null,
+      "capturedCount": 5,
+      "status": "MosaicPanelStatus.captured",
+      "assignedRigId": null,
+      "assignedUserId": null,
+      "claimToken": null,
+      "uploadedMasterId": null
+    }
+  ],
+  "getForProject p2": [
+    {
+      "id": 4,
+      "projectId": 2,
+      "panelIndex": 0,
+      "centerRa": 3.0,
+      "centerDec": -5.0,
+      "targetId": null,
+      "integratedMasterId": null,
+      "capturedCount": 0,
+      "status": "MosaicPanelStatus.pending",
+      "assignedRigId": null,
+      "assignedUserId": null,
+      "claimToken": "tok2",
+      "uploadedMasterId": null
+    }
+  ],
+  "getByIndex p1 2": {
+    "id": 1,
+    "projectId": 1,
+    "panelIndex": 2,
+    "centerRa": 11.0,
+    "centerDec": 42.0,
+    "targetId": null,
+    "integratedMasterId": null,
+    "capturedCount": 5,
+    "status": "MosaicPanelStatus.captured",
+    "assignedRigId": null,
+    "assignedUserId": null,
+    "claimToken": null,
+    "uploadedMasterId": null
+  },
+  "getByIndex missing": null,
+  "getById 3": {
+    "id": 3,
+    "projectId": 1,
+    "panelIndex": 1,
+    "centerRa": 9.0,
+    "centerDec": 40.0,
+    "targetId": null,
+    "integratedMasterId": null,
+    "capturedCount": 17,
+    "status": "MosaicPanelStatus.pending",
+    "assignedRigId": null,
+    "assignedUserId": null,
+    "claimToken": null,
+    "uploadedMasterId": 2
+  },
+  "getById missing": null
+}
