@@ -6,26 +6,20 @@ import '../../providers/database_provider.dart';
 import '../database.dart';
 import '../epoch_seconds.dart';
 
-/// Data-access object for the v43 `campaigns` table — the durable NINA-style
-/// multi-night `(target, filter, accepted, desired, last_date)` campaign
-/// counter.
-///
-/// The table is declared in `database/schema/planning.drift`; this DAO queries
-/// with SQL through the database's `customSelect` / `customStatement` APIs.
+part 'campaigns_dao.g.dart';
+
+/// Reads and writes for `campaigns`: the durable NINA-style multi-night
+/// `(target, filter, accepted, desired, last_date)` campaign counter.
 ///
 /// This DAO is ADDITIVE bookkeeping: it never feeds the live `SchedulerEngine`
 /// goals-complete reject (which stays a read-only derivation over
 /// `integration_goals` + `captured_images.is_accepted=1`). [recordAccepted] is
 /// the only write driven by the acceptance path, and it only ever raises a
 /// denormalized counter.
-class CampaignsDao {
-  CampaignsDao(this._db);
-
-  final SkotiqDatabase _db;
-
-  static const String _columns =
-      'id, target_id, filter, accepted_count, desired_count, '
-      'last_date, created_at, updated_at';
+@DriftAccessor(include: {'../schema/planning.drift'})
+class CampaignsDao extends DatabaseAccessor<SkotiqDatabase>
+    with _$CampaignsDaoMixin {
+  CampaignsDao(super.db);
 
   /// Create (or update) the desired accepted-frame goal for a `(target, filter)`
   /// campaign. Filter matching is case-insensitive, mirroring how captured
@@ -44,25 +38,25 @@ class CampaignsDao {
     final at = toEpochSeconds(now ?? DateTime.now());
     final existing = await _findRow(targetId, filter);
     if (existing != null) {
-      final id = existing.read<int>('id');
-      await _db.customStatement(
-        'UPDATE campaigns SET desired_count = ?, updated_at = ? WHERE id = ?',
-        [desiredCount, at, id],
+      await _updateRow(
+        existing.id,
+        CampaignsCompanion(
+          desiredCount: Value(desiredCount),
+          updatedAt: Value(at),
+        ),
       );
-      return id;
+      return existing.id;
     }
-    return _db.customInsert(
-      'INSERT INTO campaigns('
-      'target_id, filter, accepted_count, desired_count, '
-      'last_date, created_at, updated_at'
-      ') VALUES (?, ?, 0, ?, NULL, ?, ?)',
-      variables: [
-        Variable<int>(targetId),
-        Variable<String>(filter),
-        Variable<int>(desiredCount),
-        Variable<int>(at),
-        Variable<int>(at),
-      ],
+    return into(campaigns).insert(
+      CampaignsCompanion.insert(
+        targetId: targetId,
+        filter: filter,
+        acceptedCount: const Value(0),
+        desiredCount: Value(desiredCount),
+        lastDate: const Value(null),
+        createdAt: at,
+        updatedAt: at,
+      ),
     );
   }
 
@@ -84,38 +78,36 @@ class CampaignsDao {
     final at = toEpochSeconds(capturedAt ?? DateTime.now());
     final existing = await _findRow(targetId, filter);
     if (existing != null) {
-      final id = existing.read<int>('id');
-      await _db.customStatement(
-        'UPDATE campaigns SET accepted_count = accepted_count + ?, '
-        'last_date = ?, updated_at = ? WHERE id = ?',
-        [delta, at, at, id],
+      await _updateRow(
+        existing.id,
+        CampaignsCompanion.custom(
+          acceptedCount: campaigns.acceptedCount + Variable(delta),
+          lastDate: Variable(at),
+          updatedAt: Variable(at),
+        ),
       );
-      return id;
+      return existing.id;
     }
-    return _db.customInsert(
-      'INSERT INTO campaigns('
-      'target_id, filter, accepted_count, desired_count, '
-      'last_date, created_at, updated_at'
-      ') VALUES (?, ?, ?, 0, ?, ?, ?)',
-      variables: [
-        Variable<int>(targetId),
-        Variable<String>(filter),
-        Variable<int>(delta),
-        Variable<int>(at),
-        Variable<int>(at),
-        Variable<int>(at),
-      ],
+    return into(campaigns).insert(
+      CampaignsCompanion.insert(
+        targetId: targetId,
+        filter: filter,
+        acceptedCount: Value(delta),
+        desiredCount: const Value(0),
+        lastDate: Value(at),
+        createdAt: at,
+        updatedAt: at,
+      ),
     );
   }
 
   /// All campaigns for a target, ordered by filter.
   Future<List<Campaign>> getForTarget(int targetId) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM campaigns WHERE target_id = ? ORDER BY filter ASC',
-          variables: [Variable<int>(targetId)],
-        )
-        .get();
+    final rows =
+        await (select(campaigns)
+              ..where((c) => c.targetId.equals(targetId))
+              ..orderBy([(c) => OrderingTerm.asc(c.filter)]))
+            .get();
     return rows.map(_map).toList();
   }
 
@@ -131,33 +123,35 @@ class CampaignsDao {
   Future<int?> remaining(int targetId, String filter) async {
     final row = await _findRow(targetId, filter);
     if (row == null) return null;
-    final desired = row.read<int>('desired_count');
-    final accepted = row.read<int>('accepted_count');
-    final r = desired - accepted;
+    final r = row.desiredCount - row.acceptedCount;
     return r < 0 ? 0 : r;
   }
 
-  Future<QueryRow?> _findRow(int targetId, String filter) {
-    return _db
-        .customSelect(
-          'SELECT $_columns FROM campaigns '
-          'WHERE target_id = ? AND LOWER(filter) = LOWER(?) LIMIT 1',
-          variables: [Variable<int>(targetId), Variable<String>(filter)],
-        )
+  Future<CampaignRow?> _findRow(int targetId, String filter) {
+    return (select(campaigns)
+          ..where(
+            (c) =>
+                c.targetId.equals(targetId) &
+                c.filter.lower().equalsExp(Variable(filter).lower()),
+          )
+          ..limit(1))
         .getSingleOrNull();
   }
 
-  Campaign _map(QueryRow row) {
-    final lastDate = row.readNullable<int>('last_date');
+  Future<void> _updateRow(int id, Insertable<CampaignRow> changes) =>
+      (update(campaigns)..where((c) => c.id.equals(id))).write(changes);
+
+  Campaign _map(CampaignRow row) {
+    final lastDate = row.lastDate;
     return Campaign(
-      id: row.read<int>('id'),
-      targetId: row.read<int>('target_id'),
-      filter: row.read<String>('filter'),
-      acceptedCount: row.read<int>('accepted_count'),
-      desiredCount: row.read<int>('desired_count'),
+      id: row.id,
+      targetId: row.targetId,
+      filter: row.filter,
+      acceptedCount: row.acceptedCount,
+      desiredCount: row.desiredCount,
       lastCaptureAt: lastDate == null ? null : fromEpochSeconds(lastDate),
-      createdAt: fromEpochSeconds(row.read<int>('created_at')),
-      updatedAt: fromEpochSeconds(row.read<int>('updated_at')),
+      createdAt: fromEpochSeconds(row.createdAt),
+      updatedAt: fromEpochSeconds(row.updatedAt),
     );
   }
 }
