@@ -261,7 +261,6 @@ native/skotiq_native/bridge/src/api/depthlock.rs	new_goal_id	unwrap_or_literal	1
 native/skotiq_native/bridge/src/api/devices/simulation/filter_wheel.rs	poll_filter_wheel_position	unwrap_or_literal	2	V0623	state.last_position.unwrap_or(-1),
 native/skotiq_native/bridge/src/api/difference_image.rs	drop	comment_best_effort	1	V0227	// Best-effort: a test asserting on a half-removed tree should fail
 native/skotiq_native/bridge/src/api/difference_image.rs	drop	rust_let_underscore	1	V0227	let _ = std::fs::remove_dir_all(&self.0);
-native/skotiq_native/bridge/src/api/difference_image.rs	difference_impl	unwrap_or_literal	1	V0227	let deepest = template.state.coverage.iter().copied().max().unwrap_or(0);
 native/skotiq_native/bridge/src/api/finishing_analyze.rs	drop	comment_best_effort	1	V0121	// Best-effort: a test asserting on a half-removed tree should fail
 native/skotiq_native/bridge/src/api/finishing_analyze.rs	drop	rust_let_underscore	1	V0121	let _ = std::fs::remove_dir_all(&self.0);
 native/skotiq_native/bridge/src/api/finishing_analyze.rs	image_to_f64	unwrap_or_default	2	V0121	.unwrap_or_default(),
@@ -304,11 +303,6 @@ native/skotiq_native/bridge/src/api/mod.rs	create_unique_temp_fits_path	unwrap_o
 native/skotiq_native/bridge/src/api/mosaic.rs	drop	comment_best_effort	1	V0121	// Best-effort: a test asserting on a half-removed tree should fail
 native/skotiq_native/bridge/src/api/mosaic.rs	stitch_mosaic_impl	comment_best_effort	1	V0121	// BEST-EFFORT: the preview is a cosmetic convenience, not a real output. A
 native/skotiq_native/bridge/src/api/mosaic.rs	drop	rust_let_underscore	1	V0121	let _ = std::fs::remove_dir_all(&self.0);
-native/skotiq_native/bridge/src/api/mosaic.rs	wcs_from_header	unwrap_or_literal	1	V0121	let cd1_2 = header.get_float("CD1_2").unwrap_or(0.0);
-native/skotiq_native/bridge/src/api/mosaic.rs	wcs_from_header	unwrap_or_literal	1	V0121	let cd2_1 = header.get_float("CD2_1").unwrap_or(0.0);
-native/skotiq_native/bridge/src/api/mosaic.rs	wcs_from_header	unwrap_or_literal	1	V0121	let crota2 = header.get_float("CROTA2").unwrap_or(0.0).to_radians();
-native/skotiq_native/bridge/src/api/mosaic.rs	wcs_from_header	unwrap_or_literal	1	V0121	let naxis1 = header.get_int("NAXIS1").unwrap_or(0) as f64;
-native/skotiq_native/bridge/src/api/mosaic.rs	wcs_from_header	unwrap_or_literal	1	V0121	let naxis2 = header.get_int("NAXIS2").unwrap_or(0) as f64;
 native/skotiq_native/bridge/src/api/phd2.rs	a_fresh_star_is_found_in_a_new_frame_after_capture_restarts	rust_let_underscore	1	V0049	let _ = api_phd2_disconnect().await;
 native/skotiq_native/bridge/src/api/phd2.rs	a_search_that_finds_no_star_stops_the_looping	rust_let_underscore	1	V0049	let _ = api_phd2_disconnect().await;
 native/skotiq_native/bridge/src/api/phd2.rs	client_registry_releases_the_write_lock_on_the_error_path	rust_let_underscore	1	V0049	let _ = phd2_client().await;
@@ -348,11 +342,6 @@ native/skotiq_native/bridge/src/api/post_session/helpers.rs	image_to_f64	unwrap_
 native/skotiq_native/bridge/src/api/post_session/helpers.rs	image_to_f64	unwrap_or_default	1	V0679	.unwrap_or_default(),
 native/skotiq_native/bridge/src/api/post_session/helpers.rs	to_u16_for_preview	unwrap_or_default	1	V0686	let data = master.as_f32().unwrap_or_default();
 native/skotiq_native/bridge/src/api/post_session/helpers.rs	choose_reference	unwrap_or_literal	1	V0677	let round = q.eccentricity.map(|e| (1.0 - e).max(0.0)).unwrap_or(1.0);
-native/skotiq_native/bridge/src/api/post_session/helpers.rs	reference_wcs_from_fits	unwrap_or_literal	1	V0683	cd1_2: header.get_float("CD1_2").unwrap_or(0.0),
-native/skotiq_native/bridge/src/api/post_session/helpers.rs	reference_wcs_from_fits	unwrap_or_literal	1	V0684	cd2_1: header.get_float("CD2_1").unwrap_or(0.0),
-native/skotiq_native/bridge/src/api/post_session/helpers.rs	reference_wcs_from_fits	unwrap_or_literal	1	V0685	let crota2 = header.get_float("CROTA2").unwrap_or(0.0).to_radians();
-native/skotiq_native/bridge/src/api/post_session/helpers.rs	reference_wcs_from_fits	unwrap_or_literal	1	V0681	let naxis1 = header.get_int("NAXIS1").unwrap_or(0) as f64;
-native/skotiq_native/bridge/src/api/post_session/helpers.rs	reference_wcs_from_fits	unwrap_or_literal	1	V0682	let naxis2 = header.get_int("NAXIS2").unwrap_or(0) as f64;
 native/skotiq_native/bridge/src/api/post_session/integrate.rs	integrate_session	rust_let_underscore	1	V0687	let _ = ref_reg_pos; // reference normalizes to identity; kept for clarity.
 native/skotiq_native/bridge/src/api/post_session/integrate.rs	integrate_session	unwrap_or_literal	1	V0688	let weight = weight_by_index.get(&i).copied().unwrap_or(0.0);
 native/skotiq_native/bridge/src/api/post_session/master_cards.rs	attach_wcs	unwrap_or_default	1	V0634	result.error.unwrap_or_default()
@@ -948,15 +937,9 @@ native/skotiq_native/bridge/src/unified_device_ops/pointing_tests.rs	drop	rust_l
 native/skotiq_native/bridge/src/unified_device_ops/solve_diagnostics.rs	retain	rust_let_underscore	1	V0896	let _ = fs::remove_dir_all(&destination);
 native/skotiq_native/bridge/src/util/supervisor.rs	install_global_subscriber	rust_drop_result	1	V0053	GLOBAL_WRITER.set(writer.clone()).ok();
 native/skotiq_native/imaging/src/background_extraction.rs	-	comment_best_effort	1	V0121	/// best-effort plane through contaminated data.
-native/skotiq_native/imaging/src/background_extraction.rs	detect_star_centres	unwrap_or_default	1	V0121	image.as_u16().unwrap_or_default()
 native/skotiq_native/imaging/src/background_extraction.rs	subtract_background	unwrap_or_literal	1	V0121	model.mean_level.get(ch).copied().unwrap_or(0.0)
 native/skotiq_native/imaging/src/calibration_master_stream.rs	drop	rust_let_underscore	1	V0779	let _ = std::fs::remove_dir_all(&self.0);
-native/skotiq_native/imaging/src/calibration_master_stream.rs	open	unwrap_or_literal	1	V0786	let bscale = header.get_float("BSCALE").unwrap_or(1.0);
-native/skotiq_native/imaging/src/calibration_master_stream.rs	open	unwrap_or_literal	1	V0786	let bzero = header.get_float("BZERO").unwrap_or(0.0);
-native/skotiq_native/imaging/src/calibration_master_stream.rs	open	unwrap_or_literal	1	V0785	let height = header.get_int("NAXIS2").unwrap_or(0);
 native/skotiq_native/imaging/src/calibration_master_stream.rs	open	unwrap_or_literal	1	V0785	let naxis = header.get_int("NAXIS").unwrap_or(0);
-native/skotiq_native/imaging/src/calibration_master_stream.rs	open	unwrap_or_literal	1	V0785	let width = header.get_int("NAXIS1").unwrap_or(0);
-native/skotiq_native/imaging/src/color_composite/align.rs	overlap_rect	unwrap_or_literal	1	V0787	let left = stack.last().map(|&l| l + 1).unwrap_or(0);
 native/skotiq_native/imaging/src/debayer.rs	debayer_vng	unwrap_or_literal	1	V0054	let min_g = gradients.iter().copied().min().unwrap_or(0);
 native/skotiq_native/imaging/src/deconvolution.rs	normalized_profile	unwrap_or_literal	1	V0121	let peak = profile.first().copied().unwrap_or(0.0);
 native/skotiq_native/imaging/src/defect_map.rs	correct_u16_slice_supports_mean_and_gaussian	rust_let_underscore	3	V0054	let _ = correct_u16_slice(
@@ -984,9 +967,10 @@ native/skotiq_native/imaging/src/fits.rs	test_write_emits_short_string_padded	ru
 native/skotiq_native/imaging/src/fits.rs	write_wcs_into_fits	rust_let_underscore	2	V0055	let _ = std::fs::remove_file(&staged);
 native/skotiq_native/imaging/src/fits.rs	read_bayer_geometry	unwrap_or_literal	1	V0055	let x_offset = header.get_int("XBAYROFF").unwrap_or(0);
 native/skotiq_native/imaging/src/fits.rs	read_bayer_geometry	unwrap_or_literal	1	V0055	let y_offset = header.get_int("YBAYROFF").unwrap_or(0);
-native/skotiq_native/imaging/src/fits.rs	read_fits_from_reader	unwrap_or_literal	1	V0055	let bscale = header.get_float("BSCALE").unwrap_or(1.0);
-native/skotiq_native/imaging/src/fits.rs	read_fits_from_reader	unwrap_or_literal	1	V0055	let bzero = header.get_float("BZERO").unwrap_or(0.0);
 native/skotiq_native/imaging/src/fits.rs	validate_image	unwrap_or_literal	1	V0055	let max_value = pixels.iter().copied().max().unwrap_or(0);
+native/skotiq_native/imaging/src/fits_reader.rs	fits_bytes	rust_let_underscore	1	U2-01	let _ = std::fs::remove_file(&path);
+native/skotiq_native/imaging/src/fits_reader.rs	from_header	unwrap_or_literal	1	U2-01	bscale: header.get_float("BSCALE").unwrap_or(1.0),
+native/skotiq_native/imaging/src/fits_reader.rs	from_header	unwrap_or_literal	1	U2-01	bzero: header.get_float("BZERO").unwrap_or(0.0),
 native/skotiq_native/imaging/src/integration.rs	integrate_columns_weighted	unwrap_or_literal	1	V0121	let covered = f.coverage.map(|m| m.is_valid_at(loc)).unwrap_or(true);
 native/skotiq_native/imaging/src/lib.rs	calibrated_frame_header_carries_numeric_exptime_and_gain	rust_let_underscore	1	V0121	let _ = std::fs::remove_dir_all(&dir);
 native/skotiq_native/imaging/src/lib.rs	drop	rust_let_underscore	1	V0121	let _ = std::fs::remove_file(&self.path);
@@ -1082,13 +1066,9 @@ native/skotiq_native/imaging/src/raw.rs	-	unwrap_or_default	1	V0054	//! * The re
 native/skotiq_native/imaging/src/raw.rs	-	unwrap_or_default	1	V0054	//! `max_memory_mb.unwrap_or_default()`) are all paired with a
 native/skotiq_native/imaging/src/raw.rs	read_raw	unwrap_or_default	1	V0054	max_memory_mb: params.max_memory_mb.unwrap_or_default() as c_uint,
 native/skotiq_native/imaging/src/raw.rs	read_raw	unwrap_or_default	1	V0054	user_sat: params.user_sat.unwrap_or_default(),
-native/skotiq_native/imaging/src/recipe/model.rs	wcs_from_header	unwrap_or_literal	1	V0537	let a_order = header.get_int("A_ORDER").unwrap_or(0).max(0) as u32;
-native/skotiq_native/imaging/src/recipe/model.rs	wcs_from_header	unwrap_or_literal	1	V0539	let ap_order = header.get_int("AP_ORDER").unwrap_or(0).max(0) as u32;
-native/skotiq_native/imaging/src/recipe/model.rs	wcs_from_header	unwrap_or_literal	1	V0538	let b_order = header.get_int("B_ORDER").unwrap_or(0).max(0) as u32;
-native/skotiq_native/imaging/src/recipe/model.rs	wcs_from_header	unwrap_or_literal	1	V0540	let bp_order = header.get_int("BP_ORDER").unwrap_or(0).max(0) as u32;
+native/skotiq_native/imaging/src/recipe/composite/align.rs	overlap_rect	unwrap_or_literal	1	V0787	let left = stack.last().map(|&l| l + 1).unwrap_or(0);
 native/skotiq_native/imaging/src/recipe/ops/channel_combine.rs	apply_measured	unwrap_or_default	1	V0791	|role: FilterRole| -> Vec<Vec<f32>> { by_role.get(&role).cloned().unwrap_or_default() };
 native/skotiq_native/imaging/src/recipe/ops/channel_combine.rs	read_settings	unwrap_or_default	1	V0790	for (role, sigma) in raw.star_sigma.unwrap_or_default() {
-native/skotiq_native/imaging/src/recipe/pyramid.rs	scale_sip_polynomial	unwrap_or_literal	1	V0541	.unwrap_or(0)
 native/skotiq_native/imaging/src/sky_atlas.rs	atlas_fold_persists_and_query_recovers	rust_let_underscore	2	V0163	let _ = std::fs::remove_dir_all(&dir);
 native/skotiq_native/imaging/src/sky_atlas.rs	atlas_writes_compressed_sidecars_and_compacts_old_ones	rust_let_underscore	1	V0163	let _ = std::fs::remove_dir_all(&dir);
 native/skotiq_native/imaging/src/sky_atlas.rs	batch_fold_matches_sequential_and_records_each_frames_exposure	rust_let_underscore	1	V0163	let _ = std::fs::remove_dir_all(&batch_dir);
@@ -1098,12 +1078,19 @@ native/skotiq_native/imaging/src/sky_atlas.rs	filter_layers_fold_apart_and_read_
 native/skotiq_native/imaging/src/sky_atlas.rs	scratch_dir	rust_let_underscore	1	V0163	let _ = std::fs::remove_dir_all(&dir);
 native/skotiq_native/imaging/src/sky_atlas.rs	store_tile	rust_let_underscore	1	V0163	let _ = std::fs::remove_file(legacy);
 native/skotiq_native/imaging/src/sky_atlas.rs	store_tile_unique_temp_no_collision_under_concurrency	rust_let_underscore	2	V0163	let _ = std::fs::remove_dir_all(&dir);
+native/skotiq_native/imaging/src/sky_atlas.rs	coverage_max	unwrap_or_literal	1	U2-01	self.state.coverage.iter().copied().max().unwrap_or(0)
 native/skotiq_native/imaging/src/sky_atlas.rs	estimate_frame_norm	unwrap_or_literal	1	V0163	let npix = src.len().checked_div(ch).unwrap_or(0);
 native/skotiq_native/imaging/src/sky_atlas.rs	fold_prepared_frames	unwrap_or_literal	1	V0163	>= tile_buffer_bytes(frames.first().map(|f| f.channels()).unwrap_or(1))
 native/skotiq_native/imaging/src/stacking.rs	combine_master_frames	unwrap_or_literal	1	V0542	.unwrap_or(0);
 native/skotiq_native/imaging/src/stacking.rs	combine_master_frames	unwrap_or_literal	1	V0543	.unwrap_or(1)
 native/skotiq_native/imaging/src/star_reduction.rs	reduce_stars	unwrap_or_literal	1	V0121	let n = width.checked_mul(height).unwrap_or(0);
 native/skotiq_native/imaging/src/wcs_sip.rs	pathological_sip_order_does_not_panic	rust_let_underscore	1	V0164	let _ = wcs.world_to_pixel(ra, dec).expect("on-sky, no panic");
+native/skotiq_native/imaging/src/wcs_sip.rs	from_header	unwrap_or_literal	1	U2-01	header.get_float("CD1_2").unwrap_or(0.0),
+native/skotiq_native/imaging/src/wcs_sip.rs	from_header	unwrap_or_literal	1	U2-01	header.get_float("CD2_1").unwrap_or(0.0),
+native/skotiq_native/imaging/src/wcs_sip.rs	from_header	unwrap_or_literal	1	U2-01	header.get_float("CROTA2").unwrap_or(0.0),
+native/skotiq_native/imaging/src/wcs_sip.rs	from_header	unwrap_or_literal	1	U2-01	let centre = |axis: &str| header.get_int(axis).unwrap_or(0) as f64 / 2.0 + 0.5;
+native/skotiq_native/imaging/src/wcs_sip.rs	from_header	unwrap_or_literal	1	U2-01	let order = |key: &str| header.get_int(key).unwrap_or(0).max(0) as u32;
+native/skotiq_native/imaging/src/wcs_sip.rs	rescale_header_wcs	unwrap_or_literal	1	V0541	.unwrap_or(0)
 native/skotiq_native/imaging/src/xisf.rs	-	unwrap_or_literal	1	V0055	//! * `boolean header attr.unwrap_or(false)` — XISF optional booleans
 native/skotiq_native/imaging/src/xisf.rs	-	unwrap_or_literal	1	V0055	//! * `numberOfImages.unwrap_or(1)` — single image is the XISF spec default
 native/skotiq_native/imaging/src/xisf.rs	parse_image_element	unwrap_or_literal	1	V0055	.unwrap_or(1);

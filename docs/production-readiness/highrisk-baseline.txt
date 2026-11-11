@@ -126,7 +126,6 @@ native/skotiq_native/bridge/src/lib.rs	init_native_internal	highrisk	1	baseline	
 native/skotiq_native/bridge/src/lib.rs	init_native_internal	highrisk	1	baseline	LOG_GUARD.set(guard).ok();
 native/skotiq_native/bridge/src/sim_sky.rs	astap_dir	highrisk	1	baseline	let home = std::env::var("HOME").unwrap_or_default();
 native/skotiq_native/bridge/src/util/supervisor.rs	install_global_subscriber	highrisk	1	baseline	GLOBAL_WRITER.set(writer.clone()).ok();
-native/skotiq_native/imaging/src/background_extraction.rs	detect_star_centres	highrisk	1	baseline	image.as_u16().unwrap_or_default()
 native/skotiq_native/imaging/src/platesolve.rs	explicit_astrometry_choice_does_not_run_available_astap	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/imaging/src/platesolve.rs	explicit_astrometry_choice_does_not_run_available_astap	highrisk	1	baseline	let combined = auto_result.error.unwrap_or_default();
 native/skotiq_native/imaging/src/platesolve.rs	in_place_fallback_reclaims_only_this_solve_s_artifacts	highrisk	1	baseline	.unwrap_or_default()
