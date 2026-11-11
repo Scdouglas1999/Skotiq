@@ -1,0 +1,1637 @@
+{
+  "empty listAll": [],
+  "empty getById": null,
+  "empty listActiveCollaborative": [],
+  "empty getByHubMosaicId": null,
+  "empty listByStatus": [],
+  "create full": 1,
+  "create defaults tie": 2,
+  "create older": 3,
+  "create default time": 4,
+  "create fifth": 5,
+  "create sixth": 6,
+  "after create :: mosaic_projects": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "name": {
+        "v": "M31 2x3",
+        "t": "text"
+      },
+      "rows": {
+        "v": 2,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 3,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 20.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 35.5,
+        "t": "real"
+      },
+      "status": {
+        "v": "capturing",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867060,
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": null,
+        "t": "null"
+      },
+      "collab_role": {
+        "v": null,
+        "t": "null"
+      },
+      "collab_status": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Veil",
+        "t": "text"
+      },
+      "rows": {
+        "v": 1,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 4,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 15.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "status": {
+        "v": "planning",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": null,
+        "t": "null"
+      },
+      "collab_role": {
+        "v": null,
+        "t": "null"
+      },
+      "collab_status": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Old",
+        "t": "text"
+      },
+      "rows": {
+        "v": 3,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 3,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 15.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "status": {
+        "v": "planning",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740866460,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740866460,
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": null,
+        "t": "null"
+      },
+      "collab_role": {
+        "v": null,
+        "t": "null"
+      },
+      "collab_status": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Now",
+        "t": "text"
+      },
+      "rows": {
+        "v": 1,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 1,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 15.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "status": {
+        "v": "planning",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": null,
+        "t": "null"
+      },
+      "collab_role": {
+        "v": null,
+        "t": "null"
+      },
+      "collab_status": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 5,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Fifth",
+        "t": "text"
+      },
+      "rows": {
+        "v": 2,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 2,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 15.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "status": {
+        "v": "planning",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740868200,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740868200,
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": null,
+        "t": "null"
+      },
+      "collab_role": {
+        "v": null,
+        "t": "null"
+      },
+      "collab_status": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 6,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Sixth",
+        "t": "text"
+      },
+      "rows": {
+        "v": 2,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 2,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 15.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "status": {
+        "v": "planning",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740868260,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740868260,
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": null,
+        "t": "null"
+      },
+      "collab_role": {
+        "v": null,
+        "t": "null"
+      },
+      "collab_status": {
+        "v": null,
+        "t": "null"
+      }
+    }
+  ],
+  "setHubMosaic 1": 1,
+  "setHubMosaic 2": 1,
+  "setHubMosaic 3 empty id": 1,
+  "setHubMosaic 5": 1,
+  "setCollabStatus 5 complete": 1,
+  "setCollabStatus 2 assembling": 1,
+  "setHubMosaic 6": 1,
+  "setHubMosaic missing": 0,
+  "setCollabStatus default now": 1,
+  "after hub :: mosaic_projects": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "name": {
+        "v": "M31 2x3",
+        "t": "text"
+      },
+      "rows": {
+        "v": 2,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 3,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 20.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 35.5,
+        "t": "real"
+      },
+      "status": {
+        "v": "capturing",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867120,
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": "hub-a",
+        "t": "text"
+      },
+      "collab_role": {
+        "v": "owner",
+        "t": "text"
+      },
+      "collab_status": {
+        "v": "published",
+        "t": "text"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Veil",
+        "t": "text"
+      },
+      "rows": {
+        "v": 1,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 4,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 15.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "status": {
+        "v": "planning",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740868440,
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": "hub-a",
+        "t": "text"
+      },
+      "collab_role": {
+        "v": "participant",
+        "t": "text"
+      },
+      "collab_status": {
+        "v": "assembling",
+        "t": "text"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Old",
+        "t": "text"
+      },
+      "rows": {
+        "v": 3,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 3,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 15.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "status": {
+        "v": "planning",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740866460,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867240,
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": "",
+        "t": "text"
+      },
+      "collab_role": {
+        "v": "owner",
+        "t": "text"
+      },
+      "collab_status": {
+        "v": "published",
+        "t": "text"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Now",
+        "t": "text"
+      },
+      "rows": {
+        "v": 1,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 1,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 15.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "status": {
+        "v": "planning",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": null,
+        "t": "null"
+      },
+      "collab_role": {
+        "v": null,
+        "t": "null"
+      },
+      "collab_status": {
+        "v": "x",
+        "t": "text"
+      }
+    },
+    {
+      "id": {
+        "v": 5,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Fifth",
+        "t": "text"
+      },
+      "rows": {
+        "v": 2,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 2,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 15.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "status": {
+        "v": "planning",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740868200,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740868380,
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": "hub-c",
+        "t": "text"
+      },
+      "collab_role": {
+        "v": "owner",
+        "t": "text"
+      },
+      "collab_status": {
+        "v": "complete",
+        "t": "text"
+      }
+    },
+    {
+      "id": {
+        "v": 6,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Sixth",
+        "t": "text"
+      },
+      "rows": {
+        "v": 2,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 2,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 15.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "status": {
+        "v": "planning",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740868260,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740868500,
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": "hub-d",
+        "t": "text"
+      },
+      "collab_role": {
+        "v": "owner",
+        "t": "text"
+      },
+      "collab_status": {
+        "v": null,
+        "t": "null"
+      }
+    }
+  ],
+  "listAll": [
+    {
+      "id": 4,
+      "targetId": null,
+      "name": "Now",
+      "rows": 1,
+      "cols": 1,
+      "overlapPct": 15.0,
+      "positionAngleDeg": 0.0,
+      "status": "MosaicProjectStatus.planning",
+      "outputMasterId": null,
+      "createdAt": "<now utc>",
+      "updatedAt": "<now utc>",
+      "hubMosaicId": null,
+      "collabRole": null,
+      "collabStatus": "x"
+    },
+    {
+      "id": 6,
+      "targetId": null,
+      "name": "Sixth",
+      "rows": 2,
+      "cols": 2,
+      "overlapPct": 15.0,
+      "positionAngleDeg": 0.0,
+      "status": "MosaicProjectStatus.planning",
+      "outputMasterId": null,
+      "createdAt": "2025-03-01T22:31:00.000Z",
+      "updatedAt": "2025-03-01T22:35:00.000Z",
+      "hubMosaicId": "hub-d",
+      "collabRole": "owner",
+      "collabStatus": null
+    },
+    {
+      "id": 5,
+      "targetId": null,
+      "name": "Fifth",
+      "rows": 2,
+      "cols": 2,
+      "overlapPct": 15.0,
+      "positionAngleDeg": 0.0,
+      "status": "MosaicProjectStatus.planning",
+      "outputMasterId": null,
+      "createdAt": "2025-03-01T22:30:00.000Z",
+      "updatedAt": "2025-03-01T22:33:00.000Z",
+      "hubMosaicId": "hub-c",
+      "collabRole": "owner",
+      "collabStatus": "complete"
+    },
+    {
+      "id": 2,
+      "targetId": null,
+      "name": "Veil",
+      "rows": 1,
+      "cols": 4,
+      "overlapPct": 15.0,
+      "positionAngleDeg": 0.0,
+      "status": "MosaicProjectStatus.planning",
+      "outputMasterId": null,
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "updatedAt": "2025-03-01T22:34:00.000Z",
+      "hubMosaicId": "hub-a",
+      "collabRole": "participant",
+      "collabStatus": "assembling"
+    },
+    {
+      "id": 1,
+      "targetId": 1,
+      "name": "M31 2x3",
+      "rows": 2,
+      "cols": 3,
+      "overlapPct": 20.0,
+      "positionAngleDeg": 35.5,
+      "status": "MosaicProjectStatus.capturing",
+      "outputMasterId": 1,
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "updatedAt": "2025-03-01T22:12:00.000Z",
+      "hubMosaicId": "hub-a",
+      "collabRole": "owner",
+      "collabStatus": "published"
+    },
+    {
+      "id": 3,
+      "targetId": null,
+      "name": "Old",
+      "rows": 3,
+      "cols": 3,
+      "overlapPct": 15.0,
+      "positionAngleDeg": 0.0,
+      "status": "MosaicProjectStatus.planning",
+      "outputMasterId": null,
+      "createdAt": "2025-03-01T22:01:00.000Z",
+      "updatedAt": "2025-03-01T22:14:00.000Z",
+      "hubMosaicId": "",
+      "collabRole": "owner",
+      "collabStatus": "published"
+    }
+  ],
+  "getById 1": {
+    "id": 1,
+    "targetId": 1,
+    "name": "M31 2x3",
+    "rows": 2,
+    "cols": 3,
+    "overlapPct": 20.0,
+    "positionAngleDeg": 35.5,
+    "status": "MosaicProjectStatus.capturing",
+    "outputMasterId": 1,
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:12:00.000Z",
+    "hubMosaicId": "hub-a",
+    "collabRole": "owner",
+    "collabStatus": "published"
+  },
+  "getById missing": null,
+  "listActiveCollaborative": [
+    {
+      "id": 6,
+      "targetId": null,
+      "name": "Sixth",
+      "rows": 2,
+      "cols": 2,
+      "overlapPct": 15.0,
+      "positionAngleDeg": 0.0,
+      "status": "MosaicProjectStatus.planning",
+      "outputMasterId": null,
+      "createdAt": "2025-03-01T22:31:00.000Z",
+      "updatedAt": "2025-03-01T22:35:00.000Z",
+      "hubMosaicId": "hub-d",
+      "collabRole": "owner",
+      "collabStatus": null
+    },
+    {
+      "id": 2,
+      "targetId": null,
+      "name": "Veil",
+      "rows": 1,
+      "cols": 4,
+      "overlapPct": 15.0,
+      "positionAngleDeg": 0.0,
+      "status": "MosaicProjectStatus.planning",
+      "outputMasterId": null,
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "updatedAt": "2025-03-01T22:34:00.000Z",
+      "hubMosaicId": "hub-a",
+      "collabRole": "participant",
+      "collabStatus": "assembling"
+    },
+    {
+      "id": 1,
+      "targetId": 1,
+      "name": "M31 2x3",
+      "rows": 2,
+      "cols": 3,
+      "overlapPct": 20.0,
+      "positionAngleDeg": 35.5,
+      "status": "MosaicProjectStatus.capturing",
+      "outputMasterId": 1,
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "updatedAt": "2025-03-01T22:12:00.000Z",
+      "hubMosaicId": "hub-a",
+      "collabRole": "owner",
+      "collabStatus": "published"
+    }
+  ],
+  "getByHubMosaicId hub-a": {
+    "id": 1,
+    "targetId": 1,
+    "name": "M31 2x3",
+    "rows": 2,
+    "cols": 3,
+    "overlapPct": 20.0,
+    "positionAngleDeg": 35.5,
+    "status": "MosaicProjectStatus.capturing",
+    "outputMasterId": 1,
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:12:00.000Z",
+    "hubMosaicId": "hub-a",
+    "collabRole": "owner",
+    "collabStatus": "published"
+  },
+  "getByHubMosaicId empty": null,
+  "getByHubMosaicId missing": null,
+  "listByStatus planning": [
+    {
+      "id": 4,
+      "targetId": null,
+      "name": "Now",
+      "rows": 1,
+      "cols": 1,
+      "overlapPct": 15.0,
+      "positionAngleDeg": 0.0,
+      "status": "MosaicProjectStatus.planning",
+      "outputMasterId": null,
+      "createdAt": "<now utc>",
+      "updatedAt": "<now utc>",
+      "hubMosaicId": null,
+      "collabRole": null,
+      "collabStatus": "x"
+    },
+    {
+      "id": 6,
+      "targetId": null,
+      "name": "Sixth",
+      "rows": 2,
+      "cols": 2,
+      "overlapPct": 15.0,
+      "positionAngleDeg": 0.0,
+      "status": "MosaicProjectStatus.planning",
+      "outputMasterId": null,
+      "createdAt": "2025-03-01T22:31:00.000Z",
+      "updatedAt": "2025-03-01T22:35:00.000Z",
+      "hubMosaicId": "hub-d",
+      "collabRole": "owner",
+      "collabStatus": null
+    },
+    {
+      "id": 5,
+      "targetId": null,
+      "name": "Fifth",
+      "rows": 2,
+      "cols": 2,
+      "overlapPct": 15.0,
+      "positionAngleDeg": 0.0,
+      "status": "MosaicProjectStatus.planning",
+      "outputMasterId": null,
+      "createdAt": "2025-03-01T22:30:00.000Z",
+      "updatedAt": "2025-03-01T22:33:00.000Z",
+      "hubMosaicId": "hub-c",
+      "collabRole": "owner",
+      "collabStatus": "complete"
+    },
+    {
+      "id": 2,
+      "targetId": null,
+      "name": "Veil",
+      "rows": 1,
+      "cols": 4,
+      "overlapPct": 15.0,
+      "positionAngleDeg": 0.0,
+      "status": "MosaicProjectStatus.planning",
+      "outputMasterId": null,
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "updatedAt": "2025-03-01T22:34:00.000Z",
+      "hubMosaicId": "hub-a",
+      "collabRole": "participant",
+      "collabStatus": "assembling"
+    },
+    {
+      "id": 3,
+      "targetId": null,
+      "name": "Old",
+      "rows": 3,
+      "cols": 3,
+      "overlapPct": 15.0,
+      "positionAngleDeg": 0.0,
+      "status": "MosaicProjectStatus.planning",
+      "outputMasterId": null,
+      "createdAt": "2025-03-01T22:01:00.000Z",
+      "updatedAt": "2025-03-01T22:14:00.000Z",
+      "hubMosaicId": "",
+      "collabRole": "owner",
+      "collabStatus": "published"
+    }
+  ],
+  "updateStatus": 1,
+  "updateStatus missing": 0,
+  "setOutputMaster": 1,
+  "updateStatus default now": 1,
+  "setOutputMaster default now": 1,
+  "after status :: mosaic_projects": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "name": {
+        "v": "M31 2x3",
+        "t": "text"
+      },
+      "rows": {
+        "v": 2,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 3,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 20.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 35.5,
+        "t": "real"
+      },
+      "status": {
+        "v": "capturing",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867120,
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": "hub-a",
+        "t": "text"
+      },
+      "collab_role": {
+        "v": "owner",
+        "t": "text"
+      },
+      "collab_status": {
+        "v": "published",
+        "t": "text"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Veil",
+        "t": "text"
+      },
+      "rows": {
+        "v": 1,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 4,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 15.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "status": {
+        "v": "stitching",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740868800,
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": "hub-a",
+        "t": "text"
+      },
+      "collab_role": {
+        "v": "participant",
+        "t": "text"
+      },
+      "collab_status": {
+        "v": "assembling",
+        "t": "text"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Old",
+        "t": "text"
+      },
+      "rows": {
+        "v": 3,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 3,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 15.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "status": {
+        "v": "complete",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740866460,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740868860,
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": "",
+        "t": "text"
+      },
+      "collab_role": {
+        "v": "owner",
+        "t": "text"
+      },
+      "collab_status": {
+        "v": "published",
+        "t": "text"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Now",
+        "t": "text"
+      },
+      "rows": {
+        "v": 1,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 1,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 15.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "status": {
+        "v": "planning",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": null,
+        "t": "null"
+      },
+      "collab_role": {
+        "v": null,
+        "t": "null"
+      },
+      "collab_status": {
+        "v": "x",
+        "t": "text"
+      }
+    },
+    {
+      "id": {
+        "v": 5,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Fifth",
+        "t": "text"
+      },
+      "rows": {
+        "v": 2,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 2,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 15.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "status": {
+        "v": "integrating",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740868200,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": "hub-c",
+        "t": "text"
+      },
+      "collab_role": {
+        "v": "owner",
+        "t": "text"
+      },
+      "collab_status": {
+        "v": "complete",
+        "t": "text"
+      }
+    },
+    {
+      "id": {
+        "v": 6,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Sixth",
+        "t": "text"
+      },
+      "rows": {
+        "v": 2,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 2,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 15.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "status": {
+        "v": "complete",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740868260,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": "hub-d",
+        "t": "text"
+      },
+      "collab_role": {
+        "v": "owner",
+        "t": "text"
+      },
+      "collab_status": {
+        "v": null,
+        "t": "null"
+      }
+    }
+  ],
+  "deleteProject 1": 1,
+  "deleteProject missing": 0,
+  "after delete :: mosaic_projects": [
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Veil",
+        "t": "text"
+      },
+      "rows": {
+        "v": 1,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 4,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 15.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "status": {
+        "v": "stitching",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740868800,
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": "hub-a",
+        "t": "text"
+      },
+      "collab_role": {
+        "v": "participant",
+        "t": "text"
+      },
+      "collab_status": {
+        "v": "assembling",
+        "t": "text"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Old",
+        "t": "text"
+      },
+      "rows": {
+        "v": 3,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 3,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 15.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "status": {
+        "v": "complete",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740866460,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740868860,
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": "",
+        "t": "text"
+      },
+      "collab_role": {
+        "v": "owner",
+        "t": "text"
+      },
+      "collab_status": {
+        "v": "published",
+        "t": "text"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Now",
+        "t": "text"
+      },
+      "rows": {
+        "v": 1,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 1,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 15.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "status": {
+        "v": "planning",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": null,
+        "t": "null"
+      },
+      "collab_role": {
+        "v": null,
+        "t": "null"
+      },
+      "collab_status": {
+        "v": "x",
+        "t": "text"
+      }
+    },
+    {
+      "id": {
+        "v": 5,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Fifth",
+        "t": "text"
+      },
+      "rows": {
+        "v": 2,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 2,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 15.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "status": {
+        "v": "integrating",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740868200,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": "hub-c",
+        "t": "text"
+      },
+      "collab_role": {
+        "v": "owner",
+        "t": "text"
+      },
+      "collab_status": {
+        "v": "complete",
+        "t": "text"
+      }
+    },
+    {
+      "id": {
+        "v": 6,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Sixth",
+        "t": "text"
+      },
+      "rows": {
+        "v": 2,
+        "t": "integer"
+      },
+      "cols": {
+        "v": 2,
+        "t": "integer"
+      },
+      "overlap_pct": {
+        "v": 15.0,
+        "t": "real"
+      },
+      "position_angle_deg": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "status": {
+        "v": "complete",
+        "t": "text"
+      },
+      "output_master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740868260,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "hub_mosaic_id": {
+        "v": "hub-d",
+        "t": "text"
+      },
+      "collab_role": {
+        "v": "owner",
+        "t": "text"
+      },
+      "collab_status": {
+        "v": null,
+        "t": "null"
+      }
+    }
+  ],
+  "after delete :: mosaic_panels": []
+}

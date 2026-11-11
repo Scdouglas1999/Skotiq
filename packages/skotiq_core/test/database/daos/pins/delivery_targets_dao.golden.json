@@ -1,0 +1,696 @@
+{
+  "empty readAll": {
+    "destinations": [],
+    "undecodable": []
+  },
+  "empty readEnabled": {
+    "destinations": [],
+    "undecodable": []
+  },
+  "empty getById": null,
+  "empty secretRefOf": null,
+  "create folder": 1,
+  "create sftp disabled tie": 2,
+  "create peer older": 3,
+  "create default time": 4,
+  "create empty name": {
+    "threw": "ArgumentError",
+    "message": "Invalid argument (name): a delivery target needs the name the morning report will use: \"\""
+  },
+  "create secret in config": {
+    "threw": "DeliveryConfigSecretException",
+    "message": "delivery_targets.config_json may not carry key material (password); store it in SecretsStore and reference it from secret_ref."
+  },
+  "create config not object": {
+    "threw": "FormatException",
+    "message": "FormatException: delivery_targets.config_json must be a JSON object\n[1]"
+  },
+  "after create :: delivery_targets": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "name": {
+        "v": "NAS",
+        "t": "text"
+      },
+      "kind": {
+        "v": "watched_folder",
+        "t": "text"
+      },
+      "config_json": {
+        "v": "{\"path\":\"/mnt/nas\"}",
+        "t": "text"
+      },
+      "enabled": {
+        "v": 1,
+        "t": "integer"
+      },
+      "content_json": {
+        "v": "[\"linear_masters\",\"night_report\"]",
+        "t": "text"
+      },
+      "secret_ref": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867000,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "name": {
+        "v": "Remote",
+        "t": "text"
+      },
+      "kind": {
+        "v": "sftp",
+        "t": "text"
+      },
+      "config_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "enabled": {
+        "v": 0,
+        "t": "integer"
+      },
+      "content_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "secret_ref": {
+        "v": "sftp-key-1",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867120,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "name": {
+        "v": "Desk",
+        "t": "text"
+      },
+      "kind": {
+        "v": "peer",
+        "t": "text"
+      },
+      "config_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "enabled": {
+        "v": 1,
+        "t": "integer"
+      },
+      "content_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "secret_ref": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740866520,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740866520,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "name": {
+        "v": "Now",
+        "t": "text"
+      },
+      "kind": {
+        "v": "sftp",
+        "t": "text"
+      },
+      "config_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "enabled": {
+        "v": 1,
+        "t": "integer"
+      },
+      "content_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "secret_ref": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      }
+    }
+  ],
+  "readAll": {
+    "destinations": [
+      {
+        "id": 3,
+        "name": "Desk",
+        "kind": "ArtifactDestinationKind.peer",
+        "configJson": "{}",
+        "enabled": true,
+        "content": [],
+        "secretRef": null,
+        "createdAt": "2025-03-01T22:02:00.000Z",
+        "updatedAt": "2025-03-01T22:02:00.000Z"
+      },
+      {
+        "id": 1,
+        "name": "NAS",
+        "kind": "ArtifactDestinationKind.watchedFolder",
+        "configJson": "{\"path\":\"/mnt/nas\"}",
+        "enabled": true,
+        "content": [
+          "ArtifactContent.linearMasters",
+          "ArtifactContent.nightReport"
+        ],
+        "secretRef": null,
+        "createdAt": "2025-03-01T22:10:00.000Z",
+        "updatedAt": "2025-03-01T22:10:00.000Z"
+      },
+      {
+        "id": 2,
+        "name": "Remote",
+        "kind": "ArtifactDestinationKind.sftp",
+        "configJson": "{}",
+        "enabled": false,
+        "content": [],
+        "secretRef": "sftp-key-1",
+        "createdAt": "2025-03-01T22:10:00.000Z",
+        "updatedAt": "2025-03-01T22:12:00.000Z"
+      },
+      {
+        "id": 4,
+        "name": "Now",
+        "kind": "ArtifactDestinationKind.sftp",
+        "configJson": "{}",
+        "enabled": true,
+        "content": [],
+        "secretRef": null,
+        "createdAt": "<now utc>",
+        "updatedAt": "<now utc>"
+      }
+    ],
+    "undecodable": []
+  },
+  "readEnabled": {
+    "destinations": [
+      {
+        "id": 3,
+        "name": "Desk",
+        "kind": "ArtifactDestinationKind.peer",
+        "configJson": "{}",
+        "enabled": true,
+        "content": [],
+        "secretRef": null,
+        "createdAt": "2025-03-01T22:02:00.000Z",
+        "updatedAt": "2025-03-01T22:02:00.000Z"
+      },
+      {
+        "id": 1,
+        "name": "NAS",
+        "kind": "ArtifactDestinationKind.watchedFolder",
+        "configJson": "{\"path\":\"/mnt/nas\"}",
+        "enabled": true,
+        "content": [
+          "ArtifactContent.linearMasters",
+          "ArtifactContent.nightReport"
+        ],
+        "secretRef": null,
+        "createdAt": "2025-03-01T22:10:00.000Z",
+        "updatedAt": "2025-03-01T22:10:00.000Z"
+      },
+      {
+        "id": 4,
+        "name": "Now",
+        "kind": "ArtifactDestinationKind.sftp",
+        "configJson": "{}",
+        "enabled": true,
+        "content": [],
+        "secretRef": null,
+        "createdAt": "<now utc>",
+        "updatedAt": "<now utc>"
+      }
+    ],
+    "undecodable": []
+  },
+  "getById 2": {
+    "id": 2,
+    "name": "Remote",
+    "kind": "ArtifactDestinationKind.sftp",
+    "configJson": "{}",
+    "enabled": false,
+    "content": [],
+    "secretRef": "sftp-key-1",
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:12:00.000Z"
+  },
+  "secretRefOf 2": "sftp-key-1",
+  "secretRefOf 1 none": null,
+  "update partial": {
+    "id": 2,
+    "name": "Remote box",
+    "kind": "ArtifactDestinationKind.sftp",
+    "configJson": "{}",
+    "enabled": true,
+    "content": [],
+    "secretRef": "sftp-key-1",
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:20:00.000Z"
+  },
+  "update content and config": {
+    "id": 1,
+    "name": "NAS",
+    "kind": "ArtifactDestinationKind.watchedFolder",
+    "configJson": "{\"path\":\"/mnt/other\"}",
+    "enabled": true,
+    "content": [],
+    "secretRef": "nas-ref",
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:21:00.000Z"
+  },
+  "update nothing": {
+    "id": 3,
+    "name": "Desk",
+    "kind": "ArtifactDestinationKind.peer",
+    "configJson": "{}",
+    "enabled": true,
+    "content": [],
+    "secretRef": null,
+    "createdAt": "2025-03-01T22:02:00.000Z",
+    "updatedAt": "2025-03-01T22:22:00.000Z"
+  },
+  "update missing": {
+    "threw": "ArtifactDestinationMissingException",
+    "message": "Delivery target 99 does not exist"
+  },
+  "update secret config": {
+    "threw": "DeliveryConfigSecretException",
+    "message": "delivery_targets.config_json may not carry key material (privateKey); store it in SecretsStore and reference it from secret_ref."
+  },
+  "clearSecretRef": {
+    "id": 2,
+    "name": "Remote box",
+    "kind": "ArtifactDestinationKind.sftp",
+    "configJson": "{}",
+    "enabled": true,
+    "content": [],
+    "secretRef": null,
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:23:00.000Z"
+  },
+  "clearSecretRef missing": {
+    "threw": "ArtifactDestinationMissingException",
+    "message": "Delivery target 99 does not exist"
+  },
+  "update default now": {
+    "id": 3,
+    "name": "Desk",
+    "kind": "ArtifactDestinationKind.peer",
+    "configJson": "{}",
+    "enabled": false,
+    "content": [],
+    "secretRef": null,
+    "createdAt": "2025-03-01T22:02:00.000Z",
+    "updatedAt": "<now utc>"
+  },
+  "after update :: delivery_targets": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "name": {
+        "v": "NAS",
+        "t": "text"
+      },
+      "kind": {
+        "v": "watched_folder",
+        "t": "text"
+      },
+      "config_json": {
+        "v": "{\"path\":\"/mnt/other\"}",
+        "t": "text"
+      },
+      "enabled": {
+        "v": 1,
+        "t": "integer"
+      },
+      "content_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "secret_ref": {
+        "v": "nas-ref",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867660,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "name": {
+        "v": "Remote box",
+        "t": "text"
+      },
+      "kind": {
+        "v": "sftp",
+        "t": "text"
+      },
+      "config_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "enabled": {
+        "v": 1,
+        "t": "integer"
+      },
+      "content_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "secret_ref": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867780,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "name": {
+        "v": "Desk",
+        "t": "text"
+      },
+      "kind": {
+        "v": "peer",
+        "t": "text"
+      },
+      "config_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "enabled": {
+        "v": 0,
+        "t": "integer"
+      },
+      "content_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "secret_ref": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740866520,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "name": {
+        "v": "Now",
+        "t": "text"
+      },
+      "kind": {
+        "v": "sftp",
+        "t": "text"
+      },
+      "config_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "enabled": {
+        "v": 1,
+        "t": "integer"
+      },
+      "content_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "secret_ref": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      }
+    }
+  ],
+  "readAll with undecodable": {
+    "destinations": [
+      {
+        "id": 2,
+        "name": "Remote box",
+        "kind": "ArtifactDestinationKind.sftp",
+        "configJson": "{}",
+        "enabled": true,
+        "content": [],
+        "secretRef": null,
+        "createdAt": "2025-03-01T22:10:00.000Z",
+        "updatedAt": "2025-03-01T22:23:00.000Z"
+      }
+    ],
+    "undecodable": [
+      {
+        "id": 3,
+        "name": "  ",
+        "reason": "the artifact classes it receives are not a JSON array: Unexpected character",
+        "label": "Delivery destination #3"
+      },
+      {
+        "id": 1,
+        "name": "NAS",
+        "reason": "the artifact classes it receives include \"future_class\", which is not one this build produces (linear_masters, draft_render, stage_exports, night_report). The column holds free text — no database constraint rejected it — so the row was written by a build that knows a class this one does not, or edited by hand",
+        "label": "NAS"
+      },
+      {
+        "id": 4,
+        "name": "Now",
+        "reason": "the artifact classes it receives are not a JSON array: Invalid radix-10 number",
+        "label": "Now"
+      }
+    ]
+  },
+  "readEnabled with undecodable": {
+    "destinations": [
+      {
+        "id": 2,
+        "name": "Remote box",
+        "kind": "ArtifactDestinationKind.sftp",
+        "configJson": "{}",
+        "enabled": true,
+        "content": [],
+        "secretRef": null,
+        "createdAt": "2025-03-01T22:10:00.000Z",
+        "updatedAt": "2025-03-01T22:23:00.000Z"
+      }
+    ],
+    "undecodable": [
+      {
+        "id": 1,
+        "name": "NAS",
+        "reason": "the artifact classes it receives include \"future_class\", which is not one this build produces (linear_masters, draft_render, stage_exports, night_report). The column holds free text — no database constraint rejected it — so the row was written by a build that knows a class this one does not, or edited by hand",
+        "label": "NAS"
+      },
+      {
+        "id": 4,
+        "name": "Now",
+        "reason": "the artifact classes it receives are not a JSON array: Invalid radix-10 number",
+        "label": "Now"
+      }
+    ]
+  },
+  "getById undecodable": {
+    "threw": "DarkroomWireFormatException",
+    "message": "Unreadable delivery_targets.content_json value \"future_class\"; the column is CHECK-constrained, so this row is corrupt."
+  },
+  "secretRefOf undecodable": "nas-ref",
+  "deleteTarget 2": 1,
+  "deleteTarget missing": 0,
+  "after delete :: delivery_targets": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "name": {
+        "v": "NAS",
+        "t": "text"
+      },
+      "kind": {
+        "v": "watched_folder",
+        "t": "text"
+      },
+      "config_json": {
+        "v": "{\"path\":\"/mnt/other\"}",
+        "t": "text"
+      },
+      "enabled": {
+        "v": 1,
+        "t": "integer"
+      },
+      "content_json": {
+        "v": "[\"future_class\"]",
+        "t": "text"
+      },
+      "secret_ref": {
+        "v": "nas-ref",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867660,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "name": {
+        "v": "  ",
+        "t": "text"
+      },
+      "kind": {
+        "v": "peer",
+        "t": "text"
+      },
+      "config_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "enabled": {
+        "v": 0,
+        "t": "integer"
+      },
+      "content_json": {
+        "v": "nope",
+        "t": "text"
+      },
+      "secret_ref": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": 1740866520,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "name": {
+        "v": "Now",
+        "t": "text"
+      },
+      "kind": {
+        "v": "sftp",
+        "t": "text"
+      },
+      "config_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "enabled": {
+        "v": 1,
+        "t": "integer"
+      },
+      "content_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "secret_ref": {
+        "v": null,
+        "t": "null"
+      },
+      "created_at": {
+        "v": "yesterday",
+        "t": "text"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      }
+    }
+  ]
+}

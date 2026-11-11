@@ -1,0 +1,1259 @@
+{
+  "empty getById": null,
+  "empty listForMaster": [],
+  "empty childrenOf": [],
+  "empty chainToRoot": {
+    "threw": "RecipeMissingException",
+    "message": "Recipe 1 does not exist"
+  },
+  "empty descendantsOf": [],
+  "empty draftNotesOf": {
+    "threw": "RecipeMissingException",
+    "message": "Recipe 1 does not exist"
+  },
+  "create root": 1,
+  "create second root tie": 2,
+  "create other master default now": 3,
+  "create empty path": {
+    "threw": "ArgumentError",
+    "message": "Invalid argument (baseMasterPath): a recipe must name the linear master it replays over: \"\""
+  },
+  "create schema 0": {
+    "threw": "ArgumentError",
+    "message": "Invalid argument (schemaVersion): the steps_json envelope format starts at 1: 0"
+  },
+  "create half branch": {
+    "threw": "RecipeBranchException",
+    "message": "Invalid recipe branch: parent_recipe_id and divergence_index are set together (a branch) or both null (a root)"
+  },
+  "branchFrom 1 at 1": 4,
+  "branchFrom 1 at 0 tie": 5,
+  "branchFrom 4": 6,
+  "branchFrom missing": {
+    "threw": "RecipeMissingException",
+    "message": "Recipe 99 does not exist"
+  },
+  "branchFrom negative": {
+    "threw": "RecipeBranchException",
+    "message": "Invalid recipe branch: divergence_index is an index into the parent step list and cannot be negative"
+  },
+  "after create :: recipes": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "base_master_path": {
+        "v": "/m/M31_L.fits",
+        "t": "text"
+      },
+      "name": {
+        "v": "Draft",
+        "t": "text"
+      },
+      "steps_json": {
+        "v": "[{\"op_id\":\"stretch\"}]",
+        "t": "text"
+      },
+      "created_by": {
+        "v": "autopilot",
+        "t": "text"
+      },
+      "draft_notes_json": {
+        "v": "[{\"opId\":\"color_calibration\",\"outcome\":\"omitted\",\"reason\":\"mono master\"}]",
+        "t": "text"
+      },
+      "parent_recipe_id": {
+        "v": null,
+        "t": "null"
+      },
+      "divergence_index": {
+        "v": null,
+        "t": "null"
+      },
+      "schema_version": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867000,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "session_id": {
+        "v": null,
+        "t": "null"
+      },
+      "master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "base_master_path": {
+        "v": "/m/M31_L.fits",
+        "t": "text"
+      },
+      "name": {
+        "v": "",
+        "t": "text"
+      },
+      "steps_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "created_by": {
+        "v": "user",
+        "t": "text"
+      },
+      "draft_notes_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "parent_recipe_id": {
+        "v": null,
+        "t": "null"
+      },
+      "divergence_index": {
+        "v": null,
+        "t": "null"
+      },
+      "schema_version": {
+        "v": 2,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867060,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "session_id": {
+        "v": null,
+        "t": "null"
+      },
+      "master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "base_master_path": {
+        "v": "/m/other.fits",
+        "t": "text"
+      },
+      "name": {
+        "v": "",
+        "t": "text"
+      },
+      "steps_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "created_by": {
+        "v": "autopilot",
+        "t": "text"
+      },
+      "draft_notes_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "parent_recipe_id": {
+        "v": null,
+        "t": "null"
+      },
+      "divergence_index": {
+        "v": null,
+        "t": "null"
+      },
+      "schema_version": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "base_master_path": {
+        "v": "/m/M31_L.fits",
+        "t": "text"
+      },
+      "name": {
+        "v": "Softer",
+        "t": "text"
+      },
+      "steps_json": {
+        "v": "[{\"op_id\":\"stretch\"}]",
+        "t": "text"
+      },
+      "created_by": {
+        "v": "user",
+        "t": "text"
+      },
+      "draft_notes_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "parent_recipe_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "divergence_index": {
+        "v": 1,
+        "t": "integer"
+      },
+      "schema_version": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740867600,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867600,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 5,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "base_master_path": {
+        "v": "/m/M31_L.fits",
+        "t": "text"
+      },
+      "name": {
+        "v": "Fresh",
+        "t": "text"
+      },
+      "steps_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "created_by": {
+        "v": "autopilot",
+        "t": "text"
+      },
+      "draft_notes_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "parent_recipe_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "divergence_index": {
+        "v": 0,
+        "t": "integer"
+      },
+      "schema_version": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740867600,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867600,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 6,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "base_master_path": {
+        "v": "/m/M31_L.fits",
+        "t": "text"
+      },
+      "name": {
+        "v": "Deeper",
+        "t": "text"
+      },
+      "steps_json": {
+        "v": "[{\"op_id\":\"stretch\"}]",
+        "t": "text"
+      },
+      "created_by": {
+        "v": "user",
+        "t": "text"
+      },
+      "draft_notes_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "parent_recipe_id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "divergence_index": {
+        "v": 2,
+        "t": "integer"
+      },
+      "schema_version": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740868200,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740868200,
+        "t": "integer"
+      }
+    }
+  ],
+  "getById 4": {
+    "id": 4,
+    "targetId": 1,
+    "sessionId": 1,
+    "masterId": 1,
+    "baseMasterPath": "/m/M31_L.fits",
+    "name": "Softer",
+    "stepsJson": "[{\"op_id\":\"stretch\"}]",
+    "createdBy": "RecipeAuthor.user",
+    "parentRecipeId": 1,
+    "divergenceIndex": 1,
+    "schemaVersion": 1,
+    "createdAt": "2025-03-01T22:20:00.000Z",
+    "updatedAt": "2025-03-01T22:20:00.000Z"
+  },
+  "listForMaster": [
+    {
+      "id": 6,
+      "targetId": 1,
+      "sessionId": 1,
+      "masterId": 1,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "Deeper",
+      "stepsJson": "[{\"op_id\":\"stretch\"}]",
+      "createdBy": "RecipeAuthor.user",
+      "parentRecipeId": 4,
+      "divergenceIndex": 2,
+      "schemaVersion": 1,
+      "createdAt": "2025-03-01T22:30:00.000Z",
+      "updatedAt": "2025-03-01T22:30:00.000Z"
+    },
+    {
+      "id": 5,
+      "targetId": 1,
+      "sessionId": 1,
+      "masterId": 1,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "Fresh",
+      "stepsJson": "[]",
+      "createdBy": "RecipeAuthor.autopilot",
+      "parentRecipeId": 1,
+      "divergenceIndex": 0,
+      "schemaVersion": 1,
+      "createdAt": "2025-03-01T22:20:00.000Z",
+      "updatedAt": "2025-03-01T22:20:00.000Z"
+    },
+    {
+      "id": 4,
+      "targetId": 1,
+      "sessionId": 1,
+      "masterId": 1,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "Softer",
+      "stepsJson": "[{\"op_id\":\"stretch\"}]",
+      "createdBy": "RecipeAuthor.user",
+      "parentRecipeId": 1,
+      "divergenceIndex": 1,
+      "schemaVersion": 1,
+      "createdAt": "2025-03-01T22:20:00.000Z",
+      "updatedAt": "2025-03-01T22:20:00.000Z"
+    },
+    {
+      "id": 2,
+      "targetId": null,
+      "sessionId": null,
+      "masterId": null,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "",
+      "stepsJson": "[]",
+      "createdBy": "RecipeAuthor.user",
+      "parentRecipeId": null,
+      "divergenceIndex": null,
+      "schemaVersion": 2,
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "updatedAt": "2025-03-01T22:11:00.000Z"
+    },
+    {
+      "id": 1,
+      "targetId": 1,
+      "sessionId": 1,
+      "masterId": 1,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "Draft",
+      "stepsJson": "[{\"op_id\":\"stretch\"}]",
+      "createdBy": "RecipeAuthor.autopilot",
+      "parentRecipeId": null,
+      "divergenceIndex": null,
+      "schemaVersion": 1,
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "updatedAt": "2025-03-01T22:10:00.000Z"
+    }
+  ],
+  "listForSession": [
+    {
+      "id": 6,
+      "targetId": 1,
+      "sessionId": 1,
+      "masterId": 1,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "Deeper",
+      "stepsJson": "[{\"op_id\":\"stretch\"}]",
+      "createdBy": "RecipeAuthor.user",
+      "parentRecipeId": 4,
+      "divergenceIndex": 2,
+      "schemaVersion": 1,
+      "createdAt": "2025-03-01T22:30:00.000Z",
+      "updatedAt": "2025-03-01T22:30:00.000Z"
+    },
+    {
+      "id": 5,
+      "targetId": 1,
+      "sessionId": 1,
+      "masterId": 1,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "Fresh",
+      "stepsJson": "[]",
+      "createdBy": "RecipeAuthor.autopilot",
+      "parentRecipeId": 1,
+      "divergenceIndex": 0,
+      "schemaVersion": 1,
+      "createdAt": "2025-03-01T22:20:00.000Z",
+      "updatedAt": "2025-03-01T22:20:00.000Z"
+    },
+    {
+      "id": 4,
+      "targetId": 1,
+      "sessionId": 1,
+      "masterId": 1,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "Softer",
+      "stepsJson": "[{\"op_id\":\"stretch\"}]",
+      "createdBy": "RecipeAuthor.user",
+      "parentRecipeId": 1,
+      "divergenceIndex": 1,
+      "schemaVersion": 1,
+      "createdAt": "2025-03-01T22:20:00.000Z",
+      "updatedAt": "2025-03-01T22:20:00.000Z"
+    },
+    {
+      "id": 1,
+      "targetId": 1,
+      "sessionId": 1,
+      "masterId": 1,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "Draft",
+      "stepsJson": "[{\"op_id\":\"stretch\"}]",
+      "createdBy": "RecipeAuthor.autopilot",
+      "parentRecipeId": null,
+      "divergenceIndex": null,
+      "schemaVersion": 1,
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "updatedAt": "2025-03-01T22:10:00.000Z"
+    }
+  ],
+  "listForTarget": [
+    {
+      "id": 6,
+      "targetId": 1,
+      "sessionId": 1,
+      "masterId": 1,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "Deeper",
+      "stepsJson": "[{\"op_id\":\"stretch\"}]",
+      "createdBy": "RecipeAuthor.user",
+      "parentRecipeId": 4,
+      "divergenceIndex": 2,
+      "schemaVersion": 1,
+      "createdAt": "2025-03-01T22:30:00.000Z",
+      "updatedAt": "2025-03-01T22:30:00.000Z"
+    },
+    {
+      "id": 5,
+      "targetId": 1,
+      "sessionId": 1,
+      "masterId": 1,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "Fresh",
+      "stepsJson": "[]",
+      "createdBy": "RecipeAuthor.autopilot",
+      "parentRecipeId": 1,
+      "divergenceIndex": 0,
+      "schemaVersion": 1,
+      "createdAt": "2025-03-01T22:20:00.000Z",
+      "updatedAt": "2025-03-01T22:20:00.000Z"
+    },
+    {
+      "id": 4,
+      "targetId": 1,
+      "sessionId": 1,
+      "masterId": 1,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "Softer",
+      "stepsJson": "[{\"op_id\":\"stretch\"}]",
+      "createdBy": "RecipeAuthor.user",
+      "parentRecipeId": 1,
+      "divergenceIndex": 1,
+      "schemaVersion": 1,
+      "createdAt": "2025-03-01T22:20:00.000Z",
+      "updatedAt": "2025-03-01T22:20:00.000Z"
+    },
+    {
+      "id": 1,
+      "targetId": 1,
+      "sessionId": 1,
+      "masterId": 1,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "Draft",
+      "stepsJson": "[{\"op_id\":\"stretch\"}]",
+      "createdBy": "RecipeAuthor.autopilot",
+      "parentRecipeId": null,
+      "divergenceIndex": null,
+      "schemaVersion": 1,
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "updatedAt": "2025-03-01T22:10:00.000Z"
+    }
+  ],
+  "listForTarget none": [],
+  "childrenOf 1": [
+    {
+      "id": 4,
+      "targetId": 1,
+      "sessionId": 1,
+      "masterId": 1,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "Softer",
+      "stepsJson": "[{\"op_id\":\"stretch\"}]",
+      "createdBy": "RecipeAuthor.user",
+      "parentRecipeId": 1,
+      "divergenceIndex": 1,
+      "schemaVersion": 1,
+      "createdAt": "2025-03-01T22:20:00.000Z",
+      "updatedAt": "2025-03-01T22:20:00.000Z"
+    },
+    {
+      "id": 5,
+      "targetId": 1,
+      "sessionId": 1,
+      "masterId": 1,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "Fresh",
+      "stepsJson": "[]",
+      "createdBy": "RecipeAuthor.autopilot",
+      "parentRecipeId": 1,
+      "divergenceIndex": 0,
+      "schemaVersion": 1,
+      "createdAt": "2025-03-01T22:20:00.000Z",
+      "updatedAt": "2025-03-01T22:20:00.000Z"
+    }
+  ],
+  "chainToRoot 6": [
+    {
+      "id": 6,
+      "targetId": 1,
+      "sessionId": 1,
+      "masterId": 1,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "Deeper",
+      "stepsJson": "[{\"op_id\":\"stretch\"}]",
+      "createdBy": "RecipeAuthor.user",
+      "parentRecipeId": 4,
+      "divergenceIndex": 2,
+      "schemaVersion": 1,
+      "createdAt": "2025-03-01T22:30:00.000Z",
+      "updatedAt": "2025-03-01T22:30:00.000Z"
+    },
+    {
+      "id": 4,
+      "targetId": 1,
+      "sessionId": 1,
+      "masterId": 1,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "Softer",
+      "stepsJson": "[{\"op_id\":\"stretch\"}]",
+      "createdBy": "RecipeAuthor.user",
+      "parentRecipeId": 1,
+      "divergenceIndex": 1,
+      "schemaVersion": 1,
+      "createdAt": "2025-03-01T22:20:00.000Z",
+      "updatedAt": "2025-03-01T22:20:00.000Z"
+    },
+    {
+      "id": 1,
+      "targetId": 1,
+      "sessionId": 1,
+      "masterId": 1,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "Draft",
+      "stepsJson": "[{\"op_id\":\"stretch\"}]",
+      "createdBy": "RecipeAuthor.autopilot",
+      "parentRecipeId": null,
+      "divergenceIndex": null,
+      "schemaVersion": 1,
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "updatedAt": "2025-03-01T22:10:00.000Z"
+    }
+  ],
+  "descendantsOf 1": [
+    {
+      "id": 4,
+      "targetId": 1,
+      "sessionId": 1,
+      "masterId": 1,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "Softer",
+      "stepsJson": "[{\"op_id\":\"stretch\"}]",
+      "createdBy": "RecipeAuthor.user",
+      "parentRecipeId": 1,
+      "divergenceIndex": 1,
+      "schemaVersion": 1,
+      "createdAt": "2025-03-01T22:20:00.000Z",
+      "updatedAt": "2025-03-01T22:20:00.000Z"
+    },
+    {
+      "id": 5,
+      "targetId": 1,
+      "sessionId": 1,
+      "masterId": 1,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "Fresh",
+      "stepsJson": "[]",
+      "createdBy": "RecipeAuthor.autopilot",
+      "parentRecipeId": 1,
+      "divergenceIndex": 0,
+      "schemaVersion": 1,
+      "createdAt": "2025-03-01T22:20:00.000Z",
+      "updatedAt": "2025-03-01T22:20:00.000Z"
+    },
+    {
+      "id": 6,
+      "targetId": 1,
+      "sessionId": 1,
+      "masterId": 1,
+      "baseMasterPath": "/m/M31_L.fits",
+      "name": "Deeper",
+      "stepsJson": "[{\"op_id\":\"stretch\"}]",
+      "createdBy": "RecipeAuthor.user",
+      "parentRecipeId": 4,
+      "divergenceIndex": 2,
+      "schemaVersion": 1,
+      "createdAt": "2025-03-01T22:30:00.000Z",
+      "updatedAt": "2025-03-01T22:30:00.000Z"
+    }
+  ],
+  "draftNotesOf 1": [
+    {
+      "opId": "color_calibration",
+      "outcome": "omitted",
+      "reason": "mono master"
+    }
+  ],
+  "draftNotesOf 2": [],
+  "updateSteps": 1,
+  "updateSteps version": 1,
+  "updateSteps bad version": {
+    "threw": "ArgumentError",
+    "message": "Invalid argument (schemaVersion): the steps_json envelope format starts at 1: 0"
+  },
+  "updateSteps missing": 0,
+  "setDraftNotes": 1,
+  "setDraftNotes missing": 0,
+  "rename": 1,
+  "rename default now": 1,
+  "after updates :: recipes": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "base_master_path": {
+        "v": "/m/M31_L.fits",
+        "t": "text"
+      },
+      "name": {
+        "v": "Draft",
+        "t": "text"
+      },
+      "steps_json": {
+        "v": "[{\"op_id\":\"stretch\"}]",
+        "t": "text"
+      },
+      "created_by": {
+        "v": "autopilot",
+        "t": "text"
+      },
+      "draft_notes_json": {
+        "v": "[{\"opId\":\"color_calibration\",\"outcome\":\"omitted\",\"reason\":\"mono master\"}]",
+        "t": "text"
+      },
+      "parent_recipe_id": {
+        "v": null,
+        "t": "null"
+      },
+      "divergence_index": {
+        "v": null,
+        "t": "null"
+      },
+      "schema_version": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867000,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "session_id": {
+        "v": null,
+        "t": "null"
+      },
+      "master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "base_master_path": {
+        "v": "/m/M31_L.fits",
+        "t": "text"
+      },
+      "name": {
+        "v": "",
+        "t": "text"
+      },
+      "steps_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "created_by": {
+        "v": "user",
+        "t": "text"
+      },
+      "draft_notes_json": {
+        "v": "[{\"opId\":\"a\",\"outcome\":\"included\",\"reason\":\"r\"},{\"opId\":\"b\",\"outcome\":\"retried\",\"reason\":\"s\"}]",
+        "t": "text"
+      },
+      "parent_recipe_id": {
+        "v": null,
+        "t": "null"
+      },
+      "divergence_index": {
+        "v": null,
+        "t": "null"
+      },
+      "schema_version": {
+        "v": 3,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740868920,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "session_id": {
+        "v": null,
+        "t": "null"
+      },
+      "master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "base_master_path": {
+        "v": "/m/other.fits",
+        "t": "text"
+      },
+      "name": {
+        "v": "Renamed",
+        "t": "text"
+      },
+      "steps_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "created_by": {
+        "v": "autopilot",
+        "t": "text"
+      },
+      "draft_notes_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "parent_recipe_id": {
+        "v": null,
+        "t": "null"
+      },
+      "divergence_index": {
+        "v": null,
+        "t": "null"
+      },
+      "schema_version": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740868980,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "base_master_path": {
+        "v": "/m/M31_L.fits",
+        "t": "text"
+      },
+      "name": {
+        "v": "Softer",
+        "t": "text"
+      },
+      "steps_json": {
+        "v": "[{\"op_id\":\"stretch\"}]",
+        "t": "text"
+      },
+      "created_by": {
+        "v": "user",
+        "t": "text"
+      },
+      "draft_notes_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "parent_recipe_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "divergence_index": {
+        "v": 1,
+        "t": "integer"
+      },
+      "schema_version": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740867600,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867600,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 5,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "base_master_path": {
+        "v": "/m/M31_L.fits",
+        "t": "text"
+      },
+      "name": {
+        "v": "Fresh 2",
+        "t": "text"
+      },
+      "steps_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "created_by": {
+        "v": "autopilot",
+        "t": "text"
+      },
+      "draft_notes_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "parent_recipe_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "divergence_index": {
+        "v": 0,
+        "t": "integer"
+      },
+      "schema_version": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740867600,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 6,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "base_master_path": {
+        "v": "/m/M31_L.fits",
+        "t": "text"
+      },
+      "name": {
+        "v": "Deeper",
+        "t": "text"
+      },
+      "steps_json": {
+        "v": "[{\"op_id\":\"stretch\"}]",
+        "t": "text"
+      },
+      "created_by": {
+        "v": "user",
+        "t": "text"
+      },
+      "draft_notes_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "parent_recipe_id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "divergence_index": {
+        "v": 2,
+        "t": "integer"
+      },
+      "schema_version": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740868200,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740868200,
+        "t": "integer"
+      }
+    }
+  ],
+  "draftNotesOf 2 after set": [
+    {
+      "opId": "a",
+      "outcome": "included",
+      "reason": "r"
+    },
+    {
+      "opId": "b",
+      "outcome": "retried",
+      "reason": "s"
+    }
+  ],
+  "deleteRecipe with children": {
+    "threw": "RecipeHasChildrenException",
+    "message": "Recipe 1 still has 2 branch(es) (4, 5); delete or re-point them first."
+  },
+  "deleteRecipe leaf": 1,
+  "deleteRecipe missing": 0,
+  "deleteRecipeSubtree 1": 3,
+  "after delete :: recipes": [
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "session_id": {
+        "v": null,
+        "t": "null"
+      },
+      "master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "base_master_path": {
+        "v": "/m/M31_L.fits",
+        "t": "text"
+      },
+      "name": {
+        "v": "",
+        "t": "text"
+      },
+      "steps_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "created_by": {
+        "v": "user",
+        "t": "text"
+      },
+      "draft_notes_json": {
+        "v": "[{\"opId\":\"a\",\"outcome\":\"included\",\"reason\":\"r\"},{\"opId\":\"b\",\"outcome\":\"retried\",\"reason\":\"s\"}]",
+        "t": "text"
+      },
+      "parent_recipe_id": {
+        "v": null,
+        "t": "null"
+      },
+      "divergence_index": {
+        "v": null,
+        "t": "null"
+      },
+      "schema_version": {
+        "v": 3,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740868920,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "session_id": {
+        "v": null,
+        "t": "null"
+      },
+      "master_id": {
+        "v": null,
+        "t": "null"
+      },
+      "base_master_path": {
+        "v": "/m/other.fits",
+        "t": "text"
+      },
+      "name": {
+        "v": "Renamed",
+        "t": "text"
+      },
+      "steps_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "created_by": {
+        "v": "autopilot",
+        "t": "text"
+      },
+      "draft_notes_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "parent_recipe_id": {
+        "v": null,
+        "t": "null"
+      },
+      "divergence_index": {
+        "v": null,
+        "t": "null"
+      },
+      "schema_version": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740868980,
+        "t": "integer"
+      }
+    }
+  ],
+  "draftNotesOf corrupt": {
+    "threw": "DarkroomWireFormatException",
+    "message": "Unreadable recipes.draft_notes_json value \"Unexpected character: nope\"; the column is CHECK-constrained, so this row is corrupt."
+  },
+  "draftNotesOf bad entry": {
+    "threw": "DarkroomWireFormatException",
+    "message": "Unreadable recipes.draft_notes_json value \"{opId: 1}\"; the column is CHECK-constrained, so this row is corrupt."
+  },
+  "chainToRoot cycle": {
+    "threw": "RecipeGraphCycleException",
+    "message": "Recipe parent chain from 7 revisits 7; the recipe graph is cyclic."
+  },
+  "descendantsOf cycle": {
+    "threw": "RecipeGraphCycleException",
+    "message": "Recipe parent chain from 7 revisits 7; the recipe graph is cyclic."
+  },
+  "chainToRoot dangling parent": {
+    "threw": "RecipeMissingException",
+    "message": "Recipe 999 does not exist"
+  }
+}
