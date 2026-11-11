@@ -6,6 +6,7 @@ import 'package:http/testing.dart';
 import 'package:skotiq_core/src/models/notification/notification_categories.dart';
 import 'package:skotiq_core/src/models/notification/transport_configs.dart';
 import 'package:skotiq_core/src/services/notification/transports/discord_transport.dart';
+import 'package:skotiq_core/src/services/notification/transports/notification_transport.dart';
 import 'package:skotiq_core/src/services/notification/transports/pushover_transport.dart';
 import 'package:skotiq_core/src/services/notification/transports/telegram_transport.dart';
 import 'package:skotiq_core/src/services/notification/transports/webhook_transport.dart';
@@ -19,9 +20,11 @@ void main() {
       );
       expect(t.isConfigured, isFalse);
       final res = await t.send(
-        category: NotificationCategory.custom,
-        title: 'X',
-        body: 'Y',
+        NotificationMessage(
+          category: NotificationCategory.custom,
+          title: 'X',
+          body: 'Y',
+        ),
       );
       expect(res.success, isFalse);
       await t.dispose();
@@ -42,9 +45,11 @@ void main() {
           }),
         );
         final res = await t.send(
-          category: NotificationCategory.targetCompleted,
-          title: 'Hello',
-          body: 'World',
+          NotificationMessage(
+            category: NotificationCategory.targetCompleted,
+            title: 'Hello',
+            body: 'World',
+          ),
         );
         expect(res.success, isTrue);
         expect(capturedReq.url.host, contains('pushover'));
@@ -62,9 +67,11 @@ void main() {
         httpClient: MockClient((req) async => http.Response('bad', 401)),
       );
       final res = await t.send(
-        category: NotificationCategory.custom,
-        title: 't',
-        body: 'b',
+        NotificationMessage(
+          category: NotificationCategory.custom,
+          title: 't',
+          body: 'b',
+        ),
       );
       expect(res.success, isFalse);
       expect(res.statusCode, 401);
@@ -80,9 +87,11 @@ void main() {
       );
       expect(t.isConfigured, isFalse);
       final res = await t.send(
-        category: NotificationCategory.custom,
-        title: 'X',
-        body: 'Y',
+        NotificationMessage(
+          category: NotificationCategory.custom,
+          title: 'X',
+          body: 'Y',
+        ),
       );
       expect(res.success, isFalse);
       await t.dispose();
@@ -100,9 +109,11 @@ void main() {
           }),
         );
         final res = await t.send(
-          category: NotificationCategory.targetCompleted,
-          title: 'Hi',
-          body: 'There',
+          NotificationMessage(
+            category: NotificationCategory.targetCompleted,
+            title: 'Hi',
+            body: 'There',
+          ),
         );
         expect(res.success, isTrue);
         expect(captured.url.path, '/botBOT/sendMessage');
@@ -122,9 +133,11 @@ void main() {
         ),
       );
       final res = await t.send(
-        category: NotificationCategory.custom,
-        title: 't',
-        body: 'b',
+        NotificationMessage(
+          category: NotificationCategory.custom,
+          title: 't',
+          body: 'b',
+        ),
       );
       expect(res.success, isFalse);
       expect(res.error, contains('bad chat'));
@@ -140,9 +153,11 @@ void main() {
       );
       expect(t.isConfigured, isFalse);
       final res = await t.send(
-        category: NotificationCategory.custom,
-        title: 'X',
-        body: 'Y',
+        NotificationMessage(
+          category: NotificationCategory.custom,
+          title: 'X',
+          body: 'Y',
+        ),
       );
       expect(res.success, isFalse);
       await t.dispose();
@@ -161,9 +176,11 @@ void main() {
         }),
       );
       final res = await t.send(
-        category: NotificationCategory.sequenceFailed,
-        title: 'Boom',
-        body: 'Reason',
+        NotificationMessage(
+          category: NotificationCategory.sequenceFailed,
+          title: 'Boom',
+          body: 'Reason',
+        ),
       );
       expect(res.success, isTrue);
       final decoded = jsonDecode(captured.body) as Map<String, dynamic>;
@@ -183,9 +200,11 @@ void main() {
         httpClient: MockClient((req) async => http.Response('err', 500)),
       );
       final res = await t.send(
-        category: NotificationCategory.custom,
-        title: 't',
-        body: 'b',
+        NotificationMessage(
+          category: NotificationCategory.custom,
+          title: 't',
+          body: 'b',
+        ),
       );
       expect(res.success, isFalse);
       expect(res.statusCode, 500);
@@ -201,9 +220,11 @@ void main() {
       );
       expect(t.isConfigured, isFalse);
       final res = await t.send(
-        category: NotificationCategory.custom,
-        title: 'X',
-        body: 'Y',
+        NotificationMessage(
+          category: NotificationCategory.custom,
+          title: 'X',
+          body: 'Y',
+        ),
       );
       expect(res.success, isFalse);
       await t.dispose();
@@ -219,9 +240,11 @@ void main() {
         }),
       );
       await t.send(
-        category: NotificationCategory.targetCompleted,
-        title: 'T',
-        body: 'B',
+        NotificationMessage(
+          category: NotificationCategory.targetCompleted,
+          title: 'T',
+          body: 'B',
+        ),
       );
       final decoded = jsonDecode(captured.body) as Map<String, dynamic>;
       expect(decoded['category'], 'targetCompleted');
@@ -244,9 +267,11 @@ void main() {
         }),
       );
       await t.send(
-        category: NotificationCategory.custom,
-        title: 'Hello',
-        body: 'World',
+        NotificationMessage(
+          category: NotificationCategory.custom,
+          title: 'Hello',
+          body: 'World',
+        ),
       );
       final decoded = jsonDecode(captured.body) as Map<String, dynamic>;
       expect(decoded['text'], 'Hello -- World');
@@ -266,9 +291,11 @@ void main() {
         }),
       );
       await t.send(
-        category: NotificationCategory.custom,
-        title: 'has "quotes" and \\backslash',
-        body: '',
+        NotificationMessage(
+          category: NotificationCategory.custom,
+          title: 'has "quotes" and \\backslash',
+          body: '',
+        ),
       );
       // Must parse as valid JSON.
       final decoded = jsonDecode(captured.body) as Map<String, dynamic>;

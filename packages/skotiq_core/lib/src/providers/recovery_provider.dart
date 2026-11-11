@@ -35,7 +35,7 @@ import '../models/sequence/sequence_models.dart';
 import 'backend_provider.dart';
 import 'critical_alert_provider.dart';
 import 'event_provider.dart';
-import 'push_notification_provider.dart';
+import 'notification_router_provider.dart';
 import 'sequence_provider.dart';
 import 'settings_provider.dart';
 
@@ -488,7 +488,7 @@ final recoveryAudibleBridgeProvider = Provider<void>((ref) {
 });
 
 /// Side-effect provider: forwards recovery entry **and exit** events to
-/// paired mobile clients via the push-notification service. Honours
+/// paired mobile clients through the notification router. Honours
 /// [pushCriticalAlerts].
 ///
 /// Two pushes per recovery loop:
@@ -510,13 +510,14 @@ final recoveryPushBridgeProvider = Provider<void>((ref) {
     if (settings == null) return;
     if (!settings.pushCriticalAlerts) return;
     try {
-      final pushService = ref.read(pushNotificationServiceProvider);
-      pushService.enqueueCriticalNotification(
-        title: title,
-        body: body,
-        eventType: eventType,
-        category: core_events.EventCategory.sequencer,
-      );
+      ref
+          .read(notificationRouterProvider)
+          .routeCriticalPush(
+            title: title,
+            body: body,
+            eventType: eventType,
+            eventCategory: core_events.EventCategory.sequencer,
+          );
     } catch (e, st) {
       // Fail-soft: a push failure must never break the run.
       developer.log(

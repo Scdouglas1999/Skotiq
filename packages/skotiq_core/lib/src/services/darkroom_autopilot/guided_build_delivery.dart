@@ -150,7 +150,7 @@ class GuidedBuildDelivery {
   ) async {
     var announced = false;
     try {
-      final dispatch = await _notifications.notifyDetailed(
+      final dispatch = await _notifications.notify(
         event: NotificationEvent.sequenceComplete,
         title: title,
         message: message,

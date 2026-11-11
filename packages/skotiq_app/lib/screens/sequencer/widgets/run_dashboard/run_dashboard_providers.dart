@@ -1329,7 +1329,7 @@ final runDashboardCriticalEventsBridgeProvider = Provider<void>((ref) {
         // preference (an extra, cheap short-circuit).
         if (pushEnabled && !_routerClassifierAlreadyPushes(event)) {
           final router = ref.read(notificationRouterProvider);
-          router.routeBridgeCriticalPush(
+          router.routeCriticalPush(
             title: 'Critical · ${dashboardEvent.category}',
             body: detail,
             eventType: sk_events.skotiqEventDisplayTitle(event),

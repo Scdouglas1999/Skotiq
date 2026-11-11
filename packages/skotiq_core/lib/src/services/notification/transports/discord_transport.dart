@@ -1,8 +1,7 @@
 // Discord webhook transport.
 //
 // Wire protocol: JSON POST to a user-configured webhook URL on
-// `discord.com`. We construct an "embed" with category-coloured side
-// bars matching the legacy NotificationService.
+// `discord.com`, carrying one embed whose side bar takes the message's tone.
 
 import 'dart:async';
 import 'dart:convert';
@@ -12,6 +11,7 @@ import 'package:http/http.dart' as http;
 
 import '../../../models/notification/notification_categories.dart';
 import '../../../models/notification/transport_configs.dart';
+import '../notification_presentation.dart';
 import 'notification_transport.dart';
 
 class DiscordTransport extends NotificationTransport {
@@ -42,41 +42,11 @@ class DiscordTransport extends NotificationTransport {
 
   DiscordTransportConfig get config => _config;
 
-  int _colorFor(NotificationCategory category) {
-    switch (category) {
-      case NotificationCategory.mountFault:
-      case NotificationCategory.sequenceFailed:
-      case NotificationCategory.recoveryGaveUp:
-      case NotificationCategory.weatherUnsafe:
-      case NotificationCategory.guidingLost:
-      case NotificationCategory.diskSpaceLow:
-      case NotificationCategory.equipmentDisconnected:
-      case NotificationCategory.autofocusFailed:
-      case NotificationCategory.exposureFailed:
-        return 0xEF4444; // red
-      case NotificationCategory.frameRejected:
-      case NotificationCategory.cloudArriving:
-      case NotificationCategory.recoveryStarted:
-      case NotificationCategory.sequencePaused:
-        return 0xF59E0B; // amber
-      case NotificationCategory.sequenceCompleted:
-      case NotificationCategory.targetCompleted:
-      case NotificationCategory.recoveryRecovered:
-      case NotificationCategory.guidingRecovered:
-      case NotificationCategory.weatherSafeAgain:
-      case NotificationCategory.cloudOpening:
-        return 0x22C55E; // green
-      default:
-        return 0x6366F1; // indigo
-    }
-  }
-
   @override
-  Future<NotificationResult> send({
-    required NotificationCategory category,
-    required String title,
-    required String body,
-  }) async {
+  Future<NotificationResult> send(NotificationMessage message) async {
+    final category = message.category;
+    final title = message.title;
+    final body = message.body;
     if (!isConfigured) {
       return NotificationResult.fail('Discord not configured');
     }
@@ -86,7 +56,9 @@ class DiscordTransport extends NotificationTransport {
           {
             'title': title,
             'description': body,
-            'color': _colorFor(category),
+            'color': NotificationPresentation.of(
+              category,
+            ).toneAt(message.severity).discordColor,
             'timestamp': DateTime.now().toUtc().toIso8601String(),
             'footer': {'text': 'Skotiq • ${category.label}'},
           },

@@ -6,8 +6,6 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart' show SkotiqBackend;
 import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
@@ -27,12 +25,10 @@ import 'package:skotiq_core/src/models/sequence/sequence_models.dart'
 import 'package:skotiq_core/src/models/science/science_models.dart' as science;
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
-import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/backup_service.dart';
 import 'package:skotiq_core/src/services/dark_library_service.dart';
 import 'package:skotiq_core/src/services/flat_wizard_service.dart';
 import 'package:skotiq_core/src/services/logging_service.dart';
-import 'package:skotiq_core/src/services/notification_service.dart';
 import 'package:skotiq_core/src/services/plate_solve_service.dart'
     as plate_solve;
 import 'package:skotiq_core/src/services/profile_service.dart';
@@ -180,33 +176,6 @@ void main() {
         throwsA(isA<FormatException>()),
       );
     });
-
-    test(
-      'notification requests time out instead of hanging indefinitely',
-      () async {
-        final client = MockClient((request) async {
-          await Future<void>.delayed(const Duration(milliseconds: 50));
-          return http.Response('{}', 200);
-        });
-
-        final service = NotificationService.testing(
-          settingsReader: () => const AppSettingsState(
-            notificationsEnabled: true,
-            discordWebhook: 'https://example.com/webhook',
-          ),
-          httpClient: client,
-          requestTimeout: const Duration(milliseconds: 10),
-        );
-
-        final sent = await service.notify(
-          event: NotificationEvent.custom,
-          title: 'Test',
-          message: 'Timeout test',
-        );
-
-        expect(sent, isFalse);
-      },
-    );
 
     test(
       'calibrateFilterWithRateTracking reports maxIterations on non-convergence',

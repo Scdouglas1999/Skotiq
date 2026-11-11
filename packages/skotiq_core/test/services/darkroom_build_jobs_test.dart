@@ -20,35 +20,22 @@ class _Seam extends Fake implements PostSessionSeam {
 }
 
 class _Notifications extends NotificationService {
-  _Notifications() : super.testing(settingsReader: () => null);
+  _Notifications() : super(readSettings: () => null, readRouter: () => null);
   final sent = <String>[];
   final links = <String?>[];
   @override
-  Future<bool> notify({
+  Future<NotificationDispatch> notify({
     required NotificationEvent event,
     required String title,
     required String message,
-    NotificationPriority priority = NotificationPriority.normal,
     NotificationCategory routeAs = NotificationCategory.custom,
     String? deepLink,
   }) async {
     sent.add('$title | $message');
     links.add(deepLink);
-    return true;
-  }
-
-  final detailed = <String>[];
-  @override
-  Future<NotificationDispatch> notifyDetailed({
-    required NotificationEvent event,
-    required String title,
-    required String message,
-    NotificationPriority priority = NotificationPriority.normal,
-    NotificationCategory routeAs = NotificationCategory.custom,
-    String? deepLink,
-  }) async {
-    detailed.add('$title | $message');
-    return const NotificationDispatch(routed: null, webhookAccepted: true);
+    return const NotificationDispatch(
+      NotificationRouteOutcome.dispatched([NotificationTransportKind.inApp]),
+    );
   }
 }
 
@@ -444,8 +431,8 @@ void main() {
     expect(outcome.problems, isEmpty);
     // Two masters, two previews, the report and the frame audit.
     expect(outcome.delivery!.delivered, 6);
-    expect(notifications.detailed, hasLength(1));
-    final message = notifications.detailed.single;
+    expect(notifications.sent, hasLength(1));
+    final message = notifications.sent.single;
     expect(message, startsWith('Masters ready: NGC891'));
     expect(message, contains('1 night, 2 subs used, 4 left out.'));
     expect(message, contains('L 1 sub, 2 min; R 1 sub, 2 min.'));

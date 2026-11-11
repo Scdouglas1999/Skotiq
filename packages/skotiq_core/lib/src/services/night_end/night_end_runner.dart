@@ -566,7 +566,7 @@ class NightEndRunner {
     try {
       final dispatch = await _ref
           .read(notificationServiceProvider)
-          .notifyDetailed(
+          .notify(
             event: NotificationEvent.sequenceComplete,
             title: title,
             message: lines.join(' '),
@@ -613,7 +613,7 @@ class NightEndRunner {
       try {
         await _ref
             .read(notificationServiceProvider)
-            .notifyDetailed(
+            .notify(
               event: NotificationEvent.sequenceComplete,
               title: done
                   ? 'Masters ready: ${job.target}'

@@ -112,34 +112,23 @@ class SentNotification {
 
 /// Records every notification with its deep link.
 class RecordingNotifications extends NotificationService {
-  RecordingNotifications() : super.testing(settingsReader: () => null);
+  RecordingNotifications()
+      : super(readSettings: () => null, readRouter: () => null);
 
   final sent = <SentNotification>[];
 
   @override
-  Future<bool> notify({
+  Future<NotificationDispatch> notify({
     required NotificationEvent event,
     required String title,
     required String message,
-    NotificationPriority priority = NotificationPriority.normal,
     NotificationCategory routeAs = NotificationCategory.custom,
     String? deepLink,
   }) async {
     sent.add(SentNotification(title, message, deepLink));
-    return true;
-  }
-
-  @override
-  Future<NotificationDispatch> notifyDetailed({
-    required NotificationEvent event,
-    required String title,
-    required String message,
-    NotificationPriority priority = NotificationPriority.normal,
-    NotificationCategory routeAs = NotificationCategory.custom,
-    String? deepLink,
-  }) async {
-    sent.add(SentNotification(title, message, deepLink));
-    return const NotificationDispatch(routed: null, webhookAccepted: true);
+    return const NotificationDispatch(
+      NotificationRouteOutcome.dispatched([NotificationTransportKind.inApp]),
+    );
   }
 }
 

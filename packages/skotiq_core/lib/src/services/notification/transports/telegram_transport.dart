@@ -47,11 +47,9 @@ class TelegramTransport extends NotificationTransport {
   TelegramTransportConfig get config => _config;
 
   @override
-  Future<NotificationResult> send({
-    required NotificationCategory category,
-    required String title,
-    required String body,
-  }) async {
+  Future<NotificationResult> send(NotificationMessage message) async {
+    final title = message.title;
+    final body = message.body;
     if (!isConfigured) {
       return NotificationResult.fail('Telegram not configured');
     }

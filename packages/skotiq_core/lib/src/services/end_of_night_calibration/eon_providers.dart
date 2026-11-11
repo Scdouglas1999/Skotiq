@@ -238,9 +238,6 @@ class ProviderEonRig implements EonRig {
                 : NotificationEvent.sequenceComplete,
             title: title,
             message: message,
-            priority: problem
-                ? NotificationPriority.high
-                : NotificationPriority.normal,
           );
     } catch (_) {
       // A notification that cannot be sent must not end the step; the report
