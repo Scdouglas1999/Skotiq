@@ -1979,7 +1979,7 @@ abstract final class NodeKinds {
     ),
     describe: (n) {
       final access = n.isPublic ? 'public' : 'private';
-      return 'Live stacking (port ${n.broadcastPort}, $access)';
+      return 'Live stacking ($access)';
     },
     diff: [
       NodeDiffLine.of(_stackMode, 'Mode', (v) => v.label),

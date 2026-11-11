@@ -12,7 +12,7 @@
   "n-Dither": "Dither 8.0px",
   "n-HomeMount": "Home mount",
   "n-InstructionSet": "Group",
-  "n-LiveStacking": "Live stacking (port 9090, private)",
+  "n-LiveStacking": "Live stacking (private)",
   "n-Loop": "Loop (untilTime)",
   "n-MeridianFlip": "Meridian flip",
   "n-MoveRotator": "Rotate to 92.5°",

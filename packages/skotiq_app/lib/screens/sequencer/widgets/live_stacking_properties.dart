@@ -23,8 +23,6 @@ class LiveStackingProperties extends ConsumerStatefulWidget {
 
 class _LiveStackingPropertiesState
     extends ConsumerState<LiveStackingProperties> {
-  late TextEditingController _broadcastPathCtl;
-  late TextEditingController _broadcastPortCtl;
   late TextEditingController _authTokenCtl;
   late TextEditingController _watermarkCtl;
   late TextEditingController _maxFramesCtl;
@@ -34,9 +32,6 @@ class _LiveStackingPropertiesState
   @override
   void initState() {
     super.initState();
-    _broadcastPathCtl = TextEditingController(text: widget.node.broadcastPath);
-    _broadcastPortCtl =
-        TextEditingController(text: widget.node.broadcastPort.toString());
     _authTokenCtl = TextEditingController(text: widget.node.authToken ?? '');
     _watermarkCtl =
         TextEditingController(text: widget.node.watermarkText ?? '');
@@ -50,8 +45,6 @@ class _LiveStackingPropertiesState
 
   @override
   void dispose() {
-    _broadcastPathCtl.dispose();
-    _broadcastPortCtl.dispose();
     _authTokenCtl.dispose();
     _watermarkCtl.dispose();
     _maxFramesCtl.dispose();
@@ -70,19 +63,6 @@ class _LiveStackingPropertiesState
       },
       child: field,
     );
-  }
-
-  void _commitPort() {
-    final p = int.tryParse(_broadcastPortCtl.text);
-    if (p == null || p < 1 || p > 65535) return;
-    _update((n) => n.copyWith(broadcastPort: p));
-  }
-
-  void _commitPath() {
-    final trimmed = _broadcastPathCtl.text.trim().isEmpty
-        ? '/broadcast'
-        : _broadcastPathCtl.text.trim();
-    _update((n) => n.copyWith(broadcastPath: trimmed));
   }
 
   void _commitAuthToken() {
@@ -211,51 +191,17 @@ class _LiveStackingPropertiesState
           ),
         ),
         const SizedBox(height: 16),
-        _sectionLabel(theme, 'Broadcast endpoint'),
+        _sectionLabel(theme, 'Broadcast'),
         SwitchListTile(
           value: node.broadcastEnabled,
           onChanged: (v) => _update((n) => n.copyWith(broadcastEnabled: v)),
           title: const Text('Broadcast enabled'),
           subtitle: const Text(
-            'When off, the stack still builds but the public URL '
-            'returns 404.',
+            'The stack is served at /broadcast on the Skotiq web server '
+            '(Settings > Remote access). When off, the stack still builds '
+            'but that page returns 404.',
           ),
           contentPadding: EdgeInsets.zero,
-        ),
-        Row(
-          children: [
-            Expanded(
-              child: _commitOnBlur(
-                TextField(
-                  controller: _broadcastPortCtl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Port',
-                    helperText: 'Default 8081',
-                    border: OutlineInputBorder(),
-                  ),
-                  onSubmitted: (_) => _commitPort(),
-                ),
-                _commitPort,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 2,
-              child: _commitOnBlur(
-                TextField(
-                  controller: _broadcastPathCtl,
-                  decoration: const InputDecoration(
-                    labelText: 'Path',
-                    helperText: 'URL prefix (e.g. /broadcast)',
-                    border: OutlineInputBorder(),
-                  ),
-                  onSubmitted: (_) => _commitPath(),
-                ),
-                _commitPath,
-              ),
-            ),
-          ],
         ),
         const SizedBox(height: 16),
         _sectionLabel(theme, 'Access control'),

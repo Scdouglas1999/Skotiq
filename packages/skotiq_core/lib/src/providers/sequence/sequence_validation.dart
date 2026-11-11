@@ -319,7 +319,6 @@ final List<SequenceValidator> defaultSequenceValidators =
       SciencePhotometryReferenceStarsEmptyRule(),
       SciencePhotometryCadenceRule(),
       LiveStackingNoExposureRule(),
-      LiveStackingPortClashRule(),
       TargetSchedulerNoChildrenRule(),
       TargetSchedulerNonTargetChildRule(),
       TargetSchedulerWeightsRule(),

@@ -90,13 +90,10 @@ class LiveStackingNode extends SequenceNode {
   /// builds in memory but `/api/broadcast/live-stack` returns 404.
   final bool broadcastEnabled;
 
-  /// TCP port for the broadcast endpoints. Defaults to 8081. Must
-  /// not clash with the headless API server's port (validated by
-  /// [LiveStackingPortClashRule] at edit time).
+  /// Carried in saved plans and on the wire only. Nothing binds this port
+  /// or serves this path: the broadcast is served at `/broadcast` on the
+  /// Skotiq web server, so the editor does not offer them.
   final int broadcastPort;
-
-  /// HTTP path prefix the broadcast HTML page is served at. Defaults
-  /// to `/broadcast`. Useful for vanity URLs at public events.
   final String broadcastPath;
 
   /// Optional shared secret. When set (non-empty), every broadcast

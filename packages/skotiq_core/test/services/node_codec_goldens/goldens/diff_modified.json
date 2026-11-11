@@ -484,7 +484,7 @@
         "old": "(none)"
       }
     ],
-    "label": "Live stacking (port 9090, private)",
+    "label": "Live stacking (private)",
     "nodeId": "n-LiveStacking",
     "nodeKind": "LiveStacking"
   },
