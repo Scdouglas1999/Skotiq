@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'src/audit_scope.dart';
+
 const _defaultPolicyPath = 'docs/production-readiness/analyzer-policy.yaml';
 const _defaultCriticalCodesPath =
     'docs/production-readiness/critical-warning-codes.txt';
@@ -22,7 +24,9 @@ class _AnalyzerPolicy {
   });
 
   static const defaults = _AnalyzerPolicy(
-    include: <String>['apps/**', 'packages/**', 'native/skotiq_native/**'],
+    // Empty means every analyzed file counts. The repository's own include
+    // list comes from audit-scope.yaml (see _loadPolicy).
+    include: <String>[],
     exclude: <String>[
       '**/.dart_tool/**',
       '**/.git/**',
@@ -90,7 +94,10 @@ void main(List<String> args) async {
       _argValue(args, '--critical-codes') ?? _defaultCriticalCodesPath;
   final reportPath = _argValue(args, '--report') ?? _defaultReportPath;
 
-  final policy = _loadPolicy(policyPath);
+  final policy = _loadPolicy(
+    policyPath,
+    _argValue(args, '--scope') ?? defaultScopePath,
+  );
   final criticalCodes = _loadCriticalCodes(criticalCodesPath);
 
   final process = await Process.start('dart', <String>[
@@ -307,11 +314,17 @@ Set<String> _loadCriticalCodes(String path) {
       .toSet();
 }
 
-_AnalyzerPolicy _loadPolicy(String path) {
+/// Loads thresholds and analyzer-specific excludes from [path]. What counts
+/// as production code is the shared runtime scope in [scopePath], unless the
+/// policy file overrides it with its own `production.include`.
+_AnalyzerPolicy _loadPolicy(String path, String scopePath) {
   final file = File(path);
   if (!file.existsSync()) {
     return _AnalyzerPolicy.defaults;
   }
+  final scopeInclude = File(scopePath).existsSync()
+      ? AuditScope.load(scopePath).runtimeInclude
+      : _AnalyzerPolicy.defaults.include;
 
   var currentRoot = '';
   var currentProductionList = '';
@@ -371,7 +384,7 @@ _AnalyzerPolicy _loadPolicy(String path) {
   }
 
   return _AnalyzerPolicy(
-    include: include.isEmpty ? _AnalyzerPolicy.defaults.include : include,
+    include: include.isEmpty ? scopeInclude : include,
     exclude: exclude.isEmpty ? _AnalyzerPolicy.defaults.exclude : exclude,
     errorThreshold: errors,
     warningThreshold: warnings,
