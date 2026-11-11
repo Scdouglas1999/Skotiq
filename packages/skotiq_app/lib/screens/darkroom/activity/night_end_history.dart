@@ -4,7 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../utils/darkroom_navigation.dart' show darkroomPassLocation;
+import '../../../utils/darkroom_navigation.dart'
+    show DarkroomTab, darkroomPassLocation, darkroomTabLocation;
 import 'activity_panel.dart';
 
 /// How many nights the history shows before "Show all".
@@ -248,7 +249,7 @@ class _TargetLine extends StatelessWidget {
       state: target.build.state,
       onOpen: () => context.go(
         target.waitingForCalibration
-            ? '/darkroom?tab=calibration'
+            ? darkroomTabLocation(DarkroomTab.calibration)
             : waiting
                 ? darkroomFramingRoute(target.target)
                 : darkroomTargetRoute(target.target),

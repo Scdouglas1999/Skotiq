@@ -16,6 +16,7 @@ import 'collaborative_sky_providers.dart';
 import 'widgets/coimaging_session_card.dart';
 import 'widgets/collab_mosaic_card.dart';
 import 'widgets/shared_library_card.dart';
+import '../../utils/darkroom_navigation.dart';
 
 /// Collaborative Sky (6.0 pillar) — the unified surface that turns the
 /// Constellation swarm into real distributed imaging: live co-imaging sessions
@@ -733,7 +734,7 @@ class _SharedLibrarySection extends ConsumerWidget {
     // The shared library is matched, pulled, and published from the Darkroom's
     // calibration library. Guarded so a standalone mount (tests) is a no-op.
     final router = GoRouter.maybeOf(context);
-    router?.go('/darkroom?tab=calibration');
+    router?.go(darkroomTabLocation(DarkroomTab.calibration));
   }
 }
 

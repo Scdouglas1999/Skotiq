@@ -9,6 +9,8 @@ import '../mosaic/mosaic_project_screen.dart';
 import '../your_sky/sky_atlas_format.dart';
 import 'collaborative_sky_format.dart';
 import 'collaborative_sky_providers.dart';
+import '../../router/app_routes.dart';
+import '../planner/planner_route.dart';
 
 /// The per-panel detail for one collaborative mosaic: the claimable panel
 /// grid, who has claimed/uploaded each panel (the attribution that credits every
@@ -86,7 +88,8 @@ class _CollabMosaicDetailScreenState
       return;
     }
     // A deep link that left nothing beneath us still needs a way out.
-    _router?.go('/planner?tab=discover&view=collaborative');
+    _router?.go(AppRoutes.planner(
+        tab: PlannerTab.discover, view: DiscoverView.collaborative));
   }
 
   @override

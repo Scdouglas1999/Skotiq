@@ -22,6 +22,8 @@ import 'calibration/calibration_tab.dart';
 import 'edit/edit_tab.dart';
 import 'targets/darkroom_status_chip.dart';
 import 'targets/targets_tab.dart';
+import '../../router/app_routes.dart';
+import '../analytics/analytics_route.dart';
 
 part 'darkroom_screen_parts/_landing.dart';
 
@@ -139,6 +141,6 @@ class _DarkroomScreenState extends ConsumerState<DarkroomScreen> {
       router.pop();
       return;
     }
-    context.go('/analytics?tab=history');
+    context.go(AppRoutes.analytics(tab: AnalyticsTab.history));
   }
 }

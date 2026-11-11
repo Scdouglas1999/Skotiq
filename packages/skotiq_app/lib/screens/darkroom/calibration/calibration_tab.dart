@@ -9,6 +9,8 @@ import 'calibration_library_panel.dart';
 import 'calibration_match_panel.dart';
 import 'calibration_settings_panel.dart';
 import 'calibration_waiting_panel.dart';
+import '../../../router/app_routes.dart';
+import '../../../utils/darkroom_navigation.dart';
 
 /// The Darkroom's Calibration tab: one library of darks, bias and flats.
 ///
@@ -115,14 +117,15 @@ class _CaptureLinks extends StatelessWidget {
           icon: LucideIcons.sun,
           variant: ButtonVariant.ghost,
           size: ButtonSize.small,
-          onPressed: () => context.go('/flat-wizard'),
+          onPressed: () => context.go(AppRoute.flatWizard.path),
         ),
         SkotiqButton(
           label: 'Night-end darks and bias',
           icon: LucideIcons.moonStar,
           variant: ButtonVariant.ghost,
           size: ButtonSize.small,
-          onPressed: () => context.go('/darkroom?tab=activity'),
+          onPressed: () =>
+              context.go(darkroomTabLocation(DarkroomTab.activity)),
         ),
       ],
     );
