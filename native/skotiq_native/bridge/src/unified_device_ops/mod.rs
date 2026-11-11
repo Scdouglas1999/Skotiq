@@ -76,7 +76,6 @@ use crate::device::DeviceType;
 use crate::event::*;
 use crate::filter_matching::find_filter_match;
 use crate::state::SharedAppState;
-use crate::FitsWriteHeader;
 use async_trait::async_trait;
 // Julian Day and local sidereal time come from the sequencer; this file keeps
 // no copy of either.

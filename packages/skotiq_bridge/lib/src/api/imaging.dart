@@ -5,13 +5,12 @@
 
 import '../error.dart';
 import '../frb_generated.dart';
-import '../lib.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_auto_white_balance`, `auto_stretch_color_image`, `auto_stretch_image`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `convert_config`, `convert_result`, `convert_stats`, `debayer_image`, `defect_apply_flags`, `defect_map_path`, `defect_maps_root`, `display_data_summary`, `display_data_to_rgba`, `format_sexagesimal`, `frame_metric_median`, `frame_stats_result`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `get_unified_image_storage`, `image_data_to_linear_f64`, `image_stats`, `one_shot_focus_context`, `sanitize_camera_id`, `set_exposure_time_keywords`, `set_horizon_keywords`, `set_pointing_keywords`, `sim_exposure_cancelled`, `store_captured_image_atomically`, `thumbnail_generation_gate`
+// These functions are ignored because they are not marked as `pub`: `apply_auto_white_balance`, `auto_stretch_color_image`, `auto_stretch_image`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `convert_config`, `convert_result`, `convert_stats`, `defect_apply_flags`, `defect_map_path`, `defect_maps_root`, `display_data_summary`, `display_data_to_rgba`, `frame_metric_median`, `frame_stats_result`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `get_unified_image_storage`, `image_data_to_linear_f64`, `one_shot_focus_context`, `sanitize_camera_id`, `sim_exposure_cancelled`, `store_captured_image_atomically`, `thumbnail_generation_gate`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CapturedImageData`, `RawImageInfo`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `from_frame_context`, `get_last_raw_image_info`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `get_last_raw_image_info`
 
 /// Run autofocus
 Future<AutofocusResultApi> apiRunAutofocus({
@@ -327,32 +326,8 @@ Future<void> apiSaveFitsFile({
   headerData: headerData,
 );
 
-/// Image Grading: save FITS with the rich (~40-keyword) header
-/// bundle. Used by the sequencer's per-frame save path. Not FRB-exposed —
-/// Dart callers continue to use [`api_save_fits_file`] / [`FitsWriteHeader`].
-///
-/// Writes every keyword the standard astrophotography workflow expects
-/// (NINA / SGP / APP / PixInsight / ASTAP all read these), plus the
-/// Skotiq-specific `NS-*` keywords for session / mosaic / frame
-/// accounting. Missing optional fields are silently omitted — never
-/// substituted with sentinel values.
-Future<void> saveFitsFileRich({
-  required String filePath,
-  required int width,
-  required int height,
-  required List<int> data,
-  required FitsWriteHeaderRich headerData,
-}) => RustLib.instance.api.crateApiImagingSaveFitsFileRich(
-  filePath: filePath,
-  width: width,
-  height: height,
-  data: data,
-  headerData: headerData,
-);
-
-/// Save FITS file directly from the last captured image stored in Rust
-/// This eliminates the need to transfer raw pixel data across the FFI boundary
-/// by using the image data already stored from the last exposure.
+/// Save the device's last captured frame as FITS, without moving its pixels
+/// across the FFI boundary.
 ///
 /// Returns an error if no image has been captured yet for the specified device.
 Future<void> apiSaveFitsFromLastCapture({
@@ -1248,18 +1223,9 @@ class FitsReadResult {
           bayerPattern == other.bayerPattern;
 }
 
-/// Header data for FITS file writing.
-///
-/// Public FRB-exposed surface. Kept frozen at the original 22 fields so
-/// Dart consumers (Dart-driven snapshot saves, network-backend FITS writes)
-/// don't need a coordinated FRB regen.
-///
-/// Image Grading: the sequencer's per-frame save path uses
-/// [`FitsWriteHeaderRich`] instead, which carries every extended keyword
-/// (focuser position, rotator angle, guide RMS, plate-solve, mosaic
-/// panel, etc.). The rich path is internal — not exposed via FRB — so
-/// sequencer-driven saves can grow the FITS surface without disrupting
-/// Dart-side FRB schema.
+/// What the Imaging screen knows about a manual capture when it saves it.
+/// The header is built by `crate::frame_header`, the same builder every
+/// sequenced frame goes through; RA is in hours.
 class FitsWriteHeader {
   final String? objectName;
   final double exposureTime;
@@ -1365,286 +1331,6 @@ class FitsWriteHeader {
           siteLatitude == other.siteLatitude &&
           siteLongitude == other.siteLongitude &&
           siteElevation == other.siteElevation;
-}
-
-/// Image Grading: internal FITS-header bundle used by the
-/// sequencer's per-frame save path. Carries every field the standard
-/// astrophotography FITS header expects PLUS the Skotiq-specific
-/// session / mosaic / plate-solve keywords.
-///
-/// Not FRB-exposed: only Rust code (the sequencer's `save_fits` impl in
-/// `real_device_ops.rs` / `unified_device_ops.rs` / `sequencer_ops.rs`)
-/// constructs this. Dart callers continue to use the simpler
-/// [`FitsWriteHeader`] for ad-hoc snapshot saves.
-class FitsWriteHeaderRich {
-  final String? objectName;
-  final double exposureTime;
-  final String captureTimestamp;
-  final String frameType;
-  final String? filter;
-
-  /// 1-based filter wheel position (FITS `FILTPOS`).
-  final int? filterPosition;
-  final int? gain;
-  final int? offset;
-  final double? ccdTemp;
-
-  /// Cooler target temperature in °C (FITS `SET-TEMP`).
-  final double? setTemp;
-  final double? ra;
-  final double? dec;
-  final double? altitude;
-  final String? telescope;
-  final String? instrument;
-  final String? observer;
-  final int binX;
-  final int binY;
-  final double? focalLength;
-  final double? aperture;
-  final double? pixelSizeX;
-  final double? pixelSizeY;
-  final double? siteLatitude;
-  final double? siteLongitude;
-  final double? siteElevation;
-
-  /// Focuser absolute position (FITS `FOCUSPOS`).
-  final int? focuserPosition;
-
-  /// Focuser temperature in °C (FITS `FOCTEMP`).
-  final double? focuserTemperature;
-
-  /// Rotator mechanical angle in degrees (FITS `ROTATPOS`).
-  final double? rotatorAngle;
-
-  /// Total guiding RMS in arcseconds (FITS `GUIDERMS`).
-  final double? guideRmsArcsec;
-
-  /// Plate-solved RA in hours (FITS `SOLVED-RA`).
-  final double? solvedRaHours;
-
-  /// Plate-solved Dec in degrees (FITS `SOLVED-DEC`).
-  final double? solvedDecDegrees;
-
-  /// Solved pixel scale in arcsec/pixel (FITS `PIXSCALE`).
-  final double? plateSolvePixelScaleArcsec;
-
-  /// Solved field rotation in degrees (FITS `CROTA1` and `CROTA2`).
-  final double? plateSolveRotationDeg;
-
-  /// Bayer pattern ("RGGB", "BGGR", etc.) (FITS `BAYERPAT`).
-  final String? bayerPattern;
-
-  /// Skotiq session identifier (FITS `SK-SESID`).
-  final String? sessionId;
-
-  /// 1-based frame index within the burst (FITS `SK-FIDX`).
-  final int? frameIndex;
-
-  /// Total planned frames in the burst (FITS `SK-NPLN`).
-  final int? totalPlannedFrames;
-
-  /// Mosaic identification (FITS `SK-MOSNM`).
-  final String? mosaicName;
-
-  /// 0-based mosaic panel index (FITS `SK-PIDX`).
-  final int? mosaicPanelIndex;
-
-  /// Mosaic panel row (FITS `SK-PROW`).
-  final int? mosaicPanelRow;
-
-  /// Mosaic panel column (FITS `SK-PCOL`).
-  final int? mosaicPanelColumn;
-
-  /// Mosaic total panel count (FITS `SK-NPAN`).
-  final int? mosaicTotalPanels;
-  final DefectMapCorrectionRecord? defectMapCorrection;
-  final String? photometryObjectCatalog;
-  final String? photometryReferenceStars;
-  final double? photometryMjdObs;
-  final double? photometryInstrumentalMag;
-  final double? photometryDifferentialMag;
-  final double? photometryFwhmArcsec;
-  final double? photometrySnr;
-
-  /// Dual-rig — optical-train / camera attribution for multi-camera
-  /// sessions (FITS `SK-RIG`). `None` for the single-rig case.
-  final String? rigLabel;
-
-  /// Side of the pier the mount reported for the frame, `"East"` or
-  /// `"West"` (FITS `PIERSIDE`): which side a frame was taken on matters
-  /// across a meridian flip, where the field turns by 180 degrees.
-  final String? pierSide;
-
-  const FitsWriteHeaderRich({
-    this.objectName,
-    required this.exposureTime,
-    required this.captureTimestamp,
-    required this.frameType,
-    this.filter,
-    this.filterPosition,
-    this.gain,
-    this.offset,
-    this.ccdTemp,
-    this.setTemp,
-    this.ra,
-    this.dec,
-    this.altitude,
-    this.telescope,
-    this.instrument,
-    this.observer,
-    required this.binX,
-    required this.binY,
-    this.focalLength,
-    this.aperture,
-    this.pixelSizeX,
-    this.pixelSizeY,
-    this.siteLatitude,
-    this.siteLongitude,
-    this.siteElevation,
-    this.focuserPosition,
-    this.focuserTemperature,
-    this.rotatorAngle,
-    this.guideRmsArcsec,
-    this.solvedRaHours,
-    this.solvedDecDegrees,
-    this.plateSolvePixelScaleArcsec,
-    this.plateSolveRotationDeg,
-    this.bayerPattern,
-    this.sessionId,
-    this.frameIndex,
-    this.totalPlannedFrames,
-    this.mosaicName,
-    this.mosaicPanelIndex,
-    this.mosaicPanelRow,
-    this.mosaicPanelColumn,
-    this.mosaicTotalPanels,
-    this.defectMapCorrection,
-    this.photometryObjectCatalog,
-    this.photometryReferenceStars,
-    this.photometryMjdObs,
-    this.photometryInstrumentalMag,
-    this.photometryDifferentialMag,
-    this.photometryFwhmArcsec,
-    this.photometrySnr,
-    this.rigLabel,
-    this.pierSide,
-  });
-
-  static Future<FitsWriteHeaderRich> default_() =>
-      RustLib.instance.api.crateApiImagingFitsWriteHeaderRichDefault();
-
-  @override
-  int get hashCode =>
-      objectName.hashCode ^
-      exposureTime.hashCode ^
-      captureTimestamp.hashCode ^
-      frameType.hashCode ^
-      filter.hashCode ^
-      filterPosition.hashCode ^
-      gain.hashCode ^
-      offset.hashCode ^
-      ccdTemp.hashCode ^
-      setTemp.hashCode ^
-      ra.hashCode ^
-      dec.hashCode ^
-      altitude.hashCode ^
-      telescope.hashCode ^
-      instrument.hashCode ^
-      observer.hashCode ^
-      binX.hashCode ^
-      binY.hashCode ^
-      focalLength.hashCode ^
-      aperture.hashCode ^
-      pixelSizeX.hashCode ^
-      pixelSizeY.hashCode ^
-      siteLatitude.hashCode ^
-      siteLongitude.hashCode ^
-      siteElevation.hashCode ^
-      focuserPosition.hashCode ^
-      focuserTemperature.hashCode ^
-      rotatorAngle.hashCode ^
-      guideRmsArcsec.hashCode ^
-      solvedRaHours.hashCode ^
-      solvedDecDegrees.hashCode ^
-      plateSolvePixelScaleArcsec.hashCode ^
-      plateSolveRotationDeg.hashCode ^
-      bayerPattern.hashCode ^
-      sessionId.hashCode ^
-      frameIndex.hashCode ^
-      totalPlannedFrames.hashCode ^
-      mosaicName.hashCode ^
-      mosaicPanelIndex.hashCode ^
-      mosaicPanelRow.hashCode ^
-      mosaicPanelColumn.hashCode ^
-      mosaicTotalPanels.hashCode ^
-      defectMapCorrection.hashCode ^
-      photometryObjectCatalog.hashCode ^
-      photometryReferenceStars.hashCode ^
-      photometryMjdObs.hashCode ^
-      photometryInstrumentalMag.hashCode ^
-      photometryDifferentialMag.hashCode ^
-      photometryFwhmArcsec.hashCode ^
-      photometrySnr.hashCode ^
-      rigLabel.hashCode ^
-      pierSide.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is FitsWriteHeaderRich &&
-          runtimeType == other.runtimeType &&
-          objectName == other.objectName &&
-          exposureTime == other.exposureTime &&
-          captureTimestamp == other.captureTimestamp &&
-          frameType == other.frameType &&
-          filter == other.filter &&
-          filterPosition == other.filterPosition &&
-          gain == other.gain &&
-          offset == other.offset &&
-          ccdTemp == other.ccdTemp &&
-          setTemp == other.setTemp &&
-          ra == other.ra &&
-          dec == other.dec &&
-          altitude == other.altitude &&
-          telescope == other.telescope &&
-          instrument == other.instrument &&
-          observer == other.observer &&
-          binX == other.binX &&
-          binY == other.binY &&
-          focalLength == other.focalLength &&
-          aperture == other.aperture &&
-          pixelSizeX == other.pixelSizeX &&
-          pixelSizeY == other.pixelSizeY &&
-          siteLatitude == other.siteLatitude &&
-          siteLongitude == other.siteLongitude &&
-          siteElevation == other.siteElevation &&
-          focuserPosition == other.focuserPosition &&
-          focuserTemperature == other.focuserTemperature &&
-          rotatorAngle == other.rotatorAngle &&
-          guideRmsArcsec == other.guideRmsArcsec &&
-          solvedRaHours == other.solvedRaHours &&
-          solvedDecDegrees == other.solvedDecDegrees &&
-          plateSolvePixelScaleArcsec == other.plateSolvePixelScaleArcsec &&
-          plateSolveRotationDeg == other.plateSolveRotationDeg &&
-          bayerPattern == other.bayerPattern &&
-          sessionId == other.sessionId &&
-          frameIndex == other.frameIndex &&
-          totalPlannedFrames == other.totalPlannedFrames &&
-          mosaicName == other.mosaicName &&
-          mosaicPanelIndex == other.mosaicPanelIndex &&
-          mosaicPanelRow == other.mosaicPanelRow &&
-          mosaicPanelColumn == other.mosaicPanelColumn &&
-          mosaicTotalPanels == other.mosaicTotalPanels &&
-          defectMapCorrection == other.defectMapCorrection &&
-          photometryObjectCatalog == other.photometryObjectCatalog &&
-          photometryReferenceStars == other.photometryReferenceStars &&
-          photometryMjdObs == other.photometryMjdObs &&
-          photometryInstrumentalMag == other.photometryInstrumentalMag &&
-          photometryDifferentialMag == other.photometryDifferentialMag &&
-          photometryFwhmArcsec == other.photometryFwhmArcsec &&
-          photometrySnr == other.photometrySnr &&
-          rigLabel == other.rigLabel &&
-          pierSide == other.pierSide;
 }
 
 /// A single focus data point (position and HFR)

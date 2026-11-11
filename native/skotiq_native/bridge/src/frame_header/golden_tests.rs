@@ -314,8 +314,8 @@ async fn a_sequence_frame_header_matches_the_rig_frame() {
         .await
         .expect("rig-shaped save");
 
-    let header = skotiq_imaging::read_fits_header(std::path::Path::new(&path))
-        .expect("read rig header");
+    let header =
+        skotiq_imaging::read_fits_header(std::path::Path::new(&path)).expect("read rig header");
     let actual: Vec<(String, String)> = header_cards(&path)
         .iter()
         .map(|card| card[..card.len().min(8)].trim_end().to_string())

@@ -250,9 +250,11 @@ async fn disconnect_fixed_camera(device_id: &str) {
 }
 
 fn fnv1a(bytes: impl IntoIterator<Item = u8>) -> u64 {
-    bytes.into_iter().fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
-        (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3)
-    })
+    bytes
+        .into_iter()
+        .fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
+            (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3)
+        })
 }
 
 /// Everything the store publishes for the device's last frame, as text.
@@ -320,7 +322,9 @@ fn assert_digests(cases: &[(&str, &str, &str)]) {
         .iter()
         .filter(|(_, actual, expected)| actual != expected)
         .map(|(label, actual, expected)| {
-            format!("{label}: the stored frame moved.\n--- actual\n{actual}\n--- expected\n{expected}")
+            format!(
+                "{label}: the stored frame moved.\n--- actual\n{actual}\n--- expected\n{expected}"
+            )
         })
         .collect();
     assert!(moved.is_empty(), "{}", moved.join("\n\n"));

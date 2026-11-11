@@ -67,6 +67,7 @@ mod dispatch;
 mod error;
 mod event;
 mod filter_matching;
+mod frame_header;
 mod hotplug;
 /// THE simulated-capture entry point: the one place a simulated frame is
 /// produced, shared by the sequencer download and the Imaging screen's manual
@@ -92,25 +93,12 @@ mod util;
 #[allow(ambiguous_glob_reexports)]
 pub use api::*;
 pub use device::*;
-// `DefectMapCorrectionRecord` is referenced in the
-// FRB-generated impl SseDecode / IntoIntoDart blocks (because it is
-// embedded as an `Option<_>` field on `FitsWriteHeaderRich`). FRB's
-// parser produces unqualified references in those generated impls, so
-// the type must be reachable at the crate root for the generated code
-// to compile. Re-exporting it here pulls it into `crate::` scope where
-// `frb_generated.rs` looks for it.
 pub use device_capabilities::*;
 pub use device_id::*;
 pub use device_manager::*;
 pub use error::*;
 #[allow(ambiguous_glob_reexports)]
 pub use event::*;
-// FRB-generated impl SseDecode / IntoIntoDart blocks embed unqualified
-// references to `DefectMapCorrectionRecord` (as an `Option<_>` field on
-// `FitsWriteHeaderRich`), so the type must be reachable at the crate root
-// for the generated code to compile. Sequencer exposes the source at
-// `skotiq_sequencer::scheduling::frame_context::DefectMapCorrectionRecord`.
-pub use skotiq_sequencer::scheduling::frame_context::DefectMapCorrectionRecord;
 pub use stacking_api::*;
 pub use state::*;
 pub use storage::*;

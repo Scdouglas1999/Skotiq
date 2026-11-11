@@ -64,7 +64,6 @@ import 'event/system.dart';
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
-import 'lib.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'state.dart';
 import 'storage.dart';
@@ -122,7 +121,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 656228910;
+  int get rustContentHash => 1336701731;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -1461,8 +1460,6 @@ abstract class RustLibApi extends BaseApi {
     required int position,
   });
 
-  Future<FitsWriteHeaderRich> crateApiImagingFitsWriteHeaderRichDefault();
-
   Future<void> crateApiDevicesFocuserFocuserHalt({required String deviceId});
 
   Future<CameraStatus> crateApiDevicesCameraGetCameraStatus({
@@ -1542,14 +1539,6 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiDevicesMountMountUnpark({required String deviceId});
 
-  Future<void> crateApiImagingSaveFitsFileRich({
-    required String filePath,
-    required int width,
-    required int height,
-    required List<int> data,
-    required FitsWriteHeaderRich headerData,
-  });
-
   Future<SecondaryRigStatusApi>
   crateApiSecondaryRigSecondaryRigStatusApiDefault();
 
@@ -1604,15 +1593,6 @@ abstract class RustLibApi extends BaseApi {
     required int binX,
     required int binY,
   });
-
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_DefectMapCorrectionRecord;
-
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_DefectMapCorrectionRecord;
-
-  CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_DefectMapCorrectionRecordPtr;
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -11725,32 +11705,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<FitsWriteHeaderRich> crateApiImagingFitsWriteHeaderRichDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire.wire__crate__api__imaging__fits_write_header_rich_default(
-            port_,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_fits_write_header_rich,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiImagingFitsWriteHeaderRichDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiImagingFitsWriteHeaderRichDefaultConstMeta =>
-      const TaskConstMeta(
-        debugName: "fits_write_header_rich_default",
-        argNames: [],
-      );
-
-  @override
   Future<void> crateApiDevicesFocuserFocuserHalt({required String deviceId}) {
     return handler.executeNormal(
       NormalTask(
@@ -12327,48 +12281,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "mount_unpark", argNames: ["deviceId"]);
 
   @override
-  Future<void> crateApiImagingSaveFitsFileRich({
-    required String filePath,
-    required int width,
-    required int height,
-    required List<int> data,
-    required FitsWriteHeaderRich headerData,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(filePath);
-          var arg1 = cst_encode_u_32(width);
-          var arg2 = cst_encode_u_32(height);
-          var arg3 = cst_encode_list_prim_u_16_loose(data);
-          var arg4 = cst_encode_box_autoadd_fits_write_header_rich(headerData);
-          return wire.wire__crate__api__imaging__save_fits_file_rich(
-            port_,
-            arg0,
-            arg1,
-            arg2,
-            arg3,
-            arg4,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiImagingSaveFitsFileRichConstMeta,
-        argValues: [filePath, width, height, data, headerData],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiImagingSaveFitsFileRichConstMeta =>
-      const TaskConstMeta(
-        debugName: "save_fits_file_rich",
-        argNames: ["filePath", "width", "height", "data", "headerData"],
-      );
-
-  @override
   Future<SecondaryRigStatusApi>
   crateApiSecondaryRigSecondaryRigStatusApiDefault() {
     return handler.executeNormal(
@@ -12822,29 +12734,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ],
       );
 
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_DefectMapCorrectionRecord => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord;
-
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_DefectMapCorrectionRecord => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord;
-
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return AnyhowException(raw as String);
-  }
-
-  @protected
-  DefectMapCorrectionRecord
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return DefectMapCorrectionRecordImpl.frbInternalDcoDecode(
-      raw as List<dynamic>,
-    );
   }
 
   @protected
@@ -12883,17 +12776,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return Map.fromEntries(
       dco_decode_list_record_string_i_32(raw).map((e) => MapEntry(e.$1, e.$2)),
-    );
-  }
-
-  @protected
-  DefectMapCorrectionRecord
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return DefectMapCorrectionRecordImpl.frbInternalDcoDecode(
-      raw as List<dynamic>,
     );
   }
 
@@ -13295,17 +13177,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  DefectMapCorrectionRecord
-  dco_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-      raw,
-    );
-  }
-
-  @protected
   ApiAcquisitionSettings dco_decode_box_autoadd_api_acquisition_settings(
     dynamic raw,
   ) {
@@ -13460,14 +13331,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   FitsWriteHeader dco_decode_box_autoadd_fits_write_header(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_fits_write_header(raw);
-  }
-
-  @protected
-  FitsWriteHeaderRich dco_decode_box_autoadd_fits_write_header_rich(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_fits_write_header_rich(raw);
   }
 
   @protected
@@ -14492,71 +14355,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  FitsWriteHeaderRich dco_decode_fits_write_header_rich(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 52)
-      throw Exception('unexpected arr length: expect 52 but see ${arr.length}');
-    return FitsWriteHeaderRich(
-      objectName: dco_decode_opt_String(arr[0]),
-      exposureTime: dco_decode_f_64(arr[1]),
-      captureTimestamp: dco_decode_String(arr[2]),
-      frameType: dco_decode_String(arr[3]),
-      filter: dco_decode_opt_String(arr[4]),
-      filterPosition: dco_decode_opt_box_autoadd_i_32(arr[5]),
-      gain: dco_decode_opt_box_autoadd_i_32(arr[6]),
-      offset: dco_decode_opt_box_autoadd_i_32(arr[7]),
-      ccdTemp: dco_decode_opt_box_autoadd_f_64(arr[8]),
-      setTemp: dco_decode_opt_box_autoadd_f_64(arr[9]),
-      ra: dco_decode_opt_box_autoadd_f_64(arr[10]),
-      dec: dco_decode_opt_box_autoadd_f_64(arr[11]),
-      altitude: dco_decode_opt_box_autoadd_f_64(arr[12]),
-      telescope: dco_decode_opt_String(arr[13]),
-      instrument: dco_decode_opt_String(arr[14]),
-      observer: dco_decode_opt_String(arr[15]),
-      binX: dco_decode_i_32(arr[16]),
-      binY: dco_decode_i_32(arr[17]),
-      focalLength: dco_decode_opt_box_autoadd_f_64(arr[18]),
-      aperture: dco_decode_opt_box_autoadd_f_64(arr[19]),
-      pixelSizeX: dco_decode_opt_box_autoadd_f_64(arr[20]),
-      pixelSizeY: dco_decode_opt_box_autoadd_f_64(arr[21]),
-      siteLatitude: dco_decode_opt_box_autoadd_f_64(arr[22]),
-      siteLongitude: dco_decode_opt_box_autoadd_f_64(arr[23]),
-      siteElevation: dco_decode_opt_box_autoadd_f_64(arr[24]),
-      focuserPosition: dco_decode_opt_box_autoadd_i_32(arr[25]),
-      focuserTemperature: dco_decode_opt_box_autoadd_f_64(arr[26]),
-      rotatorAngle: dco_decode_opt_box_autoadd_f_64(arr[27]),
-      guideRmsArcsec: dco_decode_opt_box_autoadd_f_64(arr[28]),
-      solvedRaHours: dco_decode_opt_box_autoadd_f_64(arr[29]),
-      solvedDecDegrees: dco_decode_opt_box_autoadd_f_64(arr[30]),
-      plateSolvePixelScaleArcsec: dco_decode_opt_box_autoadd_f_64(arr[31]),
-      plateSolveRotationDeg: dco_decode_opt_box_autoadd_f_64(arr[32]),
-      bayerPattern: dco_decode_opt_String(arr[33]),
-      sessionId: dco_decode_opt_String(arr[34]),
-      frameIndex: dco_decode_opt_box_autoadd_u_32(arr[35]),
-      totalPlannedFrames: dco_decode_opt_box_autoadd_u_32(arr[36]),
-      mosaicName: dco_decode_opt_String(arr[37]),
-      mosaicPanelIndex: dco_decode_opt_box_autoadd_i_32(arr[38]),
-      mosaicPanelRow: dco_decode_opt_box_autoadd_i_32(arr[39]),
-      mosaicPanelColumn: dco_decode_opt_box_autoadd_i_32(arr[40]),
-      mosaicTotalPanels: dco_decode_opt_box_autoadd_i_32(arr[41]),
-      defectMapCorrection:
-          dco_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-            arr[42],
-          ),
-      photometryObjectCatalog: dco_decode_opt_String(arr[43]),
-      photometryReferenceStars: dco_decode_opt_String(arr[44]),
-      photometryMjdObs: dco_decode_opt_box_autoadd_f_64(arr[45]),
-      photometryInstrumentalMag: dco_decode_opt_box_autoadd_f_64(arr[46]),
-      photometryDifferentialMag: dco_decode_opt_box_autoadd_f_64(arr[47]),
-      photometryFwhmArcsec: dco_decode_opt_box_autoadd_f_64(arr[48]),
-      photometrySnr: dco_decode_opt_box_autoadd_f_64(arr[49]),
-      rigLabel: dco_decode_opt_String(arr[50]),
-      pierSide: dco_decode_opt_String(arr[51]),
-    );
-  }
-
-  @protected
   FocusDataPoint dco_decode_focus_data_point(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -15234,19 +15032,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
-  }
-
-  @protected
-  DefectMapCorrectionRecord?
-  dco_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw == null
-        ? null
-        : dco_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-            raw,
-          );
   }
 
   @protected
@@ -16702,12 +16487,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  BigInt dco_decode_usize(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dcoDecodeU64(raw);
-  }
-
-  @protected
   WeatherCapabilities dco_decode_weather_capabilities(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -16776,18 +16555,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  DefectMapCorrectionRecord
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return DefectMapCorrectionRecordImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
   Map<String, Map<String, double>>
   sse_decode_Map_String_Map_String_f_64_None_None(
     SseDeserializer deserializer,
@@ -16824,18 +16591,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_list_record_string_i_32(deserializer);
     return Map.fromEntries(inner.map((e) => MapEntry(e.$1, e.$2)));
-  }
-
-  @protected
-  DefectMapCorrectionRecord
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return DefectMapCorrectionRecordImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
   }
 
   @protected
@@ -17381,17 +17136,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  DefectMapCorrectionRecord
-  sse_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-      deserializer,
-    ));
-  }
-
-  @protected
   ApiAcquisitionSettings sse_decode_box_autoadd_api_acquisition_settings(
     SseDeserializer deserializer,
   ) {
@@ -17574,14 +17318,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_fits_write_header(deserializer));
-  }
-
-  @protected
-  FitsWriteHeaderRich sse_decode_box_autoadd_fits_write_header_rich(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_fits_write_header_rich(deserializer));
   }
 
   @protected
@@ -18943,132 +18679,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  FitsWriteHeaderRich sse_decode_fits_write_header_rich(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_objectName = sse_decode_opt_String(deserializer);
-    var var_exposureTime = sse_decode_f_64(deserializer);
-    var var_captureTimestamp = sse_decode_String(deserializer);
-    var var_frameType = sse_decode_String(deserializer);
-    var var_filter = sse_decode_opt_String(deserializer);
-    var var_filterPosition = sse_decode_opt_box_autoadd_i_32(deserializer);
-    var var_gain = sse_decode_opt_box_autoadd_i_32(deserializer);
-    var var_offset = sse_decode_opt_box_autoadd_i_32(deserializer);
-    var var_ccdTemp = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_setTemp = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_ra = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_dec = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_altitude = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_telescope = sse_decode_opt_String(deserializer);
-    var var_instrument = sse_decode_opt_String(deserializer);
-    var var_observer = sse_decode_opt_String(deserializer);
-    var var_binX = sse_decode_i_32(deserializer);
-    var var_binY = sse_decode_i_32(deserializer);
-    var var_focalLength = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_aperture = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_pixelSizeX = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_pixelSizeY = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_siteLatitude = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_siteLongitude = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_siteElevation = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_focuserPosition = sse_decode_opt_box_autoadd_i_32(deserializer);
-    var var_focuserTemperature = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_rotatorAngle = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_guideRmsArcsec = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_solvedRaHours = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_solvedDecDegrees = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_plateSolvePixelScaleArcsec = sse_decode_opt_box_autoadd_f_64(
-      deserializer,
-    );
-    var var_plateSolveRotationDeg = sse_decode_opt_box_autoadd_f_64(
-      deserializer,
-    );
-    var var_bayerPattern = sse_decode_opt_String(deserializer);
-    var var_sessionId = sse_decode_opt_String(deserializer);
-    var var_frameIndex = sse_decode_opt_box_autoadd_u_32(deserializer);
-    var var_totalPlannedFrames = sse_decode_opt_box_autoadd_u_32(deserializer);
-    var var_mosaicName = sse_decode_opt_String(deserializer);
-    var var_mosaicPanelIndex = sse_decode_opt_box_autoadd_i_32(deserializer);
-    var var_mosaicPanelRow = sse_decode_opt_box_autoadd_i_32(deserializer);
-    var var_mosaicPanelColumn = sse_decode_opt_box_autoadd_i_32(deserializer);
-    var var_mosaicTotalPanels = sse_decode_opt_box_autoadd_i_32(deserializer);
-    var var_defectMapCorrection =
-        sse_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-          deserializer,
-        );
-    var var_photometryObjectCatalog = sse_decode_opt_String(deserializer);
-    var var_photometryReferenceStars = sse_decode_opt_String(deserializer);
-    var var_photometryMjdObs = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_photometryInstrumentalMag = sse_decode_opt_box_autoadd_f_64(
-      deserializer,
-    );
-    var var_photometryDifferentialMag = sse_decode_opt_box_autoadd_f_64(
-      deserializer,
-    );
-    var var_photometryFwhmArcsec = sse_decode_opt_box_autoadd_f_64(
-      deserializer,
-    );
-    var var_photometrySnr = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_rigLabel = sse_decode_opt_String(deserializer);
-    var var_pierSide = sse_decode_opt_String(deserializer);
-    return FitsWriteHeaderRich(
-      objectName: var_objectName,
-      exposureTime: var_exposureTime,
-      captureTimestamp: var_captureTimestamp,
-      frameType: var_frameType,
-      filter: var_filter,
-      filterPosition: var_filterPosition,
-      gain: var_gain,
-      offset: var_offset,
-      ccdTemp: var_ccdTemp,
-      setTemp: var_setTemp,
-      ra: var_ra,
-      dec: var_dec,
-      altitude: var_altitude,
-      telescope: var_telescope,
-      instrument: var_instrument,
-      observer: var_observer,
-      binX: var_binX,
-      binY: var_binY,
-      focalLength: var_focalLength,
-      aperture: var_aperture,
-      pixelSizeX: var_pixelSizeX,
-      pixelSizeY: var_pixelSizeY,
-      siteLatitude: var_siteLatitude,
-      siteLongitude: var_siteLongitude,
-      siteElevation: var_siteElevation,
-      focuserPosition: var_focuserPosition,
-      focuserTemperature: var_focuserTemperature,
-      rotatorAngle: var_rotatorAngle,
-      guideRmsArcsec: var_guideRmsArcsec,
-      solvedRaHours: var_solvedRaHours,
-      solvedDecDegrees: var_solvedDecDegrees,
-      plateSolvePixelScaleArcsec: var_plateSolvePixelScaleArcsec,
-      plateSolveRotationDeg: var_plateSolveRotationDeg,
-      bayerPattern: var_bayerPattern,
-      sessionId: var_sessionId,
-      frameIndex: var_frameIndex,
-      totalPlannedFrames: var_totalPlannedFrames,
-      mosaicName: var_mosaicName,
-      mosaicPanelIndex: var_mosaicPanelIndex,
-      mosaicPanelRow: var_mosaicPanelRow,
-      mosaicPanelColumn: var_mosaicPanelColumn,
-      mosaicTotalPanels: var_mosaicTotalPanels,
-      defectMapCorrection: var_defectMapCorrection,
-      photometryObjectCatalog: var_photometryObjectCatalog,
-      photometryReferenceStars: var_photometryReferenceStars,
-      photometryMjdObs: var_photometryMjdObs,
-      photometryInstrumentalMag: var_photometryInstrumentalMag,
-      photometryDifferentialMag: var_photometryDifferentialMag,
-      photometryFwhmArcsec: var_photometryFwhmArcsec,
-      photometrySnr: var_photometrySnr,
-      rigLabel: var_rigLabel,
-      pierSide: var_pierSide,
-    );
-  }
-
-  @protected
   FocusDataPoint sse_decode_focus_data_point(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_position = sse_decode_i_32(deserializer);
@@ -20055,22 +19665,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_String(deserializer));
-    } else {
-      return null;
-    }
-  }
-
-  @protected
-  DefectMapCorrectionRecord?
-  sse_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    if (sse_decode_bool(deserializer)) {
-      return (sse_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-        deserializer,
-      ));
     } else {
       return null;
     }
@@ -22101,12 +21695,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  BigInt sse_decode_usize(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getBigUint64();
-  }
-
-  @protected
   WeatherCapabilities sse_decode_weather_capabilities(
     SseDeserializer deserializer,
   ) {
@@ -22191,28 +21779,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       stats: var_stats,
       properties: var_properties,
     );
-  }
-
-  @protected
-  int
-  cst_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    DefectMapCorrectionRecord raw,
-  ) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    // ignore: invalid_use_of_internal_member
-    return (raw as DefectMapCorrectionRecordImpl).frbInternalCstEncode(
-      move: true,
-    );
-  }
-
-  @protected
-  int
-  cst_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    DefectMapCorrectionRecord raw,
-  ) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    // ignore: invalid_use_of_internal_member
-    return (raw as DefectMapCorrectionRecordImpl).frbInternalCstEncode();
   }
 
   @protected
@@ -22357,19 +21923,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    DefectMapCorrectionRecord self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as DefectMapCorrectionRecordImpl).frbInternalSseEncode(move: true),
-      serializer,
-    );
-  }
-
-  @protected
   void sse_encode_Map_String_Map_String_f_64_None_None(
     Map<String, Map<String, double>> self,
     SseSerializer serializer,
@@ -22413,19 +21966,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_record_string_i_32(
       self.entries.map((e) => (e.key, e.value)).toList(),
-      serializer,
-    );
-  }
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    DefectMapCorrectionRecord self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as DefectMapCorrectionRecordImpl).frbInternalSseEncode(move: null),
       serializer,
     );
   }
@@ -22795,19 +22335,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void
-  sse_encode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    DefectMapCorrectionRecord self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-      self,
-      serializer,
-    );
-  }
-
-  @protected
   void sse_encode_box_autoadd_api_acquisition_settings(
     ApiAcquisitionSettings self,
     SseSerializer serializer,
@@ -23012,15 +22539,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_fits_write_header(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_fits_write_header_rich(
-    FitsWriteHeaderRich self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_fits_write_header_rich(self, serializer);
   }
 
   @protected
@@ -24150,72 +23668,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_fits_write_header_rich(
-    FitsWriteHeaderRich self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_opt_String(self.objectName, serializer);
-    sse_encode_f_64(self.exposureTime, serializer);
-    sse_encode_String(self.captureTimestamp, serializer);
-    sse_encode_String(self.frameType, serializer);
-    sse_encode_opt_String(self.filter, serializer);
-    sse_encode_opt_box_autoadd_i_32(self.filterPosition, serializer);
-    sse_encode_opt_box_autoadd_i_32(self.gain, serializer);
-    sse_encode_opt_box_autoadd_i_32(self.offset, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.ccdTemp, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.setTemp, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.ra, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.dec, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.altitude, serializer);
-    sse_encode_opt_String(self.telescope, serializer);
-    sse_encode_opt_String(self.instrument, serializer);
-    sse_encode_opt_String(self.observer, serializer);
-    sse_encode_i_32(self.binX, serializer);
-    sse_encode_i_32(self.binY, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.focalLength, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.aperture, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.pixelSizeX, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.pixelSizeY, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.siteLatitude, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.siteLongitude, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.siteElevation, serializer);
-    sse_encode_opt_box_autoadd_i_32(self.focuserPosition, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.focuserTemperature, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.rotatorAngle, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.guideRmsArcsec, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.solvedRaHours, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.solvedDecDegrees, serializer);
-    sse_encode_opt_box_autoadd_f_64(
-      self.plateSolvePixelScaleArcsec,
-      serializer,
-    );
-    sse_encode_opt_box_autoadd_f_64(self.plateSolveRotationDeg, serializer);
-    sse_encode_opt_String(self.bayerPattern, serializer);
-    sse_encode_opt_String(self.sessionId, serializer);
-    sse_encode_opt_box_autoadd_u_32(self.frameIndex, serializer);
-    sse_encode_opt_box_autoadd_u_32(self.totalPlannedFrames, serializer);
-    sse_encode_opt_String(self.mosaicName, serializer);
-    sse_encode_opt_box_autoadd_i_32(self.mosaicPanelIndex, serializer);
-    sse_encode_opt_box_autoadd_i_32(self.mosaicPanelRow, serializer);
-    sse_encode_opt_box_autoadd_i_32(self.mosaicPanelColumn, serializer);
-    sse_encode_opt_box_autoadd_i_32(self.mosaicTotalPanels, serializer);
-    sse_encode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-      self.defectMapCorrection,
-      serializer,
-    );
-    sse_encode_opt_String(self.photometryObjectCatalog, serializer);
-    sse_encode_opt_String(self.photometryReferenceStars, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.photometryMjdObs, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.photometryInstrumentalMag, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.photometryDifferentialMag, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.photometryFwhmArcsec, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.photometrySnr, serializer);
-    sse_encode_opt_String(self.rigLabel, serializer);
-    sse_encode_opt_String(self.pierSide, serializer);
-  }
-
-  @protected
   void sse_encode_focus_data_point(
     FocusDataPoint self,
     SseSerializer serializer,
@@ -25031,23 +24483,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_String(self, serializer);
-    }
-  }
-
-  @protected
-  void
-  sse_encode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-    DefectMapCorrectionRecord? self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    sse_encode_bool(self != null, serializer);
-    if (self != null) {
-      sse_encode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDefectMapCorrectionRecord(
-        self,
-        serializer,
-      );
     }
   }
 
@@ -26794,12 +26229,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_usize(BigInt self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putBigUint64(self);
-  }
-
-  @protected
   void sse_encode_weather_capabilities(
     WeatherCapabilities self,
     SseSerializer serializer,
@@ -26853,33 +26282,4 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_image_stats_result(self.stats, serializer);
     sse_encode_list_record_string_string(self.properties, serializer);
   }
-}
-
-@sealed
-class DefectMapCorrectionRecordImpl extends RustOpaque
-    implements DefectMapCorrectionRecord {
-  // Not to be used by end users
-  DefectMapCorrectionRecordImpl.frbInternalDcoDecode(List<dynamic> wire)
-    : super.frbInternalDcoDecode(wire, _kStaticData);
-
-  // Not to be used by end users
-  DefectMapCorrectionRecordImpl.frbInternalSseDecode(
-    BigInt ptr,
-    int externalSizeOnNative,
-  ) : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-  static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount: RustLib
-        .instance
-        .api
-        .rust_arc_increment_strong_count_DefectMapCorrectionRecord,
-    rustArcDecrementStrongCount: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_DefectMapCorrectionRecord,
-    rustArcDecrementStrongCountPtr: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_DefectMapCorrectionRecordPtr,
-  );
 }
