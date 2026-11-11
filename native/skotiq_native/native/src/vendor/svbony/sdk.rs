@@ -121,7 +121,3 @@ pub(crate) fn svb_control_value_to_i32(value: i64, label: &str) -> Result<i32, N
         ))
     })
 }
-
-pub(crate) fn get_sdk() -> Result<&'static SvbonySdk, NativeError> {
-    SvbonySdk::get_or_reason().map_err(|reason| NativeError::SdkError(reason.to_string()))
-}

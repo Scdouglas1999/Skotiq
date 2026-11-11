@@ -50,12 +50,10 @@ impl PlayerOneCamera {
     }
 
     /// Load camera info from SDK
-    pub(crate) fn load_camera_info(&mut self) -> Result<(), NativeError> {
-        let sdk = PoaSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-
+    pub(crate) fn load_camera_info(&mut self, sdk: &PoaSdk) -> Result<(), NativeError> {
         // SAFETY: POACameraProperties is `#[repr(C)]` and contains only POD fields (c_char arrays, c_int, f64) — all valid bit-patterns. Zero-initialization is the well-defined empty state before the SDK overwrites it.
         let mut info: POACameraProperties = unsafe { std::mem::zeroed() };
-        // SAFETY: caller holds &mut self so `self.camera_id` is valid; `&mut info` is a valid stack out-pointer to a `#[repr(C)]` POACameraProperties; POAGetCameraPropertiesByID does not need the player_one mutex per SDK docs (read-only metadata) and writes only into the out-pointer.
+        // SAFETY: caller holds &mut self so `self.camera_id` is valid; `&mut info` is a valid stack out-pointer to a `#[repr(C)]` POACameraProperties; POAGetCameraPropertiesByID reads metadata only and writes only into the out-pointer.
         let result = unsafe { (sdk.get_camera_properties_by_id)(self.camera_id, &mut info) };
         check_poa_error(result, "GetCameraProperties")?;
 
@@ -82,8 +80,11 @@ impl PlayerOneCamera {
         &self,
         control: POAConfig,
     ) -> Result<(i32, i32), NativeError> {
-        let sdk = PoaSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let Some(get_attributes) = sdk.get_config_attributes_by_config_id else {
+        let sdk = PoaSdk::installed()?;
+        // Unlocked on purpose: this reads whether the optional symbol was
+        // resolved when the library loaded and calls nothing. The call itself
+        // happens below, under the lock.
+        let Some(get_attributes) = sdk.unlocked().get_config_attributes_by_config_id else {
             tracing::warn!(
                 "Player One SDK build exports no POAGetConfigAttributesByConfigID; \
                  bounds for control {:?} are unavailable",
@@ -92,11 +93,11 @@ impl PlayerOneCamera {
             return Err(NativeError::NotSupported);
         };
 
-        let _lock = player_one_mutex().lock().await;
+        let _sdk = sdk.lock().await;
         // SAFETY: POAConfigAttributes is `#[repr(C)]` over c_int fields, POD unions and
         // char arrays; the all-zero bit pattern is valid for every one of them.
         let mut attributes: POAConfigAttributes = unsafe { std::mem::zeroed() };
-        // SAFETY: player_one_mutex held above (single-threaded SDK access); `self.camera_id` is the open camera checked by the caller; `&mut attributes` is a valid out-pointer to the `#[repr(C)]` struct the SDK fills.
+        // SAFETY: `_sdk` holds the SDK lock for this call; `self.camera_id` is the open camera checked by the caller; `&mut attributes` is a valid out-pointer to the `#[repr(C)]` struct the SDK fills.
         let result = unsafe { get_attributes(self.camera_id, control as c_int, &mut attributes) };
         check_poa_error(result, "POAGetConfigAttributesByConfigID")?;
 
@@ -135,16 +136,15 @@ impl PlayerOneCamera {
         Ok((narrow(min)?, narrow(max)?))
     }
 
-    /// Get a control value as integer (mutex protected)
+    /// Get a control value as integer, taking the SDK lock for the call.
     pub(crate) async fn get_control_int_async(
         &self,
         control: POAConfig,
     ) -> Result<c_long, NativeError> {
-        let sdk = PoaSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = player_one_mutex().lock().await;
+        let sdk = PoaSdk::lock().await?;
         let mut value = POAConfigValue::default();
         let mut is_auto: POABool = POA_FALSE;
-        // SAFETY: player_one_mutex held above ensures single-threaded SDK access (POA SDK is not thread-safe per module header); `self.camera_id` was assigned at construction and is the camera ID parameter passed to POAGetConfig; `&mut value` and `&mut is_auto` are valid stack out-pointers to POD `#[repr(C)]` types.
+        // SAFETY: `self.camera_id` was assigned at construction and is the camera ID parameter passed to POAGetConfig; `&mut value` and `&mut is_auto` are valid stack out-pointers to POD `#[repr(C)]` types.
         let result =
             unsafe { (sdk.get_config)(self.camera_id, control as c_int, &mut value, &mut is_auto) };
         check_poa_error(result, "POAGetConfig")?;
@@ -152,12 +152,15 @@ impl PlayerOneCamera {
         Ok(unsafe { value.int_value })
     }
 
-    /// Get a control value as integer (synchronous - caller must hold mutex)
-    pub(crate) fn get_control_int(&self, control: POAConfig) -> Result<c_long, NativeError> {
-        let sdk = PoaSdk::get().ok_or(NativeError::SdkNotLoaded)?;
+    /// Get a control value as integer under a lock the caller already holds.
+    pub(crate) fn get_control_int(
+        &self,
+        sdk: &PoaSdk,
+        control: POAConfig,
+    ) -> Result<c_long, NativeError> {
         let mut value = POAConfigValue::default();
         let mut is_auto: POABool = POA_FALSE;
-        // SAFETY: per function contract (see doc-comment) the caller has acquired player_one_mutex before invoking — synchronous variant used inside `get_status` / `download_image` where the mutex is held above; out-pointers are valid stack POD references.
+        // SAFETY: out-pointers are valid stack POD references.
         let result =
             unsafe { (sdk.get_config)(self.camera_id, control as c_int, &mut value, &mut is_auto) };
         check_poa_error(result, "POAGetConfig")?;
@@ -165,16 +168,15 @@ impl PlayerOneCamera {
         Ok(unsafe { value.int_value })
     }
 
-    /// Get a control value as float (mutex protected)
+    /// Get a control value as float, taking the SDK lock for the call.
     pub(crate) async fn get_control_float_async(
         &self,
         control: POAConfig,
     ) -> Result<f64, NativeError> {
-        let sdk = PoaSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = player_one_mutex().lock().await;
+        let sdk = PoaSdk::lock().await?;
         let mut value = POAConfigValue::default();
         let mut is_auto: POABool = POA_FALSE;
-        // SAFETY: player_one_mutex held above (single-threaded SDK access); out-pointers `&mut value` and `&mut is_auto` are valid stack POD references; called only for VAL_FLOAT controls (POA_TEMPERATURE/POA_EGAIN) per PlayerOneCamera.h.
+        // SAFETY: out-pointers `&mut value` and `&mut is_auto` are valid stack POD references; called only for VAL_FLOAT controls (POA_TEMPERATURE/POA_EGAIN) per PlayerOneCamera.h.
         let result =
             unsafe { (sdk.get_config)(self.camera_id, control as c_int, &mut value, &mut is_auto) };
         check_poa_error(result, "POAGetConfig")?;
@@ -182,12 +184,15 @@ impl PlayerOneCamera {
         Ok(unsafe { value.float_value })
     }
 
-    /// Get a control value as float (synchronous - caller must hold mutex)
-    pub(crate) fn get_control_float(&self, control: POAConfig) -> Result<f64, NativeError> {
-        let sdk = PoaSdk::get().ok_or(NativeError::SdkNotLoaded)?;
+    /// Get a control value as float under a lock the caller already holds.
+    pub(crate) fn get_control_float(
+        &self,
+        sdk: &PoaSdk,
+        control: POAConfig,
+    ) -> Result<f64, NativeError> {
         let mut value = POAConfigValue::default();
         let mut is_auto: POABool = POA_FALSE;
-        // SAFETY: caller holds player_one_mutex per function contract (sync variant); out-pointers are valid stack POD references.
+        // SAFETY: out-pointers are valid stack POD references.
         let result =
             unsafe { (sdk.get_config)(self.camera_id, control as c_int, &mut value, &mut is_auto) };
         check_poa_error(result, "POAGetConfig")?;
@@ -195,12 +200,15 @@ impl PlayerOneCamera {
         Ok(unsafe { value.float_value })
     }
 
-    /// Get a control value as bool (synchronous - caller must hold mutex)
-    pub(crate) fn get_control_bool(&self, control: POAConfig) -> Result<bool, NativeError> {
-        let sdk = PoaSdk::get().ok_or(NativeError::SdkNotLoaded)?;
+    /// Get a control value as bool under a lock the caller already holds.
+    pub(crate) fn get_control_bool(
+        &self,
+        sdk: &PoaSdk,
+        control: POAConfig,
+    ) -> Result<bool, NativeError> {
         let mut value = POAConfigValue::default();
         let mut is_auto: POABool = POA_FALSE;
-        // SAFETY: caller holds player_one_mutex per function contract (sync variant — used inside get_status); out-pointers are valid stack POD references.
+        // SAFETY: out-pointers are valid stack POD references.
         let result =
             unsafe { (sdk.get_config)(self.camera_id, control as c_int, &mut value, &mut is_auto) };
         check_poa_error(result, "POAGetConfig")?;
@@ -208,17 +216,16 @@ impl PlayerOneCamera {
         Ok(unsafe { value.bool_value } != POA_FALSE)
     }
 
-    /// Set a control value (integer, mutex protected)
+    /// Set an integer control value, taking the SDK lock for the call.
     pub(crate) async fn set_control_int_async(
         &mut self,
         control: POAConfig,
         value: c_long,
         auto: bool,
     ) -> Result<(), NativeError> {
-        let sdk = PoaSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = player_one_mutex().lock().await;
+        let sdk = PoaSdk::lock().await?;
         let config_value = POAConfigValue { int_value: value };
-        // SAFETY: player_one_mutex held above (single-threaded SDK access); config_value is a `#[repr(C)]` union initialized via the int_value variant and passed by-value to a VAL_INT control — POASetConfig reads the appropriate variant based on the control type per PlayerOneCamera.h.
+        // SAFETY: config_value is a `#[repr(C)]` union initialized via the int_value variant and passed by-value to a VAL_INT control — POASetConfig reads the appropriate variant based on the control type per PlayerOneCamera.h.
         let result = unsafe {
             (sdk.set_config)(
                 self.camera_id,
@@ -230,16 +237,16 @@ impl PlayerOneCamera {
         check_poa_error(result, "POASetConfig")
     }
 
-    /// Set a control value (integer, synchronous - caller must hold mutex)
+    /// Set an integer control value under a lock the caller already holds.
     pub(crate) fn set_control_int(
         &mut self,
+        sdk: &PoaSdk,
         control: POAConfig,
         value: c_long,
         auto: bool,
     ) -> Result<(), NativeError> {
-        let sdk = PoaSdk::get().ok_or(NativeError::SdkNotLoaded)?;
         let config_value = POAConfigValue { int_value: value };
-        // SAFETY: caller holds player_one_mutex per function contract (sync variant, used inside start_exposure/set_subframe etc.); config_value is `#[repr(C)]` union initialized via int_value for VAL_INT controls.
+        // SAFETY: config_value is `#[repr(C)]` union initialized via int_value for VAL_INT controls.
         let result = unsafe {
             (sdk.set_config)(
                 self.camera_id,
@@ -251,18 +258,18 @@ impl PlayerOneCamera {
         check_poa_error(result, "POASetConfig")
     }
 
-    /// Set a control value (boolean, synchronous - caller must hold mutex)
+    /// Set a boolean control value under a lock the caller already holds.
     pub(crate) fn set_control_bool(
         &mut self,
+        sdk: &PoaSdk,
         control: POAConfig,
         value: bool,
         auto: bool,
     ) -> Result<(), NativeError> {
-        let sdk = PoaSdk::get().ok_or(NativeError::SdkNotLoaded)?;
         let config_value = POAConfigValue {
             bool_value: if value { POA_TRUE } else { POA_FALSE },
         };
-        // SAFETY: caller holds player_one_mutex per function contract (sync variant, used inside set_cooler); config_value is a `#[repr(C)]` union initialized via bool_value for VAL_BOOL controls (e.g. POA_COOLER).
+        // SAFETY: config_value is a `#[repr(C)]` union initialized via bool_value for VAL_BOOL controls (e.g. POA_COOLER).
         let result = unsafe {
             (sdk.set_config)(
                 self.camera_id,

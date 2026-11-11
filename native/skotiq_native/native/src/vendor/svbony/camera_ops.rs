@@ -13,7 +13,7 @@ impl NativeCamera for SvbonyCamera {
             return Err(NativeError::NotConnected);
         }
 
-        // Get sensor temperature and cooler power using async mutex-protected methods
+        // Get sensor temperature and cooler power using async methods that take the SDK lock
         let sensor_temp = if self.capabilities.can_cool {
             self.get_control_value_async(SvbControlType::CurrentTemperature)
                 .await
@@ -66,9 +66,9 @@ impl NativeCamera for SvbonyCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
+        let sdk = SvbonySdk::installed()?;
 
-        // Set gain if provided (these methods acquire mutex internally)
+        // Set gain if provided (these methods take the SDK lock internally)
         if let Some(gain) = params.gain {
             self.set_gain(gain).await?;
         }
@@ -84,18 +84,18 @@ impl NativeCamera for SvbonyCamera {
         // Set subframe/ROI
         self.set_subframe(params.subframe.clone()).await?;
 
-        // Acquire mutex for exposure start operations
-        let _lock = svbony_mutex().lock().await;
+        // Acquire the SDK lock for exposure start operations
+        let sdk = sdk.lock().await;
 
         // Set exposure time (in microseconds).
         // Why: max exposure is configured well below 1 hour (3.6e9 us); f64 -> i64 with
         // saturation handles negative or NaN duration as 0 / i64::MAX respectively, both
         // of which the SDK rejects safely. Real astrophotography exposures cap at ~hours.
         let exposure_us = (params.duration_secs * 1_000_000.0) as i64;
-        self.set_control_value(SvbControlType::Exposure, exposure_us)?;
+        self.set_control_value(&sdk, SvbControlType::Exposure, exposure_us)?;
 
         // Start video capture mode (SVBony uses video mode for exposures)
-        // SAFETY: svbony_mutex held above (in start_exposure()); `self.camera_id` validated by SVBOpenCamera in connect(); SVBStartVideoCapture takes a single c_int and is the contractual entry point to begin capture per SVBCameraSDK.h.
+        // SAFETY: `self.camera_id` validated by SVBOpenCamera in connect(); SVBStartVideoCapture takes a single c_int and is the contractual entry point to begin capture per SVBCameraSDK.h.
         let result = unsafe { (sdk.start_video_capture)(self.camera_id) };
         if SvbError::from_i32(result) != SvbError::Success {
             return Err(SvbError::from_i32(result).to_native_error("start exposure"));
@@ -113,12 +113,10 @@ impl NativeCamera for SvbonyCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
+        // Acquire the SDK lock for SDK operations
+        let sdk = SvbonySdk::lock().await?;
 
-        // Acquire mutex for SDK operations
-        let _lock = svbony_mutex().lock().await;
-
-        // SAFETY: svbony_mutex held above (in abort_exposure()); `self.camera_id` validated by SVBOpenCamera in connect(); SVBStopVideoCapture takes a single c_int and is idempotent.
+        // SAFETY: `self.camera_id` validated by SVBOpenCamera in connect(); SVBStopVideoCapture takes a single c_int and is idempotent.
         let result = unsafe { (sdk.stop_video_capture)(self.camera_id) };
         if SvbError::from_i32(result) != SvbError::Success {
             return Err(SvbError::from_i32(result).to_native_error("abort exposure"));
@@ -153,10 +151,8 @@ impl NativeCamera for SvbonyCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
-
-        // Acquire mutex for all SDK operations in this method
-        let _lock = svbony_mutex().lock().await;
+        // Acquire the SDK lock for all SDK operations in this method
+        let sdk = SvbonySdk::lock().await?;
 
         // Get current ROI
         let mut start_x: c_int = 0;
@@ -164,7 +160,7 @@ impl NativeCamera for SvbonyCamera {
         let mut width: c_int = 0;
         let mut height: c_int = 0;
         let mut bin: c_int = 0;
-        // SAFETY: svbony_mutex held above (in download_image()); `self.camera_id` validated; all five `&mut` out-pointers reference distinct c_int stack locals, matching SVBGetROIFormat's signature.
+        // SAFETY: `self.camera_id` validated; all five `&mut` out-pointers reference distinct c_int stack locals, matching SVBGetROIFormat's signature.
         let result = unsafe {
             (sdk.get_roi_format)(
                 self.camera_id,
@@ -182,7 +178,7 @@ impl NativeCamera for SvbonyCamera {
         // Confirm the current wire format. If the SDK cannot answer, retain the
         // format that connect successfully negotiated.
         let mut image_type = self.image_type as c_int;
-        // SAFETY: svbony_mutex held; `self.camera_id` is connected and
+        // SAFETY: `self.camera_id` is connected and
         // `&mut image_type` is a valid c_int out-pointer.
         let image_type_result =
             unsafe { (sdk.get_output_image_type)(self.camera_id, &mut image_type) };
@@ -218,7 +214,7 @@ impl NativeCamera for SvbonyCamera {
 
         // Get image data with timeout
         self.state = CameraState::Downloading;
-        // SAFETY: svbony_mutex held above; `self.camera_id` validated; `self.image_buffer.as_mut_ptr()` points to at least `buffer_size` bytes (resized above via `image_buffer.resize(buffer_size, 0)`), which is what we pass as the third argument so SVBGetVideoData will not write past the allocation. The 5000 ms timeout is documented as block-with-deadline behavior in SVBCameraSDK.h.
+        // SAFETY: `self.camera_id` validated; `self.image_buffer.as_mut_ptr()` points to at least `buffer_size` bytes (resized above via `image_buffer.resize(buffer_size, 0)`), which is what we pass as the third argument so SVBGetVideoData will not write past the allocation. The 5000 ms timeout is documented as block-with-deadline behavior in SVBCameraSDK.h.
         let result = unsafe {
             (sdk.get_video_data)(
                 self.camera_id,
@@ -234,7 +230,7 @@ impl NativeCamera for SvbonyCamera {
         }
 
         // Stop video capture
-        // SAFETY: svbony_mutex held; `self.camera_id` valid; SVBStopVideoCapture is idempotent and takes a single c_int.
+        // SAFETY: `self.camera_id` valid; SVBStopVideoCapture is idempotent and takes a single c_int.
         let _ = unsafe { (sdk.stop_video_capture)(self.camera_id) };
 
         // Convert the negotiated wire format to the pipeline's u16 pixels.
@@ -252,17 +248,18 @@ impl NativeCamera for SvbonyCamera {
                 .collect(),
         };
 
-        // Get temperature for metadata (while we hold the mutex)
+        // Get temperature for metadata (while we hold the SDK lock)
         let temperature = if self.capabilities.can_cool {
-            self.get_control_value(SvbControlType::CurrentTemperature)
+            self.get_control_value(&sdk, SvbControlType::CurrentTemperature)
                 .map(|v| v as f64 / 10.0)
                 .ok()
         } else {
             None
         };
-        let gain = svb_control_value_to_i32(self.get_control_value(SvbControlType::Gain)?, "gain")?;
+        let gain =
+            svb_control_value_to_i32(self.get_control_value(&sdk, SvbControlType::Gain)?, "gain")?;
         let offset = svb_control_value_to_i32(
-            self.get_control_value(SvbControlType::BlackLevel)?,
+            self.get_control_value(&sdk, SvbControlType::BlackLevel)?,
             "offset",
         )?;
 
@@ -315,7 +312,7 @@ impl NativeCamera for SvbonyCamera {
             return Err(NativeError::NotSupported);
         }
 
-        // Use async mutex-protected methods
+        // Use async methods that take the SDK lock
         self.set_control_value_async(SvbControlType::CoolerEnable, if enabled { 1 } else { 0 })
             .await?;
         // Only when the caller named a setpoint, and only while cooling:
@@ -342,7 +339,7 @@ impl NativeCamera for SvbonyCamera {
             return Err(NativeError::NotSupported);
         }
 
-        // Use async mutex-protected method
+        // Use async method that takes the SDK lock
         let value = self
             .get_control_value_async(SvbControlType::CurrentTemperature)
             .await?;
@@ -357,7 +354,7 @@ impl NativeCamera for SvbonyCamera {
             return Err(NativeError::NotSupported);
         }
 
-        // Use async mutex-protected method
+        // Use async method that takes the SDK lock
         let value = self
             .get_control_value_async(SvbControlType::CoolerPower)
             .await?;
@@ -365,7 +362,7 @@ impl NativeCamera for SvbonyCamera {
     }
 
     async fn set_gain(&mut self, gain: i32) -> Result<(), NativeError> {
-        // Use async mutex-protected method.
+        // Use async method that takes the SDK lock.
         // Why: i32 -> i64 is widening (sign-extended); always safe.
         self.set_control_value_async(SvbControlType::Gain, gain as i64)
             .await?;
@@ -379,7 +376,7 @@ impl NativeCamera for SvbonyCamera {
     }
 
     async fn set_offset(&mut self, offset: i32) -> Result<(), NativeError> {
-        // Use async mutex-protected method.
+        // Use async method that takes the SDK lock.
         // Why: i32 -> i64 is widening (sign-extended); always safe.
         self.set_control_value_async(SvbControlType::BlackLevel, offset as i64)
             .await?;
@@ -414,7 +411,7 @@ impl NativeCamera for SvbonyCamera {
                 bin_x, bin_y
             )));
         }
-        let sdk = get_sdk()?;
+        let sdk = SvbonySdk::installed()?;
 
         // Why: sensor_info.width/height are u32 (<= 16k on SVBony hardware); converting
         // to i32 via try_from is the right way to fail closed on any pathological value.
@@ -434,10 +431,10 @@ impl NativeCamera for SvbonyCamera {
         let width = width_i32 / bin;
         let height = height_i32 / bin;
 
-        // Acquire mutex for SDK operations
-        let _lock = svbony_mutex().lock().await;
+        // Acquire the SDK lock for SDK operations
+        let sdk = sdk.lock().await;
 
-        // SAFETY: svbony_mutex held above (in set_binning()); `self.camera_id` validated; all six arguments are POD c_int (no out-pointers). `width`/`height` were computed from sensor_info divided by `bin` which is ≥ 1 (bin_x.min(bin_y)) and clamped by capabilities.max_bin_x, so dimensions stay within the sensor.
+        // SAFETY: `self.camera_id` validated; all six arguments are POD c_int (no out-pointers). `width`/`height` were computed from sensor_info divided by `bin` which is ≥ 1 (bin_x.min(bin_y)) and clamped by capabilities.max_bin_x, so dimensions stay within the sensor.
         let result = unsafe {
             (sdk.set_roi_format)(
                 self.camera_id,
@@ -466,7 +463,7 @@ impl NativeCamera for SvbonyCamera {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = get_sdk()?;
+        let sdk = SvbonySdk::installed()?;
 
         // Why: SubFrame coordinates are u32, SDK wants c_int (i32). Surface a too-large
         // u32 as InvalidParameter rather than wrap. current_bin_{x,y} must be > 0; we
@@ -529,10 +526,10 @@ impl NativeCamera for SvbonyCamera {
             }
         };
 
-        // Acquire mutex for SDK operations
-        let _lock = svbony_mutex().lock().await;
+        // Acquire the SDK lock for SDK operations
+        let sdk = sdk.lock().await;
 
-        // SAFETY: svbony_mutex held above (in set_subframe()); `self.camera_id` validated; all six arguments are POD c_int (no out-pointers). `start_x/start_y/width/height` come from either the caller-supplied SubFrame (validated by upstream subframe logic) or default to full-sensor dimensions scaled by current binning, so the SDK clamps to sensor bounds.
+        // SAFETY: `self.camera_id` validated; all six arguments are POD c_int (no out-pointers). `start_x/start_y/width/height` come from either the caller-supplied SubFrame (validated by upstream subframe logic) or default to full-sensor dimensions scaled by current binning, so the SDK clamps to sensor bounds.
         let result = unsafe {
             (sdk.set_roi_format)(
                 self.camera_id,
@@ -585,7 +582,7 @@ impl NativeCamera for SvbonyCamera {
             return Err(NativeError::NotConnected);
         }
 
-        // Use async mutex-protected method.
+        // Use async method that takes the SDK lock.
         // Why: gain min/max are small non-negative integers (<= ~720 per SVBony spec)
         // returned as i64 from the control range API. `as i32` saturating truncation is
         // safe in this range.
@@ -598,7 +595,7 @@ impl NativeCamera for SvbonyCamera {
             return Err(NativeError::NotConnected);
         }
 
-        // SVBony uses BlackLevel as the offset control (use async mutex-protected method).
+        // SVBony uses BlackLevel as the offset control (use async method that takes the SDK lock).
         // Why: BlackLevel min/max are small non-negative integers (<= ~512) returned as
         // i64. `as i32` saturating truncation is safe in this range.
         let (min, max) = self

@@ -45,14 +45,21 @@ pub(crate) fn sdk_version_from_sdk(sdk: &GPhoto2Sdk) -> Option<String> {
 /// Returns a list of detected cameras with their model names and USB ports.
 /// This function uses `gp_camera_autodetect` to find all connected PTP cameras.
 pub fn detect_gphoto2_cameras() -> Vec<DetectedGPhoto2Camera> {
-    let sdk = match GPhoto2Sdk::get() {
-        Some(sdk) => sdk,
-        None => return Vec::new(),
+    let sdk = match GPhoto2Sdk::installed() {
+        Ok(sdk) => sdk,
+        Err(_) => return Vec::new(),
     };
 
-    // SAFETY: gphoto2_mutex is implicitly held because `detect_gphoto2_cameras` runs
-    // on the discovery code path that serializes SDK access (libgphoto2 is not
-    // thread-safe). All `gp_*` calls are paired with their explicit free/unref calls
+    // Unlocked on purpose: device discovery calls this synchronous function
+    // without the gphoto2 lock and cannot wait for it here. `connect` runs the
+    // same scan under its guard.
+    detect_cameras_with(sdk.unlocked())
+}
+
+/// The autodetect scan itself, for a caller that already has the function
+/// table: `connect` under its guard, or `detect_gphoto2_cameras`.
+pub(crate) fn detect_cameras_with(sdk: &GPhoto2Sdk) -> Vec<DetectedGPhoto2Camera> {
+    // SAFETY: All `gp_*` calls are paired with their explicit free/unref calls
     // before this block exits — `context_unref` matches `context_new`, `list_free`
     // matches `list_new`. Out-pointers (`list`) and the stack-owned `count` are valid
     // local addresses for the duration of the call.
@@ -122,4 +129,9 @@ pub fn detect_gphoto2_cameras() -> Vec<DetectedGPhoto2Camera> {
 
         cameras
     }
+}
+
+/// Check if the gPhoto2 library is available
+pub fn is_sdk_available() -> bool {
+    GPhoto2Sdk::is_available()
 }

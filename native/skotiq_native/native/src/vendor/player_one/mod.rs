@@ -5,8 +5,9 @@
 //!
 //! ## Thread Safety
 //!
-//! The POA SDK is NOT thread-safe. All SDK operations are protected by
-//! `player_one_mutex()` from `crate::sync` to prevent concurrent access.
+//! The POA SDK is NOT thread-safe. The camera and filter-wheel function
+//! tables are only reachable through an `SdkGuard`, and both guards hold the
+//! one `PLAYER_ONE_SDK_LOCK`, so no two Player One calls run concurrently.
 //!
 //! ## `unwrap_or` policy
 //!
@@ -44,7 +45,6 @@
 #![allow(dead_code)] // FFI types must match SDK headers even if not all variants are used
 
 use crate::camera::*;
-use crate::sync::player_one_mutex;
 use crate::traits::*;
 use crate::utils::{calculate_buffer_size_i32, safe_cstr_to_string, CleanupGuard};
 use crate::NativeVendor;

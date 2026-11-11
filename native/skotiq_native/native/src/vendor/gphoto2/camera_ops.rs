@@ -29,14 +29,14 @@ impl NativeDevice for GPhoto2Camera {
             self.port_path
         );
 
-        let sdk = GPhoto2Sdk::get().ok_or_else(|| {
+        let sdk = GPhoto2Sdk::installed().map_err(|e| {
             tracing::error!("Cannot connect to DSLR camera: libgphoto2 not loaded");
-            NativeError::SdkNotLoaded
+            e
         })?;
 
-        let _lock = gphoto2_mutex().lock().await;
+        let sdk = sdk.lock().await;
 
-        let detected = detect_gphoto2_cameras();
+        let detected = detect_cameras_with(&sdk);
         if self.port_path.is_empty() {
             if detected.len() > 1 {
                 return Err(NativeError::InvalidDevice(format!(
@@ -64,8 +64,7 @@ impl NativeDevice for GPhoto2Camera {
             }
         }
 
-        // SAFETY: caller holds gphoto2_mutex (this method is invoked from `connect`,
-        // which acquires the lock). All `gp_*` allocations are paired with their
+        // SAFETY: All `gp_*` allocations are paired with their
         // corresponding free/unref on every error path; on success the resources are
         // stored in `self.gp_camera` / `self.gp_context` and live until `disconnect`.
         // Out-pointer (`camera`) is a stack local.
@@ -105,7 +104,7 @@ impl NativeDevice for GPhoto2Camera {
         }
 
         // Read camera info (ISO values, abilities, sensor dimensions)
-        if let Err(e) = self.populate_camera_info() {
+        if let Err(e) = self.populate_camera_info(&sdk) {
             tracing::warn!("gPhoto2: Failed to populate camera info: {}", e);
             // Non-fatal — we can still capture with defaults
         }
@@ -123,10 +122,9 @@ impl NativeDevice for GPhoto2Camera {
 
     async fn disconnect(&mut self) -> Result<(), NativeError> {
         if self.connected {
-            let sdk = GPhoto2Sdk::get().ok_or(NativeError::SdkNotLoaded)?;
-            let _lock = gphoto2_mutex().lock().await;
+            let sdk = GPhoto2Sdk::lock().await?;
 
-            // SAFETY: `_lock` (gphoto2_mutex guard) is held for the entire block. Each
+            // SAFETY: Each
             // raw pointer is non-null-checked before use and set to null after free so
             // a subsequent drop does not double-free. `camera_exit`+`camera_free` is
             // the libgphoto2-documented teardown sequence; `context_unref` releases
@@ -231,13 +229,13 @@ impl NativeCamera for GPhoto2Camera {
             return Err(NativeError::NotConnected);
         }
 
-        let _lock = gphoto2_mutex().lock().await;
+        let sdk = GPhoto2Sdk::lock().await?;
 
         // Set ISO (gain) if provided
         if let Some(gain) = params.gain {
             if gain >= 0 && (gain as usize) < self.iso_values.len() {
                 let iso_str = &self.iso_values[gain as usize].clone();
-                self.set_config_value_str("iso", iso_str)?;
+                self.set_config_value_str(&sdk, "iso", iso_str)?;
                 self.current_gain = gain;
                 self.current_iso_index = gain;
                 tracing::info!("gPhoto2: Set ISO to {} (gain index {})", iso_str, gain);
@@ -253,7 +251,7 @@ impl NativeCamera for GPhoto2Camera {
         // Force RAW capture format. We always LibRaw-decode the downloaded
         // file, so a body left in JPEG / RAW+JPEG must be switched to RAW or
         // every frame fails to decode. Best-effort (warns if unsupported).
-        self.apply_raw_format();
+        self.apply_raw_format(&sdk);
 
         self.exposure_time = params.duration_secs;
         let use_bulb = params.duration_secs > 30.0;
@@ -266,7 +264,7 @@ impl NativeCamera for GPhoto2Camera {
                 ));
             }
 
-            self.do_bulb_start()?;
+            self.do_bulb_start(&sdk)?;
             self.exposure_state = ExposureState::BulbExposing {
                 start: Instant::now(),
                 duration_secs: params.duration_secs,
@@ -286,8 +284,8 @@ impl NativeCamera for GPhoto2Camera {
                 // fails, is only warned, and the exposure time silently never
                 // changes (wrong sub-30s subs).
                 let set_res = self
-                    .set_config_value_str("shutterspeed", &speed_str)
-                    .or_else(|_| self.set_config_value_str("shutterspeed2", &speed_str));
+                    .set_config_value_str(&sdk, "shutterspeed", &speed_str)
+                    .or_else(|_| self.set_config_value_str(&sdk, "shutterspeed2", &speed_str));
                 if let Err(e) = set_res {
                     tracing::warn!(
                         "gPhoto2: Could not set shutter speed to '{}': {}. Camera will use current setting.",
@@ -307,11 +305,11 @@ impl NativeCamera for GPhoto2Camera {
             // on the camera's storage card. We run it in a blocking task so we don't block
             // the async runtime.
             //
-            // Note: We need to release the mutex before spawning the blocking task,
+            // Note: We need to release the SDK lock before spawning the blocking task,
             // then re-acquire it inside. However, since gp_camera_capture is a blocking
-            // call that needs the mutex, we handle this by keeping the mutex and running
+            // call that needs the lock, we handle this by keeping the lock and running
             // synchronously. The exposure polling system will check is_exposure_complete.
-            self.do_capture()?;
+            self.do_capture(&sdk)?;
             self.exposure_state = ExposureState::Complete;
 
             tracing::info!(
@@ -328,11 +326,11 @@ impl NativeCamera for GPhoto2Camera {
             return Err(NativeError::NotConnected);
         }
 
-        let _lock = gphoto2_mutex().lock().await;
+        let sdk = GPhoto2Sdk::lock().await?;
 
         match self.exposure_state {
             ExposureState::BulbExposing { .. } => {
-                self.do_bulb_stop()?;
+                self.do_bulb_stop(&sdk)?;
                 self.exposure_state = ExposureState::Idle;
                 tracing::info!("gPhoto2: Bulb exposure aborted");
             }
@@ -386,7 +384,7 @@ impl NativeCamera for GPhoto2Camera {
             return Err(NativeError::NotConnected);
         }
 
-        let _lock = gphoto2_mutex().lock().await;
+        let sdk = GPhoto2Sdk::lock().await?;
 
         // If bulb exposure is complete, we need to stop it and wait for the file
         if let ExposureState::BulbExposing {
@@ -395,11 +393,10 @@ impl NativeCamera for GPhoto2Camera {
         } = self.exposure_state
         {
             if start.elapsed().as_secs_f64() >= duration_secs {
-                self.do_bulb_stop()?;
+                self.do_bulb_stop(&sdk)?;
 
                 // After bulb stop, wait for the camera to save the file
                 // and send us the file-added event
-                let sdk = GPhoto2Sdk::get().ok_or(NativeError::SdkNotLoaded)?;
                 let wait_start = Instant::now();
                 let max_wait = Duration::from_secs(30);
 
@@ -410,8 +407,7 @@ impl NativeCamera for GPhoto2Camera {
                         ));
                     }
 
-                    // SAFETY: caller holds gphoto2_mutex (acquired in the outer
-                    // method that contains this loop). `gp_camera`/`gp_context` are
+                    // SAFETY: `gp_camera`/`gp_context` are
                     // valid non-null. `event_data` is libgphoto2-owned and only
                     // dereferenced after both (a) `event_type == 2` confirms it is a
                     // GP_EVENT_FILE_ADDED payload (i.e. `*CameraFilePath`) and (b)
@@ -459,7 +455,7 @@ impl NativeCamera for GPhoto2Camera {
         }
 
         // Download the raw file from camera
-        let raw_bytes = self.download_from_camera()?;
+        let raw_bytes = self.download_from_camera(&sdk)?;
 
         // Reset state
         self.exposure_state = ExposureState::Idle;
@@ -498,9 +494,9 @@ impl NativeCamera for GPhoto2Camera {
             )));
         }
 
-        let _lock = gphoto2_mutex().lock().await;
+        let sdk = GPhoto2Sdk::lock().await?;
         let iso_str = self.iso_values[gain as usize].clone();
-        self.set_config_value_str("iso", &iso_str)?;
+        self.set_config_value_str(&sdk, "iso", &iso_str)?;
         self.current_gain = gain;
         self.current_iso_index = gain;
 
@@ -631,11 +627,9 @@ impl NativeCamera for GPhoto2Camera {
             return Err(NativeError::NotSupported);
         }
 
-        let _lock = gphoto2_mutex().lock().await;
-        let sdk = GPhoto2Sdk::get()
-            .ok_or_else(|| NativeError::SdkError("gPhoto2 SDK not loaded".to_string()))?;
+        let sdk = GPhoto2Sdk::lock().await?;
 
-        // SAFETY: gphoto2_mutex held; gp_camera/gp_context valid while connected.
+        // SAFETY: gp_camera/gp_context valid while connected.
         // gp_file is stack-allocated out-pointer freed on every exit path.
         unsafe {
             let mut gp_file: *mut CameraFile = std::ptr::null_mut();
@@ -674,8 +668,10 @@ impl Drop for GPhoto2Camera {
     fn drop(&mut self) {
         // Ensure camera resources are cleaned up
         if self.connected {
-            if let Some(sdk) = GPhoto2Sdk::get() {
-                // SAFETY: Drop is best-effort cleanup. We do NOT acquire gphoto2_mutex
+            if let Ok(sdk) = GPhoto2Sdk::installed() {
+                // Unlocked on purpose; the SAFETY note below says why.
+                let sdk = sdk.unlocked();
+                // SAFETY: Drop is best-effort cleanup. We do NOT take the SDK lock
                 // here because (a) Drop cannot await, and (b) Drop only runs when the
                 // last owner is releasing the camera, so no other thread should be
                 // touching `gp_camera`/`gp_context`. Each pointer is non-null-checked

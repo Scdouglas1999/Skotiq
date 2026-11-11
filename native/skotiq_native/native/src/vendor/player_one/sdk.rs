@@ -52,12 +52,18 @@ pub(crate) fn poa_pw_candidate_paths() -> Vec<std::path::PathBuf> {
     }
 }
 
+/// The one lock for both Player One libraries: a camera call and a
+/// filter-wheel call never run at the same time.
+pub(crate) static PLAYER_ONE_SDK_LOCK: crate::vendor::sdk_loader::SdkLock =
+    crate::vendor::sdk_loader::SdkLock::new();
+
 crate::load_vendor_sdk! {
     /// POA SDK library wrapper
     vendor_name: "Player One Camera",
     sdk_struct: PoaSdk,
     sdk_static: POA_SDK,
     candidate_paths_fn: poa_camera_candidate_paths,
+    shared_lock: PLAYER_ONE_SDK_LOCK,
     symbols: {
         get_camera_count: b"POAGetCameraCount\0" => unsafe extern "C" fn() -> c_int,
         get_camera_properties: b"POAGetCameraProperties\0" => unsafe extern "C" fn(c_int, *mut POACameraProperties) -> c_int,
@@ -93,6 +99,7 @@ crate::load_vendor_sdk! {
     sdk_struct: PoaPwSdk,
     sdk_static: POA_PW_SDK,
     candidate_paths_fn: poa_pw_candidate_paths,
+    shared_lock: PLAYER_ONE_SDK_LOCK,
     symbols: {
         get_pw_count: b"POAGetPWCount\0" => unsafe extern "C" fn() -> c_int,
         get_pw_properties: b"POAGetPWProperties\0" => unsafe extern "C" fn(c_int, *mut PWProperties) -> c_int,
@@ -284,8 +291,9 @@ pub(crate) fn pw_sdk_version_from_sdk(sdk: &PoaPwSdk) -> Option<String> {
         .map(|version| format!("Player One PW SDK v{version}"))
 }
 
-pub fn pw_sdk_version() -> Option<String> {
-    PoaPwSdk::get().and_then(pw_sdk_version_from_sdk)
+/// Check if the Player One filter-wheel SDK is available
+pub fn is_pw_sdk_available() -> bool {
+    PoaPwSdk::is_available()
 }
 
 pub(crate) fn camera_sdk_version_from_sdk(sdk: &PoaSdk) -> Option<String> {

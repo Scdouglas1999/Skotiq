@@ -5,8 +5,10 @@
 //!
 //! ## Thread Safety
 //!
-//! libgphoto2 is NOT thread-safe. All library operations are protected by
-//! `gphoto2_mutex()` from `crate::sync`.
+//! libgphoto2 is NOT thread-safe. Camera operations reach its function table
+//! only through an `SdkGuard`, which holds the gphoto2 SDK lock. Two paths run
+//! without it and say so where they do: device discovery's autodetect scan and
+//! the best-effort teardown in `Drop`.
 //!
 //! ## Important Behaviors
 //!
@@ -30,7 +32,6 @@
 #![allow(dead_code)] // FFI types must match library headers even if not all are used
 
 use crate::camera::*;
-use crate::sync::gphoto2_mutex;
 use crate::traits::*;
 use crate::NativeVendor;
 use async_trait::async_trait;

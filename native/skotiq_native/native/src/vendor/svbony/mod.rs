@@ -4,14 +4,13 @@
 //!
 //! ## Thread Safety
 //!
-//! The SVBony SDK is NOT thread-safe. All SDK operations are protected
-//! by `svbony_mutex()` from `crate::sync` to prevent concurrent access.
+//! The SVBony SDK is NOT thread-safe. Its function table is only reachable
+//! through an `SdkGuard`, which holds the SDK lock for as long as it lives.
 
 use crate::camera::{
     BayerPattern, CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData,
     ImageMetadata, ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
 };
-use crate::sync::svbony_mutex;
 use crate::traits::{NativeCamera, NativeDevice, NativeError};
 use crate::utils::calculate_buffer_size_i32;
 use crate::NativeVendor;
