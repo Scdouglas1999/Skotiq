@@ -4,6 +4,9 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../equipment/dialogs/indi_server_dialog.dart';
+import '../../settings/widgets/connection_settings_alpaca_dialog.dart';
+
 /// Reusable device-picker step body shared between Camera / Mount /
 /// Focuser / Filter Wheel / Guider onboarding steps.
 ///
@@ -73,6 +76,19 @@ class _OnboardingDevicePickerBodyState
       if (!mounted || _scanRequested) return;
       _runDiscovery();
     });
+  }
+
+  /// Let the user point INDI or Alpaca at the server they actually run, then
+  /// scan again with it. Both dialogs return null when canceled.
+  Future<void> _changeServerAddress(DriverType driver) async {
+    final saved = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => driver == DriverType.indi
+          ? const IndiServerDialog()
+          : const AlpacaServerDialog(),
+    );
+    if (saved == null || !mounted) return;
+    await _runDiscovery();
   }
 
   Future<void> _runDiscovery() async {
@@ -194,6 +210,7 @@ class _OnboardingDevicePickerBodyState
           discovery: discovery,
           drivers: selectedDrivers,
           deviceType: widget.deviceType,
+          onChangeAddress: _changeServerAddress,
         ),
 
         const SizedBox(height: SkotiqTokens.spaceMd),
@@ -267,7 +284,7 @@ String describeBackendFailure(String? rawError) {
   final endpoint = _endpointPattern.firstMatch(raw)?.group(1);
   final at = endpoint ?? 'that address';
 
-  if (lower.contains('connection refused') || lower.contains('os error 111')) {
+  if (backendFailureIsNoServer(raw)) {
     return 'nothing is listening at $at';
   }
   if (lower.contains('timed out') || lower.contains('timeout')) {
@@ -305,16 +322,30 @@ String describeBackendFailure(String? rawError) {
   return raw;
 }
 
+/// True when a scan failed only because no server was running at the address:
+/// the connection was refused. For INDI and Alpaca that is the normal answer
+/// on a machine that does not use them, not a fault.
+@visibleForTesting
+bool backendFailureIsNoServer(String? rawError) {
+  final lower = rawError?.toLowerCase() ?? '';
+  return lower.contains('connection refused') || lower.contains('os error 111');
+}
+
 class _BackendStatusRow extends StatelessWidget {
   const _BackendStatusRow({
     required this.discovery,
     required this.drivers,
     required this.deviceType,
+    required this.onChangeAddress,
   });
 
   final UnifiedDiscoveryState discovery;
   final Set<DriverType> drivers;
   final DeviceType deviceType;
+  final void Function(DriverType driver) onChangeAddress;
+
+  static bool _hasServerAddress(DriverType driver) =>
+      driver == DriverType.indi || driver == DriverType.alpaca;
 
   @override
   Widget build(BuildContext context) {
@@ -322,7 +353,10 @@ class _BackendStatusRow extends StatelessWidget {
 
     final entries =
         drivers.map((d) => MapEntry(d, discovery.backendStates[d])).toList();
-    final failures = <String>[];
+    // One line per backend that did not complete. A server protocol that
+    // answered "nothing here" is said in muted type, never as an error: it is
+    // what INDI and Alpaca answer on a machine that does not run them.
+    final notes = <({DriverType driver, String text, bool problem})>[];
 
     final chips = entries.map((entry) {
       final driver = entry.key;
@@ -362,12 +396,23 @@ class _BackendStatusRow extends StatelessWidget {
                 '$matchingCount found';
             break;
           case DiscoveryStatus.error:
+            if (_hasServerAddress(driver) &&
+                backendFailureIsNoServer(state.error)) {
+              final at = _endpointPattern.firstMatch(state.error!)?.group(1) ??
+                  'the configured address';
+              icon = SkotiqIcons.circle;
+              tone = ChipTone.neutral;
+              label = '${driver.shortLabel}: no server';
+              description = 'No ${driver.shortLabel} server at $at.';
+              notes.add((driver: driver, text: description, problem: false));
+              break;
+            }
             icon = SkotiqIcons.warning;
-            tone = ChipTone.error;
+            tone = ChipTone.warning;
             label = '${driver.shortLabel} (0)';
             description = '${driver.shortLabel}: nothing answered — '
                 '${describeBackendFailure(state.error)}';
-            failures.add(description);
+            notes.add((driver: driver, text: description, problem: true));
             break;
         }
       }
@@ -391,16 +436,29 @@ class _BackendStatusRow extends StatelessWidget {
           runSpacing: SkotiqTokens.spaceXs,
           children: chips,
         ),
-        // A red chip whose only explanation is a hover tooltip is an unexplained
-        // alarm on the first run of a paid product. Say what happened where the
-        // user is already looking.
-        if (failures.isNotEmpty) ...[
-          const SizedBox(height: SkotiqTokens.spaceSm),
-          Text(
-            failures.join('\n'),
-            style: SkotiqTypography.bodySm.copyWith(color: colors.error),
+        // A chip whose only explanation is a hover tooltip leaves the user
+        // guessing. Say what happened where they are already looking.
+        if (notes.isNotEmpty) const SizedBox(height: SkotiqTokens.spaceXs),
+        for (final note in notes)
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: SkotiqTokens.spaceSm,
+            children: [
+              Text(
+                note.text,
+                style: SkotiqTypography.bodySm.copyWith(
+                  color: note.problem ? colors.warning : colors.textMuted,
+                ),
+              ),
+              if (_hasServerAddress(note.driver))
+                SkotiqButton(
+                  label: 'Change address',
+                  variant: ButtonVariant.ghost,
+                  size: ButtonSize.small,
+                  onPressed: () => onChangeAddress(note.driver),
+                ),
+            ],
           ),
-        ],
       ],
     );
   }

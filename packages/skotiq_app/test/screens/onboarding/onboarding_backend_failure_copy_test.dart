@@ -192,7 +192,7 @@ void main() {
         expect(text, isNot(contains('http://')));
       }
       expect(
-        find.textContaining('nothing is listening at localhost:11111'),
+        find.text('No Alpaca server at localhost:11111.'),
         findsOneWidget,
       );
     });
