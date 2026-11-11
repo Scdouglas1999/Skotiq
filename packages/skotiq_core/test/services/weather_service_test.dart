@@ -259,32 +259,6 @@ void main() {
       });
     });
 
-    group('degreesToCardinal', () {
-      test('0 degrees maps to N', () {
-        expect(alertService.degreesToCardinal(0.0), 'N');
-      });
-
-      test('90 degrees maps to E', () {
-        expect(alertService.degreesToCardinal(90.0), 'E');
-      });
-
-      test('180 degrees maps to S', () {
-        expect(alertService.degreesToCardinal(180.0), 'S');
-      });
-
-      test('270 degrees maps to W', () {
-        expect(alertService.degreesToCardinal(270.0), 'W');
-      });
-
-      test('45 degrees maps to NE', () {
-        expect(alertService.degreesToCardinal(45.0), 'NE');
-      });
-
-      test('360 degrees wraps to N', () {
-        expect(alertService.degreesToCardinal(360.0), 'N');
-      });
-    });
-
     group('alertStream', () {
       test('emitAlert publishes to stream', () async {
         final alert = WeatherAlert(

@@ -5,7 +5,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../analytics/widgets/adaptive_chart_container.dart';
-import '../sky_atlas_format.dart';
 
 /// Region-detail growth card: plots the region's cumulative integration HOURS
 /// against the nights folded into it — the "your sky keeps getting deeper"
@@ -55,7 +54,7 @@ class AtlasGrowthCurvePanel extends StatelessWidget {
         SectionHeader(
           title: 'Deepening over time',
           subtitle:
-              '${formatIntegration(curve.totalSeconds)} integrated across '
+              '${DurationFormat.decimalHours(curve.totalSeconds)} integrated across '
               '${points.length} nights',
         ),
         const SizedBox(height: SkotiqTokens.spaceSm),

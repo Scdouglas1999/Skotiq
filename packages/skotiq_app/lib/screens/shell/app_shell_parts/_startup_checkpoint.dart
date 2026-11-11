@@ -206,7 +206,7 @@ Widget buildCheckpointRecoveryDialog({
       : '${ageMinutes ~/ 60}h ${ageMinutes % 60}m ago';
   final integration = DurationFormat.of(
     Duration(seconds: info.completedIntegrationSecs.round()),
-    style: DurationStyle.hoursMinutesTrimmed,
+    style: DurationStyle.short,
   );
   final frames = info.completedExposures;
 

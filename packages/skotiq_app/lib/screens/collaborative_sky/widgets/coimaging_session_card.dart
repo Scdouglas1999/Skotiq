@@ -185,7 +185,7 @@ class CoImagingSessionCard extends StatelessWidget {
               stats: [
                 ResponsiveStat(
                   label: 'COMBINED',
-                  value: formatIntegration(combinedSeconds),
+                  value: DurationFormat.decimalHours(combinedSeconds),
                   icon: LucideIcons.layers,
                   accent: colors.accent,
                 ),

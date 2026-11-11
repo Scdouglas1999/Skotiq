@@ -245,7 +245,7 @@ class ObservationReportService {
                   DurationFormat.of(
                       (session.endTime ?? DateTime.now())
                           .difference(session.startTime),
-                      style: DurationStyle.compact)),
+                      style: DurationStyle.coarse)),
               _headerRow('Status', session.status.toUpperCase()),
               if (locationName != null) _headerRow('Location', locationName),
               if (latitude != null && longitude != null)

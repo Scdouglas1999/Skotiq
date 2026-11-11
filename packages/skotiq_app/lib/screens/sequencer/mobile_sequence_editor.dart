@@ -709,7 +709,7 @@ class _SequencerRecoveryActionsBannerState
               const SizedBox(width: 6),
               _RecoveryChip(
                 label: ctx.isWaiting
-                    ? 'Retry in ${_formatSecs(nextAttemptSecs)}'
+                    ? 'Retry in ${DurationFormat.seconds(nextAttemptSecs, style: DurationStyle.short)}'
                     : ctx.isAttempting
                         ? 'Attempting…'
                         : ctx.isRecovered
@@ -726,13 +726,6 @@ class _SequencerRecoveryActionsBannerState
     );
   }
 
-  String _formatSecs(double s) {
-    if (s.isNaN || s.isInfinite || s <= 0) return '0s';
-    if (s < 60) return '${s.round()}s';
-    final mins = (s / 60).floor();
-    final secs = (s - mins * 60).round();
-    return secs == 0 ? '${mins}m' : '${mins}m ${secs}s';
-  }
 }
 
 class _RecoveryChip extends StatelessWidget {

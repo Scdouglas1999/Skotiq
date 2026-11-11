@@ -512,7 +512,4 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     ));
   }
 
-  String _formatDuration(Duration d) =>
-      DurationFormat.of(d, style: DurationStyle.compact);
-
 }

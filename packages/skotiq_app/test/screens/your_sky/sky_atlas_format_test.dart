@@ -5,17 +5,17 @@ import 'package:skotiq_astro/format.dart';
 void main() {
   group('formatIntegration', () {
     test('clamps non-positive and non-finite to 0s', () {
-      expect(formatIntegration(0), '0s');
-      expect(formatIntegration(-5), '0s');
-      expect(formatIntegration(double.nan), '0s');
-      expect(formatIntegration(double.infinity), '0s');
+      expect(DurationFormat.decimalHours(0), '0s');
+      expect(DurationFormat.decimalHours(-5), '0s');
+      expect(DurationFormat.decimalHours(double.nan), '0s');
+      expect(DurationFormat.decimalHours(double.infinity), '0s');
     });
 
     test('scales seconds -> minutes -> hours', () {
-      expect(formatIntegration(45), '45s');
-      expect(formatIntegration(600), '10m');
-      expect(formatIntegration(3600 * 3.2), '3.2h');
-      expect(formatIntegration(3600 * 41), '41h');
+      expect(DurationFormat.decimalHours(45), '45s');
+      expect(DurationFormat.decimalHours(600), '10m');
+      expect(DurationFormat.decimalHours(3600 * 3.2), '3.2h');
+      expect(DurationFormat.decimalHours(3600 * 41), '41h');
     });
   });
 

@@ -226,14 +226,10 @@ class _SessionHistoryCard extends ConsumerWidget {
     }
   }
 
-  /// Integration in hours, dropping to minutes and seconds below the point
-  /// where "0.0h" stops carrying information.
-  static String? _formatIntegrationHours(double seconds) {
-    if (!seconds.isFinite || seconds <= 0) return null;
-    if (seconds >= 3600) return '${(seconds / 3600).toStringAsFixed(1)}h';
-    if (seconds >= 60) return '${(seconds / 60).round()}m';
-    return '${seconds.round()}s';
-  }
+  static String? _formatIntegrationHours(double seconds) =>
+      !seconds.isFinite || seconds <= 0
+          ? null
+          : DurationFormat.decimalHours(seconds);
 
   void _showSessionDetail(
       BuildContext context, WidgetRef ref, ImagingSession session) {

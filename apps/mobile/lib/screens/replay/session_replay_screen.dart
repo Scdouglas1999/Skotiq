@@ -248,7 +248,7 @@ class _RunHeader extends StatelessWidget {
                   icon: LucideIcons.hourglass,
                   label: DurationFormat.of(
                     duration,
-                    style: DurationStyle.hoursMinutes,
+                    style: DurationStyle.short,
                   ),
                 ),
               _HeaderChip(

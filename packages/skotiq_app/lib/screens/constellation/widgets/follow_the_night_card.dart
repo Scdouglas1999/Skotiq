@@ -122,7 +122,7 @@ class FollowTheNightCard extends StatelessWidget {
             if (suggestion.swarmIntegrationSeconds > 0) ...[
               const SizedBox(height: SkotiqTokens.spaceSm),
               Text(
-                '${formatIntegration(suggestion.swarmIntegrationSeconds)} fused so far',
+                '${DurationFormat.decimalHours(suggestion.swarmIntegrationSeconds)} fused so far',
                 style: SkotiqTypography.captionSm.copyWith(
                   color: colors.textMuted,
                 ),

@@ -233,7 +233,7 @@ extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
                         Readout(
                           value: DurationFormat.of(
                             simulation.duration,
-                            style: DurationStyle.compact,
+                            style: DurationStyle.coarse,
                           ),
                           label: 'Duration',
                           size: ReadoutSize.sm,

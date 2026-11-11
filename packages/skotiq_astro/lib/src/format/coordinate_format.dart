@@ -56,7 +56,6 @@ abstract final class CoordinateFormat {
   static String decCompact(double decDegrees) =>
       _dec(decDegrees, _Shape.dense, secondDecimals: null);
 
-
   /// What a non-finite coordinate reads as: unknown, never a made-up zero.
   static const String _unknown = '—';
 

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/skotiq_core.dart'
     show DbCapturedImage, ImagingSession, allDbImagesProvider;
 // kReadoutUnknown: the one em dash the design system spells, so a screen
@@ -38,7 +39,7 @@ class SessionElapsed {
 
   /// The number, or an em-dash when there is nothing truthful to print.
   String get valueLabel =>
-      duration == null ? kReadoutUnknown : formatSessionDuration(duration!);
+      duration == null ? kReadoutUnknown : DurationFormat.of(duration!, style: DurationStyle.coarse);
 
   /// Qualifier that says which of the four cases produced [valueLabel]. Shown
   /// beside the value so "20m" is never read as a closed session's total.
@@ -100,15 +101,7 @@ String captureSpanLabel(Iterable<DateTime> capturedAt) {
   if (times.length < 2) return kReadoutUnknown;
   final span = times.last.difference(times.first);
   if (span.inHours >= 48) return '${(span.inHours / 24).round()} days';
-  return formatSessionDuration(span);
-}
-
-String formatSessionDuration(Duration d) {
-  final hours = d.inHours;
-  final minutes = d.inMinutes.remainder(60);
-  if (hours > 0) return '${hours}h ${minutes}m';
-  if (minutes > 0) return '${minutes}m';
-  return '${d.inSeconds}s';
+  return DurationFormat.of(span, style: DurationStyle.coarse);
 }
 
 /// Newest frame timestamp per session id.

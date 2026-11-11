@@ -71,7 +71,7 @@ class _OverviewGrid extends StatelessWidget {
         _OverviewTile(
           label: 'Wall clock',
           value: DurationFormat.of(report.wallClockDuration,
-              style: DurationStyle.hoursMinutes),
+              style: DurationStyle.short),
           colors: colors,
         ),
         _OverviewTile(
@@ -82,14 +82,14 @@ class _OverviewGrid extends StatelessWidget {
           // time.
           label: 'Light integration',
           value: DurationFormat.of(report.totalIntegration,
-              style: DurationStyle.hoursMinutes),
+              style: DurationStyle.short),
           colors: colors,
         ),
         if (report.calibration.isNotEmpty)
           _OverviewTile(
             label: 'Calibration',
             value: '${report.calibrationFramesAccepted} frames · '
-                '${DurationFormat.of(Duration(milliseconds: (report.calibrationIntegrationSecs * 1000).round()), style: DurationStyle.hoursMinutes)}',
+                '${DurationFormat.of(Duration(milliseconds: (report.calibrationIntegrationSecs * 1000).round()), style: DurationStyle.short)}',
             colors: colors,
           ),
         _OverviewTile(
@@ -100,7 +100,7 @@ class _OverviewGrid extends StatelessWidget {
         _OverviewTile(
           label: 'Downtime',
           value: DurationFormat.of(report.downtime,
-              style: DurationStyle.hoursMinutes),
+              style: DurationStyle.short),
           colors: colors,
         ),
         _OverviewTile(

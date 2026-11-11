@@ -47,7 +47,7 @@ String nightCelsius(double value) => '${nightFixed(value, 1)} °C';
 /// `4h 12m`; null for no time at all.
 String? nightDuration(double? seconds) {
   if (seconds == null || !seconds.isFinite || seconds <= 0) return null;
-  return DurationFormat.seconds(seconds, style: DurationStyle.compactTrimmed);
+  return DurationFormat.seconds(seconds, style: DurationStyle.coarse);
 }
 
 /// The fewest values a night median is taken over. One or two frames make a

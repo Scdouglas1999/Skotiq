@@ -702,7 +702,7 @@ String targetPlanSummary(PlannedCapture planned) {
   if (planned.frames > 0) {
     final integration = DurationFormat.seconds(
       planned.integrationSecs,
-      style: DurationStyle.compact,
+      style: DurationStyle.coarse,
     );
     parts.add(
       '${countLabel(planned.frames, 'frame')} \u00b7 $integration'
@@ -713,7 +713,7 @@ String targetPlanSummary(PlannedCapture planned) {
     final budget = planned.openEndedBudgetSecs > 0
         ? 'looping up to ${DurationFormat.seconds(
             planned.openEndedBudgetSecs,
-            style: DurationStyle.compact,
+            style: DurationStyle.coarse,
           )}'
         : 'looping until the window closes';
     parts.add(parts.isEmpty ? _sentenceCase(budget) : budget);

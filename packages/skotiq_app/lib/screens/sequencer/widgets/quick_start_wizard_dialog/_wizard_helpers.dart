@@ -536,7 +536,7 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
 
   /// The wizard's "Estimated Duration" line, prefixed "~" because it is one.
   String _formatDuration(double totalSecs) =>
-      '~${DurationFormat.seconds(totalSecs, style: DurationStyle.compact, roundToMinute: true)}';
+      '~${DurationFormat.seconds(totalSecs, style: DurationStyle.coarse, roundToMinute: true)}';
 
   /// Per-iteration dither-settle estimate used by the duration preview.
   /// Reads the user's Sequencer-Defaults settle time so the wizard's

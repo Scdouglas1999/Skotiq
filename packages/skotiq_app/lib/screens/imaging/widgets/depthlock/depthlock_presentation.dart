@@ -191,17 +191,6 @@ String depthLockErrorMessage(Object error) {
 double depthLockHours({required int frames, required double exposureSecs}) =>
     frames <= 0 || exposureSecs <= 0 ? 0 : frames * exposureSecs / 3600.0;
 
-/// Integration time written the way an observer plans with it.
-///
-/// Hours to one decimal above one hour, minutes below: "2.4 h", "35 min".
-/// Never a clock time or a finish date — the forecast is a quantity of
-/// integration, and the night it lands on depends on weather nobody has.
-String depthLockDuration(double hours) {
-  if (hours <= 0) return '0 min';
-  if (hours < 1) return '${(hours * 60).round()} min';
-  return '${hours.toStringAsFixed(1)} h';
-}
-
 /// What the goal expects still to cost, or null when there is nothing to say.
 ///
 /// Every phrasing that quotes a number also says the assumption it rests on:
@@ -248,7 +237,7 @@ String? depthLockForecastLine(DepthLockGoal goal) {
   final String confirm = forecast.framesToConfirm > 0
       ? ', then ${forecast.framesToConfirm} to confirm'
       : '';
-  return 'About ${depthLockDuration(hours)} more ($toThreshold '
+  return 'About ${DurationFormat.decimalHours(hours * 3600)} more ($toThreshold '
       'exposure${toThreshold == 1 ? '' : 's'}) at the recent sky$confirm.';
 }
 
@@ -307,7 +296,7 @@ String? depthLockAllocationSummary(List<DepthLockGoal> goals) {
   for (final filter in order) {
     final String value;
     if (anyReachable[filter] == true) {
-      value = depthLockDuration(remainingHours[filter] ?? 0);
+      value = DurationFormat.decimalHours((remainingHours[filter] ?? 0) * 3600);
     } else if (anyCapped[filter] == true) {
       value = 'floor limit';
     } else {

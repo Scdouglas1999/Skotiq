@@ -450,7 +450,7 @@ class ParsedRunStats {
 
   /// Delegates to the shared formatter so the run cards, the history tab and
   /// the Continue Session dialog all describe one run identically.
-  String formatDuration(double secs) => formatIntegrationSeconds(secs);
+  String formatDuration(double secs) => DurationFormat.seconds(secs);
 }
 
 // Providers

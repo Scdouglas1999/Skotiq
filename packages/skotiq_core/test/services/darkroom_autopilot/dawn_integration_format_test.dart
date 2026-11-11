@@ -55,24 +55,24 @@ DawnJobReport _report(double seconds) => DawnJobReport(
 
 void main() {
   test('a night that integrated nothing keeps the zero sentinel', () {
-    expect(formatDawnIntegration(0), '0m');
-    expect(formatDawnIntegration(-1), '0m');
+    expect(DurationFormat.seconds(0, style: DurationStyle.coarse, roundToMinute: true), '0m');
+    expect(DurationFormat.seconds(-1, style: DurationStyle.coarse, roundToMinute: true), '0m');
   });
 
   test('a sub-minute night states its seconds, never "0m"', () {
-    expect(formatDawnIntegration(24.0), '24 s');
-    expect(formatDawnIntegration(1.0), '1 s');
+    expect(DurationFormat.seconds(24.0, style: DurationStyle.coarse, roundToMinute: true), '24 s');
+    expect(DurationFormat.seconds(1.0, style: DurationStyle.coarse, roundToMinute: true), '1 s');
     // A fraction of a second rounds UP so it can never land back on the 0 the
     // zero branch owns.
-    expect(formatDawnIntegration(0.4), '1 s');
+    expect(DurationFormat.seconds(0.4, style: DurationStyle.coarse, roundToMinute: true), '1 s');
   });
 
   test('a whole minute and above is unchanged', () {
-    expect(formatDawnIntegration(60.0), '1m');
+    expect(DurationFormat.seconds(60.0, style: DurationStyle.coarse, roundToMinute: true), '1m');
     // 59.9s ceilings to 60 seconds, which is a minute — not "60 s".
-    expect(formatDawnIntegration(59.9), '1m');
-    expect(formatDawnIntegration(2520.0), '42m');
-    expect(formatDawnIntegration(11520.0), '3h 12m');
+    expect(DurationFormat.seconds(59.9, style: DurationStyle.coarse, roundToMinute: true), '1m');
+    expect(DurationFormat.seconds(2520.0, style: DurationStyle.coarse, roundToMinute: true), '42m');
+    expect(DurationFormat.seconds(11520.0, style: DurationStyle.coarse, roundToMinute: true), '3h 12m');
   });
 
   test('the morning headline for a 24 s night does not read "0m"', () {

@@ -305,7 +305,7 @@ class CapturePanel extends ConsumerWidget {
             children: [
               Readout(value: '$capturedCount', label: 'Captured'),
               Readout(
-                value: formatIntegrationSeconds(integrationSecs),
+                value: DurationFormat.seconds(integrationSecs),
                 label: 'Integration',
               ),
               Readout(
@@ -443,9 +443,7 @@ class CapturePanel extends ConsumerWidget {
                     ('Images captured', '${sessionState.completedExposures}'),
                     (
                       'Total integration',
-                      formatIntegrationSeconds(
-                        sessionState.totalIntegrationSecs,
-                      ),
+                      DurationFormat.seconds(sessionState.totalIntegrationSecs),
                     ),
                     (
                       'Duration',

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_astro/format.dart';
 
 import '../../database/daos/images_dao.dart';
 import '../../database/daos/science_dao.dart';
@@ -160,7 +161,7 @@ class ScienceReportExporter {
       if (session.endTime != null)
         '- **Ended (UTC):** ${_utcStamp(session.endTime!)}',
       if (session.endTime != null)
-        '- **Wall-clock:** ${_humanDuration(session.endTime!.difference(session.startTime))}',
+        '- **Wall-clock:** ${DurationFormat.of(session.endTime!.difference(session.startTime))}',
     ];
     return lines.join('\n');
   }
@@ -183,7 +184,7 @@ class ScienceReportExporter {
         '| Flat | ${_countOf(images, "flat")} | — | — |\n'
         '| Bias | ${_countOf(images, "bias")} | — | — |\n'
         '\n'
-        '**Accepted integration time:** ${_humanDuration(Duration(seconds: integrationSeconds.round()))}.';
+        '**Accepted integration time:** ${DurationFormat.of(Duration(seconds: integrationSeconds.round()))}.';
   }
 
   int _countOf(List<CapturedImage> images, String type) =>
@@ -388,7 +389,7 @@ class ScienceReportExporter {
     }
     final rows = perFilter.entries
         .map((entry) {
-          return '| ${entry.key} | ${entry.value.frames} | ${_humanDuration(Duration(seconds: entry.value.seconds.round()))} |';
+          return '| ${entry.key} | ${entry.value.frames} | ${DurationFormat.of(Duration(seconds: entry.value.seconds.round()))} |';
         })
         .join('\n');
     return '## Filter breakdown\n'
@@ -414,15 +415,6 @@ class ScienceReportExporter {
     return lines.toString();
   }
 
-  String _humanDuration(Duration d) {
-    if (d.inSeconds <= 0) return '0s';
-    final hours = d.inHours;
-    final minutes = d.inMinutes.remainder(60);
-    final seconds = d.inSeconds.remainder(60);
-    if (hours > 0) return '${hours}h ${minutes}m ${seconds}s';
-    if (minutes > 0) return '${minutes}m ${seconds}s';
-    return '${seconds}s';
-  }
 }
 
 /// Riverpod provider — the exporter is stateless beyond its DAO refs, so

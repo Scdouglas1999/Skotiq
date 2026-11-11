@@ -206,7 +206,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Total: ${_formatDuration(end.difference(start))}',
+                    'Total: ${DurationFormat.of(end.difference(start), style: DurationStyle.coarse)}',
                     style: TextStyle(
                       color: colors.textSecondary,
                       fontSize: SkotiqTypography.fontSize12,
@@ -836,17 +836,13 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                 _SummaryRow(
                   icon: LucideIcons.camera,
                   label: 'Total integration',
-                  value: _formatDuration(
-                    Duration(seconds: plan.totalIntegrationSecs.round()),
-                  ),
+                  value: DurationFormat.of(Duration(seconds: plan.totalIntegrationSecs.round()), style: DurationStyle.coarse),
                   colors: colors,
                 ),
                 _SummaryRow(
                   icon: LucideIcons.clock,
                   label: 'Estimated wall-clock',
-                  value: _formatDuration(
-                    Duration(seconds: plan.estimatedWallClockSecs.round()),
-                  ),
+                  value: DurationFormat.of(Duration(seconds: plan.estimatedWallClockSecs.round()), style: DurationStyle.coarse),
                   colors: colors,
                 ),
                 _SummaryRow(

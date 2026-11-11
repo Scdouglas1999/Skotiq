@@ -618,14 +618,12 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
           'Est. completion: ${ClockFormat.hm(_estimatedEndTime)}';
       if (!isInPast && remaining.inMinutes > 0) {
         completionText +=
-            ' (~${_formatRemainingDuration(remaining)} remaining)';
+            ' (~${DurationFormat.of(remaining, style: DurationStyle.coarse)} remaining)';
       } else if (isInPast) {
         completionText += ' (completed)';
       }
     } else {
-      completionText = 'Duration: ${_formatRemainingDuration(
-        Duration(seconds: widget.totalDuration.round()),
-      )}';
+      completionText = 'Duration: ${DurationFormat.of(Duration(seconds: widget.totalDuration.round()), style: DurationStyle.coarse)}';
     }
 
     return Row(
@@ -649,16 +647,6 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
   }
 
   String _formatDuration(double seconds) =>
-      '${DurationFormat.seconds(seconds, style: DurationStyle.compact, rounding: DurationRounding.truncate)} total';
-
-  String _formatRemainingDuration(Duration duration) {
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes % 60;
-
-    if (hours > 0) {
-      return '${hours}h ${minutes}m';
-    }
-    return '${minutes}m';
-  }
+      '${DurationFormat.seconds(seconds, style: DurationStyle.coarse, rounding: DurationRounding.truncate)} total';
 
 }

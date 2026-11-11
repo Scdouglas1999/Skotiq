@@ -1,73 +1,48 @@
-/// Human-readable integration / elapsed times, in the one shape the app uses.
+/// Lengths of time as text: integration, elapsed and remaining times.
 ///
-/// One formatter, so two surfaces cannot disagree: a dialog that formats
-/// integration as whole minutes reads "0 minutes" for a 12-second session and
-/// "2 minutes" for 90 seconds, while the dashboard's last-run card renders the
-/// same run as "12s". Reporting real captured photons as "0 minutes" reads as
-/// "the run did nothing".
-///
-/// Four distinct output shapes are in use across the app, so [DurationFormat]
-/// is parameterised by [DurationStyle] rather than picking a winner and
-/// silently restyling half the surfaces.
-///
-/// All four styles render seconds below one minute, so "0m" is unreachable: a
-/// whole-minutes-only rendering puts "4 planned exposures • 0m" next to a
-/// "~20s" estimate for the same node. Above one minute the styles agree with
-/// their call sites.
+/// One formatter, so two surfaces cannot disagree about the same run (a dialog
+/// that printed whole minutes read "0 minutes" for a 12-second session while
+/// the dashboard read "12s").
 library;
 
-/// Which units a duration string shows, and where it stops.
+/// How much of a duration the text carries.
 enum DurationStyle {
-  /// `1h 2m 3s` / `2m 3s` / `3s` — units dropped from the left only, so the
-  /// string never silently loses precision.
-  hms,
+  /// Every unit from the largest down: `1h 2m 3s`, `2m 3s`, `3s`. For a
+  /// recorded total where the seconds are real.
+  exact,
 
-  /// `1h 2m` / `2m 3s` / `3s` — hours suppress the seconds field, but a
-  /// sub-hour duration still carries its seconds.
-  hoursMinutes,
+  /// The two largest units, a zero second one dropped: `1h 2m`, `2h`,
+  /// `2m 3s`, `2m`, `3s`.
+  short,
 
-  /// [hoursMinutes] with a zero trailing field dropped: `1h 2m` / `1h` /
-  /// `2m 3s` / `2m` / `3s`.
-  hoursMinutesTrimmed,
-
-  /// `1h 2m` / `2h 0m` / `2m` / `3s` — the two largest units, seconds only
-  /// below one minute. A zero minutes field is kept when hours are present.
-  compact,
-
-  /// [compact] with a zero minutes field dropped: `1h 2m` / `2h` / `2m` / `3s`.
-  compactTrimmed,
+  /// Hours and minutes only once a minute has passed: `1h 2m`, `2h`, `2m`,
+  /// `3s`. For estimates and long totals, where seconds are noise.
+  coarse,
 }
 
 /// How a fractional-seconds input is reduced to whole seconds.
 enum DurationRounding {
-  /// Round to nearest, so `59.6` reads `1m 0s` rather than `60s`.
+  /// Round to nearest, so `59.6` reads `1m` rather than `60s`.
   nearest,
 
-  /// Truncate towards zero, matching a `Duration`-based caller that read
-  /// `inHours` / `inMinutes` / `inSeconds`.
+  /// Truncate towards zero, as a caller reading `Duration.inSeconds` does.
   truncate,
 }
 
-/// One duration formatter, parameterised to reproduce every shape the app
-/// actually renders.
-///
-/// The output of every method is a **user-visible contract** pinned by
-/// `duration_format_parity_test.dart`; changing a glyph changes screens.
 abstract final class DurationFormat {
   /// Format [value] seconds.
   ///
-  /// [rounding] governs only the fractional part of the input. [roundToMinute]
-  /// applies to [DurationStyle.compact] / [DurationStyle.compactTrimmed], whose
-  /// smallest rendered unit above a minute is the minute: with it set, the
-  /// leftover seconds round into the minutes field instead of being dropped,
-  /// and a minute that rounds up to 60 carries into the hours field (the
-  /// retired copies rendered `1h 60m` there).
+  /// [rounding] governs only the fractional part of the input. With
+  /// [roundToMinute], [DurationStyle.coarse] rounds the leftover seconds into
+  /// the minutes instead of dropping them, and a 60th minute carries into the
+  /// hours.
   ///
-  /// Non-finite, zero and negative inputs collapse to `0s` rather than
-  /// rendering a nonsense duration.
+  /// Sub-minute times always show their seconds, so no style can print `0m`
+  /// for a run that did capture something. Non-finite, zero and negative
+  /// inputs read `0s`.
   static String seconds(
     num value, {
-    DurationStyle style = DurationStyle.hms,
+    DurationStyle style = DurationStyle.exact,
     DurationRounding rounding = DurationRounding.nearest,
     bool roundToMinute = false,
   }) {
@@ -78,11 +53,10 @@ abstract final class DurationFormat {
     return _render(total, style, roundToMinute);
   }
 
-  /// Format a [Duration]. Sub-second precision is truncated, which is what a
-  /// caller reading `d.inSeconds` already did.
+  /// Format a [Duration]. Sub-second precision is truncated.
   static String of(
     Duration d, {
-    DurationStyle style = DurationStyle.hms,
+    DurationStyle style = DurationStyle.exact,
     bool roundToMinute = false,
   }) {
     final total = d.inSeconds;
@@ -90,53 +64,39 @@ abstract final class DurationFormat {
     return _render(total, style, roundToMinute);
   }
 
+  /// Total integration the way imagers quote it: decimal hours from one hour
+  /// up (`1.5h`, `12.3h`, `140h`), the [DurationStyle.coarse] text below
+  /// (`45m`, `30s`).
+  static String decimalHours(num seconds) {
+    final v = seconds.toDouble();
+    if (!v.isFinite || v <= 0) return '0s';
+    final hours = v / 3600;
+    if (hours < 1)
+      return DurationFormat.seconds(v, style: DurationStyle.coarse);
+    return '${hours.toStringAsFixed(hours < 99.95 ? 1 : 0)}h';
+  }
+
   static String _render(int totalSeconds, DurationStyle style, bool toMinute) {
     var total = totalSeconds;
-    if (toMinute &&
-        total >= 60 &&
-        (style == DurationStyle.compact ||
-            style == DurationStyle.compactTrimmed)) {
-      // Quantize at the minute so a rounded 60th minute carries into hours
-      // structurally instead of printing "1h 60m".
+    if (toMinute && total >= 60 && style == DurationStyle.coarse) {
       total = (total / 60).round() * 60;
     }
     final hours = total ~/ 3600;
     final mins = (total % 3600) ~/ 60;
     final secs = total % 60;
     switch (style) {
-      case DurationStyle.hms:
+      case DurationStyle.exact:
         if (hours > 0) return '${hours}h ${mins}m ${secs}s';
         if (mins > 0) return '${mins}m ${secs}s';
         return '${secs}s';
-      case DurationStyle.hoursMinutes:
-        if (hours > 0) return '${hours}h ${mins}m';
-        if (mins > 0) return '${mins}m ${secs}s';
-        return '${secs}s';
-      case DurationStyle.hoursMinutesTrimmed:
+      case DurationStyle.short:
         if (hours > 0) return mins > 0 ? '${hours}h ${mins}m' : '${hours}h';
         if (mins > 0) return secs > 0 ? '${mins}m ${secs}s' : '${mins}m';
         return '${secs}s';
-      case DurationStyle.compact:
-        if (hours > 0) return '${hours}h ${mins}m';
-        if (mins > 0) return '${mins}m';
-        return '${secs}s';
-      case DurationStyle.compactTrimmed:
+      case DurationStyle.coarse:
         if (hours > 0) return mins > 0 ? '${hours}h ${mins}m' : '${hours}h';
         if (mins > 0) return '${mins}m';
         return '${secs}s';
     }
   }
 }
-
-/// Format [seconds] as `1h 2m 3s` / `2m 3s` / `3s`.
-///
-/// Units are dropped from the left only: once hours are present, minutes and
-/// seconds are always shown, so the string never silently loses precision.
-/// Negative and non-finite inputs collapse to `0s` rather than rendering a
-/// nonsense duration.
-String formatIntegrationSeconds(double seconds) =>
-    DurationFormat.seconds(seconds, style: DurationStyle.hms);
-
-/// [formatIntegrationSeconds] for a value already expressed in hours.
-String formatIntegrationHours(double hours) =>
-    formatIntegrationSeconds(hours * 3600);

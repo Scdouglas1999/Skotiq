@@ -447,7 +447,7 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                 Icon(LucideIcons.clock, size: 14, color: colors.primary),
                 const SizedBox(width: 8),
                 Text(
-                  'Total: ${_formatDuration(node.totalDurationSecs)}',
+                  'Total: ${DurationFormat.seconds(node.totalDurationSecs, style: DurationStyle.short)}',
                   style: TextStyle(
                     fontSize: Responsive.fontSize(context, 13),
                     fontWeight: FontWeight.w500,
@@ -649,11 +649,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
     );
   }
 
-  String _formatDuration(double secs) {
-    if (secs < 60) return '${secs.toStringAsFixed(1)}s';
-    if (secs < 3600) return '${(secs / 60).toStringAsFixed(1)}m';
-    return '${(secs / 3600).toStringAsFixed(1)}h';
-  }
 }
 
 class _ExposureRecommendationCard extends StatelessWidget {

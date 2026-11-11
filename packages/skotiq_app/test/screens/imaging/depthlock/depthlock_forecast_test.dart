@@ -59,12 +59,6 @@ DepthLockGoal _goal({
 
 void main() {
   group('duration', () {
-    test('reads in the unit the quantity deserves', () {
-      expect(depthLockDuration(2.4), '2.4 h');
-      expect(depthLockDuration(0.5), '30 min');
-      expect(depthLockDuration(0), '0 min');
-    });
-
     test('hours come from frames and the goal\'s own exposure', () {
       expect(depthLockHours(frames: 18, exposureSecs: 300), closeTo(1.5, 1e-9));
       expect(depthLockHours(frames: 0, exposureSecs: 300), 0);

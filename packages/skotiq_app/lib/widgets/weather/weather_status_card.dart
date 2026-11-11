@@ -61,36 +61,10 @@ class WeatherStatusCard extends StatelessWidget {
     }
   }
 
-  static String _formatEta(Duration eta) {
-    final minutes = eta.inMinutes;
-    if (minutes < 2) return 'Imminent';
-    if (minutes < 60) return '~$minutes min';
-    final hours = eta.inHours;
-    return '~${hours}h ${minutes % 60}m';
-  }
+  static String _formatEta(Duration eta) => eta.inMinutes < 2
+      ? 'Imminent'
+      : '~${DurationFormat.of(eta, style: DurationStyle.coarse)}';
 
-  static String _degreesToCardinal(double degrees) {
-    final normalized = degrees % 360;
-    const directions = [
-      'N',
-      'NNE',
-      'NE',
-      'ENE',
-      'E',
-      'ESE',
-      'SE',
-      'SSE',
-      'S',
-      'SSW',
-      'SW',
-      'WSW',
-      'W',
-      'WNW',
-      'NW',
-      'NNW',
-    ];
-    return directions[((normalized + 11.25) / 22.5).floor() % 16];
-  }
 
   static String _formatLastUpdate(DateTime time) {
     final difference = DateTime.now().difference(time);
@@ -160,7 +134,7 @@ class WeatherStatusCard extends StatelessWidget {
                     size: ReadoutSize.sm,
                   ),
                   Readout(
-                    value: _degreesToCardinal(motion!.directionDegrees),
+                    value: AngleFormat.compass(motion!.directionDegrees, points: 8),
                     label: 'Toward',
                     size: ReadoutSize.sm,
                   ),

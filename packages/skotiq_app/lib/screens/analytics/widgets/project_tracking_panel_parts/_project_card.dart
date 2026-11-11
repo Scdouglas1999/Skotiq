@@ -10,9 +10,6 @@ class _EnhancedProjectCard extends ConsumerWidget {
     required this.filterBreakdown,
   });
 
-  String _formatHours(double seconds) =>
-      '${(seconds / 3600.0).toStringAsFixed(1)}h';
-
   Future<void> _editGoal(BuildContext context, WidgetRef ref) async {
     final authority = ref.read(backendProvider);
     final l10n = context.l10n;
@@ -219,14 +216,14 @@ class _EnhancedProjectCard extends ConsumerWidget {
               _MetricChip(
                 icon: LucideIcons.timer,
                 label: 'Integrated',
-                value: _formatHours(progress.integratedSecs),
+                value: DurationFormat.decimalHours(progress.integratedSecs),
                 colors: colors,
               ),
               _MetricChip(
                 icon: LucideIcons.target,
                 label: 'Goal',
                 value: progress.isTracked
-                    ? _formatHours(progress.goalIntegrationSecs)
+                    ? DurationFormat.decimalHours(progress.goalIntegrationSecs)
                     : 'Not set',
                 colors: colors,
               ),
@@ -234,7 +231,7 @@ class _EnhancedProjectCard extends ConsumerWidget {
                 icon: LucideIcons.hourglass,
                 label: 'Remaining',
                 value: progress.isTracked
-                    ? _formatHours(progress.remainingSecs)
+                    ? DurationFormat.decimalHours(progress.remainingSecs)
                     : kReadoutUnknown,
                 colors: colors,
               ),

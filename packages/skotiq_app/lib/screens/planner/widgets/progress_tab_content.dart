@@ -255,7 +255,7 @@ class _ProgressRow extends StatelessWidget {
     final etaLabel = _formatEta(progress.estimatedNightsRemaining);
     final lastImagedLabel = _formatLastImaged(progress.lastImagedAt);
     final integrationLabel =
-        '${_formatHours(progress.totalIntegrationCaptured)} / ${_formatHours(progress.totalIntegrationGoal)}';
+        '${DurationFormat.decimalHours(progress.totalIntegrationCaptured.inSeconds)} / ${DurationFormat.decimalHours(progress.totalIntegrationGoal.inSeconds)}';
     final framesLabel =
         '${progress.totalCapturedFrames} / ${progress.totalGoalFrames}';
 
@@ -426,12 +426,6 @@ class _ProgressRow extends StatelessWidget {
     return '$nights nights ago';
   }
 
-  String _formatHours(Duration d) {
-    final hours = d.inSeconds / 3600.0;
-    if (hours < 0.05) return '0h';
-    if (hours < 10) return '${hours.toStringAsFixed(1)}h';
-    return '${hours.toStringAsFixed(0)}h';
-  }
 }
 
 class _ProgressBar extends StatelessWidget {

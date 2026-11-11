@@ -20,6 +20,7 @@
 // missing-required-field errors and the self-correction loop teaches
 // the model which fields it actually needs.
 
+import 'package:skotiq_astro/format.dart';
 import 'conversational_builder_service.dart';
 
 /// Composes the conversational builder system prompt. Stateless — held
@@ -396,7 +397,7 @@ class SystemPromptBuilder {
 
   String _durationLabel(DateTime start, DateTime end) {
     final hours = end.difference(start).inMinutes / 60.0;
-    return formatHours(hours);
+    return DurationFormat.decimalHours(hours * 3600);
   }
 }
 

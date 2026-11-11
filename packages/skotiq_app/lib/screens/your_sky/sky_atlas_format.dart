@@ -5,18 +5,6 @@ import 'dart:math' as math;
 
 import 'package:skotiq_core/skotiq_core.dart';
 
-/// Format an integration duration (seconds) as a compact human string:
-/// `45s`, `12m`, `3.2h`, `41h`. Negative / non-finite inputs clamp to `0s`.
-String formatIntegration(double seconds) {
-  if (!seconds.isFinite || seconds <= 0) return '0s';
-  if (seconds < 60) return '${seconds.round()}s';
-  final minutes = seconds / 60.0;
-  if (minutes < 60) return '${minutes.round()}m';
-  final hours = seconds / 3600.0;
-  if (hours < 10) return '${hours.toStringAsFixed(1)}h';
-  return '${hours.round()}h';
-}
-
 String formatCenter(double raDeg, double decDeg) =>
     '${CoordinateFormat.raCompactFromDegrees(raDeg)} · ${CoordinateFormat.decCompact(decDeg)}';
 
@@ -32,7 +20,7 @@ String? formatGrowthDelta({
   String period = 'yesterday',
 }) {
   if (!recentSeconds.isFinite || recentSeconds <= 0) return null;
-  final deeper = formatIntegration(recentSeconds);
+  final deeper = DurationFormat.decimalHours(recentSeconds);
   if (priorSeconds <= 0) {
     return '$deeper of first light';
   }

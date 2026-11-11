@@ -532,14 +532,14 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     final String planLabel;
     if (plan.hasOpenEndedLoop) {
       final loopPart = plan.openEndedBudgetSecs > 0
-          ? 'Looping • up to ${_formatDuration(plan.openEndedBudgetSecs)} (until window end)'
+          ? 'Looping • up to ${DurationFormat.seconds(plan.openEndedBudgetSecs, style: DurationStyle.coarse)} (until window end)'
           : 'Looping until window end';
       planLabel = plan.frames > 0
           ? '${plan.frames} planned exposures + $loopPart'
           : loopPart;
     } else if (plan.frames > 0) {
       final counted =
-          '${plan.frames} planned exposures • ${_formatDuration(plan.integrationSecs)}';
+          '${plan.frames} planned exposures • ${DurationFormat.seconds(plan.integrationSecs, style: DurationStyle.coarse)}';
       // Under a time/altitude/forever loop the counted figure is one pass, not
       // the night's total — say so rather than quoting a floor as the plan.
       planLabel = plan.hasUnboundedRepeat
@@ -609,8 +609,8 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     // directly above it in the same card read "~34s". The estimate beside it
     // uses the shared compact duration format, so this uses it too and the two
     // halves of one card finally quote the same unit.
-    final completedElapsed = _formatDuration(stats.completedIntegrationSecs);
-    final totalElapsed = _formatDuration(stats.totalIntegrationSecs);
+    final completedElapsed = DurationFormat.seconds(stats.completedIntegrationSecs, style: DurationStyle.coarse);
+    final totalElapsed = DurationFormat.seconds(stats.totalIntegrationSecs, style: DurationStyle.coarse);
     final progressState = executionState == SequenceExecutionState.paused
         ? SkotiqProgressState.paused
         : SkotiqProgressState.normal;
@@ -678,8 +678,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     return plannedCaptureUnder(sequence, widget.node.id);
   }
 
-  String _formatDuration(double totalSeconds) =>
-      DurationFormat.seconds(totalSeconds, style: DurationStyle.compact);
 }
 
 class _CoordinateChip extends StatelessWidget {

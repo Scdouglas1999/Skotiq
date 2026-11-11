@@ -66,9 +66,7 @@ class AtlasCoverageOverlay extends StatelessWidget {
                 _Stat(
                   icon: LucideIcons.clock,
                   label: totals == null ? 'Deepest tile' : 'Integration',
-                  value: formatIntegration(
-                    totals?.integrationSeconds ?? maxSeconds,
-                  ),
+                  value: DurationFormat.decimalHours(totals?.integrationSeconds ?? maxSeconds),
                   tint: colors.primary,
                 ),
                 _Stat(
@@ -99,7 +97,7 @@ class AtlasCoverageOverlay extends StatelessWidget {
               Text(
                 'Each point is a tile at its place on the sky (Aitoff projection); '
                 'brighter = deeper. Tap a point for its depth. Deepest: '
-                '${formatIntegration(maxSeconds)}.',
+                '${DurationFormat.decimalHours(maxSeconds)}.',
                 style: SkotiqTypography.captionSm
                     .copyWith(color: colors.textMuted),
               ),
@@ -130,7 +128,7 @@ class _AllSkyCoverageMap extends StatelessWidget {
 
     final summary = 'All-sky coverage map: ${coverage.length} tile'
         '${coverage.length == 1 ? '' : 's'} imaged, deepest '
-        '${formatIntegration(maxSeconds)}.';
+        '${DurationFormat.decimalHours(maxSeconds)}.';
 
     return Semantics(
       container: true,
@@ -187,7 +185,7 @@ class _AllSkyCoverageMap extends StatelessWidget {
                           enabled: true,
                           label:
                               '${formatCenter(tile.centerRaDeg, tile.centerDecDeg)}, '
-                              '${formatIntegration(tile.integrationSeconds)}, '
+                              '${DurationFormat.decimalHours(tile.integrationSeconds)}, '
                               '${tile.totalFrames} frame'
                               '${tile.totalFrames == 1 ? '' : 's'}',
                           onTap: () => _showTile(context, tile),
@@ -409,7 +407,7 @@ class _TileDetailSheet extends StatelessWidget {
           _DetailLine(
             icon: LucideIcons.clock,
             label: 'Integration',
-            value: formatIntegration(tile.integrationSeconds),
+            value: DurationFormat.decimalHours(tile.integrationSeconds),
             colors: colors,
           ),
           _DetailLine(

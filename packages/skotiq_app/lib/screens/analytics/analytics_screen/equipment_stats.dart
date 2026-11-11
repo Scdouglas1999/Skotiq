@@ -156,7 +156,7 @@ class _EquipmentStatsTab extends ConsumerWidget {
                     ),
                     Readout(
                       label: 'Accepted integration',
-                      value: _formatIntegration(acceptedIntegration),
+                      value: DurationFormat.seconds(acceptedIntegration, style: DurationStyle.short),
                       size: ReadoutSize.sm,
                     ),
                     Readout(
@@ -218,24 +218,6 @@ class _EquipmentStatsTab extends ConsumerWidget {
         );
       },
     );
-  }
-
-  /// Format a summed exposure time (seconds) as `Hh Mm`, or a clear empty
-  /// marker when no frames have been captured yet.
-  /// The rule this grid follows, stated once: a COUNT or a SUM of nothing is
-  /// zero and prints as a number ("0", "0s"); a MEAN of nothing has no value
-  /// at all and prints "No data". Accepted Integration is a sum, and printing
-  /// it as "No data" beside "Total Exposures 0" was the only reason the two
-  /// tokens looked arbitrary.
-  static String _formatIntegration(double seconds) {
-    if (!seconds.isFinite || seconds <= 0) return '0s';
-    final rounded = seconds.round();
-    final h = rounded ~/ 3600;
-    final m = (rounded % 3600) ~/ 60;
-    final s = rounded % 60;
-    if (h > 0) return '${h}h ${m}m';
-    if (m > 0) return s > 0 ? '${m}m ${s}s' : '${m}m';
-    return '${s}s';
   }
 
   /// Mean of the available samples via [format], or null when the backing

@@ -31,7 +31,7 @@ class _SimulationTimeline extends StatelessWidget {
                 flex: segment.duration.inMilliseconds.clamp(1, totalMs),
                 child: Tooltip(
                   message:
-                      '${segment.nodeName}: ${DurationFormat.of(segment.duration, style: DurationStyle.compact)}',
+                      '${segment.nodeName}: ${DurationFormat.of(segment.duration, style: DurationStyle.coarse)}',
                   child: Container(
                     margin: const EdgeInsets.only(right: 1),
                     color: _colorFor(segment),

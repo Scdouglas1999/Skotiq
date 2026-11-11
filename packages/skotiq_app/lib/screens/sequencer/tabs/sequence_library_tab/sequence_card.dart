@@ -66,7 +66,7 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
     if (totalSecs <= 0) return kReadoutUnknown;
     return DurationFormat.seconds(
       totalSecs,
-      style: DurationStyle.compact,
+      style: DurationStyle.coarse,
       rounding: DurationRounding.truncate,
     );
   }
@@ -485,14 +485,14 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
     if (planned.frames > 0) {
       parts.add(
         '${countLabel(planned.frames, 'frame')} • '
-        '${_formatSecs(planned.integrationSecs)}'
+        '${DurationFormat.seconds(planned.integrationSecs, style: DurationStyle.coarse, roundToMinute: true)}'
         '${planned.hasUnboundedRepeat ? ' per pass' : ''}',
       );
     }
     if (planned.hasOpenEndedLoop) {
       parts.add(
         planned.openEndedBudgetSecs > 0
-            ? 'looping up to ${_formatSecs(planned.openEndedBudgetSecs)}'
+            ? 'looping up to ${DurationFormat.seconds(planned.openEndedBudgetSecs, style: DurationStyle.coarse, roundToMinute: true)}'
             : 'looping until the window closes',
       );
     }
@@ -548,7 +548,7 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
             Padding(
               padding: const EdgeInsets.only(left: 18, top: 2),
               child: Text(
-                '${entry.key}: ${_formatSecs(entry.value)}',
+                '${entry.key}: ${DurationFormat.seconds(entry.value, style: DurationStyle.coarse, roundToMinute: true)}',
                 style: TextStyle(
                   fontSize: SkotiqTypography.fontSize11,
                   color: widget.colors.textSecondary,
@@ -557,14 +557,6 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
             ),
       ],
     );
-  }
-
-  String _formatSecs(double secs) {
-    if (secs <= 0) return '0m';
-    final hours = (secs / 3600).floor();
-    final mins = ((secs % 3600) / 60).round();
-    if (hours > 0) return '${hours}h ${mins}m';
-    return '${mins}m';
   }
 
   /// Load the full sequence from the repository, used by every tree-requiring

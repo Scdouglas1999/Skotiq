@@ -437,21 +437,12 @@ class _MeridianFlipChipState extends ConsumerState<MeridianFlipChip>
 /// caller's "imminent" branch and reads "now".
 ///
 /// Public + pure so the formatting is unit-tested directly.
-String formatTimeToFlip(Duration remaining) {
-  if (remaining <= Duration.zero) {
-    return 'now';
-  }
-  final totalMinutes = (remaining.inSeconds + 59) ~/ 60;
-  final hours = totalMinutes ~/ 60;
-  final minutes = totalMinutes % 60;
-  if (hours == 0) {
-    return '${minutes}m';
-  }
-  if (minutes == 0) {
-    return '${hours}h';
-  }
-  return '${hours}h ${minutes}m';
-}
+String formatTimeToFlip(Duration remaining) => remaining <= Duration.zero
+    ? 'now'
+    : DurationFormat.seconds(
+        ((remaining.inSeconds + 59) ~/ 60) * 60,
+        style: DurationStyle.coarse,
+      );
 
 /// Banner title: a leading label plus an optional tabular-figure value. The
 /// value uses [SkotiqTypography.telemetryMd] (tabular) so the live countdown

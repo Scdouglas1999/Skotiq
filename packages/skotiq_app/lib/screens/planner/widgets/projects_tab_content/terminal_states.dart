@@ -96,11 +96,3 @@ class _ProjectsSkeleton extends StatelessWidget {
   }
 }
 
-/// Format a duration in seconds as a compact hour label, matching the
-/// progress-tab convention ('4.2h', '12h').
-String _formatHours(double seconds) {
-  final hours = seconds / 3600.0;
-  if (hours < 0.05) return '0h';
-  if (hours < 10) return '${hours.toStringAsFixed(1)}h';
-  return '${hours.toStringAsFixed(0)}h';
-}

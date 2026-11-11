@@ -520,7 +520,7 @@ class _RunCard extends ConsumerWidget {
 
     final durationStr = run.endedAt != null
         ? DurationFormat.of(run.endedAt!.difference(run.startedAt),
-            style: DurationStyle.hoursMinutes)
+            style: DurationStyle.short)
         // A run with no end that is not running was cut off (the app quit or
         // crashed); its length is not known.
         : status == 'running'
@@ -922,11 +922,6 @@ class _CampaignBadge extends ConsumerWidget {
 
   const _CampaignBadge({required this.targetName});
 
-  String _formatHours(double seconds) {
-    final hours = seconds / 3600.0;
-    return '${hours.toStringAsFixed(1)}h';
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
@@ -936,7 +931,7 @@ class _CampaignBadge extends ConsumerWidget {
         if (rollup == null || rollup.sessionCount <= 1) {
           return const SizedBox.shrink();
         }
-        final total = _formatHours(rollup.totalCapturedIntegrationSecs);
+        final total = DurationFormat.decimalHours(rollup.totalCapturedIntegrationSecs);
         return Tooltip(
           message: 'Campaign: $total across ${rollup.sessionCount} sessions',
           child: Container(

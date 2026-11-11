@@ -76,10 +76,10 @@ void main() {
     // identically.
     final stats = ParsedRunStats.fromJson('{"integrationSecs": 12}');
     expect(stats.formatDuration(stats.integrationSecs),
-        formatIntegrationHours(12 / 3600));
+        DurationFormat.seconds(12 / 3600 * 3600));
     expect(stats.formatDuration(stats.integrationSecs), '12s');
-    expect(formatIntegrationSeconds(0), '0s');
-    expect(formatIntegrationSeconds(-5), '0s');
-    expect(formatIntegrationSeconds(59.6), '1m 0s');
+    expect(DurationFormat.seconds(0), '0s');
+    expect(DurationFormat.seconds(-5), '0s');
+    expect(DurationFormat.seconds(59.6), '1m 0s');
   });
 }

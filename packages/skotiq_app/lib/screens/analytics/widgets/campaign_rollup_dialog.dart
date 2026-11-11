@@ -89,11 +89,6 @@ class _Body extends StatelessWidget {
 
   const _Body({required this.rollup, required this.colors});
 
-  String _formatHours(double seconds) {
-    final hours = seconds / 3600.0;
-    return '${hours.toStringAsFixed(1)}h';
-  }
-
   String _formatDate(DateTime? dt) {
     if (dt == null) return kReadoutUnknown;
     return DateFormat('MMM d, yyyy').format(dt);
@@ -175,7 +170,7 @@ class _Body extends StatelessWidget {
                     ),
                     _SummaryTile(
                       label: 'Integration (accepted)',
-                      value: _formatHours(acceptedSecs),
+                      value: DurationFormat.decimalHours(acceptedSecs),
                       colors: colors,
                     ),
                     // Only shown when the two disagree, i.e. when frames were
@@ -184,7 +179,7 @@ class _Body extends StatelessWidget {
                     if (capturedSecs - acceptedSecs > 1)
                       _SummaryTile(
                         label: 'Integration (captured)',
-                        value: _formatHours(capturedSecs),
+                        value: DurationFormat.decimalHours(capturedSecs),
                         colors: colors,
                       ),
                     _SummaryTile(
@@ -248,7 +243,7 @@ class _Body extends StatelessWidget {
                         // captured" would be false for a target whose whole
                         // night was rejected in the grader.
                         ? 'No accepted frames yet — '
-                            '${_formatHours(capturedSecs)} captured across '
+                            '${DurationFormat.decimalHours(capturedSecs)} captured across '
                             '${rollup.sessionCount} '
                             '${rollup.sessionCount == 1 ? 'session' : 'sessions'}'
                             ' was rejected or has not been graded.'

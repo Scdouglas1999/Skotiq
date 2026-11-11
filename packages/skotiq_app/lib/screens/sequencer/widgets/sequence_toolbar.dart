@@ -1183,7 +1183,7 @@ class _CanvasBarMeta extends ConsumerWidget {
       if (openEnd != null)
         formatNodeRollup(Duration.zero, openEnd)
       else if (totalSecs > 0)
-        '~${DurationFormat.seconds(totalSecs.toDouble(), style: DurationStyle.compact, rounding: DurationRounding.truncate)}',
+        '~${DurationFormat.seconds(totalSecs.toDouble(), style: DurationStyle.coarse, rounding: DurationRounding.truncate)}',
     ].join(' · ');
 
     // The summary is the one chip here that is informational rather than

@@ -165,7 +165,7 @@ class SequenceProgressCard extends ConsumerWidget {
                   const SizedBox(height: 2),
                   Text(
                     DurationFormat.seconds(progress.completedIntegrationSecs,
-                        style: DurationStyle.hoursMinutes),
+                        style: DurationStyle.short),
                     style: TextStyle(
                       fontSize: SkotiqTypography.fontSize14,
                       fontWeight: FontWeight.w600,
@@ -189,7 +189,7 @@ class SequenceProgressCard extends ConsumerWidget {
                     const SizedBox(height: 2),
                     Text(
                       DurationFormat.seconds(estimatedRemaining,
-                          style: DurationStyle.hoursMinutes),
+                          style: DurationStyle.short),
                       style: TextStyle(
                         fontSize: SkotiqTypography.fontSize14,
                         fontWeight: FontWeight.w600,

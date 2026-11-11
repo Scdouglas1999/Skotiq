@@ -845,4 +845,4 @@ class _JobBanner extends ConsumerWidget {
 
 /// Integration as `2h 24m`, `40s`: hours and minutes once there is an hour.
 String _darkroomSpan(num seconds) =>
-    DurationFormat.seconds(seconds, style: DurationStyle.compactTrimmed);
+    DurationFormat.seconds(seconds, style: DurationStyle.coarse);

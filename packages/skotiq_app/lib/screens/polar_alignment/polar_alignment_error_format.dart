@@ -31,21 +31,3 @@ String formatPolarError(double arcsec) {
       '$paddedSeconds"';
 }
 
-/// How long an All-Sky drift baseline has been accumulating, as a compact
-/// `12s` / `4m 12s` / `1h 04m` label.
-///
-/// The all-sky routine derives the polar error from the drift between a fixed
-/// baseline solve and the current one, so this interval is what governs the
-/// reading's precision — the same number over 4 seconds and over 4 minutes are
-/// not the same measurement.
-String formatDriftBaseline(Duration elapsed) {
-  final seconds = elapsed.inSeconds;
-  if (seconds < 0) return '0s';
-  if (seconds < 60) return '${seconds}s';
-  if (seconds < 3600) {
-    return '${seconds ~/ 60}m ${(seconds % 60).toString().padLeft(2, '0')}s';
-  }
-  final hours = seconds ~/ 3600;
-  final minutes = (seconds % 3600) ~/ 60;
-  return '${hours}h ${minutes.toString().padLeft(2, '0')}m';
-}

@@ -649,7 +649,7 @@ List<SummaryFragment> _loopSummary(
     case LoopConditionType.integrationTime:
       return <SummaryFragment>[
         StaticFragment(
-          'until ${_fmtDurationHm(integrationTimeTarget ?? 0)} integrated',
+          'until ${DurationFormat.seconds(integrationTimeTarget ?? 0, style: DurationStyle.coarse)} integrated',
         ),
       ];
   }
@@ -685,17 +685,6 @@ String _fmtSecs(double value) {
     return value.toStringAsFixed(0);
   }
   return value.toStringAsFixed(1);
-}
-
-/// Format an integration-target (seconds) as `Hh Mm` / `Mm`.
-String _fmtDurationHm(double seconds) {
-  final total = seconds.round();
-  final hours = total ~/ 3600;
-  final mins = (total % 3600) ~/ 60;
-  if (hours > 0) {
-    return mins > 0 ? '${hours}h ${mins}m' : '${hours}h';
-  }
-  return '${mins}m';
 }
 
 /// Format a wall-clock [DateTime] as `HH:MM` in its own zone. Returns

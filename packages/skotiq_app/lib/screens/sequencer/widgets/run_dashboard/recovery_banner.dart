@@ -178,7 +178,7 @@ class _RunDashboardRecoveryBannerState
                         weatherHold
                             ? l10n.text(
                                 'recoveryWeatherStatus',
-                                params: {'held': _formatSecs(heldSecs)},
+                                params: {'held': DurationFormat.seconds(heldSecs, style: DurationStyle.short)},
                               )
                             : _statusLine(
                                 ctx, nextAttemptSecs, remainingBudgetSecs),
@@ -252,8 +252,8 @@ class _RunDashboardRecoveryBannerState
       if (nextAttemptSecs <= 1.0) {
         return '$attempts · next attempt firing now';
       }
-      return '$attempts · next retry in ${_formatSecs(nextAttemptSecs)}'
-          ' · budget left ${_formatSecs(remainingBudgetSecs)}';
+      return '$attempts · next retry in ${DurationFormat.seconds(nextAttemptSecs, style: DurationStyle.short)}'
+          ' · budget left ${DurationFormat.seconds(remainingBudgetSecs, style: DurationStyle.short)}';
     }
     if (ctx.isRecovered) {
       return '$attempts · recovered — resuming sequence';
@@ -264,14 +264,6 @@ class _RunDashboardRecoveryBannerState
     return attempts;
   }
 
-  String _formatSecs(double s) {
-    if (s < 60) {
-      return '${s.round()}s';
-    }
-    final mins = (s / 60).floor();
-    final secs = (s - mins * 60).round();
-    return secs == 0 ? '${mins}m' : '${mins}m ${secs}s';
-  }
 }
 
 /// Trio of recovery-mode buttons: Try Now, Skip Node, Abort.

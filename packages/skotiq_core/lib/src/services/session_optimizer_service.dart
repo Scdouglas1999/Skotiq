@@ -624,7 +624,7 @@ class SessionOptimizerService {
           thresholds.altitudeSuggestionMarginDeg;
       final formattedDur = DurationFormat.of(
         Duration(seconds: trace.secondsBelowMinAltitude.round()),
-        style: DurationStyle.compact,
+        style: DurationStyle.coarse,
       );
       final id =
           'altitude_window:${trace.targetId ?? trace.targetName.toLowerCase()}';

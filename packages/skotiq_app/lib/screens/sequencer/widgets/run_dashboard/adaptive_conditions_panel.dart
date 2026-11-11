@@ -129,8 +129,8 @@ class _SnapshotBody extends StatelessWidget {
             // smoothly — label it so the lag is explicit instead of looking
             // like a stalled clock.
             value: cooldown == null
-                ? '${_formatSecs(state?.configuredHysteresisSecs)} window'
-                : '~${_formatSecs(cooldown)} remaining (30s cadence)',
+                ? '${DurationFormat.seconds(state?.configuredHysteresisSecs ?? 0, style: DurationStyle.short)} window'
+                : '~${DurationFormat.seconds(cooldown ?? 0, style: DurationStyle.short)} remaining (30s cadence)',
             highlight: cooldown == null ? colors.textSecondary : colors.warning,
           ),
           const SizedBox(height: SkotiqTokens.spaceXs),
@@ -211,15 +211,6 @@ class _SnapshotBody extends StatelessWidget {
     final age = now.difference(score.generatedAt.toUtc());
     if (age.inMinutes >= 5) return colors.warning;
     return colors.textSecondary;
-  }
-
-  String _formatSecs(double? seconds) {
-    if (seconds == null) return '0s';
-    final rounded = seconds.round();
-    if (rounded < 60) return '${rounded}s';
-    final minutes = rounded ~/ 60;
-    final rest = rounded % 60;
-    return rest == 0 ? '${minutes}m' : '${minutes}m ${rest}s';
   }
 
   String _title(String raw) {

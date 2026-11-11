@@ -2,7 +2,7 @@
 // formatting — no ambient state — so the widgets stay declarative and the
 // numbers read consistently against the rest of the atlas UI.
 
-import '../your_sky/sky_atlas_format.dart';
+import 'package:skotiq_astro/format.dart';
 
 /// Your locally-imaged depth on a shared target, framed as what you could still
 /// contribute rather than an already-donated share: `2.1h available to
@@ -13,7 +13,7 @@ String formatYourContribution({
   required double swarmSeconds,
 }) {
   if (yourSeconds <= 0 || !yourSeconds.isFinite) return 'Nothing local yet';
-  final yours = formatIntegration(yourSeconds);
+  final yours = DurationFormat.decimalHours(yourSeconds);
   if (swarmSeconds <= 0 || !swarmSeconds.isFinite) {
     return '$yours available to contribute';
   }
@@ -56,7 +56,7 @@ String formatFollowHint({
         'start its first photons.';
   }
   return '$targetName is dark for you now and the swarm needs more depth '
-      '(${formatIntegration(swarmSeconds)} so far).';
+      '(${DurationFormat.decimalHours(swarmSeconds)} so far).';
 }
 
 /// A short hub identity label: `skotiq.local · a1b2c3d4`.

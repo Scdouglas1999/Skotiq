@@ -357,7 +357,7 @@ class _RunRow extends StatelessWidget {
   String _subtitle(String? target, DateTime startedAt, Duration? duration) {
     final time = ClockFormat.dateHm(startedAt.toLocal());
     final dur = duration != null
-        ? DurationFormat.of(duration, style: DurationStyle.hoursMinutes)
+        ? DurationFormat.of(duration, style: DurationStyle.short)
         : 'in progress';
     if (target != null && target.isNotEmpty) {
       return '$target  •  $time  •  $dur';

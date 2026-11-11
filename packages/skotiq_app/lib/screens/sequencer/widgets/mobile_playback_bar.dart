@@ -149,7 +149,7 @@ class MobilePlaybackBar extends ConsumerWidget {
                   colors: colors,
                   icon: LucideIcons.clock,
                   value: DurationFormat.seconds(sequence.totalIntegrationSecs,
-                      style: DurationStyle.compact,
+                      style: DurationStyle.coarse,
                       rounding: DurationRounding.truncate),
                   isCompact: isNarrow,
                 ),

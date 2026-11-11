@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
 
 import '../../models/sequence/sequence_models.dart';
 import '../../services/sequence_time_estimator.dart';
@@ -221,20 +222,9 @@ double sequenceRollupSecs(
 ///
 /// Output: "~2h 14m", "~14m 30s", "~30s", "<1s". Always prefixed with `~`
 /// because these are estimates.
-String formatRollupDuration(Duration d) {
-  final totalSecs = d.inSeconds;
-  if (totalSecs <= 0) return '<1s';
-  final hours = totalSecs ~/ 3600;
-  final minutes = (totalSecs % 3600) ~/ 60;
-  final seconds = totalSecs % 60;
-  if (hours > 0) {
-    return '~${hours}h ${minutes}m';
-  }
-  if (minutes > 0) {
-    return '~${minutes}m ${seconds}s';
-  }
-  return '~${seconds}s';
-}
+String formatRollupDuration(Duration d) => d.inSeconds <= 0
+    ? '<1s'
+    : '~${DurationFormat.of(d, style: DurationStyle.short)}';
 
 /// Single memoizing post-order walk that returns the rolled-up duration *in
 /// seconds* for [nodeId] AND records every node it visits into [out]. Each
