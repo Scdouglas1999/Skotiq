@@ -109,7 +109,6 @@ final dawnMorningNotifierProvider = Provider<DawnMorningNotifier>((ref) {
   );
 });
 
-/// The dawn autopilot itself.
 final dawnAutopilotServiceProvider = Provider<DawnAutopilotService>((ref) {
   final db = ref.watch(databaseProvider);
   return DawnAutopilotService(

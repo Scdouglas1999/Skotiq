@@ -766,8 +766,6 @@ class OllamaLocalProvider implements LlmProvider {
   void close() => _http.close();
 }
 
-// Internal helpers
-
 String _joinUrl(String baseUrl, String path) {
   final trimmedBase = baseUrl.endsWith('/')
       ? baseUrl.substring(0, baseUrl.length - 1)

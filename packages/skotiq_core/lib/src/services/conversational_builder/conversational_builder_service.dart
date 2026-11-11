@@ -309,7 +309,6 @@ class ConversationalBuilderService {
       rawReplies.add(reply.text);
       aggregateUsage = _accumulate(aggregateUsage, reply.usage);
 
-      // Parse the reply.
       Sequence? candidateSequence;
       List<ValidationIssue> issues;
       try {
@@ -366,7 +365,6 @@ class ConversationalBuilderService {
         (i) => i.severity == ValidationSeverity.error,
       );
       if (!hasErrors) {
-        // Success — return immediately.
         return ConversationalBuildResult(
           sequence: candidateSequence,
           validationIssues: issues,

@@ -14,7 +14,6 @@ import 'package:uuid/uuid.dart';
 import '../../database/database.dart' as db;
 import 'llm_provider.dart';
 
-/// One entry in the conversational build history.
 class ConversationalHistoryEntry {
   final String id;
   final DateTime createdAt;
@@ -91,7 +90,6 @@ class ConversationalHistoryService {
     if (!_mutations.isClosed) await _mutations.close();
   }
 
-  /// Record a new conversational build attempt.
   Future<ConversationalHistoryEntry> record({
     required String userPrompt,
     required String providerName,

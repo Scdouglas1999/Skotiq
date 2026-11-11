@@ -356,7 +356,6 @@ class DawnSourceStat {
 
 /// One master's line in the morning report.
 class DawnMasterReport {
-  /// The master itself.
   final DawnMaster master;
 
   /// The target's name, or null when the master carries no target row.
@@ -515,7 +514,6 @@ class DawnCompositeReport {
   /// The linear color composite written for delivery, or null.
   final String? linearCompositePath;
 
-  /// The steps the draft carries.
   final List<Map<String, dynamic>> draftSteps;
 
   /// The draft's account of its own composition.
@@ -621,7 +619,6 @@ class DawnJobReport {
   /// `dawn` or `manual`.
   final String kind;
 
-  /// The session processed.
   final int sessionId;
 
   /// When the job started, UTC.

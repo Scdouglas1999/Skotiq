@@ -486,7 +486,6 @@ class CollabMosaicPanel {
   /// Server-resolved human-readable contributor credit for this panel, or null.
   final String? assignedDisplayName;
 
-  /// Whether this panel's master has been uploaded.
   final bool uploaded;
 
   const CollabMosaicPanel({

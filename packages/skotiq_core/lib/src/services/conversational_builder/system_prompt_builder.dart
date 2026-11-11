@@ -42,8 +42,6 @@ class SystemPromptBuilder {
     return buf.toString();
   }
 
-  // Persona
-
   void _writePersona(StringBuffer buf) {
     buf.writeln('# Role');
     buf.writeln(
@@ -198,8 +196,6 @@ class SystemPromptBuilder {
       '${ctx.options.useSchedulerForMultiTarget}',
     );
   }
-
-  // Node schema reference
 
   void _writeNodeSchema(StringBuffer buf) {
     buf.writeln('# Sequence JSON schema');
@@ -360,8 +356,6 @@ class SystemPromptBuilder {
     }
   }
 
-  // Few-shot examples
-
   void _writeExamples(StringBuffer buf) {
     buf.writeln('# Examples');
     buf.writeln();
@@ -381,8 +375,6 @@ class SystemPromptBuilder {
     buf.writeln('```');
   }
 
-  // Final instructions
-
   void _writeFinalInstructions(StringBuffer buf) {
     buf.writeln('# Output');
     buf.writeln(
@@ -392,8 +384,6 @@ class SystemPromptBuilder {
       'every node.',
     );
   }
-
-  // Helpers
 
   String _durationLabel(DateTime start, DateTime end) {
     final hours = end.difference(start).inMinutes / 60.0;

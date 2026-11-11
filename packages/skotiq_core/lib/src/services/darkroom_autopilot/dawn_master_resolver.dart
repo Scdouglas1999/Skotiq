@@ -100,7 +100,6 @@ class DawnMasterWithoutFile {
 
 /// What one session's integration left behind.
 class DawnMasterSet {
-  /// The session these masters came from.
   final int sessionId;
 
   /// Masters with a linear FITS on disk, newest first.
