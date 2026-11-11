@@ -257,6 +257,10 @@ class _DeviceDashboard extends ConsumerWidget {
   /// below the shell breakpoint.
   final Widget? header;
 
+  /// Rendered below the grid inside the same scroll view (narrow layout):
+  /// readiness and health, which come after the devices there.
+  final Widget? status;
+
   /// Chrome rendered BELOW the grid, inside the same scroll view. Used for the
   /// discovery drawer on viewports too short to seat it as a sibling (see
   /// [_EquipmentMainColumn._cardsAndDiscovery]).
@@ -267,6 +271,7 @@ class _DeviceDashboard extends ConsumerWidget {
     required this.onConnectAll,
     required this.onEditProfile,
     this.header,
+    this.status,
     this.footer,
   });
 
@@ -323,6 +328,7 @@ class _DeviceDashboard extends ConsumerWidget {
     if (profile == null && (!isRemoteMode || connectedCards.isEmpty)) {
       return _EquipmentEmptyState(
         header: header,
+        status: status,
         footer: _boundedFooter,
         child: EmptyState(
           icon: LucideIcons.layoutGrid,
@@ -347,6 +353,7 @@ class _DeviceDashboard extends ConsumerWidget {
 
       return _EquipmentEmptyState(
         header: header,
+        status: status,
         footer: _boundedFooter,
         child: hasDevicesAssigned
             ? EmptyState(
@@ -394,6 +401,7 @@ class _DeviceDashboard extends ConsumerWidget {
               ],
             ),
           ),
+          if (status != null) status!,
           if (_boundedFooter != null) _boundedFooter!,
         ],
       ),
@@ -569,9 +577,15 @@ class _EmptySlotPanel extends ConsumerWidget {
 class _EquipmentEmptyState extends StatelessWidget {
   final Widget child;
   final Widget? header;
+  final Widget? status;
   final Widget? footer;
 
-  const _EquipmentEmptyState({required this.child, this.header, this.footer});
+  const _EquipmentEmptyState({
+    required this.child,
+    this.header,
+    this.status,
+    this.footer,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -617,6 +631,7 @@ class _EquipmentEmptyState extends StatelessWidget {
                   child: Center(child: child),
                 ),
               ),
+              if (status != null) status!,
               if (footer != null) footer!,
             ],
           ),
