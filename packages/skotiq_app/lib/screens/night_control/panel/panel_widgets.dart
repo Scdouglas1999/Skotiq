@@ -444,10 +444,6 @@ String nightPanelErrorText(Object error) {
   return text;
 }
 
-// ---------------------------------------------------------------------------
-// Mappings
-// ---------------------------------------------------------------------------
-
 Color nightToneColor(MetricTone tone, SkotiqColors colors) => switch (tone) {
       MetricTone.neutral => colors.textPrimary,
       MetricTone.good => colors.success,

@@ -196,7 +196,6 @@ NightText? manualActionDisabledReason(
   }
 }
 
-/// The view model for one button.
 ManualActionVm manualActionVm(NightActionInputs inputs, ManualActionId id) {
   final reason = manualActionDisabledReason(inputs, id);
   final action = inputs.action;

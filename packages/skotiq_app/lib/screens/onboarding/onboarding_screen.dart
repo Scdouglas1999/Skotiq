@@ -104,7 +104,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   /// back gesture cannot stack a second copy of it.
   bool _leavePromptOpen = false;
 
-  /// The current inline notice, or null when there is nothing to say.
   _WizardNotice? _notice;
 
   void _showNotice(

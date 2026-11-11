@@ -108,7 +108,6 @@ const Key onboardingCaptureDirFieldKey = Key('onboarding.captureDir.field');
 ///
 /// Writability records an actual filesystem check, never just a stored path.
 enum _FolderCheck {
-  /// A check is in flight.
   checking,
 
   /// A check passed for [_OnboardingCaptureDirStepState._checkedPath].

@@ -135,7 +135,6 @@ class _CompassScaleBarCombinedPainter extends CustomPainter {
     required this.colors,
   });
 
-  /// The scale-bar painter this widget draws with.
   ScaleBarPainter scaleBarPainter() => ScaleBarPainter(
         pixelScaleArcsecPerPixel: plateSolve.pixelScale,
         imageWidthPixels: plateSolve.imageWidth.toDouble(),

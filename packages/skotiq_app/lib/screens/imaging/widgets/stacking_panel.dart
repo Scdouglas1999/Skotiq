@@ -578,7 +578,6 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
           ),
           const SizedBox(height: SkotiqTokens.spaceLg),
 
-          // Error banner
           if (stackState.errorMessage != null)
             _ErrorBanner(
               message: stackState.errorMessage!,
@@ -590,12 +589,10 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
                   : null,
             ),
 
-          // Status and controls
           SkotiqPanel(
             head: PanelHead(label: 'Live stacking'),
             child: Column(
               children: [
-                // Status indicator
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -682,7 +679,6 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
           ),
           const SizedBox(height: 20),
 
-          // Statistics
           SkotiqPanel(
             head: PanelHead(label: 'Statistics'),
             child: Column(
@@ -759,7 +755,6 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
                   ),
                 ],
                 const SizedBox(height: 12),
-                // Alignment quality indicator
                 _AlignmentQualityBar(
                   stats: stats,
                   colors: widget.colors,
@@ -769,7 +764,6 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
           ),
           const SizedBox(height: 20),
 
-          // Stacked preview
           if (widget.showPreview &&
               stackState.previewData != null &&
               stackState.previewWidth > 0 &&
@@ -789,7 +783,6 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
           if (widget.showPreview && stackState.previewData != null)
             const SizedBox(height: 20),
 
-          // Sigma Clipping config
           SkotiqPanel(
             head: PanelHead(label: 'Sigma clipping'),
             child: Column(
@@ -843,7 +836,6 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
           ),
           const SizedBox(height: 20),
 
-          // Star Matching config
           SkotiqPanel(
             head: PanelHead(label: 'Star matching'),
             child: Column(

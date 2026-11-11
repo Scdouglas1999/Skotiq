@@ -41,7 +41,6 @@ const List<String> oscDemosaicQualityValues = <String>[
   'superpixel',
 ];
 
-/// Human-readable labels for [oscDemosaicQualityValues].
 const Map<String, String> oscDemosaicQualityLabels = <String, String>{
   'bilinear': 'Bilinear',
   'vng': 'VNG',
@@ -68,13 +67,11 @@ String oscBayerPatternLabel(String value, String? detectedPattern) {
 /// Pass [enabled] `false` (e.g. while a run is in flight) to disable the
 /// dropdown without changing its displayed value.
 class OscDropdownField extends StatelessWidget {
-  /// Field label rendered above the dropdown.
   final String label;
 
   /// Currently-selected value (must be present in [items]).
   final String value;
 
-  /// Selectable values, in display order.
   final List<String> items;
 
   /// Human-readable labels parallel to [items].

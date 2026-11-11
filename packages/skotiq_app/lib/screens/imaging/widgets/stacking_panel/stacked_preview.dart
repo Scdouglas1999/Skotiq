@@ -48,7 +48,6 @@ class _StackedPreviewState extends State<_StackedPreview> {
   @override
   void didUpdateWidget(_StackedPreview oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Only rebuild when the data actually changes (identity check is fast)
     if (!identical(widget.previewData, oldWidget.previewData) ||
         widget.width != oldWidget.width ||
         widget.height != oldWidget.height ||
@@ -183,8 +182,6 @@ class _StackedPreviewState extends State<_StackedPreview> {
     );
   }
 }
-
-// Preview pixel conversion
 
 /// Renders a u16 stacked buffer to display-ready RGBA8.
 ///

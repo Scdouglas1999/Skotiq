@@ -181,8 +181,6 @@ class NightHeaderBar extends ConsumerWidget {
     return total;
   }
 
-  // -- Night strip ------------------------------------------------------------
-
   Widget _strip(SkotiqLocalizations l10n, NightTimelineVm timeline) {
     final now = timeline.now;
     final labels = <(DateTime, NightTimelineLabel)>[
@@ -267,8 +265,6 @@ class NightHeaderBar extends ConsumerWidget {
         .join(', ${l10n.text('nightCtlTlSemThen')} ');
     return '$base; $windows';
   }
-
-  // -- Controls ---------------------------------------------------------------
 
   List<_Control> _controls(
     BuildContext context,
@@ -433,10 +429,6 @@ class NightHeaderBar extends ConsumerWidget {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Pill, plan name and progress
-// ---------------------------------------------------------------------------
 
 class _InfoRow extends ConsumerWidget {
   const _InfoRow({
@@ -716,10 +708,6 @@ class _RunPill extends StatelessWidget {
         NightRunPhase.notSetUp => ChipTone.neutral,
       };
 }
-
-// ---------------------------------------------------------------------------
-// Controls
-// ---------------------------------------------------------------------------
 
 /// One header control: the widget, and the width it needs so the header can
 /// choose its layout before building it.

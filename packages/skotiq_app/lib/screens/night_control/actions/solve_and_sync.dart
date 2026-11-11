@@ -160,7 +160,6 @@ class SolveAndSync {
   /// Takes a short utility frame and returns its file path.
   final Future<String?> Function() captureSolveFrame;
 
-  /// Solves the image at the path.
   final Future<PlateSolveResult> Function(String imagePath) solve;
 
   /// Syncs the mount; RA in hours, Dec in degrees, J2000.

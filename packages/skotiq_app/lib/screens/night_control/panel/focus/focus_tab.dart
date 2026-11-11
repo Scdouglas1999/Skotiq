@@ -59,7 +59,6 @@ class NightAutofocusSection extends ConsumerWidget {
 
   final NightFocusPanelVm vm;
 
-  /// The V-curve's height on the board.
   static const double chartHeight = 120;
 
   @override

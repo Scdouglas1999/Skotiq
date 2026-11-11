@@ -43,7 +43,6 @@ part 'planetarium_screen/sheets.dart';
 /// Get display name and catalog tag for a DSO
 /// Returns (displayName, catalogTag)
 (String, String) getDsoDisplayInfo(DeepSkyObject dso) {
-  // If it's a Messier object, use Messier number as name
   if (dso.isMessier) {
     final messierNum = dso.messierNumber;
     if (messierNum != null) {
@@ -51,7 +50,6 @@ part 'planetarium_screen/sheets.dart';
     }
   }
 
-  // For non-Messier objects, use NGC/IC designation as name
   final ngcIc = dso.ngcIcDesignation;
   if (ngcIc != null) {
     if (ngcIc.startsWith('NGC')) {
@@ -61,7 +59,6 @@ part 'planetarium_screen/sheets.dart';
     }
   }
 
-  // Fallback to id and extract catalog prefix
   if (dso.id.startsWith('NGC')) {
     return (dso.id, 'NGC');
   } else if (dso.id.startsWith('IC')) {
@@ -70,7 +67,6 @@ part 'planetarium_screen/sheets.dart';
     return (dso.id, 'M');
   }
 
-  // Last resort: use name and id
   return (dso.name, dso.id);
 }
 
@@ -101,7 +97,6 @@ class _PlanetariumScreenState extends ConsumerState<PlanetariumView>
   // so a second press while the panel is already open still fires.
   int _searchFocusToken = 0;
 
-  // Popup state
   bool _showPopup = false;
   Offset _popupPosition = Offset.zero;
   CelestialObject? _popupObject;
@@ -113,10 +108,8 @@ class _PlanetariumScreenState extends ConsumerState<PlanetariumView>
   // ignore: prefer_final_fields
   bool _slewMode = false;
 
-  // FOV overlay state
   bool _showFOV = false;
 
-  // Track if initial sync has been done
   bool _initialSyncDone = false;
 
   // Last `?ra=&dec=&name=` hand-off already applied, so re-running the parse on
@@ -129,7 +122,6 @@ class _PlanetariumScreenState extends ConsumerState<PlanetariumView>
   bool _layersPanelOpen = false;
   bool _planPanelOpen = false;
 
-  // Help overlay state
   bool _showHelpOverlay = false;
 
   bool _finderChartExportInFlight = false;
@@ -144,7 +136,6 @@ class _PlanetariumScreenState extends ConsumerState<PlanetariumView>
   @override
   void initState() {
     super.initState();
-    // Do initial sync after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _performInitialSync();
@@ -183,7 +174,6 @@ class _PlanetariumScreenState extends ConsumerState<PlanetariumView>
     // clears itself when the rig is unknown, so nothing bogus is drawn.
     ref.watch(equipmentFovBindingProvider);
 
-    // Sync mount state from equipment provider to planetarium mount position provider
     ref.listen<MountState>(mountStateProvider, (previous, next) {
       final mountNotifier = ref.read(mountPositionProvider.notifier);
       if (next.connectionState == DeviceConnectionState.connected) {

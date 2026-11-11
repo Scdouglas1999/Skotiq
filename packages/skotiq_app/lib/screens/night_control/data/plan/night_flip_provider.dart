@@ -59,7 +59,6 @@ class NightFlipState {
   /// flip moved it, whatever happened after.
   final bool pierChanged;
 
-  /// The flip reported success.
   final bool succeeded;
 
   /// When the flip gave up, and after how many attempts; null unless the

@@ -32,7 +32,6 @@ class _ListsTabState extends ConsumerState<ListsTab> {
           return _buildEmptyState();
         }
 
-        // If an active list is selected, show its items
         if (activeListId != null) {
           final activeList =
               lists.where((l) => l.id == activeListId).firstOrNull;
@@ -41,7 +40,6 @@ class _ListsTabState extends ConsumerState<ListsTab> {
           }
         }
 
-        // Show all lists
         return _buildListSelector(lists, activeListId);
       },
       loading: () => const Center(
@@ -126,7 +124,6 @@ class _ListsTabState extends ConsumerState<ListsTab> {
 
     return Column(
       children: [
-        // Back button + list name header
         Container(
           padding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
           decoration: BoxDecoration(
@@ -180,7 +177,6 @@ class _ListsTabState extends ConsumerState<ListsTab> {
           ),
         ),
 
-        // List items
         Expanded(
           child: itemsAsync.when(
             data: (items) {

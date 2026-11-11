@@ -166,7 +166,6 @@ class _OnboardingDevicePickerBodyState
         ),
         const SizedBox(height: SkotiqTokens.spaceLg),
 
-        // Scan controls
         Row(
           children: [
             SkotiqButton(

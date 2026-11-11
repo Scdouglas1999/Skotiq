@@ -1,10 +1,6 @@
 // The frame stage's pills and the buttons over the frame.
 part of 'frame_stage.dart';
 
-// ---------------------------------------------------------------------------
-// Pills
-// ---------------------------------------------------------------------------
-
 enum _PillTone { neutral, good, bad, muted, active }
 
 /// One line of pill copy.
@@ -382,10 +378,6 @@ class _OverlayStatus extends ConsumerWidget {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Buttons over the frame
-// ---------------------------------------------------------------------------
 
 class _BackToLatest extends ConsumerWidget {
   const _BackToLatest();

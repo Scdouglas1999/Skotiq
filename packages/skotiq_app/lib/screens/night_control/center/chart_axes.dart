@@ -462,7 +462,6 @@ class NightChartStrips extends StatelessWidget {
   final DateTime? from;
   final DateTime? to;
 
-  /// The space between two bands.
   static const double gap = 4;
 
   @override

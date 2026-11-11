@@ -164,7 +164,6 @@ class NightCameraPanelVm {
   /// "4656 × 3520 · 3.80 µm"; null when the specs are unknown.
   final String? sensorSpecs;
 
-  /// The capture folder.
   final String? savesTo;
   final int? diskFreeBytes;
 

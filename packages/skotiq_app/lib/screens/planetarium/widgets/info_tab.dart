@@ -64,7 +64,6 @@ class InfoTab extends ConsumerWidget {
 
     final obj = selectedObject.object;
 
-    // If we have a celestial object, use the ObjectDetailsPanel + imaging history
     if (obj != null) {
       return Padding(
         padding: const EdgeInsets.all(8),
@@ -455,7 +454,6 @@ class ImagingHistorySection extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row
           Row(
             children: [
               Container(
@@ -477,7 +475,6 @@ class ImagingHistorySection extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
 
-          // Summary stats row
           Row(
             children: [
               _buildStatChip(
@@ -494,13 +491,11 @@ class ImagingHistorySection extends ConsumerWidget {
             ],
           ),
 
-          // Completion bar (if goal is set)
           if (history.hasGoal) ...[
             const SizedBox(height: 12),
             _buildCompletionBar(history),
           ],
 
-          // Last imaged
           if (history.lastImaged != null) ...[
             const SizedBox(height: 10),
             Row(
@@ -518,7 +513,6 @@ class ImagingHistorySection extends ConsumerWidget {
             ),
           ],
 
-          // Per-filter breakdown
           if (history.filterCounts.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(

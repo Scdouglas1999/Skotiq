@@ -991,7 +991,6 @@ class _ErrorBanner extends StatelessWidget {
   }
 }
 
-/// The display label for a [MosaicProjectStatus].
 String mosaicProjectStatusLabel(MosaicProjectStatus status) {
   switch (status) {
     case MosaicProjectStatus.planning:

@@ -92,7 +92,6 @@ class NightMountFacts {
   }
 }
 
-/// Reads [NightMountFacts] for the current mount.
 NightMountFacts watchNightMountFacts(WidgetRef ref) {
   final mount = ref.watch(mountStateProvider);
   final deviceId = mount.deviceId;

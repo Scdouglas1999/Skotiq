@@ -813,7 +813,6 @@ class ReadOnlyField extends StatelessWidget {
     this.showFullValueOnHover = false,
   });
 
-  /// What the field states.
   final String value;
 
   /// Offers the whole [value] in a tooltip. For values that are routinely

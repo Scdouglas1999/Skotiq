@@ -41,7 +41,6 @@ class MosaicProjectControllerArgs {
   /// The durable directory panel masters and stitched artifacts live under.
   final String artifactsBaseDir;
 
-  /// Integration settings the per-panel integration runs with.
   final IntegrationSettings integrationSettings;
 
   const MosaicProjectControllerArgs({

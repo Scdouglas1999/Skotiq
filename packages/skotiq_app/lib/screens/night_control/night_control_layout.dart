@@ -39,7 +39,6 @@ class NightControlDensity extends InheritedWidget {
 
   final NightControlMode mode;
 
-  /// The center slot's width.
   final double centerWidth;
 
   /// The body under the header is shorter than
@@ -75,7 +74,6 @@ class NightControlDensity extends InheritedWidget {
   bool get hideActionSubLabels =>
       centerWidth < NightControlLayout.actionSubLabelMinWidth;
 
-  /// The session chart row's height.
   double get chartRowHeight => compactHeight
       ? NightControlLayout.compactChartRowHeight
       : NightControlLayout.chartRowHeight;

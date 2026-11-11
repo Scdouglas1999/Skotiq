@@ -222,7 +222,6 @@ List<SeriesPoint> nightGuideTrace(
   final first = values.first.t.millisecondsSinceEpoch;
   final span = values.last.t.millisecondsSinceEpoch - first;
   final thin = values.length > maxPoints && span > 0;
-  // Two points per bucket.
   final buckets = maxPoints ~/ 2;
   final bucketMs = thin ? span / buckets : 0.0;
 

@@ -214,7 +214,6 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
       // The SidePanel already pads its content by 16 (05 §15).
       padding: EdgeInsets.zero,
       children: [
-        // Current angle display
         _buildAngleDisplay(colors),
         const SizedBox(height: 16),
 
@@ -230,7 +229,6 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
           const SizedBox(height: 16),
         ],
 
-        // Relative movement section
         PanelSection(
           title: 'Relative move',
           colors: colors,
@@ -250,8 +248,6 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
           const SizedBox(height: 16),
         ],
 
-        // Halt button — only meaningful when the driver supports halt
-        // and the rotator is currently moving.
         if (_isMoving && canHalt)
           SizedBox(
             width: double.infinity,
@@ -276,7 +272,6 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
       borderRadius: SkotiqTokens.radiusLg,
       child: Column(
         children: [
-          // Visual angle indicator
           SizedBox(
             width: 100,
             height: 100,
@@ -316,7 +311,6 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
             ),
           ),
           const SizedBox(height: 8),
-          // Mechanical position (if different)
           if (mechanicalAngle != null &&
               angle != null &&
               (mechanicalAngle - angle).abs() > 0.1)
@@ -562,7 +556,6 @@ class _AngleIndicatorPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 4;
 
-    // Draw track circle
     final trackPaint = Paint()
       ..color = trackColor
       ..style = PaintingStyle.stroke
@@ -571,7 +564,6 @@ class _AngleIndicatorPainter extends CustomPainter {
 
     if (!isConnected) return;
 
-    // Draw filled arc from 0 to current angle
     final arcPaint = Paint()
       ..color = primaryColor.withValues(alpha: 0.2)
       ..style = PaintingStyle.fill;
@@ -581,7 +573,6 @@ class _AngleIndicatorPainter extends CustomPainter {
     final sweepRadians = angle * math.pi / 180.0;
     canvas.drawArc(arcRect, -math.pi / 2, sweepRadians, true, arcPaint);
 
-    // Draw needle
     final needleRadians = (angle - 90) * math.pi / 180.0;
     final needleEnd = Offset(
       center.dx + radius * math.cos(needleRadians),
@@ -595,7 +586,6 @@ class _AngleIndicatorPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(center, needleEnd, needlePaint);
 
-    // Draw center dot
     final dotPaint = Paint()
       ..color = primaryColor
       ..style = PaintingStyle.fill;

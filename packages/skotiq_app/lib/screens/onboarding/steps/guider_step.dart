@@ -10,7 +10,6 @@ import 'device_picker_step.dart';
 /// than by its position in the row.
 const Key guiderHostFieldKey = Key('onboarding.guider.host');
 
-/// The PHD2 port field.
 const Key guiderPortFieldKey = Key('onboarding.guider.port');
 
 /// Guider step.

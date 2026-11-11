@@ -365,7 +365,6 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                   : SkotiqColors.dark.background,
               child: Stack(
                 children: [
-                  // Image display or empty state
                   if (currentImage != null)
                     Positioned.fill(
                       child: ImageDisplayWidget(
@@ -375,7 +374,6 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                       ),
                     )
                   else
-                    // Star field background with empty-state message
                     Positioned.fill(
                       child: Stack(
                         children: [
@@ -439,7 +437,6 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                       ),
                     ),
 
-                  // Crosshair overlay
                   if (showCrosshair && currentImage != null)
                     Positioned.fill(
                       child: CustomPaint(
@@ -455,7 +452,6 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                       ),
                     ),
 
-                  // Pixel grid overlay
                   if (gridType == GridType.pixel && currentImage != null)
                     Positioned.fill(
                       child: CustomPaint(
@@ -465,7 +461,6 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                       ),
                     ),
 
-                  // Celestial RA/Dec grid overlay (requires plate solve)
                   if (gridType == GridType.celestial &&
                       currentImage != null &&
                       currentSkySolution.plateSolve != null)
@@ -481,7 +476,6 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                       ),
                     ),
 
-                  // Star overlay
                   if (showStarOverlay &&
                       currentImage != null &&
                       starDetectionResult != null &&
@@ -497,7 +491,6 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                       ),
                     ),
 
-                  // Annotation overlay with fade effects
                   if (currentImage != null)
                     Positioned.fill(
                       child: AnnotationOverlayWrapper(
@@ -545,7 +538,6 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                       ),
                     ),
 
-                  // Custom user-drawn annotations (circles, arrows, text)
                   if (currentImage != null)
                     Positioned.fill(
                       child: CustomAnnotationDrawingLayer(
@@ -573,7 +565,6 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                       ),
                     ),
 
-                  // Compass and scale bar overlays (require plate solve data)
                   if (currentImage != null)
                     _CompassScaleBarOverlay(
                       zoomLevel: displayScale,
@@ -695,7 +686,6 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                       ),
                     ),
 
-                  // Exposure progress overlay
                   if (isExposing)
                     Positioned.fill(
                       child: ExposureProgressOverlay(
