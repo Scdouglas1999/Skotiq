@@ -74,7 +74,9 @@ void main() {
     addTearDown(() async => tempDir.delete(recursive: true));
 
     await CatalogManager.instance.initialize(tempDir.path);
-    await File(CatalogManager.instance.annotationCatalogPath).writeAsString(
+    await File(
+      CatalogManager.instance.pathOf(SkyCatalog.annotation),
+    ).writeAsString(
       'RAJ2000,DEJ2000,Bmag,zhelio,PGC\n'
       // Deliberately OFF the solved centre (by 0.01°, ~24 px at 1.5"/px):
       // an object sitting exactly on the centre is inside even a zero-radius

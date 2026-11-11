@@ -101,12 +101,13 @@ extension AnnotationPipeline on AnnotationService {
       }
 
       // PRE-FLIGHT CHECK 2: Verify at least one catalog is installed
-      final dsoStatus = await _catalogManager.getDsoCatalogStatus();
+      final dsoStatus = await _catalogManager.status(SkyCatalog.dso);
       if (!isCurrent()) return;
-      final starStatus = await _catalogManager.getStarCatalogStatus();
+      final starStatus = await _catalogManager.status(SkyCatalog.stars);
       if (!isCurrent()) return;
-      final annotationStatus = await _catalogManager
-          .getAnnotationCatalogStatus();
+      final annotationStatus = await _catalogManager.status(
+        SkyCatalog.annotation,
+      );
       if (!isCurrent()) return;
 
       final hasDsoCatalog = dsoStatus.isInstalled;
@@ -494,11 +495,13 @@ extension AnnotationPipeline on AnnotationService {
       );
 
       for (final dso in dsos) {
-        if (dso.majorAxis != null && dso.majorAxis! < minSize) {
+        if (dso.sizeArcMin != null && dso.sizeArcMin! < minSize) {
           continue;
         }
 
-        final pixelCoords = plateSolve.skyToPixel(dso.ra, dso.dec);
+        final raDeg = dso.coordinates.raDegrees;
+        final decDeg = dso.coordinates.dec;
+        final pixelCoords = plateSolve.skyToPixel(raDeg, decDeg);
         if (pixelCoords == null) {
           continue;
         }
@@ -510,21 +513,19 @@ extension AnnotationPipeline on AnnotationService {
           continue;
         }
 
-        final objectType = _mapAnnotationObjectType(
-          AnnotationObject.fromOpenNgc(dso).type,
-        );
+        final objectType = _objectTypeFor(dso.type);
 
         final annotation = CelestialObjectAnnotation(
-          id: 'dso_${dso.name}',
-          name: dso.displayName,
+          id: 'dso_${dso.id}',
+          name: dso.name,
           type: objectType,
-          ra: dso.ra,
-          dec: dso.dec,
+          ra: raDeg,
+          dec: decDeg,
           x: pixelCoords.x,
           y: pixelCoords.y,
-          catalogId: dso.name,
+          catalogId: dso.id,
           magnitude: dso.magnitude,
-          size: dso.majorAxis,
+          size: dso.sizeArcMin,
         );
 
         final dedupeKey = _deduplicationKey(annotation);
@@ -569,7 +570,9 @@ extension AnnotationPipeline on AnnotationService {
         );
 
         for (final star in stars.take(100)) {
-          final pixelCoords = plateSolve.skyToPixel(star.ra, star.dec);
+          final raDeg = star.coordinates.raDegrees;
+          final decDeg = star.coordinates.dec;
+          final pixelCoords = plateSolve.skyToPixel(raDeg, decDeg);
           if (pixelCoords == null) continue;
 
           // Check if pixel coordinates are within image bounds
@@ -583,13 +586,13 @@ extension AnnotationPipeline on AnnotationService {
           annotations.add(
             CelestialObjectAnnotation(
               id: 'star_${star.id}',
-              name: star.properName ?? star.catalogId,
+              name: star.name,
               type: ObjectType.star,
-              ra: star.ra,
-              dec: star.dec,
+              ra: raDeg,
+              dec: decDeg,
               x: pixelCoords.x,
               y: pixelCoords.y,
-              catalogId: star.catalogId,
+              catalogId: star.id,
               magnitude: star.magnitude,
             ),
           );
@@ -650,7 +653,7 @@ extension AnnotationPipeline on AnnotationService {
           final annotation = CelestialObjectAnnotation(
             id: obj.id,
             name: obj.primaryName,
-            type: _mapAnnotationObjectType(obj.type),
+            type: _objectTypeFor(obj.type),
             ra: obj.ra,
             dec: obj.dec,
             x: pixelCoords.x,

@@ -2,11 +2,12 @@ import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:convert';
 import 'dart:math' as math;
+import '../astronomy/astronomy_calculations.dart';
+import '../util/csv_line.dart';
 import '../util/isolate_run.dart';
 import '../celestial_object.dart';
 import '../coordinate_system.dart';
-import 'catalog.dart';
-import 'catalog_manager.dart';
+import 'catalog_name_search.dart';
 import 'constellation_names.dart';
 
 part 'star_catalog/hyg_parser.dart';
@@ -33,53 +34,38 @@ enum StarCatalogLoadOutcome {
   parseFailed,
 }
 
-/// Star catalog that loads from the HYG database file
+/// The reader for the HYG star database file (about 120,000 stars compiled
+/// from Hipparcos, the Yale Bright Star Catalog and Gliese).
 ///
-/// The HYG database contains ~120,000 stars compiled from:
-/// - Hipparcos Catalog (high precision astrometry)
-/// - Yale Bright Star Catalog (bright stars with names)
-/// - Gliese Catalog of Nearby Stars
-class HygStarCatalog extends Catalog<Star> {
-  final String? catalogPath;
-  final double magnitudeLimit;
+/// One instance per installed file, owned by the catalog manager, so the CSV
+/// is parsed once (in a background isolate) and every consumer shares the
+/// list.
+class HygStarCatalog {
+  /// Path of the HYG CSV file.
+  final String path;
 
-  List<Star>? _cachedStars;
+  List<Star>? _stars;
+  CatalogNameKeys _nameKeys = CatalogNameKeys.empty;
   Future<List<Star>>? _inFlight;
   StarCatalogLoadOutcome _outcome = StarCatalogLoadOutcome.notLoaded;
   Object? _loadError;
 
-  /// Create a star catalog
-  ///
-  /// [catalogPath] - Path to the HYG CSV file, or null to use CatalogManager
-  /// [magnitudeLimit] - Maximum magnitude to load (fainter stars have higher values)
-  HygStarCatalog({this.catalogPath, this.magnitudeLimit = 15.0});
+  HygStarCatalog(this.path);
 
-  @override
-  String get name => 'HYG Database';
-
-  /// Check if catalog data is available
-  Future<bool> get isAvailable async {
-    final path = catalogPath ?? CatalogManager.instance.starCatalogPath;
-    return File(path).exists();
-  }
-
-  /// Get the number of loaded stars
-  int get starCount => _cachedStars?.length ?? 0;
-
-  /// How the last [loadObjects] resolved.
+  /// How the last [load] resolved.
   StarCatalogLoadOutcome get loadOutcome => _outcome;
 
   /// The error that made [loadOutcome] [StarCatalogLoadOutcome.parseFailed],
   /// for surfaces that can show the user why their catalog was rejected.
   Object? get loadError => _loadError;
 
-  /// Whether the last [loadObjects] served the built-in [_fallbackBrightStars]
-  /// list instead of a real catalog.
+  /// Whether the last [load] served the built-in [_fallbackBrightStars] list
+  /// instead of a real catalog.
   ///
-  /// That list is a handful of naked-eye stars — enough to prove the renderer
-  /// works, nowhere near a usable sky — so the UI must say so rather than let
-  /// it pass for the real catalog. True for both failing outcomes; read
-  /// [loadOutcome] to tell "not installed" from "will not parse".
+  /// That list is a handful of naked-eye stars: enough to prove the renderer
+  /// works, nowhere near a usable sky, so the UI must say so. True for both
+  /// failing outcomes; read [loadOutcome] to tell "not installed" from "will
+  /// not parse".
   bool get isUsingFallback =>
       _outcome == StarCatalogLoadOutcome.fileMissing ||
       _outcome == StarCatalogLoadOutcome.parseFailed;
@@ -87,41 +73,42 @@ class HygStarCatalog extends Catalog<Star> {
   /// Number of stars in the built-in fallback list.
   static int get fallbackStarCount => _fallbackBrightStars.length;
 
-  @override
-  Future<List<Star>> loadObjects() async {
-    final cached = _cachedStars;
+  /// Every star in the file, brightest first; the built-in bright-star list
+  /// when the file is missing or will not parse.
+  Future<List<Star>> load() async {
+    final cached = _stars;
     if (cached != null) return cached;
     // One shared future so concurrent callers cannot race the cache.
-    final inFlight = _inFlight;
-    if (inFlight != null) return inFlight;
+    return _inFlight ??= _load().whenComplete(() => _inFlight = null);
+  }
 
-    final load = _load();
-    _inFlight = load;
-    try {
-      return await load;
-    } finally {
-      _inFlight = null;
-    }
+  /// Search names parallel to [load]'s list; empty when the fallback list is
+  /// being served.
+  Future<CatalogNameKeys> nameKeys() async {
+    await load();
+    return _nameKeys;
   }
 
   Future<List<Star>> _load() async {
-    final path = catalogPath ?? CatalogManager.instance.starCatalogPath;
-    final file = File(path);
-
-    if (!await file.exists()) {
+    if (path.isEmpty) {
+      throw StateError(
+        'CatalogManager not initialized. Call initialize() first.',
+      );
+    }
+    if (!await File(path).exists()) {
+      // Not cached: a catalog copied into place later is picked up by the
+      // next load.
       _outcome = StarCatalogLoadOutcome.fileMissing;
       _loadError = null;
-      return _cachedStars = _fallbackBrightStars;
+      return _fallbackBrightStars;
     }
 
     try {
-      final stars = await runInIsolate(
-        _loadStarsInIsolate,
-        _LoadStarsArgs(path, magnitudeLimit),
-      );
+      final loaded = await runInIsolate(_loadStarsInIsolate, path);
       _outcome = StarCatalogLoadOutcome.loaded;
       _loadError = null;
-      return _cachedStars = stars;
+      _nameKeys = loaded.nameKeys;
+      return _stars = loaded.stars;
     } catch (e) {
       // A catalog file that will not parse is a broken install, not an empty
       // sky: serve the built-in list, record why, and cache it so the failing
@@ -134,81 +121,55 @@ class HygStarCatalog extends Catalog<Star> {
       );
       _outcome = StarCatalogLoadOutcome.parseFailed;
       _loadError = e;
-      return _cachedStars = _fallbackBrightStars;
+      return _stars = _fallbackBrightStars;
     }
   }
 
-  @override
-  Future<Star?> findById(String id) async {
-    final stars = await loadObjects();
-    final normalizedId = id.toUpperCase().replaceAll(' ', '');
-
-    return stars.where((s) {
-      if (s.id.toUpperCase().replaceAll(' ', '') == normalizedId) return true;
-      return s.catalogIds.any(
-        (c) => c.toUpperCase().replaceAll(' ', '') == normalizedId,
-      );
-    }).firstOrNull;
+  /// Stars no fainter than [maxMagnitude], brightest first.
+  Future<List<Star>> brighterThan(double maxMagnitude) async {
+    final stars = await load();
+    // The list is magnitude-sorted, so this is a prefix.
+    var lo = 0, hi = stars.length;
+    while (lo < hi) {
+      final mid = (lo + hi) >> 1;
+      if ((stars[mid].magnitude ?? 99) <= maxMagnitude) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    return lo == stars.length ? stars : stars.sublist(0, lo);
   }
 
-  @override
-  Future<List<Star>> search(String query) async {
-    final q = query.toLowerCase();
-    final stars = await loadObjects();
-
-    return stars
-        .where(
-          (s) =>
-              s.name.toLowerCase().contains(q) ||
-              s.id.toLowerCase().contains(q) ||
-              (s.constellation?.toLowerCase().contains(q) ?? false) ||
-              s.catalogIds.any((c) => c.toLowerCase().contains(q)),
-        )
-        .toList();
-  }
-
-  /// Get stars within [radiusDegrees] of [center] (cone search).
-  ///
-  /// [center] is a [CelestialCoordinate], so its RA is HOURS; the radius is
-  /// degrees. Both sides of the comparison are taken to degrees, with the RA
-  /// separation narrowed by cos(dec) and wrapped across 0h/24h, so the cone is
-  /// a real angular cone rather than a rectangle in mixed units.
+  /// Stars within [radiusDegrees] of [center] on the sky, brightest first.
+  /// [center]'s RA is hours, as in every [CelestialCoordinate].
   Future<List<Star>> getStarsNear(
     CelestialCoordinate center,
     double radiusDegrees, {
     double? maxMagnitude,
   }) async {
-    final stars = await loadObjects();
-    final cosDec = math.cos(center.decRadians).abs().clamp(0.05, 1.0);
-    final radiusSq = radiusDegrees * radiusDegrees;
-
-    return stars.where((s) {
+    final stars = await load();
+    final sorted = _outcome == StarCatalogLoadOutcome.loaded;
+    final centerRaDeg = center.raDegrees;
+    final found = <Star>[];
+    for (final s in stars) {
       if (maxMagnitude != null && (s.magnitude ?? 99) > maxMagnitude) {
-        return false;
+        // The parsed catalog is magnitude-sorted: nothing after this star is
+        // bright enough. The fallback list is in no particular order.
+        if (sorted) break;
+        continue;
       }
-
-      var dRaDeg = (s.coordinates.raDegrees - center.raDegrees).abs();
-      if (dRaDeg > 180) dRaDeg = 360 - dRaDeg;
-      final dxDeg = dRaDeg * cosDec;
-      final dyDeg = s.coordinates.dec - center.dec;
-
-      return dxDeg * dxDeg + dyDeg * dyDeg <= radiusSq;
-    }).toList();
+      if ((s.coordinates.dec - center.dec).abs() > radiusDegrees) continue;
+      final separation = AstronomyCalculations.angularSeparation(
+        ra1Deg: centerRaDeg,
+        dec1Deg: center.dec,
+        ra2Deg: s.coordinates.raDegrees,
+        dec2Deg: s.coordinates.dec,
+      );
+      if (separation <= radiusDegrees) found.add(s);
+    }
+    return found;
   }
-
-  /// Clear the cache, so the next [loadObjects] re-reads the catalog file.
-  void clearCache() {
-    _cachedStars = null;
-    _outcome = StarCatalogLoadOutcome.notLoaded;
-    _loadError = null;
-  }
-}
-
-class _LoadStarsArgs {
-  final String path;
-  final double magnitudeLimit;
-
-  _LoadStarsArgs(this.path, this.magnitudeLimit);
 }
 
 /// One parsed HYG row: the [Star] plus the multiple-star bookkeeping that

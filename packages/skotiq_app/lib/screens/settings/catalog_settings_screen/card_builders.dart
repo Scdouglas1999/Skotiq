@@ -4,7 +4,7 @@ part of '../catalog_settings_screen.dart';
 mixin _CatalogCardBuilders on ConsumerState<CatalogSettingsScreen> {
   bool get _isDownloading;
 
-  Future<void> _importCatalog(String type);
+  Future<void> _importCatalog(SkyCatalog catalog);
 
   String _formatDate(DateTime date);
 
@@ -22,7 +22,7 @@ mixin _CatalogCardBuilders on ConsumerState<CatalogSettingsScreen> {
     required String description,
     required String sourceUrl,
     required CatalogStatus? status,
-    required String type,
+    required SkyCatalog catalog,
     required IconData icon,
     required String usedFor,
     String? latestVersion,
@@ -102,7 +102,8 @@ mixin _CatalogCardBuilders on ConsumerState<CatalogSettingsScreen> {
               SkotiqIconButton(
                 icon: SkotiqIcons.folderOpen,
                 tooltip: 'Import from file',
-                onPressed: _isDownloading ? null : () => _importCatalog(type),
+                onPressed:
+                    _isDownloading ? null : () => _importCatalog(catalog),
                 size: IconButtonSize.sm,
                 color: colors.textSecondary,
               ),
@@ -150,7 +151,7 @@ mixin _CatalogCardBuilders on ConsumerState<CatalogSettingsScreen> {
                 _buildStatusChip(
                   context: context,
                   label: 'Size',
-                  value: _formatBytes(status.fileSizeBytes),
+                  value: _formatBytes(status.sizeBytes),
                 ),
                 if (status.version != null)
                   _buildStatusChip(
@@ -167,17 +168,17 @@ mixin _CatalogCardBuilders on ConsumerState<CatalogSettingsScreen> {
                 // fact about their install. Everything the sidecar can honestly
                 // say is already on the card: the dataset name is the title and
                 // the object count, size, version and install date are chips.
-                if (_magnitudeDepth(type, status.installedPackage) != null)
+                if (_magnitudeDepth(catalog) != null)
                   _buildStatusChip(
                     context: context,
                     label: 'Depth',
-                    value: _magnitudeDepth(type, status.installedPackage)!,
+                    value: _magnitudeDepth(catalog)!,
                   ),
-                if (status.installedDate != null)
+                if (status.installedAt != null)
                   _buildStatusChip(
                     context: context,
                     label: 'Installed',
-                    value: _formatDate(status.installedDate!),
+                    value: _formatDate(status.installedAt!),
                   ),
               ],
             ),
@@ -203,22 +204,15 @@ mixin _CatalogCardBuilders on ConsumerState<CatalogSettingsScreen> {
   /// Human-readable magnitude depth for the installed catalog, or null when
   /// there is no honest depth to state.
   ///
-  /// Stars quote [kHygFaintFloorMag] — HYG's real completeness, the same number
-  /// the Deep-Star card and the Layers panel quote. This read the depth off the
-  /// metadata sidecar's package name, so the SAME installed file reported
-  /// "mag ≤ 6.5" or "mag ≤ 8.0" depending on which fictitious tier had been
-  /// clicked at download time.
+  /// Stars quote [kHygFaintFloorMag], HYG's real completeness, the same number
+  /// the Deep-Star card and the Layers panel quote.
   ///
   /// DSOs get no depth chip. OpenNGC is a compilation, not a magnitude-limited
   /// survey, so there is no magnitude it is complete to; the card's measured
   /// Objects count and file size already say what is installed.
-  String? _magnitudeDepth(String type, CatalogPackage? package) {
-    if (package == null) return null;
-    if (type == 'stars') {
-      return 'mag ≤ ${kHygFaintFloorMag.toStringAsFixed(1)}';
-    }
-    return null;
-  }
+  String? _magnitudeDepth(SkyCatalog catalog) => catalog == SkyCatalog.stars
+      ? 'mag ≤ ${kHygFaintFloorMag.toStringAsFixed(1)}'
+      : null;
 
   /// Whether [fetchable] names a catalog release genuinely NEWER than
   /// [installed] — the only case in which "Update available" is true.

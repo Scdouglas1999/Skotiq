@@ -123,7 +123,7 @@ void main() {
         ra: 30.0,
         dec: 5.0,
         radiusDegrees: 0.5,
-        typeFilter: const {AnnotationObjectType.galaxy},
+        typeFilter: const {DsoType.galaxy},
       ),
       hasLength(1),
     );
@@ -132,7 +132,7 @@ void main() {
         ra: 30.0,
         dec: 5.0,
         radiusDegrees: 0.5,
-        typeFilter: const {AnnotationObjectType.nebula},
+        typeFilter: const {DsoType.nebula},
       ),
       isEmpty,
     );

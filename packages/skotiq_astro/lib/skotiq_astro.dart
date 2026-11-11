@@ -14,7 +14,11 @@ export 'src/astronomy/milky_way_data.dart';
 export 'src/astronomy/sgp4.dart';
 
 // Catalogs
-export 'src/catalogs/catalog.dart';
+export 'src/catalogs/sky_catalog.dart';
+export 'src/catalogs/catalog_install_models.dart';
+export 'src/catalogs/catalog_installer.dart';
+export 'src/catalogs/catalog_name_search.dart';
+export 'src/catalogs/open_ngc_catalog.dart';
 export 'src/catalogs/hyg_depth.dart';
 export 'src/catalogs/star_catalog.dart';
 export 'src/catalogs/constellation_data.dart';

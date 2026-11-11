@@ -2,19 +2,11 @@ part of '../planetarium_providers.dart';
 
 // Catalog providers
 
-/// The star list the renderer and search draw from.
-///
-/// Delegates to [starsProvider] so there is exactly one [HygStarCatalog]
-/// instance, one CSV parse and one retained list — see [starCatalogProvider].
-final loadedStarsProvider = FutureProvider<List<Star>>((ref) async {
-  return ref.watch(starsProvider.future);
-});
-
+/// Deep-sky objects to magnitude 16, so faint imaging targets are there when
+/// zoomed in; the dynamic magnitude limit filters them per frame.
 final loadedDsosProvider = FutureProvider<List<DeepSkyObject>>((ref) async {
   ref.watch(catalogStateProvider.select((s) => s.installRevision));
-  // Load DSOs up to magnitude 16.0 to include faint imaging targets when zoomed in.
-  // The dynamic magnitude limit provider filters them per-frame based on FOV.
-  return OpenNgcDsoCatalog(magnitudeLimit: 16.0).loadObjects();
+  return CatalogManager.instance.dsos.brighterThan(16.0);
 });
 
 /// Spatial index for stars to avoid scanning full catalogs per frame.

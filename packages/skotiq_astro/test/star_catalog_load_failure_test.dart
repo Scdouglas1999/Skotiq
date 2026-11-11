@@ -35,9 +35,9 @@ void main() {
 
   test('a catalog file that cannot be parsed reports a load failure', () async {
     final file = await writeUndecodableCatalog();
-    final catalog = HygStarCatalog(catalogPath: file.path);
+    final catalog = HygStarCatalog(file.path);
 
-    final stars = await catalog.loadObjects();
+    final stars = await catalog.load();
 
     expect(
       catalog.loadOutcome,
@@ -58,13 +58,13 @@ void main() {
 
   test('a failed parse is cached, not retried on every load', () async {
     final file = await writeUndecodableCatalog();
-    final catalog = HygStarCatalog(catalogPath: file.path);
+    final catalog = HygStarCatalog(file.path);
 
-    final first = await catalog.loadObjects();
+    final first = await catalog.load();
     // Replacing the file with a valid-but-empty catalog proves the second call
     // never re-read it: a re-parse would now succeed and return no stars.
     await file.writeAsString('id,hip,hd\n');
-    final second = await catalog.loadObjects();
+    final second = await catalog.load();
 
     expect(identical(first, second), isTrue);
     expect(catalog.loadOutcome, StarCatalogLoadOutcome.parseFailed);
@@ -73,9 +73,9 @@ void main() {
   test(
     'a missing catalog file is reported as missing, not as a failure',
     () async {
-      final catalog = HygStarCatalog(catalogPath: '${tempDir.path}/absent.csv');
+      final catalog = HygStarCatalog('${tempDir.path}/absent.csv');
 
-      final stars = await catalog.loadObjects();
+      final stars = await catalog.load();
 
       expect(catalog.loadOutcome, StarCatalogLoadOutcome.fileMissing);
       expect(catalog.isUsingFallback, isTrue);
@@ -99,8 +99,8 @@ void main() {
       '${row.join(',')}\n',
     );
 
-    final catalog = HygStarCatalog(catalogPath: file.path);
-    final stars = await catalog.loadObjects();
+    final catalog = HygStarCatalog(file.path);
+    final stars = await catalog.load();
 
     expect(catalog.loadOutcome, StarCatalogLoadOutcome.loaded);
     expect(catalog.isUsingFallback, isFalse);

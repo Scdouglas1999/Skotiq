@@ -17,7 +17,6 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 /// Every test here bounds its own wait, so a failure fails the suite instead of
 /// hanging it.
 void main() {
-
   late Directory tempDir;
   late Duration savedConnect;
   late Duration savedIdle;
@@ -28,21 +27,21 @@ void main() {
     tempDir = await Directory.systemTemp.createTemp('sk_catalog_stall_');
     await CatalogManager.instance.initialize(tempDir.path);
 
-    savedConnect = CatalogManager.connectTimeout;
-    savedIdle = CatalogManager.streamIdleTimeout;
-    savedPoll = CatalogManager.cancelPollInterval;
-    savedFactory = CatalogManager.httpClientFactory;
+    savedConnect = CatalogInstaller.connectTimeout;
+    savedIdle = CatalogInstaller.streamIdleTimeout;
+    savedPoll = CatalogInstaller.cancelPollInterval;
+    savedFactory = CatalogInstaller.httpClientFactory;
 
-    CatalogManager.connectTimeout = const Duration(milliseconds: 300);
-    CatalogManager.streamIdleTimeout = const Duration(milliseconds: 300);
-    CatalogManager.cancelPollInterval = const Duration(milliseconds: 40);
+    CatalogInstaller.connectTimeout = const Duration(milliseconds: 300);
+    CatalogInstaller.streamIdleTimeout = const Duration(milliseconds: 300);
+    CatalogInstaller.cancelPollInterval = const Duration(milliseconds: 40);
   });
 
   tearDown(() async {
-    CatalogManager.connectTimeout = savedConnect;
-    CatalogManager.streamIdleTimeout = savedIdle;
-    CatalogManager.cancelPollInterval = savedPoll;
-    CatalogManager.httpClientFactory = savedFactory;
+    CatalogInstaller.connectTimeout = savedConnect;
+    CatalogInstaller.streamIdleTimeout = savedIdle;
+    CatalogInstaller.cancelPollInterval = savedPoll;
+    CatalogInstaller.httpClientFactory = savedFactory;
     if (await tempDir.exists()) await tempDir.delete(recursive: true);
   });
 
@@ -51,22 +50,22 @@ void main() {
       future.timeout(const Duration(seconds: 20));
 
   group('a stalled transfer is abandoned', () {
-    test('legacy star download gives up instead of waiting forever', () async {
+    test('a star download gives up instead of waiting forever', () async {
       final clients = <_StallingClient>[];
-      CatalogManager.httpClientFactory = () {
+      CatalogInstaller.httpClientFactory = () {
         final client = _StallingClient.afterHeaders();
         clients.add(client);
         return client;
       };
 
       final started = DateTime.now();
-      final ok = await bounded(CatalogManager.instance.downloadStarCatalog());
+      await expectLater(
+        bounded(CatalogManager.instance.install(SkyCatalog.stars)),
+        throwsA(isA<CatalogDownloadStalled>()),
+      );
       final elapsed = DateTime.now().difference(started);
 
-      expect(ok, isFalse);
       expect(clients, isNotEmpty, reason: 'the download must have been tried');
-      // Every candidate stalls, so the wall time is a small multiple of the
-      // idle timeout — not unbounded.
       expect(elapsed, lessThan(const Duration(seconds: 10)));
       expect(
         clients.every((c) => c.closed),
@@ -78,128 +77,96 @@ void main() {
     test(
       'a server that never sends headers hits the connect timeout',
       () async {
-        CatalogManager.httpClientFactory = _StallingClient.beforeHeaders;
+        CatalogInstaller.httpClientFactory = _StallingClient.beforeHeaders;
 
-        final ok = await bounded(CatalogManager.instance.downloadStarCatalog());
-
-        expect(ok, isFalse);
+        await expectLater(
+          bounded(CatalogManager.instance.install(SkyCatalog.stars)),
+          throwsA(isA<CatalogDownloadStalled>()),
+        );
       },
     );
 
-    test('the unified install path gives up too', () async {
-      CatalogManager.httpClientFactory = _StallingClient.afterHeaders;
-
-      final available = await CatalogManager.instance.listAvailable();
-      expect(available, isNotEmpty);
+    test('the annotation download gives up too', () async {
+      CatalogInstaller.httpClientFactory = _StallingClient.afterHeaders;
 
       await expectLater(
-        bounded(
-          CatalogManager.instance.downloadAndInstall(available.first.name),
-        ),
-        throwsA(isA<Exception>()),
+        bounded(CatalogManager.instance.install(SkyCatalog.annotation)),
+        throwsA(isA<CatalogDownloadStalled>()),
       );
-    });
-
-    test('the annotation download gives up too', () async {
-      CatalogManager.httpClientFactory = _StallingClient.afterHeaders;
-
-      final ok = await bounded(
-        CatalogManager.instance.downloadAnnotationCatalog(),
-      );
-
-      expect(ok, isFalse);
     });
   });
 
   group('Cancel works while the transfer is stalled', () {
-    test('legacy star download reports canceled', () async {
-      // Long enough that a stall timeout cannot be what ends this download —
-      // only the cancel poll can.
-      CatalogManager.streamIdleTimeout = const Duration(seconds: 30);
-      CatalogManager.httpClientFactory = _StallingClient.afterHeaders;
+    for (final catalog in [SkyCatalog.stars, SkyCatalog.annotation]) {
+      test('${catalog.name} download reports canceled', () async {
+        // Idle timeout far beyond the test: only Cancel can end this one.
+        CatalogInstaller.streamIdleTimeout = const Duration(seconds: 30);
+        CatalogInstaller.httpClientFactory = _StallingClient.afterHeaders;
 
-      var cancelRequested = false;
-      final progress = <DownloadProgress>[];
+        var cancelRequested = false;
+        final progress = <DownloadProgress>[];
 
-      final download = CatalogManager.instance.downloadStarCatalog(
-        onProgress: progress.add,
-        isCancelled: () async => cancelRequested,
-      );
+        final download = CatalogManager.instance.install(
+          catalog,
+          onProgress: progress.add,
+          isCancelled: () async => cancelRequested,
+        );
+        unawaited(download.then((_) {}, onError: (_) {}));
 
-      // The user presses Cancel after the connection has already gone quiet.
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-      cancelRequested = true;
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        cancelRequested = true;
 
-      final ok = await bounded(download);
+        await expectLater(bounded(download), throwsA(isA<CatalogCancelled>()));
+        expect(
+          progress.any((p) => p.cancelled),
+          isTrue,
+          reason: 'the UI must be told the cancel took effect',
+        );
+      });
+    }
+  });
 
-      expect(ok, isFalse);
-      expect(
-        progress.any((p) => p.cancelled),
-        isTrue,
-        reason: 'the UI must be told the cancel took effect',
-      );
-    });
+  test('Cancel ends the wait for response headers', () async {
+    // The GLADE+ query runs server-side for 20 s or more before any header.
+    CatalogInstaller.connectTimeout = const Duration(seconds: 30);
+    CatalogInstaller.httpClientFactory = _StallingClient.beforeHeaders;
 
-    test('the unified install path reports canceled', () async {
-      CatalogManager.streamIdleTimeout = const Duration(seconds: 30);
-      CatalogManager.httpClientFactory = _StallingClient.afterHeaders;
+    var cancelRequested = false;
+    final download = CatalogManager.instance.install(
+      SkyCatalog.annotation,
+      isCancelled: () async => cancelRequested,
+    );
+    unawaited(download.then((_) {}, onError: (_) {}));
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    cancelRequested = true;
 
-      var cancelRequested = false;
-      final available = await CatalogManager.instance.listAvailable();
-
-      final install = CatalogManager.instance.downloadAndInstall(
-        available.first.name,
-        isCancelled: () async => cancelRequested,
-      );
-
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-      cancelRequested = true;
-
-      await expectLater(bounded(install), throwsA(isA<CatalogCancelled>()));
-    });
-
-    test('the annotation download reports canceled', () async {
-      CatalogManager.streamIdleTimeout = const Duration(seconds: 30);
-      CatalogManager.httpClientFactory = _StallingClient.afterHeaders;
-
-      var cancelRequested = false;
-      final progress = <DownloadProgress>[];
-
-      final download = CatalogManager.instance.downloadAnnotationCatalog(
-        onProgress: progress.add,
-        isCancelled: () async => cancelRequested,
-      );
-
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-      cancelRequested = true;
-
-      final ok = await bounded(download);
-
-      expect(ok, isFalse);
-      expect(progress.any((p) => p.cancelled), isTrue);
-    });
+    final started = DateTime.now();
+    await expectLater(bounded(download), throwsA(isA<CatalogCancelled>()));
+    expect(
+      DateTime.now().difference(started),
+      lessThan(const Duration(seconds: 2)),
+    );
   });
 
   test('a healthy transfer is unaffected by the guards', () async {
     final payload = <int>[for (var i = 0; i < 4096; i++) i % 256];
-    CatalogManager.httpClientFactory = () => _ChunkedClient(payload);
+    CatalogInstaller.httpClientFactory = () => _ChunkedClient(payload);
 
-    // The hash will not match the real catalog's, so the download still fails —
-    // but it must fail on the hash, having read every byte, rather than stall.
     final progress = <DownloadProgress>[];
-    await bounded(
-      CatalogManager.instance.downloadDsoCatalog(onProgress: progress.add),
+    await expectLater(
+      bounded(
+        CatalogManager.instance.install(
+          SkyCatalog.dso,
+          onProgress: progress.add,
+        ),
+      ),
+      // The transfer completed and was rejected on content, not timing.
+      throwsA(isA<CatalogHashMismatchException>()),
     );
-
-    expect(
-      progress.any((p) => p.error != null),
-      isTrue,
-      reason: 'the transfer completed and was rejected on content, not timing',
-    );
+    expect(progress.any((p) => p.error != null), isTrue);
   });
 }
 
-/// A client whose responses never deliver a body.
 class _StallingClient extends http.BaseClient {
   _StallingClient._(this._sendHeaders);
 

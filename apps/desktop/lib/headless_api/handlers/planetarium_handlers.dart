@@ -1,4 +1,3 @@
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
@@ -439,12 +438,12 @@ class PlanetariumHandlers implements RouteSource {
 
       for (final dso in dsos) {
         results.add({
-          'name': dso.displayName,
-          'catalogId': dso.name,
-          'ra': dso.ra,
-          'raHours': dso.ra / 15.0, // canonical hours field; see B14
-          'dec': dso.dec,
-          'type': dso.typeDescription,
+          'name': dso.name,
+          'catalogId': dso.id,
+          'ra': dso.coordinates.raDegrees,
+          'raHours': dso.coordinates.ra, // canonical hours field; see B14
+          'dec': dso.coordinates.dec,
+          'type': dso.type.displayName,
           'magnitude': dso.magnitude,
           'constellation': dso.constellation,
           'size': dso.sizeString,
@@ -465,10 +464,10 @@ class PlanetariumHandlers implements RouteSource {
       for (final star in stars) {
         results.add({
           'name': star.name,
-          'catalogId': star.catalogId,
-          'ra': star.ra,
-          'raHours': star.ra / 15.0, // canonical hours field; see B14
-          'dec': star.dec,
+          'catalogId': star.id,
+          'ra': star.coordinates.raDegrees,
+          'raHours': star.coordinates.ra, // canonical hours field; see B14
+          'dec': star.coordinates.dec,
           'type': 'Star',
           'magnitude': star.magnitude,
           'constellation': star.constellation,

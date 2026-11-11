@@ -73,9 +73,9 @@ void main() {
     tearDown(() async {
       await evtSub.cancel();
       await jobManager.dispose();
-      for (final name in CatalogManager.knownCatalogs.keys) {
+      for (final catalog in SkyCatalog.values) {
         try {
-          await CatalogManager.instance.uninstall(name);
+          await CatalogManager.instance.uninstall(catalog);
         } catch (_) {
           // Best-effort cleanup.
         }
@@ -95,7 +95,7 @@ void main() {
       expect(response.statusCode, 200);
       final body = jsonDecode(await response.readAsString()) as Map;
       final catalogs = body['catalogs'] as List;
-      expect(catalogs.length, CatalogManager.knownCatalogs.length);
+      expect(catalogs.length, SkyCatalog.values.length);
       for (final c in catalogs) {
         expect((c as Map)['status'], 'missing');
       }
@@ -111,8 +111,8 @@ void main() {
       final srcFile = File('${src.path}/source.csv');
       await srcFile.writeAsString(csv);
       await CatalogManager.instance.installFromFile(
-        name: 'dso',
-        source: srcFile,
+        SkyCatalog.dso,
+        srcFile,
         expectedSha256: expectedSha,
       );
       await src.delete(recursive: true);
@@ -144,7 +144,7 @@ void main() {
       final available = body1['available'] as List;
       expect(
         available.map((e) => (e as Map)['name']).toSet(),
-        equals(CatalogManager.knownCatalogs.keys.toSet()),
+        equals(SkyCatalog.values.map((c) => c.name).toSet()),
       );
 
       final response2 = await translateHandlerErrors(
@@ -214,8 +214,8 @@ void main() {
         await srcFile.writeAsString(csv);
 
         await CatalogManager.instance.installFromFile(
-          name: 'dso',
-          source: srcFile,
+          SkyCatalog.dso,
+          srcFile,
           expectedSha256: expectedSha,
         );
 
@@ -322,8 +322,8 @@ void main() {
         final srcFile = File('${src.path}/source.csv');
         await srcFile.writeAsString(csv);
         await CatalogManager.instance.installFromFile(
-          name: 'dso',
-          source: srcFile,
+          SkyCatalog.dso,
+          srcFile,
           expectedSha256: expectedSha,
         );
         await src.delete(recursive: true);
@@ -359,7 +359,7 @@ void main() {
       final verified = body['verified'] as Map;
       expect(
         verified.keys.toSet(),
-        equals(CatalogManager.knownCatalogs.keys.toSet()),
+        equals(SkyCatalog.values.map((c) => c.name).toSet()),
       );
       for (final v in verified.values) {
         final m = v as Map;
@@ -377,8 +377,8 @@ void main() {
       final srcFile = File('${src.path}/source.csv');
       await srcFile.writeAsString(csv);
       await CatalogManager.instance.installFromFile(
-        name: 'dso',
-        source: srcFile,
+        SkyCatalog.dso,
+        srcFile,
         expectedSha256: expectedSha,
       );
       await src.delete(recursive: true);

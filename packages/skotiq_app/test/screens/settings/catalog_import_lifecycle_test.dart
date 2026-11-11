@@ -50,9 +50,8 @@ void main() {
           pickerCalls++;
           return pick.future;
         }),
-        catalogCsvImporterProvider.overrideWithValue((path, type) async {
+        catalogCsvImporterProvider.overrideWithValue((path, catalog) async {
           importerCalls++;
-          return true;
         }),
       ],
     );
@@ -103,7 +102,7 @@ void main() {
 
   testWidgets('catalog import dispatches the selected path and type',
       (tester) async {
-    final calls = <(String, String)>[];
+    final calls = <(String, SkyCatalog)>[];
     await pumpAppScreen(
       tester,
       const CatalogSettingsScreen(),
@@ -113,9 +112,12 @@ void main() {
         catalogCsvPickerProvider.overrideWithValue(
           (confirmLabel) async => XFile('/selected-stars.csv'),
         ),
-        catalogCsvImporterProvider.overrideWithValue((path, type) async {
-          calls.add((path, type));
-          return false;
+        catalogCsvImporterProvider.overrideWithValue((path, catalog) async {
+          calls.add((path, catalog));
+          throw const CatalogDownloadException(
+            phase: 'install_from_file',
+            message: 'Source file is empty',
+          );
         }),
       ],
     );
@@ -125,8 +127,8 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(calls, [('/selected-stars.csv', 'stars')]);
-    expect(find.text('Failed to import catalog'), findsOneWidget);
+    expect(calls, [('/selected-stars.csv', SkyCatalog.stars)]);
+    expect(find.text('Import failed: Source file is empty'), findsOneWidget);
     expect(find.byTooltip('Import from file'), findsWidgets);
     expect(tester.takeException(), isNull);
   });

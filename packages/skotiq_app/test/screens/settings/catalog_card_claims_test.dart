@@ -29,11 +29,10 @@ import '../../harness/harness.dart';
 late Directory _catalogDirectory;
 
 Future<void> _installStarCatalog({required String version}) async {
-  await File(p.join(_catalogDirectory.path, hygStarCatalog.fileName))
+  await File(p.join(_catalogDirectory.path, SkyCatalog.stars.fileName))
       .writeAsString('id,proper,ra,dec,mag\n1,Fixture,0,0,1.0\n');
   await File(p.join(_catalogDirectory.path, 'stars_metadata.json'))
       .writeAsString(jsonEncode({
-    'package': CatalogPackage.standard.name,
     'version': version,
     'objectCount': 119614,
     'installedDate': DateTime(2026, 8, 11).toIso8601String(),
@@ -79,7 +78,7 @@ void main() {
   testWidgets('the installed card prints no download-tier grade',
       (tester) async {
     await tester
-        .runAsync(() => _installStarCatalog(version: hygStarCatalog.version));
+        .runAsync(() => _installStarCatalog(version: SkyCatalog.stars.version));
     await _pumpCatalogs(tester);
 
     // The card is up (it is printing the chips that ARE facts about the file).
@@ -101,10 +100,10 @@ void main() {
   testWidgets('the newest fetchable catalog does not advertise an update',
       (tester) async {
     await tester
-        .runAsync(() => _installStarCatalog(version: hygStarCatalog.version));
+        .runAsync(() => _installStarCatalog(version: SkyCatalog.stars.version));
     await _pumpCatalogs(tester);
 
-    expect(find.text(hygStarCatalog.version), findsWidgets);
+    expect(find.text(SkyCatalog.stars.version), findsWidgets);
     expect(find.text('Update available'), findsNothing,
         reason: 'the installed version IS the newest the resolver can fetch');
   });

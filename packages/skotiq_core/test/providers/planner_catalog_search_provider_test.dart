@@ -48,7 +48,7 @@ void main() {
       });
 
       await CatalogManager.instance.initialize(tempDir.path);
-      await File(CatalogManager.instance.dsoCatalogPath).writeAsString(
+      await File(CatalogManager.instance.pathOf(SkyCatalog.dso)).writeAsString(
         [
           openNgcHeader,
           'NGC1976;Cl+N;05:35:16.48;-05:23:22.8;Ori;90.00;60.00;;4.00;4.00;;;;;;;1.670;-0.300;28;0.000093;;;;042;;;;LBN 974,MWSC 0582;Great Orion Nebula,Orion Nebula;;;test',
@@ -91,7 +91,7 @@ void main() {
       });
 
       await CatalogManager.instance.initialize(tempDir.path);
-      await File(CatalogManager.instance.dsoCatalogPath).writeAsString(
+      await File(CatalogManager.instance.pathOf(SkyCatalog.dso)).writeAsString(
         [
           openNgcHeader,
           'NGC0001;G;00:07:15.84;+27:42:29.1;Peg;1.55;1.07;112;13.65;12.90;;;;;;;;;;;;;;;;;;;;;;;;;;test',
@@ -99,7 +99,9 @@ void main() {
           'NGC1976;Cl+N;05:35:16.48;-05:23:22.8;Ori;90.00;60.00;;4.00;4.00;;;;;;;1.670;-0.300;28;0.000093;;;;042;;;;LBN 974,MWSC 0582;Great Orion Nebula,Orion Nebula;;;test',
         ].join('\n'),
       );
-      await File(CatalogManager.instance.starCatalogPath).writeAsString(
+      await File(
+        CatalogManager.instance.pathOf(SkyCatalog.stars),
+      ).writeAsString(
         [
           'id,hip,hd,hr,gl,bf,proper,ra,dec,dist,pmra,pmdec,rv,mag,absmag,spect,ci,x,y,z,vx,vy,vz,rarad,decrad,pmrarad,pmdecrad,bayer,flam,con,comp,comp_primary,base,lum,var,var_min,var_max',
           '1,91262,172167,7001,,,"Vega",18.615649,38.783689,7.68,0,0,0,0.03,0.58,A0V,0.0,0,0,0,0,0,0,0,0,0,0,alp,3,Lyr,1,1,1,40,0,0,0',
@@ -122,10 +124,10 @@ void main() {
       }
 
       expect((await search('M 42')).single.name, 'M42');
-      expect((await search('NGC 1')).first.catalogId, 'NGC0001');
-      expect((await search('NGC0001')).first.catalogId, 'NGC0001');
-      expect((await search('IC 410')).single.catalogId, 'IC0410');
-      expect((await search('IC0410')).single.catalogId, 'IC0410');
+      expect((await search('NGC 1')).first.catalogId, 'NGC1');
+      expect((await search('NGC0001')).first.catalogId, 'NGC1');
+      expect((await search('IC 410')).single.catalogId, 'IC410');
+      expect((await search('IC0410')).single.catalogId, 'IC410');
       expect((await search('HIP 91262')).single.name, 'Vega');
       expect((await search('HD 172167')).single.name, 'Vega');
     },

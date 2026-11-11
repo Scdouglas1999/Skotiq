@@ -12,7 +12,7 @@ import 'wcs_overlay.dart';
 /// Mirrors `CatalogManager.searchDsoNearby`. Injected as a closure so the
 /// service runs against an in-memory catalog stub in tests.
 typedef DsoConeSearch =
-    Future<List<OpenNgcData>> Function({
+    Future<List<DeepSkyObject>> Function({
       required double ra,
       required double dec,
       required double radiusDegrees,
@@ -96,14 +96,17 @@ class MasterAnnotationService {
     final items = <Annotation>[];
 
     for (final dso in dsos) {
-      final (x, y) = wcs.celestialToPixel(dso.ra, dso.dec);
+      final (x, y) = wcs.celestialToPixel(
+        dso.coordinates.raDegrees,
+        dso.coordinates.dec,
+      );
       if (!_inBounds(x, y, width, height)) continue;
       items.add(
         Annotation(
-          label: _dsoLabel(dso),
+          label: dso.name,
           x: x,
           y: y,
-          kind: _kindForOpenNgcType(dso.type),
+          kind: _kindFor(dso.type),
           sizePx: _dsoSizePx(dso, pixelScaleArcsec),
           paDeg: dso.positionAngle,
         ),
@@ -134,7 +137,7 @@ class MasterAnnotationService {
     return AnnotationLayer(width: width, height: height, items: items);
   }
 
-  Future<List<OpenNgcData>> _safeDsoSearch({
+  Future<List<DeepSkyObject>> _safeDsoSearch({
     required double ra,
     required double dec,
     required double radiusDegrees,
@@ -174,60 +177,27 @@ class MasterAnnotationService {
   static bool _hasProperName(Star star) =>
       star.name.trim().isNotEmpty && star.name.trim() != star.id.trim();
 
-  /// Prefer the Messier designation, then a common name, then the catalog name.
-  static String _dsoLabel(OpenNgcData dso) {
-    final messier = dso.messier;
-    if (messier != null && messier.trim().isNotEmpty) {
-      final m = messier.trim();
-      return m.toUpperCase().startsWith('M') ? m : 'M$m';
-    }
-    final common = dso.commonNames;
-    if (common != null && common.trim().isNotEmpty) {
-      return common.split(',').first.trim();
-    }
-    return dso.name;
-  }
-
   /// Apparent diameter in master pixels from the object's major angular axis
   /// (arcmin) and the WCS pixel scale (arcsec/px). Falls back to 0 (a point
   /// marker) when the catalog has no size.
-  static double _dsoSizePx(OpenNgcData dso, double pixelScaleArcsec) {
-    final majorArcmin = dso.majorAxis;
+  static double _dsoSizePx(DeepSkyObject dso, double pixelScaleArcsec) {
+    final majorArcmin = dso.sizeArcMin;
     if (majorArcmin == null || majorArcmin <= 0) return 0.0;
     if (pixelScaleArcsec <= 0) return 0.0;
     return majorArcmin * 60.0 / pixelScaleArcsec;
   }
 
-  /// Map a raw OpenNGC type code (e.g. `G`, `OCl`, `PN`, `EmN`) to an
-  /// [AnnotationKind]. Unknown codes fall through to [AnnotationKind.other].
-  static AnnotationKind _kindForOpenNgcType(String type) {
-    switch (type.trim()) {
-      case 'G':
-      case 'GPair':
-      case 'GTrpl':
-      case 'GGroup':
-        return AnnotationKind.galaxy;
-      case 'PN':
-        return AnnotationKind.nebula;
-      case 'Neb':
-      case 'EmN':
-      case 'RfN':
-      case 'HII':
-      case 'DrkN':
-      case 'SNR':
-      case 'Cl+N':
-        return AnnotationKind.nebula;
-      case 'OCl':
-      case 'GCl':
-        return AnnotationKind.cluster;
-      case '*':
-      case '**':
-      case '*Ass':
-        return AnnotationKind.star;
-      default:
-        return AnnotationKind.other;
-    }
-  }
+  static AnnotationKind _kindFor(DsoType type) => switch (type) {
+    DsoType.star ||
+    DsoType.doubleStar ||
+    DsoType.association => AnnotationKind.star,
+    DsoType.openCluster || DsoType.globularCluster => AnnotationKind.cluster,
+    // A cluster in nebulosity is drawn as the nebula it sits in.
+    DsoType.clusterWithNebulosity => AnnotationKind.nebula,
+    _ when type.isGalaxy => AnnotationKind.galaxy,
+    _ when type.isNebula => AnnotationKind.nebula,
+    _ => AnnotationKind.other,
+  };
 }
 
 /// Provider for the [MasterAnnotationService]. Binds the real on-disk catalogs;
@@ -235,9 +205,11 @@ class MasterAnnotationService {
 final masterAnnotationServiceProvider = Provider<MasterAnnotationService>((
   ref,
 ) {
-  final stars = HygStarCatalog();
   return MasterAnnotationService(
     dsoSearch: CatalogManager.instance.searchDsoNearby,
-    starSearch: stars.getStarsNear,
+    starSearch: (center, radiusDegrees, {maxMagnitude}) => CatalogManager
+        .instance
+        .stars
+        .getStarsNear(center, radiusDegrees, maxMagnitude: maxMagnitude),
   );
 });

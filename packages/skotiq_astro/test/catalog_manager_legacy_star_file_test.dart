@@ -23,14 +23,13 @@ String _miniHygCsv() {
 }
 
 void main() {
-
   group('legacy hyg_v42.csv install', () {
     late Directory tempDir;
 
     setUp(() async {
       tempDir = await Directory.systemTemp.createTemp('sk_catalog_v42_');
-      await CatalogManager.instance.initialize(tempDir.path);
       await File('${tempDir.path}/hyg_v42.csv').writeAsString(_miniHygCsv());
+      await CatalogManager.instance.initialize(tempDir.path);
     });
 
     tearDown(() async {
@@ -40,16 +39,19 @@ void main() {
     });
 
     test('is reported as installed', () async {
-      final status = await CatalogManager.instance.getStarCatalogStatus();
+      final status = await CatalogManager.instance.status(SkyCatalog.stars);
       expect(status.isInstalled, isTrue);
       expect(status.installedPath, endsWith('hyg_v42.csv'));
     });
 
     test('is the path the star catalog loads from', () async {
-      expect(CatalogManager.instance.starCatalogPath, endsWith('hyg_v42.csv'));
+      expect(
+        CatalogManager.instance.pathOf(SkyCatalog.stars),
+        endsWith('hyg_v42.csv'),
+      );
 
-      final catalog = HygStarCatalog();
-      final stars = await catalog.loadObjects();
+      final catalog = CatalogManager.instance.stars;
+      final stars = await catalog.load();
       expect(catalog.isUsingFallback, isFalse);
       expect(stars, hasLength(1));
       expect(stars.single.name, 'Polaris');
@@ -63,15 +65,14 @@ void main() {
       final srcFile = File('${src.path}/stars.csv');
       await srcFile.writeAsString(_miniHygCsv());
 
-      final ok = await CatalogManager.instance.importCatalog(
-        sourcePath: srcFile.path,
-        type: 'stars',
-      );
-      expect(ok, isTrue);
+      await CatalogManager.instance.installFromFile(SkyCatalog.stars, srcFile);
 
       expect(await File('${tempDir.path}/hyg_v44.csv').exists(), isTrue);
       expect(await File('${tempDir.path}/hyg_v42.csv').exists(), isFalse);
-      expect(CatalogManager.instance.starCatalogPath, endsWith('hyg_v44.csv'));
+      expect(
+        CatalogManager.instance.pathOf(SkyCatalog.stars),
+        endsWith('hyg_v44.csv'),
+      );
     });
   });
 
@@ -90,8 +91,8 @@ void main() {
     });
 
     test('the fallback list is flagged so the UI can warn', () async {
-      final catalog = HygStarCatalog();
-      final stars = await catalog.loadObjects();
+      final catalog = CatalogManager.instance.stars;
+      final stars = await catalog.load();
       expect(stars, isNotEmpty);
       expect(catalog.isUsingFallback, isTrue);
     });

@@ -45,12 +45,9 @@ String _hygLine({
 }
 
 void main() {
-
   test('fallback bright stars store RA in hours, not degrees', () async {
-    final catalog = HygStarCatalog(
-      catalogPath: '/nonexistent/skotiq_no_such_catalog.csv',
-    );
-    final stars = await catalog.loadObjects();
+    final catalog = HygStarCatalog('/nonexistent/skotiq_no_such_catalog.csv');
+    final stars = await catalog.load();
     expect(stars, isNotEmpty);
 
     for (final entry in _knownRaHours.entries) {
@@ -94,7 +91,7 @@ void main() {
       ].join('\n'),
     );
 
-    final stars = await HygStarCatalog(catalogPath: file.path).loadObjects();
+    final stars = await HygStarCatalog(file.path).load();
     expect(stars, hasLength(2));
 
     final polaris = stars.firstWhere((s) => s.name == 'Polaris');
@@ -104,9 +101,7 @@ void main() {
   });
 
   test('the cone search takes hours in and degrees for the radius', () async {
-    final catalog = HygStarCatalog(
-      catalogPath: '/nonexistent/skotiq_no_such_catalog.csv',
-    );
+    final catalog = HygStarCatalog('/nonexistent/skotiq_no_such_catalog.csv');
 
     // Aldebaran (4.599h, +16.51 deg) and Alhena (6.629h, +16.40 deg) are ~29
     // degrees apart on the sky: a 5-degree cone on one must not reach the other.

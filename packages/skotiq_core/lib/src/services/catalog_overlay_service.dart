@@ -16,25 +16,12 @@
 // purely-local visual overlay you can flip on/off from the preview
 // toolbar — no network, no DB write, no annotation snapshot mutation.
 
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 import 'wcs/gnomonic_projection.dart';
-
-/// Kind of marker to draw — used by the painter to pick the right symbol.
-/// Stars get a crosshair, galaxies get an ellipse, clusters / nebulae get
-/// type-appropriate symbols.
-enum CatalogOverlayKind {
-  star,
-  galaxy,
-  openCluster,
-  globularCluster,
-  nebula,
-  planetaryNebula,
-  supernovaRemnant,
-  other,
-}
 
 /// Single catalog object projected onto an image.
 class CatalogOverlayObject {
@@ -60,8 +47,9 @@ class CatalogOverlayObject {
   /// Major-axis size in arcminutes when known (DSO-specific).
   final double? sizeArcMin;
 
-  /// Object kind for marker selection.
-  final CatalogOverlayKind kind;
+  /// What the object is; a star-catalog entry is [DsoType.star]. Selects the
+  /// marker glyph.
+  final DsoType type;
 
   /// Pixel position on the original (un-zoomed) image. Never NaN.
   final double imageX;
@@ -85,7 +73,7 @@ class CatalogOverlayObject {
     required this.decDegrees,
     required this.magnitude,
     required this.sizeArcMin,
-    required this.kind,
+    required this.type,
     required this.imageX,
     required this.imageY,
     required this.markerRadiusPx,
@@ -177,24 +165,27 @@ abstract class CatalogOverlaySource {
   Future<bool> get starCatalogAvailable;
 }
 
-/// Default catalog source backed by the planetarium package's OpenNGC
-/// (DSOs) and HYG (stars) catalogs. The instance is reusable — both
-/// catalogs cache their content after the first load.
+/// Default catalog source: the catalog manager's OpenNGC and HYG readers,
+/// or the ones a test passes in.
 class PlanetariumCatalogOverlaySource implements CatalogOverlaySource {
-  final OpenNgcDsoCatalog _dso;
-  final HygStarCatalog _star;
+  final OpenNgcDsoCatalog? _dsoOverride;
+  final HygStarCatalog? _starOverride;
 
   PlanetariumCatalogOverlaySource({
     OpenNgcDsoCatalog? dso,
     HygStarCatalog? star,
-  }) : _dso = dso ?? OpenNgcDsoCatalog(),
-       _star = star ?? HygStarCatalog();
+  }) : _dsoOverride = dso,
+       _starOverride = star;
+
+  // Read per call: the manager replaces a reader when its file changes.
+  OpenNgcDsoCatalog get _dso => _dsoOverride ?? CatalogManager.instance.dsos;
+  HygStarCatalog get _star => _starOverride ?? CatalogManager.instance.stars;
 
   @override
-  Future<List<DeepSkyObject>> loadDsos() => _dso.loadObjects();
+  Future<List<DeepSkyObject>> loadDsos() => _dso.load();
 
   @override
-  Future<List<Star>> loadStars() => _star.loadObjects();
+  Future<List<Star>> loadStars() => _star.load();
 
   @override
   Future<bool> get isAvailable async {
@@ -207,10 +198,10 @@ class PlanetariumCatalogOverlaySource implements CatalogOverlaySource {
   }
 
   @override
-  Future<bool> get dsoCatalogAvailable => _dso.isAvailable;
+  Future<bool> get dsoCatalogAvailable => File(_dso.path).exists();
 
   @override
-  Future<bool> get starCatalogAvailable => _star.isAvailable;
+  Future<bool> get starCatalogAvailable => File(_star.path).exists();
 }
 
 /// Catalog overlay service.
@@ -404,7 +395,7 @@ class CatalogOverlayService {
       decDegrees: dso.coordinates.dec,
       magnitude: dso.magnitude,
       sizeArcMin: dso.sizeArcMin,
-      kind: _kindForDsoType(dso.type),
+      type: dso.type,
       imageX: imageX,
       imageY: imageY,
       markerRadiusPx: markerRadius,
@@ -427,47 +418,13 @@ class CatalogOverlayService {
       decDegrees: star.coordinates.dec,
       magnitude: star.magnitude,
       sizeArcMin: null,
-      kind: CatalogOverlayKind.star,
+      type: DsoType.star,
       imageX: imageX,
       imageY: imageY,
       markerRadiusPx: 8,
       hitRadius: 18,
       source: 'HYG',
     );
-  }
-
-  static CatalogOverlayKind _kindForDsoType(DsoType type) {
-    switch (type) {
-      case DsoType.galaxy:
-      case DsoType.galaxyPair:
-      case DsoType.galaxyTriplet:
-      case DsoType.galaxyGroup:
-        return CatalogOverlayKind.galaxy;
-      case DsoType.openCluster:
-        return CatalogOverlayKind.openCluster;
-      case DsoType.globularCluster:
-        return CatalogOverlayKind.globularCluster;
-      case DsoType.clusterWithNebulosity:
-      case DsoType.nebula:
-      case DsoType.emissionNebula:
-      case DsoType.reflectionNebula:
-      case DsoType.hiiRegion:
-      case DsoType.darkNebula:
-        return CatalogOverlayKind.nebula;
-      case DsoType.planetaryNebula:
-        return CatalogOverlayKind.planetaryNebula;
-      case DsoType.supernova:
-        return CatalogOverlayKind.supernovaRemnant;
-      case DsoType.star:
-      case DsoType.doubleStar:
-        return CatalogOverlayKind.star;
-      case DsoType.association:
-      case DsoType.starCloud:
-      case DsoType.asterism:
-      case DsoType.nova:
-      case DsoType.other:
-        return CatalogOverlayKind.other;
-    }
   }
 
   static double _markerRadiusForArcmin(

@@ -98,8 +98,13 @@ class _FakeCatalogState extends StateNotifier<CatalogState>
     implements CatalogStateNotifier {
   _FakeCatalogState({required bool dsoInstalled})
       : super(CatalogState(
-          dsoCatalogStatus: CatalogStatus(isInstalled: dsoInstalled),
-          isInitialized: true,
+          dsoCatalogStatus: dsoInstalled
+              ? const CatalogStatus(
+                  catalog: SkyCatalog.dso,
+                  state: CatalogInstallStatus.installed,
+                  installedPath: 'NGC.csv',
+                )
+              : const CatalogStatus.missing(SkyCatalog.dso),
         ));
 
   @override

@@ -19,6 +19,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show DsoType, DsoTypeExtension;
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -397,11 +398,12 @@ class CatalogOverlayPainter extends CustomPainter {
         zoomLevel: zoomLevel,
       );
       final isHighlighted = identical(obj, highlighted);
-      final color =
-          obj.kind == CatalogOverlayKind.star ? _markerStarColor : _markerColor;
+      final color = obj.type == DsoType.star || obj.type == DsoType.doubleStar
+          ? _markerStarColor
+          : _markerColor;
 
       final markerSize = _markerSizeFor(obj);
-      _drawMarker(canvas, centre, obj.kind, markerSize, color, isHighlighted);
+      _drawMarker(canvas, centre, obj.type, markerSize, color, isHighlighted);
       _drawLabel(canvas, centre, obj, markerSize, labelStyle);
     }
   }
@@ -413,7 +415,7 @@ class CatalogOverlayPainter extends CustomPainter {
   void _drawMarker(
     Canvas canvas,
     Offset centre,
-    CatalogOverlayKind kind,
+    DsoType type,
     double size,
     Color color,
     bool highlighted,
@@ -424,11 +426,15 @@ class CatalogOverlayPainter extends CustomPainter {
           highlighted ? _markerStrokeWidth + 1.0 : _markerStrokeWidth
       ..color = color.withValues(alpha: highlighted ? 1.0 : 0.85);
 
-    switch (kind) {
-      case CatalogOverlayKind.star:
+    switch (type) {
+      case DsoType.star:
+      case DsoType.doubleStar:
         _drawCross(canvas, centre, size, paint);
         break;
-      case CatalogOverlayKind.galaxy:
+      case DsoType.galaxy:
+      case DsoType.galaxyPair:
+      case DsoType.galaxyTriplet:
+      case DsoType.galaxyGroup:
         canvas.save();
         canvas.translate(centre.dx, centre.dy);
         canvas.drawOval(
@@ -441,7 +447,7 @@ class CatalogOverlayPainter extends CustomPainter {
         );
         canvas.restore();
         break;
-      case CatalogOverlayKind.openCluster:
+      case DsoType.openCluster:
         canvas.drawCircle(centre, size / 2, paint);
         final dotPaint = Paint()
           ..style = PaintingStyle.fill
@@ -455,7 +461,7 @@ class CatalogOverlayPainter extends CustomPainter {
         canvas.drawCircle(
             centre + Offset(-size * 0.08, size * 0.12), 1.5, dotPaint);
         break;
-      case CatalogOverlayKind.globularCluster:
+      case DsoType.globularCluster:
         canvas.drawCircle(centre, size / 2, paint);
         // Plus sign through the circle — standard globular notation.
         final crossPaint = Paint()
@@ -473,11 +479,16 @@ class CatalogOverlayPainter extends CustomPainter {
           crossPaint,
         );
         break;
-      case CatalogOverlayKind.planetaryNebula:
+      case DsoType.planetaryNebula:
         canvas.drawCircle(centre, size / 2, paint);
         canvas.drawCircle(centre, size / 6, paint);
         break;
-      case CatalogOverlayKind.nebula:
+      case DsoType.clusterWithNebulosity:
+      case DsoType.nebula:
+      case DsoType.emissionNebula:
+      case DsoType.reflectionNebula:
+      case DsoType.hiiRegion:
+      case DsoType.darkNebula:
         canvas.drawRRect(
           RRect.fromRectAndRadius(
             Rect.fromCenter(center: centre, width: size, height: size * 0.8),
@@ -486,7 +497,7 @@ class CatalogOverlayPainter extends CustomPainter {
           paint,
         );
         break;
-      case CatalogOverlayKind.supernovaRemnant:
+      case DsoType.supernova:
         canvas.drawCircle(centre, size / 2, paint);
         for (var i = 0; i < 6; i++) {
           final angle = (i / 6) * 2 * math.pi;
@@ -499,7 +510,11 @@ class CatalogOverlayPainter extends CustomPainter {
           );
         }
         break;
-      case CatalogOverlayKind.other:
+      case DsoType.association:
+      case DsoType.starCloud:
+      case DsoType.asterism:
+      case DsoType.nova:
+      case DsoType.other:
         canvas.drawCircle(centre, size / 2, paint);
         break;
     }

@@ -50,9 +50,9 @@ final refreshSuggestionsProvider = StateProvider<int>((ref) => 0);
 
 // Tonight's Suggestions Provider
 
-String? _catalogTargetsCachePath;
-List<db.Target>? _catalogTargetsCache;
-Future<List<db.Target>>? _catalogTargetsLoadFuture;
+/// Catalog targets built from one OpenNGC reader. The catalog manager
+/// replaces the reader when the file changes, which retires this entry.
+final Expando<Future<List<db.Target>>> _catalogTargets = Expando();
 
 /// Provider that generates target suggestions for tonight's imaging session.
 ///
@@ -204,10 +204,9 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
       }
     });
 
-/// Load targets from the OpenNGC catalog.
-///
-/// Converts OpenNgcData objects to db.Target format for scoring.
-/// Uses negative IDs to distinguish catalog objects from user targets.
+/// Suggestion candidates from the OpenNGC catalog: every object to
+/// magnitude 14 (which covers most imageable objects), as [db.Target] rows
+/// with negative ids so they cannot be mistaken for the user's own targets.
 Future<List<db.Target>> _loadCatalogTargets(LoggingService logging) async {
   final manager = CatalogManager.instance;
 
@@ -219,8 +218,7 @@ Future<List<db.Target>> _loadCatalogTargets(LoggingService logging) async {
     return [];
   }
 
-  final dsoStatus = await manager.getDsoCatalogStatus();
-  if (!dsoStatus.isInstalled || dsoStatus.installedPath == null) {
+  if (!(await manager.status(SkyCatalog.dso)).isInstalled) {
     logging.info(
       'OpenNGC catalog not installed - suggestions limited to user targets',
       source: 'TargetSuggestionProvider',
@@ -228,24 +226,12 @@ Future<List<db.Target>> _loadCatalogTargets(LoggingService logging) async {
     return [];
   }
 
-  final installedPath = dsoStatus.installedPath!;
-  if (_catalogTargetsCachePath == installedPath &&
-      _catalogTargetsCache != null) {
-    return _catalogTargetsCache!;
-  }
-
-  if (_catalogTargetsCachePath == installedPath &&
-      _catalogTargetsLoadFuture != null) {
-    return _catalogTargetsLoadFuture!;
-  }
-
-  _catalogTargetsCachePath = installedPath;
-  _catalogTargetsLoadFuture = _readCatalogTargets(installedPath, logging);
-
+  final reader = manager.dsos;
   try {
-    final targets = await _catalogTargetsLoadFuture!;
-    _catalogTargetsCache = List.unmodifiable(targets);
-    return _catalogTargetsCache!;
+    return await (_catalogTargets[reader] ??= _readCatalogTargets(
+      reader,
+      logging,
+    ));
   } catch (e, stackTrace) {
     logging.error(
       'Failed to load OpenNGC catalog: $e',
@@ -255,54 +241,36 @@ Future<List<db.Target>> _loadCatalogTargets(LoggingService logging) async {
       'Stack trace: $stackTrace',
       source: 'TargetSuggestionProvider',
     );
-    _catalogTargetsCachePath = null;
-    _catalogTargetsCache = null;
+    _catalogTargets[reader] = null;
     rethrow;
-  } finally {
-    _catalogTargetsLoadFuture = null;
   }
 }
 
 Future<List<db.Target>> _readCatalogTargets(
-  String installedPath,
+  OpenNgcDsoCatalog reader,
   LoggingService logging,
 ) async {
-  final loader = OpenNgcCatalogLoader(installedPath);
-
-  // Load all DSOs with reasonable magnitude limit for imaging
-  // (mag < 14 covers most imageable objects)
-  final dsos = await loader.loadByMagnitude(14.0);
-
-  logging.debug(
-    'Loaded ${dsos.length} DSOs from OpenNGC catalog (mag < 14)',
-    source: 'TargetSuggestionProvider',
-  );
-
-  // Convert to Target format
-  // Use negative IDs to distinguish from user-created targets
+  final dsos = await reader.load();
   var fakeId = -1;
   final targets = <db.Target>[];
   final now = DateTime.now();
 
   for (final dso in dsos) {
-    // Skip non-existent and duplicate entries
-    if (dso.type == 'NonEx' || dso.type == 'Dup') continue;
-
-    // Skip objects with invalid coordinates
-    if (dso.ra == 0 && dso.dec == 0) continue;
+    // Brightest first: nothing after this is brighter than 14, and objects
+    // with no magnitude sort last.
+    if ((dso.magnitude ?? 99) > 14.0) break;
 
     targets.add(
       db.Target(
         id: fakeId--,
-        name: dso.displayName,
-        catalogId: dso.name,
-        objectType: dso.typeDescription,
-        // OpenNGC ra is in degrees, Target expects decimal hours
-        ra: dso.ra / 15.0,
-        dec: dso.dec,
+        name: dso.name,
+        catalogId: dso.id,
+        objectType: dso.type.displayName,
+        ra: dso.coordinates.ra,
+        dec: dso.coordinates.dec,
         magnitude: dso.magnitude,
         constellation: dso.constellation,
-        sizeArcmin: dso.majorAxis,
+        sizeArcmin: dso.sizeArcMin,
         positionAngle: dso.positionAngle,
         minAltitude: 30.0,
         priority: 5,
@@ -319,8 +287,11 @@ Future<List<db.Target>> _readCatalogTargets(
     );
   }
 
-  return targets;
+  logging.debug(
+    'Loaded ${targets.length} DSOs from OpenNGC catalog (mag < 14)',
+    source: 'TargetSuggestionProvider',
+  );
+  return List.unmodifiable(targets);
 }
 
 // Convenience providers
-

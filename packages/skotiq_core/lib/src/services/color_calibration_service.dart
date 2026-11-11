@@ -350,9 +350,11 @@ class ColorCalibrationService {
 final colorCalibrationServiceProvider = Provider<ColorCalibrationService>((
   ref,
 ) {
-  final catalog = HygStarCatalog();
   return ColorCalibrationService(
     seam: ref.watch(postSessionSeamProvider),
-    starSearch: catalog.getStarsNear,
+    starSearch: (center, radiusDegrees, {maxMagnitude}) => CatalogManager
+        .instance
+        .stars
+        .getStarsNear(center, radiusDegrees, maxMagnitude: maxMagnitude),
   );
 });

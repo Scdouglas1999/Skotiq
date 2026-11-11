@@ -13,7 +13,6 @@ import 'package:path/path.dart' as p;
 import '../../../utils/exported_file_reveal.dart';
 import '../../../widgets/annotation_overlay.dart';
 import '../../settings/catalog_settings_screen.dart';
-import '../imaging_screen.dart' show annotationCatalogInstalledProvider;
 import '../imaging_science_state.dart';
 import 'annotation_filters.dart';
 import 'annotation_reannotate_banner.dart';

@@ -11,7 +11,7 @@ void main() {
   late List<DeepSkyObject> catalog;
 
   setUpAll(() async {
-    catalog = await OpenNgcDsoCatalog(catalogPath: _fixture).loadObjects();
+    catalog = await OpenNgcDsoCatalog(_fixture).load();
     expect(catalog, isNotEmpty);
   });
 

@@ -1,12 +1,8 @@
 // Catalog management endpoints for the headless API.
 //
-// Problem these handlers solve. On a fresh server install the catalog
-// directory is empty — plate solving fails and target search returns
-// nothing. The desktop `CatalogSettingsScreen` calls
-// `CatalogManager.instance.downloadStarCatalog()` directly, which means
-// when the mobile app is run as a remote client the download runs on
-// the *phone*, not the server. The server's plate-solve catalog stays
-// empty.
+// A catalog downloaded from a client's own settings screen lands on that
+// client. These routes run the same installer on the host, where plate
+// solving, target search and annotation read it.
 //
 // Endpoints (all under /api/catalog):
 //
@@ -28,9 +24,8 @@
 //   POST   /api/catalog/reload          — admin scope; force the manager
 //                                         to drop cached loaders.
 //
-// Catalog naming. The wire `name` is one of `stars`, `dso`,
-// `annotation` — the canonical keys in [CatalogManager.knownCatalogs].
-// New catalogs are added by extending that map.
+// Catalog naming. The wire `name` is a [SkyCatalog] name: `stars`, `dso` or
+// `annotation`.
 
 import 'dart:async';
 import 'dart:convert';
@@ -88,8 +83,9 @@ class CatalogHandlers implements RouteSource {
   /// top so a chunked-transfer client cannot bypass.
   static const int catalogUploadMaxBytes = 1024 * 1024 * 1024;
 
-  /// Cached response payload for `GET /api/catalog/available`.
-  ({DateTime fetchedAt, List<AvailableCatalog> entries})? _availableCache;
+  /// When `GET /api/catalog/available` last built its list; the response
+  /// reports hit or miss against [_availableCacheTtl].
+  DateTime? _availableFetchedAt;
 
   CatalogHandlers({
     required this.jobManager,
@@ -98,6 +94,19 @@ class CatalogHandlers implements RouteSource {
   });
 
   CatalogManager get _manager => CatalogManager.instance;
+
+  /// The catalog a request names, or a 400 listing the valid names.
+  SkyCatalog _requireCatalog(String name) {
+    final catalog = SkyCatalog.tryParse(name);
+    if (catalog == null) {
+      throw BadRequestError(
+        field: 'name',
+        expected: 'one of: ${SkyCatalog.wireNames}',
+        message: '"$name" is not a known catalog',
+      );
+    }
+    return catalog;
+  }
 
   void _logInfo(String message) {
     logger?.info(message, source: 'CatalogHandlers');
@@ -138,7 +147,7 @@ class CatalogHandlers implements RouteSource {
         statusCode: 503,
       );
     }
-    final statuses = await _manager.getInstalledStatuses();
+    final statuses = await _manager.statuses();
     final totalBytes = statuses.fold<int>(0, (sum, s) => sum + s.sizeBytes);
 
     int? availableSpaceBytes;
@@ -171,24 +180,27 @@ class CatalogHandlers implements RouteSource {
   /// server knows how to download. Cached for 1 hour to keep the
   /// upstream manifest sources unbothered when a client polls.
   Future<Response> handleAvailable(Request request) async {
-    final cache = _availableCache;
     final now = DateTime.now();
-    final List<AvailableCatalog> entries;
-    final String cacheStatus;
-    if (cache != null && now.difference(cache.fetchedAt) < _availableCacheTtl) {
-      entries = cache.entries;
-      cacheStatus = 'hit';
-    } else {
-      entries = await _manager.listAvailable();
-      _availableCache = (fetchedAt: now, entries: entries);
-      cacheStatus = 'miss';
-    }
+    final fetchedAt = _availableFetchedAt;
+    final hit =
+        fetchedAt != null && now.difference(fetchedAt) < _availableCacheTtl;
+    if (!hit) _availableFetchedAt = now;
     return jsonOk({
-      'available': entries.map((e) => e.toJson()).toList(growable: false),
-      'cache': cacheStatus,
-      'fetchedAt': (_availableCache?.fetchedAt ?? now)
-          .toUtc()
-          .toIso8601String(),
+      'available': [
+        for (final catalog in SkyCatalog.values)
+          {
+            'name': catalog.name,
+            'displayName': catalog.displayName,
+            'version': catalog.version,
+            'description': catalog.description,
+            if (catalog.upstreamUrl.isNotEmpty)
+              'downloadUrl': catalog.upstreamUrl,
+            'sizeBytes': catalog.approximateSizeBytes,
+            'requiredForPlateSolve': catalog.requiredForPlateSolve,
+          },
+      ],
+      'cache': hit ? 'hit' : 'miss',
+      'fetchedAt': (_availableFetchedAt ?? now).toUtc().toIso8601String(),
     });
   }
 
@@ -210,21 +222,18 @@ class CatalogHandlers implements RouteSource {
     }
     final payload = await readJsonObject(request);
     final name = requireString(payload, 'name');
-    if (!CatalogManager.knownCatalogs.containsKey(name)) {
-      throw BadRequestError(
-        field: 'name',
-        expected: 'one of: ${CatalogManager.knownCatalogs.keys.join(', ')}',
-        message: '"$name" is not a known catalog',
-      );
-    }
+    final catalog = _requireCatalog(name);
 
     final job = jobManager.start(
       operation: 'catalog.download',
       work: (sink, cancellation) async {
         try {
-          final result = await _manager.downloadAndInstall(
-            name,
-            onProgress: (downloaded, total) {
+          final result = await _manager.install(
+            catalog,
+            onProgress: (progress) {
+              final downloaded = progress.bytesReceived;
+              final total = progress.totalBytes;
+              if (progress.isTerminal || downloaded == 0) return;
               if (total > 0) {
                 sink.update(
                   downloaded / total,
@@ -293,13 +302,7 @@ class CatalogHandlers implements RouteSource {
         message: 'name query parameter is required',
       );
     }
-    if (!CatalogManager.knownCatalogs.containsKey(name)) {
-      throw BadRequestError(
-        field: 'name',
-        expected: 'one of: ${CatalogManager.knownCatalogs.keys.join(', ')}',
-        message: '"$name" is not a known catalog',
-      );
-    }
+    final catalog = _requireCatalog(name);
     final expectedSha256 = request.url.queryParameters['sha256']?.trim();
     if (expectedSha256 == null || expectedSha256.isEmpty) {
       throw BadRequestError(
@@ -364,8 +367,8 @@ class CatalogHandlers implements RouteSource {
 
       try {
         final result = await _manager.installFromFile(
-          name: name,
-          source: tempFile,
+          catalog,
+          tempFile,
           expectedSha256: expectedSha256,
         );
         return jsonOk({'installed': result.toJson()});
@@ -448,16 +451,12 @@ class CatalogHandlers implements RouteSource {
       );
     }
 
-    if (name != null && !CatalogManager.knownCatalogs.containsKey(name)) {
-      throw BadRequestError(
-        field: 'name',
-        expected: 'one of: ${CatalogManager.knownCatalogs.keys.join(', ')}',
-        message: '"$name" is not a known catalog',
-      );
-    }
-
-    final results = await _manager.verify(name: name);
-    return jsonOk({'verified': results.map((k, v) => MapEntry(k, v.toJson()))});
+    final results = await _manager.verify(
+      only: name == null ? null : _requireCatalog(name),
+    );
+    return jsonOk({
+      'verified': results.map((k, v) => MapEntry(k.name, v.toJson())),
+    });
   }
 
   // DELETE /api/catalog/<name>
@@ -474,14 +473,8 @@ class CatalogHandlers implements RouteSource {
         statusCode: 503,
       );
     }
-    if (!CatalogManager.knownCatalogs.containsKey(name)) {
-      throw BadRequestError(
-        field: 'name',
-        expected: 'one of: ${CatalogManager.knownCatalogs.keys.join(', ')}',
-        message: '"$name" is not a known catalog',
-      );
-    }
-    final removed = await _manager.uninstall(name);
+    final catalog = _requireCatalog(name);
+    final removed = await _manager.uninstall(catalog);
     if (!removed) {
       return jsonNotFound({'error': 'catalog_not_installed', 'name': name});
     }

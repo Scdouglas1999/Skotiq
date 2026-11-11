@@ -162,7 +162,7 @@ class AnnotationService {
   final CatalogManager _catalogManager;
   AnnotationCatalog? _annotationCatalog;
   String? _annotationCatalogPath;
-  String? _dsoCatalogPath;
+  OpenNgcDsoCatalog? _ngcLoader;
 
   /// Test-only override for the annotation catalog. When set,
   /// [_loadAnnotationCatalog] returns this instead of constructing one from the
@@ -276,60 +276,57 @@ class AnnotationService {
       return override;
     }
 
-    final annotationStatus = await _catalogManager.getAnnotationCatalogStatus();
-    if (!annotationStatus.isInstalled ||
-        annotationStatus.installedPath == null) {
-      return null;
-    }
+    final annotationStatus = await _catalogManager.status(
+      SkyCatalog.annotation,
+    );
+    final annotationPath = annotationStatus.installedPath;
+    if (annotationPath == null) return null;
 
-    final dsoStatus = await _catalogManager.getDsoCatalogStatus();
-    final annotationPath = annotationStatus.installedPath!;
-    final dsoPath = dsoStatus.installedPath;
+    final dsoStatus = await _catalogManager.status(SkyCatalog.dso);
+    final ngcLoader = dsoStatus.isInstalled ? _catalogManager.dsos : null;
 
     if (_annotationCatalog != null &&
         _annotationCatalogPath == annotationPath &&
-        _dsoCatalogPath == dsoPath) {
+        identical(_ngcLoader, ngcLoader)) {
       return _annotationCatalog;
     }
 
     final gladeLoader = GladePlusCatalogLoader(annotationPath);
-    final ngcLoader = dsoPath != null ? OpenNgcCatalogLoader(dsoPath) : null;
 
     _annotationCatalog = AnnotationCatalog(
       ngcLoader: ngcLoader,
       gladeLoader: gladeLoader,
     );
     _annotationCatalogPath = annotationPath;
-    _dsoCatalogPath = dsoPath;
+    _ngcLoader = ngcLoader;
 
     return _annotationCatalog;
   }
 
-  ObjectType _mapAnnotationObjectType(AnnotationObjectType type) {
-    switch (type) {
-      case AnnotationObjectType.galaxy:
-        return ObjectType.galaxy;
-      case AnnotationObjectType.nebula:
-      case AnnotationObjectType.emissionNebula:
-      case AnnotationObjectType.reflectionNebula:
-      case AnnotationObjectType.darkNebula:
-      case AnnotationObjectType.hiiRegion:
-        return ObjectType.nebula;
-      case AnnotationObjectType.planetaryNebula:
-        return ObjectType.planetaryNebula;
-      case AnnotationObjectType.openCluster:
-      case AnnotationObjectType.globularCluster:
-      case AnnotationObjectType.starCluster:
-        return ObjectType.starCluster;
-      case AnnotationObjectType.doubleStar:
-        return ObjectType.doubleStar;
-      case AnnotationObjectType.asterism:
-        return ObjectType.asterism;
-      case AnnotationObjectType.supernovaRemnant:
-      case AnnotationObjectType.other:
-        return ObjectType.unknown;
-    }
-  }
+  /// The overlay group a catalog object type is drawn and filtered as.
+  ObjectType _objectTypeFor(DsoType type) => switch (type) {
+    DsoType.galaxy ||
+    DsoType.galaxyPair ||
+    DsoType.galaxyTriplet ||
+    DsoType.galaxyGroup => ObjectType.galaxy,
+    DsoType.nebula ||
+    DsoType.emissionNebula ||
+    DsoType.reflectionNebula ||
+    DsoType.darkNebula ||
+    DsoType.hiiRegion => ObjectType.nebula,
+    DsoType.planetaryNebula => ObjectType.planetaryNebula,
+    DsoType.openCluster ||
+    DsoType.globularCluster ||
+    DsoType.clusterWithNebulosity => ObjectType.starCluster,
+    DsoType.doubleStar => ObjectType.doubleStar,
+    DsoType.association => ObjectType.asterism,
+    DsoType.supernova ||
+    DsoType.star ||
+    DsoType.nova ||
+    DsoType.starCloud ||
+    DsoType.asterism ||
+    DsoType.other => ObjectType.unknown,
+  };
 
   ObjectData _mergeObjectData(ObjectData? base, ObjectData new_) {
     if (base == null) return new_;
