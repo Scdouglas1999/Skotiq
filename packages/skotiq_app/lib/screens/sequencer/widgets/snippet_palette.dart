@@ -166,8 +166,6 @@ class _SnippetPaletteState extends ConsumerState<SnippetPalette> {
   Widget build(BuildContext context) {
     final snippetsByCategory = ref.watch(snippetsByCategoryProvider);
 
-    // Filter snippets based on search query. Lower-case the query once up
-    // front rather than per-snippet, and reuse it across name + description.
     final filteredByCategory = <SnippetCategory, List<TemplateSnippet>>{};
     final q = _searchQuery.toLowerCase();
     for (final entry in snippetsByCategory.entries) {
@@ -185,7 +183,6 @@ class _SnippetPaletteState extends ConsumerState<SnippetPalette> {
       }
     }
 
-    // Order categories in a logical sequence
     final orderedCategories = [
       SnippetCategory.autofocus,
       SnippetCategory.dithering,

@@ -47,7 +47,6 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Name field
                 _buildDialogLabel('Name'),
                 const SizedBox(height: 8),
                 _buildDialogTextField(
@@ -56,7 +55,6 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
                 ),
                 const SizedBox(height: 16),
 
-                // Description field
                 _buildDialogLabel('Description'),
                 const SizedBox(height: 8),
                 _buildDialogTextField(
@@ -66,7 +64,6 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
                 ),
                 const SizedBox(height: 16),
 
-                // Category dropdown
                 _buildDialogLabel('Category'),
                 const SizedBox(height: 8),
                 Container(
@@ -112,7 +109,6 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
                 ),
                 const SizedBox(height: 16),
 
-                // Icon selection
                 _buildDialogLabel('Icon'),
                 const SizedBox(height: 8),
                 _buildIconSelector(

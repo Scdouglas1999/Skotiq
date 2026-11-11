@@ -434,8 +434,3 @@ class _SessionInsightTileState extends ConsumerState<_SessionInsightTile> {
     );
   }
 }
-
-/// Single diagnostic line in the session report's
-/// Diagnostics section. Mirrors the look of `_PreflightSection`'s
-/// issue rows but with the lighter post-session tone (everything is
-/// info-severity).

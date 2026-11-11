@@ -98,8 +98,6 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
     );
   }
 
-  // Step body
-
   Widget _buildStepBody(SkotiqColors colors) {
     switch (_step) {
       case 0:
@@ -118,8 +116,6 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
         return const SizedBox.shrink();
     }
   }
-
-  // Step 1: window
 
   Widget _buildWindowStep(SkotiqColors colors) {
     _ensureWindowInitialised();
@@ -248,8 +244,6 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
     );
   }
 
-  // Step 2: equipment
-
   Widget _buildEquipmentStep(SkotiqColors colors) {
     final profile = ref.watch(activeEquipmentProfileProvider);
     if (profile == null) {
@@ -366,8 +360,6 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
       ),
     );
   }
-
-  // Step 3: targets
 
   Widget _buildTargetsStep(SkotiqColors colors) {
     final suggestionsAsync = ref.watch(tonightSuggestionsProvider);
@@ -568,8 +560,6 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
     return _selectedTargetIds.where(upIds.contains).length;
   }
 
-  // Step 4: strategy
-
   Widget _buildStrategyStep(SkotiqColors colors) {
     final profile = ref.watch(activeEquipmentProfileProvider);
     return SingleChildScrollView(
@@ -690,8 +680,6 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
     );
   }
 
-  // Step 5: preview
-
   Widget _buildPreviewStep(SkotiqColors colors) {
     if (_preview == null && _previewError == null) {
       return const Center(
@@ -785,8 +773,6 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
       ),
     );
   }
-
-  // Step 6: accept
 
   Widget _buildAcceptStep(SkotiqColors colors) {
     final plan = _preview;
@@ -897,6 +883,4 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
       ),
     );
   }
-
-  // Wiring + helpers
 }

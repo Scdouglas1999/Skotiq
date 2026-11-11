@@ -405,8 +405,6 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
         continue;
       }
       if (node is! SmartExposureNode) continue;
-      // Walk up to find the parent TargetHeader to identify which
-      // planned target this SmartExposure belongs to.
       final targetName = targetNameFor(node);
       if (targetName == null) continue;
       final tweaked = byTargetName[targetName];

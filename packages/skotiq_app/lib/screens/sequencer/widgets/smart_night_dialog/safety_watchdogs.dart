@@ -1,7 +1,5 @@
 part of '../smart_night_dialog.dart';
 
-// Safety & watchdogs preview section
-
 /// A single parallel-watchdog callout surfaced in the plan preview.
 ///
 /// These describe triggers the executor installs as siblings of the

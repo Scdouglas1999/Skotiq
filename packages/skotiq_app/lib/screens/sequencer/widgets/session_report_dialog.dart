@@ -27,7 +27,6 @@ part 'session_report_dialog/diagnostic_issue_tile.dart';
 /// button. Renders the per-target / per-filter rollup, guiding summary,
 /// mount events and recorded errors and exposes Markdown / .txt exports.
 class SessionReportDialog extends ConsumerWidget {
-  /// The session whose report should be rendered.
   final int sessionId;
 
   /// The completed run's `sequence_runs.id`, passed EXPLICITLY when the report

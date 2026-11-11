@@ -59,7 +59,6 @@ class SmartExposureProperties extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
 
-          // Filter plan list
           _PlanList(
             colors: colors,
             node: node,
@@ -73,7 +72,6 @@ class SmartExposureProperties extends ConsumerWidget {
             },
           ),
 
-          // Add row button
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: () {
@@ -119,7 +117,6 @@ class SmartExposureProperties extends ConsumerWidget {
             },
           ),
 
-          // Global toggles
           const SizedBox(height: 16),
           NodePropertyField(
             colors: colors,
@@ -272,7 +269,6 @@ class SmartExposureProperties extends ConsumerWidget {
               ),
           ],
 
-          // Integration budget
           const SizedBox(height: 12),
           _BudgetInput(
             colors: colors,
@@ -284,7 +280,6 @@ class SmartExposureProperties extends ConsumerWidget {
             },
           ),
 
-          // Estimate summary
           const SizedBox(height: 12),
           _EstimateSummary(colors: colors, node: node),
         ],
