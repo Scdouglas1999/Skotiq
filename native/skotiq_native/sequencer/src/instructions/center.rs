@@ -253,7 +253,7 @@ async fn center(
                     ctx,
                     RetriedDevice::Camera,
                     camera_retries_done,
-                    &e,
+                    &e.to_string(),
                     &format!("on the centering frame (attempt {})", attempt),
                 )
                 .await

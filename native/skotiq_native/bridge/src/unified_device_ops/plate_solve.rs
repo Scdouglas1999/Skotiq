@@ -178,7 +178,7 @@ impl PlateSolveOps for UnifiedDeviceOps {
                 success: r.success,
                 wcs: solved_wcs(&r, solved_width, solved_height),
             })
-            .map_err(|e| format!("Plate solve failed: {}", e))
+            .map_err(|e| format!("Plate solve failed: {}", e).into())
     }
 }
 

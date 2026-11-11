@@ -91,7 +91,10 @@ impl CameraOps for NullDeviceOps {
             ..
         } = request;
         if subframe.is_some() {
-            return Err("Camera subframes are not supported by this device backend".to_string());
+            return Err(DeviceError::unsupported(
+                "camera_start_exposure",
+                "Camera subframes are not supported by this device backend",
+            ));
         }
         tracing::info!("[NULL] Starting {:.1}s exposure", duration_secs);
         tokio::time::sleep(std::time::Duration::from_secs_f64(duration_secs)).await;

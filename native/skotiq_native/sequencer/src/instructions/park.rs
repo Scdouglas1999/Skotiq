@@ -42,7 +42,7 @@ async fn stop_the_guider_for_park(ctx: &InstructionContext) {
         .await;
     match ctx.device_ops.guider_stop().await {
         Ok(()) => {}
-        Err(error) if crate::device_ops::is_no_guider_configured(&error) => {}
+        Err(crate::device_ops::DeviceError::NO_GUIDER) => {}
         Err(error) => {
             tracing::warn!("[GUIDING] The guider did not stop for the park: {error}");
         }

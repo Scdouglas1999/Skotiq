@@ -149,7 +149,7 @@ pub async fn execute_dither(
     // bar is a dither done, not a failed one: the frames after it are guided.
     let mut held_without_settling = None;
     if let Err(error) = &dither_result {
-        if is_settle_timeout(error) {
+        if is_settle_timeout(&error.to_string()) {
             if let Ok(status) = ctx.device_ops.guider_get_status().await {
                 if let Some(warning) =
                     settle_bar_warning(ctx.trigger_state.as_ref(), settle, &status).await

@@ -143,7 +143,7 @@ struct ScriptedDomeRotatorOps {
     mount_tracking: Mutex<Option<bool>>,
     /// When `Some`, every `guider_dither` fails with this message.
     dither_error: Option<String>,
-    guider_stop_error: Option<String>,
+    guider_stop_error: Option<crate::device_ops::DeviceError>,
     guider_absent: bool,
     /// When true, every plate solve finds no solution (a clouded frame).
     plate_solve_fails: bool,
@@ -497,15 +497,15 @@ impl ScriptedDomeRotatorOps {
     }
 
     /// A guider whose every stop fails with `message`.
-    fn with_guider_stop_failing(mut self, message: &str) -> Self {
-        self.guider_stop_error = Some(message.to_string());
+    fn with_guider_stop_failing(mut self, error: impl Into<crate::device_ops::DeviceError>) -> Self {
+        self.guider_stop_error = Some(error.into());
         self
     }
 
     /// No guider connected: every guider call answers that none is configured.
     fn with_guider_absent(mut self) -> Self {
         self.guider_absent = true;
-        self.guider_stop_error = Some(crate::device_ops::NO_GUIDER_CONFIGURED.to_string());
+        self.guider_stop_error = Some(crate::device_ops::DeviceError::NO_GUIDER);
         self
     }
 
@@ -703,7 +703,7 @@ impl MountOps for ScriptedDomeRotatorOps {
     }
     async fn mount_is_parked(&self, _id: &str) -> DeviceResult<bool> {
         if let Some(err) = &self.mount_is_parked_error {
-            return Err(err.clone());
+            return Err(err.clone().into());
         }
         Ok(self.mount_parked.load(Ordering::SeqCst))
     }
@@ -763,7 +763,7 @@ impl CameraOps for ScriptedDomeRotatorOps {
             return std::future::pending::<DeviceResult<ImageData>>().await;
         }
         if let Some(error) = self.camera_failures.lock().unwrap().pop_front() {
-            return Err(error);
+            return Err(error.into());
         }
         if let Some((position, frame)) = &self.focus_model {
             let at = *position.lock().unwrap();
@@ -812,7 +812,7 @@ impl CameraOps for ScriptedDomeRotatorOps {
         self.cooler_commands.lock().unwrap().push((e, t));
         if !e {
             if let Some(err) = &self.cooler_off_error {
-                return Err(err.clone());
+                return Err(err.clone().into());
             }
         }
         self.inner.camera_set_cooler(id, e, t).await
@@ -888,7 +888,7 @@ impl FilterWheelOps for ScriptedDomeRotatorOps {
     async fn filterwheel_set_position(&self, _id: &str, p: i32) -> DeviceResult<()> {
         self.filter_moves.lock().unwrap().push(p);
         if let Some(error) = self.filter_set_failures.lock().unwrap().pop_front() {
-            return Err(error);
+            return Err(error.into());
         }
         let stalled = self
             .filter_stalled_moves
@@ -944,7 +944,7 @@ impl GuiderOps for ScriptedDomeRotatorOps {
             .unwrap()
             .push(self.camera_exposure_calls.load(Ordering::SeqCst));
         if let Some(message) = &self.dither_error {
-            return Err(message.clone());
+            return Err(message.clone().into());
         }
         self.inner.guider_dither(p, sp, st, sto, ra).await
     }
@@ -986,10 +986,10 @@ impl GuiderOps for ScriptedDomeRotatorOps {
             .unwrap()
             .push(self.guider_start_calls.load(Ordering::SeqCst));
         if self.guider_absent {
-            return Err(crate::device_ops::NO_GUIDER_CONFIGURED.to_string());
+            return Err(crate::device_ops::DeviceError::NO_GUIDER);
         }
         if self.no_guide_star {
-            return Err("no star found in the guide frame".to_string());
+            return Err("no star found in the guide frame".into());
         }
         Ok(())
     }
@@ -1023,7 +1023,7 @@ impl DomeOps for ScriptedDomeRotatorOps {
     async fn dome_close(&self, id: &str) -> DeviceResult<()> {
         self.dome_close_calls.fetch_add(1, Ordering::SeqCst);
         if let Some(err) = &self.dome_close_error {
-            return Err(err.clone());
+            return Err(err.clone().into());
         }
         self.inner.dome_close(id).await
     }
@@ -1092,7 +1092,7 @@ impl PlateSolveOps for ScriptedDomeRotatorOps {
     ) -> DeviceResult<crate::device_ops::PlateSolveResult> {
         self.plate_solve_hints.lock().unwrap().push((ra, dec));
         if self.plate_solve_fails {
-            return Err("no solution: too few stars".to_string());
+            return Err("no solution: too few stars".into());
         }
         let mut result = self.inner.plate_solve(d, ra, dec, s).await?;
         if self

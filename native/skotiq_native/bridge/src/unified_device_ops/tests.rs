@@ -280,7 +280,9 @@ async fn exposure_polling_times_out_when_driver_never_completes() {
     )
     .await;
 
-    let err = result.expect_err("hung exposure polling should time out");
+    let err = result
+        .expect_err("hung exposure polling should time out")
+        .to_string();
     assert!(
         err.contains("did not complete within"),
         "unexpected timeout error: {err}"
@@ -320,7 +322,7 @@ async fn reconnect_overrides_are_wired_not_trait_default() {
         connect.is_err(),
         "connecting an unknown device should error"
     );
-    let msg = connect.unwrap_err();
+    let msg = connect.unwrap_err().to_string();
     assert!(
         !msg.contains("not supported by this driver"),
         "connect_device must be overridden; got the trait-default error: {msg}"

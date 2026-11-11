@@ -1,6 +1,6 @@
 //! What a run asks of the guider.
 
-use super::DeviceResult;
+use super::{DeviceError, DeviceResult};
 use async_trait::async_trait;
 
 /// Guiding status
@@ -137,7 +137,10 @@ pub trait GuiderOps: Send + Sync {
     /// cannot report calibration (older Alpaca, etc.) — callers should treat
     /// that as "validation unavailable", not as a calibration failure.
     async fn guider_get_calibration(&self) -> DeviceResult<GuidingCalibration> {
-        Err("guider_get_calibration not supported by this driver".to_string())
+        Err(DeviceError::unsupported(
+            "guider_get_calibration",
+            "guider_get_calibration not supported by this driver",
+        ))
     }
 
     /// Start guiding

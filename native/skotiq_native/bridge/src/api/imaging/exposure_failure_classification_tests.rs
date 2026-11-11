@@ -1,6 +1,6 @@
 use super::classify_exposure_failure;
 use crate::error::SkotiqError;
-use crate::unified_device_ops::IMAGE_VALIDATION_FAILED_PREFIX;
+use skotiq_sequencer::DeviceError;
 
 /// Verbatim validation message from a ZWO ASI1600MM-Cool exposed in daylight:
 /// the operator's exposure to fix, so it must classify as 422, not 500.
@@ -10,7 +10,7 @@ const SATURATED: &str = "Image is completely saturated (min value 65224 >= 65024
 fn validation_rejection_becomes_exposure_failed() {
     let err = classify_exposure_failure(
         "native:zwo:0",
-        format!("{IMAGE_VALIDATION_FAILED_PREFIX}{SATURATED}"),
+        DeviceError::InvalidFrame(SATURATED.to_string()),
     );
 
     match err {
@@ -32,10 +32,12 @@ fn driver_faults_stay_operation_failed() {
         "SDK error: Failed to call method StartExposure",
         "Device not connected: native:zwo:0",
         "Exposure cancelled",
-        // Near-miss: the marker must be a prefix, not a substring.
+        // Near-miss: a driver's text that reads like a validation rejection
+        // is still a driver fault.
         "wrapped: Image validation failed: something",
+        "Image validation failed: something",
     ] {
-        match classify_exposure_failure("native:zwo:0", raw.to_string()) {
+        match classify_exposure_failure("native:zwo:0", DeviceError::from(raw)) {
             SkotiqError::OperationFailed(msg) => assert_eq!(msg, raw),
             other => panic!("expected OperationFailed for {raw:?}, got {other:?}"),
         }
@@ -98,7 +100,7 @@ fn empty_validation_reason_still_classifies() {
     // empty, but the classifier must not depend on the reason being present.
     match classify_exposure_failure(
         "ascom:ASCOM.Simulator.Camera",
-        IMAGE_VALIDATION_FAILED_PREFIX.to_string(),
+        DeviceError::InvalidFrame(String::new()),
     ) {
         SkotiqError::ExposureFailed { camera_id, reason } => {
             assert_eq!(camera_id, "ascom:ASCOM.Simulator.Camera");

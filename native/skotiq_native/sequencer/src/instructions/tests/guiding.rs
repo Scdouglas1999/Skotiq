@@ -231,7 +231,7 @@ async fn a_guider_that_never_locks_and_is_gone_notifies_and_the_run_images_ungui
     let gone = || {
         ScriptedDomeRotatorOps::new()
             .with_guider_resume_that_never_guides()
-            .with_guider_stop_failing(crate::device_ops::NO_GUIDER_CONFIGURED)
+            .with_guider_stop_failing(crate::device_ops::DeviceError::NO_GUIDER)
     };
     let run = start_guiding_with(gone(), false).await;
     assert_eq!(run.result.status, NodeStatus::Success, "{:?}", run.result);
@@ -261,7 +261,7 @@ async fn no_guider_connected_is_not_reported_as_no_guide_star() {
         run.warnings
             .iter()
             .any(|w| w.contains("Failed to start guiding")
-                && w.contains(crate::device_ops::NO_GUIDER_CONFIGURED)
+                && w.contains(&crate::device_ops::DeviceError::NO_GUIDER.to_string())
                 && !w.contains("no guide star")),
         "{:?}",
         run.warnings

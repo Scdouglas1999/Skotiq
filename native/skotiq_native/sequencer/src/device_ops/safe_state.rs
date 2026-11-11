@@ -70,7 +70,7 @@ pub async fn try_park_with_retry(
                     crate::limit_backoff::notify(device_ops, "park", &freed).await;
                     if freed.is_ok() {
                         if let Err(e) = device_ops.mount_park(mount_id).await {
-                            last_error = Some(e);
+                            last_error = Some(e.to_string());
                             continue;
                         }
                     }
@@ -99,7 +99,7 @@ pub async fn try_park_with_retry(
                     total_attempts,
                     e
                 );
-                last_error = Some(e);
+                last_error = Some(e.to_string());
                 if attempt < total_attempts && retry_delay_secs > 0.0 {
                     tokio::time::sleep(std::time::Duration::from_secs_f64(
                         retry_delay_secs.max(0.0),
@@ -190,7 +190,11 @@ pub async fn park_and_close_safe_state(
     };
 
     let cover_close_error = match cover_id {
-        Some(id) => device_ops.cover_calibrator_close_cover(id).await.err(),
+        Some(id) => device_ops
+            .cover_calibrator_close_cover(id)
+            .await
+            .err()
+            .map(|e| e.to_string()),
         None => None,
     };
 
@@ -204,7 +208,7 @@ pub async fn park_and_close_safe_state(
     // surfaces to the operator.
     let dome_close_error = match dome_id {
         Some(id) => match device_ops.dome_close(id).await {
-            Err(e) => Some(e),
+            Err(e) => Some(e.to_string()),
             Ok(()) => verify_dome_closed(&**device_ops, id).await.err(),
         },
         None => None,
@@ -341,10 +345,10 @@ mod tests {
         async fn mount_park(&self, mount_id: &str) -> DeviceResult<()> {
             self.attempts.fetch_add(1, Ordering::SeqCst);
             if self.slewing.load(Ordering::SeqCst) {
-                return Err(format!("{} cannot park while slewing", mount_id));
+                return Err(format!("{} cannot park while slewing", mount_id).into());
             }
             if self.fail_forever {
-                return Err(format!("simulated park failure for {}", mount_id));
+                return Err(format!("simulated park failure for {}", mount_id).into());
             }
             let remaining = self.fail_count.load(Ordering::SeqCst);
             if remaining > 0 {
@@ -352,7 +356,7 @@ mod tests {
                 return Err(format!(
                     "simulated park failure for {} ({} failures remaining)",
                     mount_id, remaining
-                ));
+                ).into());
             }
             Ok(())
         }
@@ -469,7 +473,7 @@ mod tests {
         }
         async fn dome_get_shutter_status(&self, _id: &str) -> DeviceResult<String> {
             if self.read_fails {
-                return Err("simulated shutter-status read failure".to_string());
+                return Err("simulated shutter-status read failure".into());
             }
             Ok(self.shutter_status.clone())
         }

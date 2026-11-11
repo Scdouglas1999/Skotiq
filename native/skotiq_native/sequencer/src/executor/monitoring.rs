@@ -67,9 +67,9 @@ pub(super) async fn bounded_poll<T>(
     let limit = std::time::Duration::from_secs(TRIGGER_POLL_TIMEOUT_SECS);
     match tokio::time::timeout(limit, poll).await {
         Ok(result) => result,
-        Err(_) => Err(format!(
+        Err(_) => Err(crate::device_ops::DeviceError::Timeout(format!(
             "{what} did not answer within {TRIGGER_POLL_TIMEOUT_SECS}s (treated as a poll failure)"
-        )),
+        ))),
     }
 }
 

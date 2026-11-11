@@ -19,7 +19,7 @@ impl MountOps for UnifiedDeviceOps {
         get_device_manager()
             .mount_slew(mount_id, ra_hours, dec_degrees)
             .await
-            .map_err(|e| format!("Slew failed: {}", e))
+            .map_err(|e| format!("Slew failed: {}", e).into())
     }
 
     async fn mount_slew_state(&self, mount_id: &str) -> skotiq_sequencer::slew_arrival::SlewSample {
@@ -44,7 +44,7 @@ impl MountOps for UnifiedDeviceOps {
         get_device_manager()
             .mount_abort(mount_id)
             .await
-            .map_err(|e| format!("Abort slew failed: {}", e))
+            .map_err(|e| format!("Abort slew failed: {}", e).into())
     }
 
     async fn mount_get_coordinates(&self, mount_id: &str) -> DeviceResult<(f64, f64)> {
@@ -120,7 +120,7 @@ impl MountOps for UnifiedDeviceOps {
         get_device_manager()
             .mount_sync(mount_id, ra_hours, dec_degrees)
             .await
-            .map_err(|e| format!("Sync failed: {}", e))
+            .map_err(|e| format!("Sync failed: {}", e).into())
     }
 
     async fn mount_park(&self, mount_id: &str) -> DeviceResult<()> {
@@ -130,7 +130,7 @@ impl MountOps for UnifiedDeviceOps {
         get_device_manager()
             .mount_park(mount_id)
             .await
-            .map_err(|e| format!("Park failed: {}", e))
+            .map_err(|e| format!("Park failed: {}", e).into())
     }
 
     async fn mount_unpark(&self, mount_id: &str) -> DeviceResult<()> {
@@ -140,7 +140,7 @@ impl MountOps for UnifiedDeviceOps {
         get_device_manager()
             .mount_unpark(mount_id)
             .await
-            .map_err(|e| format!("Unpark failed: {}", e))
+            .map_err(|e| format!("Unpark failed: {}", e).into())
     }
 
     async fn mount_find_home(&self, mount_id: &str) -> DeviceResult<()> {
@@ -149,7 +149,7 @@ impl MountOps for UnifiedDeviceOps {
         get_device_manager()
             .mount_find_home(mount_id)
             .await
-            .map_err(|e| format!("Home failed: {}", e))
+            .map_err(|e| format!("Home failed: {}", e).into())
     }
 
     async fn mount_is_at_home(&self, mount_id: &str) -> DeviceResult<bool> {
@@ -160,7 +160,7 @@ impl MountOps for UnifiedDeviceOps {
 
         status
             .at_home
-            .ok_or_else(|| "Mount does not report whether it is at home".to_string())
+            .ok_or_else(|| "Mount does not report whether it is at home".into())
     }
 
     async fn mount_is_slewing(&self, mount_id: &str) -> DeviceResult<bool> {
@@ -195,7 +195,7 @@ impl MountOps for UnifiedDeviceOps {
         match status.side_of_pier {
             None | Some(crate::device::PierSide::Unknown) => Err(
                 "Mount does not report side-of-pier state; flip capability cannot be determined"
-                    .to_string(),
+                    .into(),
             ),
             Some(_) => Ok(true),
         }
@@ -239,7 +239,7 @@ impl MountOps for UnifiedDeviceOps {
         get_device_manager()
             .mount_move_axis(mount_id, axis, rate_deg_per_sec)
             .await
-            .map_err(|e| format!("Move axis failed: {}", e))
+            .map_err(|e| format!("Move axis failed: {}", e).into())
     }
 
     async fn mount_set_tracking(&self, mount_id: &str, enabled: bool) -> DeviceResult<()> {
@@ -252,7 +252,7 @@ impl MountOps for UnifiedDeviceOps {
         get_device_manager()
             .mount_set_tracking(mount_id, enabled)
             .await
-            .map_err(|e| format!("Set tracking failed: {}", e))
+            .map_err(|e| format!("Set tracking failed: {}", e).into())
     }
 
     async fn request_mount_fault_hold(&self, mount_id: &str, message: &str) {
@@ -285,7 +285,7 @@ fn parked_from_status(mount_id: &str, status: &crate::device::MountStatus) -> De
     use crate::device::{mount_status_field, FieldAvailability};
     match status.availability.get(mount_status_field::PARKED) {
         Some(FieldAvailability::Unsupported) | Some(FieldAvailability::Error(_)) => {
-            Err(format!("Mount {} cannot report park state", mount_id))
+            Err(format!("Mount {} cannot report park state", mount_id).into())
         }
         _ => Ok(status.parked),
     }

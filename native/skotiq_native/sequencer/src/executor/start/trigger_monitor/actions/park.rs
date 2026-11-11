@@ -44,7 +44,7 @@ async fn stop_guiding(rig: &Rig, run: &RunControl) -> bool {
         Ok(()) => true,
         // An unguided rig has nothing to stop; reporting it would bury the
         // abort's real cause.
-        Err(error) if crate::device_ops::is_no_guider_configured(&error) => {
+        Err(error @ crate::device_ops::DeviceError::NO_GUIDER) => {
             tracing::debug!("ParkAndAbort: no guider to stop ({})", error);
             true
         }

@@ -60,12 +60,12 @@ where
         }
         let elapsed_now = start_time.elapsed();
         if elapsed_now >= timeout_after {
-            return Err(format!(
+            return Err(DeviceError::Timeout(format!(
                 "Exposure on {} did not complete within {:.1}s timeout ({:.1}s requested exposure plus safety margin)",
                 camera_id,
                 timeout_after.as_secs_f64(),
                 duration_secs
-            ));
+            )));
         }
         let remaining = timeout_after - elapsed_now;
 
@@ -78,14 +78,14 @@ where
         match tokio::time::timeout(remaining, is_complete()).await {
             Ok(Ok(true)) => return Ok(()),
             Ok(Ok(false)) => {}
-            Ok(Err(e)) => return Err(format!("Failed to check exposure status: {}", e)),
+            Ok(Err(e)) => return Err(format!("Failed to check exposure status: {}", e).into()),
             Err(_) => {
-                return Err(format!(
+                return Err(DeviceError::Timeout(format!(
                     "Exposure status poll on {} did not return within the {:.1}s deadline ({:.1}s requested exposure plus safety margin)",
                     camera_id,
                     timeout_after.as_secs_f64(),
                     duration_secs
-                ));
+                )));
             }
         }
 
@@ -142,6 +142,7 @@ pub(crate) async fn claim_camera_acquisition(
             "Camera {} is busy acquiring or downloading another frame; wait for it to finish",
             camera_id
         )
+        .into()
     })
 }
 
@@ -162,6 +163,7 @@ mod ownership_tests {
             .await;
         assert!(competing_capture
             .unwrap_err()
+            .to_string()
             .contains("busy acquiring or downloading"));
         let other_camera = claim_camera_acquisition("other-camera").await.unwrap();
         assert!(camera_acquisition_in_progress("ownership-camera").await);

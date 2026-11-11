@@ -11,19 +11,19 @@ impl CoverCalibratorOps for UnifiedDeviceOps {
     async fn cover_calibrator_open_cover(&self, device_id: &str) -> DeviceResult<()> {
         api_cover_calibrator_open_cover(device_id.to_string())
             .await
-            .map_err(|e| format!("Open cover failed: {}", e))
+            .map_err(|e| format!("Open cover failed: {}", e).into())
     }
 
     async fn cover_calibrator_close_cover(&self, device_id: &str) -> DeviceResult<()> {
         api_cover_calibrator_close_cover(device_id.to_string())
             .await
-            .map_err(|e| format!("Close cover failed: {}", e))
+            .map_err(|e| format!("Close cover failed: {}", e).into())
     }
 
     async fn cover_calibrator_halt_cover(&self, device_id: &str) -> DeviceResult<()> {
         api_cover_calibrator_halt_cover(device_id.to_string())
             .await
-            .map_err(|e| format!("Halt cover failed: {}", e))
+            .map_err(|e| format!("Halt cover failed: {}", e).into())
     }
 
     async fn cover_calibrator_calibrator_on(
@@ -33,36 +33,36 @@ impl CoverCalibratorOps for UnifiedDeviceOps {
     ) -> DeviceResult<()> {
         api_cover_calibrator_calibrator_on(device_id.to_string(), brightness)
             .await
-            .map_err(|e| format!("Calibrator on failed: {}", e))
+            .map_err(|e| format!("Calibrator on failed: {}", e).into())
     }
 
     async fn cover_calibrator_calibrator_off(&self, device_id: &str) -> DeviceResult<()> {
         api_cover_calibrator_calibrator_off(device_id.to_string())
             .await
-            .map_err(|e| format!("Calibrator off failed: {}", e))
+            .map_err(|e| format!("Calibrator off failed: {}", e).into())
     }
 
     async fn cover_calibrator_get_cover_state(&self, device_id: &str) -> DeviceResult<i32> {
         api_cover_calibrator_get_cover_state(device_id.to_string())
             .await
-            .map_err(|e| format!("Get cover state failed: {}", e))
+            .map_err(|e| format!("Get cover state failed: {}", e).into())
     }
 
     async fn cover_calibrator_get_calibrator_state(&self, device_id: &str) -> DeviceResult<i32> {
         api_cover_calibrator_get_calibrator_state(device_id.to_string())
             .await
-            .map_err(|e| format!("Get calibrator state failed: {}", e))
+            .map_err(|e| format!("Get calibrator state failed: {}", e).into())
     }
 
     async fn cover_calibrator_get_brightness(&self, device_id: &str) -> DeviceResult<i32> {
         api_cover_calibrator_get_brightness(device_id.to_string())
             .await
-            .map_err(|e| format!("Get brightness failed: {}", e))
+            .map_err(|e| format!("Get brightness failed: {}", e).into())
     }
 
     async fn cover_calibrator_get_max_brightness(&self, device_id: &str) -> DeviceResult<i32> {
         api_cover_calibrator_get_max_brightness(device_id.to_string())
             .await
-            .map_err(|e| format!("Get max brightness failed: {}", e))
+            .map_err(|e| format!("Get max brightness failed: {}", e).into())
     }
 }

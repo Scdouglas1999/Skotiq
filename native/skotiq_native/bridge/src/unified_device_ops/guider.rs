@@ -19,7 +19,7 @@ impl GuiderOps for UnifiedDeviceOps {
 
         let guider_id = get_active_guider_id_for_ops()
             .await
-            .ok_or_else(|| "No active guider configured".to_string())?;
+            .ok_or(DeviceError::NO_GUIDER)?;
         api_guider_dither(
             guider_id,
             pixels,
@@ -29,13 +29,13 @@ impl GuiderOps for UnifiedDeviceOps {
             settle_timeout,
         )
         .await
-        .map_err(|e| format!("Dither failed: {}", e))
+        .map_err(|e| format!("Dither failed: {}", e).into())
     }
 
     async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
         let guider_id = get_active_guider_id_for_ops()
             .await
-            .ok_or_else(|| "No active guider configured".to_string())?;
+            .ok_or(DeviceError::NO_GUIDER)?;
         let status = api_guider_get_status(guider_id)
             .await
             .map_err(|e| format!("Failed to get guiding status: {}", e))?;
@@ -51,7 +51,7 @@ impl GuiderOps for UnifiedDeviceOps {
     async fn guider_is_active(&self) -> DeviceResult<bool> {
         let guider_id = get_active_guider_id_for_ops()
             .await
-            .ok_or_else(|| "No active guider configured".to_string())?;
+            .ok_or(DeviceError::NO_GUIDER)?;
         let status = api_guider_get_status(guider_id)
             .await
             .map_err(|e| format!("Failed to get guiding status: {}", e))?;
@@ -61,7 +61,7 @@ impl GuiderOps for UnifiedDeviceOps {
     async fn guider_get_calibration(&self) -> DeviceResult<GuidingCalibration> {
         let guider_id = get_active_guider_id_for_ops()
             .await
-            .ok_or_else(|| "No active guider configured".to_string())?;
+            .ok_or(DeviceError::NO_GUIDER)?;
         let calib = crate::api::phd2::api_guider_get_calibration(guider_id)
             .await
             .map_err(|e| format!("Failed to get guider calibration: {}", e))?;
@@ -82,20 +82,20 @@ impl GuiderOps for UnifiedDeviceOps {
 
         let guider_id = get_active_guider_id_for_ops()
             .await
-            .ok_or_else(|| "No active guider configured".to_string())?;
+            .ok_or(DeviceError::NO_GUIDER)?;
         api_guider_start_guiding(guider_id, settle_pixels, settle_time, settle_timeout)
             .await
-            .map_err(|e| format!("Start guiding failed: {}", e))
+            .map_err(|e| format!("Start guiding failed: {}", e).into())
     }
 
     async fn guider_select_fresh_star(&self) -> DeviceResult<()> {
         let guider_id = get_active_guider_id_for_ops()
             .await
-            .ok_or_else(|| "No active guider configured".to_string())?;
+            .ok_or(DeviceError::NO_GUIDER)?;
         crate::api::phd2::select_fresh_guide_star(&guider_id, None)
             .await
             .map(|_| ())
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.to_string().into())
     }
 
     async fn guider_select_fresh_star_above(
@@ -104,11 +104,11 @@ impl GuiderOps for UnifiedDeviceOps {
     ) -> DeviceResult<()> {
         let guider_id = get_active_guider_id_for_ops()
             .await
-            .ok_or_else(|| "No active guider configured".to_string())?;
+            .ok_or(DeviceError::NO_GUIDER)?;
         crate::api::phd2::select_fresh_guide_star(&guider_id, Some(floor))
             .await
             .map(|_| ())
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.to_string().into())
     }
 
     async fn guider_star_quality(
@@ -116,7 +116,7 @@ impl GuiderOps for UnifiedDeviceOps {
     ) -> DeviceResult<Option<skotiq_sequencer::GuideStarQuality>> {
         let guider_id = get_active_guider_id_for_ops()
             .await
-            .ok_or_else(|| "No active guider configured".to_string())?;
+            .ok_or(DeviceError::NO_GUIDER)?;
         let status = api_guider_get_status(guider_id)
             .await
             .map_err(|e| format!("Failed to get guiding status: {}", e))?;
@@ -133,10 +133,10 @@ impl GuiderOps for UnifiedDeviceOps {
 
         let guider_id = get_active_guider_id_for_ops()
             .await
-            .ok_or_else(|| "No active guider configured".to_string())?;
+            .ok_or(DeviceError::NO_GUIDER)?;
         crate::api::phd2::guider_stop_for_run(guider_id)
             .await
-            .map_err(|e| format!("Stop guiding failed: {}", e))
+            .map_err(|e| format!("Stop guiding failed: {}", e).into())
     }
 
     async fn guider_note_stop_reason(&self, reason: Option<skotiq_sequencer::GuidingStopReason>) {

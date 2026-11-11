@@ -110,7 +110,7 @@ impl CameraOps for CenterContentionOps {
         if now > 1 {
             // What the simulator and a real single-sensor driver answer when a
             // second caller starts an exposure over the first one's.
-            return Err("No exposure is available to download".to_string());
+            return Err("No exposure is available to download".into());
         }
         Ok(ImageData {
             width: 64,

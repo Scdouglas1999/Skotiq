@@ -23,7 +23,7 @@ impl SafetyOps for UnifiedDeviceOps {
 
             Err(e) => {
                 tracing::error!("Failed to check safety monitor {}: {} - returning error for fail-mode handling", device_id, e);
-                Err(format!("Safety check failed for {}: {}", device_id, e))
+                Err(format!("Safety check failed for {}: {}", device_id, e).into())
             }
         }
     }
@@ -47,7 +47,7 @@ impl SafetyOps for UnifiedDeviceOps {
             .await
         {
             Ok(conditions) => Ok(conditions.humidity),
-            Err(e) => Err(format!("Humidity poll failed for {}: {}", device_id, e)),
+            Err(e) => Err(format!("Humidity poll failed for {}: {}", device_id, e).into()),
         }
     }
 }

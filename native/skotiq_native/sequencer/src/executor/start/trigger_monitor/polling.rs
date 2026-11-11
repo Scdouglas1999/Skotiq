@@ -160,7 +160,7 @@ impl DevicePoller {
             }
             NoDataResolution::Safe => {
                 if first_error {
-                    if crate::device_ops::is_no_safety_device_configured(&error) {
+                    if error == crate::device_ops::DeviceError::NO_SAFETY_DEVICE {
                         // Fail open on a rig without a safety device is the
                         // operator's setting; the app's weather verdict still
                         // holds the run when the sky turns.
@@ -206,7 +206,7 @@ impl DevicePoller {
         &mut self,
         is_safe: Option<bool>,
         guiding_rms: Option<f64>,
-        humidity: Option<Result<Option<f64>, String>>,
+        humidity: Option<crate::device_ops::DeviceResult<Option<f64>>>,
         verdict_staleness_secs: u64,
         fail_mode: SafetyFailMode,
     ) -> (bool, bool) {

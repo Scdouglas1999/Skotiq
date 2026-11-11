@@ -348,7 +348,7 @@ pub(crate) fn classify_dither_result(
     if status == NodeStatus::Success {
         return DitherTriggerOutcome::Performed;
     }
-    if message.is_some_and(crate::device_ops::is_no_guider_configured) {
+    if message.is_some_and(crate::device_ops::message_says_no_guider_configured) {
         return DitherTriggerOutcome::SkippedNoGuider;
     }
     DitherTriggerOutcome::Failed

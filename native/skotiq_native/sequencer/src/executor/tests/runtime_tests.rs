@@ -1182,7 +1182,8 @@ async fn a_device_poll_that_never_answers_is_reported_as_a_poll_failure() {
         std::future::pending::<crate::device_ops::DeviceResult<bool>>(),
     )
     .await
-    .expect_err("a hung driver call must never be reported as a reading");
+    .expect_err("a hung driver call must never be reported as a reading")
+    .to_string();
     assert!(error.contains("mount_side_of_pier"), "got: {error}");
     assert!(error.contains("poll failure"), "got: {error}");
 }

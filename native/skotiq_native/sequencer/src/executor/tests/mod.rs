@@ -1380,7 +1380,7 @@ impl MountOps for ReacquireGuiderOps {
     async fn mount_set_tracking(&self, id: &str, enabled: bool) -> DeviceResult<()> {
         *self.last_tracking_set.lock().unwrap() = Some(enabled);
         if self.tracking_set_should_fail && enabled {
-            return Err(format!("simulated tracking-enable failure for {}", id));
+            return Err(format!("simulated tracking-enable failure for {}", id).into());
         }
         Ok(())
     }
@@ -1447,7 +1447,7 @@ impl GuiderOps for ReacquireGuiderOps {
         _settle_timeout: f64,
     ) -> DeviceResult<()> {
         if self.start_should_fail {
-            return Err("simulated guider_start failure".to_string());
+            return Err("simulated guider_start failure".into());
         }
         self.started.store(true, Ordering::Relaxed);
         Ok(())

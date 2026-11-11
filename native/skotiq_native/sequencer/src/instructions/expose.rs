@@ -479,7 +479,7 @@ pub async fn execute_exposure_with_renderer(
                     ctx,
                     RetriedDevice::Camera,
                     camera_retries_done,
-                    &error,
+                    &error.to_string(),
                     &format!("on frame {}/{}", frame, config.count),
                 )
                 .await
@@ -1078,7 +1078,7 @@ pub async fn execute_exposure_with_renderer(
                     //
                     // Skip loudly, once per burst, and keep imaging. Every other
                     // dither/settle failure keeps the fail-closed abort below.
-                    if crate::device_ops::is_no_guider_configured(&e.to_string()) {
+                    if e == crate::device_ops::DeviceError::NO_GUIDER {
                         if !dither_skipped_warned {
                             dither_skipped_warned = true;
                             tracing::warn!(

@@ -156,7 +156,7 @@ impl MeridianFlipExecutor {
         tokio::pin!(solve);
         loop {
             tokio::select! {
-                result = &mut solve => return result.map_err(|_| "Recovery plate solve timed out after 60s".to_string())?,
+                result = &mut solve => return result.map_err(|_| "Recovery plate solve timed out after 60s".to_string())?.map_err(String::from),
                 _ = tokio::time::sleep(std::time::Duration::from_millis(200)) => {
                     if self.is_cancelled(ctx) {
                 return Err("Recovery cancelled".into());

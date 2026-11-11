@@ -89,7 +89,7 @@ pub(crate) async fn confirm_mount_tracks(
             )))
         }
     }
-    let unreadable = |error: String| {
+    let unreadable = |error: crate::device_ops::DeviceError| {
         NotTracking::Unreadable(format!("the mount's position could not be read: {error}"))
     };
     let (ra0, dec0) = device_ops

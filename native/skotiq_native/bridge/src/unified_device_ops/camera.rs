@@ -114,7 +114,7 @@ impl CameraOps for UnifiedDeviceOps {
                 ImagingEvent::ExposureComplete { success: false },
                 EventSeverity::Info,
             );
-            return Err("Exposure cancelled".to_string());
+            return Err(DeviceError::Cancelled("Exposure cancelled".to_string()));
         }
 
         // Download image under a hard ceiling so a stalled download cannot
@@ -148,11 +148,11 @@ impl CameraOps for UnifiedDeviceOps {
                     ImagingEvent::ExposureComplete { success: false },
                     EventSeverity::Error,
                 );
-                return Err(format!(
+                return Err(DeviceError::Timeout(format!(
                     "Image download on {} exceeded the {}s timeout — failing the frame so recovery can run",
                     camera_id,
                     crate::timeout_ops::Timeouts::image_download_large().as_secs()
-                ));
+                )));
             }
         };
 
@@ -161,7 +161,7 @@ impl CameraOps for UnifiedDeviceOps {
                 ImagingEvent::ExposureComplete { success: false },
                 EventSeverity::Info,
             );
-            return Err("Exposure cancelled".to_string());
+            return Err(DeviceError::Cancelled("Exposure cancelled".to_string()));
         }
 
         tracing::info!(
@@ -229,13 +229,13 @@ impl CameraOps for UnifiedDeviceOps {
 
             // Fail on validation errors (corrupted/unusable images)
             if !validation.is_valid {
-                let error_msg = validation.errors.join("; ");
-                tracing::error!("[CAMERA] {IMAGE_VALIDATION_FAILED_PREFIX}{error_msg}");
+                let error = DeviceError::InvalidFrame(validation.errors.join("; "));
+                tracing::error!("[CAMERA] {error}");
                 self.app_state.publish_imaging_event(
                     ImagingEvent::ExposureComplete { success: false },
                     EventSeverity::Error,
                 );
-                return Err(format!("{IMAGE_VALIDATION_FAILED_PREFIX}{error_msg}"));
+                return Err(error);
             }
         }
         let (sensor_type, bayer_offset) = match &native_image.bayer_pattern {
@@ -298,7 +298,7 @@ impl CameraOps for UnifiedDeviceOps {
                     a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
                 });
                 if sorted.is_empty() {
-                    return Err("Empty image data for median calculation".to_string());
+                    return Err("Empty image data for median calculation".into());
                 }
                 let median = median_from_sorted_f64(&sorted)
                     .ok_or_else(|| "Empty image data for median calculation".to_string())?;
@@ -420,7 +420,7 @@ impl CameraOps for UnifiedDeviceOps {
         get_device_manager()
             .camera_abort_exposure(camera_id)
             .await
-            .map_err(|e| format!("Abort failed: {}", e))
+            .map_err(|e| format!("Abort failed: {}", e).into())
     }
 
     async fn camera_set_cooler(
@@ -439,7 +439,7 @@ impl CameraOps for UnifiedDeviceOps {
         // `DeviceManager::camera_set_cooler` publishes the cooling event.
         api_set_camera_cooler(camera_id.to_string(), enabled as u8, Some(target_temp))
             .await
-            .map_err(|e| format!("Cooler control failed: {}", e))
+            .map_err(|e| format!("Cooler control failed: {}", e).into())
     }
 
     async fn camera_get_temperature(&self, camera_id: &str) -> DeviceResult<f64> {
@@ -449,7 +449,7 @@ impl CameraOps for UnifiedDeviceOps {
 
         status
             .sensor_temp
-            .ok_or_else(|| "Temperature not available".to_string())
+            .ok_or_else(|| "Temperature not available".into())
     }
 
     async fn camera_get_cooler_power(&self, camera_id: &str) -> DeviceResult<f64> {
@@ -459,7 +459,7 @@ impl CameraOps for UnifiedDeviceOps {
 
         status
             .cooler_power
-            .ok_or_else(|| "Cooler power not available".to_string())
+            .ok_or_else(|| "Cooler power not available".into())
     }
 
     async fn camera_get_cooler_on(&self, camera_id: &str) -> DeviceResult<Option<bool>> {

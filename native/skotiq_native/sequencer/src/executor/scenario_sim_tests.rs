@@ -320,7 +320,7 @@ impl MountOps for ScriptedDeviceOps {
             return Ok(());
         }
         if self.park_fails.load(Ordering::SeqCst) {
-            Err(format!("simulated park failure for {mount_id}"))
+            Err(format!("simulated park failure for {mount_id}").into())
         } else {
             self.mount_parked.store(true, Ordering::SeqCst);
             self.mount_tracking.store(false, Ordering::SeqCst);
@@ -431,7 +431,7 @@ impl CameraOps for ScriptedDeviceOps {
             mount.exposure_while_moving = mount.moving(tokio::time::Instant::now());
         }
         if let Some(error) = self.camera_failures.lock().unwrap().pop_front() {
-            return Err(error);
+            return Err(error.into());
         }
         self.inner.camera_start_exposure(request).await
     }
@@ -484,7 +484,7 @@ impl GuiderOps for ScriptedDeviceOps {
     async fn guider_start(&self, sp: f64, st: f64, sto: f64) -> DeviceResult<()> {
         self.record("guider_start");
         if self.guider_start_fails.load(Ordering::SeqCst) {
-            return Err("simulated guider start failure: no star".to_string());
+            return Err("simulated guider start failure: no star".into());
         }
         let n = self.guider_start_count.fetch_add(1, Ordering::SeqCst) + 1;
         let relock_after = self.relock_after_starts.load(Ordering::SeqCst);
@@ -502,7 +502,7 @@ impl GuiderOps for ScriptedDeviceOps {
     async fn guider_select_fresh_star(&self) -> DeviceResult<()> {
         self.record("guider_select_fresh_star");
         if self.no_guide_star.load(Ordering::SeqCst) {
-            return Err("simulated empty guide frame: no star found".to_string());
+            return Err("simulated empty guide frame: no star found".into());
         }
         Ok(())
     }
@@ -516,7 +516,7 @@ impl GuiderOps for ScriptedDeviceOps {
             Some(star) if !floor.accepts(&star) => Err(format!(
                 "the star measures SNR {:.1}, mass {:.0}, below the floor",
                 star.snr, star.star_mass
-            )),
+            ).into()),
             _ => Ok(()),
         }
     }
@@ -549,7 +549,7 @@ impl DomeOps for ScriptedDeviceOps {
         if self.close_fails.load(Ordering::SeqCst) {
             // A jammed shutter: the close fails AND the shutter stays Open, so
             // the safe-state sweep's verification will (correctly) flag it.
-            Err(format!("simulated dome-close failure for {dome_id}"))
+            Err(format!("simulated dome-close failure for {dome_id}").into())
         } else {
             // A healthy dome: the shutter actually reaches Closed.
             *self.shutter_state.lock().unwrap() = "Closed".to_string();
@@ -572,7 +572,7 @@ impl CoverCalibratorOps for ScriptedDeviceOps {
     async fn cover_calibrator_close_cover(&self, device_id: &str) -> DeviceResult<()> {
         self.record(format!("cover_close:{device_id}"));
         if self.close_fails.load(Ordering::SeqCst) {
-            Err(format!("simulated cover-close failure for {device_id}"))
+            Err(format!("simulated cover-close failure for {device_id}").into())
         } else {
             Ok(())
         }
@@ -608,10 +608,7 @@ impl SafetyOps for ScriptedDeviceOps {
     async fn safety_is_safe(&self, _safety_id: Option<&str>) -> DeviceResult<bool> {
         if self.safety_absent.load(Ordering::SeqCst) {
             self.record("safety_is_safe->absent");
-            return Err(
-                "No safety monitor or weather device configured for sequencer safety checks"
-                    .to_string(),
-            );
+            return Err(crate::device_ops::DeviceError::NO_SAFETY_DEVICE);
         }
         let safe = self.weather_safe.load(Ordering::SeqCst);
         self.record(format!("safety_is_safe->{safe}"));
@@ -630,7 +627,7 @@ impl PlateSolveOps for ScriptedDeviceOps {
     ) -> DeviceResult<PlateSolveResult> {
         self.record("plate_solve");
         if self.plate_solve_fails.load(Ordering::SeqCst) {
-            return Err("no solution: too few stars".to_string());
+            return Err("no solution: too few stars".into());
         }
         if self
             .sim_mount
@@ -640,7 +637,7 @@ impl PlateSolveOps for ScriptedDeviceOps {
             .is_some_and(|mount| mount.exposure_while_moving)
         {
             // A frame taken while the mount swings in trails every star.
-            return Err("Only 1 stars found, minimum is 6".to_string());
+            return Err("Only 1 stars found, minimum is 6".into());
         }
         self.inner.plate_solve(d, ra, dec, s).await
     }
@@ -700,7 +697,7 @@ impl ConnectionOps for ScriptedDeviceOps {
             self.set_connected(device_id, true);
             Ok(())
         } else {
-            Err(format!("simulated reconnect failure for {device_id}"))
+            Err(format!("simulated reconnect failure for {device_id}").into())
         }
     }
 }

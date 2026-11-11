@@ -1,6 +1,6 @@
 //! Whether a device is connected, and reconnecting one.
 
-use super::DeviceResult;
+use super::{DeviceError, DeviceResult};
 use async_trait::async_trait;
 
 #[async_trait]
@@ -12,7 +12,10 @@ pub trait ConnectionOps: Send + Sync {
     /// resuming the failed instruction.
     async fn device_is_connected(&self, device_id: &str) -> DeviceResult<bool> {
         let _ = device_id;
-        Err("device_is_connected not supported by this driver".to_string())
+        Err(DeviceError::unsupported(
+            "device_is_connected",
+            "device_is_connected not supported by this driver",
+        ))
     }
 
     /// Actively (re)connect a device by id.
@@ -26,6 +29,9 @@ pub trait ConnectionOps: Send + Sync {
     /// support reconnection fall back to passive polling.
     async fn connect_device(&self, device_id: &str) -> DeviceResult<()> {
         let _ = device_id;
-        Err("connect_device not supported by this driver".to_string())
+        Err(DeviceError::unsupported(
+            "connect_device",
+            "connect_device not supported by this driver",
+        ))
     }
 }

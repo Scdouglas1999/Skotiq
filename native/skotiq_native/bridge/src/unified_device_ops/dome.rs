@@ -17,7 +17,7 @@ impl DomeOps for UnifiedDeviceOps {
         get_device_manager()
             .dome_open_shutter(dome_id)
             .await
-            .map_err(|e| format!("Open dome shutter failed: {}", e))
+            .map_err(|e| format!("Open dome shutter failed: {}", e).into())
     }
 
     async fn dome_close(&self, dome_id: &str) -> DeviceResult<()> {
@@ -26,7 +26,7 @@ impl DomeOps for UnifiedDeviceOps {
         get_device_manager()
             .dome_close_shutter(dome_id)
             .await
-            .map_err(|e| format!("Close dome shutter failed: {}", e))
+            .map_err(|e| format!("Close dome shutter failed: {}", e).into())
     }
 
     async fn dome_park(&self, dome_id: &str) -> DeviceResult<()> {
@@ -35,7 +35,7 @@ impl DomeOps for UnifiedDeviceOps {
         get_device_manager()
             .dome_park(dome_id)
             .await
-            .map_err(|e| format!("Park dome failed: {}", e))
+            .map_err(|e| format!("Park dome failed: {}", e).into())
     }
 
     async fn dome_get_shutter_status(&self, dome_id: &str) -> DeviceResult<String> {

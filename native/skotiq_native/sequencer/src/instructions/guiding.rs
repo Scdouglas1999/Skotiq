@@ -52,15 +52,15 @@ impl Drop for GuiderStartupCleanupGuard {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum GuidingStartError {
     /// The guider found no guide star in a fresh frame.
-    NoStar(String),
+    NoStar(crate::device_ops::DeviceError),
     /// The guider would not start guiding.
-    Start(String),
+    Start(crate::device_ops::DeviceError),
 }
 
 impl GuidingStartError {
-    pub(crate) fn message(&self) -> &str {
+    pub(crate) fn message(&self) -> String {
         match self {
-            Self::NoStar(message) | Self::Start(message) => message,
+            Self::NoStar(error) | Self::Start(error) => error.to_string(),
         }
     }
 }
@@ -97,7 +97,7 @@ pub(crate) async fn start_guiding_on_fresh_star_above(
     }
     .map_err(|error| {
         // A rig with no guider has no frame to look for a star in.
-        if crate::device_ops::is_no_guider_configured(&error) {
+        if error == crate::device_ops::DeviceError::NO_GUIDER {
             GuidingStartError::Start(error)
         } else {
             GuidingStartError::NoStar(error)
@@ -150,7 +150,7 @@ pub(crate) async fn start_guiding_holding_on_settle_timeout(
     .await
     {
         Ok(()) => Ok(GuidingStarted::Settled),
-        Err(GuidingStartError::Start(message)) if is_settle_timeout(&message) => {
+        Err(GuidingStartError::Start(message)) if is_settle_timeout(&message.to_string()) => {
             match device_ops.guider_get_status().await {
                 Ok(status)
                     if status.is_guiding
@@ -324,7 +324,7 @@ pub(crate) async fn stop_an_active_guider(
 ) {
     let active = match device_ops.guider_is_active().await {
         Ok(active) => active,
-        Err(error) if crate::device_ops::is_no_guider_configured(&error) => false,
+        Err(crate::device_ops::DeviceError::NO_GUIDER) => false,
         Err(error) => {
             tracing::warn!(
                 "[GUIDING] Could not read the guider's state before the {what} ({error}); \
@@ -819,7 +819,7 @@ async fn start_guiding(
                         result
                     }
                     // Nothing is left guiding on a rig whose guider is gone.
-                    Err(error) if crate::device_ops::is_no_guider_configured(&error) => {
+                    Err(crate::device_ops::DeviceError::NO_GUIDER) => {
                         cleanup_guard.disarm();
                         if let Some(trigger_state) = &ctx.trigger_state {
                             trigger_state.write().await.set_guiding_enabled(false);
@@ -929,7 +929,7 @@ pub async fn execute_stop_guiding(
             }
             InstructionResult::success_with_message("Guiding stopped")
         }
-        Err(e) if crate::device_ops::is_no_guider_configured(&e) => {
+        Err(crate::device_ops::DeviceError::NO_GUIDER) => {
             if let Some(trigger_state_lock) = &ctx.trigger_state {
                 let mut tstate = trigger_state_lock.write().await;
                 tstate.set_guiding_enabled(false);

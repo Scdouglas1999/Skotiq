@@ -23,6 +23,6 @@ impl ConnectionOps for UnifiedDeviceOps {
         get_device_manager()
             .set_auto_reconnect(device_id, true)
             .await;
-        get_device_manager().connect_device(device_id).await
+        get_device_manager().connect_device(device_id).await.map_err(Into::into)
     }
 }

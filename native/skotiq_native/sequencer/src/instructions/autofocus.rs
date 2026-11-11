@@ -872,7 +872,7 @@ pub(crate) async fn resume_guiding_after_autofocus(
         }
     }
     let deadline = tokio::time::Instant::now() + GUIDING_RESUME_DEADLINE;
-    let mut last_seen: Result<crate::GuidingStatus, String>;
+    let mut last_seen: crate::device_ops::DeviceResult<crate::GuidingStatus>;
     loop {
         last_seen = ctx.device_ops.guider_get_status().await;
         if let Ok(status) = &last_seen {
@@ -1313,7 +1313,7 @@ pub(crate) async fn execute_autofocus_sweep_around(
                             ctx,
                             RetriedDevice::Camera,
                             camera_retries_done,
-                            &e,
+                            &e.to_string(),
                             &format!("on autofocus point {}", point + 1),
                         )
                         .await

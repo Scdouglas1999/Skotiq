@@ -1,6 +1,6 @@
 //! What a run asks of the mount.
 
-use super::{DeviceResult, HOMING_UNSUPPORTED};
+use super::{DeviceError, DeviceResult};
 use async_trait::async_trait;
 
 #[async_trait]
@@ -76,14 +76,20 @@ pub trait MountOps: Send + Sync {
     /// default fails closed so a backend that never wired homing says so
     /// instead of reporting a move that did not happen.
     async fn mount_find_home(&self, _mount_id: &str) -> DeviceResult<()> {
-        Err(HOMING_UNSUPPORTED.to_string())
+        Err(DeviceError::unsupported(
+            "mount_find_home",
+            "Homing is not supported by this device backend",
+        ))
     }
 
     /// Whether the mount reports that it is at its home position.
     ///
     /// Fails closed by default for the same reason as [`Self::mount_find_home`].
     async fn mount_is_at_home(&self, _mount_id: &str) -> DeviceResult<bool> {
-        Err(HOMING_UNSUPPORTED.to_string())
+        Err(DeviceError::unsupported(
+            "mount_is_at_home",
+            "Homing is not supported by this device backend",
+        ))
     }
 
     /// Check if mount is slewing
@@ -124,8 +130,9 @@ pub trait MountOps: Send + Sync {
         _axis: i32,
         _rate_deg_per_sec: f64,
     ) -> DeviceResult<()> {
-        Err(format!(
-            "Moving an axis directly is not supported for mount {mount_id}"
+        Err(DeviceError::unsupported(
+            "mount_move_axis",
+            format!("Moving an axis directly is not supported for mount {mount_id}"),
         ))
     }
 

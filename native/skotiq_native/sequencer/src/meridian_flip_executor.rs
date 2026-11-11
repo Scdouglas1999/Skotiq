@@ -996,11 +996,11 @@ impl MeridianFlipExecutor {
             .await;
         match self.device_ops.guider_stop().await {
             Ok(()) => Ok(()),
-            Err(error) if crate::device_ops::is_no_guider_configured(&error) => {
+            Err(crate::device_ops::DeviceError::NO_GUIDER) => {
                 tracing::info!("[MERIDIAN] No guider configured — nothing to pause");
                 Ok(())
             }
-            Err(error) => Err(error),
+            Err(error) => Err(error.to_string()),
         }
     }
 
@@ -1016,6 +1016,7 @@ impl MeridianFlipExecutor {
         self.device_ops
             .mount_set_tracking(&ctx.mount_id, true)
             .await
+            .map_err(String::from)
     }
 
     /// Record the flip the moment the new side is verified, so a failure in a
@@ -1887,7 +1888,7 @@ impl MeridianFlipExecutor {
                     }
                 }
             }
-            Err(error) if crate::device_ops::is_no_guider_configured(error.message()) => {
+            Err(crate::instructions::GuidingStartError::Start(crate::device_ops::DeviceError::NO_GUIDER)) => {
                 tracing::info!("[MERIDIAN] No guider configured — nothing to resume");
                 return Ok(());
             }
@@ -2262,7 +2263,7 @@ impl MeridianFlipExecutor {
     async fn retry_safety_action<F, Fut>(&self, op_name: &str, mut op: F) -> Result<(), String>
     where
         F: FnMut() -> Fut,
-        Fut: std::future::Future<Output = Result<(), String>>,
+        Fut: std::future::Future<Output = crate::device_ops::DeviceResult<()>>,
     {
         let retry_count = self.config.safety_action_retry_count;
         let retry_delay_secs = self.config.safety_action_retry_delay_secs;
@@ -2287,7 +2288,7 @@ impl MeridianFlipExecutor {
                         retry_count,
                         e
                     );
-                    last_err = e;
+                    last_err = e.to_string();
                     if attempt < retry_count {
                         tokio::time::sleep(std::time::Duration::from_secs_f64(retry_delay_secs))
                             .await;
@@ -2659,7 +2660,7 @@ mod tests {
                 Err(format!(
                     "simulated park failure (remaining={})",
                     remaining - 1
-                ))
+                ).into())
             } else {
                 Ok(())
             }
@@ -2887,7 +2888,7 @@ mod tests {
                 return Err(
                     "Start guiding failed: Operation failed: Guiding did not settle: \
                             PHD2 settle failed (status 1): timed-out waiting for guider to settle"
-                        .to_string(),
+                        .into(),
                 );
             }
             self.state.post_flip_calls.lock().unwrap().push("guide");
@@ -2899,7 +2900,7 @@ mod tests {
                 })
                 .is_ok();
             if transient_failure || self.state.guider_start_fails.load(Ordering::Relaxed) {
-                return Err("simulated guider start failure: no star".to_string());
+                return Err("simulated guider start failure: no star".into());
             }
             self.state.guider_stopped.store(false, Ordering::Relaxed);
             Ok(())
@@ -2928,7 +2929,7 @@ mod tests {
 
         async fn guider_stop(&self) -> DeviceResult<()> {
             if self.state.guider_stop_fails.load(Ordering::Relaxed) {
-                return Err("PHD2 stop_capture timed out".to_string());
+                return Err("PHD2 stop_capture timed out".into());
             }
 
             self.state
@@ -4437,26 +4438,6 @@ mod tests {
         assert!((back.max_post_settle_rms_pixels - 1.5).abs() < 1e-9);
     }
 
-    /// An unguided rig must not send the flip into its retry ladder.
-    ///
-    /// `pause_guider` / `resume_guider` report "No active guider configured" as
-    /// a skippable step: propagating it as a step failure sends an unguided rig
-    /// into the flip's retry ladder, stalling the sequence for minutes over a
-    /// device that does not exist.
-    #[test]
-    fn no_guider_marker_is_treated_as_a_skippable_step() {
-        assert!(crate::device_ops::is_no_guider_configured(
-            "No active guider configured"
-        ));
-        // A real guider fault must still fail the step so the flip retries or
-        // aborts rather than silently imaging unguided through a flip.
-        assert!(!crate::device_ops::is_no_guider_configured(
-            "Guide star lost after flip"
-        ));
-        assert!(!crate::device_ops::is_no_guider_configured(
-            "Settle timed out after 60s"
-        ));
-    }
     /// A flip in its retry ladder must say so on the RUN's event stream, not only
     /// on the flip dialog's channel: a trigger-fired flip has no `event_tx` (only
     /// the node-driven flip sets one), and the run's broadcast is the channel

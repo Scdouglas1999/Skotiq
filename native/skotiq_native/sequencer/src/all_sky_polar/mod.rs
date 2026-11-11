@@ -369,7 +369,7 @@ where
                     "Solver returned unsuccessful result".to_string(),
                 ));
             }
-            Ok(Err(e)) => return Err(PolarAlignError::SolveFailed(e)),
+            Ok(Err(e)) => return Err(PolarAlignError::SolveFailed(e.to_string())),
             Err(_) => {
                 return Err(PolarAlignError::SolveFailed(format!(
                     "Solver timed out after {:.1}s",

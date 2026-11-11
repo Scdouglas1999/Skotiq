@@ -312,7 +312,7 @@ mod slew_arrival {
         let (result, _) = slew_with(
             ScriptedDomeRotatorOps::new()
                 .with_scripted_mount_coordinates(MOUNT_REPORTED.0, MOUNT_REPORTED.1)
-                .with_scripted_readback_frame(Err("driver type unknown".to_string())),
+                .with_scripted_readback_frame(Err("driver type unknown".into())),
         )
         .await;
 

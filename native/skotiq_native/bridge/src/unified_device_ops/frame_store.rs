@@ -46,7 +46,7 @@ impl FrameStoreOps for UnifiedDeviceOps {
             header,
         )
         .await
-        .map_err(|e| format!("Save FITS failed: {}", e))
+        .map_err(|e| format!("Save FITS failed: {}", e).into())
     }
 
     async fn calculate_image_hfr(&self, image_data: &ImageData) -> DeviceResult<Option<f64>> {
