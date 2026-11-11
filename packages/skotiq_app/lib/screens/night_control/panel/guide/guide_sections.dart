@@ -26,7 +26,7 @@ final String kNightGuideSettingsRoute =
 /// Edge of the star view and the scatter plot.
 const double _plotSize = 124;
 
-/// The guide star as PHD2 sees it, the recent steps as a scatter, and how
+/// The guide star as the guider sees it, the recent steps as a scatter, and how
 /// often the star was lost this session.
 class NightGuideStarSection extends ConsumerWidget {
   const NightGuideStarSection({super.key});
@@ -48,6 +48,8 @@ class NightGuideStarSection extends ConsumerWidget {
     final clock = ref.watch(clockProvider);
     final stopReason = ref.watch(guidingStopReasonProvider);
     final settleTimeout = ref.watch(guiderSettleTimeoutProvider);
+    final guiderId = ref.watch(guiderStateProvider.select((g) => g.deviceId));
+    final isPhd2 = guiderId == null || isPhd2DeviceId(guiderId);
 
     final acquiring = state == Phd2State.looping ||
         state == Phd2State.guiding ||
@@ -107,7 +109,9 @@ class NightGuideStarSection extends ConsumerWidget {
 
     return NightPanelSection(
       title: l10n.text('nightScopeGuideStar'),
-      trailing: l10n.text('nightScopeGuideLive'),
+      trailing: l10n.text(
+        isPhd2 ? 'nightScopeGuideLivePhd2' : 'nightScopeGuideLive',
+      ),
       children: [
         Row(
           children: [
@@ -143,7 +147,8 @@ class NightGuideStarSection extends ConsumerWidget {
                 l10n.text(
                   'nightScopeGuideSettleTimedOut',
                   params: {
-                    'time': ClockFormat.hm(clock.toNightClock(settleTimeout.at)),
+                    'time':
+                        ClockFormat.hm(clock.toNightClock(settleTimeout.at)),
                   },
                 ),
               ),
@@ -296,4 +301,3 @@ String guideStopReasonLabel(SkotiqLocalizations l10n, String reason) {
 
 String? _withUnit(String? value, String unit) =>
     value == null ? null : '$value $unit';
-

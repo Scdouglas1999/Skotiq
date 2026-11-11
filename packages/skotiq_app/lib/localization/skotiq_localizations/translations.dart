@@ -1319,7 +1319,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeGuideClearBody':
         "This discards PHD2's calibration. Guiding calibrates again the next time it starts.",
     'nightScopeGuideNoStarFound':
-        'PHD2 found no guide star. Try a longer guide exposure or another part of the sky.',
+        'The guider found no guide star. Try a longer guide exposure or another part of the sky.',
     'nightScopeGuideCommandFailed': 'The guider refused: {error}',
     'nightScopeWhyGuiderBusy': 'Another guider command is running',
     'nightScopeWhyPhd2Only': 'Only available with PHD2',
@@ -1329,7 +1329,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeWhyNothingToStop': 'The guider is already stopped',
     'nightScopeWhyNotCalibrated': 'PHD2 has no calibration',
     'nightScopeGuideStar': 'Guide star',
-    'nightScopeGuideLive': 'live from PHD2',
+    'nightScopeGuideLive': 'live',
+    'nightScopeGuideLivePhd2': 'live from PHD2',
     'nightScopeGuideWaitingImage': 'Waiting for an image',
     'nightScopeGuideLoopToSee': 'Loop or guide to see the star',
     'nightScopeGuideImageUnavailable': 'Guide star image unavailable',
@@ -2926,7 +2927,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeGuideClearBody':
         'Esto descarta la calibración de PHD2. El guiado vuelve a calibrar la próxima vez que empiece.',
     'nightScopeGuideNoStarFound':
-        'PHD2 no encontró estrella guía. Prueba una exposición de guiado más larga u otra zona del cielo.',
+        'El guiado no encontró estrella guía. Prueba una exposición de guiado más larga u otra zona del cielo.',
     'nightScopeGuideCommandFailed': 'El guiado lo rechazó: {error}',
     'nightScopeWhyGuiderBusy': 'Hay otra orden de guiado en curso',
     'nightScopeWhyPhd2Only': 'Solo disponible con PHD2',
@@ -2936,7 +2937,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeWhyNothingToStop': 'El guiado ya está detenido',
     'nightScopeWhyNotCalibrated': 'PHD2 no tiene calibración',
     'nightScopeGuideStar': 'Estrella guía',
-    'nightScopeGuideLive': 'en directo de PHD2',
+    'nightScopeGuideLive': 'en directo',
+    'nightScopeGuideLivePhd2': 'en directo de PHD2',
     'nightScopeGuideWaitingImage': 'Esperando una imagen',
     'nightScopeGuideLoopToSee': 'Usa bucle o guiado para ver la estrella',
     'nightScopeGuideImageUnavailable':

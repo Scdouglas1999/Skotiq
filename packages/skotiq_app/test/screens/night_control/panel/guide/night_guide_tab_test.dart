@@ -33,6 +33,16 @@ class _ScaledGuider extends GuiderStateNotifier {
   }
 }
 
+class _BuiltinGuider extends GuiderStateNotifier {
+  _BuiltinGuider(super.ref) {
+    state = const GuiderState(
+      connectionState: DeviceConnectionState.connected,
+      deviceId: 'native:builtin_guider:multi_star',
+      deviceName: 'Built-in Multi-Star Guider',
+    );
+  }
+}
+
 class _Samples extends NightGuideSamplesNotifier {
   _Samples(super.ref) {
     final t0 = DateTime.utc(2026, 10, 19, 4);
@@ -152,6 +162,21 @@ void main() {
     expect(find.text('0.75″'), findsWidgets, reason: 'total and peak');
     expect(find.text('±0.8″'), findsOneWidget, reason: 'scatter span');
     expect(find.text('0.30 px'), findsNothing);
+  });
+
+  testWidgets('the built-in guider never reads as PHD2', (tester) async {
+    await pumpPanelTab(
+      tester,
+      const NightGuideTab(),
+      overrides: [
+        ..._connected(),
+        guiderStateProvider.overrideWith(_BuiltinGuider.new),
+      ],
+    );
+    expectCleanLayout(tester);
+    expect(find.text('Built-in Multi-Star Guider'), findsOneWidget);
+    expect(find.text('live'), findsOneWidget, reason: 'the guide star view');
+    expect(find.textContaining('PHD2'), findsNothing);
   });
 
   // On 2026-10-25 a watcher read an autofocus guiding stop as a lost star.
