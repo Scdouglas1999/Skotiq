@@ -355,41 +355,44 @@ class _SaveSequenceDialogState extends ConsumerState<SaveSequenceDialog>
                 ),
               ),
               const SizedBox(height: 24),
-              Wrap(
-                alignment: WrapAlignment.end,
-                spacing: 12,
-                runSpacing: 8,
-                children: [
-                  SkotiqButton(
-                    onPressed: _isSaving ? null : () => Navigator.pop(context),
-                    label: 'Cancel',
-                    variant: ButtonVariant.ghost,
-                    size: ButtonSize.small,
-                  ),
-                  if (_isExisting) ...[
+              SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 12,
+                  runSpacing: 8,
+                  children: [
                     SkotiqButton(
-                      label: 'Save as new copy',
-                      icon: LucideIcons.copy,
-                      variant: ButtonVariant.secondary,
-                      onPressed: _isSaving ? null : _saveAsNew,
+                      onPressed: _isSaving ? null : () => Navigator.pop(context),
+                      label: 'Cancel',
+                      variant: ButtonVariant.ghost,
                       size: ButtonSize.small,
                     ),
-                    SkotiqButton(
-                      label: _isSaving
-                          ? 'Saving...'
-                          : 'Update "${widget.sequence.name}"',
-                      icon: _isSaving ? LucideIcons.loader : LucideIcons.save,
-                      onPressed: _isSaving ? null : _updateExisting,
-                      size: ButtonSize.small,
-                    ),
-                  ] else
-                    SkotiqButton(
-                      label: _isSaving ? 'Saving...' : 'Save',
-                      icon: _isSaving ? LucideIcons.loader : LucideIcons.save,
-                      onPressed: _isSaving ? null : _saveAsNew,
-                      size: ButtonSize.small,
-                    ),
-                ],
+                    if (_isExisting) ...[
+                      SkotiqButton(
+                        label: 'Save as new copy',
+                        icon: LucideIcons.copy,
+                        variant: ButtonVariant.secondary,
+                        onPressed: _isSaving ? null : _saveAsNew,
+                        size: ButtonSize.small,
+                      ),
+                      SkotiqButton(
+                        label: _isSaving
+                            ? 'Saving...'
+                            : 'Update "${widget.sequence.name}"',
+                        icon: _isSaving ? LucideIcons.loader : LucideIcons.save,
+                        onPressed: _isSaving ? null : _updateExisting,
+                        size: ButtonSize.small,
+                      ),
+                    ] else
+                      SkotiqButton(
+                        label: _isSaving ? 'Saving...' : 'Save',
+                        icon: _isSaving ? LucideIcons.loader : LucideIcons.save,
+                        onPressed: _isSaving ? null : _saveAsNew,
+                        size: ButtonSize.small,
+                      ),
+                  ],
+                ),
               ),
             ],
           ),
