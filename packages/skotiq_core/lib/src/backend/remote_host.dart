@@ -5,10 +5,12 @@ import 'network_backend/host_data/remote_host_calibration_library.dart';
 import 'network_backend/host_data/remote_observation_log.dart';
 import 'network_backend/host_data/host_poll.dart';
 import 'network_backend/host_data/remote_observing_lists_store.dart';
+import 'network_backend/host_data/remote_replay_debug_log.dart';
 import 'network_backend/host_data/remote_science_products.dart';
 import 'roles/host_data/calibration_library.dart';
 import 'roles/host_data/observation_log.dart';
 import 'roles/host_data/observing_lists_store.dart';
+import 'roles/host_data/replay_debug_log.dart';
 import 'roles/host_data/science_products.dart';
 import 'skotiq_backend.dart';
 
@@ -54,6 +56,8 @@ final class RemoteHost {
   ScienceProducts scienceProducts({
     Duration pollInterval = HostPoll.defaultInterval,
   }) => RemoteScienceProducts(_backend, pollInterval: pollInterval);
+
+  late final ReplayDebugLog replayDebug = RemoteReplayDebugLog(_backend);
 
   late final SettingRows scienceSettingRows = RemoteScienceSettingRows(
     _backend,

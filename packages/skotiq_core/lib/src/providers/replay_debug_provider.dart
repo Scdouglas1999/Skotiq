@@ -3,22 +3,23 @@ import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
+import '../backend/remote_host.dart';
 import '../models/replay_decision.dart';
 import '../services/replay_debug_service.dart';
+import 'async_scope.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 
 /// Replay Debug — Riverpod surface for the structured decision
 /// log feeding the retrospective Replay screen.
 ///
-/// Every read/write provider here branches on the ACTIVE backend
-/// authority:
-///   * Local (FfiBackend / Disconnected) reads through [ReplayDebugService]
-///     and [SettingsDao] against the local database.
-///   * Remote ([NetworkBackend]) reads the HOST's decision log + settings
-///     over REST — the remote client's own local database is empty and must
-///     never be used as the source of truth (or mutated).
+/// Every read/write provider here goes to whichever machine is the imaging
+/// host:
+///   * This process reads through [ReplayDebugService] and [SettingsDao]
+///     against its own database.
+///   * A linked client reads the host's decision log and settings through
+///     `remoteHost.replayDebug`; its own database is empty and must never be
+///     used as the source of truth (or mutated).
 ///
 /// The live event-handling path (sequencer event → DB row) lives in
 /// `SequenceExecutor._handleSequencerEvent` and only runs on the host, so
@@ -129,8 +130,8 @@ const Duration _remoteDecisionPollInterval = Duration(seconds: 4);
 /// a real failure instead of a false "No decisions recorded".
 final decisionsForRunProvider = StreamProvider.autoDispose
     .family<List<ReplayDecision>, int>((ref, runId) {
-      final backend = ref.watch(backendProvider);
-      if (backend is! NetworkBackend) {
+      final remote = ref.watch(backendProvider).remoteHost?.replayDebug;
+      if (remote == null) {
         final service = ref.watch(replayDebugServiceProvider);
         return service.watchByRun(runId);
       }
@@ -143,7 +144,7 @@ final decisionsForRunProvider = StreamProvider.autoDispose
         if (controller.isClosed || inFlight) return;
         inFlight = true;
         try {
-          final decisions = await backend.replayListDecisions(runId);
+          final decisions = await remote.listDecisions(runId);
           if (!controller.isClosed) controller.add(decisions);
         } catch (error, stack) {
           // Surface network / parse failures; do NOT replace a prior state
@@ -173,10 +174,8 @@ final decisionCountForRunProvider = FutureProvider.family<int, int>((
   ref,
   runId,
 ) async {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return backend.replayCountDecisions(runId);
-  }
+  final remote = ref.watch(backendProvider).remoteHost?.replayDebug;
+  if (remote != null) return remote.countDecisions(runId);
   final service = ref.watch(replayDebugServiceProvider);
   return service.countByRun(runId);
 });
@@ -188,13 +187,13 @@ final decisionCountForRunProvider = FutureProvider.family<int, int>((
 final _replayHostSettingsProvider = FutureProvider<ReplayDebugSettings>((
   ref,
 ) async {
-  final backend = ref.watch(backendProvider);
-  if (backend is! NetworkBackend) {
+  final remote = ref.watch(backendProvider).remoteHost?.replayDebug;
+  if (remote == null) {
     throw StateError(
       'Replay host settings are only available while connected to a host.',
     );
   }
-  return backend.replayGetSettings();
+  return remote.getSettings();
 });
 
 /// Replay Debug — runtime decision-logging toggle.
@@ -204,8 +203,7 @@ final _replayHostSettingsProvider = FutureProvider<ReplayDebugSettings>((
 /// authoritative value. Corruption/host failure surfaces as an error, never
 /// a silent `true`.
 final replayDebugEnabledProvider = FutureProvider<bool>((ref) async {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
+  if (ref.watch(backendProvider).remoteHost != null) {
     final settings = await ref.watch(_replayHostSettingsProvider.future);
     return settings.enabled;
   }
@@ -217,8 +215,7 @@ final replayDebugEnabledProvider = FutureProvider<bool>((ref) async {
 /// (unset → 90; corrupt/out-of-range throws → AsyncError); remote reads the
 /// host's authoritative value.
 final replayDebugRetentionDaysProvider = FutureProvider<int>((ref) async {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
+  if (ref.watch(backendProvider).remoteHost != null) {
     final settings = await ref.watch(_replayHostSettingsProvider.future);
     return settings.retentionDays;
   }
@@ -258,10 +255,12 @@ class ReplayDebugSettingsController {
   /// then push the flag to the executor; if the executor push fails, roll the
   /// persisted value back so the DB and runtime never silently disagree.
   Future<void> setEnabled(bool value) => _serialize(() async {
-    final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
-      await backend.replaySetEnabled(value);
-      if (!identical(_ref.read(backendProvider), backend)) {
+    final host = _ref.backendScope();
+    final backend = host.value;
+    final remote = backend.remoteHost?.replayDebug;
+    if (remote != null) {
+      await remote.setEnabled(value);
+      if (host.isStale) {
         throw StateError(
           'Replay settings host changed while applying the update.',
         );
@@ -284,8 +283,7 @@ class ReplayDebugSettingsController {
     final previous = currentAsync.requireValue;
     final dao = _ref.read(settingsDaoProvider);
     final previousRaw = await dao.getSetting(replayDebugEnabledKey);
-    if (!identical(_ref.read(settingsDaoProvider), dao) ||
-        !identical(_ref.read(backendProvider), backend)) {
+    if (!identical(_ref.read(settingsDaoProvider), dao) || host.isStale) {
       throw StateError('Replay settings authority changed before the update.');
     }
 
@@ -294,8 +292,7 @@ class ReplayDebugSettingsController {
 
     // Authority may have swapped while awaiting the write. If the DAO or the
     // backend changed, do not push runtime to a now-different executor.
-    if (!identical(_ref.read(settingsDaoProvider), dao) ||
-        !identical(_ref.read(backendProvider), backend)) {
+    if (!identical(_ref.read(settingsDaoProvider), dao) || host.isStale) {
       try {
         if (previousRaw == null) {
           await dao.deleteSetting(replayDebugEnabledKey);
@@ -328,8 +325,7 @@ class ReplayDebugSettingsController {
       _ref.invalidate(replayDebugEnabledProvider);
       Error.throwWithStackTrace(error, stack);
     }
-    if (!identical(_ref.read(settingsDaoProvider), dao) ||
-        !identical(_ref.read(backendProvider), backend)) {
+    if (!identical(_ref.read(settingsDaoProvider), dao) || host.isStale) {
       try {
         await backend.sequencerSetDecisionLoggingEnabled(previous);
         if (previousRaw == null) {
@@ -354,10 +350,12 @@ class ReplayDebugSettingsController {
   /// the old raw value is restored before the operation reports failure.
   Future<void> setRetentionDays(int days) => _serialize(() async {
     final clamped = _clampRetentionDays(days);
-    final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
-      await backend.replaySetRetentionDays(clamped);
-      if (!identical(_ref.read(backendProvider), backend)) {
+    final host = _ref.backendScope();
+    final backend = host.value;
+    final remote = backend.remoteHost?.replayDebug;
+    if (remote != null) {
+      await remote.setRetentionDays(clamped);
+      if (host.isStale) {
         throw StateError(
           'Replay settings host changed while applying the update.',
         );
@@ -376,13 +374,11 @@ class ReplayDebugSettingsController {
     }
     final dao = _ref.read(settingsDaoProvider);
     final previousRaw = await dao.getSetting(replayDebugRetentionDaysKey);
-    if (!identical(_ref.read(settingsDaoProvider), dao) ||
-        !identical(_ref.read(backendProvider), backend)) {
+    if (!identical(_ref.read(settingsDaoProvider), dao) || host.isStale) {
       throw StateError('Replay settings authority changed before the update.');
     }
     await dao.setSetting(replayDebugRetentionDaysKey, clamped.toString());
-    if (!identical(_ref.read(settingsDaoProvider), dao) ||
-        !identical(_ref.read(backendProvider), backend)) {
+    if (!identical(_ref.read(settingsDaoProvider), dao) || host.isStale) {
       try {
         if (previousRaw == null) {
           await dao.deleteSetting(replayDebugRetentionDaysKey);
@@ -404,16 +400,18 @@ class ReplayDebugSettingsController {
   /// the unfiltered count endpoint, or a read failure). Callers must then say
   /// they do not know rather than implying zero.
   Future<int?> countAllHistory() => _serialize(() async {
-    final backend = _ref.read(backendProvider);
+    final host = _ref.backendScope();
+    final backend = host.value;
+    final remote = backend.remoteHost?.replayDebug;
     try {
-      if (backend is NetworkBackend) {
-        final count = await backend.replayCountAllDecisions();
-        if (!identical(_ref.read(backendProvider), backend)) return null;
+      if (remote != null) {
+        final count = await remote.countAllDecisions();
+        if (host.isStale) return null;
         return count;
       }
       final service = _ref.read(replayDebugServiceProvider);
       final count = await service.countAll();
-      if (!identical(_ref.read(backendProvider), backend) ||
+      if (host.isStale ||
           !identical(_ref.read(replayDebugServiceProvider), service)) {
         return null;
       }
@@ -432,10 +430,12 @@ class ReplayDebugSettingsController {
   /// number of rows removed. Remote clears the host log; local clears the
   /// host's own database.
   Future<int> clearAllHistory() => _serialize(() async {
-    final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
-      final removed = await backend.replayClearHistory();
-      if (!identical(_ref.read(backendProvider), backend)) {
+    final host = _ref.backendScope();
+    final backend = host.value;
+    final remote = backend.remoteHost?.replayDebug;
+    if (remote != null) {
+      final removed = await remote.clearHistory();
+      if (host.isStale) {
         throw StateError('Replay history host changed while clearing history.');
       }
       _ref.invalidate(decisionsForRunProvider);
@@ -444,7 +444,7 @@ class ReplayDebugSettingsController {
     }
     final service = _ref.read(replayDebugServiceProvider);
     final removed = await service.deleteAll();
-    if (!identical(_ref.read(backendProvider), backend) ||
+    if (host.isStale ||
         !identical(_ref.read(replayDebugServiceProvider), service)) {
       throw StateError(
         'Replay history authority changed while clearing history.',
@@ -458,7 +458,7 @@ class ReplayDebugSettingsController {
   /// retried without the caller having to know which providers to poke (the
   /// host-settings fetch is private to this file).
   void invalidateSettings() {
-    if (_ref.read(backendProvider) is NetworkBackend) {
+    if (_ref.read(backendProvider).remoteHost != null) {
       _ref.invalidate(_replayHostSettingsProvider);
     }
     _ref.invalidate(replayDebugEnabledProvider);
