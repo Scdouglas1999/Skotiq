@@ -18,7 +18,6 @@
 //   * Smart Night auto-builder defaults → see `smart_night.dart`.
 part of '../settings_provider.dart';
 
-/// Setters for sequencer-execution defaults.
 extension SequencerSettingsSection on AppSettingsNotifier {
   Future<void> setParkOnUnsafeWeather(bool value) =>
       _set(AppSettingDefs.parkOnUnsafeWeather, value);

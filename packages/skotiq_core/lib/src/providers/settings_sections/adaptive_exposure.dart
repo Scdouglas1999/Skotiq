@@ -16,7 +16,6 @@
 //     with its own clamps) → see `smart_night.dart`.
 part of '../settings_provider.dart';
 
-/// Setters for sky-brightness adaptive exposure defaults.
 extension AdaptiveExposureSettingsSection on AppSettingsNotifier {
   AppSettingsState _requireAdaptiveExposureSettings() {
     final current = _currentValueOrNull;

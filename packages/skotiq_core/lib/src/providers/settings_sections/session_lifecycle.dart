@@ -20,8 +20,6 @@
 //   * Smart Night defaults → see `smart_night.dart`.
 part of '../settings_provider.dart';
 
-/// Setters for session lifecycle + adaptive sky-conditions
-/// defaults.
 extension SessionLifecycleSettingsSection on AppSettingsNotifier {
   /// Whether the multi-night carry-over banner auto-opens at pre-flight
   /// when an unfinished session is detected for one of the sequence's

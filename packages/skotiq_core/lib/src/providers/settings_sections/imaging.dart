@@ -13,7 +13,6 @@
 //   * Live Pass/Reject grading → see `image_grading.dart`.
 part of '../settings_provider.dart';
 
-/// Setters for image-output format defaults.
 extension ImagingSettingsSection on AppSettingsNotifier {
   Future<void> setImageFormat(String value) =>
       _set(AppSettingDefs.imageFormat, value);

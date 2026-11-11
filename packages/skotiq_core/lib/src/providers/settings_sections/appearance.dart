@@ -11,7 +11,6 @@
 //     `file_paths.dart`.
 part of '../settings_provider.dart';
 
-/// Setters for visual-appearance and shell-chrome settings.
 extension AppearanceSettingsSection on AppSettingsNotifier {
   Future<void> setTheme(String value) => _set(AppSettingDefs.theme, value);
 

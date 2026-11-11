@@ -26,7 +26,6 @@
 //     on the focuser itself) → see `equipment.dart`.
 part of '../settings_provider.dart';
 
-/// Setters for autofocus algorithm and per-filter configuration.
 extension AutofocusSettingsSection on AppSettingsNotifier {
   FilterAutofocusConfig _validateFilterAutofocusConfig(
     FilterAutofocusConfig config,
@@ -215,7 +214,6 @@ extension AutofocusSettingsSection on AppSettingsNotifier {
     });
   }
 
-  /// Remove a filter's autofocus configuration.
   Future<void> removeFilterAutofocusConfig(String filterName) {
     final normalizedName = filterName.trim();
     return _mutateFilterAutofocusSettings((map) {

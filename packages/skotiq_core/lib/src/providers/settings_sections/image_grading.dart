@@ -49,7 +49,6 @@ int? _validateOptionalImageGradingInt(
   return value;
 }
 
-/// Setters for live-frame Pass/Reject grading defaults.
 extension ImageGradingSettingsSection on AppSettingsNotifier {
   /// Master switch: when false, live frame Pass/Reject grading is disabled
   /// at the executor level. Per-node `quality_check` on TakeExposure

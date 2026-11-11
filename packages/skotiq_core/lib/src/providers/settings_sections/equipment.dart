@@ -21,7 +21,6 @@
 //     to the plans it builds, and no run reads it.
 part of '../settings_provider.dart';
 
-/// Setters for per-device-type equipment-default knobs.
 extension EquipmentSettingsSection on AppSettingsNotifier {
   // Camera defaults
   Future<void> setDefaultGain(int value) => _set(AppSettingDefs.defaultGain, value);

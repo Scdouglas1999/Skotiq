@@ -16,7 +16,6 @@
 //     and the `push_notification_provider`.
 part of '../settings_provider.dart';
 
-/// Setters for legacy notification toggles.
 extension NotificationSettingsSection on AppSettingsNotifier {
   Future<void> setNotificationsEnabled(bool value) =>
       _set(AppSettingDefs.notificationsEnabled, value);
