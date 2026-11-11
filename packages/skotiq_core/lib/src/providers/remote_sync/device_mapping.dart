@@ -1,23 +1,7 @@
 part of '../remote_sync_handler.dart';
 
-void _applyDeviceConnectedFromSyncPayload(
-  Object reader,
-  Map<String, dynamic> data,
-) {
-  _applyConnectedDeviceFromPayload(
-    reader,
-    data['device_type'] as String? ?? data['deviceType'] as String?,
-    data['device_id'] as String? ?? data['deviceId'] as String?,
-    data['device_name'] as String? ?? data['deviceName'] as String?,
-  );
-}
-
-void _applyDeviceDisconnectedFromSyncPayload(
-  Object reader,
-  Map<String, dynamic> data,
-) {
-  final deviceType =
-      data['device_type'] as String? ?? data['deviceType'] as String?;
+void _applyDisconnectedDevice(Object reader, Map<String, dynamic> data) {
+  final deviceType = data['device_type'] as String?;
   if (deviceType == null) {
     return;
   }
@@ -26,7 +10,7 @@ void _applyDeviceDisconnectedFromSyncPayload(
   if (parsed == null) {
     return;
   }
-  final deviceId = data['device_id'] as String? ?? data['deviceId'] as String?;
+  final deviceId = data['device_id'] as String?;
   if (_isHostGuideCamera(reader, parsed, deviceId)) return;
 
   readDeviceConnectionNotifier(reader, parsed).setDisconnected();

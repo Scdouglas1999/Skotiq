@@ -51,23 +51,6 @@ void main() {
       );
     });
 
-    test('device_disconnected sync payload clears the switch card', () async {
-      markSwitchConnected();
-
-      await applyRemoteSyncEvent(
-        container,
-        remoteSyncEvent(
-          eventType: RemoteSyncEventTypes.deviceDisconnected,
-          data: const {'device_type': 'switch_', 'device_id': 'switch-1'},
-        ),
-      );
-
-      expect(
-        container.read(switchStateProvider).connectionState,
-        DeviceConnectionState.disconnected,
-      );
-    });
-
     test('every device type parseable on connect also disconnects', () async {
       // The connect and disconnect mirrors must agree on the type table: a
       // device the slave can be told to show as connected must be a device it

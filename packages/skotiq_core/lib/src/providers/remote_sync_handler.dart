@@ -44,7 +44,6 @@ import 'observing_list_provider.dart'
     show listedCatalogIdsProvider, observingListsProvider;
 import 'profiles_provider.dart';
 import 'provider_reader.dart';
-import 'remote_sync_events.dart';
 import 'runtime_mirror/client_runtime_mirror.dart';
 import 'planning_provider.dart' show projectListProvider;
 import 'scheduler_provider.dart'
@@ -97,11 +96,7 @@ Future<void> applyRemoteSyncEvent(
 
   switch (event.category) {
     case EventCategory.system:
-      await _applySystemSyncEvent(
-        reader,
-        event,
-        networkBackend: networkBackend,
-      );
+      _applySystemSyncEvent(reader, event, networkBackend: networkBackend);
       break;
     case EventCategory.equipment:
       _applyEquipmentEvent(reader, event, networkBackend: networkBackend);
@@ -159,47 +154,19 @@ Future<void> applyRemoteSyncEvent(
   }
 }
 
-Future<void> _applySystemSyncEvent(
+void _applySystemSyncEvent(
   Object reader,
   SkotiqEvent event, {
   SkotiqBackend? networkBackend,
-}) async {
+}) {
   if (event.eventType == hostStateChangedEventType) {
     _applyHostMutation(reader, event.data);
-    return;
-  }
-  if (event.eventType == hostRuntimeStateEventType) {
+  } else if (event.eventType == hostRuntimeStateEventType &&
+      networkBackend != null) {
     final update = HostRuntimeUpdate.fromJson(event.data);
-    if (networkBackend != null && update != null) {
+    if (update != null) {
       applyHostRuntimeUpdate(reader, update, networkBackend: networkBackend);
     }
-    return;
-  }
-
-  switch (event.eventType) {
-    case RemoteSyncEventTypes.sequenceUpdated:
-      _invalidateSequenceLibrary(
-        reader,
-        sequenceId: event.data['sequenceId'] as int?,
-      );
-      break;
-    case RemoteSyncEventTypes.profileChanged:
-      _invalidateEquipmentSyncProviders(reader);
-      break;
-    case RemoteSyncEventTypes.framingTargetChanged:
-      _applyFramingTargetChanged(reader, event);
-      break;
-    case RemoteSyncEventTypes.guiderState:
-      if (networkBackend != null) {
-        await _hydratePhd2GuiderState(reader, networkBackend);
-      }
-      break;
-    case RemoteSyncEventTypes.deviceConnected:
-      _applyDeviceConnectedFromSyncPayload(reader, event.data);
-      break;
-    case RemoteSyncEventTypes.deviceDisconnected:
-      _applyDeviceDisconnectedFromSyncPayload(reader, event.data);
-      break;
   }
 }
 

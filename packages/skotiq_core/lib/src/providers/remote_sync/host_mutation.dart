@@ -137,20 +137,6 @@ void _applyFramingMutationFromHost(
   );
 }
 
-void _applyFramingTargetChanged(Object reader, SkotiqEvent event) {
-  final ra = (event.data['ra'] as num?)?.toDouble();
-  final dec = (event.data['dec'] as num?)?.toDouble();
-  final name = event.data['name'] as String?;
-  if (ra == null || dec == null || name == null || name.isEmpty) {
-    return;
-  }
-
-  _read(
-    reader,
-    framingProvider.notifier,
-  ).setTargetCoordinates(ra, dec, name: name, fromRemoteSync: true);
-}
-
 void _invalidateHostProfiles(Object reader) {
   _invalidateEquipmentSyncProviders(reader);
   _invalidate(reader, allProfilesProvider);

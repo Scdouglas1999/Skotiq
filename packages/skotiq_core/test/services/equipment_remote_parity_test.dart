@@ -7,6 +7,7 @@ import 'package:skotiq_core/src/backend/network_backend.dart';
 import 'package:skotiq_core/src/backend/skotiq_backend.dart' hide CameraState;
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/models/backend/host_mutation_event.dart';
 import 'package:skotiq_core/src/models/equipment_profile.dart'
     as remote_profile;
 import 'package:skotiq_core/src/providers/remote_sync_handler.dart';
@@ -132,7 +133,7 @@ void main() {
     // on every Connected/Disconnected. Connection STATE is mirrored via the
     // per-device state providers instead. (See remote_sync_handler.dart's
     // _applyEquipmentEvent 'Connected' case.) Catalog refreshes are driven by
-    // actual PROFILE events (profile_changed / HostMutationEntity.profile),
+    // actual profile events (HostMutationEntity.profile),
     // asserted in the next test.
     test(
       'equipment Connected WS event does NOT reload profile catalog',
@@ -180,11 +181,10 @@ void main() {
       },
     );
 
-    // The replacement mechanism for catalog parity: a genuine PROFILE change
-    // (profile_changed) DOES invalidate equipmentProfilesProvider, so the slave
-    // re-pulls the host's profile list / active profile on real profile
-    // mutations without thrashing on device connects.
-    test('profile_changed WS event reloads profile catalog', () async {
+    // A genuine profile change on the host DOES invalidate
+    // equipmentProfilesProvider, so the client re-pulls the host's profile
+    // list and active profile without thrashing on device connects.
+    test('a host profile mutation reloads the profile catalog', () async {
       final backend = _MockNetworkBackend();
       when(
         () => backend.eventStream,
@@ -209,12 +209,9 @@ void main() {
 
       await applyRemoteSyncEvent(
         container,
-        const SkotiqEvent(
-          timestamp: 1,
-          severity: EventSeverity.info,
-          category: EventCategory.system,
-          eventType: 'profile_changed',
-          data: {},
+        buildHostMutationEvent(
+          entityType: HostMutationEntity.profile,
+          action: HostMutationAction.updated,
         ),
       );
 

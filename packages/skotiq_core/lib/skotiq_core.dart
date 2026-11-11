@@ -250,7 +250,6 @@ export 'src/providers/guiding_provider.dart';
 export 'src/providers/backend_provider.dart';
 export 'src/providers/remote_session_sync_provider.dart';
 export 'src/providers/host_link_provider.dart';
-export 'src/providers/remote_sync_events.dart';
 export 'src/providers/remote_launch_provider.dart';
 export 'src/providers/linked_rig_provider.dart';
 export 'src/services/linked_rig/linked_rig_store.dart';

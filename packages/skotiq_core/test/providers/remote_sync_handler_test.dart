@@ -69,13 +69,6 @@ void main() {
 
         await applyRemoteSyncEvent(
           container,
-          remoteSyncEvent(
-            eventType: RemoteSyncEventTypes.framingTargetChanged,
-            data: const {'ra': 1.5, 'dec': -20.0, 'name': 'M42'},
-          ),
-        );
-        await applyRemoteSyncEvent(
-          container,
           buildHostMutationEvent(
             entityType: HostMutationEntity.framing,
             action: HostMutationAction.updated,
