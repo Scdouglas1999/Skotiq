@@ -22,7 +22,6 @@ class CoordinateParser {
       if (degText.endsWith('deg')) {
         degText = degText.substring(0, degText.length - 3).trim();
       } else {
-        // remove trailing '°' or 'd'
         degText = degText.substring(0, degText.length - 1).trim();
       }
       final deg = double.tryParse(degText);
@@ -32,7 +31,6 @@ class CoordinateParser {
       return null;
     }
 
-    // Try decimal format first
     final decimal = double.tryParse(trimmed);
     if (decimal != null && decimal.isFinite) {
       if (decimal >= 0 && decimal < 24) {
@@ -45,7 +43,6 @@ class CoordinateParser {
       return null;
     }
 
-    // Remove common separators and letters
     final cleaned = lower
         .replaceAll('h', ':')
         .replaceAll('m', ':')
@@ -95,7 +92,6 @@ class CoordinateParser {
     final trimmed = input.trim();
     final lower = trimmed.toLowerCase();
 
-    // Try decimal format first
     final decimal = double.tryParse(trimmed);
     if (decimal != null && decimal.isFinite) {
       if (decimal >= -90 && decimal <= 90) {
@@ -104,7 +100,6 @@ class CoordinateParser {
       return null;
     }
 
-    // Determine sign
     final isNegative = lower.startsWith('-');
     final cleaned = lower
         .replaceAll('+', '')

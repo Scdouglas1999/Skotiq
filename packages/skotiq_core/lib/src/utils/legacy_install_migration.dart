@@ -318,8 +318,6 @@ Future<LegacyInstallMigrationReport> migrateLegacyInstall({
   return report;
 }
 
-// --- Legacy root discovery ---------------------------------------------------
-
 /// Candidate application-support roots the old product used, in priority
 /// order, for [os]. Derived from [env] so tests control the answers.
 List<String> _legacyDataRootCandidates(String os, Map<String, String> env) {
@@ -479,8 +477,6 @@ Future<void> _migrateApplianceEnv(
   }
 }
 
-// --- Move / merge machinery --------------------------------------------------
-
 /// True when [dir] exists and contains no entries.
 Future<bool> _isEmptyDir(Directory dir) async {
   if (!await dir.exists()) return false;
@@ -614,8 +610,6 @@ Future<(int, int)> _treeStats(Directory dir) async {
   return (files, bytes);
 }
 
-// --- Inner-name renames ------------------------------------------------------
-
 /// Rename entries under [root] that carry the old product name. Depth-first,
 /// children before parents, so a `nightshade.db` inside a `Nightshade/`
 /// directory becomes `skotiq.db` inside `Skotiq/` in one pass.
@@ -670,8 +664,6 @@ Future<void> _renameLegacyEntries(
     }
   }
 }
-
-// --- Secure-storage namespace ------------------------------------------------
 
 /// Re-key secrets stored under the old product's namespace onto
 /// [newNamespace]. Idempotent: a re-run finds no old keys. Never throws —

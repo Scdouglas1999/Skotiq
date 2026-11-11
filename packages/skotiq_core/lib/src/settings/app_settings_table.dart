@@ -21,7 +21,6 @@ import 'preflight_strictness.dart';
 import 'setting.dart';
 
 const List<Setting<Object?>> kAppSettingsTable = [
-  // General
   BoolSetting(
     'startMinimized',
     'start_minimized',
@@ -49,7 +48,6 @@ const List<Setting<Object?>> kAppSettingsTable = [
     true,
     seeded: true,
   ),
-  // Appearance
   /// `dark` or `light`.
   TextSetting('theme', 'theme', 'dark', clientKeepsOwn: true, seeded: true),
 
@@ -90,7 +88,6 @@ const List<Setting<Object?>> kAppSettingsTable = [
     clientKeepsOwn: true,
     seeded: true,
   ),
-  // Location
   DoubleSetting(
     'latitude',
     'observer_latitude',
@@ -114,7 +111,6 @@ const List<Setting<Object?>> kAppSettingsTable = [
   ),
   TextSetting('timezone', 'timezone', 'UTC', seeded: true),
   BoolSetting('useSystemTime', 'use_system_time', true, seeded: true),
-  // Imaging
   TextSetting(
     'imageFormat',
     'image_format',
@@ -136,7 +132,6 @@ const List<Setting<Object?>> kAppSettingsTable = [
     normalize: normalizeCaptureBitDepth,
     seeded: true,
   ),
-  // Sequencer
   BoolSetting(
     'parkOnUnsafeWeather',
     'park_on_unsafe_weather',
@@ -182,7 +177,6 @@ const List<Setting<Object?>> kAppSettingsTable = [
     seeded: true,
   ),
 
-  /// Apply focus offsets when changing filters.
   BoolSetting(
     'useFilterFocusOffsets',
     'use_filter_focus_offsets',
@@ -290,7 +284,6 @@ const List<Setting<Object?>> kAppSettingsTable = [
     null,
     sync: SettingSync.thisComputer,
   ),
-  // Plate Solving
   /// The label of the native plate-solver preference, kept as a stored copy
   /// for export. The preference itself is the authority.
   TextSetting('plateSolver', 'plate_solver', 'ASTAP', seed: 'Auto'),
@@ -305,11 +298,9 @@ const List<Setting<Object?>> kAppSettingsTable = [
   ),
   BoolSetting('blindSolve', 'blind_solve', false, seeded: true),
   BoolSetting('centeringSyncMount', 'centering_sync_mount', true, seeded: true),
-  // PHD2 Guiding
   TextSetting('phd2Path', 'phd2_path', '', seeded: true),
   TextSetting('phd2Host', 'phd2_host', 'localhost', seeded: true),
   IntSetting('phd2Port', 'phd2_port', 4400, seeded: true),
-  // Notifications
   BoolSetting(
     'notificationsEnabled',
     'notifications_enabled',
@@ -333,7 +324,6 @@ const List<Setting<Object?>> kAppSettingsTable = [
     seeded: true,
   ),
   BoolSetting('soundEnabled', 'sound_enabled', true, seeded: true),
-  // File Paths
   TextSetting(
     'imageOutputPath',
     'image_output_path',
@@ -356,7 +346,6 @@ const List<Setting<Object?>> kAppSettingsTable = [
     sync: SettingSync.thisComputer,
     seeded: true,
   ),
-  // Protocol Settings
   TextSetting('indiServerHost', 'indi_server_host', 'localhost', seeded: true),
   IntSetting('indiServerPort', 'indi_server_port', 7624, seeded: true),
   BoolSetting('indiAutoConnect', 'indi_auto_connect', false, seeded: true),
@@ -373,7 +362,6 @@ const List<Setting<Object?>> kAppSettingsTable = [
     false,
     seeded: true,
   ),
-  // Remote Access / Web Server Settings
   BoolSetting('webServerEnabled', 'web_server_enabled', false, seeded: true),
   IntSetting(
     'webServerPort',
@@ -381,12 +369,9 @@ const List<Setting<Object?>> kAppSettingsTable = [
     kDefaultHeadlessPort,
     seeded: true,
   ),
-  // Equipment Settings - Camera
   IntSetting('defaultGain', 'default_gain', 100, seeded: true),
   IntSetting('defaultOffset', 'default_offset', 50, seeded: true),
-  // Equipment Settings - Mount
   BoolSetting('enableMeridianFlip', 'enable_meridian_flip', true, seeded: true),
-  // Equipment Settings - Focuser
   BoolSetting('tempCompensation', 'temp_compensation', false, seeded: true),
   DoubleSetting('tempCoefficient', 'temp_coefficient', -12.0, seeded: true),
 
@@ -412,13 +397,11 @@ const List<Setting<Object?>> kAppSettingsTable = [
     seeded: true,
   ),
   IntSetting('backlashCompensation', 'backlash_compensation', 0, seeded: true),
-  // Equipment Settings - Guider
   TextSetting('ditherScale', 'dither_scale', 'Medium', seeded: true),
   DoubleSetting('settleThreshold', 'settle_threshold', 1.5, seeded: true),
   IntSetting('settleTimeout', 'settle_timeout', 60, seeded: true),
   IntSetting('settleTime', 'settle_time', 10, seeded: true),
   BoolSetting('ditherRaOnly', 'dither_ra_only', false, seeded: true),
-  // Observing Environment
   IntSetting('bortleClass', 'bortle_class', 5, inputMin: 1, inputMax: 9),
   TextSetting(
     'horizonProfileJson',
@@ -509,7 +492,6 @@ const List<Setting<Object?>> kAppSettingsTable = [
     'recovery_audible_alert_when_entered',
     true,
   ),
-  // Autofocus Settings
   TextSetting('afMethod', 'af_method', 'Star HFR', seeded: true),
   TextSetting('afCurveFitting', 'af_curve_fitting', 'Hyperbolic', seeded: true),
   IntSetting('afStepSize', 'af_step_size', 50, seeded: true),
