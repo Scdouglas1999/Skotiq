@@ -193,7 +193,6 @@ packages/skotiq_app/lib/screens/imaging/tabs/mount_tab.dart	build	highrisk	1	bas
 packages/skotiq_app/lib/screens/imaging/widgets/annotation_panel.dart	-	highrisk	1	baseline	/// UnimplementedError), which made both annotation exports dead on a phone. On
 packages/skotiq_app/lib/screens/imaging/widgets/annotation_panel_parts/objects_panel.dart	-	highrisk	1	baseline	/// Android/iOS have no save dialog (`getSavePath` throws UnimplementedError),
 packages/skotiq_app/lib/screens/planetarium/planetarium_screen/actions.dart	_exportFinderChart	highrisk	1	baseline	// UnimplementedError there — so the chart goes to a sandbox path and
-packages/skotiq_app/lib/screens/planetarium/widgets/view_controls.dart	_exportChart	highrisk	1	baseline	// UnimplementedError there — so the chart goes to a sandbox path and
 packages/skotiq_app/lib/screens/sequencer/tabs/sequence_library_tab/sequence_card.dart	_exportSequence	highrisk	1	baseline	// UnimplementedError: getSavePath() has not been implemented."
 packages/skotiq_app/lib/screens/sequencer/widgets/node_summary_inline_editors.dart	build	highrisk	1	baseline	// '+' re-applies 4+1 and is a silent no-op, while the popup keeps
 packages/skotiq_app/lib/screens/settings/backup_screen.dart	_BackupScreenState	highrisk	1	baseline	/// UnimplementedError — so on those platforms the file goes to a sandbox path

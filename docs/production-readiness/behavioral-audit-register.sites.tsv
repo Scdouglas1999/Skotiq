@@ -165,9 +165,6 @@ apps/desktop/lib/headless_api_server/server_lifecycle.dart	_dispatchPluginNodeIf
 apps/desktop/lib/headless_api_server/server_lifecycle.dart	_dispatchPluginNodeIfRequested	literal_null_coalesce	1	V0121	final pluginId = event.data['plugin_id'] as String? ?? '';
 apps/desktop/lib/main.dart	_parseRemoteTarget	literal_null_coalesce	1	V0177	port: int.tryParse(portRaw ?? '') ?? kDefaultHeadlessPort,
 apps/desktop/lib/main_headless.dart	main	comment_best_effort	1	V0039	// Best-effort start the LAN-push receiver. It requires a trusted
-apps/desktop/lib/screens/sequencer/tabs/targets_tab/edit_target_dialog.dart	initState	literal_null_coalesce	1	V0121	text: widget.target.catalogId ?? '',
-apps/desktop/lib/screens/sequencer/tabs/targets_tab/target_card.dart	build	literal_null_coalesce	1	V0121	'${widget.target.capturedSubs ?? 0} subs',
-apps/desktop/lib/screens/sequencer/tabs/targets_tab/target_card.dart	build	literal_null_coalesce	1	V0121	widget.target.totalIntegrationSecs ?? 0,
 apps/mobile/lib/main.dart	loadMobileAppVersion	literal_null_coalesce	1	V0069	buildNumber: int.tryParse(packageInfo.buildNumber) ?? 0,
 apps/mobile/lib/main_parts/mobile_connection_state.dart	_MobileConnectionState	comment_best_effort	1	V0147	/// Best-effort: the service swallows and logs all network/host errors, so a
 apps/mobile/lib/main_parts/mobile_discovery_ops.dart	_connectViaTailscale	comment_best_effort	1	V0148	// Best-effort prefill — fall through to an empty field on any failure.
@@ -1927,15 +1924,10 @@ packages/skotiq_app/lib/screens/sequencer/tabs/history_tab.dart	build	literal_nu
 packages/skotiq_app/lib/screens/sequencer/tabs/sequence_library_tab.dart	-	literal_null_coalesce	1	V0151	(s.primaryTargetName?.toLowerCase().contains(query) ?? false) ||
 packages/skotiq_app/lib/screens/sequencer/tabs/templates_tab.dart	-	comment_best_effort	1	V0237	// placeholder, so they stay listed alongside the user's own.
 packages/skotiq_app/lib/screens/sequencer/widgets/continue_run_button.dart	-	empty_catch	1	V0900	} catch (_) {
-packages/skotiq_app/lib/screens/sequencer/widgets/equipment_status_widget.dart	_getDeviceName	empty_catch	1	V0004	} catch (_) {
 packages/skotiq_app/lib/screens/sequencer/widgets/framing_assistant_inline.dart	initState	literal_null_coalesce	1	V0086	_rotation = widget.target.rotation ?? 0;
 packages/skotiq_app/lib/screens/sequencer/widgets/framing_assistant_inline.dart	showFramingAssistantDialog	literal_null_coalesce	1	V0086	final initialRotation = target.rotation ?? 0;
 packages/skotiq_app/lib/screens/sequencer/widgets/live_stacking_properties.dart	initState	literal_null_coalesce	1	V0086	TextEditingController(text: widget.node.watermarkText ?? '');
 packages/skotiq_app/lib/screens/sequencer/widgets/live_stacking_properties.dart	initState	literal_null_coalesce	1	V0086	_authTokenCtl = TextEditingController(text: widget.node.authToken ?? '');
-packages/skotiq_app/lib/screens/sequencer/widgets/logic_node_properties/conditional_properties.dart	DateTime.now	guessed_now_timestamp	1	V0121	node.thresholdTime ?? DateTime.now()),
-packages/skotiq_app/lib/screens/sequencer/widgets/logic_node_properties/loop_properties.dart	DateTime.now	guessed_now_timestamp	1	V0121	node.repeatUntil ?? DateTime.now()),
-packages/skotiq_app/lib/screens/sequencer/widgets/logic_node_properties/recovery_properties.dart	build	literal_null_coalesce	1	V0121	value: node.triggerThreshold ?? 0.0,
-packages/skotiq_app/lib/screens/sequencer/widgets/meridian_flip_progress_dialog.dart	build	comment_best_effort	1	V0152	// placeholder so we never mislabel a pending row.
 packages/skotiq_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog.dart	_MosaicWizardDialogState	comment_best_effort	1	V0002	/// placeholder and unlocks the footer actions on half-invented geometry.
 packages/skotiq_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog.dart	initState	literal_null_coalesce	1	V0002	_centerDec = widget.initialDec ?? 0.0;
 packages/skotiq_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog.dart	initState	literal_null_coalesce	1	V0002	_centerRa = widget.initialRa ?? 0.0;
@@ -2024,20 +2016,13 @@ packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/adaptive_conditi
 packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/adaptive_conditions_panel.dart	build	literal_null_coalesce	1	V0086	if ((state?.lastDecisionReason ?? '').isNotEmpty) ...[
 packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/broadcast_panel.dart	_resolveBroadcastBase	comment_best_effort	1	V0085	// Best-effort: the broadcast HTML page is served by the SAME
 packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/broadcast_panel.dart	build	literal_null_coalesce	1	V0085	: '$base?token=${Uri.encodeQueryComponent(state.authToken ?? '')}';
-packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/filter_integration_panel.dart	build	literal_null_coalesce	1	V0086	acquired: totals.integrationSecs[f] ?? 0.0,
-packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/filter_integration_panel.dart	build	literal_null_coalesce	1	V0086	goal: totals.goalSecs[f] ?? 0.0,
 packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/frame_detail_dialog.dart	_safeExists	empty_catch	1	V0087	} catch (_) {
 packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/recovery_banner.dart	-	comment_best_effort	1	V0087	/// Best-effort error formatter for the recovery action buttons.
 packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart	-	guessed_now_timestamp	1	V0088	final now = tickAsync.valueOrNull ?? DateTime.now();
-packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart	-	literal_null_coalesce	1	V0088	(e) => (completedSecs[e.key] ?? 0) >= e.value,
 packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart	-	literal_null_coalesce	1	V0088	accepted[filter] = (accepted[filter] ?? 0.0) + img.exposureDuration;
 packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart	-	literal_null_coalesce	1	V0088	final audibleEnabled = settings?.audibleAlertsOnCritical ?? false;
 packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart	-	literal_null_coalesce	1	V0088	total[filter] = (total[filter] ?? 0.0) + img.exposureDuration;
 packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart	_computeGoalSecs	literal_null_coalesce	1	V0088	out[filter] = (out[filter] ?? 0.0) + node.totalDurationSecs;
-packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart	rejectedSecsFor	literal_null_coalesce	1	V0088	final accepted = integrationSecs[filter] ?? 0.0;
-packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart	rejectedSecsFor	literal_null_coalesce	1	V0088	final total = totalAcquiredSecs[filter] ?? 0.0;
-packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/target_header_panel.dart	build	literal_null_coalesce	1	V0086	final done = budget.completedSecs[f] ?? 0;
-packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/target_header_panel.dart	build	literal_null_coalesce	1	V0086	final hasLocation = settingsAsync.valueOrNull?.hasObserverLocation ?? false;
 packages/skotiq_app/lib/screens/sequencer/widgets/science_photometry_properties.dart	didUpdateWidget	literal_null_coalesce	1	V0086	_syncField(_gainCtl, _gainFocus, node.gain?.toString() ?? '',
 packages/skotiq_app/lib/screens/sequencer/widgets/science_photometry_properties.dart	didUpdateWidget	literal_null_coalesce	1	V0086	_syncField(_offsetCtl, _offsetFocus, node.offset?.toString() ?? '',
 packages/skotiq_app/lib/screens/sequencer/widgets/science_photometry_properties.dart	initState	literal_null_coalesce	1	V0086	TextEditingController(text: widget.node.offset?.toString() ?? '');
@@ -2071,7 +2056,6 @@ packages/skotiq_app/lib/screens/sequencer/widgets/smart_night_dialog/step_views.
 packages/skotiq_app/lib/screens/sequencer/widgets/target_node_properties.dart	DateTime.now	guessed_now_timestamp	1	V0002	node.endBefore ?? DateTime.now()),
 packages/skotiq_app/lib/screens/sequencer/widgets/target_node_properties.dart	DateTime.now	guessed_now_timestamp	1	V0002	node.startAfter ?? DateTime.now()),
 packages/skotiq_app/lib/screens/sequencer/widgets/target_node_properties.dart	build	literal_null_coalesce	1	V0002	value: node.rotation ?? 0,
-packages/skotiq_app/lib/screens/sequencer/widgets/target_preview_tooltip.dart	-	literal_null_coalesce	1	V0002	final minAlt = target.minAltitude ?? 0;
 packages/skotiq_app/lib/screens/sequencer/widgets/target_queue_panel.dart	build	guessed_now_timestamp	1	V0088	final now = tickAsync.valueOrNull ?? DateTime.now();
 packages/skotiq_app/lib/screens/sequencer/widgets/target_queue_panel.dart	_applyFilter	literal_null_coalesce	1	V0088	.where((t) => visibility[t.id]?.aboveHorizon ?? false)
 packages/skotiq_app/lib/screens/sequencer/widgets/target_queue_panel.dart	build	literal_null_coalesce	1	V0088	highlight: v?.aboveHorizon ?? false,
@@ -2263,7 +2247,6 @@ packages/skotiq_app/lib/widgets/auto_build_options_dialog.dart	_number	literal_n
 packages/skotiq_app/lib/widgets/camera_sensor_specs_dialog.dart	initState	literal_null_coalesce	1	V0773	_gain = TextEditingController(text: _quotedGain()?.toString() ?? '');
 packages/skotiq_app/lib/widgets/camera_sensor_specs_dialog.dart	initState	literal_null_coalesce	1	V0772	text: entry?.model ?? _specs.reportedModel ?? '',
 packages/skotiq_app/lib/widgets/camera_sensor_specs_dialog.dart	show	literal_null_coalesce	1	V0771	return saved ?? false;
-packages/skotiq_app/lib/widgets/capture_settings_panel.dart	build	literal_null_coalesce	1	V0121	ref.watch(cameraBinningOptionsProvider(cameraState.deviceId ?? ''));
 packages/skotiq_app/lib/widgets/first_light/first_light_flow_dialog.dart	build	literal_null_coalesce	1	V0121	final count = annotation?.objects.length ?? 0;
 packages/skotiq_app/lib/widgets/focus_model_curve_card/actions.dart	initState	literal_null_coalesce	1	V0121	text: widget.initialPosition?.toString() ?? '',
 packages/skotiq_app/lib/widgets/focus_model_curve_card/actions.dart	initState	literal_null_coalesce	1	V0121	text: widget.initialTemperature?.toStringAsFixed(2) ?? '',
@@ -2300,7 +2283,6 @@ packages/skotiq_app/lib/widgets/tutorial_overlay.dart	_passOverMissingTarget	emp
 packages/skotiq_app/lib/widgets/tutorial_overlay.dart	_runAction	empty_catch	1	V0009	} catch (_) {
 packages/skotiq_app/lib/widgets/tutorial_overlay/tooltip.dart	_isValidPosition	literal_null_coalesce	1	V0121	double left = position.left ?? 0;
 packages/skotiq_app/lib/widgets/tutorial_overlay/tooltip.dart	_isValidPosition	literal_null_coalesce	1	V0121	double top = position.top ?? 0;
-packages/skotiq_app/lib/widgets/weather/dashboard_weather_widget.dart	build	literal_null_coalesce	1	V0720	final hasLocation = appSettings?.hasObserverLocation ?? false;
 packages/skotiq_app/lib/widgets/weather/weather_radar_map.dart	_buildRadarTileLayer	comment_best_effort	1	V0747	// placeholder tiles at the closer default map zooms.
 packages/skotiq_bridge/lib/src/bridge_stub/guiding_operations.dart	isPhd2Running	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_bridge/lib/src/bridge_stub/native_bridge_facade.dart	sequencerSetSimulationMode	simulated_runtime_path	1	V0121	_nativeBridge.sequencerSetSimulationMode(enabled);
@@ -2459,18 +2441,6 @@ packages/skotiq_core/lib/src/backend/network_backend/sequencer_operations.dart	s
 packages/skotiq_core/lib/src/backend/network_backend/webrtc_subscription.dart	dispose	comment_best_effort	1	V0121	// Best-effort DELETE so the server reaps the session immediately
 packages/skotiq_core/lib/src/backend/network_backend/webrtc_subscription.dart	_handleSseEvent	empty_catch	2	V0121	} catch (_) {
 packages/skotiq_core/lib/src/backend/network_backend/webrtc_subscription.dart	dispose	empty_catch	5	V0121	} catch (_) {
-packages/skotiq_core/lib/src/backend/network_backend/wire_history_models.dart	RemoteDbDarkLibraryRow.fromJson	literal_null_coalesce	1	V0121	exposureTime: (json['exposureTime'] as num?)?.toDouble() ?? 0.0,
-packages/skotiq_core/lib/src/backend/network_backend/wire_history_models.dart	RemoteDbDarkLibraryRow.fromJson	literal_null_coalesce	1	V0121	filePath: json['filePath'] as String? ?? '',
-packages/skotiq_core/lib/src/backend/network_backend/wire_history_models.dart	RemoteDbDarkLibraryRow.fromJson	literal_null_coalesce	1	V0121	gain: (json['gain'] as num?)?.toInt() ?? 0,
-packages/skotiq_core/lib/src/backend/network_backend/wire_history_models.dart	RemoteDbDarkLibraryRow.fromJson	literal_null_coalesce	1	V0121	height: (json['height'] as num?)?.toInt() ?? 0,
-packages/skotiq_core/lib/src/backend/network_backend/wire_history_models.dart	RemoteDbDarkLibraryRow.fromJson	literal_null_coalesce	1	V0121	masterFrameCount: (json['masterFrameCount'] as num?)?.toInt() ?? 0,
-packages/skotiq_core/lib/src/backend/network_backend/wire_history_models.dart	RemoteDbDarkLibraryRow.fromJson	literal_null_coalesce	1	V0121	offset: (json['offset'] as num?)?.toInt() ?? 0,
-packages/skotiq_core/lib/src/backend/network_backend/wire_history_models.dart	RemoteDbDarkLibraryRow.fromJson	literal_null_coalesce	1	V0121	width: (json['width'] as num?)?.toInt() ?? 0,
-packages/skotiq_core/lib/src/backend/network_backend/wire_history_models.dart	RemoteDbFlatHistoryRow.fromJson	literal_null_coalesce	1	V0121	actualAdu: (json['actualAdu'] as num?)?.toDouble() ?? 0.0,
-packages/skotiq_core/lib/src/backend/network_backend/wire_history_models.dart	RemoteDbFlatHistoryRow.fromJson	literal_null_coalesce	1	V0121	exposureTime: (json['exposureTime'] as num?)?.toDouble() ?? 0.0,
-packages/skotiq_core/lib/src/backend/network_backend/wire_history_models.dart	RemoteDbFlatHistoryRow.fromJson	literal_null_coalesce	1	V0121	filterName: json['filterName'] as String? ?? '',
-packages/skotiq_core/lib/src/backend/network_backend/wire_history_models.dart	RemoteDbFlatHistoryRow.fromJson	literal_null_coalesce	1	V0121	gain: (json['gain'] as num?)?.toInt() ?? 0,
-packages/skotiq_core/lib/src/backend/network_backend/wire_history_models.dart	RemoteDbFlatHistoryRow.fromJson	literal_null_coalesce	1	V0121	histogramTarget: (json['histogramTarget'] as num?)?.toDouble() ?? 0.0,
 packages/skotiq_core/lib/src/backend/network_backend/wire_history_models.dart	RemoteGuideRmsHistoryEntry.fromJson	literal_null_coalesce	1	V0121	sampleCount: (json['sampleCount'] as num?)?.toInt() ?? 0,
 packages/skotiq_core/lib/src/backend/network_backend/wire_history_models.dart	RemoteGuideRmsHistoryEntry.fromJson	literal_null_coalesce	1	V0121	totalRmsArcsec: (json['totalRmsArcsec'] as num?)?.toDouble() ?? 0.0,
 packages/skotiq_core/lib/src/backend/network_backend/wire_history_models.dart	RemoteJournalNote.fromJson	literal_null_coalesce	1	V0121	body: json['body'] as String? ?? '',
@@ -2505,7 +2475,6 @@ packages/skotiq_core/lib/src/backend/network_backend/wire_models.dart	RemoteCata
 packages/skotiq_core/lib/src/backend/network_backend/wire_models.dart	RemoteCatalogStatusResponse.fromJson	literal_null_coalesce	1	V0121	dataDir: json['dataDir'] as String? ?? '',
 packages/skotiq_core/lib/src/backend/network_backend/wire_models.dart	RemoteCatalogStatusResponse.fromJson	literal_null_coalesce	1	V0121	totalBytes: (json['totalBytes'] as num?)?.toInt() ?? 0,
 packages/skotiq_core/lib/src/backend/network_backend/wire_models.dart	RemoteCatalogVerifyResult.fromJson	literal_null_coalesce	1	V0121	ok: json['ok'] as bool? ?? false,
-packages/skotiq_core/lib/src/backend/network_backend/wire_models.dart	RemoteFilterWheelPosition.fromJson	literal_null_coalesce	1	V0121	isMoving: json['isMoving'] as bool? ?? false,
 packages/skotiq_core/lib/src/backend/network_backend/wire_models.dart	RemoteJob.fromEventData	literal_null_coalesce	1	V0121	jobId: data['jobId'] as String? ?? '',
 packages/skotiq_core/lib/src/backend/network_backend/wire_models.dart	RemoteJob.fromEventData	literal_null_coalesce	1	V0121	operation: data['operation'] as String? ?? '',
 packages/skotiq_core/lib/src/backend/network_backend/wire_models.dart	RemoteSessionStatus.fromJson	literal_null_coalesce	1	V0121	(json['heartbeatTimeoutSeconds'] as num?)?.toInt() ?? 0,
@@ -3432,18 +3401,6 @@ packages/skotiq_core/lib/src/services/camera_temperature_poller.dart	_poll	liter
 packages/skotiq_core/lib/src/services/camera_warmup_controller.dart	start	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/services/campaign_rollup_service.dart	_build	literal_null_coalesce	1	V0102	meanEffectiveImagingFraction: simpleMean(efficiencyInputs) ?? 0.0,
 packages/skotiq_core/lib/src/services/campaign_rollup_service.dart	_buildFilters	literal_null_coalesce	1	V0102	bucket.labelCounts[raw] = (bucket.labelCounts[raw] ?? 0) + 1;
-packages/skotiq_core/lib/src/services/catalog_service.dart	_parseDec	literal_null_coalesce	1	V0027	final d = double.tryParse(parts[0]) ?? 0;
-packages/skotiq_core/lib/src/services/catalog_service.dart	_parseDec	literal_null_coalesce	1	V0027	final m = double.tryParse(parts[1]) ?? 0;
-packages/skotiq_core/lib/src/services/catalog_service.dart	_parseDec	literal_null_coalesce	1	V0027	final s = double.tryParse(parts[2]) ?? 0;
-packages/skotiq_core/lib/src/services/catalog_service.dart	_parseEntry	literal_null_coalesce	1	V0027	dec: parts.length > 3 ? double.tryParse(parts[3]) ?? 0 : 0,
-packages/skotiq_core/lib/src/services/catalog_service.dart	_parseEntry	literal_null_coalesce	1	V0027	final dec = double.tryParse(parts[1]) ?? 0;
-packages/skotiq_core/lib/src/services/catalog_service.dart	_parseEntry	literal_null_coalesce	1	V0027	final dec = double.tryParse(parts[8]) ?? 0;
-packages/skotiq_core/lib/src/services/catalog_service.dart	_parseEntry	literal_null_coalesce	1	V0027	final ra = double.tryParse(parts[0]) ?? 0;
-packages/skotiq_core/lib/src/services/catalog_service.dart	_parseEntry	literal_null_coalesce	1	V0027	final ra = double.tryParse(parts[7]) ?? 0;
-packages/skotiq_core/lib/src/services/catalog_service.dart	_parseEntry	literal_null_coalesce	1	V0027	ra: parts.length > 2 ? double.tryParse(parts[2]) ?? 0 : 0,
-packages/skotiq_core/lib/src/services/catalog_service.dart	_parseRa	literal_null_coalesce	1	V0027	final h = double.tryParse(parts[0]) ?? 0;
-packages/skotiq_core/lib/src/services/catalog_service.dart	_parseRa	literal_null_coalesce	1	V0027	final m = double.tryParse(parts[1]) ?? 0;
-packages/skotiq_core/lib/src/services/catalog_service.dart	_parseRa	literal_null_coalesce	1	V0027	final s = double.tryParse(parts[2]) ?? 0;
 packages/skotiq_core/lib/src/services/centering_service.dart	centerOnTarget	empty_catch	1	V0103	} catch (_) {
 packages/skotiq_core/lib/src/services/centering_service.dart	centerOnTarget	literal_null_coalesce	1	V0103	iterations: settledResult?.iterations ?? 0,
 packages/skotiq_core/lib/src/services/centering_service/centering_loop.dart	_centerOnTargetInternal	empty_catch	1	V0438	} catch (_) {
@@ -4299,10 +4256,6 @@ packages/skotiq_ui/lib/src/utils/responsive_utils.dart	edgeInsets	literal_null_c
 packages/skotiq_ui/lib/src/utils/responsive_utils.dart	edgeInsets	literal_null_coalesce	1	V0257	left: (left ?? horizontal ?? 0) * scale,
 packages/skotiq_ui/lib/src/utils/responsive_utils.dart	edgeInsets	literal_null_coalesce	1	V0257	right: (right ?? horizontal ?? 0) * scale,
 packages/skotiq_ui/lib/src/utils/responsive_utils.dart	edgeInsets	literal_null_coalesce	1	V0257	top: (top ?? vertical ?? 0) * scale,
-packages/skotiq_ui/lib/src/utils/scaled_config.dart	edgeInsets	literal_null_coalesce	1	V0130	bottom: (bottom ?? vertical ?? 0) * scaleFactor,
-packages/skotiq_ui/lib/src/utils/scaled_config.dart	edgeInsets	literal_null_coalesce	1	V0131	left: (left ?? horizontal ?? 0) * scaleFactor,
-packages/skotiq_ui/lib/src/utils/scaled_config.dart	edgeInsets	literal_null_coalesce	1	V0129	right: (right ?? horizontal ?? 0) * scaleFactor,
-packages/skotiq_ui/lib/src/utils/scaled_config.dart	edgeInsets	literal_null_coalesce	1	V0132	top: (top ?? vertical ?? 0) * scaleFactor,
 packages/skotiq_ui/lib/src/widgets/design_system_gallery.dart	build	literal_null_coalesce	1	V0120	setState(() => _autosave = value ?? false),
 packages/skotiq_ui/lib/src/widgets/phd2/brain_settings_panel.dart	collect	literal_null_coalesce	1	V0258	final raw = _controllers['${axis}_${param.name}']?.text.trim() ?? '';
 packages/skotiq_updater/lib/src/models/update_state.dart	statusMessage	literal_null_coalesce	1	V0259	return 'Update available: ${availableUpdate?.version ?? ""}';
