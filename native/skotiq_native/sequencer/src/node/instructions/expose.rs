@@ -117,7 +117,7 @@ impl InstructionNode for ExposeInstruction {
         // sky-brightness adaptive exposure decision.
         // Resolve the effective config (per-node wins, else runtime
         // global default) and consult the live sky-brightness reading
-        // pushed in via `ExecutorCommand::UpdateSkyBrightness`. The
+        // pushed in via `SequenceExecutor::update_sky_brightness`. The
         // decision is always produced even when the adapter is
         // disabled — the returned `adapted_secs` equals `nominal_secs`
         // in that case, and a structured event is only emitted when

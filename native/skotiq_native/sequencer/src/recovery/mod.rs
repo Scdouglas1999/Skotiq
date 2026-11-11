@@ -237,7 +237,7 @@ impl RecoveryContext {
 /// Values follow SGP's documented defaults: 10 min between attempts, 90 min
 /// total cap. Tightly-coupled with `compute_max_attempts` — changing the
 /// duration / interval re-derives `max_attempts`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecoveryRuntimeConfig {
     /// Seconds between auto-retry attempts.
     pub retry_interval_secs: f64,

@@ -9,7 +9,9 @@
 //!   * [`recovery`]     — recovery state-machine snapshot accessors.
 //!   * [`setup`]        — pre-start `set_*` wiring and post-run `reset`.
 //!   * [`loading`]      — sequence load + read-only totals/order walks.
-//!   * [`runtime_config`] — `update_*` mid-flight config mutators.
+//!   * [`run_config`]   — the operator's settings and the one path that
+//!     changes them.
+//!   * [`runtime_config`] — the settings surface the app pushes through.
 //!   * [`checkpoint`]   — crash-recovery save/load/resume surface.
 //!   * [`decision`]     — structured-decision logging surface.
 //!   * [`start`]        — the run supervisor and its tasks.
@@ -19,6 +21,7 @@ mod decision;
 mod lifecycle;
 mod loading;
 mod recovery;
+mod run_config;
 mod run_state;
 mod runtime_config;
 mod setup;
@@ -112,9 +115,12 @@ mod start;
 mod trigger_context;
 mod types;
 
+pub use lifecycle::StopOrigin;
 pub use monitoring::*;
 pub(crate) use preflight::*;
 pub(crate) use recovery_ops::*;
+pub use run_config::{RunConfig, RunConfigStore};
+use run_config::{RunStaging, SkyFeed};
 pub(crate) use run_state::{RunCell, RunControl};
 use trigger_context::*;
 pub use types::*;
@@ -145,9 +151,6 @@ pub struct SequenceExecutor {
     pub cover_calibrator_id: Option<String>,
     /// Base save path for images
     pub save_path: Option<std::path::PathBuf>,
-    /// Observer location
-    pub latitude: Option<f64>,
-    pub longitude: Option<f64>,
     /// Trigger manager for monitoring conditions
     trigger_manager: Arc<RwLock<TriggerManager>>,
     /// Enable/disable trigger monitoring
@@ -169,23 +172,15 @@ pub struct SequenceExecutor {
     /// the next `start()` is that resume. Loading another sequence cancels
     /// it; `start()` consumes it.
     resume_prepared: bool,
-    /// Safety fail mode - determines behavior when safety devices fail or are unavailable
-    pub safety_fail_mode: SafetyFailMode,
-    /// Filter focus offsets from equipment profile (filter_name -> offset_steps)
-    pub filter_focus_offsets: std::collections::HashMap<String, i32>,
-    /// shared runtime configuration. Updated by
-    /// `Update{DitherConfig,Location,FilterOffsets}` commands so changes
-    /// take effect on the next dither/capture/autofocus without requiring a
-    /// sequence reload. Cloned into the spawned executor task so the task
-    /// reads the same values the public update_* methods write.
-    ///
-    /// Why `parking_lot::RwLock` instead of `tokio::sync::RwLock`: the
-    /// public `update_*` methods are sync (already wired into the bridge
-    /// crate that way) and the lock is only ever held for the duration of
-    /// a struct-field assignment. A sync rwlock keeps the bridge call sites
-    /// non-`.await` and is free of contention concerns for this access
-    /// pattern.
-    runtime_config: Arc<StdRwLock<RuntimeConfig>>,
+    /// The operator's settings, shared with the run's tasks.
+    settings: RunConfigStore,
+    /// What the next start consumes.
+    staging: RunStaging,
+    /// The live sky readings the app feeds in.
+    sky: SkyFeed,
+    /// The defect map the host loaded for the connected camera, shared with
+    /// each run's contexts. `None` means no correction.
+    defect_map_apply: Arc<RwLock<Option<DefectMapApplyState>>>,
     /// Recovery Mode — shared atomic flags that let the operator
     /// punch through the wait timer ("Try Now") or exit the loop ("Abort")
     /// without blocking on a mutex. Cloned into the spawned executor task
@@ -216,17 +211,8 @@ pub struct SequenceExecutor {
     /// `DecisionEvent` so the replay screen can filter by run without
     /// joining on a wall-clock window.
     active_sequence_run_id: Arc<StdRwLock<Option<i64>>>,
-    /// Replay Debug — runtime toggle. When `false`, the executor
-    /// short-circuits decision emission entirely (no channel send, no
-    /// allocation). Wired to the `decisionLoggingEnabled` setting.
-    decision_logging_enabled: Arc<AtomicBool>,
-    /// adaptive sky-conditions swap. Stable Arc slots shared
-    /// between this struct and the per-run `ExecutionContext`. Holding
-    /// them on the executor too lets idle-time pushes (`update_conditions_score`
-    /// called before `start()`) survive into the next run AND lets the
-    /// dashboard's `current_adaptive_swap_json` reach a snapshot without
-    /// needing access to the in-flight context.
-    shared_conditions_score: Arc<RwLock<Option<crate::scheduling::ConditionsScore>>>,
+    /// The adaptive-swap accounting the dashboard reads, shared with each
+    /// run's context.
     shared_adaptive_swap_state: Arc<RwLock<crate::node::context::AdaptiveSwapRuntimeState>>,
 }
 
@@ -258,32 +244,24 @@ impl SequenceExecutor {
             dome_id: None,
             cover_calibrator_id: None,
             save_path: None,
-            latitude: None,
-            longitude: None,
             trigger_manager: Arc::new(RwLock::new(trigger_manager)),
             triggers_enabled: true,
             checkpoint_manager: None,
             depth_goal_ops: None,
             current_checkpoint: None,
             resume_prepared: false,
-            safety_fail_mode: SafetyFailMode::default(),
-            filter_focus_offsets: std::collections::HashMap::new(),
-            runtime_config: Arc::new(StdRwLock::new(RuntimeConfig::default())),
+            settings: RunConfigStore::default(),
+            staging: RunStaging::default(),
+            sky: SkyFeed::new(),
+            defect_map_apply: Arc::new(RwLock::new(None)),
             recovery_signals: Arc::new(crate::recovery::RecoverySignals::new()),
             current_recovery: Arc::new(StdRwLock::new(None)),
             recovery_history: Arc::new(StdRwLock::new(Vec::new())),
             decision_tx,
             active_sequence_run_id: Arc::new(StdRwLock::new(None)),
-            shared_conditions_score: Arc::new(RwLock::new(None)),
             shared_adaptive_swap_state: Arc::new(RwLock::new(
                 crate::node::context::AdaptiveSwapRuntimeState::default(),
             )),
-            // Replay Debug — default ON. The Dart settings layer
-            // calls `set_decision_logging_enabled(false)` when the user
-            // opts out; the overhead is negligible (one channel send +
-            // one DB row per decision, well under 100 rows/min in real
-            // sessions) so we ship enabled-by-default.
-            decision_logging_enabled: Arc::new(AtomicBool::new(true)),
         }
     }
 

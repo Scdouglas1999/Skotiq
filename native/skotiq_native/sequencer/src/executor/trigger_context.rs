@@ -123,26 +123,22 @@ pub(super) fn build_trigger_autofocus_context(
     cancellation_token: Arc<AtomicBool>,
     device_ops: SharedDeviceOps,
     trigger_state: Arc<RwLock<TriggerState>>,
-    runtime_config: &Arc<StdRwLock<RuntimeConfig>>,
+    runtime_config: &RunConfigStore,
     event_tx: Option<broadcast::Sender<ExecutorEvent>>,
 ) -> crate::instructions::InstructionContext {
-    // read filter_focus_offsets and location from the runtime
-    // config so a mid-flight UpdateFilterOffsets / UpdateLocation is honoured
-    // by trigger-initiated autofocus / dither / recenter actions. The
-    // trigger_context is a snapshot taken at start(); without this read the
-    // updates would only reach the executor on a sequence reload.
-    let (rc_filter_offsets, rc_lat, rc_lon) = {
+    // The live settings, so a change made during the run reaches
+    // trigger-run autofocus, dither and recenter. Two cases fall back to the
+    // values the run started with: an empty offset map and an unset site.
+    // Clearing every offset, or the site, mid-run therefore does not reach
+    // these instructions until the next start.
+    let (live_offsets, rc_lat, rc_lon) = {
         let rc = runtime_config.read();
         (rc.filter_focus_offsets.clone(), rc.latitude, rc.longitude)
     };
-    let filter_focus_offsets = if rc_filter_offsets.is_empty() {
-        // Why: if the runtime config has not been seeded (no
-        // UpdateFilterOffsets has fired yet) fall back to the start-time
-        // snapshot. Empty-vs-explicit is the only way to disambiguate
-        // "user wants no offsets" from "config not yet pushed".
+    let filter_focus_offsets = if live_offsets.is_empty() {
         trigger_context.filter_focus_offsets.clone()
     } else {
-        rc_filter_offsets
+        live_offsets
     };
     let latitude = rc_lat.or(trigger_context.latitude);
     let longitude = rc_lon.or(trigger_context.longitude);
@@ -243,7 +239,7 @@ pub(super) fn build_trigger_autofocus_context(
         dither_barrier: None,
         // The run's retry policy, so a trigger-fired action's filter change
         // retries like the sequence's own.
-        device_retry: runtime_config.read().device_retry.clone(),
+        device_retry: runtime_config.slots().device_retry.clone(),
         target_light_filters: Vec::new(),
     }
 }

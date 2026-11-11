@@ -44,32 +44,6 @@ fn terminal_verdict_message(result: NodeStatus, root_display_name: &str) -> Stri
     format!("{}: {}", verb, root_display_name)
 }
 
-/// Give a starting run its per-target integration accounting.
-///
-/// The checkpoint's accounting goes in first and the operator's handoff
-/// choice on top of it, target by target: Resume replaces a target's totals
-/// with the ones the operator confirmed, Restart (an empty map for the
-/// target) zeroes it, and a target with no choice keeps what the checkpoint
-/// credited. `restore_snapshot` replaces the whole registry, so the other
-/// order would discard the operator's choice on every checkpoint resume.
-async fn seed_run_budget(
-    registry: &crate::scheduling::BudgetRegistry,
-    checkpoint: Option<crate::scheduling::BudgetRegistrySnapshot>,
-    carry_over: HashMap<String, HashMap<String, f64>>,
-) {
-    if let Some(snapshot) = checkpoint {
-        registry.restore_snapshot(snapshot).await;
-    }
-    for (target_id, per_filter) in carry_over {
-        tracing::info!(
-            "Seeding integration carry-over for target_id={} ({} filter entries)",
-            target_id,
-            per_filter.len()
-        );
-        registry.seed_carry_over(&target_id, per_filter).await;
-    }
-}
-
 impl SequenceExecutor {
     /// Start executing the sequence.
     ///
@@ -120,6 +94,13 @@ impl SequenceExecutor {
         // The run's terminal message names the ROOT, so its name is taken here,
         // before the tree is moved into the execution future.
         let root_display_name = root_node.name().to_string();
+        // Past the last refusal: this start consumes what was staged for it.
+        let staging = std::mem::take(&mut self.staging);
+        let config = self.settings.snapshot();
+        let slots = self.settings.slots().clone();
+        self.sky.begin_run().await;
+        let sky = self.sky.clone();
+        let defect_map_apply = self.defect_map_apply.clone();
 
         let camera_id = self.camera_id.clone();
         let mount_id = self.mount_id.clone();
@@ -129,8 +110,8 @@ impl SequenceExecutor {
         let dome_id = self.dome_id.clone();
         let cover_calibrator_id = self.cover_calibrator_id.clone();
         let save_path = self.save_path.clone();
-        let latitude = self.latitude;
-        let longitude = self.longitude;
+        let latitude = config.latitude;
+        let longitude = config.longitude;
         let trigger_action_context = TriggerActionContext {
             camera_id: camera_id.clone(),
             mount_id: mount_id.clone(),
@@ -142,7 +123,7 @@ impl SequenceExecutor {
             save_path: save_path.clone(),
             latitude,
             longitude,
-            filter_focus_offsets: self.filter_focus_offsets.clone(),
+            filter_focus_offsets: config.filter_focus_offsets.clone(),
         };
         let exposure_node_metadata: HashMap<NodeId, (f64, Option<String>)> = self
             .sequence
@@ -240,23 +221,10 @@ impl SequenceExecutor {
 
         let trigger_manager = self.trigger_manager.clone();
         let triggers_enabled = self.triggers_enabled;
-        let safety_fail_mode = self.safety_fail_mode;
-        let filter_focus_offsets = self.filter_focus_offsets.clone();
         let sequence_for_custom_recovery = self.sequence.clone();
         let custom_recovery_branches = Arc::new(custom_recovery_branches);
 
-        // seed runtime config from the executor's configured
-        // values so the first read sees what `set_*()` was given before
-        // start() was called. The shared Arc is cloned for the spawned task
-        // and the command handler so writes propagate to readers.
-        {
-            let mut rc = self.runtime_config.write();
-            rc.latitude = self.latitude;
-            rc.longitude = self.longitude;
-            rc.filter_focus_offsets = self.filter_focus_offsets.clone();
-            rc.safety_fail_mode = self.safety_fail_mode;
-        }
-        let runtime_config = self.runtime_config.clone();
+        let runtime_config = self.settings.clone();
 
         // Recovery Mode — clone the shared signal + history handles
         // for the spawned executor task. The signals atomic is cloned so
@@ -276,11 +244,7 @@ impl SequenceExecutor {
         let decision_tx_for_lifecycle = self.decision_tx.clone();
         let active_run_id_for_ctx = self.active_sequence_run_id.clone();
         let active_run_id_for_decisions = self.active_sequence_run_id.clone();
-        let decision_logging_enabled_for_emits = self.decision_logging_enabled.clone();
-        // pre-clone the shared adaptive-swap Arc slots OUTSIDE
-        // the spawned task so the future doesn't capture `self` (which
-        // would bind to the `&mut self` borrow of `start()`).
-        let shared_conditions_score_for_ctx = self.shared_conditions_score.clone();
+        let decision_logging_enabled_for_emits = slots.decision_logging_enabled.clone();
         let shared_adaptive_swap_state_for_ctx = self.shared_adaptive_swap_state.clone();
         // Arm the signal bus so any stale TryNow / Abort left over from a
         // previous run doesn't pre-fire the very first recovery. The
@@ -309,8 +273,8 @@ impl SequenceExecutor {
         let streaming_filterwheel_id = self.filterwheel_id.clone();
         let streaming_rotator_id = self.rotator_id.clone();
         let streaming_save_path = self.save_path.clone();
-        let streaming_latitude = self.latitude;
-        let streaming_longitude = self.longitude;
+        let streaming_latitude = config.latitude;
+        let streaming_longitude = config.longitude;
 
         let is_paused = Arc::new(AtomicBool::new(false));
         // Shared with the recovery driver (incremented when a cycle completes)
@@ -387,53 +351,20 @@ impl SequenceExecutor {
                         decision_tx_for_ctx.clone(),
                         active_run_id_for_ctx.clone(),
                     );
-                // clone the shared cloud-motion snapshot handle
-                // so the trigger-monitor task can read it for
-                // `SlewToGapAndContinue` without holding the trigger-state
-                // lock. The Arc<RwLock> inside ExecutionContext is shared with
-                // every parallel branch and with the UpdateCloudMotion command
-                // handler, so reads here see the latest pushed snapshot.
-                let cloud_motion_for_recovery = context.cloud_motion_snapshot.clone();
-                // pre-clone the adaptive-exposure shared
-                // Arc handles so the command-handler closure captures
-                // them by value (avoiding the immutable-borrow-of-
-                // `context` problem that fights `&mut context` in the
-                // parallel root_node.execute below).
-                let sky_brightness_for_cmd = context.current_sky_brightness_mag.clone();
-                let default_adaptive_for_cmd = context.default_adaptive_exposure.clone();
-                // share the pending-plugin-node map with
-                // the command handler so a `PluginNodeFinished` reply can
-                // resolve the matching oneshot without borrowing `context`
-                // (which is exclusively held by `root_node.execute`
-                // below).
-                let plugin_node_pending_for_cmd = context.plugin_node_pending.clone();
-                // share the defect-map Arc with the
-                // command handler so an `UpdateDefectMap` command can
-                // mutate the live state without re-borrowing `context`.
-                let defect_map_apply_for_cmd = context.defect_map_apply.clone();
-                // Science — pre-clone the transparency-tracking
-                // Arc handles so the command handler can push fresh
-                // samples / backup plans into the shared ExecutionContext
-                // without re-borrowing `context` (which is held by the
-                // parallel root_node.execute below). The
-                // `*_for_recovery` clones flow into the trigger
-                // monitor's `SwitchTargetOrFilter` handler.
-                let transparency_for_cmd = context.current_transparency.clone();
-                let transparency_backup_for_cmd = context.transparency_backup_plan.clone();
-                let transparency_backup_for_recovery = context.transparency_backup_plan.clone();
-                // adaptive sky-conditions swap. The composite
-                // ConditionsScore slot is mirrored into the shared
-                // ExecutionContext so the TargetScheduler reads it without
-                // taking the trigger-state lock; `_for_cmd` is the handle
-                // the command channel writes through.
-                // Bind the per-run context slots to the executor-level
-                // shared slots so idle-time pushes (received before
-                // `start()`) carry into the run and so the dashboard JSON
-                // getter reads from one place. The Arc swap is cheap and
-                // happens once per run.
-                context.current_conditions_score = shared_conditions_score_for_ctx.clone();
+                // The run reads the sky feed and the live settings through the
+                // executor's own slots, so a push reaches it wherever it is.
+                context.current_sky_brightness_mag = sky.sky_brightness_mag.clone();
+                context.cloud_motion_snapshot = sky.cloud_motion.clone();
+                context.current_transparency = sky.transparency.clone();
+                context.transparency_backup_plan = sky.transparency_backup.clone();
+                context.current_conditions_score = sky.conditions_score.clone();
                 context.adaptive_swap_state = shared_adaptive_swap_state_for_ctx.clone();
-                let conditions_score_for_cmd = context.current_conditions_score.clone();
+                context.default_adaptive_exposure = slots.default_adaptive_exposure.clone();
+                context.defect_map_apply = defect_map_apply;
+                context.safety_fail_mode = slots.safety_fail_mode.clone();
+                context.device_retry = slots.device_retry.clone();
+                let cloud_motion_for_recovery = sky.cloud_motion.clone();
+                let transparency_backup_for_recovery = sky.transparency_backup.clone();
                 let skip_to_node_for_recovery = context.skip_to_node.clone();
                 context.is_cancelled = is_cancelled.clone();
                 context.is_paused = is_paused_clone;
@@ -460,8 +391,7 @@ impl SequenceExecutor {
                 context.save_path = save_path;
                 context.latitude = latitude;
                 context.longitude = longitude;
-                context.safety_fail_mode = Arc::new(parking_lot::RwLock::new(safety_fail_mode));
-                context.filter_focus_offsets = filter_focus_offsets;
+                context.filter_focus_offsets = config.filter_focus_offsets.clone();
                 // Hand the event_tx to the execution context so instructions
                 // (e.g. execute_exposure) can surface ExecutorEvent::Error
                 // for FITS-save failures and other instruction-level errors
@@ -480,73 +410,20 @@ impl SequenceExecutor {
                 // generated when this executor instance was first constructed,
                 // which could be hours / days ago).
                 context.session_id = uuid::Uuid::new_v4().to_string();
-                // Native daylight gate — copy the configured max Sun altitude
-                // out of the (non-Send) parking_lot guard so it can be seeded
-                // into the shared trigger state across an `.await` below. The
-                // field is `Option<f64>`; a never-pushed (`None`) or non-finite
-                // value resolves to the DEFAULT (-12°, nautical darkness) so the
-                // native gate is never weaker than the Dart gate it backstops.
-                // A pushed `SchedulerConfig.maxSunAltitudeDegrees` is used
-                // verbatim.
-                let max_sun_altitude_degrees = match runtime_config.read().max_sun_altitude_degrees
-                {
-                    Some(v) if v.is_finite() => v,
-                    _ => crate::instructions::DEFAULT_MAX_SUN_ALTITUDE_DEGREES,
-                };
-                context.max_sun_altitude_degrees = max_sun_altitude_degrees;
-                if let Some(ts_lock) = &context.trigger_state {
-                    // Seed the trigger state so the gate (which reads through the
-                    // InstructionContext's trigger-state handle, not the
-                    // ExecutionContext) sees the configured threshold.
-                    ts_lock
-                        .write()
-                        .await
-                        .set_max_sun_altitude_degrees(max_sun_altitude_degrees);
-                }
-                {
-                    let rc = runtime_config.read();
-                    context.observer_name = rc.observer_profile.observer_name.clone();
-                    context.site_elevation_m = rc.observer_profile.site_elevation_m;
-                    context.camera_make = rc.observer_profile.camera_make.clone();
-                    context.camera_model = rc.observer_profile.camera_model.clone();
-                    context.telescope_name = rc.observer_profile.telescope_name.clone();
-                    context.telescope_focal_length_mm =
-                        rc.observer_profile.telescope_focal_length_mm;
-                    context.telescope_aperture_mm = rc.observer_profile.telescope_aperture_mm;
-                    context.default_quality_check = rc.default_quality_check.clone();
-                    context.reject_folder_path = rc.reject_folder_path.clone();
-                    context.device_retry = rc.device_retry.clone();
-                }
-                // seed the global adaptive-exposure
-                // fallback so a node without its own `adaptive_exposure`
-                // block still inherits it. The shared Arc<RwLock> field
-                // is written outside the sync `runtime_config.read()`
-                // scope because the tokio RwLock write is async.
-                {
-                    let initial = runtime_config.read().default_adaptive_exposure.clone();
-                    let mut slot = context.default_adaptive_exposure.write().await;
-                    *slot = initial;
-                }
-                // seed the defect-map application state
-                // from runtime_config so a sequence started after the
-                // user has already toggled "Apply during capture" on
-                // immediately gets per-frame correction (without waiting
-                // for the next push from the UI). `None` is the
-                // canonical disabled state.
-                {
-                    let initial = runtime_config.read().defect_map_apply.clone();
-                    let mut slot = context.defect_map_apply.write().await;
-                    *slot = initial;
-                }
-                // Taken, not read: the choice belongs to this start only.
-                let carry_over =
-                    std::mem::take(&mut runtime_config.write().pending_integration_carry_over);
-                seed_run_budget(
-                    &context.budget_registry,
-                    budget_snapshot_to_restore,
-                    carry_over,
-                )
-                .await;
+                context.max_sun_altitude_degrees = config.max_sun_altitude();
+                context.observer_name = config.observer_profile.observer_name.clone();
+                context.site_elevation_m = config.observer_profile.site_elevation_m;
+                context.camera_make = config.observer_profile.camera_make.clone();
+                context.camera_model = config.observer_profile.camera_model.clone();
+                context.telescope_name = config.observer_profile.telescope_name.clone();
+                context.telescope_focal_length_mm =
+                    config.observer_profile.telescope_focal_length_mm;
+                context.telescope_aperture_mm = config.observer_profile.telescope_aperture_mm;
+                context.default_quality_check = config.default_quality_check.clone();
+                context.reject_folder_path = config.reject_folder_path.clone();
+                staging
+                    .seed_budget(&context.budget_registry, budget_snapshot_to_restore)
+                    .await;
                 tracing::info!(
                     "Executor started: session_id={}, observer={:?}, telescope={:?}, grading_active={}",
                     context.session_id,
@@ -679,39 +556,19 @@ impl SequenceExecutor {
                 let (execution_quiesced_tx, execution_quiesced_rx) = watch::channel(false);
                 let (park_and_abort_done_tx, park_and_abort_done_rx) = watch::channel(false);
 
-                let skip_step_cmd = context.skip_current_step.clone();
-                // Command-handler-side clone for posting
-                // SkipToNode requests into the shared slot.
-                let skip_to_node_cmd = skip_to_node.clone();
-                let resume_notify_cmd = resume_notify.clone();
-                // Recovery Mode — command-handler-side clone so the
-                // RecoveryTryNow / RecoveryAbort handlers can fire the
-                // signal bus without grabbing the shared executor lock.
-                let recovery_signals_cmd = recovery_signals_clone.clone();
-                let safety_fail_mode_for_cmd = context.safety_fail_mode.clone();
                 let command_handler = run_command_handler(CommandHandlerArgs {
-                    cloud_motion_for_recovery: cloud_motion_for_recovery.clone(),
-                    conditions_score_for_cmd,
-                    current_recovery_for_cmd: current_recovery_clone.clone(),
-                    default_adaptive_for_cmd,
-                    defect_map_apply_for_cmd,
-                    plugin_node_pending_for_cmd,
-                    recovery_signals_cmd,
-                    resume_notify_cmd,
-                    rx,
-                    runtime_config: runtime_config.clone(),
-                    safety_fail_mode_for_cmd,
-                    skip_step_cmd,
-                    skip_to_node_cmd,
-                    sky_brightness_for_cmd,
                     run: RunControl {
                         state: run_state.clone(),
                         is_cancelled: is_cancelled.clone(),
                         is_paused: is_paused.clone(),
                     },
-                    transparency_backup_for_cmd,
-                    transparency_for_cmd,
-                    trigger_manager: trigger_manager.clone(),
+                    rx,
+                    current_recovery: current_recovery_clone.clone(),
+                    recovery_signals: recovery_signals_clone.clone(),
+                    resume_notify: resume_notify.clone(),
+                    skip_step: context.skip_current_step.clone(),
+                    skip_to_node: skip_to_node.clone(),
+                    plugin_node_pending: context.plugin_node_pending.clone(),
                 });
 
                 let streaming_filter_focus_offsets = context.filter_focus_offsets.clone();

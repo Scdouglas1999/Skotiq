@@ -370,7 +370,7 @@ mod tests {
                 park_and_abort_done_for_triggers: done,
                 park_and_abort_for_triggers: Arc::new(AtomicBool::new(false)),
                 recovery_request_tx: requests,
-                runtime_config: Arc::new(StdRwLock::new(RuntimeConfig::default())),
+                runtime_config: RunConfigStore::default(),
                 sequence_for_custom_recovery_triggers: None,
                 skip_to_next_target_for_triggers: Arc::new(AtomicBool::new(false)),
                 skip_to_node_for_recovery: Arc::new(StdRwLock::new(None)),

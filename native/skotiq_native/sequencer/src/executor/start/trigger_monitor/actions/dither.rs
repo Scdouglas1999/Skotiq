@@ -46,7 +46,7 @@ pub(in super::super) async fn run(
 /// carry, always come from the trigger.
 fn effective_config(
     trigger_config: &crate::DitherConfig,
-    runtime: &RuntimeConfig,
+    runtime: &RunConfig,
 ) -> crate::DitherConfig {
     if runtime.dither.pixels > 0.0 {
         crate::DitherConfig {

@@ -44,7 +44,7 @@ pub async fn api_sequencer_set_devices(
         let mut executor = get_sequence_executor().write().await;
         executor.set_devices(camera_id, mount_id, focuser_id, filterwheel_id, rotator_id);
         if let Some(offsets) = filter_focus_offsets {
-            executor.set_filter_focus_offsets(offsets);
+            executor.set_filter_focus_offsets(offsets).await;
         }
     }
 
@@ -100,7 +100,7 @@ pub async fn api_sequencer_set_safety_fail_mode(mode: String) -> Result<(), Skot
 
     tracing::info!("Setting sequencer safety fail mode: {:?}", fail_mode);
     let mut executor = get_sequence_executor().write().await;
-    executor.set_safety_fail_mode(fail_mode);
+    executor.set_safety_fail_mode(fail_mode).await;
 
     Ok(())
 }
@@ -123,7 +123,9 @@ pub async fn api_sequencer_set_safety_check_interval_seconds(
         seconds
     );
     let mut executor = get_sequence_executor().write().await;
-    executor.set_safety_check_interval_secs(u64::from(seconds));
+    executor
+        .set_safety_check_interval_secs(u64::from(seconds))
+        .await;
 
     Ok(())
 }
@@ -142,6 +144,20 @@ pub async fn api_sequencer_set_save_path(path: Option<String>) -> Result<(), Sko
 }
 
 // Sequencer runtime settings propagation
+//
+// Every operator setting below is one field of `skotiq_sequencer::RunConfig`.
+// The single-setting entries exist because the app pushes them one at a time;
+// each is a read-modify-apply of that one value in the executor.
+
+/// Replace the operator's sequencer settings in one call: every section of
+/// `config` that differs from the current settings takes effect and is
+/// announced once. Not on the FFI surface yet; the app still pushes the
+/// single settings below.
+#[allow(dead_code)]
+pub(crate) async fn apply_run_config(config: skotiq_sequencer::RunConfig) {
+    let executor = get_sequence_executor().read().await;
+    executor.apply_run_config(config).await;
+}
 
 /// Update dither configuration at runtime while a sequence is running or paused.
 /// The updated values are stored on the executor and will be used by subsequent
@@ -536,7 +552,9 @@ pub async fn api_sequencer_set_weather_resume_after_safe_secs(
 ) -> Result<(), SkotiqError> {
     tracing::debug!("[API] weather resume after safe: {} s", seconds);
     let executor = get_sequence_executor().read().await;
-    executor.set_weather_resume_after_safe_secs(u64::from(seconds));
+    executor
+        .set_weather_resume_after_safe_secs(u64::from(seconds))
+        .await;
     Ok(())
 }
 
@@ -817,7 +835,7 @@ pub async fn api_sequencer_set_active_sequence_run_id(
 /// the replay log can opt out. Defaults to ON.
 pub async fn api_sequencer_set_decision_logging_enabled(enabled: bool) -> Result<(), SkotiqError> {
     let executor = get_sequence_executor().read().await;
-    executor.set_decision_logging_enabled(enabled);
+    executor.set_decision_logging_enabled(enabled).await;
     tracing::info!(
         "[REPLAY_DEBUG] decision logging {} (runtime toggle)",
         if enabled { "ENABLED" } else { "DISABLED" }
@@ -925,10 +943,12 @@ pub async fn api_sequencer_set_park_policy(
         park_before_dawn
     );
     let mut executor = get_sequence_executor().write().await;
-    executor.set_park_policy(skotiq_sequencer::ParkPolicy {
-        park_on_unsafe_weather,
-        park_before_dawn,
-    });
+    executor
+        .set_park_policy(skotiq_sequencer::ParkPolicy {
+            park_on_unsafe_weather,
+            park_before_dawn,
+        })
+        .await;
     Ok(())
 }
 
@@ -956,9 +976,11 @@ pub async fn api_sequencer_set_device_retries(
         filter_wheel_retries
     );
     let mut executor = get_sequence_executor().write().await;
-    executor.set_device_retry_policy(skotiq_sequencer::DeviceRetryPolicy {
-        camera_retries,
-        filter_wheel_retries,
-    });
+    executor
+        .set_device_retry_policy(skotiq_sequencer::DeviceRetryPolicy {
+            camera_retries,
+            filter_wheel_retries,
+        })
+        .await;
     Ok(())
 }

@@ -1544,7 +1544,7 @@ async fn scenario6c_exhaustion_with_stuck_mount_still_closes_roof_and_reports_un
 /// clones the inline driver captures, so the extracted function mutates the
 /// real state and emits on the real event bus.
 struct EscalationFixture {
-    runtime: Arc<super::StdRwLock<super::RuntimeConfig>>,
+    runtime: super::RunConfigStore,
     run_state: super::RunCell,
     current: Arc<super::StdRwLock<Option<crate::recovery::RecoveryContext>>>,
     is_cancelled: Arc<AtomicBool>,
@@ -1555,7 +1555,7 @@ struct EscalationFixture {
 /// Build the fixture. `policy` chooses the disposition (`HoldForOperator` =
 /// PassivePause, `ParkAndClose` = SafeAbandon).
 fn escalation_fixture(policy: super::UnattendedEndPolicy) -> EscalationFixture {
-    let rc = super::RuntimeConfig {
+    let rc = super::RunConfig {
         // Recovery entry stops tracking by default — that is the precondition
         // the restore exists to undo. Keep it on so `stop_tracking == true`.
         recovery: crate::recovery::RecoveryRuntimeConfig {
@@ -1567,7 +1567,7 @@ fn escalation_fixture(policy: super::UnattendedEndPolicy) -> EscalationFixture {
     };
     let (tx, rx) = super::broadcast::channel(64);
     EscalationFixture {
-        runtime: Arc::new(super::StdRwLock::new(rc)),
+        runtime: super::RunConfigStore::new(rc),
         run_state: super::RunCell::starting_in(tx, super::ExecutorState::Recovering),
         current: Arc::new(super::StdRwLock::new(None)),
         is_cancelled: Arc::new(AtomicBool::new(false)),
@@ -2210,7 +2210,7 @@ async fn weather_turning_unsafe_during_recovery_is_still_acted_on() {
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     // The recovery holds the run only when quality problems stop it.
     executor.set_stop_on_quality_problems(true).await;
-    executor.set_safety_check_interval_secs(5);
+    executor.set_safety_check_interval_secs(5).await;
     executor
         .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
             retry_interval_secs: 600.0,
@@ -2599,7 +2599,7 @@ async fn start_park_policy_run(
     executor.set_dome(Some("dome-1".to_string()));
     executor.set_cover_calibrator(Some("cover-1".to_string()));
     if let Some(policy) = policy {
-        executor.set_park_policy(policy);
+        executor.set_park_policy(policy).await;
     }
     start_long_run(executor, ops).await
 }
@@ -2675,7 +2675,7 @@ async fn unsafe_weather_holds_without_parking_when_the_operator_turned_parking_o
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = super::SequenceExecutor::new();
     let mut events = executor.subscribe();
-    executor.set_park_policy(WEATHER_OFF);
+    executor.set_park_policy(WEATHER_OFF).await;
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     executor.set_dome(Some("dome-1".to_string()));
     executor.set_cover_calibrator(Some("cover-1".to_string()));
@@ -2738,7 +2738,7 @@ async fn unsafe_weather_during_recovery_does_not_park_when_parking_is_off() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     ops.guider_start_fails.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
-    executor.set_park_policy(WEATHER_OFF);
+    executor.set_park_policy(WEATHER_OFF).await;
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     // The recovery holds the run only when quality problems stop it.
     executor.set_stop_on_quality_problems(true).await;
@@ -2772,7 +2772,7 @@ async fn turning_weather_parking_off_mid_run_takes_effect() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = start_park_policy_run(ops.clone(), None).await;
     wait_for_monitor(&ops).await;
-    executor.set_park_policy(WEATHER_OFF);
+    executor.set_park_policy(WEATHER_OFF).await;
 
     executor.update_weather_verdict(Some(true)).await;
     let _ = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
@@ -2821,7 +2821,7 @@ async fn dawn_ends_the_run_without_parking_when_the_operator_turned_parking_off(
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = super::SequenceExecutor::new();
     let mut events = executor.subscribe();
-    executor.set_park_policy(DAWN_OFF);
+    executor.set_park_policy(DAWN_OFF).await;
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     executor.set_dome(Some("dome-1".to_string()));
     executor.set_cover_calibrator(Some("cover-1".to_string()));
@@ -2886,7 +2886,7 @@ async fn start_capture_run(
     executor.set_devices(Some("cam-1".to_string()), None, None, None, None);
     executor.set_save_path(Some(dir.clone()));
     if let Some(policy) = policy {
-        executor.set_device_retry_policy(policy);
+        executor.set_device_retry_policy(policy).await;
     }
     executor.set_device_ops(ops as SharedDeviceOps);
     let mut sequence = SequenceDefinition::new("Retry run".to_string());
@@ -2935,7 +2935,7 @@ async fn one_failed_download_is_retried_and_the_run_completes() {
     ]);
     let executor = super::SequenceExecutor::new();
     assert_eq!(
-        executor.device_retry_policy(),
+        executor.run_config().device_retry,
         crate::instructions::DeviceRetryPolicy::default(),
         "an executor the app has not configured yet retries 3 times, the setting's default"
     );
@@ -3120,11 +3120,11 @@ async fn start_weather_run(
 ) -> super::SequenceExecutor {
     ops.safety_absent.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
-    executor.set_safety_fail_mode(crate::SafetyFailMode::FailOpen);
+    executor.set_safety_fail_mode(crate::SafetyFailMode::FailOpen).await;
     if let Some(policy) = policy {
-        executor.set_park_policy(policy);
+        executor.set_park_policy(policy).await;
     }
-    executor.set_weather_resume_after_safe_secs(resume_after_secs);
+    executor.set_weather_resume_after_safe_secs(resume_after_secs).await;
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     executor.set_dome(Some("dome-1".to_string()));
     executor.set_cover_calibrator(Some("cover-1".to_string()));
@@ -3231,7 +3231,7 @@ async fn a_weather_hold_never_runs_out_and_fails_the_run() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     ops.safety_absent.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
-    executor.set_safety_fail_mode(crate::SafetyFailMode::FailOpen);
+    executor.set_safety_fail_mode(crate::SafetyFailMode::FailOpen).await;
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     executor
         .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
@@ -3291,10 +3291,9 @@ async fn the_operator_clear_sky_override_resumes_a_held_run_now() {
 async fn a_stale_unsafe_verdict_is_set_aside_under_fail_open() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = start_weather_run(ops.clone(), Some(WEATHER_OFF), 0).await;
-    executor
-        .runtime_config
-        .write()
-        .weather_verdict_staleness_secs = 30;
+    let mut config = executor.run_config();
+    config.weather_verdict_staleness_secs = 30;
+    executor.apply_run_config(config).await;
     let mut events = executor.subscribe();
 
     executor.update_weather_verdict_from(Some(true), true).await;

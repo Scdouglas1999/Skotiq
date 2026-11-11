@@ -785,7 +785,7 @@ pub(super) async fn restore_tracking_after_recovery(
 pub(crate) struct RecoveryEscalationState<'a> {
     pub device_ops: &'a SharedDeviceOps,
     pub run_state: &'a RunCell,
-    pub runtime_config: &'a Arc<StdRwLock<RuntimeConfig>>,
+    pub runtime_config: &'a RunConfigStore,
     pub current_recovery: &'a Arc<StdRwLock<Option<crate::recovery::RecoveryContext>>>,
     pub is_cancelled: &'a Arc<AtomicBool>,
     pub gave_up: &'a Arc<AtomicBool>,

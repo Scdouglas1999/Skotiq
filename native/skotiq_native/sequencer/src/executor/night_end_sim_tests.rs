@@ -140,7 +140,7 @@ async fn dawn_without_parking_runs_the_plans_own_park_and_warm() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = super::SequenceExecutor::new();
     let mut events = executor.subscribe();
-    executor.set_park_policy(DAWN_OFF);
+    executor.set_park_policy(DAWN_OFF).await;
     let plan = night_plan(node("park", "Park mount", NodeType::Park));
     let mut executor = start_night(executor, ops.clone(), plan).await;
     wait_for_monitor(&ops).await;

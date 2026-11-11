@@ -55,7 +55,7 @@ pub(in super::super) async fn run(request: AutofocusRequest<'_>) -> ActionFlow {
     let af_ctx = rig.instruction_context(rig.target().await, run);
     // The operator's tuning, seeded at start from the sequence's Autofocus
     // node or pushed through the runtime config.
-    let af_config = match rig.runtime_config.read().autofocus.clone() {
+    let af_config = match rig.runtime_config.trigger_autofocus() {
         Some(cfg) => cfg,
         None => {
             tracing::warn!(

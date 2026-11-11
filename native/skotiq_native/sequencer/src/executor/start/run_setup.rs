@@ -1,6 +1,6 @@
 //! Per-run trigger preparation: clear the previous run's latches, disarm the
-//! triggers this run's hardware cannot act on, and seed the trigger-driven
-//! autofocus configuration from the sequence.
+//! triggers this run's hardware cannot act on, carry the settings onto the
+//! reset trigger state, and read the sequence's own autofocus tuning.
 
 use super::*;
 
@@ -33,21 +33,7 @@ impl SequenceExecutor {
                 manager.state().write().await.restored_from_checkpoint = false;
             }
             manager.reset_for_new_run().await;
-            let dither = crate::GuiderSettle::from(&self.runtime_config.read().dither);
-            let guiding = manager
-                .meridian_flip_config()
-                .map(crate::GuiderSettle::from);
-            let state_lock = manager.state();
-            let mut state = state_lock.write().await;
-            state.dither_settle = dither;
-            state.guiding_settle = guiding;
-            // A run starts at the site the executor holds now. The trigger
-            // state kept the last run's site and its cached dawn, so a site
-            // changed between runs still ended the next run at the old
-            // site's dawn.
-            if self.latitude.is_some() && self.longitude.is_some() {
-                state.set_observer_location(self.latitude, self.longitude);
-            }
+            self.settings.project_at_start(&mut manager).await;
         }
         if self.focuser_id.is_none() {
             let disarmed = {
@@ -64,76 +50,32 @@ impl SequenceExecutor {
             }
         }
 
-        // if the runtime config has a user-supplied
-        // autofocus-interval cadence, push it into the seeded standard
-        // trigger before the trigger-monitor task picks up its snapshot.
-        // Without this, a value set via the equipment-profile UI before
-        // start() would only take effect on the next start().
-        {
-            let override_value = {
-                let rc = self.runtime_config.read();
-                rc.autofocus_interval_frames
-            };
-            if let Some(every_n_frames) = override_value {
-                let mut mgr = self.trigger_manager.write().await;
-                if let Some(trigger) = mgr.get_trigger_mut("autofocus_interval") {
-                    if let TriggerType::AutofocusInterval {
-                        every_n_frames: live,
-                    } = &mut trigger.trigger_type
-                    {
-                        *live = every_n_frames;
-                    }
-                }
-            }
-        }
-
-        // Seed the trigger-driven autofocus config from the sequence's first
-        // Autofocus node, so trigger-fired refocus (HFR / temperature /
-        // focus-drift / interval) uses the operator's step size / exposure /
-        // backlash / method rather than `AutofocusConfig::default()`. The
-        // Autofocus node carries the real tuning (the Dart layer builds it from
-        // the equipment profile). Only seed when a runtime command has not
-        // already set it, so an explicit operator override wins.
-        {
-            let already_set = self.runtime_config.read().autofocus.is_some();
-            if !already_set {
-                if let Some(node_af) = self
-                    .root_node
-                    .as_ref()
-                    .and_then(|root| find_first_autofocus_config(&**root))
-                {
-                    tracing::info!(
-                        "Seeded trigger autofocus config from sequence Autofocus node \
+        // The sequence's own autofocus tuning, for trigger-fired refocus when
+        // the operator's settings were never pushed.
+        let node_af = self
+            .root_node
+            .as_ref()
+            .and_then(|root| find_first_autofocus_config(&**root));
+        if self.settings.read().autofocus.is_none() {
+            match &node_af {
+                Some(node_af) => tracing::info!(
+                    "Trigger-fired refocus uses the sequence's Autofocus node tuning \
                      (method={:?}, step_size={}, steps_out={}, exposure={}s, backlash={})",
-                        node_af.method,
-                        node_af.step_size,
-                        node_af.steps_out,
-                        node_af.exposure_duration,
-                        node_af.backlash_compensation,
-                    );
-                    self.runtime_config.write().autofocus = Some(node_af);
-                } else if let Some(pushed) = self.runtime_config.read().autofocus.clone() {
-                    // No node, but the operator's settings were pushed via
-                    // `update_autofocus_config`. Use those rather than library
-                    // defaults — a sequence with no Autofocus node is exactly
-                    // the one whose interval trigger fires unattended, so this
-                    // is the case where getting the tuning wrong costs a night.
-                    tracing::info!(
-                        "No Autofocus node in the sequence; trigger-fired refocus will use the \
-                     operator's autofocus settings (attempts={}, failure tolerance={}x)",
-                        pushed.number_of_attempts,
-                        pushed.failure_hfr_tolerance_ratio,
-                    );
-                } else {
-                    tracing::warn!(
-                        "No Autofocus node in the sequence to seed trigger-autofocus tuning; \
+                    node_af.method,
+                    node_af.step_size,
+                    node_af.steps_out,
+                    node_af.exposure_duration,
+                    node_af.backlash_compensation,
+                ),
+                None => tracing::warn!(
+                    "No Autofocus node in the sequence to seed trigger-autofocus tuning; \
                      trigger-fired refocus will use library defaults. Add an Autofocus \
                      instruction (or push a profile AF config) so triggers use your real \
                      step size / exposure / backlash."
-                    );
-                }
+                ),
             }
         }
+        self.settings.set_sequence_autofocus(node_af);
 
         // surface trigger-creation-time clamp diagnostics
         // (e.g. FocusDrift.window_size > FOCUS_DRIFT_WINDOW_MAX) as

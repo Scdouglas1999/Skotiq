@@ -88,7 +88,7 @@ impl SequenceExecutor {
     ///
     /// Errors when no checkpoint manager is configured: a silent fallback would
     /// let the operator press "Resume" and get a freshly-zeroed executor.
-    pub fn load_checkpoint(
+    pub async fn load_checkpoint(
         &mut self,
     ) -> Result<Option<crate::checkpoint::SessionCheckpoint>, String> {
         let checkpoint = self
@@ -106,8 +106,7 @@ impl SequenceExecutor {
             self.filterwheel_id = cp.filterwheel_id.clone();
             self.rotator_id = cp.rotator_id.clone();
 
-            self.latitude = cp.latitude;
-            self.longitude = cp.longitude;
+            self.set_location(cp.latitude, cp.longitude).await;
 
             self.save_path = cp.save_path.clone();
 
@@ -175,7 +174,8 @@ impl SequenceExecutor {
             self.filterwheel_id.clone(),
             self.rotator_id.clone(),
         );
-        checkpoint.set_location(self.latitude, self.longitude);
+        let config = self.settings.snapshot();
+        checkpoint.set_location(config.latitude, config.longitude);
         checkpoint.set_save_path(self.save_path.clone());
         let trigger_state = {
             let manager = self.trigger_manager.read().await;
@@ -184,9 +184,9 @@ impl SequenceExecutor {
         let trigger_state = trigger_state.read().await;
         checkpoint.set_trigger_state(crate::checkpoint::TriggerStateSnapshot::from_state(
             &trigger_state,
-            self.safety_fail_mode,
+            config.safety_fail_mode,
             self.triggers_enabled,
-            self.filter_focus_offsets.clone(),
+            config.filter_focus_offsets,
         ));
 
         // snapshot every Loop node's live current_iteration so a resumed
@@ -260,7 +260,8 @@ impl SequenceExecutor {
     /// written by a future version of the sequencer).
     pub async fn resume_from_checkpoint(&mut self) -> Result<(), String> {
         let checkpoint = self
-            .load_checkpoint()?
+            .load_checkpoint()
+            .await?
             .ok_or("No checkpoint to resume from")?;
 
         if !checkpoint.can_resume() {
@@ -290,15 +291,19 @@ impl SequenceExecutor {
         }
 
         if let Some(snapshot) = checkpoint.trigger_state.as_ref() {
+            // The interrupted run's settings first, then its trigger state on
+            // top, so the trigger state ends as the checkpoint had it.
+            self.update_config(|config| {
+                config.safety_fail_mode = snapshot.safety_fail_mode;
+                config.filter_focus_offsets = snapshot.filter_focus_offsets.clone();
+            })
+            .await;
+            self.triggers_enabled = snapshot.triggers_enabled;
             let trigger_state = {
                 let manager = self.trigger_manager.read().await;
                 manager.state()
             };
-            let mut trigger_state = trigger_state.write().await;
-            snapshot.restore_into(&mut trigger_state);
-            self.safety_fail_mode = snapshot.safety_fail_mode;
-            self.triggers_enabled = snapshot.triggers_enabled;
-            self.filter_focus_offsets = snapshot.filter_focus_offsets.clone();
+            snapshot.restore_into(&mut *trigger_state.write().await);
         }
 
         tracing::info!(

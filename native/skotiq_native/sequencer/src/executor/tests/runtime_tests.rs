@@ -93,14 +93,14 @@ fn test_progress_tracking() {
     });
 }
 
-#[test]
-fn test_location_configuration() {
+#[tokio::test]
+async fn test_location_configuration() {
     let mut executor = SequenceExecutor::new();
 
-    executor.set_location(Some(45.5), Some(-122.6));
+    executor.set_location(Some(45.5), Some(-122.6)).await;
 
-    assert_eq!(executor.latitude, Some(45.5));
-    assert_eq!(executor.longitude, Some(-122.6));
+    assert_eq!(executor.run_config().latitude, Some(45.5));
+    assert_eq!(executor.run_config().longitude, Some(-122.6));
 }
 
 /// An unset observing site reaches the executor as `Some(0, 0)` (that is what
@@ -108,14 +108,14 @@ fn test_location_configuration() {
 /// real site puts the rig on Null Island: the daylight gate refuses every
 /// light frame of an Australian night quoting a Greenwich Sun altitude, and
 /// the altitude limits gate on the wrong sky.
-#[test]
-fn null_island_is_an_unset_site_not_a_site_at_0n_0e() {
+#[tokio::test]
+async fn null_island_is_an_unset_site_not_a_site_at_0n_0e() {
     let mut executor = SequenceExecutor::new();
 
-    executor.set_location(Some(0.0), Some(0.0));
+    executor.set_location(Some(0.0), Some(0.0)).await;
 
-    assert_eq!(executor.latitude, None);
-    assert_eq!(executor.longitude, None);
+    assert_eq!(executor.run_config().latitude, None);
+    assert_eq!(executor.run_config().longitude, None);
 }
 
 #[tokio::test]
@@ -123,23 +123,23 @@ async fn update_location_also_rejects_null_island() {
     let mut executor = SequenceExecutor::new();
     executor.update_location(Some(0.0), Some(0.0)).await;
 
-    assert_eq!(executor.latitude, None);
-    assert_eq!(executor.longitude, None);
-    let handle = executor.runtime_config_handle();
+    assert_eq!(executor.run_config().latitude, None);
+    assert_eq!(executor.run_config().longitude, None);
+    let handle = executor.run_config_store();
     let rc = handle.read();
     assert_eq!(rc.latitude, None);
     assert_eq!(rc.longitude, None);
 }
 
-#[test]
-fn safety_fail_mode_updates_runtime_config() {
+#[tokio::test]
+async fn safety_fail_mode_updates_runtime_config() {
     let mut executor = SequenceExecutor::new();
 
-    executor.set_safety_fail_mode(crate::SafetyFailMode::WarnOnly);
+    executor.set_safety_fail_mode(crate::SafetyFailMode::WarnOnly).await;
 
-    assert_eq!(executor.safety_fail_mode, crate::SafetyFailMode::WarnOnly);
+    assert_eq!(executor.run_config().safety_fail_mode, crate::SafetyFailMode::WarnOnly);
     assert_eq!(
-        executor.runtime_config.read().safety_fail_mode,
+        executor.settings.read().safety_fail_mode,
         crate::SafetyFailMode::WarnOnly
     );
 }
@@ -284,20 +284,20 @@ fn weather_verdict_stale_warning_emits_once_then_rearms() {
     );
 }
 
-#[test]
-fn safety_check_interval_updates_runtime_config() {
+#[tokio::test]
+async fn safety_check_interval_updates_runtime_config() {
     let mut executor = SequenceExecutor::new();
 
-    executor.set_safety_check_interval_secs(45);
+    executor.set_safety_check_interval_secs(45).await;
 
     assert_eq!(
-        executor.runtime_config.read().safety_check_interval_secs,
+        executor.settings.read().safety_check_interval_secs,
         45
     );
 
-    executor.set_safety_check_interval_secs(3);
+    executor.set_safety_check_interval_secs(3).await;
 
-    assert_eq!(executor.runtime_config.read().safety_check_interval_secs, 5);
+    assert_eq!(executor.settings.read().safety_check_interval_secs, 5);
 }
 
 #[test]
@@ -390,7 +390,7 @@ fn test_trigger_autofocus_context_preserves_runtime_metadata() {
         longitude: Some(-122.0),
         filter_focus_offsets: HashMap::from([("Ha".to_string(), 42)]),
     };
-    let runtime_config = Arc::new(StdRwLock::new(RuntimeConfig::default()));
+    let runtime_config = RunConfigStore::default();
     let instruction_ctx = build_trigger_autofocus_context(
         &trigger_context,
         Some("M31".to_string()),
@@ -946,7 +946,7 @@ async fn update_dither_config_writes_through_runtime_config() {
     executor
         .update_dither_config(7.5, 0.5, 8.0, 60.0, true)
         .await;
-    let handle = executor.runtime_config_handle();
+    let handle = executor.run_config_store();
     let rc = handle.read();
     assert!((rc.dither.pixels - 7.5).abs() < f64::EPSILON);
     assert!((rc.dither.settle_pixels - 0.5).abs() < f64::EPSILON);
@@ -963,10 +963,10 @@ async fn update_dither_config_writes_through_runtime_config() {
 async fn update_location_writes_through_runtime_config() {
     let mut executor = SequenceExecutor::new();
     executor.update_location(Some(40.7), Some(-74.0)).await;
-    assert_eq!(executor.latitude, Some(40.7));
-    assert_eq!(executor.longitude, Some(-74.0));
+    assert_eq!(executor.run_config().latitude, Some(40.7));
+    assert_eq!(executor.run_config().longitude, Some(-74.0));
     {
-        let handle = executor.runtime_config_handle();
+        let handle = executor.run_config_store();
         let rc = handle.read();
         assert_eq!(rc.latitude, Some(40.7));
         assert_eq!(rc.longitude, Some(-74.0));
@@ -1237,7 +1237,7 @@ async fn update_max_sun_altitude_writes_through_runtime_config_and_trigger_state
     // A pushed value lands verbatim in the runtime config...
     executor.update_max_sun_altitude(Some(-6.0)).await;
     {
-        let handle = executor.runtime_config_handle();
+        let handle = executor.run_config_store();
         let rc = handle.read();
         assert_eq!(
             rc.max_sun_altitude_degrees,
@@ -1263,7 +1263,7 @@ async fn update_max_sun_altitude_writes_through_runtime_config_and_trigger_state
     // the runtime config records the raw None (unset).
     executor.update_max_sun_altitude(None).await;
     {
-        let handle = executor.runtime_config_handle();
+        let handle = executor.run_config_store();
         assert_eq!(handle.read().max_sun_altitude_degrees, None);
     }
     {
@@ -1300,7 +1300,7 @@ async fn update_filter_offsets_writes_through_runtime_config() {
     offsets.insert("Ha".to_string(), 250);
     offsets.insert("OIII".to_string(), -120);
     executor.update_filter_offsets(offsets.clone()).await;
-    let handle = executor.runtime_config_handle();
+    let handle = executor.run_config_store();
     let rc = handle.read();
     assert_eq!(rc.filter_focus_offsets.get("Ha"), Some(&250));
     assert_eq!(rc.filter_focus_offsets.get("OIII"), Some(&-120));
@@ -3455,4 +3455,103 @@ async fn expired_recovery_budget_polls_cleanup_and_bounds_a_stalled_driver() {
     assert!(cancel_trigger_monitor_with_cleanup(&cancelled, monitor).await);
     assert!(restored.load(Ordering::Acquire));
     assert!(!cancel_trigger_monitor_with_cleanup(&cancelled, std::future::pending::<()>()).await);
+}
+
+/// A sequence that waits long enough for a test to act on the running
+/// executor.
+fn waiting_sequence() -> SequenceDefinition {
+    let mut sequence = SequenceDefinition::new("Waiting".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "wait".to_string(),
+        name: "Wait".to_string(),
+        node_type: crate::NodeType::Delay(crate::DelayConfig { seconds: 30.0 }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("wait".to_string());
+    sequence
+}
+
+/// The dither settle the trigger state carries after a push, and the
+/// `RuntimeConfigUpdated` announcements the push produced.
+async fn push_dither_settle(executor: &mut SequenceExecutor) -> (crate::GuiderSettle, Vec<String>) {
+    let mut events = executor.subscribe();
+    executor
+        .update_dither_config(4.0, 0.7, 9.0, 45.0, false)
+        .await;
+    let settle = executor
+        .trigger_manager
+        .read()
+        .await
+        .state()
+        .read()
+        .await
+        .dither_settle;
+    let mut announced = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        if let ExecutorEvent::RuntimeConfigUpdated { what } = event {
+            announced.push(what);
+        }
+    }
+    (settle, announced)
+}
+
+/// The idle setter used to leave the trigger state's dither settle for the
+/// next start to copy, while the running path wrote it at once, and a running
+/// executor announced the change twice (the setter and the forwarded
+/// command). One path now: same result and one announcement either way.
+#[tokio::test]
+async fn a_dither_push_takes_effect_and_is_announced_once_idle_or_running() {
+    let expected = crate::GuiderSettle {
+        pixels: 0.7,
+        time_secs: 9.0,
+        timeout_secs: 45.0,
+    };
+
+    let mut idle = SequenceExecutor::new();
+    let (settle, announced) = push_dither_settle(&mut idle).await;
+    assert_eq!(settle, expected);
+    assert_eq!(announced, vec!["dither"]);
+
+    let mut running = SequenceExecutor::new();
+    running.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
+    running
+        .load_sequence(waiting_sequence())
+        .expect("sequence loads");
+    running.start().await.expect("run starts");
+    let (settle, announced) = push_dither_settle(&mut running).await;
+    running.stop().await.expect("run stops");
+    assert_eq!(settle, expected);
+    assert_eq!(announced, vec!["dither"]);
+}
+
+/// What the app stages for one start is used by that start and by no later
+/// one.
+#[tokio::test]
+async fn settings_pushed_while_idle_are_what_the_next_run_starts_with() {
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
+    executor.update_location(Some(41.5), Some(-71.25)).await;
+    executor.update_max_sun_altitude(Some(-6.0)).await;
+    executor.set_stop_on_quality_problems(true).await;
+    executor
+        .load_sequence(waiting_sequence())
+        .expect("sequence loads");
+    executor.start().await.expect("run starts");
+
+    let (site, sun_limit, stops) = {
+        let manager = executor.trigger_manager.read().await;
+        let state = manager.state();
+        let state = state.read().await;
+        (
+            (state.observer_latitude, state.observer_longitude),
+            state.max_sun_altitude_degrees,
+            state.stop_on_quality_problems,
+        )
+    };
+    executor.stop().await.expect("run stops");
+
+    assert_eq!(site, (Some(41.5), Some(-71.25)));
+    assert_eq!(sun_limit, Some(-6.0));
+    assert!(stops);
 }

@@ -8,7 +8,7 @@ use super::*;
 pub(super) struct DevicePoller {
     device_ops: SharedDeviceOps,
     trigger_manager: Arc<RwLock<TriggerManager>>,
-    runtime_config: Arc<StdRwLock<RuntimeConfig>>,
+    runtime_config: RunConfigStore,
     events: broadcast::Sender<ExecutorEvent>,
     mount_id: Option<String>,
     focuser_id: Option<String>,
@@ -34,7 +34,7 @@ impl DevicePoller {
     pub(super) fn new(
         device_ops: SharedDeviceOps,
         trigger_manager: Arc<RwLock<TriggerManager>>,
-        runtime_config: Arc<StdRwLock<RuntimeConfig>>,
+        runtime_config: RunConfigStore,
         events: broadcast::Sender<ExecutorEvent>,
         rig: &TriggerActionContext,
     ) -> Self {
@@ -216,7 +216,6 @@ impl DevicePoller {
         if let Some(safe) = is_safe {
             state.weather_safe = safe;
         }
-        state.safety_fail_mode = fail_mode;
         let stale = state.is_weather_verdict_stale_unsafe(verdict_staleness_secs);
         let stale_verdict_dropped = stale && !stale_unsafe_verdict_holds(fail_mode);
         if stale_verdict_dropped {

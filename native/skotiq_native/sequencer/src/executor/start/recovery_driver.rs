@@ -16,7 +16,7 @@ pub(super) struct RecoveryDriverArgs {
     pub recovery_driver_generation: Arc<std::sync::atomic::AtomicU64>,
     pub recovery_driver_history: Arc<StdRwLock<Vec<crate::recovery::RecoveryHistoryEntry>>>,
     pub recovery_driver_mount_id: Option<String>,
-    pub recovery_driver_runtime: Arc<StdRwLock<RuntimeConfig>>,
+    pub recovery_driver_runtime: RunConfigStore,
     pub recovery_driver_signals: Arc<crate::recovery::RecoverySignals>,
     pub run: RunControl,
     pub recovery_driver_trigger_mgr: Arc<RwLock<TriggerManager>>,
@@ -853,7 +853,7 @@ struct WeatherHoldExit<'a> {
     device_ops: &'a SharedDeviceOps,
     trigger_mgr: &'a Arc<RwLock<TriggerManager>>,
     trigger_context: &'a TriggerActionContext,
-    runtime: &'a Arc<StdRwLock<RuntimeConfig>>,
+    runtime: &'a RunConfigStore,
     is_cancelled: &'a Arc<AtomicBool>,
     event_tx: &'a broadcast::Sender<ExecutorEvent>,
 }
@@ -1099,7 +1099,7 @@ mod tests {
         } else {
             Vec::new()
         };
-        let runtime = RuntimeConfig {
+        let runtime = RunConfig {
             recovery: RecoveryRuntimeConfig {
                 stop_tracking_during_recovery: false,
                 park_and_close_when_recovery_gives_up: park_and_close,
@@ -1128,7 +1128,7 @@ mod tests {
             recovery_driver_generation: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             recovery_driver_history: history.clone(),
             recovery_driver_mount_id: Some("mount-1".to_string()),
-            recovery_driver_runtime: Arc::new(StdRwLock::new(runtime)),
+            recovery_driver_runtime: RunConfigStore::new(runtime),
             recovery_driver_signals: signals.clone(),
             run: RunControl {
                 state: state.clone(),
@@ -1320,7 +1320,7 @@ mod tests {
         }
         // A zero retry interval gives the ladder one attempt, so the budget is
         // spent as soon as that attempt fails.
-        let runtime = RuntimeConfig {
+        let runtime = RunConfig {
             recovery: RecoveryRuntimeConfig {
                 retry_interval_secs: 0.0,
                 stop_tracking_during_recovery: false,
@@ -1374,7 +1374,7 @@ mod tests {
             recovery_driver_generation: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             recovery_driver_history: Arc::new(StdRwLock::new(Vec::new())),
             recovery_driver_mount_id: Some("mount-1".to_string()),
-            recovery_driver_runtime: Arc::new(StdRwLock::new(runtime)),
+            recovery_driver_runtime: RunConfigStore::new(runtime),
             recovery_driver_signals: Arc::new(crate::recovery::RecoverySignals::new()),
             run: RunControl {
                 state: state.clone(),

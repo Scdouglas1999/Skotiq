@@ -44,7 +44,7 @@ pub(super) struct TriggerMonitorArgs {
     pub park_and_abort_done_for_triggers: watch::Sender<bool>,
     pub park_and_abort_for_triggers: Arc<AtomicBool>,
     pub recovery_request_tx: mpsc::Sender<crate::recovery::RecoveryCause>,
-    pub runtime_config: Arc<StdRwLock<RuntimeConfig>>,
+    pub runtime_config: RunConfigStore,
     pub sequence_for_custom_recovery_triggers: Option<SequenceDefinition>,
     pub skip_to_next_target_for_triggers: Arc<AtomicBool>,
     pub skip_to_node_for_recovery: Arc<StdRwLock<Option<NodeId>>>,

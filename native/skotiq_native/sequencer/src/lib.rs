@@ -1852,7 +1852,7 @@ pub struct ExposureConfig {
     pub triggers: Vec<ExposureTrigger>,
     /// Image Grading: per-node image-quality thresholds. When
     /// `None`, the executor falls back to the global grading settings
-    /// installed in the runtime config (`RuntimeConfig::default_quality_check`).
+    /// installed in the runtime config (`RunConfig::default_quality_check`).
     /// `#[serde(default)]` keeps old sequence JSON loadable.
     #[serde(default)]
     pub quality_check: Option<crate::quality::ImageQualityCheck>,
@@ -1861,7 +1861,7 @@ pub struct ExposureConfig {
     /// reading at capture time and may extend (or shrink) the burst's
     /// per-frame duration to keep SNR roughly constant across changing
     /// sky conditions. `None` falls back to the runtime default
-    /// (`RuntimeConfig::default_adaptive_exposure`) and finally to using
+    /// (`RunConfig::default_adaptive_exposure`) and finally to using
     /// `duration_secs` as-is. `#[serde(default)]` keeps old JSON
     /// loadable without an adaptive section.
     #[serde(default)]
@@ -1925,7 +1925,7 @@ impl Binning {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AutofocusFilterConfig {
     /// Exposure override when this imaging filter is active.
     #[serde(default)]
@@ -1953,7 +1953,7 @@ impl Default for AutofocusFilterConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AutofocusConfig {
     #[serde(default)]
     pub method: AutofocusMethod,
@@ -2202,7 +2202,7 @@ pub enum DitherPattern {
     Grid,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DitherConfig {
     pub pixels: f64,
     pub settle_pixels: f64,
@@ -2521,7 +2521,7 @@ pub enum FlipFailureAction {
     AbortAndPark,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MeridianFlipConfig {
     // Trigger conditions
     pub trigger_method: MeridianTriggerMethod,
@@ -2872,7 +2872,7 @@ pub enum TriggerType {
     ///
     /// The trigger is fed by Dart's `CloudMotionAnalyzer` (see
     /// `packages/skotiq_core/lib/src/services/weather/cloud_motion_analyzer.dart`)
-    /// pushed via `ExecutorCommand::UpdateCloudMotion`. When the analyzer is
+    /// pushed via `SequenceExecutor::update_cloud_motion`. When the analyzer is
     /// unavailable (e.g. no radar fetch yet) the trigger stays quiescent —
     /// `state.predicted_cloud_arrival_minutes` is `None` and the evaluator
     /// returns false.
@@ -2917,7 +2917,7 @@ pub enum TriggerType {
     /// Science — transparency-adaptive trigger.
     ///
     /// Fires when the live sky transparency reading (pushed in via
-    /// `ExecutorCommand::UpdateTransparency` from the Dart science
+    /// `SequenceExecutor::update_transparency` from the Dart science
     /// pipeline) drops below `below_threshold` (fraction of clear-sky
     /// reference; 1.0 = perfectly clear, 0.0 = totally opaque) for at
     /// least `duration_secs` consecutive seconds. The duration acts as

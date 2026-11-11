@@ -14,7 +14,7 @@
 //! What is deliberately NOT here:
 //!   * `update_*` mid-flight mutators — those live in
 //!     [`super::runtime_config`] because they push through the
-//!     [`super::RuntimeConfig`] handle AND the command channel; the
+//!     [`super::RunConfig`] handle AND the command channel; the
 //!     setters here only write executor fields.
 //!   * Sequence loading (`load_sequence`, `calculate_totals`) — those
 //!     live in [`super::loading`] because they build the runtime node
@@ -28,90 +28,14 @@
 //! methods mutate are crate-private; only sibling executor modules can
 //! see them (Rust child-module privacy), which is exactly what we want.
 
-use super::{ExecutorCommand, ExecutorEvent, SequenceExecutor};
+use super::{ExecutorEvent, SequenceExecutor};
 use crate::device_ops::SharedDeviceOps;
 use crate::triggers::{TriggerManager, TriggerState};
-use crate::SafetyFailMode;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use tokio::sync::{broadcast, RwLock};
 
 impl SequenceExecutor {
-    /// Set whether the standard weather and dawn triggers may park (the
-    /// operator's "Park on unsafe weather" and "Park before dawn" settings).
-    ///
-    /// Written into the shared [`super::RuntimeConfig`], which the trigger
-    /// monitor reads each time a trigger fires, so a change reaches a running
-    /// executor at once and an idle one on its next `start()`.
-    pub fn set_park_policy(&mut self, policy: super::ParkPolicy) {
-        self.runtime_config.write().park_policy = policy;
-    }
-
-    /// Set how many times a failed camera exposure or filter-wheel move is
-    /// retried before it counts as a failure (the operator's "Camera retries"
-    /// and "Filter wheel retries"; 3 each until the app pushes its values).
-    ///
-    /// Written through the handle every run's contexts share, so it applies
-    /// to the next attempt of a running sequence and to every later start.
-    pub fn set_device_retry_policy(&mut self, policy: crate::instructions::DeviceRetryPolicy) {
-        self.runtime_config.read().device_retry.set(policy);
-    }
-
-    /// The retry policy the next attempt will use.
-    pub fn device_retry_policy(&self) -> crate::instructions::DeviceRetryPolicy {
-        self.runtime_config.read().device_retry.get()
-    }
-
-    /// Set whether a quality problem the software judges — guiding RMS over the
-    /// limit, a Center that did not converge, a dither that did not settle, a
-    /// failed post-flip recenter or guiding check — stops the run (`true`) or
-    /// notifies the operator while imaging continues (`false`, the default).
-    ///
-    /// Written into the trigger state the run shares with this executor, so a
-    /// running sequence follows the change at its next decision and an idle
-    /// one starts with it. See
-    /// [`crate::triggers::TriggerState::stop_on_quality_problems`].
-    pub async fn set_stop_on_quality_problems(&self, stop: bool) {
-        let manager = self.trigger_manager.read().await;
-        let state_lock = manager.state();
-        state_lock.write().await.stop_on_quality_problems = stop;
-    }
-
-    /// Set the safety fail mode for the sequencer.
-    ///
-    /// Mirrors the value into [`super::RuntimeConfig`] so a running
-    /// executor's trigger-monitor task sees the change on its next poll
-    /// (via [`ExecutorCommand::UpdateSafetyFailMode`]); an idle executor
-    /// picks it up on the next `start()`.
-    pub fn set_safety_fail_mode(&mut self, mode: SafetyFailMode) {
-        self.safety_fail_mode = mode;
-        {
-            let mut rc = self.runtime_config.write();
-            rc.safety_fail_mode = mode;
-        }
-        if let Some(tx) = &self.command_tx {
-            let _ = tx.try_send(ExecutorCommand::UpdateSafetyFailMode { mode });
-        }
-    }
-
-    /// Set the safety/humidity polling interval for the sequencer.
-    ///
-    /// The input is clamped by
-    /// [`super::effective_safety_check_interval_secs`] — values of 0
-    /// fall back to the documented default, the rest are clamped to
-    /// `[5, 3600]` seconds. This keeps a fat-fingered `0` from disabling
-    /// safety polling entirely.
-    pub fn set_safety_check_interval_secs(&mut self, seconds: u64) {
-        let seconds = super::effective_safety_check_interval_secs(seconds);
-        {
-            let mut rc = self.runtime_config.write();
-            rc.safety_check_interval_secs = seconds;
-        }
-        if let Some(tx) = &self.command_tx {
-            let _ = tx.try_send(ExecutorCommand::UpdateSafetyCheckInterval { seconds });
-        }
-    }
-
     /// Shared handle to the trigger manager. Cloned `Arc` — callers
     /// hold their own reference for the lifetime they need it. The
     /// bridge uses this to apply user-edited trigger configs after
@@ -190,30 +114,6 @@ impl SequenceExecutor {
     /// root.
     pub fn set_save_path(&mut self, path: Option<std::path::PathBuf>) {
         self.save_path = path;
-    }
-
-    /// Set observer latitude / longitude in degrees.
-    ///
-    /// This is the pre-start setter; the mid-flight equivalent is
-    /// [`SequenceExecutor::update_location`] which also pushes through
-    /// the runtime-config Arc. They write the same fields; the split is
-    /// because pre-start setters are sync and mid-flight setters route
-    /// through the command channel.
-    /// (0, 0) is normalized to unset — see
-    /// [`crate::node::context::normalized_observer_location`].
-    pub fn set_location(&mut self, lat: Option<f64>, lon: Option<f64>) {
-        let (lat, lon) = crate::node::context::normalized_observer_location(lat, lon);
-        self.latitude = lat;
-        self.longitude = lon;
-    }
-
-    /// Set per-filter focus offsets from the equipment profile.
-    ///
-    /// The map is `filter_name -> steps`; autofocus on filter change
-    /// reads this to pre-position the focuser. Mid-flight updates go
-    /// through [`SequenceExecutor::update_filter_offsets`].
-    pub fn set_filter_focus_offsets(&mut self, offsets: std::collections::HashMap<String, i32>) {
-        self.filter_focus_offsets = offsets;
     }
 
     /// Subscribe to the executor event broadcast.

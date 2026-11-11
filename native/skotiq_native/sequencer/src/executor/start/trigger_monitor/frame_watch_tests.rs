@@ -75,10 +75,10 @@ impl Harness {
         let (done, _) = watch::channel(false);
         let (_, quiesced) = watch::channel(true);
         let (heartbeat, _) = watch::channel(0);
-        let runtime_config = RuntimeConfig {
+        let runtime_config = RunConfig {
             latitude: Some(SITE_LAT),
             longitude: Some(SITE_LON),
-            ..RuntimeConfig::default()
+            ..RunConfig::default()
         };
         // Each frame is "measured" from the night's logged solve.
         let solves: HashMap<String, Row> = frames
@@ -117,7 +117,7 @@ impl Harness {
             park_and_abort_done_for_triggers: done,
             park_and_abort_for_triggers: Arc::new(AtomicBool::new(false)),
             recovery_request_tx: requests,
-            runtime_config: Arc::new(StdRwLock::new(runtime_config)),
+            runtime_config: RunConfigStore::new(runtime_config),
             sequence_for_custom_recovery_triggers: Some(plan),
             skip_to_next_target_for_triggers: Arc::new(AtomicBool::new(false)),
             skip_to_node_for_recovery: Arc::new(StdRwLock::new(None)),

@@ -518,7 +518,7 @@ pub async fn execute_exposure_with_renderer(
         // per-frame defect-map application.
         //
         // The capture path applies the pre-loaded defect map (pushed in
-        // via `ExecutorCommand::UpdateDefectMap`) before HFR / grading
+        // via `SequenceExecutor::update_defect_map`) before HFR / grading
         // / FITS save. We deliberately run BEFORE star detection so the
         // grader doesn't reject frames over hot-pixel-induced false
         // stars; HFR / detection costs are unaffected because the map

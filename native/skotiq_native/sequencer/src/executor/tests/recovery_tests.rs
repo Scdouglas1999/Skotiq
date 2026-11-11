@@ -183,11 +183,11 @@ fn fresh_executor_has_no_recovery_in_flight() {
     assert!(executor.current_recovery().is_none());
     assert!(executor.recovery_history().is_empty());
     // Signals are initialised; entry counter is at the initial value.
-    let signals = executor.recovery_signals_handle();
+    let signals = executor.recovery_signals.clone();
     assert_eq!(signals.current_entry(), 0);
     // The default RecoveryRuntimeConfig is pre-seeded into the
     // runtime config so the first recovery has SGP-style defaults.
-    let rc = executor.runtime_config_handle();
+    let rc = executor.run_config_store();
     let cfg = rc.read().recovery.clone();
     assert!((cfg.retry_interval_secs - 600.0).abs() < f64::EPSILON);
     assert!((cfg.max_duration_secs - 5400.0).abs() < f64::EPSILON);
@@ -196,7 +196,7 @@ fn fresh_executor_has_no_recovery_in_flight() {
 #[test]
 fn recovery_signals_request_methods_set_flags() {
     let executor = SequenceExecutor::new();
-    let signals = executor.recovery_signals_handle();
+    let signals = executor.recovery_signals.clone();
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -231,7 +231,7 @@ fn update_recovery_config_writes_through_runtime() {
     rt.block_on(async {
         executor.update_recovery_config(cfg.clone()).await;
     });
-    let handle = executor.runtime_config_handle();
+    let handle = executor.run_config_store();
     let rc = handle.read();
     assert!((rc.recovery.retry_interval_secs - 120.0).abs() < f64::EPSILON);
     assert!((rc.recovery.max_duration_secs - 1200.0).abs() < f64::EPSILON);
@@ -471,7 +471,7 @@ fn run_recovery_attempt_consecutive_rejects_escalates_to_operator_pause() {
 #[test]
 fn recovery_escalation_defaults_to_holding_and_abandons_only_on_opt_in() {
     assert_eq!(
-        UnattendedEndPolicy::from_recovery_config(&RuntimeConfig::default().recovery),
+        UnattendedEndPolicy::from_recovery_config(&RunConfig::default().recovery),
         UnattendedEndPolicy::HoldForOperator,
         "the recovery defaults must hold the run, never park the mount"
     );
@@ -510,7 +510,7 @@ async fn consecutive_reject_storm_escalation_promises_and_performs_a_pause() {
     );
     assert_eq!(
         recovery_escalation_disposition(UnattendedEndPolicy::from_recovery_config(
-            &RuntimeConfig::default().recovery
+            &RunConfig::default().recovery
         )),
         EscalationDisposition::PassivePause,
         "and by default the run must actually pause rather than park"
@@ -660,7 +660,7 @@ async fn holding_escalation_carries_a_failed_tracking_restore_into_progress_mess
     // failing on an empty subscriber set.
     let (event_tx, _rx) = broadcast::channel(32);
 
-    let runtime = Arc::new(StdRwLock::new(RuntimeConfig {
+    let runtime = RunConfigStore::new(RunConfig {
         recovery: crate::recovery::RecoveryRuntimeConfig {
             stop_tracking_during_recovery: true,
             // The default policy: hold the run for a human. This is the
@@ -670,7 +670,7 @@ async fn holding_escalation_carries_a_failed_tracking_restore_into_progress_mess
             ..Default::default()
         },
         ..Default::default()
-    }));
+    });
     let run_state = RunCell::starting_in(event_tx, ExecutorState::Recovering);
     let current = Arc::new(StdRwLock::new(None));
     let is_cancelled = Arc::new(AtomicBool::new(false));

@@ -45,7 +45,7 @@ pub(super) struct Rig {
     pub device_ops: SharedDeviceOps,
     pub context: TriggerActionContext,
     pub trigger_state: Arc<RwLock<TriggerState>>,
-    pub runtime_config: Arc<StdRwLock<RuntimeConfig>>,
+    pub runtime_config: RunConfigStore,
 }
 
 impl Rig {

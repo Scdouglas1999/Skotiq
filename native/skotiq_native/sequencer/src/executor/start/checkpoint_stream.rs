@@ -18,7 +18,7 @@ pub(super) struct CheckpointStreamArgs {
     pub streaming_longitude: Option<f64>,
     pub streaming_mount_id: Option<String>,
     pub streaming_rotator_id: Option<String>,
-    pub streaming_runtime_config: Arc<StdRwLock<RuntimeConfig>>,
+    pub streaming_runtime_config: RunConfigStore,
     pub streaming_save_path: Option<std::path::PathBuf>,
     pub streaming_sequence: Option<SequenceDefinition>,
     pub streaming_smart_exposure_states:
