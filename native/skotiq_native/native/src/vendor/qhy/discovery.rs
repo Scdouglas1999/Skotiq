@@ -2,7 +2,6 @@
 
 use super::*;
 
-/// QHY camera discovery info
 pub struct QhyCameraInfo {
     /// Full camera ID string (e.g., "QHY183M-123456789")
     pub camera_id: String,
@@ -31,7 +30,6 @@ impl QhyCameraInfo {
     }
 }
 
-/// Check if QHY SDK is available
 pub fn is_sdk_available() -> bool {
     QhySdk::is_available()
 }
@@ -41,7 +39,6 @@ pub fn is_sdk_available() -> bool {
 pub(crate) fn discover_devices_internal(sdk: &QhySdk) -> Result<Vec<QhyCameraInfo>, DriverError> {
     let sdk_version = sdk_version_from_sdk(sdk);
 
-    // Scan for cameras
     // SAFETY: ScanQHYCCD takes no arguments and returns a c_uint count. The caller,
     // discover_devices(), holds the SDK lock while it waits for this scan.
     let num_cameras = unsafe { (sdk.scan_qhyccd)() };
@@ -62,7 +59,6 @@ pub(crate) fn discover_devices_internal(sdk: &QhySdk) -> Result<Vec<QhyCameraInf
                 .to_string_lossy()
                 .to_string();
 
-            // Parse model name and serial number from ID
             let (name, serial_number) = QhyCameraInfo::parse_id(&id);
 
             cameras.push(QhyCameraInfo {
@@ -97,7 +93,6 @@ pub(crate) fn discover_devices_internal(sdk: &QhySdk) -> Result<Vec<QhyCameraInf
 pub async fn discover_devices() -> Result<Vec<QhyCameraInfo>, DriverError> {
     let config = get_discovery_config();
 
-    // Check if discovery is enabled
     if !config.enabled {
         tracing::debug!("QHY discovery is disabled, returning empty list");
         return Ok(Vec::new());
@@ -106,7 +101,6 @@ pub async fn discover_devices() -> Result<Vec<QhyCameraInfo>, DriverError> {
     // Ensure SDK is initialized first (before timeout starts)
     QhySdk::ensure_initialized()?;
 
-    // Verify SDK is available before proceeding
     let loaded = match QhySdk::installed() {
         Ok(sdk) => sdk,
         Err(_) => return Ok(Vec::new()),
@@ -115,10 +109,8 @@ pub async fn discover_devices() -> Result<Vec<QhyCameraInfo>, DriverError> {
     // Hold the SDK lock for as long as this call waits for the scan
     let _scan_lock = loaded.lock().await;
 
-    // Create the timeout duration from config
     let timeout_duration = Duration::from_millis(config.timeout_ms);
 
-    // Perform discovery with timeout
     let catch_panics = config.catch_panics;
     let discovery_future = async move {
         if catch_panics {
@@ -158,7 +150,6 @@ pub async fn discover_devices() -> Result<Vec<QhyCameraInfo>, DriverError> {
         }
     };
 
-    // Apply timeout
     match tokio::time::timeout(timeout_duration, discovery_future).await {
         Ok(result) => {
             match &result {

@@ -53,13 +53,10 @@ pub(crate) fn encode_cfw_position(position: i32) -> f64 {
     f64::from(value)
 }
 
-/// QHY CFW discovery info
 pub struct QhyFilterWheelInfo {
     /// Camera ID that the filter wheel is attached to
     pub camera_id: String,
-    /// Display name
     pub name: String,
-    /// Number of filter slots
     pub slot_count: i32,
     /// QHY SDK version reported by the loaded native library, when available
     pub sdk_version: Option<String>,
@@ -88,7 +85,6 @@ unsafe impl Send for QhyFilterWheel {}
 unsafe impl Sync for QhyFilterWheel {}
 
 impl QhyFilterWheel {
-    /// Create a new QHY filter wheel instance
     pub fn new(camera_id: String) -> Self {
         let (model_name, _) = QhyCameraInfo::parse_id(&camera_id);
         let name = format!("{} CFW", model_name);
@@ -115,7 +111,6 @@ impl QhyFilterWheel {
         Ok(result == 0) // QHYCCD_SUCCESS = 0
     }
 
-    /// Get number of filter slots
     pub(crate) fn get_slot_count(&self, sdk: &QhySdk) -> Result<i32, DriverError> {
         let handle = self.handle.ok_or(DriverError::NotConnected)?;
 
@@ -185,7 +180,6 @@ impl DeviceDriver for QhyFilterWheel {
         }
 
         QhySdk::ensure_initialized()?;
-        // Acquire mutex for SDK operations
         let sdk = QhySdk::lock().await?;
 
         // Open the camera to access CFW
@@ -263,7 +257,6 @@ impl DeviceDriver for QhyFilterWheel {
             }
         };
 
-        // Initialize filter names with defaults
         self.filter_names = (0..self.slot_count)
             .map(|i| format!("Filter {}", i + 1))
             .collect();
@@ -393,7 +386,6 @@ pub(crate) fn discover_filter_wheels_internal(
 ) -> Result<Vec<QhyFilterWheelInfo>, DriverError> {
     let sdk_version = sdk_version_from_sdk(sdk);
 
-    // Scan for cameras
     // SAFETY: ScanQHYCCD takes no args.
     let num_cameras = unsafe { (sdk.scan_qhyccd)() };
 
@@ -439,12 +431,10 @@ pub(crate) fn discover_filter_wheels_internal(
             }
         }
 
-        // Check if CFW is plugged in
         // SAFETY: handle was opened and initialized above.
         let cfw_result = unsafe { (sdk.is_qhyccd_cfw_plugged)(handle) };
 
         if cfw_result == 0 {
-            // CFW is available
             // SAFETY: handle was opened and initialized above;
             // CONTROL_CFWSLOTSNUM discriminant fits in c_int.
             let raw_slot_count =
@@ -475,7 +465,6 @@ pub(crate) fn discover_filter_wheels_internal(
             );
         }
 
-        // Close camera
         // SAFETY: handle was opened above. CloseQHYCCD pairs with
         // OpenQHYCCD to release the SDK-owned handle at the end of the per-camera probe.
         unsafe { (sdk.close_qhyccd)(handle) };
@@ -494,16 +483,13 @@ pub(crate) fn discover_filter_wheels_internal(
 pub async fn discover_filter_wheels() -> Result<Vec<QhyFilterWheelInfo>, DriverError> {
     let config = get_discovery_config();
 
-    // Check if discovery is enabled
     if !config.enabled {
         tracing::debug!("QHY discovery is disabled, returning empty filter wheel list");
         return Ok(Vec::new());
     }
 
-    // Ensure SDK is initialized
     QhySdk::ensure_initialized()?;
 
-    // Verify SDK is available before proceeding
     let loaded = match QhySdk::installed() {
         Ok(sdk) => sdk,
         Err(_) => return Ok(Vec::new()),
@@ -512,10 +498,8 @@ pub async fn discover_filter_wheels() -> Result<Vec<QhyFilterWheelInfo>, DriverE
     // Hold the SDK lock for as long as this call waits for the scan
     let _scan_lock = loaded.lock().await;
 
-    // Create the timeout duration from config
     let timeout_duration = Duration::from_millis(config.timeout_ms);
 
-    // Perform discovery with timeout
     let catch_panics = config.catch_panics;
     let discovery_future = async move {
         if catch_panics {
@@ -552,7 +536,6 @@ pub async fn discover_filter_wheels() -> Result<Vec<QhyFilterWheelInfo>, DriverE
         }
     };
 
-    // Apply timeout
     match tokio::time::timeout(timeout_duration, discovery_future).await {
         Ok(result) => result,
         Err(_) => {

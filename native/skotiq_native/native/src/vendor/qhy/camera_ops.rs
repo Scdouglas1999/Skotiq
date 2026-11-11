@@ -26,13 +26,10 @@ impl DeviceDriver for QhyCamera {
             return Ok(());
         }
 
-        // Ensure SDK is initialized
         QhySdk::ensure_initialized()?;
 
-        // Acquire mutex for SDK operations
         let sdk = QhySdk::lock().await?;
 
-        // Open the camera
         let id_cstring = CString::new(self.camera_id.clone())
             .map_err(|_| DriverError::InvalidDevice("Invalid camera ID".to_string()))?;
 
@@ -46,7 +43,6 @@ impl DeviceDriver for QhyCamera {
             ));
         }
 
-        // Set single frame mode
         // SAFETY: `handle` is the non-null pointer returned by OpenQHYCCD above;
         // mode=0 (single frame) is a documented constant per qhyccd.h.
         let result = unsafe { (sdk.set_qhyccd_stream_mode)(handle, 0) }; // 0 = single frame
@@ -62,7 +58,6 @@ impl DeviceDriver for QhyCamera {
             )));
         }
 
-        // Initialize the camera
         // SAFETY: handle was successfully opened and stream-mode set above.
         let result = unsafe { (sdk.init_qhyccd)(handle) };
         if result != 0 {
@@ -89,7 +84,6 @@ impl DeviceDriver for QhyCamera {
             return Err(error);
         }
 
-        // Set default settings
         // SAFETY: handle valid (opened + initialized above); 16 is a documented
         // bit-depth value per qhyccd.h.
         // Why the result is captured rather than discarded: load_camera_info()
@@ -236,19 +230,16 @@ impl CameraDriver for QhyCamera {
         // Track exposure time for timeout handling
         self.current_exposure_time = params.duration_secs;
 
-        // Set gain
         if let Some(gain) = params.gain {
             self.set_control(&sdk, QhyControl::CONTROL_GAIN, gain as f64)?;
             self.current_gain = gain;
         }
 
-        // Set offset if provided
         if let Some(offset) = params.offset {
             self.set_control(&sdk, QhyControl::CONTROL_OFFSET, offset as f64)?;
             self.current_offset = offset;
         }
 
-        // Start exposure
         // SAFETY: handle was validated via Option::ok_or; self.connected
         // was true (checked at entry). ExpQHYCCDSingleFrame takes only the handle.
         let result = unsafe { (sdk.exp_single_frame)(handle) };
@@ -310,13 +301,11 @@ impl CameraDriver for QhyCamera {
         let sdk = QhySdk::lock().await?;
         let handle = self.handle.ok_or(DriverError::NotConnected)?;
 
-        // Get required buffer size.
         // SAFETY: handle was validated via Option::ok_or; self.connected
         // was true. GetQHYCCDMemLength returns c_uint by value.
         // Why: c_uint (u32) -> usize is widening on every Tier 1 target (32- or 64-bit usize
         // each holds u32::MAX), so this is always safe.
         let buffer_len = unsafe { (sdk.get_qhyccd_memory_length)(handle) } as usize;
-        // Use pooled buffer for efficient memory reuse
         let mut pooled_buffer = global_u8_pool().get_buffer(buffer_len);
         pooled_buffer.resize(buffer_len);
 
@@ -569,7 +558,6 @@ impl CameraDriver for QhyCamera {
         let result = unsafe { (sdk.set_qhyccd_binmode)(handle, bin, bin) };
         check_qhy_error(result, "SetQHYCCDBinMode")?;
 
-        // Update resolution for new binning
         let new_width = self.image_width / bin;
         let new_height = self.image_height / bin;
         // SAFETY: handle valid; new_width/new_height are derived from
