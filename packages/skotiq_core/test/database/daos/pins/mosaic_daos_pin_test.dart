@@ -148,7 +148,10 @@ void main() {
       'setHubMosaic missing',
       () => dao.setHubMosaic(99, 'x', 'owner', now: pinT(1)),
     );
-    await pins('setCollabStatus default now', () => dao.setCollabStatus(4, 'x'));
+    await pins(
+      'setCollabStatus default now',
+      () => dao.setCollabStatus(4, 'x'),
+    );
     await pins.dump(db, 'mosaic_projects', 'after hub');
 
     await pins('listAll', dao.listAll);
@@ -185,12 +188,9 @@ void main() {
     );
     await pins.dump(db, 'mosaic_projects', 'after status');
 
-    await MosaicPanelsDao(db).upsert(
-      projectId: 1,
-      panelIndex: 0,
-      centerRa: 1,
-      centerDec: 2,
-    );
+    await MosaicPanelsDao(
+      db,
+    ).upsert(projectId: 1, panelIndex: 0, centerRa: 1, centerDec: 2);
     await pins('deleteProject 1', () => dao.deleteProject(1));
     await pins('deleteProject missing', () => dao.deleteProject(1));
     await pins.dump(db, 'mosaic_projects', 'after delete');
@@ -234,31 +234,36 @@ void main() {
     );
     await pins(
       'upsert p1 #0',
-      () => dao.upsert(projectId: p1, panelIndex: 0, centerRa: 10, centerDec: 41),
+      () =>
+          dao.upsert(projectId: p1, panelIndex: 0, centerRa: 10, centerDec: 41),
     );
     await pins(
       'upsert p1 #1',
-      () => dao.upsert(projectId: p1, panelIndex: 1, centerRa: 9, centerDec: 40),
+      () =>
+          dao.upsert(projectId: p1, panelIndex: 1, centerRa: 9, centerDec: 40),
     );
     await pins(
       'upsert p2 #0',
-      () => dao.upsert(projectId: p2, panelIndex: 0, centerRa: 3, centerDec: -5),
+      () =>
+          dao.upsert(projectId: p2, panelIndex: 0, centerRa: 3, centerDec: -5),
     );
     await pins.dump(db, 'mosaic_panels', 'after insert');
 
     await pins('incrementCaptured', () => dao.incrementCaptured(1, delta: 4));
     await pins('incrementCaptured default', () => dao.incrementCaptured(1));
-    await pins('incrementCaptured zero', () => dao.incrementCaptured(1, delta: 0));
+    await pins(
+      'incrementCaptured zero',
+      () => dao.incrementCaptured(1, delta: 0),
+    );
     await pins('incrementCaptured missing', () => dao.incrementCaptured(99));
-    await pins('updateStatus', () => dao.updateStatus(1, MosaicPanelStatus.captured));
+    await pins(
+      'updateStatus',
+      () => dao.updateStatus(1, MosaicPanelStatus.captured),
+    );
     await pins(
       're-upsert keeps progress',
-      () => dao.upsert(
-        projectId: p1,
-        panelIndex: 2,
-        centerRa: 11,
-        centerDec: 42,
-      ),
+      () =>
+          dao.upsert(projectId: p1, panelIndex: 2, centerRa: 11, centerDec: 42),
     );
     await pins('setMaster', () => dao.setMaster(2, m1));
     await pins('setMaster missing', () => dao.setMaster(99, m1));

@@ -146,7 +146,8 @@ void main() {
     );
     await pins(
       'insert finalized default now',
-      () => dao.insertMaster(name: 'Loose', status: fin, accumulationMode: batch),
+      () =>
+          dao.insertMaster(name: 'Loose', status: fin, accumulationMode: batch),
     );
     await pins(
       'insert accumulating L older',
@@ -309,11 +310,19 @@ void main() {
     );
     await pins(
       'recordFoldedFrame master 2',
-      () => dao.recordFoldedFrame(masterId: 2, imageId: img[1], foldedAt: pinT(22)),
+      () => dao.recordFoldedFrame(
+        masterId: 2,
+        imageId: img[1],
+        foldedAt: pinT(22),
+      ),
     );
     await pins(
       'recordFoldedFrame master 3',
-      () => dao.recordFoldedFrame(masterId: 3, imageId: img[2], foldedAt: pinT(22)),
+      () => dao.recordFoldedFrame(
+        masterId: 3,
+        imageId: img[2],
+        foldedAt: pinT(22),
+      ),
     );
     await pins(
       'recordFoldedFrame master 5',

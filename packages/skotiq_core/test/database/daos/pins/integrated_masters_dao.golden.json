@@ -2195,7 +2195,7 @@
   "recordFoldedFrame master 5": 6,
   "recordFoldedFrame missing master": {
     "threw": "SqliteException",
-    "message": "SqliteException(787): while executing statement, FOREIGN KEY constraint failed, constraint failed (code 787)\n  Causing statement: INSERT OR REPLACE INTO integrated_master_frames(master_id, image_id, weight, alignment_residual_px, accepted, rejection_reason, folded_at, snr, fwhm, eccentricity) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?), parameters: 99, 4, null, null, 1, null, 1794417554, null, null, null"
+    "message": "SqliteException(787): while executing statement, FOREIGN KEY constraint failed, constraint failed (code 787)"
   },
   "after folds :: integrated_master_frames": [
     {

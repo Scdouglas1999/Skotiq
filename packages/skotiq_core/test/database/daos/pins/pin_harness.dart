@@ -5,7 +5,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:drift/drift.dart' show Variable;
+import 'package:drift/drift.dart' show DataClass, ValueSerializer, Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/database.dart';
@@ -27,6 +27,10 @@ class PinRecorder {
   /// null for falls through to the generic encoding.
   final Object? Function(Object value)? encode;
 
+  /// Text replaced before a string is pinned, for paths a test cannot fix in
+  /// advance (a temporary directory).
+  final Map<String, String> scrub = {};
+
   final Map<String, Object?> _entries = {};
   final int _startSeconds =
       DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
@@ -44,7 +48,10 @@ class PinRecorder {
     try {
       result = await body();
     } on Object catch (error) {
-      result = {'threw': error.runtimeType.toString(), 'message': '$error'};
+      // A SQLite error quotes the statement it ran; the statement text is how
+      // the query was written, not what it did, so only the error is pinned.
+      final message = '$error'.split('\n  Causing statement:').first;
+      result = {'threw': error.runtimeType.toString(), 'message': message};
     }
     record(label, result);
   }
@@ -82,6 +89,11 @@ class PinRecorder {
 
   /// A value stamped from the wall clock during the test is pinned as `<now>`.
   Object? _stamp(Object? value) {
+    if (value is String) {
+      var text = value;
+      scrub.forEach((from, to) => text = text.replaceAll(from, to));
+      return text;
+    }
     final now = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
     if (value is int) {
       if (value >= _startSeconds - 1 && value <= now + 1) return '<now s>';
@@ -98,6 +110,9 @@ class PinRecorder {
     }
     final custom = encode?.call(value);
     if (custom != null) return _canon(custom);
+    if (value is DataClass) {
+      return _canon(value.toJson(serializer: const _AsIsSerializer()));
+    }
     if (value is DateTime) {
       final seconds = value.toUtc().millisecondsSinceEpoch ~/ 1000;
       if (_stamp(seconds) is String) {
@@ -132,7 +147,8 @@ class PinRecorder {
     expect(
       file.existsSync(),
       isTrue,
-      reason: 'golden ${file.path} is missing; write it with the code being '
+      reason:
+          'golden ${file.path} is missing; write it with the code being '
           'pinned and SKOTIQ_PIN_UPDATE=1',
     );
     final expected = file.readAsStringSync();
@@ -210,4 +226,15 @@ class PinSeed {
     }
     return PinSeed._(targets, sessions, profile, images);
   }
+}
+
+/// Hands drift row fields over unconverted, so a DateTime keeps its zone.
+class _AsIsSerializer extends ValueSerializer {
+  const _AsIsSerializer();
+
+  @override
+  T fromJson<T>(dynamic json) => json as T;
+
+  @override
+  dynamic toJson<T>(T value) => value;
 }

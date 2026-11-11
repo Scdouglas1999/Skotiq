@@ -260,12 +260,7 @@ void main() {
     );
     await pins(
       'upsert clear notes and remote id',
-      () => dao.upsert(
-        dark,
-        1,
-        clearNotes: true,
-        clearPublishedRemoteId: true,
-      ),
+      () => dao.upsert(dark, 1, clearNotes: true, clearPublishedRemoteId: true),
     );
     await pins(
       'upsert clear remote id on shared',

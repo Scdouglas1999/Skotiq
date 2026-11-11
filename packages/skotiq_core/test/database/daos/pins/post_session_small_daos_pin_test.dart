@@ -151,7 +151,8 @@ void main() {
     );
     await pins(
       'insert default time',
-      () => dao.insertReport(targetId: seed.targets[1], score: 1, headline: 'x'),
+      () =>
+          dao.insertReport(targetId: seed.targets[1], score: 1, headline: 'x'),
     );
     await pins.dump(db, 'night_reports', 'after inserts');
 
@@ -244,7 +245,10 @@ void main() {
     final t1 = seed.targets[1];
 
     await pins('empty getForTarget', () => dao.getForTarget(t0));
-    await pins('empty getForTargetFilter', () => dao.getForTargetFilter(t0, 'L'));
+    await pins(
+      'empty getForTargetFilter',
+      () => dao.getForTargetFilter(t0, 'L'),
+    );
     await pins('empty remaining', () => dao.remaining(t0, 'L'));
 
     await pins(
@@ -312,8 +316,14 @@ void main() {
 
     await pins('getForTarget t0', () => dao.getForTarget(t0));
     await pins('getForTarget t1', () => dao.getForTarget(t1));
-    await pins('getForTargetFilter case', () => dao.getForTargetFilter(t0, 'hA'));
-    await pins('getForTargetFilter missing', () => dao.getForTargetFilter(t1, 'Ha'));
+    await pins(
+      'getForTargetFilter case',
+      () => dao.getForTargetFilter(t0, 'hA'),
+    );
+    await pins(
+      'getForTargetFilter missing',
+      () => dao.getForTargetFilter(t1, 'Ha'),
+    );
     await pins('remaining Ha', () => dao.remaining(t0, 'Ha'));
     await pins('remaining B over goal', () => dao.remaining(t0, 'B'));
     await pins('remaining missing', () => dao.remaining(t0, 'OIII'));
@@ -326,7 +336,10 @@ void main() {
     final s0 = seed.sessions[0];
 
     await pins('empty getResultById', () => dao.getResultById(1));
-    await pins('empty getResultsForSession', () => dao.getResultsForSession(s0));
+    await pins(
+      'empty getResultsForSession',
+      () => dao.getResultsForSession(s0),
+    );
     await pins('empty getRecentResults', () => dao.getRecentResults());
     await pins('getRecentResults zero', () => dao.getRecentResults(limit: 0));
 
@@ -410,7 +423,10 @@ void main() {
     await pins('getRecentResults 2', () => dao.getRecentResults(limit: 2));
     await pins('getRecentResults all', () => dao.getRecentResults(limit: 10));
     await pins('updateExportedPath', () => dao.updateExportedPath(2, '/s.png'));
-    await pins('updateExportedPath missing', () => dao.updateExportedPath(9, 'x'));
+    await pins(
+      'updateExportedPath missing',
+      () => dao.updateExportedPath(9, 'x'),
+    );
     await pins('deleteResult 3', () => dao.deleteResult(3));
     await pins('deleteResult missing', () => dao.deleteResult(3));
     await pins.dump(db, 'stacked_results', 'after updates');
