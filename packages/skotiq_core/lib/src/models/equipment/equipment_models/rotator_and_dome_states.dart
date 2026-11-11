@@ -1,6 +1,5 @@
 part of '../equipment_models.dart';
 
-/// Rotator state
 class RotatorState extends Equatable implements DeviceSlotState<RotatorState> {
   @override
   final DeviceConnectionState connectionState;
@@ -15,7 +14,6 @@ class RotatorState extends Equatable implements DeviceSlotState<RotatorState> {
   @override
   final DeviceError? lastError;
 
-  /// Whether auto-reconnection is enabled for this device.
   @override
   final bool autoReconnectEnabled;
 
@@ -74,10 +72,8 @@ class RotatorState extends Equatable implements DeviceSlotState<RotatorState> {
   ];
 }
 
-/// Dome shutter status
 enum ShutterStatus { open, closed, opening, closing, error, unknown }
 
-/// Dome state
 class DomeState extends Equatable implements DeviceSlotState<DomeState> {
   @override
   final DeviceConnectionState connectionState;
@@ -94,7 +90,6 @@ class DomeState extends Equatable implements DeviceSlotState<DomeState> {
   @override
   final DeviceError? lastError;
 
-  /// Whether auto-reconnection is enabled for this device.
   @override
   final bool autoReconnectEnabled;
 

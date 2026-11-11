@@ -1,6 +1,5 @@
 part of '../equipment_models.dart';
 
-/// Focuser state
 class FocuserState extends Equatable implements DeviceSlotState<FocuserState> {
   @override
   final DeviceConnectionState connectionState;
@@ -18,7 +17,6 @@ class FocuserState extends Equatable implements DeviceSlotState<FocuserState> {
   @override
   final DeviceError? lastError;
 
-  /// Whether auto-reconnection is enabled for this device.
   @override
   final bool autoReconnectEnabled;
 
@@ -89,7 +87,6 @@ class FocuserState extends Equatable implements DeviceSlotState<FocuserState> {
   ];
 }
 
-/// Filter wheel state
 class FilterWheelState extends Equatable
     implements DeviceSlotState<FilterWheelState> {
   @override
@@ -104,7 +101,6 @@ class FilterWheelState extends Equatable
   @override
   final DeviceError? lastError;
 
-  /// Whether auto-reconnection is enabled for this device.
   @override
   final bool autoReconnectEnabled;
 
@@ -168,7 +164,6 @@ class FilterWheelState extends Equatable
   ];
 }
 
-/// Guider state
 class GuiderState extends Equatable implements DeviceSlotState<GuiderState> {
   @override
   final DeviceConnectionState connectionState;
@@ -190,7 +185,6 @@ class GuiderState extends Equatable implements DeviceSlotState<GuiderState> {
   @override
   final DeviceError? lastError;
 
-  /// Whether auto-reconnection is enabled for this device.
   @override
   final bool autoReconnectEnabled;
 

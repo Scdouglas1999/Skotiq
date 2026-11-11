@@ -27,7 +27,6 @@ class UnifiedDevice extends Equatable {
   /// Display name (most descriptive name from available backends)
   final String displayName;
 
-  /// Device type (camera, mount, focuser, etc.)
   final DeviceType type;
 
   /// Map of backend -> device info for all available backends
@@ -86,7 +85,6 @@ class UnifiedDevice extends Equatable {
       );
     }
 
-    // Score each backend based on requirements
     final scoredBackends = <DriverType, int>{};
 
     for (final backend in availableBackends.keys) {
@@ -144,7 +142,6 @@ class UnifiedDevice extends Equatable {
       scoredBackends[backend] = score;
     }
 
-    // Find the highest scoring backend
     DriverType best = availableBackends.keys.first;
     int bestScore = scoredBackends[best] ?? 0;
 
@@ -215,13 +212,10 @@ class UnifiedDevice extends Equatable {
   /// The active backend (selected by user, or recommended if not selected)
   DriverType get activeBackend => selectedBackend ?? recommendedBackend;
 
-  /// Get the device ID for the active backend
   String get activeDeviceId => availableBackends[activeBackend]!.id;
 
-  /// Get the DeviceInfo for the active backend
   DeviceInfo get activeDevice => availableBackends[activeBackend]!;
 
-  /// Check if a specific backend is available for this device
   bool hasBackend(DriverType backend) => availableBackends.containsKey(backend);
 
   /// Get the device ID for a specific backend (null if not available)
@@ -238,7 +232,6 @@ class UnifiedDevice extends Equatable {
     return backends;
   }
 
-  /// Create a copy with a different selected backend
   UnifiedDevice withSelectedBackend(DriverType? backend) {
     return UnifiedDevice(
       canonicalName: canonicalName,
@@ -249,7 +242,6 @@ class UnifiedDevice extends Equatable {
     );
   }
 
-  /// Add a backend to this unified device
   UnifiedDevice withBackend(DriverType backend, DeviceInfo device) {
     return UnifiedDevice(
       canonicalName: canonicalName,
@@ -274,7 +266,6 @@ class UnifiedDevice extends Equatable {
       'UnifiedDevice($displayName, backends: ${availableBackends.keys.map((b) => b.displayName).join(", ")})';
 }
 
-/// Extension to get human-readable backend descriptions
 extension DriverTypeDescription on DriverType {
   /// Get a description of this backend for tooltips
   String get description {

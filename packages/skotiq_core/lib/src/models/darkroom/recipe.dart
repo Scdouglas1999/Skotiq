@@ -107,7 +107,6 @@ class DarkroomRecipe {
   /// owns the op vocabulary and its validation.
   final String stepsJson;
 
-  /// Who authored this recipe.
   final RecipeAuthor createdBy;
 
   /// The `recipes.id` this recipe branched from, or null for a root recipe.
@@ -147,7 +146,6 @@ class DarkroomRecipe {
     required this.updatedAt,
   });
 
-  /// True when this recipe branched from another.
   bool get isBranch => parentRecipeId != null;
 
   DarkroomRecipe copyWith({

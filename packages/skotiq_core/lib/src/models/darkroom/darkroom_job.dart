@@ -193,10 +193,8 @@ class DarkroomJob {
   /// work item and has nothing to process once its session is gone.
   final int? sessionId;
 
-  /// What asked for this job.
   final DarkroomJobKind kind;
 
-  /// Lifecycle state.
   final DarkroomJobState state;
 
   /// Fraction complete in `0.0 .. 1.0`. Advances only while [state] is

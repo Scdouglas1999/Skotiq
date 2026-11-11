@@ -57,7 +57,6 @@ class SwitchState extends Equatable implements DeviceSlotState<SwitchState> {
   @override
   final DeviceError? lastError;
 
-  /// Whether auto-reconnection is enabled for this device.
   @override
   final bool autoReconnectEnabled;
 
@@ -144,9 +143,6 @@ class SwitchState extends Equatable implements DeviceSlotState<SwitchState> {
   ];
 }
 
-// Cover calibrator state
-
-/// Cover position status
 enum CoverStatus { notPresent, closed, moving, open, unknown, error }
 
 /// Calibrator (flat light) status
@@ -167,7 +163,6 @@ class CoverCalibratorState extends Equatable
   @override
   final DeviceError? lastError;
 
-  /// Whether auto-reconnection is enabled for this device.
   @override
   final bool autoReconnectEnabled;
 

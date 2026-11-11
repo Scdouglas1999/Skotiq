@@ -244,7 +244,6 @@ class ArtifactDestination {
   /// Operator-facing name, e.g. `office-pc`. What the morning report names.
   final String name;
 
-  /// Transport this destination delivers over.
   final ArtifactDestinationKind kind;
 
   /// Non-secret transport configuration as a JSON object: a path for
@@ -257,7 +256,6 @@ class ArtifactDestination {
   /// Whether delivery to this destination is currently on.
   final bool enabled;
 
-  /// Which classes of artifact this destination receives.
   final Set<ArtifactContent> content;
 
   /// The `SecretsStore` field key holding this destination's key material, or
@@ -315,7 +313,6 @@ class DeliveryJournalEntry {
   /// Outcome so far.
   final DeliveryAttemptState state;
 
-  /// How many delivery attempts this file has had.
   final int attempts;
 
   /// The most recent attempt's failure reason, or null. Retained after a later

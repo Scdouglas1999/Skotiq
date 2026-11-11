@@ -13,7 +13,6 @@ part 'equipment_models/rotator_and_dome_states.dart';
 part 'equipment_models/environment_and_safety_states.dart';
 part 'equipment_models/switch_and_cover_calibrator_states.dart';
 
-/// Base device state
 enum DeviceConnectionState { disconnected, connecting, connected, error }
 
 /// The connection half that every device state carries, so one notifier base
@@ -35,54 +34,38 @@ abstract interface class DeviceSlotState<S> {
   });
 }
 
-/// Device error types for categorized error handling
 enum DeviceErrorType {
-  /// Connection to device failed
   connectionFailed,
 
-  /// Device was not found
   deviceNotFound,
 
-  /// Operation timed out
   timeout,
 
-  /// Device driver error
   driverError,
 
-  /// Invalid parameter passed
   invalidParameter,
 
-  /// Device is busy
   busy,
 
-  /// Permission denied
   permissionDenied,
 
-  /// Communication error
   communicationError,
 
-  /// Unknown error
   unknown,
 }
 
-/// Represents an error from a device operation
 class DeviceError extends Equatable {
-  /// Type of error
   final DeviceErrorType type;
 
-  /// Human-readable error message
   final String message;
 
   /// Optional error code from the device/driver
   final String? code;
 
-  /// When the error occurred
   final DateTime timestamp;
 
-  /// Device ID that caused the error
   final String? deviceId;
 
-  /// Number of retry attempts made
   final int retryAttempts;
 
   /// Whether this error is recoverable (can retry)
@@ -108,7 +91,6 @@ class DeviceError extends Equatable {
     String? deviceId,
     int retryAttempts = 0,
   }) {
-    // If it's already a SkotiqError, convert directly
     if (error is SkotiqError) {
       return DeviceError.fromSkotiqError(
         error,
@@ -162,7 +144,6 @@ class DeviceError extends Equatable {
     String? deviceId,
     int retryAttempts = 0,
   }) {
-    // Map BackendErrorCategory to DeviceErrorType
     final type = switch (error.category) {
       BackendErrorCategory.connection => DeviceErrorType.connectionFailed,
       BackendErrorCategory.hardware => DeviceErrorType.communicationError,
@@ -192,7 +173,6 @@ class DeviceError extends Equatable {
     );
   }
 
-  /// Get a user-friendly description of the error
   String get userMessage {
     switch (type) {
       case DeviceErrorType.connectionFailed:
@@ -216,7 +196,6 @@ class DeviceError extends Equatable {
     }
   }
 
-  /// Get a suggested recovery action
   String? get suggestedAction {
     switch (type) {
       case DeviceErrorType.connectionFailed:

@@ -44,21 +44,16 @@ abstract class SkyBrightnessMeasurement with _$SkyBrightnessMeasurement {
       _$SkyBrightnessMeasurementFromJson(json);
 }
 
-/// Complete flat wizard state
 @freezed
 abstract class FlatWizardState with _$FlatWizardState {
   const factory FlatWizardState({
-    /// Current operating mode
     @Default(FlatWizardMode.quick) FlatWizardMode mode,
 
-    /// Global settings
     @Default(FlatWizardGlobalSettings())
     FlatWizardGlobalSettings globalSettings,
 
-    /// Per-filter settings
     @Default([]) List<FlatFilterSettings> filterSettings,
 
-    /// Saved filter presets
     @Default([]) List<FlatFilterPreset> filterPresets,
 
     /// Current filter index being processed
@@ -88,16 +83,13 @@ abstract class FlatWizardState with _$FlatWizardState {
     /// Calculated sky brightness change rate (ADU/s)
     double? skyAduRate,
 
-    /// Twilight mode for sky flats
     @Default(TwilightMode.dusk) TwilightMode twilightMode,
 
-    /// Most recent captured image path
     String? lastImagePath,
 
     /// Most recent captured image data (for preview, runtime only)
     @RuntimeOnlyValueConverter() Object? lastImageData,
 
-    /// Error message if any
     String? errorMessage,
 
     /// Warning message (non-fatal, informational)
