@@ -128,32 +128,6 @@ class RemoteLogFileInfo {
   }
 }
 
-/// Wire shape for `GET /api/filter-wheel/position`.
-///
-/// Mirrors the JSON envelope emitted by `DeviceHandlers
-/// .handleFilterWheelGetPosition`. `position` is null when the filter
-/// wheel is disconnected or the driver has not yet reported a slot,
-/// `name` is null when the driver returned a short slot-name array.
-class RemoteFilterWheelPosition {
-  final int? position;
-  final String? name;
-  final bool isMoving;
-
-  const RemoteFilterWheelPosition({
-    required this.position,
-    required this.name,
-    required this.isMoving,
-  });
-
-  factory RemoteFilterWheelPosition.fromJson(Map<String, dynamic> json) {
-    return RemoteFilterWheelPosition(
-      position: (json['position'] as num?)?.toInt(),
-      name: json['name'] as String?,
-      isMoving: json['isMoving'] as bool? ?? false,
-    );
-  }
-}
-
 class RemoteScienceBundle {
   final List<PhotometryMeasurementRow> photometry;
   final List<FramePhotometricCalibrationRow> calibrations;

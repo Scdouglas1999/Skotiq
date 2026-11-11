@@ -113,16 +113,6 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     return _sessionScienceObjectList(response, 'sessions', 'GET /api/sessions');
   }
 
-  /// Get active session
-  Future<Map<String, dynamic>?> getActiveSession() async {
-    final response = await _get('sessions/active');
-    return _sessionScienceNullableObject(
-      response,
-      'session',
-      'GET /api/sessions/active',
-    );
-  }
-
   /// Get session by ID
   Future<Map<String, dynamic>?> getSessionById(int id) async {
     try {
@@ -215,16 +205,6 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     };
     final response = await _get('images', params);
     return _sessionScienceObjectList(response, 'images', 'GET /api/images');
-  }
-
-  /// Get session statistics
-  Future<Map<String, dynamic>> getSessionStats(int sessionId) async {
-    final response = await _get('sessions/$sessionId/stats');
-    return _sessionScienceObject(
-      response,
-      'stats',
-      'GET /api/sessions/$sessionId/stats',
-    );
   }
 
   Future<Uint8List> downloadSessionExport(int sessionId, String format) async {
@@ -358,12 +338,6 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
       'alerts',
       'GET /api/weather/alerts',
     );
-  }
-
-  /// Check safe imaging conditions
-  Future<Map<String, dynamic>> checkSafeImaging() async {
-    final response = await _get('weather/safe-imaging');
-    return response;
   }
 
   /// Get weather settings

@@ -23,11 +23,10 @@ void main() {
 
       await backend.coverOpen('cover-1');
       await backend.coverClose('cover-1');
-      await backend.setCoverBrightness('cover-1', 73);
       await backend.calibratorOn('cover-1', 91);
       await backend.calibratorOff('cover-1');
 
-      expect(fake.requests, hasLength(5));
+      expect(fake.requests, hasLength(4));
       for (final request in fake.requests) {
         final body = jsonDecode(request.body!) as Map<String, dynamic>;
         expect(
@@ -36,12 +35,6 @@ void main() {
           reason: '${request.path} must address the connected accessory',
         );
       }
-      expect(
-        jsonDecode(
-          fake.requestsFor('/api/cover/brightness').single.body!,
-        )['brightness'],
-        73,
-      );
       expect(
         jsonDecode(
           fake.requestsFor('/api/cover/calibrator-on').single.body!,

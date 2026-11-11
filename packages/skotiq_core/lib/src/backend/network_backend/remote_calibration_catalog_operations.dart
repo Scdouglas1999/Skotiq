@@ -164,16 +164,6 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
     return _rowsFromJson(response['darks'], RemoteDarkLibraryEntry.fromJson);
   }
 
-  /// GET /api/calibration/darks/{id}.
-  Future<RemoteDarkLibraryEntry> getDark(int id) async {
-    final response = await _get('calibration/darks/$id');
-    final row = response['dark'];
-    if (row is! Map) {
-      throw StateError('Malformed darks/{id} response: missing `dark` field');
-    }
-    return RemoteDarkLibraryEntry.fromJson(row.cast<String, dynamic>());
-  }
-
   /// GET `/api/calibration/darks/{id}/download` — stream the on-disk
   /// dark/master file for entry [id] to [localPath] so a paired device can
   /// pull a calibration frame off the appliance.
@@ -411,14 +401,6 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
       params.isEmpty ? null : params,
     );
     return _rowsFromJson(response['flats'], RemoteFlatHistoryEntry.fromJson);
-  }
-
-  /// GET /api/calibration/flats/{id}.
-  Future<RemoteFlatHistoryEntry> getFlat(int id) async {
-    final response = await _get('calibration/flats/$id');
-    return RemoteFlatHistoryEntry.fromJson(
-      (response['flat'] as Map).cast<String, dynamic>(),
-    );
   }
 
   /// POST /api/calibration/flats — record a flat-history entry.

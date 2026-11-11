@@ -53,24 +53,9 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
     return response;
   }
 
-  /// Rotate to angle
-  Future<void> rotateTo(double angle) async {
-    await _post('framing/rotate-to', {'angle': angle});
-  }
-
   /// Abort current slew
   Future<void> abortSlew() async {
     await _post('framing/abort-slew');
-  }
-
-  /// Park the mount
-  Future<void> parkMountFraming() async {
-    await _post('framing/park');
-  }
-
-  /// Unpark the mount
-  Future<void> unparkMountFraming() async {
-    await _post('framing/unpark');
   }
 
   /// Push a framing target to the imaging host (Plan Tonight handoff).
@@ -304,14 +289,6 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
     await _post('cover/close', {'deviceId': deviceId});
   }
 
-  /// Set calibrator brightness
-  Future<void> setCoverBrightness(String deviceId, int brightness) async {
-    await _post('cover/brightness', {
-      'deviceId': deviceId,
-      'brightness': brightness,
-    });
-  }
-
   /// Turn calibrator on
   @override
   Future<void> calibratorOn(String deviceId, int brightness) async {
@@ -328,82 +305,6 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
   }
 
   // Scheduler (Astronomical Calculations)
-
-  /// Calculate altitude of object at given time
-  Future<Map<String, dynamic>> getAltitude({
-    required double ra,
-    required double dec,
-    DateTime? time,
-  }) async {
-    return await _get('scheduler/altitude', {
-      'ra': ra,
-      'dec': dec,
-      if (time != null) 'time': time.toIso8601String(),
-    });
-  }
-
-  /// Get transit time for object
-  Future<Map<String, dynamic>> getTransitTime({
-    required double ra,
-    required double dec,
-  }) async {
-    return await _get('scheduler/transit-time', {'ra': ra, 'dec': dec});
-  }
-
-  /// Get rise and set times for object
-  Future<Map<String, dynamic>> getRiseSetTimes({
-    required double ra,
-    required double dec,
-    double? minAltitude,
-  }) async {
-    return await _get('scheduler/rise-set', {
-      'ra': ra,
-      'dec': dec,
-      if (minAltitude != null) 'minAltitude': minAltitude,
-    });
-  }
-
-  /// Get hours object is above altitude
-  Future<Map<String, dynamic>> getHoursAboveHorizon({
-    required double ra,
-    required double dec,
-    double minAltitude = 30.0,
-  }) async {
-    return await _get('scheduler/hours-above-horizon', {
-      'ra': ra,
-      'dec': dec,
-      'minAltitude': minAltitude,
-    });
-  }
-
-  /// Optimize target order for imaging
-  Future<Map<String, dynamic>> optimizeTargets({
-    required List<int> targetIds,
-    String strategy = 'transit',
-    double minAltitude = 30.0,
-  }) async {
-    return await _post('scheduler/optimize-targets', {
-      'targetIds': targetIds,
-      'strategy': strategy,
-      'minAltitude': minAltitude,
-    });
-  }
-
-  /// Get twilight times for tonight
-  Future<Map<String, dynamic>> getTwilightTimes({DateTime? date}) async {
-    return await _get(
-      'scheduler/twilight-times',
-      date != null ? {'date': date.toIso8601String()} : null,
-    );
-  }
-
-  /// Get moon information
-  Future<Map<String, dynamic>> getMoonInfo({DateTime? date}) async {
-    return await _get(
-      'scheduler/moon-info',
-      date != null ? {'date': date.toIso8601String()} : null,
-    );
-  }
 
   /// Get the imaging host's complete unattended-scheduler state.
   Future<Map<String, dynamic>> getSchedulerState() async {
@@ -532,85 +433,9 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
 
   // Planetarium support
 
-  /// Get current mount position for planetarium FOV overlay
-  Future<Map<String, dynamic>> getPlanetariumMountPosition() async {
-    return await _get('planetarium/mount-position');
-  }
-
-  /// Get FOV configuration for planetarium
-  Future<Map<String, dynamic>> getPlanetariumFovConfig() async {
-    return await _get('planetarium/fov-config');
-  }
-
-  /// Slew to coordinates from planetarium
-  Future<void> planetariumSlewTo({
-    required double ra,
-    required double dec,
-  }) async {
-    await _post('planetarium/slew-to', {'ra': ra, 'dec': dec});
-  }
-
-  /// Center on coordinates from planetarium with plate solving
-  Future<Map<String, dynamic>> planetariumCenterOn({
-    required double ra,
-    required double dec,
-    int? maxIterations,
-    double? toleranceArcsec,
-  }) async {
-    return await _post('planetarium/center-on', {
-      'ra': ra,
-      'dec': dec,
-      if (maxIterations != null) 'maxIterations': maxIterations,
-      if (toleranceArcsec != null) 'toleranceArcsec': toleranceArcsec,
-    });
-  }
-
-  /// Sync mount to coordinates from planetarium
-  Future<void> planetariumSyncTo({
-    required double ra,
-    required double dec,
-  }) async {
-    await _post('planetarium/sync-to', {'ra': ra, 'dec': dec});
-  }
-
   /// Search catalog for objects
   Future<Map<String, dynamic>> planetariumCatalogSearch(String query) async {
     return await _get('planetarium/catalog/search', {'query': query});
   }
 
-  /// Get objects in a region
-  Future<Map<String, dynamic>> planetariumCatalogRegion({
-    required double ra,
-    required double dec,
-    required double radius,
-    double? minMagnitude,
-    double? maxMagnitude,
-    int? limit,
-  }) async {
-    return await _get('planetarium/catalog/region', {
-      'ra': ra,
-      'dec': dec,
-      'radius': radius,
-      if (minMagnitude != null) 'minMagnitude': minMagnitude,
-      if (maxMagnitude != null) 'maxMagnitude': maxMagnitude,
-      if (limit != null) 'limit': limit,
-    });
-  }
-
-  /// Get detailed object info
-  Future<Map<String, dynamic>> planetariumGetObject(String objectId) async {
-    return await _get(
-      'planetarium/catalog/object/${Uri.encodeComponent(objectId)}',
-    );
-  }
-
-  /// Get WebSocket subscription info for real-time updates
-  Future<Map<String, dynamic>> getPlanetariumSubscribeInfo() async {
-    return await _get('planetarium/subscribe-info');
-  }
-
-  /// Get observer location for planetarium calculations
-  Future<Map<String, dynamic>> getPlanetariumLocation() async {
-    return await _get('planetarium/location');
-  }
 }

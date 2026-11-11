@@ -927,16 +927,6 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     });
   }
 
-  /// Fetch the current filter-wheel slot, slot name, and
-  /// in-motion flag from the headless server. Not on
-  /// [SkotiqBackend] because the local FfiBackend already exposes
-  /// the same data via `filterWheelStateProvider`; the network surface
-  /// is the only one that needs an explicit GET.
-  Future<RemoteFilterWheelPosition> getFilterWheelPosition() async {
-    final response = await _get('filter-wheel/position');
-    return RemoteFilterWheelPosition.fromJson(response);
-  }
-
   // Rotator control
 
   @override

@@ -13,23 +13,6 @@ mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
     return RemoteJob.fromJson(response);
   }
 
-  /// Cancel a long-running job. Throws when the server replies 409 (the
-  /// job is already terminal) — the caller may want to log it but not
-  /// abort their workflow.
-  Future<RemoteJob> cancelJob(String jobId) async {
-    final response = await _post('jobs/$jobId/cancel');
-    return RemoteJob.fromJson(response);
-  }
-
-  /// List jobs (filtered).
-  Future<List<RemoteJob>> listJobs({String? state, String? operation}) async {
-    final response = await _get('jobs', {
-      if (state != null) 'state': state,
-      if (operation != null) 'operation': operation,
-    });
-    return _rowsFromJson(response['jobs'], RemoteJob.fromJson);
-  }
-
   /// Stream WS-broadcast snapshots for a single [jobId]. The stream
   /// terminates when the job reaches a terminal state or when the
   /// underlying event subscription closes (server restart, network
