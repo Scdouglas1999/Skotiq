@@ -52,6 +52,7 @@ pub enum NativeVendor {
     Moravian,
     Fujifilm,
     GPhoto2,
+    Ascom,
     // Mount vendors
     SkyWatcher,
     IOptron,
@@ -73,6 +74,7 @@ impl NativeVendor {
             NativeVendor::Moravian => "Moravian",
             NativeVendor::Fujifilm => "Fujifilm",
             NativeVendor::GPhoto2 => "gPhoto2",
+            NativeVendor::Ascom => "ASCOM",
             NativeVendor::SkyWatcher => "Sky-Watcher",
             NativeVendor::IOptron => "iOptron",
             NativeVendor::Meade => "Meade",
