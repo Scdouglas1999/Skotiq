@@ -307,6 +307,7 @@ class CatalogInstaller {
       int? bytesReceived;
       String? usedUrl;
       Object? lastError;
+      var allUnreachable = true;
       for (var i = 0; i < candidates.length; i++) {
         final url = candidates[i];
         try {
@@ -328,6 +329,9 @@ class CatalogInstaller {
           rethrow;
         } catch (e) {
           lastError = e;
+          if (e is! CatalogDownloadException || e.phase != 'network') {
+            allUnreachable = false;
+          }
           _log(
             'Candidate ${i + 1}/${candidates.length} for '
             '${catalog.displayName} ($url) failed: $e'
@@ -338,7 +342,18 @@ class CatalogInstaller {
           await _deleteQuietly(tempFile);
         }
       }
-      if (bytesReceived == null) throw lastError!;
+      if (bytesReceived == null) {
+        if (allUnreachable) {
+          final hosts = {for (final url in candidates) Uri.parse(url).host};
+          throw CatalogDownloadException(
+            phase: 'network',
+            message:
+                'Could not reach ${hosts.join(' or ')}. '
+                'Check the internet connection and try again.',
+          );
+        }
+        throw lastError!;
+      }
 
       final result = await _installStagedFile(
         catalog,
@@ -410,129 +425,165 @@ class CatalogInstaller {
   }) async {
     final client = httpClientFactory();
     try {
-      final response = await sendCatalogRequest(
+      return await _transfer(
         client,
-        http.Request('GET', Uri.parse(url)),
-        timeout: connectTimeout,
-        cancelPollInterval: cancelPollInterval,
+        catalog: catalog,
+        url: url,
+        tempFile: tempFile,
+        jobId: jobId,
+        report: report,
         isCancelled: isCancelled,
       );
-      if (response.statusCode != 200) {
-        throw CatalogDownloadException(
-          phase: 'http_send',
-          message:
-              'HTTP ${response.statusCode} downloading '
-              '${catalog.displayName} from $url',
-        );
-      }
-      final contentLength = response.contentLength ?? 0;
-
-      var received = 0;
-      var lastReported = 0;
-      var lastEvent = DateTime.fromMillisecondsSinceEpoch(0);
-      // Coalesced so a fast connection does not rebuild the screen per chunk.
-      const reportEveryBytes = 512 * 1024;
-      void onChunk(int length) {
-        received += length;
-        if (received - lastReported >= reportEveryBytes) {
-          lastReported = received;
-          report(
-            DownloadProgress(
-              catalog: catalog,
-              progress: contentLength > 0 ? received / contentLength : 0,
-              bytesReceived: received,
-              totalBytes: contentLength,
-              status:
-                  'Downloading... '
-                  '${(received / 1024 / 1024).toStringAsFixed(1)} MB',
-            ),
-          );
-        }
-        final now = DateTime.now();
-        if (now.difference(lastEvent).inMilliseconds >= 1000) {
-          lastEvent = now;
-          _events.add(
-            CatalogEvent.downloadProgress(
-              jobId: jobId,
-              name: catalog.name,
-              downloadedBytes: received,
-              totalBytes: contentLength > 0 ? contentLength : -1,
-            ),
-          );
-        }
-      }
-
-      // Cancellation and stall detection come from the guard, not from chunk
-      // arrival: a stalled connection produces no chunk to notice them on.
-      final body = guardCatalogTransfer(
-        response.stream,
-        idleTimeout: streamIdleTimeout,
-        cancelPollInterval: cancelPollInterval,
-        isCancelled: isCancelled,
-      );
-
-      // Decided per URL: every HYG candidate ends in `.gz`, OpenNGC's do not.
-      if (url.endsWith('.gz')) {
-        // The compressed payload is small (HYG: 14 MB), so it is held in
-        // memory, checked, and only then inflated.
-        final compressed = BytesBuilder(copy: false);
-        await for (final chunk in body) {
-          compressed.add(chunk);
-          onChunk(chunk.length);
-        }
-        final compressedBytes = compressed.takeBytes();
-        if (!catalogBytesMatchSha256(catalog.sha256, compressedBytes)) {
-          throw CatalogHashMismatchException(
-            expected: catalog.sha256,
-            actual: sha256.convert(compressedBytes).toString(),
-          );
-        }
-        final List<int> inflated;
-        try {
-          inflated = gzip.decode(compressedBytes);
-        } catch (e) {
-          throw CatalogDownloadException(
-            phase: 'decompress',
-            message: 'Failed to gunzip ${catalog.displayName}: $e',
-          );
-        }
-        await tempFile.writeAsBytes(inflated, flush: true);
-      } else {
-        // Straight to disk, hashed on the way: the GLADE+ complete tier is
-        // about 2 GB and must never be held in memory.
-        Digest? digest;
-        final hashInput = sha256.startChunkedConversion(
-          ChunkedConversionSink<Digest>.withCallback((d) => digest = d.single),
-        );
-        final sink = tempFile.openWrite();
-        try {
-          await for (final chunk in body) {
-            sink.add(chunk);
-            hashInput.add(chunk);
-            onChunk(chunk.length);
-          }
-        } finally {
-          await sink.close();
-        }
-        hashInput.close();
-        if (!catalogSha256Matches(catalog.sha256, digest!.toString())) {
-          throw CatalogHashMismatchException(
-            expected: catalog.sha256,
-            actual: digest!.toString(),
-          );
-        }
-      }
-
-      if (!await tempFile.exists() || await tempFile.length() == 0) {
-        throw CatalogDownloadException(
-          phase: 'verify',
-          message: 'Downloaded ${catalog.displayName} is empty',
-        );
-      }
-      return received;
+    } on http.ClientException catch (e) {
+      throw _unreachable(url, e);
+    } on SocketException catch (e) {
+      throw _unreachable(url, e);
+    } on TlsException catch (e) {
+      throw _unreachable(url, e);
     } finally {
       client.close();
     }
+  }
+
+  CatalogDownloadException _unreachable(String url, Object cause) {
+    _log('$url unreachable: $cause', level: 900);
+    return CatalogDownloadException(
+      phase: 'network',
+      message:
+          'Could not reach ${Uri.parse(url).host}. '
+          'Check the internet connection and try again.',
+    );
+  }
+
+  Future<int> _transfer(
+    http.Client client, {
+    required SkyCatalog catalog,
+    required String url,
+    required File tempFile,
+    required String? jobId,
+    required void Function(DownloadProgress) report,
+    required Future<bool> Function()? isCancelled,
+  }) async {
+    final response = await sendCatalogRequest(
+      client,
+      http.Request('GET', Uri.parse(url)),
+      timeout: connectTimeout,
+      cancelPollInterval: cancelPollInterval,
+      isCancelled: isCancelled,
+    );
+    if (response.statusCode != 200) {
+      throw CatalogDownloadException(
+        phase: 'http_send',
+        message:
+            'HTTP ${response.statusCode} downloading '
+            '${catalog.displayName} from $url',
+      );
+    }
+    final contentLength = response.contentLength ?? 0;
+
+    var received = 0;
+    var lastReported = 0;
+    var lastEvent = DateTime.fromMillisecondsSinceEpoch(0);
+    // Coalesced so a fast connection does not rebuild the screen per chunk.
+    const reportEveryBytes = 512 * 1024;
+    void onChunk(int length) {
+      received += length;
+      if (received - lastReported >= reportEveryBytes) {
+        lastReported = received;
+        report(
+          DownloadProgress(
+            catalog: catalog,
+            progress: contentLength > 0 ? received / contentLength : 0,
+            bytesReceived: received,
+            totalBytes: contentLength,
+            status:
+                'Downloading... '
+                '${(received / 1024 / 1024).toStringAsFixed(1)} MB',
+          ),
+        );
+      }
+      final now = DateTime.now();
+      if (now.difference(lastEvent).inMilliseconds >= 1000) {
+        lastEvent = now;
+        _events.add(
+          CatalogEvent.downloadProgress(
+            jobId: jobId,
+            name: catalog.name,
+            downloadedBytes: received,
+            totalBytes: contentLength > 0 ? contentLength : -1,
+          ),
+        );
+      }
+    }
+
+    // Cancellation and stall detection come from the guard, not from chunk
+    // arrival: a stalled connection produces no chunk to notice them on.
+    final body = guardCatalogTransfer(
+      response.stream,
+      idleTimeout: streamIdleTimeout,
+      cancelPollInterval: cancelPollInterval,
+      isCancelled: isCancelled,
+    );
+
+    // Decided per URL: every HYG candidate ends in `.gz`, OpenNGC's do not.
+    if (url.endsWith('.gz')) {
+      // The compressed payload is small (HYG: 14 MB), so it is held in
+      // memory, checked, and only then inflated.
+      final compressed = BytesBuilder(copy: false);
+      await for (final chunk in body) {
+        compressed.add(chunk);
+        onChunk(chunk.length);
+      }
+      final compressedBytes = compressed.takeBytes();
+      if (!catalogBytesMatchSha256(catalog.sha256, compressedBytes)) {
+        throw CatalogHashMismatchException(
+          expected: catalog.sha256,
+          actual: sha256.convert(compressedBytes).toString(),
+        );
+      }
+      final List<int> inflated;
+      try {
+        inflated = gzip.decode(compressedBytes);
+      } catch (e) {
+        throw CatalogDownloadException(
+          phase: 'decompress',
+          message: 'Failed to gunzip ${catalog.displayName}: $e',
+        );
+      }
+      await tempFile.writeAsBytes(inflated, flush: true);
+    } else {
+      // Straight to disk, hashed on the way: the GLADE+ complete tier is
+      // about 2 GB and must never be held in memory.
+      Digest? digest;
+      final hashInput = sha256.startChunkedConversion(
+        ChunkedConversionSink<Digest>.withCallback((d) => digest = d.single),
+      );
+      final sink = tempFile.openWrite();
+      try {
+        await for (final chunk in body) {
+          sink.add(chunk);
+          hashInput.add(chunk);
+          onChunk(chunk.length);
+        }
+      } finally {
+        await sink.close();
+      }
+      hashInput.close();
+      if (!catalogSha256Matches(catalog.sha256, digest!.toString())) {
+        throw CatalogHashMismatchException(
+          expected: catalog.sha256,
+          actual: digest!.toString(),
+        );
+      }
+    }
+
+    if (!await tempFile.exists() || await tempFile.length() == 0) {
+      throw CatalogDownloadException(
+        phase: 'verify',
+        message: 'Downloaded ${catalog.displayName} is empty',
+      );
+    }
+    return received;
   }
 
   /// Install [catalog] from a file already on this machine: a CSV the user

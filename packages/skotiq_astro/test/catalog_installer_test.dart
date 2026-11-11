@@ -276,6 +276,24 @@ void main() {
       expect(status.sizeBytes, utf8.encode(_ngcCsv).length);
     });
 
+    test('servers that cannot be reached fail with a plain message', () async {
+      CatalogInstaller.httpClientFactory = () => _FakeClient(
+        (url) =>
+            throw http.ClientException('Connection failed', Uri.parse(url)),
+      );
+      await expectLater(
+        manager.install(SkyCatalog.stars),
+        throwsA(
+          isA<CatalogDownloadException>().having(
+            (e) => e.message,
+            'message',
+            'Could not reach github.com or codeberg.org. '
+                'Check the internet connection and try again.',
+          ),
+        ),
+      );
+    });
+
     test(
       'bytes that do not match the published checksum are refused',
       () async {
