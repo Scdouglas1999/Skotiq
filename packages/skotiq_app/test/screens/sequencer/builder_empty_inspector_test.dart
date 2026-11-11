@@ -71,6 +71,11 @@ void main() {
         _exposure.id;
     await tester.pumpAndSettle();
     expect(_showProperties(), findsNothing);
+
+    // A selection left over from another plan selects nothing here.
+    handle.container.read(selectedNodeIdProvider.notifier).state = 'gone';
+    await tester.pumpAndSettle();
+    expect(_showProperties(), findsOneWidget);
   });
 
   testWidgets('a wide window keeps the inspector open', (tester) async {

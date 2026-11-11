@@ -119,7 +119,10 @@ class _DesktopBuilderLayout extends ConsumerWidget {
     // An EMPTY properties column is 300 px of "Select a node"; below the
     // desktop breakpoint that width belongs to the document. See
     // autoCollapseEmptyProperties below.
-    final hasSelection = ref.watch(selectedNodeIdProvider) != null;
+    // A step of the open plan, not just an id: loading another plan leaves
+    // the old id behind, and the column stayed open on "Select a node".
+    final hasSelection =
+        ref.watch(selectedNodeProvider.select((node) => node != null));
 
     // Derive panel sizes from a bucketed width so a continuous resize
     // drag only steps the dimensions every ~64px instead of every frame.
