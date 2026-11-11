@@ -382,15 +382,19 @@ void main() {
         // 1. Session start hooks fire.
         executor.captureSessionStartHooksForTest('seq-full-run');
 
-        // 2. Simulate a real disconnect event flowing through the
+        // 2. A device lost mid-run, as the heartbeat reports it on the
         // backend event stream (this is the production path).
         eventController.add(
           bridge_event.SkotiqEvent(
             timestamp: DateTime.now().millisecondsSinceEpoch,
-            severity: bridge_event.EventSeverity.warning,
+            severity: bridge_event.EventSeverity.error,
             category: bridge_event.EventCategory.equipment,
-            eventType: 'Disconnected',
-            data: const {'device_type': 'camera', 'device_id': 'lifecycle-cam'},
+            eventType: 'Error',
+            data: const {
+              'device_type': 'camera',
+              'device_id': 'lifecycle-cam',
+              'message': 'Device unresponsive after 3 heartbeat failures',
+            },
           ),
         );
         // Let the stream listener inside the bridge run.
