@@ -80,48 +80,43 @@ class TargetGroupProperties extends ConsumerWidget {
               },
             ),
           ),
-          Row(
-            children: [
-              Expanded(
-                child: NodePropertyField(
-                  colors: colors,
-                  label: 'RA (hours)',
-                  child: NodeNumberInput(
-                    colors: colors,
-                    value: node.raHours,
-                    suffix: 'h',
-                    min: 0,
-                    max: 24,
-                    decimals: 4,
-                    onChanged: (value) {
-                      ref.read(currentSequenceProvider.notifier).updateNode(
-                            node.copyWith(raHours: value),
-                          );
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: NodePropertyField(
-                  colors: colors,
-                  label: 'Dec (degrees)',
-                  child: NodeNumberInput(
-                    colors: colors,
-                    value: node.decDegrees,
-                    suffix: '\u00B0',
-                    min: -90,
-                    max: 90,
-                    decimals: 4,
-                    onChanged: (value) {
-                      ref.read(currentSequenceProvider.notifier).updateNode(
-                            node.copyWith(decDegrees: value),
-                          );
-                    },
-                  ),
-                ),
-              ),
-            ],
+          // One field per row: side by side in the inspector each field was
+          // about 30 px wide and showed "02" for 2.702.
+          NodePropertyField(
+            colors: colors,
+            label: 'RA',
+            child: NodeNumberInput(
+              colors: colors,
+              value: node.raHours,
+              suffix: 'h',
+              min: 0,
+              max: 24,
+              decimals: 4,
+              parse: CoordinateParser.parseRa,
+              onChanged: (value) {
+                ref.read(currentSequenceProvider.notifier).updateNode(
+                      node.copyWith(raHours: value),
+                    );
+              },
+            ),
+          ),
+          NodePropertyField(
+            colors: colors,
+            label: 'Dec',
+            child: NodeNumberInput(
+              colors: colors,
+              value: node.decDegrees,
+              suffix: '\u00B0',
+              min: -90,
+              max: 90,
+              decimals: 4,
+              parse: CoordinateParser.parseDec,
+              onChanged: (value) {
+                ref.read(currentSequenceProvider.notifier).updateNode(
+                      node.copyWith(decDegrees: value),
+                    );
+              },
+            ),
           ),
           // Name resolution: a named target must resolve to coordinates.
           // Otherwise "M31" sitting at the 0h/+0° default is a runnable state

@@ -1037,6 +1037,7 @@ abstract final class NodeKinds {
     legacyNames: const ['targetGroup'],
     icon: 'target',
     category: NodeCategory.target,
+    autoName: (node) => node.displayName,
     isContainer: true,
     requiredDevices: const {DeviceType.mount},
     create: () => TargetHeaderNode(targetName: '', raHours: 0, decDegrees: 0),
@@ -1316,6 +1317,7 @@ abstract final class NodeKinds {
     icon: 'compass',
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.mount},
+    stage: NodeStage.aim,
     create: SlewNode.new,
     fields: [_slewUseTarget, _slewRa, _slewDec],
     build: (v) => SlewNode(
@@ -1339,6 +1341,7 @@ abstract final class NodeKinds {
     icon: 'crosshair',
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.mount, DeviceType.camera},
+    stage: NodeStage.aim,
     create: CenterNode.new,
     fields: [
       _centerUseTarget,
@@ -1371,6 +1374,7 @@ abstract final class NodeKinds {
     icon: 'camera',
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.camera},
+    stage: NodeStage.capture,
     create: ExposureNode.new,
     fields: [
       _exposureDuration,
@@ -1436,6 +1440,7 @@ abstract final class NodeKinds {
     icon: 'layers',
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.camera, DeviceType.filterWheel},
+    stage: NodeStage.capture,
     create: SmartExposureNode.new,
     fields: [
       _smartPlans,
@@ -1479,6 +1484,7 @@ abstract final class NodeKinds {
     icon: 'focus',
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.camera, DeviceType.focuser},
+    stage: NodeStage.prepare,
     create: AutofocusNode.new,
     fields: [
       _focusMethod,
@@ -1547,6 +1553,7 @@ abstract final class NodeKinds {
     icon: 'crosshair',
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.guider},
+    stage: NodeStage.prepare,
     create: StartGuidingNode.new,
     fields: [
       _guideSettlePixels,
@@ -1609,6 +1616,7 @@ abstract final class NodeKinds {
     icon: 'snowflake',
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.camera},
+    stage: NodeStage.prepare,
     create: CoolCameraNode.new,
     fields: [_coolTarget, _coolMinutes],
     build: (v) => CoolCameraNode(
@@ -1645,6 +1653,7 @@ abstract final class NodeKinds {
     icon: 'rotate-cw',
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.rotator},
+    stage: NodeStage.prepare,
     create: RotatorNode.new,
     fields: [_rotatorAngle, _rotatorRelative],
     build: (v) => RotatorNode(
@@ -1676,6 +1685,7 @@ abstract final class NodeKinds {
     icon: 'unlock',
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.mount},
+    stage: NodeStage.aim,
     create: UnparkNode.new,
     fields: const [],
     build: (v) => UnparkNode(),

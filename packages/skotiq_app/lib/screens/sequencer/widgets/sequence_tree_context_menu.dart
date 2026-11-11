@@ -562,10 +562,10 @@ class SequenceTreeContextMenu extends ConsumerWidget {
         _insertSibling(context, ref, sequence, node, offset: 1);
         break;
       case _TreeMenuAction.moveUp:
-        _moveSibling(ref, sequence, node, delta: -1);
+        notifier.shiftNode(node.id, -1);
         break;
       case _TreeMenuAction.moveDown:
-        _moveSibling(ref, sequence, node, delta: 1);
+        notifier.shiftNode(node.id, 1);
         break;
       case _TreeMenuAction.duplicate:
         notifier.duplicateNode(node.id);
@@ -692,32 +692,6 @@ class SequenceTreeContextMenu extends ConsumerWidget {
       // with the message verbatim so the user understands the constraint.
       _showSnackBar(context, e.message);
     }
-  }
-
-  /// Shift [node] one slot within its own parent. Uses the same
-  /// `moveNode(id, parentId, index)` call the tree's drag-drop and kebab
-  /// Move Up / Move Down go through, so the three surfaces produce one
-  /// undo entry shape and one reindex path.
-  void _moveSibling(
-    WidgetRef ref,
-    Sequence sequence,
-    SequenceNode node, {
-    required int delta,
-  }) {
-    final parentId = node.parentId;
-    if (parentId == null) return;
-    final parent = sequence.nodes[parentId];
-    if (parent == null) return;
-    final index = parent.childIds.indexOf(node.id);
-    final target = index + delta;
-    // The menu entries are pre-disabled at the ends; this guard only covers
-    // a programmatic call.
-    if (index < 0 || target < 0 || target >= parent.childIds.length) return;
-    ref.read(currentSequenceProvider.notifier).moveNode(
-          node.id,
-          parentId,
-          target,
-        );
   }
 
   void _showSnackBar(BuildContext context, String message) {

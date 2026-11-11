@@ -263,6 +263,10 @@ class NodeNumberInput extends StatefulWidget {
   /// set, a "Range: min–max" line is synthesised automatically.
   final String? helperText;
 
+  /// Reads what the user typed; a decimal number when null. Coordinate
+  /// fields pass a parser that also takes sexagesimal ("02 42 05").
+  final double? Function(String text)? parse;
+
   const NodeNumberInput({
     super.key,
     required this.colors,
@@ -273,6 +277,7 @@ class NodeNumberInput extends StatefulWidget {
     this.max,
     this.decimals = 0,
     this.helperText,
+    this.parse,
   });
 
   @override
@@ -321,7 +326,7 @@ class _NodeNumberInputState extends State<NodeNumberInput> {
   }
 
   void _handleChanged(String value) {
-    final parsed = double.tryParse(value);
+    final parsed = (widget.parse ?? double.tryParse)(value);
     if (parsed == null) {
       if (!_invalid) setState(() => _invalid = true);
       return;

@@ -281,6 +281,7 @@ final List<SequenceValidator> defaultSequenceValidators =
       TargetCoordinatesRule(),
       TargetCoordinatesUnsetRule(),
       EmptyTargetRule(),
+      CaptureBeforeAimRule(),
       LowAltitudeLimitRule(),
       IntegrationBudgetEmptyRule(),
       IntegrationBudgetRatioZeroSumRule(),
