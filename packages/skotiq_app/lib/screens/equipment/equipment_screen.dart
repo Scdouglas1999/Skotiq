@@ -117,6 +117,13 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen>
     final tabIndex = ref.watch(equipmentTabIndexProvider);
     // Drives whether "Disconnect all" exists at all (see the header actions).
     final anythingConnected = equipmentConnectedCount(ref) > 0;
+    // The profile's devices that are not up: "Connect all" is then the next
+    // thing to do, and the header's one primary action.
+    final activeProfile = ref.watch(activeEquipmentProfileProvider);
+    final profileToConnect =
+        ref.watch(offlineProfileDeviceNamesProvider).isNotEmpty
+            ? activeProfile
+            : null;
     // Below DESKTOP width, not the shell breakpoint: this header seats a
     // title, three tabs, a chip and two actions, and measured at 800 px the
     // labelled buttons overflow the row by 7.7 px — which shows up as a
@@ -164,41 +171,38 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen>
               // where they already exist: "Scan for devices" is the drawer's
               // own "Scan all" (the same code path), and "Disconnect all" is in
               // the profile menu.
-              if (!phoneHeader) ...[
+              //
+              // The actions act on the Devices tab (Scan opens its discovery
+              // drawer), and the Profiles tab has its own per-profile
+              // Connect all / Disconnect all, so they are shown there only.
+              // The one primary is "Connect all" while a profile device is
+              // down; with the rig up nothing in the header is the next step.
+              if (!phoneHeader && tabIndex == 0) ...[
+                if (profileToConnect != null)
+                  _HeaderAction(
+                    label: 'Connect all',
+                    icon: LucideIcons.plug,
+                    primary: true,
+                    iconOnly: narrowHeader,
+                    onPressed: () => connectAllDevices(profileToConnect),
+                  ),
                 // Only when there IS something to disconnect. On a fresh
                 // profile this offered to disconnect nothing, which reads as a
                 // broken control rather than an empty rig.
                 if (anythingConnected)
-                  if (narrowHeader)
-                    SkotiqIconButton(
-                      icon: LucideIcons.unplug,
-                      tooltip: 'Disconnect all',
-                      onPressed: disconnectAllDevices,
-                    )
-                  else
-                    SkotiqButton(
-                      label: 'Disconnect all',
-                      icon: LucideIcons.unplug,
-                      variant: ButtonVariant.secondary,
-                      size: ButtonSize.small,
-                      onPressed: disconnectAllDevices,
-                    ),
-                if (narrowHeader)
-                  SkotiqIconButton(
-                    icon: LucideIcons.search,
-                    tooltip: 'Scan for devices',
-                    selected: true,
-                    onPressed: () =>
-                        ref.read(discoveryScanRequestProvider.notifier).state++,
-                  )
-                else
-                  SkotiqButton(
-                    label: 'Scan for devices',
-                    icon: LucideIcons.search,
-                    size: ButtonSize.small,
-                    onPressed: () =>
-                        ref.read(discoveryScanRequestProvider.notifier).state++,
+                  _HeaderAction(
+                    label: 'Disconnect all',
+                    icon: LucideIcons.unplug,
+                    iconOnly: narrowHeader,
+                    onPressed: disconnectAllDevices,
                   ),
+                _HeaderAction(
+                  label: 'Scan for devices',
+                  icon: LucideIcons.search,
+                  iconOnly: narrowHeader,
+                  onPressed: () =>
+                      ref.read(discoveryScanRequestProvider.notifier).state++,
+                ),
               ],
             ],
           ),
@@ -291,6 +295,43 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen>
         bodyPadding: EdgeInsets.zero,
         child: const EquipmentSettingsTab(),
       ),
+    );
+  }
+}
+
+/// One page-header action: a labeled button, or below desktop width an icon
+/// button with the verb as its tooltip.
+class _HeaderAction extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool primary;
+  final bool iconOnly;
+  final VoidCallback onPressed;
+
+  const _HeaderAction({
+    required this.label,
+    required this.icon,
+    required this.iconOnly,
+    required this.onPressed,
+    this.primary = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (iconOnly) {
+      return SkotiqIconButton(
+        icon: icon,
+        tooltip: label,
+        selected: primary,
+        onPressed: onPressed,
+      );
+    }
+    return SkotiqButton(
+      label: label,
+      icon: icon,
+      variant: primary ? ButtonVariant.primary : ButtonVariant.secondary,
+      size: ButtonSize.small,
+      onPressed: onPressed,
     );
   }
 }
