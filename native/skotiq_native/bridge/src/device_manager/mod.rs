@@ -12,6 +12,7 @@ pub(crate) mod heartbeat;
 pub mod identity;
 pub(crate) mod motion_guard;
 pub(crate) mod ops;
+pub(crate) mod policy;
 pub(crate) mod read_health;
 pub(crate) mod simulated;
 
@@ -37,290 +38,24 @@ pub struct ReconnectConfig {
     pub backoff_multiplier: f64,
 }
 
-/// Configuration for heartbeat monitoring (per device type)
+/// How a device's heartbeat is run; one value per device type in
+/// [`policy::policy`].
 #[derive(Debug, Clone, Copy)]
-#[flutter_rust_bridge::frb]
 pub struct HeartbeatConfig {
-    /// Base interval between heartbeats in seconds (default: 10)
+    /// Seconds between heartbeats while the device answers.
     pub base_interval_secs: u64,
-    /// Maximum interval (after backoff) in seconds (default: 60)
+    /// Longest interval the backoff grows to, in seconds.
     pub max_interval_secs: u64,
-    /// Number of consecutive failures before marking device disconnected (default: 3)
+    /// Consecutive failed heartbeats before the device counts as lost.
     pub failure_threshold: u32,
-    /// Backoff multiplier when failures occur (default: 2.0)
+    /// Interval growth per failed heartbeat; 1.0 keeps a fixed cadence.
     pub backoff_multiplier: f64,
-    /// Whether to attempt automatic reconnection after disconnect (default: false)
+    /// Whether a lost device is handed to the reconnection loop.
     pub auto_reconnect: bool,
-    /// Maximum number of reconnection attempts (0 = unlimited, default: 3)
-    pub max_reconnect_attempts: u32,
-    /// Delay before first reconnection attempt in seconds (default: 5)
-    pub reconnect_delay_secs: u64,
     /// Whether crossing `failure_threshold` tears the device down (disconnect
-    /// + reconnection loop) or merely latches a `Degraded` "stale" status while
-    /// keeping the device connected and monitored.
-    ///
-    /// `true` where liveness is itself a signal the run depends on: a dead
-    /// camera stalls every frame, a dead mount drifts off target or slews into
-    /// the pier, and a dead accessory left registered as Connected is worse than
-    /// one being reconnected — escalating hands the device to the auto-reconnect
-    /// and recovery machinery. Slow, USB-contention-prone auxiliaries reach that
-    /// point later, through higher failure thresholds, a per-poll retry and
-    /// suppression during camera USB contention.
-    ///
-    /// `false` only where another path already carries the real signal: safety
-    /// monitors read `IsSafe` on their own fail-closed paths, so a missed
-    /// liveness ping earns a stale badge and nothing more.
-    ///
-    /// Defaults to `true`, so a device type that does not explicitly opt out
-    /// escalates rather than staying registered as Connected while dead.
+    /// and reconnection loop) or only latches a `Degraded` "stale" status
+    /// while the device stays connected and monitored.
     pub escalate_to_disconnect: bool,
-}
-
-impl Default for HeartbeatConfig {
-    fn default() -> Self {
-        Self {
-            base_interval_secs: 10,
-            max_interval_secs: 60,
-            failure_threshold: 3,
-            // Default to fixed cadence; device-specific constructors may
-            // select exponential backoff when that better fits the hardware.
-            backoff_multiplier: 1.0,
-            auto_reconnect: false,
-            max_reconnect_attempts: 3,
-            reconnect_delay_secs: 5,
-            escalate_to_disconnect: true,
-        }
-    }
-}
-
-impl HeartbeatConfig {
-    /// Camera liveness checks keep a fixed cadence after failures.
-    pub fn for_camera() -> Self {
-        Self {
-            base_interval_secs: 10,
-            max_interval_secs: 60,
-            failure_threshold: 3,
-            // Three failed polls already debounce transient errors; backing off
-            // adds another 40 seconds before confirming a lost camera.
-            backoff_multiplier: 1.0,
-            auto_reconnect: false,
-            max_reconnect_attempts: 3,
-            reconnect_delay_secs: 10,
-            // Liveness genuinely matters: a dead camera stalls every frame, so
-            // a sustained heartbeat loss should escalate to disconnect/recovery.
-            escalate_to_disconnect: true,
-        }
-    }
-
-    /// Create config optimized for mounts (frequent for tracking status)
-    pub fn for_mount() -> Self {
-        Self {
-            base_interval_secs: 5,
-            max_interval_secs: 30,
-            // One transient timeout pair must not drop a tracking mount: the
-            // ASCOM probe shares a process-wide STA worker thread, so a slow
-            // driver call can starve a single get_tracking() round-trip. The
-            // sequencer's own slew/sync calls surface a genuinely dead mount
-            // sooner than the heartbeat anyway.
-            failure_threshold: 3,
-            backoff_multiplier: 1.5,
-            auto_reconnect: true, // Mounts should auto-reconnect to maintain tracking
-            max_reconnect_attempts: 5,
-            reconnect_delay_secs: 3,
-            // Liveness genuinely matters: a dead mount drifts off target and can
-            // slew into the pier, so escalate to disconnect/recovery on loss.
-            escalate_to_disconnect: true,
-        }
-    }
-
-    /// Create config optimized for focusers (relatively stable)
-    pub fn for_focuser() -> Self {
-        Self {
-            base_interval_secs: 15,
-            max_interval_secs: 60,
-            // Why: tolerate transient single-client USB contention (e.g. NINA
-            // briefly holding the focuser). Each poll is also retried once.
-            failure_threshold: 5,
-            // Five consecutive, double-probed misses already provide strong
-            // debounce. Keep polling at a fixed cadence so a genuinely dead
-            // focuser is recovered in ~75s instead of several minutes.
-            backoff_multiplier: 1.0,
-            auto_reconnect: false,
-            max_reconnect_attempts: 2,
-            reconnect_delay_secs: 5,
-            // Per-poll retry + camera-contention suppression handle transient
-            // misses. Five sustained failures mean the registry must demote
-            // the device so the Dart reconnect owner can recover it.
-            escalate_to_disconnect: true,
-        }
-    }
-
-    /// Create config optimized for filter wheels (rarely polled)
-    pub fn for_filter_wheel() -> Self {
-        Self {
-            base_interval_secs: 20,
-            max_interval_secs: 120,
-            // Why: tolerate transient single-client USB contention (e.g. NINA
-            // briefly holding the filter wheel). Each poll is retried once.
-            failure_threshold: 5,
-            // Fixed cadence recovers a genuinely lost wheel in ~100s while
-            // retaining five consecutive double-probed misses as debounce.
-            backoff_multiplier: 1.0,
-            auto_reconnect: false,
-            max_reconnect_attempts: 2,
-            reconnect_delay_secs: 5,
-            // Do not leave an unresponsive wheel in the connected inventory
-            // indefinitely; sustained failures trigger Dart-owned reconnect.
-            escalate_to_disconnect: true,
-        }
-    }
-
-    /// Create config optimized for domes (slow operations, need patience)
-    pub fn for_dome() -> Self {
-        Self {
-            base_interval_secs: 15,
-            max_interval_secs: 90,
-            failure_threshold: 4,
-            backoff_multiplier: 2.0,
-            auto_reconnect: true, // Domes should auto-reconnect for safety
-            max_reconnect_attempts: 5,
-            reconnect_delay_secs: 10,
-            // Domes are a safety-relevant enclosure (rain/roof): keep today's
-            // escalate-on-loss behavior so recovery runs.
-            escalate_to_disconnect: true,
-        }
-    }
-
-    /// Create config optimized for rotators
-    pub fn for_rotator() -> Self {
-        Self {
-            base_interval_secs: 15,
-            max_interval_secs: 60,
-            // Why: tolerate transient single-client USB contention (e.g. NINA
-            // briefly holding the rotator). Each poll is retried once.
-            failure_threshold: 5,
-            backoff_multiplier: 1.0,
-            auto_reconnect: false,
-            max_reconnect_attempts: 2,
-            reconnect_delay_secs: 5,
-            // Sustained failures must demote stale registry state so the Dart
-            // reconnect owner can restore the rotator.
-            escalate_to_disconnect: true,
-        }
-    }
-
-    /// Create config optimized for weather stations (infrequent updates acceptable)
-    pub fn for_weather() -> Self {
-        Self {
-            base_interval_secs: 30,
-            max_interval_secs: 180,
-            failure_threshold: 5,
-            backoff_multiplier: 2.0,
-            auto_reconnect: true, // Weather monitoring should auto-reconnect
-            max_reconnect_attempts: 10,
-            reconnect_delay_secs: 15,
-            // Safety-relevant (clouds/rain): keep escalate-on-loss so recovery
-            // runs and the session can react.
-            escalate_to_disconnect: true,
-        }
-    }
-
-    /// Create config for safety monitors.
-    ///
-    /// IMPORTANT: this heartbeat is only a LIVENESS ping. A SafetyMonitor's
-    /// actual safety signal (`IsSafe`) is read on its OWN paths — the Dart
-    /// environment poll and, during a run, the sequencer's fail-closed safety
-    /// check — NOT via this heartbeat.
-    ///
-    /// So liveness is treated like the focuser/filter-wheel/rotator: latch a
-    /// Degraded "stale" badge and KEEP monitoring, never tear the device down
-    /// on a missed ping. On an aggressive escalate-to-disconnect config a flaky
-    /// network hub missing the occasional ping drives an endless
-    /// disconnect -> error -> reconnect cycle, each iteration emitting fresh
-    /// error toasts. Genuine loss of safety is still caught by the real
-    /// `IsSafe` read, which fails closed during a run.
-    pub fn for_safety_monitor() -> Self {
-        Self {
-            base_interval_secs: 15,
-            max_interval_secs: 60,
-            failure_threshold: 4,
-            backoff_multiplier: 2.0,
-            auto_reconnect: false,
-            max_reconnect_attempts: 2,
-            reconnect_delay_secs: 10,
-            escalate_to_disconnect: false,
-        }
-    }
-
-    /// Create config optimized for guiders (critical during active guiding)
-    pub fn for_guider() -> Self {
-        Self {
-            base_interval_secs: 5,
-            max_interval_secs: 30,
-            failure_threshold: 2,
-            backoff_multiplier: 1.5,
-            auto_reconnect: true,
-            max_reconnect_attempts: 5,
-            reconnect_delay_secs: 3,
-            // Guiding liveness is critical during an exposure: escalate on loss
-            // so recovery runs rather than silently letting guiding lapse.
-            escalate_to_disconnect: true,
-        }
-    }
-
-    /// Create config optimized for switch devices (slow-changing power/relay state)
-    pub fn for_switch() -> Self {
-        Self {
-            base_interval_secs: 20,
-            max_interval_secs: 120,
-            // Why: tolerate transient single-client USB contention (e.g. NINA
-            // briefly holding the switch); with 2.0 backoff + 20s base, 5
-            // failures is well over a minute of genuine unresponsiveness.
-            failure_threshold: 5,
-            backoff_multiplier: 2.0,
-            auto_reconnect: false,
-            max_reconnect_attempts: 2,
-            reconnect_delay_secs: 5,
-            // A switch often controls rig power (dew heaters, the mount's own
-            // supply). Keep escalate-on-loss so a genuinely-gone power controller
-            // surfaces loudly rather than silently latching "stale". The raised
-            // failure_threshold already absorbs transient USB contention.
-            escalate_to_disconnect: true,
-        }
-    }
-
-    /// Create config optimized for cover calibrators (session-safety accessory)
-    pub fn for_cover_calibrator() -> Self {
-        Self {
-            base_interval_secs: 10,
-            max_interval_secs: 60,
-            failure_threshold: 3,
-            backoff_multiplier: 2.0,
-            auto_reconnect: true,
-            max_reconnect_attempts: 5,
-            reconnect_delay_secs: 5,
-            // Session-safety accessory (flat panel / dust cover): keep
-            // escalate-on-loss so recovery runs.
-            escalate_to_disconnect: true,
-        }
-    }
-
-    /// Get configuration for a specific device type
-    pub fn for_device_type(device_type: &DeviceType) -> Self {
-        match device_type {
-            DeviceType::Camera => Self::for_camera(),
-            DeviceType::Mount => Self::for_mount(),
-            DeviceType::Focuser => Self::for_focuser(),
-            DeviceType::FilterWheel => Self::for_filter_wheel(),
-            DeviceType::Dome => Self::for_dome(),
-            DeviceType::Rotator => Self::for_rotator(),
-            DeviceType::Weather => Self::for_weather(),
-            DeviceType::SafetyMonitor => Self::for_safety_monitor(),
-            DeviceType::Guider => Self::for_guider(),
-            DeviceType::Switch => Self::for_switch(),
-            DeviceType::CoverCalibrator => Self::for_cover_calibrator(),
-        }
-    }
 }
 
 impl Default for ReconnectConfig {
@@ -497,8 +232,8 @@ pub struct DeviceManager {
     /// On shared-USB rigs (a ZWO EAF/EFW behind an ASI camera) the real cause
     /// of transient auxiliary read failures is the camera saturating the USB
     /// bus during frame download. While this counter is non-zero the heartbeat
-    /// loop SKIPS polls for the USB-contention-prone auxiliary device types
-    /// (focuser, filter wheel, rotator) — the same skip path as a per-device
+    /// loop SKIPS polls for the device types that yield to camera USB
+    /// ([`policy::DevicePolicy::yields_to_camera_usb`]) — the same skip path as a per-device
     /// active operation — so a status read that merely lost a race with the
     /// download is never miscounted as a heartbeat failure.
     ///
@@ -573,8 +308,8 @@ impl Drop for UsbContentionGuard {
 impl DeviceManager {
     /// Mark the rig as being in a camera exposure/download window until the
     /// returned [`UsbContentionGuard`] is dropped. While the window is open the
-    /// heartbeat loop skips polls for the USB-contention-prone auxiliary device
-    /// types (focuser, filter wheel, rotator) — see [`Self::is_usb_contended`]
+    /// heartbeat loop skips polls for the device types that yield to camera USB
+    /// ([`policy::DevicePolicy::yields_to_camera_usb`]) — see [`Self::is_usb_contended`]
     /// and `run_heartbeat_loop` — so a status read that merely lost a race with
     /// the frame download on a shared USB bus is not miscounted as a heartbeat
     /// failure. Hold the guard for the full exposure+download window via
@@ -595,21 +330,6 @@ impl DeviceManager {
         self.usb_contention
             .load(std::sync::atomic::Ordering::Relaxed)
             > 0
-    }
-
-    /// Whether the given device type is one whose heartbeat we suppress during
-    /// a camera USB-contention window. These are the slow auxiliary devices
-    /// that typically share the camera's USB path (ZWO EAF/EFW behind an ASI
-    /// camera, a Pegasus focuser on the same hub, …) and whose liveness polls
-    /// lose races with frame downloads. The camera and mount are deliberately
-    /// excluded: the camera is the one driving the contention (and we never
-    /// want to stop watching it), and the mount is on its own link / matters
-    /// for tracking safety.
-    pub(crate) fn device_type_suppressed_by_usb_contention(device_type: &DeviceType) -> bool {
-        matches!(
-            device_type,
-            DeviceType::Focuser | DeviceType::FilterWheel | DeviceType::Rotator
-        )
     }
 
     /// Mark `device_id` as having a blocking operation in flight until the

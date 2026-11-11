@@ -1,4 +1,5 @@
 use super::*;
+use crate::device_manager::policy::policy;
 
 #[tokio::test]
 async fn test_mount_can_park_requires_registered_device() {
@@ -93,15 +94,9 @@ fn usb_contention_suppresses_only_aux_device_types() {
     // The focuser/filter-wheel/rotator share the camera's USB path and are
     // suppressed during a download window. The camera (which is driving the
     // contention) and the mount (own link, tracking-critical) are not.
-    assert!(DeviceManager::device_type_suppressed_by_usb_contention(
-        &DeviceType::Focuser
-    ));
-    assert!(DeviceManager::device_type_suppressed_by_usb_contention(
-        &DeviceType::FilterWheel
-    ));
-    assert!(DeviceManager::device_type_suppressed_by_usb_contention(
-        &DeviceType::Rotator
-    ));
+    assert!(policy(DeviceType::Focuser).yields_to_camera_usb);
+    assert!(policy(DeviceType::FilterWheel).yields_to_camera_usb);
+    assert!(policy(DeviceType::Rotator).yields_to_camera_usb);
 
     for not_suppressed in [
         DeviceType::Camera,
@@ -114,7 +109,7 @@ fn usb_contention_suppresses_only_aux_device_types() {
         DeviceType::CoverCalibrator,
     ] {
         assert!(
-            !DeviceManager::device_type_suppressed_by_usb_contention(&not_suppressed),
+            !policy(not_suppressed).yields_to_camera_usb,
             "{:?} must NOT be suppressed by USB contention",
             not_suppressed
         );
@@ -138,7 +133,7 @@ fn escalate_to_disconnect_is_a_per_device_type_property() {
         DeviceType::CoverCalibrator,
     ] {
         assert!(
-            HeartbeatConfig::for_device_type(&escalating).escalate_to_disconnect,
+            policy(escalating).heartbeat.escalate_to_disconnect,
             "{:?} must escalate a heartbeat loss to disconnect",
             escalating
         );
@@ -146,7 +141,7 @@ fn escalate_to_disconnect_is_a_per_device_type_property() {
 
     // SafetyMonitor heartbeat is only a liveness hint; the independent
     // IsSafe signal owns enclosure safety decisions.
-    assert!(!HeartbeatConfig::for_safety_monitor().escalate_to_disconnect);
+    assert!(!policy(DeviceType::SafetyMonitor).heartbeat.escalate_to_disconnect);
 }
 
 #[tokio::test]

@@ -10,6 +10,7 @@
 use crate::device::*;
 use crate::device_manager::handle::{device_noun, protocol_label};
 use crate::device_manager::identity::{DeviceIdentity, IDENTITY_CONFLICT_MARKER};
+use crate::device_manager::policy::policy;
 use crate::device_manager::{DeviceManager, ManagedDevice};
 use crate::event::*;
 use std::time::Duration;
@@ -495,10 +496,7 @@ impl DeviceManager {
 
                 // A focuser, wheel or rotator moved outside Skotiq is caught
                 // by the backstop poll (`ops::backstop`).
-                if matches!(
-                    info.device_type,
-                    DeviceType::Focuser | DeviceType::FilterWheel | DeviceType::Rotator
-                ) {
+                if policy(info.device_type).backstop_polled {
                     self.ensure_backstop_poll();
                 }
 
@@ -514,7 +512,7 @@ impl DeviceManager {
                     .await;
 
                 // Auto-start heartbeat monitoring for the connected device
-                let heartbeat_config = Self::get_heartbeat_config(&info.device_type);
+                let heartbeat_config = policy(info.device_type).heartbeat;
                 if let Err(e) = self
                     .start_heartbeat_with_config(device_id, heartbeat_config)
                     .await
