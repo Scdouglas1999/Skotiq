@@ -55,7 +55,7 @@ void main() {
     await tester.tap(find.byType(FocusModelCurveCard));
     await tester.pumpAndSettle();
 
-    expect(visited.value, '/settings?section=focus-model');
+    expect(visited.value, '/settings?section=autofocus');
     expect(find.text('SETTINGS'), findsOneWidget);
   });
 
