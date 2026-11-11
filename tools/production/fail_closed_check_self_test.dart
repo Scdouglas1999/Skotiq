@@ -62,6 +62,79 @@ Future<void> main() async {
       'missing file fixture should report a missing production file',
     );
 
+    // A rule that names a declaration covers the library's part files.
+    await _writePassingFixture(temp);
+    await _writeFile(
+      temp,
+      'packages/skotiq_core/lib/src/backend/ffi_backend.dart',
+      "part 'ffi_backend/operations.dart';\n\nclass FfiBackend {}\n",
+    );
+    await _writeFile(
+      temp,
+      'packages/skotiq_core/lib/src/backend/ffi_backend/operations.dart',
+      "part of '../ffi_backend.dart';\n\n"
+          "void connect() => throw UnimplementedError('later');\n",
+    );
+    final partResult = await _runAudit(script, temp, allowFailure: true);
+    _expect(partResult.exitCode == 1, 'a part-file violation should fail');
+    final partViolations =
+        _readJson(
+              temp,
+              'docs/production-readiness/fail-closed-audit.json',
+            )['violations']
+            as List;
+    _expect(
+      partViolations.single['path'] ==
+          'packages/skotiq_core/lib/src/backend/ffi_backend/operations.dart',
+      'the violation should name the part file, got $partViolations',
+    );
+
+    // The rule follows the declaration when its library moves.
+    await Directory(
+      '${temp.path}/packages/skotiq_core/lib/src/backend',
+    ).rename('${temp.path}/packages/skotiq_core/lib/src/native_backend');
+    await _writeFile(
+      temp,
+      'packages/skotiq_core/lib/src/backend/network_backend.dart',
+      'class NetworkBackend {}\n',
+    );
+    final movedResult = await _runAudit(script, temp, allowFailure: true);
+    final movedViolations =
+        _readJson(
+              temp,
+              'docs/production-readiness/fail-closed-audit.json',
+            )['violations']
+            as List;
+    _expect(
+      movedResult.exitCode == 1 &&
+          movedViolations.single['path'] ==
+              'packages/skotiq_core/lib/src/native_backend/ffi_backend/operations.dart',
+      'a moved library should still be checked, got $movedViolations',
+    );
+
+    // A declaration that no longer exists fails instead of checking nothing.
+    await _writeFile(
+      temp,
+      'packages/skotiq_core/lib/src/native_backend/ffi_backend.dart',
+      'class RenamedBackend {}\n',
+    );
+    final goneResult = await _runAudit(script, temp, allowFailure: true);
+    final goneViolations =
+        _readJson(
+              temp,
+              'docs/production-readiness/fail-closed-audit.json',
+            )['violations']
+            as List;
+    _expect(
+      goneResult.exitCode == 1 &&
+          goneViolations.any(
+            (v) =>
+                v['id'] == 'ffi_backend_unimplemented' &&
+                v['description'].toString().contains('[MISSING FILE]'),
+          ),
+      'a missing declaration should fail, got $goneViolations',
+    );
+
     stdout.writeln('Fail-closed audit self-test passed.');
   } finally {
     await temp.delete(recursive: true);
@@ -107,6 +180,10 @@ Future<void> _writeRequiredFiles(
     'packages/skotiq_bridge/lib/src/bridge_stub.dart',
     bridgeStub,
   );
+  // Every policy root has to contribute files.
+  await _writeFile(root, 'apps/desktop/lib/main.dart', 'void main() {}\n');
+  await _writeFile(root, 'native/skotiq_native/bridge/src/lib.rs', '\n');
+  await _writeFile(root, 'tools/production/tool.dart', 'void main() {}\n');
   await _writeFile(
     root,
     'packages/skotiq_core/lib/src/backend/ffi_backend.dart',
@@ -149,7 +226,7 @@ rules:
 
   - id: ffi_backend_unimplemented
     description: Disallow UnimplementedError in production backend paths
-    glob: packages/skotiq_core/lib/src/backend/ffi_backend.dart
+    declares: FfiBackend
     forbidden_pattern: 'UnimplementedError\('
     require_present: true
 
@@ -168,7 +245,7 @@ rules:
 
   - id: focuser_halt_noop
     description: Disconnected backend focuserHalt must not be a no-op
-    glob: packages/skotiq_core/lib/src/backend/disconnected_backend.dart
+    declares: DisconnectedBackend
     forbidden_pattern: 'Future<void>\s+focuserHalt\s*\([^)]*\)\s*async\s*\{\s*\}'
     multi_line: true
     require_present: true
@@ -190,7 +267,12 @@ Future<ProcessResult> _runAudit(
 }) async {
   final result = await Process.run(
     'dart',
-    [script.path],
+    [
+      script.path,
+      // The fixtures are judged against the repository's real scan scope.
+      '--scope',
+      '${Directory.current.path}/docs/production-readiness/audit-scope.yaml',
+    ],
     workingDirectory: root.path,
     runInShell: Platform.isWindows,
   );
