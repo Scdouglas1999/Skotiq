@@ -14,6 +14,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 // ignore: implementation_imports
 import 'package:skotiq_core/src/services/stack_light_selector.dart'
     show stackLightSelectorProvider, NoLightsToStackException;
+import '../../stack_result/recent_stacks_panel.dart';
 import '../../stack_result/stack_and_share_dialog.dart';
 import 'osc_stacking_controls.dart';
 import 'panel_widgets.dart';
@@ -782,6 +783,9 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
 
           if (widget.showPreview && stackState.previewData != null)
             const SizedBox(height: 20),
+
+          const RecentStacksPanel(),
+          const SizedBox(height: 20),
 
           SkotiqPanel(
             head: PanelHead(label: 'Sigma clipping'),
