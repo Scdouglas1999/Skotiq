@@ -124,6 +124,15 @@ abstract final class ShellNavigation {
     ),
   ];
 
+  /// Past runs on the linked host, replayed as a timeline. Listed in the More
+  /// sheet only; the rail does not carry it.
+  static const ShellPrimaryDestination sessionReplay = ShellPrimaryDestination(
+    route: '/session-replay',
+    icon: LucideIcons.history,
+    label: _navSessionReplay,
+    group: ShellNavGroup.review,
+  );
+
   static const ShellPrimaryDestination settings = ShellPrimaryDestination(
     route: '/settings',
     icon: LucideIcons.settings,
@@ -160,14 +169,15 @@ abstract final class ShellNavigation {
   ];
 
   /// Everything the More sheet lists: every primary destination without a
-  /// fixed slot (Plan, Equipment, Flat wizard, Weather, Darkroom, Analytics) plus
-  /// [settings], which has no rail slot either.
+  /// fixed slot (Plan, Equipment, Flat wizard, Weather, Darkroom, Analytics),
+  /// then [sessionReplay] and [settings], which have no rail slot.
   static List<ShellPrimaryDestination> get overflowDestinations {
     final bottomRoutes =
         bottomNavigationDestinations.map((d) => d.route).toSet();
     return [
       for (final dest in primaryDestinations)
         if (!bottomRoutes.contains(dest.route)) dest,
+      sessionReplay,
       settings,
     ];
   }
@@ -193,6 +203,7 @@ abstract final class ShellNavigation {
     '/onboarding': null,
     '/pairing': null,
     '/replay': null,
+    '/session-replay': null,
     '/diagnostics': null,
   };
 
@@ -273,6 +284,8 @@ abstract final class ShellNavigation {
       l10n.text('navDarkroom');
   static String _navAnalytics(SkotiqLocalizations l10n) =>
       l10n.text('navAnalytics');
+  static String _navSessionReplay(SkotiqLocalizations l10n) =>
+      l10n.text('navSessionReplay');
   static String _settingsTitle(SkotiqLocalizations l10n) =>
       l10n.text('settingsTitle');
 }

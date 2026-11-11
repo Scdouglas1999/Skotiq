@@ -60,8 +60,8 @@ void main() {
     });
 
     test(
-        'the More sheet lists every destination without a slot, plus '
-        'Settings', () {
+        'the More sheet lists every destination without a slot, then '
+        'Session replay and Settings', () {
       expect(
         ShellNavigation.overflowDestinations.map((d) => d.route).toList(),
         [
@@ -71,6 +71,7 @@ void main() {
           '/weather',
           '/darkroom',
           '/analytics',
+          '/session-replay',
           '/settings',
         ],
       );

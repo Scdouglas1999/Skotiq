@@ -1,4 +1,4 @@
-// Smoke test for the mobile session replay scrubber.
+// Smoke test for the session replay scrubber.
 //
 // Renders the replay screen with a stub data source and asserts:
 //   1. The timeline bar renders.
@@ -17,7 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_mobile/screens/replay/session_replay_screen.dart';
+import 'package:skotiq_app/screens/session_replay/session_replay_screen.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 void main() {
@@ -57,12 +57,7 @@ void main() {
 
   Widget wrap(Widget child) {
     return ProviderScope(
-      child: MaterialApp(
-        theme: ThemeData.light().copyWith(
-          extensions: const [SkotiqColors.dark],
-        ),
-        home: child,
-      ),
+      child: MaterialApp(theme: SkotiqTheme.dark, home: child),
     );
   }
 
@@ -143,19 +138,40 @@ void main() {
     // The banner specifically calls out the no-buffered-entries
     // reason — operators on a Pi that restarted overnight need this.
     expect(
-      find.textContaining('Server has no buffered events for this run'),
+      find.textContaining('The host has no events for this run'),
       findsOneWidget,
     );
   });
 
-  testWidgets('error state renders Retry button', (tester) async {
+  testWidgets('a failed load explains and offers Try again', (tester) async {
     final source = _StubSource.failing(error: Exception('boom'));
     await tester.pumpWidget(
       wrap(SessionReplayScreen(runId: 1, dataSourceOverride: source)),
     );
     await tester.pumpAndSettle();
     expect(find.text('Replay failed'), findsOneWidget);
-    expect(find.text('Retry'), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
+  });
+
+  testWidgets('without a linked host it says replay needs a connected rig', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, DisconnectedBackend()),
+          ),
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const SessionReplayScreen(runId: 4),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Replay needs a connected rig'), findsOneWidget);
   });
 }
 
@@ -172,10 +188,10 @@ class _StubSource implements SessionReplayDataSource {
   }) : failure = null;
 
   _StubSource.failing({required Object error})
-    : run = null,
-      eventsPage = null,
-      frames = null,
-      failure = error;
+      : run = null,
+        eventsPage = null,
+        frames = null,
+        failure = error;
 
   @override
   Future<RemoteSequenceRunDetail> fetchRun(int runId) async {
@@ -193,5 +209,11 @@ class _StubSource implements SessionReplayDataSource {
   Future<List<RemoteReplayFrame>> fetchFrames(int runId) async {
     if (failure != null) throw failure!;
     return frames!;
+  }
+}
+
+class _FixedBackendNotifier extends BackendNotifier {
+  _FixedBackendNotifier(super.ref, SkotiqBackend backend) {
+    state = backend;
   }
 }

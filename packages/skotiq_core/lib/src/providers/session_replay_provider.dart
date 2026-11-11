@@ -28,8 +28,8 @@
 // The notifier is intentionally implementation-agnostic about the
 // backend: tests inject a `SessionReplayDataSource` that returns
 // canned data. Production wiring constructs the data source from the
-// app's `NetworkBackend` at the screen layer (see the mobile
-// `session_replay_screen.dart`).
+// linked host at the screen layer (skotiq_app
+// `screens/session_replay/session_replay_screen.dart`).
 
 import 'dart:async';
 

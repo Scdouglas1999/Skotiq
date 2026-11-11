@@ -183,4 +183,32 @@ void main() {
       );
     }
   });
+
+  testWidgets('the More sheet opens Session replay', (tester) async {
+    final selected = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SkotiqTheme.dark,
+        home: Scaffold(
+          bottomNavigationBar: SkotiqBottomNavigation(
+            currentRoute: '/dashboard',
+            onRouteSelected: selected.add,
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('More'));
+    await tester.pumpAndSettle();
+
+    // The default 800x600 test view gives the sheet less height than the
+    // list needs, so this also proves the sheet scrolls instead of clipping.
+    await tester.ensureVisible(find.text('Session replay'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Session replay'));
+    await tester.pumpAndSettle();
+
+    expect(selected, ['/session-replay']);
+    expect(find.text('Session replay'), findsNothing);
+    expect(await _selectedLabels(tester, '/session-replay/12'), ['More']);
+  });
 }
