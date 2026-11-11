@@ -646,6 +646,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActBusyAutofocus': 'Autofocus is running',
     'nightActBusySolveSync': 'Solve & sync is running',
     'nightActBusyCenter': 'Centering is running',
+    'nightActWhyNoSolver': 'No plate solver is set up',
     'nightActBusyDither': 'A dither is running',
     'nightActBusyFlip': 'A meridian flip is running',
     'nightActBusyTracking': 'Tracking is changing',
@@ -1387,6 +1388,11 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeWhySolving': 'A plate solve is running',
     'nightScopeWhyNoFrame': 'Take a frame first',
     'nightScopeSolveSyncCentering': 'Sync the mount between centering slews',
+    'nightScopeSolverMissing': 'No plate solver set up',
+    'nightScopeSolverMissingNote':
+        'Solve, Solve & sync and Center need a plate solver (ASTAP or '
+            'Astrometry.net).',
+    'nightScopeSolverSetUp': 'Set up plate solver',
     'nightScopeSolveSyncCenteringHint':
         "Off keeps the mount's pointing model untouched, but each correction slew then repeats the same error",
     'nightScopeSolveSettings': 'Settings for a solve',
@@ -2246,6 +2252,7 @@ final Map<String, Map<String, String>> _localizedValues = {
         'Reiniciando el guiado y esperando a que se estabilice',
     'nightActErrSnapshot': 'La instantánea falló: {detail}',
     'nightActErrLoop': 'El bucle se detuvo: {detail}',
+    'nightActWhyNoSolver': 'No hay ningún resolvedor de placas configurado',
     'nightActErrAutofocus': 'El autoenfoque falló: {detail}',
     'nightActErrSolveSync': 'Resolver y sincronizar falló: {detail}',
     'nightActErrCenter': 'El centrado falló: {detail}',
@@ -3014,6 +3021,11 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeSolveCenterRuleBlind':
         'Botón Centrar: a menos de {arcsec}" · {attempts} intentos · resolución a ciegas activada',
     'nightScopeSolvePlanCenterRule':
+    'nightScopeSolverMissing': 'Sin resolvedor de placas',
+    'nightScopeSolverMissingNote':
+        'Resolver, Resolver y sincronizar y Centrar necesitan un resolvedor '
+            'de placas (ASTAP o Astrometry.net).',
+    'nightScopeSolverSetUp': 'Configurar el resolvedor',
         'Paso Centrar del plan: a menos de {arcsec}" · {attempts} intentos',
     'nightScopeSolveEditSettings': 'Ajustes del resolvedor…',
     'nightScopeRotation': 'Rotación',

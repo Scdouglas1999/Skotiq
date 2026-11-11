@@ -22,6 +22,8 @@ import 'armed_start_provider.dart';
 import 'manual_action_gating.dart';
 import 'night_rig_ops.dart';
 import 'run_pause_guard.dart';
+import '../data/session/before_you_start_provider.dart'
+    show nightSolverStatusProvider;
 import '../data/session/camera_exposure_provider.dart';
 import 'solve_and_sync.dart';
 
@@ -125,6 +127,7 @@ NightActionInputs readNightActionInputs(
     exposureSeconds: read(exposureSettingsProvider).exposureTime,
     filterName: read(filterWheelStateProvider).currentFilterName,
     flipDone: read(nightFlipProvider).doneForThisTransit,
+    solverMissing: read(nightSolverStatusProvider)?.ready == false,
   );
 }
 
@@ -743,8 +746,7 @@ class NightActionController extends Notifier<ManualActionState>
     );
   }
 
-  static String _clean(Object error) =>
-      userFacingError(error);
+  static String _clean(Object error) => userFacingError(error);
 }
 
 /// A failure that already has its operator-facing text.

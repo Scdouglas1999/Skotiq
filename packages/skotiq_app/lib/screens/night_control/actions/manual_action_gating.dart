@@ -31,6 +31,7 @@ class NightActionInputs {
     this.exposureSeconds,
     this.filterName,
     this.flipDone = false,
+    this.solverMissing = false,
   });
 
   /// `backendCanCommandProvider`: false for a disconnected backend or a
@@ -72,6 +73,10 @@ class NightActionInputs {
   /// The run's meridian flip for this transit is behind it: it succeeded,
   /// or it moved the mount across the pier and the run will not flip again.
   final bool flipDone;
+
+  /// The chosen plate solver is known not to be installed. False while
+  /// detection runs: a solver still being looked for is not missing.
+  final bool solverMissing;
 
   /// A run whose pause or resume this screen can drive.
   bool get runPausable =>
@@ -119,6 +124,15 @@ NightText? manualActionDisabledReason(
     return active == null
         ? const NightText('nightActWhyBusy')
         : NightText(manualActionKey('nightActBusy', active));
+  }
+
+  // Checked before anything else: without a solver these would expose a
+  // frame, or move the mount, and only then fail.
+  if (inputs.solverMissing &&
+      (id == ManualActionId.solve ||
+          id == ManualActionId.solveSync ||
+          id == ManualActionId.center)) {
+    return const NightText('nightActWhyNoSolver');
   }
 
   // A solve reads a file and pauses nothing, so the run's state is no
@@ -274,4 +288,3 @@ NightText? _sub(NightActionInputs inputs, ManualActionId id) {
 /// `nightActBusyAutofocus` from `nightActBusy` and [ManualActionId.autofocus].
 String manualActionKey(String prefix, ManualActionId id) =>
     '$prefix${id.name[0].toUpperCase()}${id.name.substring(1)}';
-

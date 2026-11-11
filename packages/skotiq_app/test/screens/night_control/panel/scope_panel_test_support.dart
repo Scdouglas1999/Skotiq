@@ -35,6 +35,7 @@ NightActionInputs panelInputs({
   bool mountTracking = true,
   bool hasTarget = true,
   bool hasFrame = false,
+  bool solverMissing = false,
 }) =>
     NightActionInputs(
       canCommand: canCommand,
@@ -50,6 +51,7 @@ NightActionInputs panelInputs({
       hasTarget: hasTarget,
       hasFrame: hasFrame,
       targetName: hasTarget ? 'M74' : null,
+      solverMissing: solverMissing,
     );
 
 /// Every mount capability the tabs ask about.

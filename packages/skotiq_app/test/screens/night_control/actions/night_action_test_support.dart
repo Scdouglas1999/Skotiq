@@ -9,6 +9,8 @@ import 'package:skotiq_app/screens/night_control/actions/night_action_controller
 import 'package:skotiq_app/screens/night_control/actions/night_rig_ops.dart';
 import 'package:skotiq_app/screens/night_control/actions/run_pause_guard.dart';
 import 'package:skotiq_app/screens/night_control/actions/solve_and_sync.dart';
+import 'package:skotiq_app/screens/night_control/data/session/before_you_start_provider.dart'
+    show NightSolverStatus, nightSolverStatusProvider;
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../../harness/mock_backend.dart';
@@ -291,6 +293,10 @@ class FakeRigOps implements NightRigOps {
   ),
   double? coolerSetpoint = -10,
   DateTime? astroDark,
+  NightSolverStatus? solver = const NightSolverStatus(
+    ready: true,
+    name: 'ASTAP',
+  ),
   List<Override> extra = const [],
 }) {
   late FakeRigOps ops;
@@ -312,6 +318,7 @@ class FakeRigOps implements NightRigOps {
     nightCoolerSetpointProvider.overrideWithValue(coolerSetpoint),
     nightRigOpsProvider.overrideWith((ref) => ops),
     nightAstroDarkProvider.overrideWithValue(astroDark),
+    nightSolverStatusProvider.overrideWithValue(solver),
     ...extra,
   ]);
   ops = FakeRigOps(container);
