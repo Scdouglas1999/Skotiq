@@ -296,10 +296,8 @@ class SharedCalibrationService {
     return rows.map(_fromRow).toList(growable: false);
   }
 
-  /// One master row by id, or null.
   SharedCalibrationMasterRow? get(String id) => _rowById(id);
 
-  /// The stored bytes for a master, or null when the file is gone.
   Uint8List? bytesFor(SharedCalibrationMasterRow row) => _store.load(row.path);
 
   /// Delete a published master (file + row). [requesterId] non-null scopes the
@@ -457,7 +455,6 @@ class CalibrationPublishRejected implements Exception {
   String toString() => 'CalibrationPublishRejected($code): $message';
 }
 
-/// No shared master with the given id exists.
 class CalibrationMasterNotFound implements Exception {
   CalibrationMasterNotFound(this.id);
   final String id;

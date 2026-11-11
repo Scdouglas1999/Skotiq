@@ -52,13 +52,10 @@
 /// ```
 library;
 
-// Core plugin API
 export 'src/plugin_api.dart';
 
-// Plugin host and lifecycle management
 export 'src/plugin_host.dart';
 
-// Plugin context implementations
 export 'src/plugin_context.dart';
 
 // Sequence-node registry + executor (the bridge between SequencePlugin
@@ -66,10 +63,8 @@ export 'src/plugin_context.dart';
 export 'src/plugin_node_registry.dart';
 export 'src/plugin_node_executor.dart';
 
-// Example plugins demonstrating the API
 export 'src/example_plugin.dart';
 
-// Additional example plugins
 export 'examples/weather_logger_plugin.dart';
 export 'examples/custom_notification_plugin.dart';
 export 'examples/sequence_delay_plugin.dart';

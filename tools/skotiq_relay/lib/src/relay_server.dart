@@ -440,8 +440,6 @@ class RelayServer {
     }
   }
 
-  // -- shared helpers -------------------------------------------------------
-
   MuxFrame _decodeWsFrame(dynamic message) {
     if (message is! List<int>) {
       throw const MuxProtocolException('expected binary WebSocket message');

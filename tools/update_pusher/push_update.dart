@@ -197,7 +197,6 @@ Future<List<UpdateTarget>> discoverTargets() async {
       }
     });
 
-    // Send discovery broadcast
     final discoveryData = utf8.encode(updatePushMessage);
     socket.send(
       discoveryData,
@@ -259,19 +258,16 @@ Future<void> pushToTarget(
   print('Pushing to $host:$port...');
 
   try {
-    // Read manifest
     final manifestContent = await File(manifestPath).readAsString();
     final manifest = jsonDecode(manifestContent) as Map<String, dynamic>;
     print('  Version: ${manifest['version']}');
 
-    // Read package
     final packageFile = File(packagePath);
     final packageSize = await packageFile.length();
     print(
       '  Package size: ${(packageSize / 1024 / 1024).toStringAsFixed(1)} MB',
     );
 
-    // Connect to target
     final socket = await Socket.connect(host, port);
     print('  Connected.');
 
@@ -296,7 +292,6 @@ Future<void> pushToTarget(
     lengthBytes.setInt32(0, manifestBytes.length, Endian.big);
     socket.add(lengthBytes.buffer.asUint8List());
 
-    // Send manifest
     socket.add(manifestBytes);
     print('  Manifest sent.');
 

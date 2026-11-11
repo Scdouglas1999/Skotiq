@@ -69,10 +69,8 @@ class FitsMasterHeader {
   /// master.
   static const int _maxSamples = 4096;
 
-  /// Number of bytes per pixel for the declared [bitpix].
   int get bytesPerPixel => bitpix.abs() ~/ 8;
 
-  /// Total pixel count across all planes (`NAXIS1 * NAXIS2 * NAXIS3`).
   int get pixelCount => naxis1 * naxis2 * naxis3;
 
   /// Expected size of the pixel-data section, in bytes.

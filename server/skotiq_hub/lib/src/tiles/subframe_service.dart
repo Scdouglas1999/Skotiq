@@ -130,7 +130,6 @@ class SubframeService {
   }
 }
 
-/// The receipt for a stored raw subframe.
 class SubframeReceipt {
   const SubframeReceipt({
     required this.contributionId,
@@ -176,7 +175,6 @@ class SubframeLedgerEntry {
   final String receivedAt;
 }
 
-/// No raw subframe with the given id exists.
 class SubframeNotFound implements Exception {
   const SubframeNotFound(this.contributionId);
   final String contributionId;

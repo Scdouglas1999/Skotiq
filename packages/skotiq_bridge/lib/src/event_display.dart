@@ -142,8 +142,6 @@ bool isCriticalEvent(SkotiqEvent event) {
   };
 }
 
-// Variant-specific title/detail mapping
-
 String _equipmentTitle(EquipmentEvent v) {
   return switch (v) {
     EquipmentEvent_Connecting() => 'Connecting',
@@ -463,7 +461,6 @@ String _sequencerTitle(SequencerEvent v) {
     // label switch yet. Fallback to the generic class-name discriminant
     // until each is given a hand-written label.
     SequencerEvent_ExposureAdjusted() => 'Exposure adjusted',
-    // Plugin sequence node dispatch.
     SequencerEvent_PluginNodeRequested() => 'Plugin node requested',
     SequencerEvent_PluginNodeProgress() => 'Plugin node progress',
     // Replay Debug — structured executor decision stream.
@@ -642,7 +639,6 @@ String _sequencerDetail(SequencerEvent v) {
       flt != null && flt.isNotEmpty
           ? '$flt: ${o.toStringAsFixed(1)}s → ${a.toStringAsFixed(1)}s ($r)'
           : '${o.toStringAsFixed(1)}s → ${a.toStringAsFixed(1)}s ($r)',
-    // Plugin node dispatch.
     SequencerEvent_PluginNodeRequested(
       pluginId: final pid,
       nodeTypeId: final tid,

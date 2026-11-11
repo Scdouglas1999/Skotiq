@@ -225,7 +225,6 @@ class PluginActivityTracker {
 
   bool _disposed = false;
 
-  /// Current immutable snapshot of last-fired timestamps.
   PluginLastFired get snapshot => Map.unmodifiable(_lastFired);
 
   /// Emits a fresh immutable snapshot every time a tracked plugin fires.

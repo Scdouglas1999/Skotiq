@@ -49,7 +49,6 @@ class SubframeStore {
     return dest;
   }
 
-  /// Read a stored subframe's bytes, or null if the file is gone.
   Uint8List? load(String path) {
     final file = File(path);
     if (!file.existsSync()) return null;

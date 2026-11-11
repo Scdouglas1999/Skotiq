@@ -64,7 +64,6 @@ class MosaicMasterStore {
     return dest;
   }
 
-  /// Read a stored blob's bytes, or null when the file is gone.
   Uint8List? load(String path) {
     final file = File(path);
     if (!file.existsSync()) return null;

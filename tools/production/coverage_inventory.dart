@@ -150,10 +150,6 @@ void _warnOnDuplicateIds(List<Map<String, Object?>> units) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Screens
-// ---------------------------------------------------------------------------
-
 /// One unit per screen-level widget, grouped by the `screens/<area>` directory.
 ///
 /// The area grouping is what a sweep is scoped to ("audit the sequencer"), and
@@ -352,10 +348,6 @@ Map<String, int> _countControls(String src) {
   return out;
 }
 
-// ---------------------------------------------------------------------------
-// Settings
-// ---------------------------------------------------------------------------
-
 /// One unit per settings section, carrying every row title that section renders.
 ///
 /// Row titles come from the generated search index rather than being re-parsed
@@ -383,10 +375,6 @@ List<Map<String, Object?>> _settingsUnits(String root) {
   }
   return units;
 }
-
-// ---------------------------------------------------------------------------
-// Sequencer instructions
-// ---------------------------------------------------------------------------
 
 /// One unit per concrete sequence instruction a user can drop into a sequence.
 ///
@@ -422,10 +410,6 @@ List<Map<String, Object?>> _sequenceNodeUnits(String root) {
       )
       .toList();
 }
-
-// ---------------------------------------------------------------------------
-// Reporting
-// ---------------------------------------------------------------------------
 
 void _report(String root, Map<String, Object?> inventory, List<String> args) {
   final statusFile = File('$root/$_outDir/status.json');

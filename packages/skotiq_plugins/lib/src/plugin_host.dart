@@ -5,21 +5,15 @@ import 'plugin_api.dart';
 import 'plugin_context.dart';
 import 'plugin_node_registry.dart';
 
-/// Represents a loaded plugin with its state
 class LoadedPlugin {
-  /// The plugin instance
   final SkotiqPlugin plugin;
 
-  /// Plugin context providing access to app services
   final PluginContext context;
 
-  /// Whether the plugin is currently enabled
   final bool enabled;
 
-  /// Timestamp when plugin was loaded
   final DateTime loadedAt;
 
-  /// Error that occurred during plugin operation, if any
   final String? error;
 
   /// True only when initial registration failed and a fresh registration may
@@ -32,7 +26,6 @@ class LoadedPlugin {
   /// provider refresh; only running a compatible app version can unblock it.
   final bool compatibilityBlocked;
 
-  /// Creates a loaded plugin entry
   LoadedPlugin({
     required this.plugin,
     required this.context,
@@ -43,7 +36,6 @@ class LoadedPlugin {
     this.compatibilityBlocked = false,
   }) : loadedAt = loadedAt ?? DateTime.now();
 
-  /// Create a copy with updated fields
   LoadedPlugin copyWith({
     bool? enabled,
     String? error,
@@ -66,34 +58,25 @@ class LoadedPlugin {
 
 /// Plugin information for UI display
 class PluginInfo {
-  /// Unique plugin identifier
   final String id;
 
-  /// Human-readable name
   final String name;
 
-  /// Version string
   final String version;
 
-  /// Plugin description
   final String description;
 
-  /// Plugin author
   final String author;
 
-  /// Whether plugin is enabled
   final bool enabled;
 
-  /// When plugin was loaded
   final DateTime loadedAt;
 
-  /// Error message if plugin failed
   final String? error;
 
   /// Whether the current host version permits enabling this plugin.
   final bool canEnable;
 
-  /// Creates plugin info
   const PluginInfo({
     required this.id,
     required this.name,
@@ -145,11 +128,9 @@ class PluginHost {
        _appVersion = appVersion,
        nodeRegistry = nodeRegistry ?? PluginNodeRegistry();
 
-  /// Get all loaded plugins
   List<SkotiqPlugin> get plugins =>
       _plugins.values.map((p) => p.plugin).toList();
 
-  /// Get plugin information for UI display
   List<PluginInfo> get pluginInfo {
     return _plugins.values.map((loaded) {
       final plugin = loaded.plugin;
@@ -167,7 +148,6 @@ class PluginHost {
     }).toList();
   }
 
-  /// Get plugins of a specific type
   List<T> getPlugins<T extends SkotiqPlugin>() {
     return _plugins.values
         .where((p) => p.enabled && p.plugin is T)
@@ -175,7 +155,6 @@ class PluginHost {
         .toList();
   }
 
-  /// Get a plugin by ID
   SkotiqPlugin? getPlugin(String pluginId) {
     return _plugins[pluginId]?.plugin;
   }
@@ -188,12 +167,10 @@ class PluginHost {
     return _plugins[pluginId]?.context;
   }
 
-  /// Check if a plugin is loaded
   bool isLoaded(String pluginId) {
     return _plugins.containsKey(pluginId);
   }
 
-  /// Check if a plugin is enabled
   bool isEnabled(String pluginId) {
     return _plugins[pluginId]?.enabled ?? false;
   }
@@ -261,7 +238,6 @@ class PluginHost {
     }
 
     try {
-      // Call onLoad lifecycle method
       await _runLifecycle(
         plugin,
         context,
@@ -269,14 +245,12 @@ class PluginHost {
         () => plugin.onLoad(context),
       );
 
-      // Store loaded plugin
       _plugins[plugin.id] = LoadedPlugin(
         plugin: plugin,
         context: context,
         enabled: enabled,
       );
 
-      // Call onEnable if starting enabled
       if (enabled) {
         await _runLifecycle(plugin, context, 'onEnable', plugin.onEnable);
         // Wire sequence-plugin nodes into the registry as soon as the
@@ -292,7 +266,6 @@ class PluginHost {
     } catch (e, stackTrace) {
       context.logger.error('Failed to register plugin', e, stackTrace);
 
-      // Store plugin with error state
       _plugins[plugin.id] = LoadedPlugin(
         plugin: plugin,
         context: context,
@@ -321,7 +294,6 @@ class PluginHost {
     nodeRegistry.unregisterPlugin(pluginId);
 
     try {
-      // Disable if enabled
       if (loaded.enabled) {
         await _runLifecycle(
           loaded.plugin,
@@ -331,7 +303,6 @@ class PluginHost {
         );
       }
 
-      // Unload plugin
       await _runLifecycle(
         loaded.plugin,
         loaded.context,
@@ -365,7 +336,6 @@ class PluginHost {
       );
     }
 
-    // No change needed
     if (loaded.enabled == enabled) {
       return false;
     }
@@ -400,7 +370,6 @@ class PluginHost {
         loaded.context.logger.info('Plugin disabled');
       }
 
-      // Update state
       _plugins[pluginId] = loaded.copyWith(
         enabled: enabled,
         clearError: true,
@@ -415,7 +384,6 @@ class PluginHost {
         stackTrace,
       );
 
-      // Update with error state
       _plugins[pluginId] = loaded.copyWith(error: e.toString());
 
       throw PluginException(
@@ -566,7 +534,6 @@ class _SemanticVersion implements Comparable<_SemanticVersion> {
   }
 }
 
-/// Plugin host provider
 final pluginHostProvider = Provider<PluginHost>((ref) {
   final host = PluginHost();
   ref.onDispose(() => host.dispose());

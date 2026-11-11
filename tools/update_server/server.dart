@@ -23,12 +23,10 @@ late String releasesDir;
 late String manifestsDir;
 
 Future<void> main(List<String> args) async {
-  // Parse arguments
   final port = int.tryParse(getArg(args, '--port') ?? '') ?? defaultPort;
   releasesDir = getArg(args, '--releases') ?? defaultReleasesDir;
   manifestsDir = getArg(args, '--manifests') ?? defaultManifestsDir;
 
-  // Create directories if they don't exist
   await Directory(releasesDir).create(recursive: true);
   await Directory(manifestsDir).create(recursive: true);
 
@@ -38,29 +36,22 @@ Future<void> main(List<String> args) async {
   print('Manifests: $manifestsDir');
   print('');
 
-  // Create router
   final router = Router();
 
-  // Version endpoint
   router.get('/api/version', _handleVersion);
 
-  // Manifest endpoints
   router.get('/api/manifests/<version>', _handleManifest);
   router.get('/manifests/<version>.json', _handleManifestFile);
 
-  // Package download
   router.get('/releases/<version>/<filename>', _handleDownload);
 
-  // Health check
   router.get('/health', (Request req) => Response.ok('OK'));
 
-  // Add CORS middleware
   final handler = const Pipeline()
       .addMiddleware(logRequests())
       .addMiddleware(_corsMiddleware())
       .addHandler(router.call);
 
-  // Start server
   final server = await shelf_io.serve(handler, InternetAddress.anyIPv4, port);
   print('Server running on http://${server.address.address}:${server.port}');
   print('');
@@ -80,7 +71,6 @@ String? getArg(List<String> args, String name) {
   return null;
 }
 
-/// CORS middleware
 Middleware _corsMiddleware() {
   return (Handler handler) {
     return (Request request) async {
@@ -100,12 +90,9 @@ const _corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Range',
 };
 
-/// Handle /api/version endpoint
 Future<Response> _handleVersion(Request request) async {
-  // Build version info from available manifests
   final channels = <String, dynamic>{};
 
-  // Scan manifests directory for available versions
   final manifestDir = Directory(manifestsDir);
   if (await manifestDir.exists()) {
     await for (final entity in manifestDir.list()) {
@@ -115,7 +102,6 @@ Future<Response> _handleVersion(Request request) async {
           final manifest = jsonDecode(content) as Map<String, dynamic>;
           final version = manifest['version'] as String;
 
-          // Determine channel from version string
           String channel = 'stable';
           if (version.contains('beta')) {
             channel = 'beta';
@@ -135,14 +121,12 @@ Future<Response> _handleVersion(Request request) async {
     }
   }
 
-  // Find latest stable version
   String? latestVersion;
   int? latestBuildNumber;
 
   if (channels.containsKey('stable')) {
     latestVersion = channels['stable']['version'] as String;
 
-    // Try to get build number from manifest
     final manifestPath = path.join(manifestsDir, '$latestVersion.json');
     if (await File(manifestPath).exists()) {
       try {
@@ -169,12 +153,10 @@ Future<Response> _handleVersion(Request request) async {
   );
 }
 
-/// Handle /api/manifests/<version> endpoint
 Future<Response> _handleManifest(Request request, String version) async {
   return _serveManifest(version);
 }
 
-/// Handle /manifests/<version>.json endpoint
 Future<Response> _handleManifestFile(Request request, String version) async {
   // Remove .json extension if present
   final cleanVersion = version.replaceAll('.json', '');
@@ -193,7 +175,6 @@ Future<Response> _serveManifest(String version) async {
   return Response.ok(content, headers: {'Content-Type': 'application/json'});
 }
 
-/// Handle /releases/<version>/<filename> endpoint
 Future<Response> _handleDownload(
   Request request,
   String version,
@@ -214,7 +195,6 @@ Future<Response> _handleDownload(
     return _handleRangeRequest(file, fileSize, rangeHeader);
   }
 
-  // Full file download
   return Response.ok(
     file.openRead(),
     headers: {

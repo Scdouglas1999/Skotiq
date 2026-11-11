@@ -76,7 +76,6 @@ void main() {
       contributor: bob.account.id,
     );
 
-    // Upload both through the fusion service.
     final r1 = fusion.contribute(
       accountId: alice.account.id,
       tileId: 42,
@@ -100,7 +99,6 @@ void main() {
     expect(r2.totalFramesAfter, 5);
     expect(r2.contributorsAfter, 2);
 
-    // The server's fused tile.
     final fused = store.load(42, 9)!;
     final fusedMean = fused.finalizeMean();
 

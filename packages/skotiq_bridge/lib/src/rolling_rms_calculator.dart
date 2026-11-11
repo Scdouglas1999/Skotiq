@@ -10,7 +10,6 @@ library;
 import 'dart:collection';
 import 'dart:math';
 
-/// Calculator for rolling RMS statistics
 class RollingRmsCalculator {
   final Queue<double> _values = Queue();
   final int windowSize;
@@ -41,16 +40,12 @@ class RollingRmsCalculator {
     return sqrt(sumSquares / _values.length);
   }
 
-  /// Get the number of values currently in the window
   int get count => _values.length;
 
-  /// Check if the window is empty
   bool get isEmpty => _values.isEmpty;
 
-  /// Check if the window is full
   bool get isFull => _values.length >= windowSize;
 
-  /// Clear all values from the window
   void clear() {
     _values.clear();
   }
@@ -58,7 +53,6 @@ class RollingRmsCalculator {
   /// Get the most recent value (or 0 if empty)
   double get latest => _values.isEmpty ? 0 : _values.last;
 
-  /// Get the mean of all values in the window
   double get mean {
     if (_values.isEmpty) return 0;
     return _values.fold<double>(0, (sum, v) => sum + v) / _values.length;

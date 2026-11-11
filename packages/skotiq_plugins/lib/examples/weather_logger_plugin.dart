@@ -21,19 +21,15 @@ class WeatherLoggerPlugin extends SkotiqPlugin {
   StreamSubscription? _weatherSubscription;
   StreamSubscription? _focuserSubscription;
 
-  /// Maximum number of weather readings to retain in storage
   static const int maxReadings = 1000;
 
-  /// Key used to store weather readings in plugin storage
   static const String storageKey = 'weatherReadings';
 
-  /// Key used to store the reading count
   static const String countKey = 'totalReadings';
 
   /// In-memory buffer of weather readings since last flush
   final List<Map<String, dynamic>> _readingBuffer = [];
 
-  /// Timer for periodic storage flushes
   Timer? _flushTimer;
 
   @override
@@ -61,7 +57,6 @@ class WeatherLoggerPlugin extends SkotiqPlugin {
     _context = context;
     context.logger.info('Weather logger initializing');
 
-    // Restore reading count from storage
     final totalReadings = await context.storage.getInt(countKey) ?? 0;
     context.logger.info('Previously recorded $totalReadings weather readings');
   }
@@ -73,7 +68,6 @@ class WeatherLoggerPlugin extends SkotiqPlugin {
 
     context.logger.info('Starting weather data collection');
 
-    // Subscribe to weather station events
     _weatherSubscription = context.eventBus.on('weather.updated').listen((
       data,
     ) {
@@ -88,7 +82,6 @@ class WeatherLoggerPlugin extends SkotiqPlugin {
       }
     });
 
-    // Flush buffered readings to storage every 5 minutes
     _flushTimer = Timer.periodic(
       const Duration(minutes: 5),
       (_) => _flushToStorage(),
@@ -99,18 +92,15 @@ class WeatherLoggerPlugin extends SkotiqPlugin {
   Future<void> onDisable() async {
     _context?.logger.info('Stopping weather data collection');
 
-    // Cancel subscriptions
     await _weatherSubscription?.cancel();
     _weatherSubscription = null;
 
     await _focuserSubscription?.cancel();
     _focuserSubscription = null;
 
-    // Cancel flush timer
     _flushTimer?.cancel();
     _flushTimer = null;
 
-    // Flush any remaining buffered readings
     await _flushToStorage();
   }
 
@@ -118,10 +108,8 @@ class WeatherLoggerPlugin extends SkotiqPlugin {
   Future<void> onUnload() async {
     _context?.logger.info('Weather logger unloading');
 
-    // Final flush
     await _flushToStorage();
 
-    // Clean up
     await _weatherSubscription?.cancel();
     await _focuserSubscription?.cancel();
     _flushTimer?.cancel();
@@ -133,7 +121,6 @@ class WeatherLoggerPlugin extends SkotiqPlugin {
     _context = null;
   }
 
-  /// Record a weather reading to the in-memory buffer
   void _recordReading(String source, Map<String, dynamic> data) {
     final reading = {
       'source': source,
@@ -151,30 +138,24 @@ class WeatherLoggerPlugin extends SkotiqPlugin {
     _context?.eventBus.emit('plugin.weatherlogger.reading', reading);
   }
 
-  /// Flush buffered readings to persistent storage
   Future<void> _flushToStorage() async {
     final context = _context;
     if (context == null || _readingBuffer.isEmpty) return;
 
     try {
-      // Load existing readings from storage
       final existingJson = await context.storage.getString(storageKey);
       final List<dynamic> existing = existingJson != null
           ? jsonDecode(existingJson) as List
           : [];
 
-      // Append new readings
       existing.addAll(_readingBuffer);
 
-      // Trim to max retention
       if (existing.length > maxReadings) {
         existing.removeRange(0, existing.length - maxReadings);
       }
 
-      // Persist
       await context.storage.setString(storageKey, jsonEncode(existing));
 
-      // Update total count
       final previousTotal = await context.storage.getInt(countKey) ?? 0;
       await context.storage.setInt(
         countKey,
@@ -217,7 +198,6 @@ class WeatherLoggerPlugin extends SkotiqPlugin {
     return await _context?.storage.getInt(countKey) ?? 0;
   }
 
-  /// Clear all stored weather data.
   Future<void> clearReadings() async {
     _readingBuffer.clear();
     await _context?.storage.remove(storageKey);
