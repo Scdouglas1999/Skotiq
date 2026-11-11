@@ -1,7 +1,4 @@
-// Unacknowledged badge, alert tiles and type badges.
 part of '../transient_alerts_panel.dart';
-
-// Unacknowledged badge
 
 class _UnacknowledgedBadge extends ConsumerWidget {
   final SkotiqColors colors;
@@ -30,8 +27,6 @@ class _UnacknowledgedBadge extends ConsumerWidget {
     );
   }
 }
-
-// Transient alert tile
 
 class _TransientAlertTile extends ConsumerStatefulWidget {
   final TransientAlert alert;
@@ -90,14 +85,12 @@ class _TransientAlertTileState extends ConsumerState<_TransientAlertTile> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Priority/type indicator
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: _TypeBadge(type: alert.type),
                   ),
                   const SizedBox(width: 10),
 
-                  // Main content
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,7 +165,6 @@ class _TransientAlertTileState extends ConsumerState<_TransientAlertTile> {
                           ],
                         ),
                         const SizedBox(height: 4),
-                        // Type, magnitude, coordinates
                         Wrap(
                           spacing: 12,
                           runSpacing: 4,
@@ -221,7 +213,6 @@ class _TransientAlertTileState extends ConsumerState<_TransientAlertTile> {
                     ),
                   ),
 
-                  // Action buttons
                   if (!isDismissed && !isQueued && !isObserved) ...[
                     const SizedBox(width: 8),
                     Column(
@@ -286,8 +277,6 @@ class _TransientAlertTileState extends ConsumerState<_TransientAlertTile> {
         style: SexagesimalStyle.compactLeadPlainLetters,
       );
 }
-
-// Type badge
 
 class _TypeBadge extends StatelessWidget {
   final TransientType type;

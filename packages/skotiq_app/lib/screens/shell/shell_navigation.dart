@@ -17,7 +17,6 @@ class ShellPrimaryDestination {
   final IconData icon;
   final String Function(SkotiqLocalizations l10n) label;
 
-  /// Which rail group this destination sits under.
   final ShellNavGroup group;
 
   const ShellPrimaryDestination({
@@ -38,7 +37,6 @@ class ShellRouteDestination {
   /// [label].
   final String Function(SkotiqLocalizations l10n)? shortLabel;
 
-  /// The label the phone bottom nav renders.
   String bottomNavLabel(SkotiqLocalizations l10n) =>
       (shortLabel ?? label)(l10n);
 
@@ -279,7 +277,6 @@ abstract final class ShellNavigation {
       l10n.text('settingsTitle');
 }
 
-/// The rail group headings, in rail order.
 extension ShellNavGroupLabel on ShellNavGroup {
   String label(SkotiqLocalizations l10n) => switch (this) {
         ShellNavGroup.observe => l10n.text('navGroupObserve'),

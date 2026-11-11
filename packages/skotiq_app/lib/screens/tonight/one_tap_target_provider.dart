@@ -32,7 +32,5 @@ final oneTapTargetProvider =
       if (s.targetId == chosenId) return s;
     }
   }
-  // Scheduler had no eligible pick (or it isn't in the suggestion set) — fall
-  // back to the top-scored whole-night candidate.
   return suggestions.first;
 });

@@ -1,7 +1,4 @@
-// Transient settings dialog and source labels.
 part of '../transient_alerts_panel.dart';
-
-// Settings dialog
 
 class _TransientSettingsDialog extends ConsumerStatefulWidget {
   @override
@@ -44,7 +41,6 @@ class _TransientSettingsDialogState
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Sources
               Text(
                 'Alert Sources',
                 style: SkotiqTypography.labelStrong.copyWith(
@@ -93,7 +89,6 @@ class _TransientSettingsDialogState
 
               const SizedBox(height: 16),
 
-              // Magnitude threshold
               Text(
                 'Magnitude Threshold',
                 style: SkotiqTypography.labelStrong.copyWith(
@@ -145,7 +140,6 @@ class _TransientSettingsDialogState
 
               const SizedBox(height: 16),
 
-              // Types to monitor
               Text(
                 'Types to Monitor',
                 style: SkotiqTypography.labelStrong.copyWith(
@@ -187,7 +181,6 @@ class _TransientSettingsDialogState
 
               const SizedBox(height: 16),
 
-              // Notification settings
               SwitchListTile(
                 title: Text(
                   'Notify on new alerts',

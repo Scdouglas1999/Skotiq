@@ -27,7 +27,6 @@ enum OneTapPhase {
   failed,
 }
 
-/// Immutable snapshot of the one-tap chain for the screen to render.
 @immutable
 class OneTapTonightState {
   final OneTapPhase phase;
@@ -140,7 +139,6 @@ class OneTapTonightController extends ValueNotifier<OneTapTonightState> {
   /// would then throw "used after being disposed". Every publish consults this.
   bool _disposed = false;
 
-  /// Current chain snapshot (alias for [value], reads nicer at call sites).
   OneTapTonightState get state => value;
 
   /// Publish [next] unless the notifier was disposed mid-chain. Writing [value]

@@ -488,7 +488,6 @@ class _PrimaryAction extends StatelessWidget {
   }
 }
 
-/// The morning payoff: a path to the morning report / session review.
 class _MorningPayoff extends StatelessWidget {
   final SkotiqColors colors;
   final bool running;
