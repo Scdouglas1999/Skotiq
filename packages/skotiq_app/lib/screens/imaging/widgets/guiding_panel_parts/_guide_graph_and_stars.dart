@@ -31,7 +31,6 @@ class CompactGuidingGraph extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Draw the real graph when we have data
           if (hasData)
             Positioned.fill(
               child: ClipRRect(
@@ -44,7 +43,6 @@ class CompactGuidingGraph extends StatelessWidget {
                 ),
               ),
             ),
-          // Show empty state when no data
           if (!hasData)
             Center(
               child: Column(
@@ -68,7 +66,6 @@ class CompactGuidingGraph extends StatelessWidget {
                 ],
               ),
             ),
-          // Legend (always visible)
           Positioned(
             bottom: 8,
             left: 8,
@@ -123,7 +120,6 @@ class _CompactGuidingGraphPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final centerY = size.height / 2;
 
-    // Draw center zero-line
     final zeroPaint = Paint()
       ..color = colors.textMuted.withValues(alpha: 0.3)
       ..strokeWidth = 0.5;
@@ -221,7 +217,6 @@ class GuideStarList extends ConsumerWidget {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Column header.
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Row(

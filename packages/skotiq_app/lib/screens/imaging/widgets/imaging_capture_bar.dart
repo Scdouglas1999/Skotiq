@@ -62,7 +62,6 @@ class ImagingCaptureBar extends ConsumerStatefulWidget {
   /// Width of the two mono fields (`mockups/imaging.html`).
   static const double _fieldWidth = 92;
 
-  /// Width of the filter dropdown.
   static const double _filterWidth = 96;
 
   @override
