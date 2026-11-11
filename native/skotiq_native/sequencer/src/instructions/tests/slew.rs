@@ -218,10 +218,7 @@ mod slew_arrival {
         .await;
 
         assert_eq!(result.status, NodeStatus::Failure);
-        assert_eq!(
-            recovery_code_of(&result).as_deref(),
-            Some("SLEW_POSITION_MISMATCH")
-        );
+        assert_eq!(result.setback(), Some(Setback::OffTarget));
     }
 
     /// 2026-11-08 on the NYX-101: parked past its meridian limit, the mount
@@ -268,7 +265,12 @@ mod slew_arrival {
         )
         .await;
 
-        assert!(slew_position_mismatch(&result), "{:?}", result.message);
+        assert_eq!(
+            result.setback(),
+            Some(Setback::OffTarget),
+            "{:?}",
+            result.message
+        );
         assert_eq!(ops.mount_slew_calls.load(Ordering::SeqCst), 2);
     }
 

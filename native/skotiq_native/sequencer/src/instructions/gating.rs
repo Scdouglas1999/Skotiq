@@ -18,16 +18,6 @@ use super::*;
 /// used when nothing was pushed, or when a non-finite value is seen.
 pub const DEFAULT_MAX_SUN_ALTITUDE_DEGREES: f64 = -12.0;
 
-/// W1 native daylight gate — recovery code stamped on a START rejection so the
-/// UI / recovery layer can distinguish a daylight block from other slew/expose
-/// failures.
-pub const DAYLIGHT_GATE_RECOVERY_CODE: &str = "DAYLIGHT_GATE_SUN_UP";
-
-/// Recovery code stamped when a node refuses to point at a target whose sky
-/// position was never chosen, so the recovery layer can offer "set the target's
-/// coordinates" instead of treating it as a mount fault.
-pub const UNSET_TARGET_RECOVERY_CODE: &str = "TARGET_COORDINATES_UNSET";
-
 /// Structural gate on pointing inherited from a `TargetHeader` that still
 /// carries the palette placeholder. Returns `Some(reason)` to BLOCK.
 ///
@@ -194,10 +184,7 @@ pub(crate) async fn wait_for_darkness(
     };
     let refuse = |reason: String| {
         tracing::warn!("{reason}");
-        Some(InstructionResult::failure_with_recovery(
-            reason,
-            DAYLIGHT_GATE_RECOVERY_CODE,
-        ))
+        Some(InstructionResult::failure_because(reason, Setback::SunUp))
     };
     let Some(minutes) =
         minutes_until_dark(lat, lon, max_sun_alt, chrono::Utc::now(), MAX_DARKNESS_WAIT)

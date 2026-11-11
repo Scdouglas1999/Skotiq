@@ -512,7 +512,7 @@ async fn a_failed_guider_resume_is_marked_not_just_described() {
         "the operator-facing message must still name it: {message}"
     );
     assert_eq!(
-        autofocus_trigger_failure_cost(result.data.as_ref()),
+        autofocus_trigger_failure_cost(&result),
         AutofocusTriggerFailureCost::EveryFrameUnguided,
         "the marker is what lets the trigger arm tell a missed curve fit from a \
          dead guider; without it the run carries on exposing"
@@ -555,7 +555,7 @@ async fn a_guider_still_finding_its_star_is_waited_for() {
         result.message
     );
     assert_eq!(
-        autofocus_trigger_failure_cost(result.data.as_ref()),
+        autofocus_trigger_failure_cost(&result),
         AutofocusTriggerFailureCost::SoftFramesOnly
     );
 }
@@ -576,7 +576,7 @@ async fn a_guider_chasing_a_lost_star_is_not_guiding_restored() {
     let result = resume_guiding_after_autofocus(&ctx, InstructionResult::success()).await;
 
     assert_eq!(
-        autofocus_trigger_failure_cost(result.data.as_ref()),
+        autofocus_trigger_failure_cost(&result),
         AutofocusTriggerFailureCost::EveryFrameUnguided,
         "is_guiding at 78.6 px is not a restored guider: {:?}",
         result.message
@@ -599,7 +599,7 @@ async fn a_guider_with_no_guide_step_since_the_restart_is_not_guiding_restored()
     let result = resume_guiding_after_autofocus(&ctx, InstructionResult::success()).await;
 
     assert_eq!(
-        autofocus_trigger_failure_cost(result.data.as_ref()),
+        autofocus_trigger_failure_cost(&result),
         AutofocusTriggerFailureCost::EveryFrameUnguided,
         "an empty statistics window is not a settled lock: {:?}",
         result.message
@@ -654,7 +654,7 @@ async fn a_successful_guider_resume_leaves_the_result_alone() {
 
     assert_eq!(result.status, NodeStatus::Success);
     assert_eq!(
-        autofocus_trigger_failure_cost(result.data.as_ref()),
+        autofocus_trigger_failure_cost(&result),
         AutofocusTriggerFailureCost::SoftFramesOnly,
         "no marker on a clean resume"
     );
@@ -705,25 +705,32 @@ async fn the_guider_restart_after_autofocus_refuses_a_star_below_the_runs_guide_
 /// the whole defect.
 #[test]
 fn the_two_autofocus_failure_costs_are_distinguishable() {
+    let missed = InstructionResult::failure("Autofocus did not converge");
     assert_eq!(
-        autofocus_trigger_failure_cost(None),
+        autofocus_trigger_failure_cost(&missed),
         AutofocusTriggerFailureCost::SoftFramesOnly,
-        "a failure with no data is a focus failure: continue on last-good focus"
+        "a plain failure is a focus failure: continue on last-good focus"
     );
+    let restored = InstructionResult {
+        data: Some(serde_json::json!({ "autofocus_origin_restored": true })),
+        ..InstructionResult::failure("Autofocus did not converge")
+    };
     assert_eq!(
-        autofocus_trigger_failure_cost(Some(&serde_json::json!({
-            "autofocus_origin_restored": true,
-        }))),
+        autofocus_trigger_failure_cost(&restored),
         AutofocusTriggerFailureCost::SoftFramesOnly,
-        "a restored focuser with no guiding marker is still just soft frames"
+        "a restored focuser with a guider back is still just soft frames"
     );
+    let unguided = InstructionResult {
+        data: Some(serde_json::json!({ "autofocus_origin_restored": true })),
+        ..InstructionResult::failure_because(
+            "Autofocus did not converge",
+            Setback::GuidingNotRestored,
+        )
+    };
     assert_eq!(
-        autofocus_trigger_failure_cost(Some(&serde_json::json!({
-            "autofocus_origin_restored": true,
-            AUTOFOCUS_GUIDING_NOT_RESTORED_KEY: true,
-        }))),
+        autofocus_trigger_failure_cost(&unguided),
         AutofocusTriggerFailureCost::EveryFrameUnguided,
-        "the guiding marker wins: every subsequent frame trails"
+        "a guider left stopped wins: every subsequent frame trails"
     );
 }
 
@@ -780,9 +787,7 @@ async fn a_guiderless_sweep_is_not_retried_across_attempts() {
     assert_eq!(result.status, NodeStatus::Failure);
     // The sweep itself fails for its own reasons in this harness; what matters
     // is that a guiding-not-restored result is returned rather than re-swept.
-    if autofocus_trigger_failure_cost(result.data.as_ref())
-        == AutofocusTriggerFailureCost::EveryFrameUnguided
-    {
+    if autofocus_trigger_failure_cost(&result) == AutofocusTriggerFailureCost::EveryFrameUnguided {
         assert!(
             ops.guider_start_calls.load(Ordering::SeqCst) <= 1,
             "a sweep that could not restore guiding must not start another one"

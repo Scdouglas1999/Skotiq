@@ -1247,16 +1247,6 @@ async fn slew_ctx(max_sun_alt: f64) -> InstructionContext {
 // without it. These tests pin the gate at the two nodes that command the
 // mount, which is what makes it hold for all of those entry points.
 
-/// The recovery code `failure_with_recovery` stashed in `data`, if any.
-fn recovery_code_of(result: &InstructionResult) -> Option<String> {
-    result
-        .data
-        .as_ref()?
-        .get("recovery_code")?
-        .as_str()
-        .map(str::to_string)
-}
-
 /// Context whose pointing comes from a TargetHeader with `target`
 /// coordinates, wired to `ops` so the tests can prove whether the mount was
 /// commanded. The Sun threshold is set above the live Sun so the daylight
@@ -1501,6 +1491,7 @@ mod grading;
 mod guiding;
 mod light_filter;
 mod meridian_gate;
+mod outcome;
 mod park;
 mod pointing_gate;
 mod pre_meridian_hold;

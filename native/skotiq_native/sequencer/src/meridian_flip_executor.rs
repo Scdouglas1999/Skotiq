@@ -1695,7 +1695,6 @@ impl MeridianFlipExecutor {
             self.emit_event(MeridianFlipEvent::Progress { percent });
         };
 
-        let position_before = crate::instructions::read_autofocus_position(&instruction_ctx).await;
         let result = execute_autofocus(af_config, &instruction_ctx, Some(&progress_fn)).await;
 
         // The flip itself is done: the mount is on its new pier side and
@@ -1703,12 +1702,14 @@ impl MeridianFlipExecutor {
         // goes on at the previous focus. Failing the step instead sent it down
         // the flip's retry ladder and then its failure action, which parks the
         // mount (owner decision 2026-10-06: a failed autofocus never parks).
-        if crate::instructions::autofocus_failure_continues_the_run(&result) {
+        if let Some(crate::instructions::Setback::FocusNotFound { focuser_before }) =
+            result.setback()
+        {
             crate::instructions::notify_autofocus_failed_continuing(
                 &instruction_ctx,
                 "Post-flip autofocus",
                 &result,
-                position_before,
+                focuser_before,
             )
             .await;
             return Ok(());

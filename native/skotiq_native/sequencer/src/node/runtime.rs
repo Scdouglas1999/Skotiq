@@ -59,7 +59,7 @@ tokio::task_local! {
     /// for each retry.
     ///
     /// Ambient rather than a parameter because the value has to reach
-    /// `InstructionResult::log_and_get_status_with_context`, which is called
+    /// `InstructionResult::settle`, which is called
     /// from ~30 instruction nodes and only ever sees the immutable
     /// `InstructionContext` snapshot. The retry loop awaits `execute()` inline
     /// on this same task, so the scope is exact. Code that is NOT under the
@@ -87,7 +87,7 @@ pub(crate) fn is_disconnect_retry_attempt() -> bool {
 /// because a device disconnected.
 ///
 /// The recovery driver runs in a parallel task. When an instruction fails with
-/// a device-disconnect message, `log_and_get_status_with_context`:
+/// a device-disconnect message, `InstructionResult::settle`:
 /// 1. sets `context.device_disconnect_recovery_pending`, and
 /// 2. posts a `DeviceDisconnected` recovery request.
 ///

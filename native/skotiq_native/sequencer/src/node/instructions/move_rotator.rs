@@ -46,6 +46,7 @@ impl InstructionNode for MoveRotatorInstruction {
 
         execute_rotator_move(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Move Rotator", &ctx)
+            .settle("Move Rotator", &ctx)
+            .await
     }
 }

@@ -39,6 +39,7 @@ impl InstructionNode for CalibratorOffInstruction {
         };
         execute_calibrator_off(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Calibrator Off", &ctx)
+            .settle("Calibrator Off", &ctx)
+            .await
     }
 }

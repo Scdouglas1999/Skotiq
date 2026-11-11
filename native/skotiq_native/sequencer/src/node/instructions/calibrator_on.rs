@@ -39,6 +39,7 @@ impl InstructionNode for CalibratorOnInstruction {
         };
         execute_calibrator_on(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Calibrator On", &ctx)
+            .settle("Calibrator On", &ctx)
+            .await
     }
 }

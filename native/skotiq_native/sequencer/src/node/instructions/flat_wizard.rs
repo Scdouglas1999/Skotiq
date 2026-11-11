@@ -49,31 +49,7 @@ impl InstructionNode for FlatWizardInstruction {
         let result =
             crate::flat_wizard::execute_flat_wizard(config, &ctx, Some(&progress_fn)).await;
 
-        // Flats that would not converge do not end the night: the operator
-        // is told and the run goes on, as with a missed autofocus. A Warning,
-        // not an Error, because every sequencer Error reads as a failed run;
-        // Skipped, because Failure would short-circuit the steps after it.
-        let not_converged = result.status == NodeStatus::Failure
-            && result
-                .data
-                .as_ref()
-                .and_then(|data| data.get(crate::flat_wizard::FLAT_NOT_CONVERGED_KEY))
-                .and_then(serde_json::Value::as_bool)
-                == Some(true);
-        if not_converged {
-            let reason = result
-                .message
-                .as_deref()
-                .unwrap_or("flats did not converge");
-            let message = format!("Flats skipped, the run continues: {reason}");
-            tracing::warn!("{}", message);
-            if let Some(event_tx) = &ctx.run.event_tx {
-                let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message });
-            }
-            return NodeStatus::Skipped;
-        }
-
-        result.log_and_get_status_with_context("Flat Wizard", &ctx)
+        result.settle("Flat Wizard", &ctx).await
     }
 }
 

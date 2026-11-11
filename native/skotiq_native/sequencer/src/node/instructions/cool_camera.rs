@@ -47,7 +47,8 @@ impl InstructionNode for CoolCameraInstruction {
 
         let status = execute_cool_camera(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Cool Camera", &ctx);
+            .settle("Cool Camera", &ctx)
+            .await;
 
         // stamp the cooler set-point onto the ExecutionContext so
         // every subsequent TakeExposure's FITS header carries SET-TEMP.

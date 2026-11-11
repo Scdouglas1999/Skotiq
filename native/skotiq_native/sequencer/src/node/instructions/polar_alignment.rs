@@ -52,6 +52,7 @@ impl InstructionNode for PolarAlignmentInstruction {
             },
         )
         .await
-        .log_and_get_status_with_context("Polar Alignment", &ctx)
+        .settle("Polar Alignment", &ctx)
+        .await
     }
 }

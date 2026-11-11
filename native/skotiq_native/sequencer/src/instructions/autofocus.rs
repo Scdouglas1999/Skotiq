@@ -7,45 +7,6 @@ use super::*;
 
 // Autofocus instruction
 
-/// Result-data key set when autofocus stopped guiding for its sweep and could
-/// not prove guiding running again afterwards.
-///
-/// The distinction this key carries is the whole point of it. A trigger-fired
-/// autofocus that merely misses its curve fit costs the run slightly soft subs
-/// the operator can cull, so imaging continues on the last-good focus (see
-/// `executor::autofocus_trigger_continuation`). An autofocus that left the
-/// guider stopped costs the run EVERY subsequent frame: the mount is
-/// unguided, so each light trails. Both arrive here as
-/// `NodeStatus::Failure` with a "CRITICAL CLEANUP FAILURE" message, and
-/// without a machine-readable marker the caller cannot tell them apart —
-/// which is how a live run took three 180 s trailed frames (HFR 15.6 px
-/// against a 3.50 px limit) after its own log said the guider never came back.
-pub(crate) const AUTOFOCUS_GUIDING_NOT_RESTORED_KEY: &str = "autofocus_guiding_not_restored";
-
-/// Whether the run carries on past this autofocus result on the previous
-/// focus, rather than handing it to the caller's failure path.
-///
-/// Owner decision 2026-10-06: a failed autofocus never parks the rig or ends
-/// the night; the operator is notified and imaging continues on the focus the
-/// sweep restored. Two failures are not a missed focus and keep their own
-/// handling: a device that dropped off the bus (the disconnect-recovery path
-/// retries the instruction), and a sweep that left the guider stopped, after
-/// which every frame would be trailed.
-pub(crate) fn autofocus_failure_continues_the_run(result: &InstructionResult) -> bool {
-    if result.status != NodeStatus::Failure {
-        return false;
-    }
-    if result
-        .message
-        .as_deref()
-        .is_some_and(super::disconnect::is_device_disconnected_message)
-    {
-        return false;
-    }
-    crate::executor::autofocus_trigger_failure_cost(result.data.as_ref())
-        != crate::executor::AutofocusTriggerFailureCost::EveryFrameUnguided
-}
-
 /// Where the focuser is, or `None` with no focuser or a driver that will not
 /// answer. Read either side of a sweep so a failure notice can name the focus
 /// the run kept.
@@ -360,8 +321,10 @@ pub async fn execute_autofocus_admitted_with_pause(
     // caller's own progress callback keeps only a line of text. The sweep's
     // points and its outcome also go out on the run's event channel, so the
     // focus panel follows a run's autofocus live.
+    let focuser_before = read_autofocus_position(ctx).await;
     let Some(event_tx) = ctx.run.event_tx.clone() else {
-        return run_autofocus_admitted(config, ctx, progress_callback, guard, pause).await;
+        let result = run_autofocus_admitted(config, ctx, progress_callback, guard, pause).await;
+        return focus_not_found_when_missed(result, focuser_before);
     };
     let focuser_id = ctx.run.rig.focuser_id.clone().unwrap_or_default();
     let forwarding = |progress: f64, detail: String| {
@@ -385,6 +348,20 @@ pub async fn execute_autofocus_admitted_with_pause(
         message: result.message.clone(),
         result_json,
     });
+    focus_not_found_when_missed(result, focuser_before)
+}
+
+/// A failed sweep that neither lost a device nor left the guider stopped
+/// missed focus: the focuser is back where it started and the run carries on
+/// at that focus (owner decision 2026-10-06: a failed autofocus never parks
+/// the rig or ends the night).
+fn focus_not_found_when_missed(
+    mut result: InstructionResult,
+    focuser_before: Option<i32>,
+) -> InstructionResult {
+    if result.status == NodeStatus::Failure && result.setback().is_none() {
+        result.setback = Some(Setback::FocusNotFound { focuser_before });
+    }
     result
 }
 
@@ -634,13 +611,7 @@ pub(crate) async fn execute_autofocus_attempts(
         // mount, and each one stops the guider again on entry. Surface the
         // cleanup failure to the caller instead, which is the only party that
         // can halt the run.
-        if result
-            .data
-            .as_ref()
-            .and_then(|data| data.get(AUTOFOCUS_GUIDING_NOT_RESTORED_KEY))
-            .and_then(serde_json::Value::as_bool)
-            == Some(true)
-        {
+        if result.setback == Some(Setback::GuidingNotRestored) {
             return result;
         }
         // Focus beyond the sweep: sweep again around the edge that measured
@@ -945,8 +916,8 @@ async fn leave_guiding_stopped_for_stopped_run(
     result
 }
 
-/// Record a cleanup failure that left the guider stopped: stamp the
-/// [`AUTOFOCUS_GUIDING_NOT_RESTORED_KEY`] marker the caller branches on, and
+/// Record a cleanup failure that left the guider stopped: the
+/// [`Setback::GuidingNotRestored`] the caller branches on, and
 /// clear the trigger state's `guiding_enabled` latch.
 ///
 /// Clearing the latch is not bookkeeping. The monitor's guide-poll block arms
@@ -966,15 +937,7 @@ async fn append_guiding_not_restored(
         trigger_state.write().await.set_guiding_enabled(false);
     }
     let mut result = append_autofocus_cleanup_failure(result, failure);
-    let mut metadata = match result.data.take() {
-        Some(serde_json::Value::Object(object)) => object,
-        _ => serde_json::Map::new(),
-    };
-    metadata.insert(
-        AUTOFOCUS_GUIDING_NOT_RESTORED_KEY.to_string(),
-        serde_json::Value::Bool(true),
-    );
-    result.data = Some(serde_json::Value::Object(metadata));
+    result.setback = Some(Setback::GuidingNotRestored);
     result
 }
 
@@ -1791,6 +1754,7 @@ pub(crate) async fn execute_autofocus_sweep_around(
         }
 
         InstructionResult {
+            setback: None,
             status: NodeStatus::Success,
             message: Some(format!(
                 "Autofocus complete: position {}, HFR {:.2} ({}), R² {:.3}",

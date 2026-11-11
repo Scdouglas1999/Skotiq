@@ -39,6 +39,7 @@ impl InstructionNode for OpenCoverInstruction {
         };
         execute_open_cover(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Open Cover", &ctx)
+            .settle("Open Cover", &ctx)
+            .await
     }
 }

@@ -10,21 +10,6 @@ use super::*;
 /// Default tolerance for slew position validation in degrees (1 arcminute = 1/60 degree)
 pub(crate) const SLEW_POSITION_TOLERANCE_DEG: f64 = 1.0 / 60.0;
 
-/// Recovery code of a slew that finished away from its target.
-pub(crate) const SLEW_POSITION_MISMATCH_CODE: &str = "SLEW_POSITION_MISMATCH";
-
-/// Whether `result` is a slew that completed but stopped outside the
-/// tolerance, as opposed to a slew the mount refused or never finished.
-pub(crate) fn slew_position_mismatch(result: &InstructionResult) -> bool {
-    result.status == NodeStatus::Failure
-        && result
-            .data
-            .as_ref()
-            .and_then(|data| data.get("recovery_code"))
-            .and_then(serde_json::Value::as_str)
-            == Some(SLEW_POSITION_MISMATCH_CODE)
-}
-
 /// Normalize RA difference to account for wraparound at 24 hours
 /// Returns the shortest angular distance between two RA values in hours
 pub(crate) fn normalize_ra_diff_hours(diff: f64) -> f64 {
@@ -108,7 +93,7 @@ pub async fn execute_slew(
             unset_target_pointing_reason(ctx.target_name.as_deref(), ra, dec, "slew to target")
         {
             tracing::warn!("{reason}");
-            return InstructionResult::failure_with_recovery(reason, UNSET_TARGET_RECOVERY_CODE);
+            return InstructionResult::failure_because(reason, Setback::TargetUnset);
         }
     }
 
@@ -164,7 +149,7 @@ pub async fn execute_slew(
     // settles and lands a few arcminutes off (the NYX on 2026-11-08, parked
     // past its meridian limit, ignored the tracking command and arrived
     // 2.11' off). Tracking is back on by now, so one more slew lands it.
-    if slew_position_mismatch(&result) {
+    if result.setback() == Some(Setback::OffTarget) {
         tracing::info!("Slew landed off target; slewing once more");
         result = slew_mount(mount_id, ra, dec, ctx, progress_callback).await;
     }
@@ -192,9 +177,9 @@ async fn unpark_for_slew(ctx: &InstructionContext, mount_id: &str) -> Option<Ins
 
     tracing::info!("Mount is parked; unparking it to slew");
     if let Err(e) = ctx.run.device_ops.mount_unpark(mount_id).await {
-        return Some(InstructionResult::failure_with_recovery(
+        return Some(InstructionResult::failure_because(
             format!("The mount is parked and could not be unparked: {e}"),
-            "MOUNT_PARKED",
+            Setback::MountParked,
         ));
     }
     let deadline = tokio::time::Instant::now() + UNPARK_TIMEOUT;
@@ -207,13 +192,13 @@ async fn unpark_for_slew(ctx: &InstructionContext, mount_id: &str) -> Option<Ins
             Ok(false) | Err(_) => break,
         }
         if tokio::time::Instant::now() > deadline {
-            return Some(InstructionResult::failure_with_recovery(
+            return Some(InstructionResult::failure_because(
                 format!(
                     "The mount is parked and still reported parked {} s after the unpark \
                      command.",
                     UNPARK_TIMEOUT.as_secs()
                 ),
-                "MOUNT_PARKED",
+                Setback::MountParked,
             ));
         }
         sleep(Duration::from_millis(500)).await;
@@ -379,10 +364,7 @@ async fn slew_mount(
                                         SLEW_POSITION_TOLERANCE_DEG,
                                     ) {
                                         tracing::warn!("Slew position validation failed: {}", e);
-                                        return InstructionResult::failure_with_recovery(
-                                            &e,
-                                            SLEW_POSITION_MISMATCH_CODE,
-                                        );
+                                        return InstructionResult::failure_because(&e, Setback::OffTarget);
                                     }
 
                                     if let Some(cb) = progress_callback {
@@ -408,12 +390,12 @@ async fn slew_mount(
                                             ),
                                         );
                                     }
-                                    InstructionResult::failure_with_recovery(
+                                    InstructionResult::failure_because(
                                         format!(
                                             "Slew completed but mount position verification failed: {}",
                                             e
                                         ),
-                                        "SLEW_UNVERIFIED_POSITION",
+                                        Setback::PositionUnverified,
                                     )
                                 }
                             }

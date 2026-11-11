@@ -47,7 +47,8 @@ impl InstructionNode for StartGuidingInstruction {
 
         execute_start_guiding(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Start Guiding", &ctx)
+            .settle("Start Guiding", &ctx)
+            .await
     }
 }
 

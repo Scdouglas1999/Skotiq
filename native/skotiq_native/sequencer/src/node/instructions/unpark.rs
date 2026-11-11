@@ -21,8 +21,6 @@ impl InstructionNode for UnparkInstruction {
         context: &mut ExecutionContext,
     ) -> NodeStatus {
         let ctx = context.to_instruction_context(node_id).await;
-        execute_unpark(&ctx)
-            .await
-            .log_and_get_status_with_context("Unpark", &ctx)
+        execute_unpark(&ctx).await.settle("Unpark", &ctx).await
     }
 }

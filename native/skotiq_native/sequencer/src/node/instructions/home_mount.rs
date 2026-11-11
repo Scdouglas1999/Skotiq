@@ -23,6 +23,7 @@ impl InstructionNode for HomeMountInstruction {
         let ctx = context.to_instruction_context(node_id).await;
         execute_home_mount(&ctx)
             .await
-            .log_and_get_status_with_context("Home Mount", &ctx)
+            .settle("Home Mount", &ctx)
+            .await
     }
 }

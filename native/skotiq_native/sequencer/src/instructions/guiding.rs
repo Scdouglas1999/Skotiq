@@ -518,9 +518,6 @@ pub(crate) async fn resume_guiding_after_motion(
     None
 }
 
-/// Recovery code on a StartGuiding failure that was the guider finding no star.
-pub(crate) const NO_GUIDE_STAR_RECOVERY_CODE: &str = "NO_GUIDE_STAR";
-
 /// Execute start guiding - starts PHD2 guiding and waits for settle
 pub async fn execute_start_guiding(
     config: &StartGuidingConfig,
@@ -858,9 +855,9 @@ async fn start_guiding(
                 }
             }
         }
-        Err(GuidingStartError::NoStar(e)) => InstructionResult::failure_with_recovery(
+        Err(GuidingStartError::NoStar(e)) => InstructionResult::failure_because(
             format!("The guider found no guide star in a fresh frame: {}.", e),
-            NO_GUIDE_STAR_RECOVERY_CODE,
+            Setback::NoGuideStar,
         ),
         Err(GuidingStartError::Start(e)) => {
             InstructionResult::failure(format!("Failed to start guiding: {}", e))

@@ -2,6 +2,37 @@
 
 use super::*;
 
+/// Why an instruction fell short, where that changes what the run does next.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Setback {
+    /// A device the instruction needs is not connected. The run reconnects
+    /// it and runs the instruction again.
+    Disconnected,
+    /// The mount is parked and did not unpark for the slew.
+    MountParked,
+    /// The slew finished, but outside the tolerance around the target.
+    OffTarget,
+    /// The slew finished, but the mount's position could not be read back.
+    PositionUnverified,
+    /// Centering ran out of attempts without solving or converging.
+    CenterNotConverged,
+    /// The Flat Wizard never reached the target level.
+    FlatsNotConverged,
+    /// The autofocus sweep did not find focus and put the focuser back.
+    /// `focuser_before` is where the focuser was when the sweep started.
+    FocusNotFound { focuser_before: Option<i32> },
+    /// The autofocus sweep stopped the guider and could not start it again.
+    GuidingNotRestored,
+    /// The guider found no guide star.
+    NoGuideStar,
+    /// The meridian flip failed.
+    FlipFailed,
+    /// The Sun is above the run's limit for light frames.
+    SunUp,
+    /// The target has no coordinates.
+    TargetUnset,
+}
+
 /// Result of an instruction execution
 #[derive(Debug)]
 pub struct InstructionResult {
@@ -10,6 +41,9 @@ pub struct InstructionResult {
     pub data: Option<serde_json::Value>,
     /// HFR values from exposures (for trigger monitoring)
     pub hfr_values: Vec<f64>,
+    /// Set by the instruction when it knows why it fell short; see
+    /// [`Self::setback`].
+    pub setback: Option<Setback>,
 }
 
 impl InstructionResult {
@@ -19,15 +53,14 @@ impl InstructionResult {
             message: None,
             data: None,
             hfr_values: Vec::new(),
+            setback: None,
         }
     }
 
     pub fn success_with_message(message: impl Into<String>) -> Self {
         Self {
-            status: NodeStatus::Success,
             message: Some(message.into()),
-            data: None,
-            hfr_values: Vec::new(),
+            ..Self::success()
         }
     }
 
@@ -35,21 +68,14 @@ impl InstructionResult {
         Self {
             status: NodeStatus::Failure,
             message: Some(message.into()),
-            data: None,
-            hfr_values: Vec::new(),
+            ..Self::success()
         }
     }
 
-    /// Create a failure result with a recovery code that the UI can use to offer recovery options
-    pub fn failure_with_recovery(
-        message: impl Into<String>,
-        recovery_code: impl Into<String>,
-    ) -> Self {
+    pub fn failure_because(message: impl Into<String>, setback: Setback) -> Self {
         Self {
-            status: NodeStatus::Failure,
-            message: Some(message.into()),
-            data: Some(serde_json::json!({"recovery_code": recovery_code.into()})),
-            hfr_values: Vec::new(),
+            setback: Some(setback),
+            ..Self::failure(message)
         }
     }
 
@@ -57,8 +83,72 @@ impl InstructionResult {
         Self {
             status: NodeStatus::Cancelled,
             message: Some(message.into()),
-            data: None,
-            hfr_values: Vec::new(),
+            ..Self::success()
+        }
+    }
+
+    /// Why this result fell short. A failure whose text is a driver's "not
+    /// connected" is a disconnect whatever the instruction was doing: the
+    /// device layer reports that in words, and a device that dropped is
+    /// recovered before anything else is judged.
+    pub fn setback(&self) -> Option<Setback> {
+        if self.status != NodeStatus::Failure {
+            return None;
+        }
+        if self
+            .message
+            .as_deref()
+            .is_some_and(is_device_disconnected_message)
+        {
+            return Some(Setback::Disconnected);
+        }
+        self.setback
+    }
+
+    /// The node's status for this result under the run's policy, telling the
+    /// operator what happened. Quality problems never stop the run (owner
+    /// decision 2026-10-06): an off-target slew and a centering that did not
+    /// converge carry on unless the operator chose to stop on quality
+    /// problems; flats that did not converge and a missed focus always carry
+    /// on. Each reports Skipped, which its container steps past; Failure
+    /// would end the target and, through it, the night.
+    pub async fn settle(self, node_name: &str, ctx: &InstructionContext) -> NodeStatus {
+        match self.setback() {
+            Some(Setback::OffTarget) if !ctx.stops_on_quality_problems().await => {
+                let problem = format!(
+                    "{} Skotiq slewed twice and goes on from here.",
+                    self.message
+                        .as_deref()
+                        .unwrap_or("The slew landed off target.")
+                );
+                ctx.notify_quality_problem_continuing("Slew", &problem);
+                NodeStatus::Skipped
+            }
+            Some(Setback::CenterNotConverged) if !ctx.stops_on_quality_problems().await => {
+                let target = ctx.target_name.as_deref().unwrap_or("the target");
+                let problem = format!(
+                    "{} on {target}. The mount stays where the last correction put it.",
+                    self.message
+                        .as_deref()
+                        .unwrap_or("Centering did not converge")
+                );
+                ctx.notify_quality_problem_continuing("Center", &problem);
+                NodeStatus::Skipped
+            }
+            Some(Setback::FlatsNotConverged) => {
+                let reason = self.message.as_deref().unwrap_or("flats did not converge");
+                let message = format!("Flats skipped, the run continues: {reason}");
+                tracing::warn!("{}", message);
+                if let Some(event_tx) = &ctx.run.event_tx {
+                    let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message });
+                }
+                NodeStatus::Skipped
+            }
+            Some(Setback::FocusNotFound { focuser_before }) => {
+                notify_autofocus_failed_continuing(ctx, node_name, &self, focuser_before).await;
+                NodeStatus::Skipped
+            }
+            _ => self.log_and_get_status_with_context(node_name, ctx),
         }
     }
 
@@ -71,7 +161,7 @@ impl InstructionResult {
     /// Get the status, logging failures and promoting disconnected-device
     /// failures to the executor recovery loop when the live context exposes
     /// a recovery request channel.
-    pub fn log_and_get_status_with_context(
+    fn log_and_get_status_with_context(
         self,
         node_name: &str,
         ctx: &InstructionContext,
@@ -119,7 +209,7 @@ impl InstructionResult {
             NodeStatus::Failure => {
                 if let Some(msg) = &self.message {
                     tracing::error!("{} failed: {}", node_name, msg);
-                    if is_device_disconnected_message(msg) {
+                    if self.setback() == Some(Setback::Disconnected) {
                         // Mark the failure as a promoted device-disconnect BEFORE
                         // returning, so the node-runtime retry wrapper knows to
                         // wait for recovery + retry this instruction rather than
@@ -420,47 +510,37 @@ impl InstructionContext {
 
     /// Get camera ID or error
     pub fn camera_id(&self) -> Result<&str, InstructionResult> {
-        self.run
-            .rig
-            .camera_id
-            .as_deref()
-            .ok_or_else(|| InstructionResult::failure("No camera connected"))
+        self.run.rig.camera_id.as_deref().ok_or_else(|| {
+            InstructionResult::failure_because("No camera connected", Setback::Disconnected)
+        })
     }
 
     /// Get mount ID or error
     pub fn mount_id(&self) -> Result<&str, InstructionResult> {
-        self.run
-            .rig
-            .mount_id
-            .as_deref()
-            .ok_or_else(|| InstructionResult::failure("No mount connected"))
+        self.run.rig.mount_id.as_deref().ok_or_else(|| {
+            InstructionResult::failure_because("No mount connected", Setback::Disconnected)
+        })
     }
 
     /// Get focuser ID or error
     pub fn focuser_id(&self) -> Result<&str, InstructionResult> {
-        self.run
-            .rig
-            .focuser_id
-            .as_deref()
-            .ok_or_else(|| InstructionResult::failure("No focuser connected"))
+        self.run.rig.focuser_id.as_deref().ok_or_else(|| {
+            InstructionResult::failure_because("No focuser connected", Setback::Disconnected)
+        })
     }
 
     /// Get filter wheel ID or error
     pub fn filterwheel_id(&self) -> Result<&str, InstructionResult> {
-        self.run
-            .rig
-            .filterwheel_id
-            .as_deref()
-            .ok_or_else(|| InstructionResult::failure("No filter wheel connected"))
+        self.run.rig.filterwheel_id.as_deref().ok_or_else(|| {
+            InstructionResult::failure_because("No filter wheel connected", Setback::Disconnected)
+        })
     }
 
     /// Get rotator ID or error  
     pub fn rotator_id(&self) -> Result<&str, InstructionResult> {
-        self.run
-            .rig
-            .rotator_id
-            .as_deref()
-            .ok_or_else(|| InstructionResult::failure("No rotator connected"))
+        self.run.rig.rotator_id.as_deref().ok_or_else(|| {
+            InstructionResult::failure_because("No rotator connected", Setback::Disconnected)
+        })
     }
 
     /// Get dome ID or error.
@@ -480,7 +560,10 @@ impl InstructionContext {
                 tracing::debug!("No dome in the sequence context; using connected dome '{id}'");
                 Ok(id)
             }
-            None => Err(InstructionResult::failure("No dome connected")),
+            None => Err(InstructionResult::failure_because(
+                "No dome connected",
+                Setback::Disconnected,
+            )),
         }
     }
 
@@ -498,8 +581,9 @@ impl InstructionContext {
                 );
                 Ok(id)
             }
-            None => Err(InstructionResult::failure(
+            None => Err(InstructionResult::failure_because(
                 "No cover calibrator (flat panel) connected",
+                Setback::Disconnected,
             )),
         }
     }

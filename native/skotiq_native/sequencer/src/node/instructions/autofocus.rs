@@ -1,9 +1,6 @@
 //! Autofocus instruction node.
 
-use crate::instructions::{
-    autofocus_failure_continues_the_run, execute_autofocus_for_node,
-    notify_autofocus_failed_continuing, read_autofocus_position,
-};
+use crate::instructions::execute_autofocus_for_node;
 use crate::node::context::ExecutionContext;
 use crate::node::progress::{ProgressDetail, ProgressUpdate};
 use crate::node::registry::InstructionNode;
@@ -57,18 +54,7 @@ impl InstructionNode for AutofocusInstruction {
         };
 
         let pause = context.pause_gate();
-        let position_before = read_autofocus_position(&ctx).await;
         let result = execute_autofocus_for_node(config, &ctx, Some(&progress_fn), &pause).await;
-
-        // A missed focus does not end the target, and with it the night: the
-        // sweep has put the focuser back where it started, the operator is
-        // told, and the sequence goes on at that focus (owner decision
-        // 2026-10-06). The node reports Skipped, which its container steps
-        // past; Failure would short-circuit every sibling after it.
-        if autofocus_failure_continues_the_run(&result) {
-            notify_autofocus_failed_continuing(&ctx, "Autofocus", &result, position_before).await;
-            return NodeStatus::Skipped;
-        }
 
         if result.status == NodeStatus::Success {
             if let Some(trigger_state_lock) = &context.run.trigger_state {
@@ -86,7 +72,7 @@ impl InstructionNode for AutofocusInstruction {
             }
         }
 
-        result.log_and_get_status_with_context("Autofocus", &ctx)
+        result.settle("Autofocus", &ctx).await
     }
 }
 

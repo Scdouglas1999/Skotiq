@@ -42,6 +42,7 @@ impl InstructionNode for MeridianFlipInstruction {
 
         execute_meridian_flip(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Meridian Flip", &ctx)
+            .settle("Meridian Flip", &ctx)
+            .await
     }
 }

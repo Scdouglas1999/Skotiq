@@ -60,6 +60,6 @@ impl InstructionNode for ChangeFilterInstruction {
                 trigger_state.set_filter(config.filter_name.clone());
             }
         }
-        result.log_and_get_status_with_context("Change Filter", &ctx)
+        result.settle("Change Filter", &ctx).await
     }
 }

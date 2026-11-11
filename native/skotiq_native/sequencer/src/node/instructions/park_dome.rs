@@ -40,6 +40,7 @@ impl InstructionNode for ParkDomeInstruction {
         };
         execute_park_dome(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Park Dome", &ctx)
+            .settle("Park Dome", &ctx)
+            .await
     }
 }

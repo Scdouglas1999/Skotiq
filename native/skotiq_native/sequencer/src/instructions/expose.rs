@@ -1145,6 +1145,7 @@ pub async fn execute_exposure_with_renderer(
     }
 
     InstructionResult {
+        setback: None,
         status: NodeStatus::Success,
         message: Some(format!("Completed {} exposures", completed_exposures)),
         data: Some(serde_json::json!({

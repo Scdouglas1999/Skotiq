@@ -6,9 +6,8 @@
 
 use crate::expressions::{interpolate, EvaluationFrame};
 use crate::instructions::{
-    autofocus_failure_continues_the_run, execute_autofocus, execute_exposure_with_renderer,
-    notify_autofocus_failed_continuing, read_autofocus_position, resolve_burst_filter, BurstFilter,
-    FrameSavePathRenderer, InstructionResult,
+    execute_autofocus, execute_exposure_with_renderer, notify_autofocus_failed_continuing,
+    resolve_burst_filter, BurstFilter, FrameSavePathRenderer, InstructionResult, Setback,
 };
 use crate::node::context::ExecutionContext;
 use crate::node::instructions::autofocus::parse_autofocus_detail;
@@ -374,7 +373,7 @@ impl InstructionNode for ExposeInstruction {
             context.send_progress(final_upd);
         }
 
-        result.log_and_get_status_with_context("Exposure", &ctx)
+        result.settle("Exposure", &ctx).await
     }
 }
 
@@ -1035,10 +1034,9 @@ pub(crate) async fn check_exposure_triggers(
                         ));
                     }
                 };
-                let position_before = read_autofocus_position(&inst_ctx).await;
                 let af_result = execute_autofocus(&af_config, &inst_ctx, Some(&progress_fn)).await;
 
-                if autofocus_failure_continues_the_run(&af_result) {
+                if let Some(Setback::FocusNotFound { focuser_before }) = af_result.setback() {
                     // The burst carries on either way; this is a notice, not
                     // an instruction failure, which the app would announce as
                     // a failed sequence.
@@ -1046,7 +1044,7 @@ pub(crate) async fn check_exposure_triggers(
                         &inst_ctx,
                         "Exposure-triggered autofocus",
                         &af_result,
-                        position_before,
+                        focuser_before,
                     )
                     .await;
                 } else if af_result.status == NodeStatus::Success {
@@ -1059,7 +1057,8 @@ pub(crate) async fn check_exposure_triggers(
                     }
                 } else {
                     let status = af_result
-                        .log_and_get_status_with_context("Exposure-triggered Autofocus", &inst_ctx);
+                        .settle("Exposure-triggered Autofocus", &inst_ctx)
+                        .await;
                     tracing::warn!("Autofocus triggered by exposure failed: {:?}", status);
                 }
             }

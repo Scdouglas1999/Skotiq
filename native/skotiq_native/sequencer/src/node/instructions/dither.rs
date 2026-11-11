@@ -60,6 +60,6 @@ impl InstructionNode for DitherInstruction {
             }
         }
 
-        result.log_and_get_status_with_context("Dither", &ctx)
+        result.settle("Dither", &ctx).await
     }
 }

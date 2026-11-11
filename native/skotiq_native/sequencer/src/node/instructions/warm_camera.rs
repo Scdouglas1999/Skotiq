@@ -46,7 +46,8 @@ impl InstructionNode for WarmCameraInstruction {
 
         let status = execute_warm_camera(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Warm Camera", &ctx);
+            .settle("Warm Camera", &ctx)
+            .await;
 
         // clear the cooler set-point on the ExecutionContext so
         // subsequent FITS headers omit SET-TEMP (cooler is being warmed /

@@ -40,6 +40,7 @@ impl InstructionNode for CloseDomeInstruction {
         };
         execute_close_dome(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Close Dome", &ctx)
+            .settle("Close Dome", &ctx)
+            .await
     }
 }

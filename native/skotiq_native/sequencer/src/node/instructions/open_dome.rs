@@ -40,6 +40,7 @@ impl InstructionNode for OpenDomeInstruction {
         };
         execute_open_dome(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Open Dome", &ctx)
+            .settle("Open Dome", &ctx)
+            .await
     }
 }

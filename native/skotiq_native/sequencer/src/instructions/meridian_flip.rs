@@ -194,12 +194,12 @@ pub async fn execute_meridian_flip_with_autofocus(
         crate::meridian_flip_executor::FlipResult::Failed {
             error,
             action_taken,
-        } => InstructionResult::failure_with_recovery(
+        } => InstructionResult::failure_because(
             format!(
                 "Meridian flip failed: {} (action taken: {:?})",
                 error, action_taken
             ),
-            "FLIP_FAILED",
+            Setback::FlipFailed,
         ),
         crate::meridian_flip_executor::FlipResult::Aborted { reason } => {
             InstructionResult::cancelled(reason)

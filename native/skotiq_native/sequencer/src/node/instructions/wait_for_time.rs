@@ -48,7 +48,8 @@ impl InstructionNode for WaitForTimeInstruction {
 
         execute_wait_time(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Wait For Time", &ctx)
+            .settle("Wait For Time", &ctx)
+            .await
     }
 }
 

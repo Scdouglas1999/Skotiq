@@ -362,9 +362,8 @@ pub(crate) fn classify_dither_result(
 /// What a trigger-fired autofocus failure costs the run, and therefore what the
 /// run is allowed to do next.
 ///
-/// Both variants arrive as the same `NodeStatus::Failure`; only the result data
-/// separates them (see
-/// [`crate::instructions::AUTOFOCUS_GUIDING_NOT_RESTORED_KEY`]).
+/// Both variants arrive as the same `NodeStatus::Failure`; only the result's
+/// [`crate::instructions::Setback::GuidingNotRestored`] separates them.
 /// Collapsing them is what let a live run keep exposing 180 s lights after its
 /// own log had said `CRITICAL CLEANUP FAILURE: guider accepted resume but did
 /// not report guiding` — three frames, all trailed past the grader's limit, all
@@ -382,19 +381,13 @@ pub(crate) enum AutofocusTriggerFailureCost {
     EveryFrameUnguided,
 }
 
-/// Classify a failed trigger-fired autofocus from its result data.
-///
-/// Pure so the classification is testable without an executor; the marker is
-/// stamped by the autofocus cleanup itself, which is the only code that knows
-/// it stopped the guider and did not get it back.
+/// Classify a failed trigger-fired autofocus. The setback is stamped by the
+/// autofocus cleanup itself, which is the only code that knows it stopped the
+/// guider and did not get it back.
 pub(crate) fn autofocus_trigger_failure_cost(
-    result_data: Option<&serde_json::Value>,
+    result: &crate::instructions::InstructionResult,
 ) -> AutofocusTriggerFailureCost {
-    let guiding_not_restored = result_data
-        .and_then(|data| data.get(crate::instructions::AUTOFOCUS_GUIDING_NOT_RESTORED_KEY))
-        .and_then(serde_json::Value::as_bool)
-        == Some(true);
-    if guiding_not_restored {
+    if result.setback == Some(crate::instructions::Setback::GuidingNotRestored) {
         AutofocusTriggerFailureCost::EveryFrameUnguided
     } else {
         AutofocusTriggerFailureCost::SoftFramesOnly

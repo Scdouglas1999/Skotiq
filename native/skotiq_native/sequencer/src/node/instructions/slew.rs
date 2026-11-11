@@ -1,6 +1,6 @@
 //! SlewToTarget instruction node.
 
-use crate::instructions::{execute_slew, slew_position_mismatch};
+use crate::instructions::execute_slew;
 use crate::node::context::ExecutionContext;
 use crate::node::progress::{ProgressDetail, ProgressUpdate};
 use crate::node::registry::InstructionNode;
@@ -49,21 +49,9 @@ impl InstructionNode for SlewInstruction {
             }
         };
 
-        let result = execute_slew(config, &ctx, Some(&progress_fn)).await;
-        // The mount moved and stopped near the target, just outside the
-        // tolerance. Centering, which normally follows, solves from there.
-        // By default the operator is told and the run goes on (owner decision
-        // 2026-10-06: only a risk to the hardware stops a run by itself);
-        // Failure would end the target and, through it, the night, as it did
-        // on 2026-11-08 over a 2.11' miss.
-        if slew_position_mismatch(&result) && !ctx.stops_on_quality_problems().await {
-            let problem = format!(
-                "{} Skotiq slewed twice and goes on from here.",
-                result.message.as_deref().unwrap_or("The slew landed off target.")
-            );
-            ctx.notify_quality_problem_continuing("Slew", &problem);
-            return NodeStatus::Skipped;
-        }
-        result.log_and_get_status_with_context("Slew", &ctx)
+        execute_slew(config, &ctx, Some(&progress_fn))
+            .await
+            .settle("Slew", &ctx)
+            .await
     }
 }

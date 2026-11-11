@@ -44,6 +44,7 @@ impl InstructionNode for TemperatureCompensationInstruction {
             Some(&progress_fn),
         )
         .await
-        .log_and_get_status_with_context("Temperature Compensation", &ctx)
+        .settle("Temperature Compensation", &ctx)
+        .await
     }
 }

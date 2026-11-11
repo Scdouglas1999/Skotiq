@@ -5,10 +5,7 @@
 //! configured recovery action determines the final outcome.
 
 use crate::executor::ExecutorEvent;
-use crate::instructions::{
-    autofocus_failure_continues_the_run, execute_autofocus, notify_autofocus_failed_continuing,
-    read_autofocus_position,
-};
+use crate::instructions::{execute_autofocus, notify_autofocus_failed_continuing, Setback};
 use crate::node::context::ExecutionContext;
 use crate::node::instructions::autofocus::parse_autofocus_detail;
 use crate::node::logic::sequential::execute_children_sequential;
@@ -217,7 +214,6 @@ pub async fn execute_recovery(
                         ));
                     }
                 };
-                let position_before = read_autofocus_position(&ctx).await;
                 let autofocus_result =
                     execute_autofocus(&autofocus_config, &ctx, Some(&progress_fn)).await;
                 match autofocus_result.status {
@@ -227,16 +223,18 @@ pub async fn execute_recovery(
                     // retry goes ahead on the previous focus: a failed
                     // autofocus never decides the run (owner decision
                     // 2026-10-06).
-                    _ if autofocus_failure_continues_the_run(&autofocus_result) => {
-                        notify_autofocus_failed_continuing(
-                            &ctx,
-                            "Recovery autofocus",
-                            &autofocus_result,
-                            position_before,
-                        )
-                        .await;
-                    }
-                    _ => return autofocus_result.log_and_get_status("Recovery autofocus"),
+                    _ => match autofocus_result.setback() {
+                        Some(Setback::FocusNotFound { focuser_before }) => {
+                            notify_autofocus_failed_continuing(
+                                &ctx,
+                                "Recovery autofocus",
+                                &autofocus_result,
+                                focuser_before,
+                            )
+                            .await;
+                        }
+                        _ => return autofocus_result.log_and_get_status("Recovery autofocus"),
+                    },
                 }
             }
             RecoveryAction::Pause => {

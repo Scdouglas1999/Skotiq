@@ -48,7 +48,8 @@ impl InstructionNode for DelayInstruction {
 
         execute_delay(config, context, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Delay", &ctx)
+            .settle("Delay", &ctx)
+            .await
     }
 }
 

@@ -28,7 +28,7 @@ mod panel;
 
 use crate::instructions::{
     execute_exposure_with_renderer, resolve_frame_filter, BurstControl, InstructionContext,
-    InstructionResult,
+    InstructionResult, Setback,
 };
 use crate::node::instructions::expose::build_save_path_renderer;
 use crate::wizard::{
@@ -40,10 +40,6 @@ use crate::{ExposureConfig, FlatWizardConfig, PanelLocation};
 use async_trait::async_trait;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-
-/// Data key on a result that failed only because the search ran out of
-/// attempts. The node reports that as a notice and lets the run go on.
-pub(crate) const FLAT_NOT_CONVERGED_KEY: &str = "flat_calibration_not_converged";
 
 /// Steps in the flat-wizard plan. The plan begins as `[Filter, Position,
 /// Panel, Iter(1)]` and dynamically appends `Iter(n+1)` until
@@ -187,6 +183,7 @@ impl<'a> Wizard for FlatWizardRun<'a> {
                     final_brightness
                 );
                 InstructionResult {
+                    setback: None,
                     status: NodeStatus::Success,
                     message: Some(format!(
                         "Captured {} flat frames at {:.3}s (ADU: {}, brightness: {})",
@@ -223,9 +220,7 @@ in the Flat Wizard settings, or adjust panel brightness or exposure bounds.",
                     tolerance
                 );
                 tracing::warn!("{}", message);
-                let mut result = InstructionResult::failure(message);
-                result.data = Some(serde_json::json!({ FLAT_NOT_CONVERGED_KEY: true }));
-                result
+                InstructionResult::failure_because(message, Setback::FlatsNotConverged)
             }
         }
     }
