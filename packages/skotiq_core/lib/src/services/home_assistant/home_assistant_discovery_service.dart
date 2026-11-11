@@ -32,7 +32,7 @@ import '../../providers/sequence_stats_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/weather_safety_provider.dart';
 import '../notification/transports/mqtt_transport.dart' show MqttSocketOpener;
-import '../scheduler/sky_calculations.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'ha_discovery_payloads.dart';
 import 'ha_mqtt_session_client.dart';
 import 'home_assistant_discovery_config.dart';
@@ -369,10 +369,10 @@ class HomeAssistantDiscoveryService {
     // retained topic only updates when the value meaningfully moves.
     final settings = _ref.read(appSettingsProvider).valueOrNull;
     if (settings != null) {
-      final (altitude, _) = SkyCalculations.sunAltAz(
-        time: DateTime.now().toUtc(),
-        latitudeDegrees: settings.latitude,
-        longitudeDegrees: settings.longitude,
+      final (altitude, _) = AstronomyCalculations.sunAltAz(
+        dt: DateTime.now().toUtc(),
+        latitudeDeg: settings.latitude,
+        longitudeDeg: settings.longitude,
       );
       states[HaEntityKeys.sunAltitude] = altitude.toStringAsFixed(1);
     }

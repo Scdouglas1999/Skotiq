@@ -23,7 +23,7 @@ import 'package:skotiq_app/screens/night_control/data/plan/night_timeline_provid
 import 'package:skotiq_app/screens/night_control/data/tonight_night.dart';
 import 'package:skotiq_app/screens/planetarium/widgets/tonight_tab.dart';
 import 'package:skotiq_app/services/observing_site.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';

@@ -8,7 +8,7 @@
 // differ only when Settings picks a time zone other than the host's.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
+import 'package:skotiq_core/skotiq_core.dart';
 // The typed bridge events, behind the prefix the run dashboard uses: their
 // names collide with the wire event model the barrel keeps canonical.
 import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;

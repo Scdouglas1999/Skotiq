@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'astronomy_calculations.dart';
+
 /// SGP4 orbit propagator implementing the Simplified General Perturbations model.
 ///
 /// Based on Vallado et al., "Revisiting Spacetrack Report #3" (2006).
@@ -484,17 +486,6 @@ class Sgp4 {
     return temp;
   }
 
-  /// Convert a DateTime (UTC) to Julian Date.
-  static double julianDate(DateTime dt) {
-    final utc = dt.toUtc();
-    return 367.0 * utc.year -
-        (7 * (utc.year + ((utc.month + 9) ~/ 12)) / 4).floor() +
-        (275 * utc.month / 9).floor() +
-        utc.day +
-        1721013.5 +
-        ((utc.second / 60.0 + utc.minute) / 60.0 + utc.hour) / 24.0;
-  }
-
   /// Convert TLE epoch (2-digit year + fractional day) to DateTime UTC.
   static DateTime epochToDateTime(int epochYear, double epochDay) {
     // TLE uses 2-digit year: 57-99 → 1957-1999, 00-56 → 2000-2056
@@ -579,7 +570,7 @@ class Sgp4 {
   ///
   /// Uses simplified solar position. Returns ECI vector in km.
   static EciVector sunPositionEci(DateTime dt) {
-    final jd = julianDate(dt);
+    final jd = AstronomyCalculations.julianDate(dt);
     final t = (jd - 2451545.0) / 36525.0;
 
     // Mean longitude of Sun

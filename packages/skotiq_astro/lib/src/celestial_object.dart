@@ -151,6 +151,36 @@ enum DsoType {
   other,
 }
 
+/// The OpenNGC `Type` column: every code that names a kind of object.
+///
+/// `NonEx` and `Dup` are absent on purpose. They describe the catalog entry
+/// (it does not exist, or it repeats another), not an object.
+const Map<String, DsoType> kOpenNgcTypeCodes = {
+  '*': DsoType.star,
+  '**': DsoType.doubleStar,
+  '*Ass': DsoType.association,
+  'OCl': DsoType.openCluster,
+  'GCl': DsoType.globularCluster,
+  'Cl+N': DsoType.clusterWithNebulosity,
+  'G': DsoType.galaxy,
+  'GPair': DsoType.galaxyPair,
+  'GTrpl': DsoType.galaxyTriplet,
+  'GGroup': DsoType.galaxyGroup,
+  'PN': DsoType.planetaryNebula,
+  'HII': DsoType.hiiRegion,
+  'DrkN': DsoType.darkNebula,
+  'EmN': DsoType.emissionNebula,
+  'Neb': DsoType.nebula,
+  'RfN': DsoType.reflectionNebula,
+  'SNR': DsoType.supernova,
+  'Nova': DsoType.nova,
+};
+
+/// The object type an OpenNGC `Type` code names; [DsoType.other] for a code
+/// that names none.
+DsoType dsoTypeFromOpenNgcCode(String code) =>
+    kOpenNgcTypeCodes[code] ?? DsoType.other;
+
 /// Extensions for DsoType
 extension DsoTypeExtension on DsoType {
   /// Get display name for the type

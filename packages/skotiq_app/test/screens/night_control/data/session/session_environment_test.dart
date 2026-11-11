@@ -10,10 +10,11 @@ import 'package:skotiq_app/screens/night_control/data/session/session_format.dar
 import 'package:skotiq_app/screens/night_control/data/session/session_stats_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_core/skotiq_core.dart'
-    hide EquipmentStatus, TwilightTimes;
+    hide EquipmentStatus;
 import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
 
 import 'session_test_support.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 SkotiqEvent _guideStep(DateTime at, Map<String, dynamic> data) => SkotiqEvent(
       timestamp: at.millisecondsSinceEpoch,
@@ -403,12 +404,11 @@ void main() {
         latitude: 42.36,
         longitude: -71.06,
       )!;
-      final dawnUtc = SkyCalculations.computeTwilight(
-        noonLocal: DateTime(2026, 10, 19, 12),
-        latitudeDegrees: 42.36,
-        longitudeDegrees: -71.06,
-        kind: TwilightKind.astronomical,
-      ).morningStart!;
+      final dawnUtc = AstronomyCalculations.twilightTimesNear(
+        instant: DateTime(2026, 10, 19, 12),
+        latitudeDeg: 42.36,
+        longitudeDeg: -71.06,
+      ).astronomicalDawn!;
       expect(expected, dawnUtc.subtract(const Duration(minutes: 30)));
       expect(dawn.state, ChecklistItemState.ok);
       expect(dawn.detail!.key, 'nightSessionCheckDawnPark');

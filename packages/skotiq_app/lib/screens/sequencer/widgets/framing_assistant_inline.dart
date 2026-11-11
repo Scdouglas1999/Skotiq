@@ -24,6 +24,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import '../../../services/equipment_fov_binding.dart';
 
 /// Public entry point: open the framing assistant for a TargetHeader.
 /// Returns the resulting rotation if the user applied a change, or

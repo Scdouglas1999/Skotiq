@@ -8,7 +8,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // skotiq_core also exports a (scheduler) TwilightTimes; this file means the
 // planetarium one that `siteTwilightTimesProvider` returns.
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
+import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../../services/observing_site.dart';
 

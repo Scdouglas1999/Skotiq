@@ -1,6 +1,6 @@
 import '../../models/planning/night_forecast.dart';
 import '../../models/weather/radar_frame.dart';
-import '../scheduler/sky_calculations.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import '../weather/radar_provider.dart';
 
 /// A single project target fed into the multi-night forecast.
@@ -163,15 +163,14 @@ class ForecastPlanningService {
     required List<RadarFrame> frames,
     required List<ProjectTargetCandidate> targets,
   }) {
-    final twilight = SkyCalculations.computeTwilight(
-      noonLocal: nightDateLocal,
-      latitudeDegrees: latitudeDegrees,
-      longitudeDegrees: longitudeDegrees,
-      kind: TwilightKind.astronomical,
+    final twilight = AstronomyCalculations.twilightTimesNear(
+      instant: nightDateLocal,
+      latitudeDeg: latitudeDegrees,
+      longitudeDeg: longitudeDegrees,
     );
 
-    final duskUtc = twilight.eveningEnd?.toUtc();
-    final dawnUtc = twilight.morningStart?.toUtc();
+    final duskUtc = twilight.astronomicalDusk?.toUtc();
+    final dawnUtc = twilight.astronomicalDawn?.toUtc();
 
     // Polar day / no astronomical darkness: honest zero-dark night, NOT a
     // forecast failure. Both endpoints must exist and be ordered for a real
@@ -361,39 +360,20 @@ class ForecastPlanningService {
     return entries;
   }
 
-  /// Apparent topocentric altitude (degrees) of an equatorial target at
-  /// [timeUtc] for this site.
-  ///
-  /// Uses the standard spherical-astronomy altitude formula — the same
-  /// derivation as [SchedulerService.calculateAltAz], reusing
-  /// [SkyCalculations.julianDate] for the Julian Date so the time base stays
-  /// single-sourced with the twilight engine. (Neither public alt-az helper is
-  /// usable directly here: `SkyCalculations.sunAltAz` only does the sun, and
-  /// `SchedulerService.calculateAltAz` is an instance method requiring a
-  /// Riverpod `Ref`, which a pure service must not hold.)
+  /// Geometric altitude (degrees) of a J2000 target at [timeUtc] for this
+  /// site.
   double _targetAltitudeDeg({
     required double raHours,
     required double decDegrees,
     required DateTime timeUtc,
   }) {
-    final lstHours = _localSiderealTimeHours(timeUtc);
-    return SkyCalculations.altitudeDegrees(
-      hourAngleDegrees: (lstHours - raHours) * 15.0,
-      declinationDegrees: decDegrees,
-      latitudeDegrees: latitudeDegrees,
+    final (altitude, _) = AstronomyCalculations.objectAltAz(
+      raDeg: raHours * 15.0,
+      decDeg: decDegrees,
+      dt: timeUtc,
+      latitudeDeg: latitudeDegrees,
+      longitudeDeg: longitudeDegrees,
     );
-  }
-
-  /// Local apparent sidereal time in hours `[0, 24)` for this site at
-  /// [timeUtc], from the IAU GMST polynomial — identical to the formula
-  /// embedded in [SkyCalculations.sunAltAz].
-  double _localSiderealTimeHours(DateTime timeUtc) {
-    final jd = SkyCalculations.julianDate(timeUtc);
-    var gmstDeg = SkyCalculations.gmstDegreesRaw(jd);
-    gmstDeg %= 360.0;
-    if (gmstDeg < 0) gmstDeg += 360.0;
-    var lstDeg = (gmstDeg + longitudeDegrees) % 360.0;
-    if (lstDeg < 0) lstDeg += 360.0;
-    return lstDeg / 15.0;
+    return altitude;
   }
 }

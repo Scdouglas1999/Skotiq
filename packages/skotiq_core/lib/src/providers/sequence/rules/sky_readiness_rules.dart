@@ -4,7 +4,7 @@ import '../../../models/equipment/equipment_models.dart';
 import '../../../models/imaging/imaging_models.dart' show FrameType;
 import '../../../models/scheduler/scheduler_status.dart' show SchedulerConfig;
 import '../../../models/sequence/sequence_models.dart';
-import '../../../services/scheduler/sky_calculations.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import '../../equipment/mount_state_provider.dart';
 import '../../settings_provider.dart';
 import '../sequence_validation.dart';
@@ -32,10 +32,10 @@ const Duration _maxDarknessWait = Duration(hours: 3);
 /// if that happens within [_maxDarknessWait].
 int? _minutesUntilDark(DateTime now, double latitude, double longitude) {
   for (var minutes = 0; minutes <= _maxDarknessWait.inMinutes; minutes++) {
-    final (sunAltitude, _) = SkyCalculations.sunAltAz(
-      time: now.add(Duration(minutes: minutes)),
-      latitudeDegrees: latitude,
-      longitudeDegrees: longitude,
+    final (sunAltitude, _) = AstronomyCalculations.sunAltAz(
+      dt: now.add(Duration(minutes: minutes)),
+      latitudeDeg: latitude,
+      longitudeDeg: longitude,
     );
     if (sunAltitude <= _maxSunAltitudeDegrees) return minutes;
   }
@@ -101,10 +101,10 @@ class DaylightGateRule implements RefAwareSequenceValidator {
     final site = ctx.ref.read(appObserverLocationProvider);
     if (site == null) return const [];
 
-    final (sunAltitude, _) = SkyCalculations.sunAltAz(
-      time: clock().toUtc(),
-      latitudeDegrees: site.latitude,
-      longitudeDegrees: site.longitude,
+    final (sunAltitude, _) = AstronomyCalculations.sunAltAz(
+      dt: clock().toUtc(),
+      latitudeDeg: site.latitude,
+      longitudeDeg: site.longitude,
     );
     if (sunAltitude <= _maxSunAltitudeDegrees) return const [];
 

@@ -19,7 +19,7 @@ enum SuggestionSortMode {
   leastDataCollected,
 }
 
-/// JSON converter for TargetWarning from skotiq_planetarium
+/// JSON converter for TargetWarning from skotiq_astro
 class TargetWarningConverter
     implements JsonConverter<TargetWarning, Map<String, dynamic>> {
   const TargetWarningConverter();
@@ -65,7 +65,7 @@ class TargetWarningListConverter
   }
 }
 
-/// JSON converter for TargetVisibilityInfo from skotiq_planetarium
+/// JSON converter for TargetVisibilityInfo from skotiq_astro
 class TargetVisibilityInfoConverter
     implements JsonConverter<TargetVisibilityInfo, Map<String, dynamic>> {
   const TargetVisibilityInfoConverter();

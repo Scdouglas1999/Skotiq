@@ -345,22 +345,11 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
     // hour before sunrise on Null Island: 00:20 on a US east-coast night.
     if (!appSettings.hasObserverLocation) return false;
     final now = _clock();
-    // The next dawn, not the dawn after today's noon. Dawn comes after
-    // midnight, and from midnight on, "today's night" is the one that starts
-    // this evening, so asking only for it measured the lead time to TOMORROW's
-    // dawn and the park never fired. Yesterday's night comes first because its
-    // dawn, when still ahead, is the one about to happen.
-    for (final day in [now.subtract(const Duration(days: 1)), now]) {
-      final dawn = SkyCalculations.computeTwilight(
-        noonLocal: DateTime(day.year, day.month, day.day, 12),
-        latitudeDegrees: appSettings.latitude,
-        longitudeDegrees: appSettings.longitude,
-        kind: TwilightKind.astronomical,
-      ).morningStart?.toLocal();
-      if (dawn == null || now.isAfter(dawn)) continue;
-      return dawn.difference(now) <=
-          WeatherSafetyNotifier._parkBeforeDawnLeadTime;
-    }
-    return false;
+    final parkAt = dawnParkTime(
+      now: now,
+      latitude: appSettings.latitude,
+      longitude: appSettings.longitude,
+    );
+    return parkAt != null && !now.isBefore(parkAt);
   }
 }

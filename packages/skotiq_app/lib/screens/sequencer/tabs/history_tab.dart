@@ -14,6 +14,7 @@ import '../widgets/pending_session_reports_card.dart';
 import '../widgets/post_session_stats_dialog.dart';
 import '../widgets/replay_debug_screen.dart';
 import '../widgets/sequence_diff_dialog.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// One-shot "open this run on first paint" hint for the history tab.
 ///
@@ -444,21 +445,11 @@ class _GroupedRunList extends StatelessWidget {
 
   const _GroupedRunList({required this.colors, required this.rows});
 
-  /// Bucket a run into an observing night. Runs after local midnight but
-  /// before ~midday are attributed to the previous calendar day so a
-  /// single overnight session groups together.
-  DateTime _observingNight(DateTime startedAt) {
-    final local = startedAt.toLocal();
-    final shifted =
-        local.hour < 12 ? local.subtract(const Duration(days: 1)) : local;
-    return DateTime(shifted.year, shifted.month, shifted.day);
-  }
-
   @override
   Widget build(BuildContext context) {
     final groups = <DateTime, List<_RunRow>>{};
     for (final row in rows) {
-      groups.putIfAbsent(_observingNight(row.run.startedAt), () => []).add(row);
+      groups.putIfAbsent(observingNightOf(row.run.startedAt), () => []).add(row);
     }
     final nights = groups.keys.toList()..sort((a, b) => b.compareTo(a));
 

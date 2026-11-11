@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 
 import '../astronomy/astronomy_calculations.dart';
+import '../celestial_object.dart';
 import 'hyg_depth.dart';
 import 'target_designation.dart';
 

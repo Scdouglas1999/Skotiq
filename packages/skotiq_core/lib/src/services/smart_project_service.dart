@@ -9,6 +9,7 @@ import '../models/imaging/integration_curve.dart';
 import '../models/scheduler/integration_goal.dart';
 import '../providers/database_provider.dart';
 import 'scheduler/integration_goal_service.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// One point of an integrated master's multi-night growth: cumulative
 /// integration time as of an observing night.
@@ -577,7 +578,7 @@ class SmartProjectService {
       final exposure = r.readNullable<double>('exposure') ?? 0.0;
       out.add(
         _FoldedSub(
-          captureDate: observingNightOf(capturedAtSec),
+          captureDate: observingNightOfEpochSeconds(capturedAtSec),
           exposureSeconds: exposure,
           weight: r.readNullable<double>('weight'),
           snr: r.readNullable<double>('snr'),
@@ -673,26 +674,15 @@ class SmartProjectService {
     return null;
   }
 
-  /// The observing night a capture belongs to, as a local date-only DateTime.
+  /// The observing night a capture belongs to, from its epoch seconds.
   ///
-  /// Nights are bucketed noon-to-noon in the observer's local time — the same
-  /// rule `TargetProgressService._nightStart` and the forecast planner use — and
-  /// labelled with the date the night *started*. Grouping by UTC calendar day
-  /// fails twice over: west of Greenwich every night is labelled a day late
-  /// (21:00 EDT is 01:00 UTC the next day), and east of Greenwich the 00:00 UTC
-  /// boundary falls in the MIDDLE of the observing night, splitting a single
-  /// continuous run into two "nights" and halving its reported totals.
-  static DateTime observingNightOf(int epochSeconds) {
-    final local = DateTime.fromMillisecondsSinceEpoch(
-      epochSeconds * 1000,
-      isUtc: true,
-    ).toLocal();
-    final noonToday = DateTime(local.year, local.month, local.day, 12);
-    final nightStart = local.isBefore(noonToday)
-        ? noonToday.subtract(const Duration(days: 1))
-        : noonToday;
-    return DateTime(nightStart.year, nightStart.month, nightStart.day);
-  }
+  /// Grouping by UTC calendar day fails twice over: west of Greenwich every
+  /// night is labelled a day late, and east of it the 00:00 UTC boundary falls
+  /// in the middle of the night and splits one run into two.
+  static DateTime observingNightOfEpochSeconds(int epochSeconds) =>
+      observingNightOf(
+        DateTime.fromMillisecondsSinceEpoch(epochSeconds * 1000, isUtc: true),
+      );
 
   static double _median(List<double> values) {
     if (values.isEmpty) return 0;

@@ -14,7 +14,6 @@ import '../models/imaging/night_report.dart';
 import '../providers/database_provider.dart';
 import 'frame_quality_assessment_service.dart';
 import 'optical_train_diagnostics_service.dart';
-import 'scheduler/sky_calculations.dart';
 part 'night_analysis_service/detectors.dart';
 part 'night_analysis_service/night_data.dart';
 part 'night_analysis_service/moon_ephemeris.dart';

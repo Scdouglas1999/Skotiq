@@ -11,6 +11,7 @@ import '../screens/imaging/centering_dialog.dart';
 import '../utils/authority_bound_dialog.dart';
 import '../utils/confirm_dialog.dart';
 import '../utils/snackbar_helper.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// The slew mode selection for the dropdown.
 enum SlewMode {
@@ -418,12 +419,12 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     // Same alt/az model the scheduler uses to decide what is worth imaging, so
     // the slew gate and the planner never disagree about where a target is.
     final (altitudeDeg, azimuthDeg) =
-        ref.read(schedulerServiceProvider).calculateAltAz(
-              raHours: widget.ra,
-              decDegrees: widget.dec,
-              time: DateTime.now().toUtc(),
-              latitudeDegrees: site.latitude,
-              longitudeDegrees: site.longitude,
+        AstronomyCalculations.objectAltAz(
+              raDeg: widget.ra * 15.0,
+              decDeg: widget.dec,
+              dt: DateTime.now().toUtc(),
+              latitudeDeg: site.latitude,
+              longitudeDeg: site.longitude,
             );
 
     // Settings → Location → effective horizon. 0° (the mathematical horizon)

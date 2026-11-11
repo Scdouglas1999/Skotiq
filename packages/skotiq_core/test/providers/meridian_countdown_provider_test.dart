@@ -22,11 +22,11 @@ import 'package:skotiq_core/src/models/sequence/sequence_models.dart'
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/mount_state_provider.dart';
 import 'package:skotiq_core/src/providers/meridian_countdown_provider.dart';
-import 'package:skotiq_core/src/providers/meridian_flip_provider.dart';
 import 'package:skotiq_core/src/providers/sequence_provider.dart'
     show sequenceExecutionStateProvider;
 import 'package:skotiq_core/src/providers/settings_provider.dart'
     show AppSettingsState, AppSettingsNotifier, appSettingsProvider;
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Fixed instant + longitude used across the pure tests so HA is reproducible.
 final _fixedNowUtc = DateTime.utc(2026, 5, 29, 4, 0, 0);
@@ -44,7 +44,7 @@ MountState _mountAtHourAngle(
   String? sideOfPier = 'east',
   DateTime? nowUtc,
 }) {
-  final lst = computeLocalSiderealTimeHours(nowUtc ?? _fixedNowUtc, _longitude);
+  final lst = AstronomyCalculations.localSiderealTime(nowUtc ?? _fixedNowUtc, _longitude);
   var ra = lst - haHours;
   while (ra < 0) {
     ra += 24.0;

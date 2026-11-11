@@ -1,11 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
-
-import '../models/equipment/equipment_models.dart';
-import '../models/optical_config.dart';
-import 'equipment/rotator_state_provider.dart';
-import 'profiles_provider.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
 /// Telescope description for the planetarium FOV overlay, derived from the
 /// active profile's optical configuration.
@@ -52,10 +48,10 @@ CameraSensorSpecs? cameraSensorSpecsFromOpticalConfig(OpticalConfig? config) {
 
 /// Binds the connected rig to the planetarium's FOV overlay.
 ///
-/// The planetarium package does not depend on skotiq_core (the dependency
-/// runs the other way), so its [equipmentFOVProvider] cannot subscribe to the
-/// profile/equipment providers itself. Watch this once high in a screen that
-/// shows the overlay and it keeps pushing.
+/// The planetarium package does not depend on skotiq_core, so its
+/// [equipmentFOVProvider] cannot subscribe to the profile and equipment
+/// providers itself. Watch this once high in a screen that shows the overlay
+/// and it keeps pushing.
 ///
 ///  * [opticalConfigProvider] → telescope + camera specs. An unknown slot
 ///    resolves to null, which makes `EquipmentFOVState.fov` null and the

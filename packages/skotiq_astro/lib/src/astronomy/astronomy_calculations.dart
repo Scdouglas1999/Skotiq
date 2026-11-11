@@ -1,6 +1,7 @@
 // ignore_for_file: unused_field
 
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'visibility_models.dart';
 
@@ -12,6 +13,7 @@ part 'calc/sun_and_twilight.dart';
 part 'calc/moon.dart';
 part 'calc/rise_set_transit.dart';
 part 'calc/geometry.dart';
+part 'calc/hour_angle_events.dart';
 
 const double _deg2rad = math.pi / 180;
 
@@ -70,6 +72,22 @@ double? airmassForTrueAltitude(double altitudeDegrees) {
   return airmass.isFinite ? airmass : null;
 }
 
+/// The evening date, in the host's local time, of the observing night [time]
+/// belongs to. A night runs from local noon to local noon, so a frame taken
+/// after midnight stays with the evening it started on.
+DateTime observingNightOf(DateTime time) =>
+    AstronomyCalculations.nightDateOf(time.toLocal());
+
+/// The observing night [time] falls in, as the local noon it starts at and the
+/// next local noon: the night [observingNightOf] names.
+({DateTime start, DateTime end}) observingNightWindow(DateTime time) {
+  final evening = observingNightOf(time);
+  return (
+    start: DateTime(evening.year, evening.month, evening.day, 12),
+    end: DateTime(evening.year, evening.month, evening.day + 1, 12),
+  );
+}
+
 /// Comprehensive astronomy calculations for astrophotography planning
 class AstronomyCalculations {
   AstronomyCalculations._();
@@ -78,27 +96,13 @@ class AstronomyCalculations {
 
   // Julian date calculations
 
-  /// Convert DateTime to Julian Date.
+  /// Julian Date (UTC) of [dt], to the millisecond.
   ///
-  /// Fliegel–Van Flandern day-number form. This is the Julian Date the whole
-  /// planetarium package uses; `PlanetaryPositions.julianDate`,
-  /// `MinorPlanetCatalog._julianDate` and `VariableStarCatalog._julianDate`
-  /// were byte-for-byte re-typings of it and now call through here.
-  ///
-  /// [includeMilliseconds] reproduces the one real difference between those
-  /// copies: the variable-star catalog stopped its day fraction at whole
-  /// seconds. Passing `false` makes the sub-second term a literal `0`, and
-  /// `x + 0` is exact, so that catalog's phase numbers are unchanged.
-  ///
-  /// This is NOT the same function as `SkyCalculations.julianDate` in
-  /// `skotiq_core`, which uses Meeus' Gregorian form. Both are correct
-  /// Julian Dates and they agree to ~5e-10 d, but they are not the same
-  /// doubles, and each side's goldens are pinned to its own. Merging them
-  /// would move one set of numbers for no gain; `skotiq_planetarium` is a
-  /// leaf package that cannot see `skotiq_core` anyway (the dependency
-  /// runs the other way).
-  static double julianDate(DateTime dt, {bool includeMilliseconds = true}) =>
-      _julianDate(dt, includeMilliseconds: includeMilliseconds);
+  /// The one Julian Date in the product, taken straight from the instant's
+  /// epoch milliseconds with no calendar arithmetic. It agrees with Meeus'
+  /// and the Fliegel-Van Flandern calendar forms to the last bit or two of a
+  /// double (under 0.1 ms) and with astropy over 2000-2032.
+  static double julianDate(DateTime dt) => _julianDate(dt);
 
   /// Convert Julian Date to DateTime
   static DateTime fromJulianDate(double jd) => _fromJulianDate(jd);
@@ -115,6 +119,15 @@ class AstronomyCalculations {
   /// Local Sidereal Time in hours
   static double localSiderealTime(DateTime dt, double longitudeDeg) =>
       _localSiderealTime(dt, longitudeDeg);
+
+  /// Hour angle in hours, normalized to (-12, +12], from a right ascension
+  /// and a local sidereal time in hours. Positive is west of the meridian.
+  static double hourAngleHours(double raHours, double lstHours) {
+    var ha = (lstHours - raHours) % 24.0;
+    if (ha > 12.0) ha -= 24.0;
+    if (ha <= -12.0) ha += 24.0;
+    return ha;
+  }
 
   // Atmospheric refraction
 
@@ -268,29 +281,73 @@ class AstronomyCalculations {
     apparent: apparent,
   );
 
+  /// True (geometric) altitude and azimuth of the Sun's centre, degrees.
+  /// Azimuth is measured east of north.
+  static (double alt, double az) sunAltAz({
+    required DateTime dt,
+    required double latitudeDeg,
+    required double longitudeDeg,
+  }) => _sunAltAz(dt: dt, latitudeDeg: latitudeDeg, longitudeDeg: longitudeDeg);
+
   // Twilight calculations
 
-  // -34/60
-
-  // -50/60
-
-  // Approximate
-
-  /// Twilight type enumeration
   static const double civilTwilightAngle = -6.0;
   static const double nauticalTwilightAngle = -12.0;
   static const double astronomicalTwilightAngle = -18.0;
 
-  /// Calculate twilight times for a given date and location
+  /// Twilight times for the night that follows the site's solar noon on the
+  /// calendar day of [date].
+  ///
+  /// Only the calendar day of [date] is read, so an instant past local
+  /// midnight selects the NEXT night; use [twilightTimesNear] when all you
+  /// hold is an instant. Events are returned in the host's local time.
   static TwilightTimes calculateTwilightTimes({
     required DateTime date,
     required double latitudeDeg,
     required double longitudeDeg,
-  }) => _calculateTwilightTimes(
-    date: date,
+  }) => _twilightTimesFromSolarNoon(
+    siteSolarNoon: _siteSolarNoonOfDate(date, longitudeDeg),
     latitudeDeg: latitudeDeg,
     longitudeDeg: longitudeDeg,
   );
+
+  /// Twilight times for the night that follows the site's solar noon nearest
+  /// to [instant].
+  ///
+  /// Pass the host's local noon to get "tonight" for a site in any timezone,
+  /// or an instant during a night to get that night's own dusk and dawn once
+  /// it is past the site's solar midnight. Events are returned in the zone of
+  /// [instant] (UTC in, UTC out).
+  static TwilightTimes twilightTimesNear({
+    required DateTime instant,
+    required double latitudeDeg,
+    required double longitudeDeg,
+  }) => _twilightTimesFromSolarNoon(
+    siteSolarNoon: _siteSolarNoonNearest(instant, longitudeDeg),
+    latitudeDeg: latitudeDeg,
+    longitudeDeg: longitudeDeg,
+  );
+
+  /// The next [kind] dawn at the site that is not already behind [now]: last
+  /// night's while it is still ahead (after midnight), otherwise tonight's.
+  /// Null when neither night has one (a night that never gets that dark).
+  static DateTime? nextDawn({
+    required DateTime now,
+    required double latitudeDeg,
+    required double longitudeDeg,
+    TwilightKind kind = TwilightKind.astronomical,
+  }) {
+    for (final daysBack in const [1, 0]) {
+      final dawn = twilightTimesNear(
+        instant: DateTime(now.year, now.month, now.day - daysBack, 12),
+        latitudeDeg: latitudeDeg,
+        longitudeDeg: longitudeDeg,
+      ).dawn(kind);
+      if (dawn == null || now.isAfter(dawn)) continue;
+      return dawn;
+    }
+    return null;
+  }
 
   /// Calculate darkness hours between astronomical dusk and dawn
   static Duration? darknessHours(TwilightTimes twilight) =>
@@ -465,6 +522,44 @@ class AstronomyCalculations {
     decDeg: decDeg,
     dt: dt,
     latitudeDeg: latitudeDeg,
+    longitudeDeg: longitudeDeg,
+  );
+
+  /// How long until a J2000 target next drops to [horizonDeg], from the
+  /// closed-form hour angle of that altitude (geometric, no refraction).
+  ///
+  /// Null when it never gets that low (circumpolar for this horizon);
+  /// [Duration.zero] when it is already at or below it, or never rises above
+  /// it. This answers "how long can I keep imaging from now" for any altitude
+  /// limit; [calculateObjectVisibility] answers "when does it rise and set on
+  /// this night" at the refracted horizon.
+  static Duration? timeUntilBelow({
+    required double raDeg,
+    required double decDeg,
+    required DateTime now,
+    required double latitudeDeg,
+    required double longitudeDeg,
+    double horizonDeg = 0.0,
+  }) => _timeUntilBelow(
+    raDeg: raDeg,
+    decDeg: decDeg,
+    now: now,
+    latitudeDeg: latitudeDeg,
+    longitudeDeg: longitudeDeg,
+    horizonDeg: horizonDeg,
+  );
+
+  /// The meridian transit of a J2000 target on the UTC calendar day of
+  /// [date]: the first instant at or after 00:00 UTC that its hour angle is 0.
+  static DateTime transitOnUtcDate({
+    required double raDeg,
+    required double decDeg,
+    required DateTime date,
+    required double longitudeDeg,
+  }) => _transitOnUtcDate(
+    raDeg: raDeg,
+    decDeg: decDeg,
+    date: date,
     longitudeDeg: longitudeDeg,
   );
 

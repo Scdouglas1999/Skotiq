@@ -49,87 +49,6 @@ class CelestialCoordinate {
   /// Dec in radians
   double get decRadians => dec * math.pi / 180;
 
-  /// Convert to Alt/Az for given location and time
-  HorizontalCoordinate toHorizontal({
-    required double latitude,
-    required double longitude,
-    required DateTime time,
-  }) {
-    // Calculate Local Sidereal Time
-    final jd = _julianDate(time);
-    final lst = _localSiderealTime(jd, longitude);
-
-    // Hour angle
-    final ha = (lst - ra) * 15 * math.pi / 180;
-
-    // Convert to horizontal
-    final latRad = latitude * math.pi / 180;
-
-    final sinAlt =
-        math.sin(decRadians) * math.sin(latRad) +
-        math.cos(decRadians) * math.cos(latRad) * math.cos(ha);
-    final alt = math.asin(sinAlt.clamp(-1.0, 1.0));
-
-    final y = -math.sin(ha) * math.cos(decRadians);
-    final x =
-        math.sin(decRadians) * math.cos(latRad) -
-        math.cos(decRadians) * math.sin(latRad) * math.cos(ha);
-    var az = math.atan2(y, x);
-    if (az < 0) az += 2 * math.pi;
-
-    return HorizontalCoordinate(
-      altitude: alt * 180 / math.pi,
-      azimuth: az * 180 / math.pi,
-    );
-  }
-
-  /// NOT [AstronomyCalculations.julianDate], and deliberately not re-pointed
-  /// at it during the astronomy consolidation.
-  ///
-  /// This copy omits both the `.toUtc()` normalization and the trailing
-  /// `- 0.5` that turns a noon-based day number into a Julian Date, so it
-  /// returns JD + 0.5. Half a day is 180.49° of GMST — about 12 sidereal
-  /// hours — so switching it to the shared function would move every
-  /// altitude/azimuth this class produces, not round them. `coordinate_system_test.dart`
-  /// asserts the +0.5 value and says the offset "cancels out in
-  /// toHorizontal()", which it does not: the GMST polynomial is a function of
-  /// JD, not of a JD difference.
-  ///
-  /// That is a behaviour question, not a duplication question, and the
-  /// release-pass rule is that behaviour changes are reproduced in the running
-  /// app before they are made. Recorded in
-  /// `reports/release-pass/impl/c2-astronomy-sidereal.md` and left alone here.
-  double _julianDate(DateTime dt) {
-    final y = dt.year;
-    final m = dt.month;
-    final d = dt.day + dt.hour / 24 + dt.minute / 1440 + dt.second / 86400;
-
-    final a = ((14 - m) / 12).floor();
-    final y2 = y + 4800 - a;
-    final m2 = m + 12 * a - 3;
-
-    return d +
-        ((153 * m2 + 2) / 5).floor() +
-        365 * y2 +
-        (y2 / 4).floor() -
-        (y2 / 100).floor() +
-        (y2 / 400).floor() -
-        32045;
-  }
-
-  double _localSiderealTime(double jd, double longitude) {
-    final t = (jd - 2451545.0) / 36525;
-    var lst =
-        280.46061837 +
-        360.98564736629 * (jd - 2451545.0) +
-        0.000387933 * t * t -
-        t * t * t / 38710000;
-    lst = lst + longitude;
-    lst = lst % 360;
-    if (lst < 0) lst += 360;
-    return lst / 15; // Convert to hours
-  }
-
   @override
   String toString() => 'RA: ${formatRA()}, Dec: ${formatDec()}';
 
@@ -165,21 +84,4 @@ class CelestialCoordinate {
   /// Get short form for display (e.g., "12h 30m, +45° 15'")
   String get shortForm =>
       '${formatRA(compact: true)}, ${formatDec(compact: true)}';
-}
-
-/// Horizontal coordinate (Alt/Az)
-class HorizontalCoordinate {
-  /// Altitude in degrees (0 = horizon, 90 = zenith)
-  final double altitude;
-
-  /// Azimuth in degrees (0 = North, 90 = East)
-  final double azimuth;
-
-  const HorizontalCoordinate({required this.altitude, required this.azimuth});
-
-  bool get isAboveHorizon => altitude > 0;
-
-  @override
-  String toString() =>
-      'Alt: ${altitude.toStringAsFixed(1)}°, Az: ${azimuth.toStringAsFixed(1)}°';
 }

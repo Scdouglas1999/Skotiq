@@ -407,7 +407,7 @@ class TonightTab extends ConsumerWidget {
                     return TargetCard(
                       name: displayName,
                       catalog: catalogTag,
-                      type: dsoTypeName(dso.type),
+                      type: dso.type.displayName,
                       metric: '${item.hoursInDarkness.toStringAsFixed(1)}h',
                       caption: peakTime,
                       colors: colors,

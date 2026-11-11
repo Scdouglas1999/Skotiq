@@ -5,26 +5,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:intl/intl.dart';
 
-/// Shared DSO type name formatter used by Tonight and Catalog tabs.
-String dsoTypeName(DsoType type) {
-  switch (type) {
-    case DsoType.galaxy:
-      return 'Galaxy';
-    case DsoType.nebula:
-      return 'Nebula';
-    case DsoType.openCluster:
-      return 'Open Cluster';
-    case DsoType.globularCluster:
-      return 'Globular Cluster';
-    case DsoType.planetaryNebula:
-      return 'Planetary Nebula';
-    case DsoType.supernova:
-      return 'Supernova Remnant';
-    default:
-      return 'DSO';
-  }
-}
-
 class InfoRow extends StatelessWidget {
   final String label;
   final String value;

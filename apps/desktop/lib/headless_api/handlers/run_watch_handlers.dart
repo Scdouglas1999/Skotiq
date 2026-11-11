@@ -45,6 +45,7 @@ import '../display_buffer_jpeg.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
 import 'frame_measurement_headers.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Handlers for the Run-Watch web monitoring surface.
 ///
@@ -498,23 +499,22 @@ class RunWatchHandlers {
     try {
       final location = container.read(appObserverLocationProvider);
       if (location != null) {
-        final scheduler = container.read(schedulerServiceProvider);
         final now = DateTime.now();
-        final (alt, az) = scheduler.calculateAltAz(
-          raHours: target.raHours,
-          decDegrees: target.decDegrees,
-          time: now,
-          latitudeDegrees: location.latitude,
-          longitudeDegrees: location.longitude,
+        final (alt, az) = AstronomyCalculations.objectAltAz(
+          raDeg: target.raHours * 15.0,
+          decDeg: target.decDegrees,
+          dt: now,
+          latitudeDeg: location.latitude,
+          longitudeDeg: location.longitude,
         );
         altitude = alt;
         azimuth = az;
 
-        final transit = scheduler.calculateTransitTime(
-          raHours: target.raHours,
-          decDegrees: target.decDegrees,
+        final transit = AstronomyCalculations.transitOnUtcDate(
+          raDeg: target.raHours * 15.0,
+          decDeg: target.decDegrees,
           date: now.toUtc(),
-          longitudeDegrees: location.longitude,
+          longitudeDeg: location.longitude,
         );
         if (transit.isAfter(now)) {
           timeToTransitSecs = transit.difference(now).inSeconds;
@@ -522,12 +522,12 @@ class RunWatchHandlers {
 
         final hDeg = container.read(effectiveHorizonDegProvider);
         horizonDeg = hDeg;
-        final timeToSet = scheduler.nextSetTime(
-          raHours: target.raHours,
-          decDegrees: target.decDegrees,
+        final timeToSet = AstronomyCalculations.timeUntilBelow(
+          raDeg: target.raHours * 15.0,
+          decDeg: target.decDegrees,
           now: now,
-          latitudeDegrees: location.latitude,
-          longitudeDegrees: location.longitude,
+          latitudeDeg: location.latitude,
+          longitudeDeg: location.longitude,
           horizonDeg: hDeg,
         );
         if (timeToSet != null) {

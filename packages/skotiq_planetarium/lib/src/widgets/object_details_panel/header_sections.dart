@@ -191,18 +191,7 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
     if (object is Star) {
       return 'Star';
     } else if (object is DeepSkyObject) {
-      final dso = object as DeepSkyObject;
-      return switch (dso.type) {
-        DsoType.galaxy => 'Galaxy',
-        DsoType.nebula => 'Nebula',
-        DsoType.openCluster => 'Open Cluster',
-        DsoType.globularCluster => 'Globular Cluster',
-        DsoType.planetaryNebula => 'Planetary Nebula',
-        DsoType.supernova => 'Supernova Remnant',
-        DsoType.starCloud => 'Star Cloud',
-        DsoType.asterism => 'Asterism',
-        _ => 'Deep Sky Object',
-      };
+      return (object as DeepSkyObject).type.displayName;
     }
     return 'Celestial Object';
   }

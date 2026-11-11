@@ -11,6 +11,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 // behind the prefix here so every typed-event reference in this file reads from
 // one place.)
 import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// The active target during execution.
 ///
@@ -81,21 +82,19 @@ final runDashboardSkyStatsProvider = Provider<RunDashboardSkyStats?>((ref) {
   // header and avoids waking the executor.
   final tickAsync = ref.watch(tickerProvider(TickerCadence.thirtySeconds));
   final now = tickAsync.valueOrNull ?? DateTime.now();
-
-  final scheduler = ref.read(schedulerServiceProvider);
-  final (altitude, azimuth) = scheduler.calculateAltAz(
-    raHours: target.raHours,
-    decDegrees: target.decDegrees,
-    time: now,
-    latitudeDegrees: location.latitude,
-    longitudeDegrees: location.longitude,
+  final (altitude, azimuth) = AstronomyCalculations.objectAltAz(
+    raDeg: target.raHours * 15.0,
+    decDeg: target.decDegrees,
+    dt: now,
+    latitudeDeg: location.latitude,
+    longitudeDeg: location.longitude,
   );
 
-  final transit = scheduler.calculateTransitTime(
-    raHours: target.raHours,
-    decDegrees: target.decDegrees,
+  final transit = AstronomyCalculations.transitOnUtcDate(
+    raDeg: target.raHours * 15.0,
+    decDeg: target.decDegrees,
     date: now.toUtc(),
-    longitudeDegrees: location.longitude,
+    longitudeDeg: location.longitude,
   );
   Duration? timeToTransit;
   if (transit.isAfter(now)) {
@@ -106,12 +105,12 @@ final runDashboardSkyStatsProvider = Provider<RunDashboardSkyStats?>((ref) {
   // card via `effectiveHorizonDegProvider`, so this stat matches the
   // planetarium's "Time to set" exactly.
   final horizonDeg = ref.watch(effectiveHorizonDegProvider);
-  final timeToSet = scheduler.nextSetTime(
-    raHours: target.raHours,
-    decDegrees: target.decDegrees,
+  final timeToSet = AstronomyCalculations.timeUntilBelow(
+    raDeg: target.raHours * 15.0,
+    decDeg: target.decDegrees,
     now: now,
-    latitudeDegrees: location.latitude,
-    longitudeDegrees: location.longitude,
+    latitudeDeg: location.latitude,
+    longitudeDeg: location.longitude,
     horizonDeg: horizonDeg,
   );
 

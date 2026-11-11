@@ -5,7 +5,22 @@
 /// path still resolves these names.
 library;
 
-/// Twilight times container
+/// The three twilight boundaries, by how far the Sun is below the horizon.
+enum TwilightKind {
+  civil(-6.0),
+  nautical(-12.0),
+  astronomical(-18.0);
+
+  const TwilightKind(this.sunAltitudeDeg);
+
+  /// Sun altitude at the boundary, degrees.
+  final double sunAltitudeDeg;
+}
+
+/// Sunset, the three dusks, the three dawns and sunrise of one night.
+///
+/// A field is null when the Sun never crosses that altitude on that night
+/// (polar day or night, or a summer night with no astronomical darkness).
 class TwilightTimes {
   final DateTime? sunset;
   final DateTime? civilDusk;
@@ -26,6 +41,20 @@ class TwilightTimes {
     this.civilDawn,
     this.sunrise,
   });
+
+  /// When the Sun sinks below the [kind] boundary in the evening.
+  DateTime? dusk(TwilightKind kind) => switch (kind) {
+    TwilightKind.civil => civilDusk,
+    TwilightKind.nautical => nauticalDusk,
+    TwilightKind.astronomical => astronomicalDusk,
+  };
+
+  /// When the Sun climbs back above the [kind] boundary in the morning.
+  DateTime? dawn(TwilightKind kind) => switch (kind) {
+    TwilightKind.civil => civilDawn,
+    TwilightKind.nautical => nauticalDawn,
+    TwilightKind.astronomical => astronomicalDawn,
+  };
 
   /// Get darkness period (astronomical dusk to dawn)
   Duration? get darknessDuration {

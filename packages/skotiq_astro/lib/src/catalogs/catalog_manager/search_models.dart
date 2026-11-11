@@ -236,55 +236,12 @@ class OpenNgcData {
     return 'M$messierNum';
   }
 
-  /// Get object type description
-  String get typeDescription {
-    switch (type) {
-      case '*':
-        return 'Star';
-      case '**':
-        return 'Double Star';
-      case '*Ass':
-        return 'Association of Stars';
-      case 'OCl':
-        return 'Open Cluster';
-      case 'GCl':
-        return 'Globular Cluster';
-      case 'Cl+N':
-        return 'Cluster + Nebula';
-      case 'G':
-        return 'Galaxy';
-      case 'GPair':
-        return 'Galaxy Pair';
-      case 'GTrpl':
-        return 'Galaxy Triplet';
-      case 'GGroup':
-        return 'Galaxy Group';
-      case 'PN':
-        return 'Planetary Nebula';
-      case 'HII':
-        return 'HII Region';
-      case 'DrkN':
-        return 'Dark Nebula';
-      case 'EmN':
-        return 'Emission Nebula';
-      case 'Neb':
-        return 'Nebula';
-      case 'RfN':
-        return 'Reflection Nebula';
-      case 'SNR':
-        return 'Supernova Remnant';
-      case 'Nova':
-        return 'Nova';
-      case 'NonEx':
-        return 'Non-Existent';
-      case 'Dup':
-        return 'Duplicate Entry';
-      case 'Other':
-        return 'Other';
-      default:
-        return type;
-    }
-  }
+  /// The object type in words, or what the entry is when it names no object.
+  String get typeDescription => switch (type) {
+    'NonEx' => 'Non-Existent',
+    'Dup' => 'Duplicate Entry',
+    _ => kOpenNgcTypeCodes[type]?.displayName ?? type,
+  };
 
   /// Get object size string
   String? get sizeString {

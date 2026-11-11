@@ -135,7 +135,7 @@ class KeplerianPropagator {
 
   /// Compute the geocentric RA/Dec of a minor body at a given time.
   static MinorBodyData propagate(MinorBodyElements elements, DateTime time) {
-    final jd = _julianDate(time.toUtc());
+    final jd = AstronomyCalculations.julianDate(time);
     final daysSinceEpoch = jd - elements.epoch;
 
     // Mean motion (degrees/day)
@@ -309,12 +309,6 @@ class KeplerianPropagator {
   }
 
   static double _log10(double x) => math.log(x) / math.ln10;
-
-  /// The sole caller already hands this a UTC instant, so routing through
-  /// [AstronomyCalculations.julianDate] (which normalizes with `toUtc()`)
-  /// returns the identical double the private copy did.
-  static double _julianDate(DateTime dt) =>
-      AstronomyCalculations.julianDate(dt);
 
   /// Batch compute positions for multiple minor bodies.
   static List<MinorBodyData> computePositions({

@@ -154,12 +154,12 @@ DateTime? _findRiseBefore({
 }
 
 DateTime _nightDateOf(DateTime instant) {
-  final d = instant.hour < 12
-      ? instant.subtract(const Duration(days: 1))
-      : instant;
+  // Calendar arithmetic, not `subtract(24 h)`: the day after a spring-forward
+  // change is 23 hours behind, and 00:30 minus 24 hours lands two dates back.
+  final day = instant.hour < 12 ? instant.day - 1 : instant.day;
   return instant.isUtc
-      ? DateTime.utc(d.year, d.month, d.day)
-      : DateTime(d.year, d.month, d.day);
+      ? DateTime.utc(instant.year, instant.month, day)
+      : DateTime(instant.year, instant.month, day);
 }
 
 ObjectVisibility _calculateObjectVisibility({

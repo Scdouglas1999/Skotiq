@@ -11,7 +11,7 @@ import 'logging_service.dart';
 
 /// Service for generating target suggestions for tonight's imaging session.
 ///
-/// Uses [TargetScoringService] from skotiq_planetarium to score targets
+/// Uses [TargetScoringService] from skotiq_astro to score targets
 /// based on altitude, moon distance, transit proximity, darkness, and airmass.
 /// Also factors in data collection progress to prioritize incomplete targets.
 ///

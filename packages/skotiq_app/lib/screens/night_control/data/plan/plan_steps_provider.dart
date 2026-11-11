@@ -4,7 +4,7 @@
 // estimator's time.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
+import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../night_control_contracts.dart';
 import 'night_plan_inputs.dart';

@@ -4,6 +4,7 @@ import '../database/daos/sequence_checkpoints_dao.dart';
 import '../database/session_orphan_sweep.dart';
 import 'imaging_records_repository.dart';
 import 'logging_service.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Configuration for session checkpointing
 class SessionCheckpointConfig {
@@ -524,7 +525,7 @@ class SessionService {
 
       // Convert to recovery info
       final recoveryInfoList = <SessionRecoveryInfo>[];
-      final tonight = _observingNightOf(_now());
+      final tonight = observingNightOf(_now());
       for (final session in incompleteSessions) {
         // The session ran until its last frame, not until now: an unclosed
         // session from yesterday read "25h 25m".
@@ -551,7 +552,7 @@ class SessionService {
         // hours or days before (rig, 2026-11-03: two 0-exposure test runs and
         // a QA plan from Nov 1).
         final captured = hasFrames || session.totalExposures > 0;
-        if (!captured || _observingNightOf(lastActivity) != tonight) {
+        if (!captured || observingNightOf(lastActivity) != tonight) {
           _logger.debug(
             'Not offering interrupted session ${session.id} for recovery: '
             '${captured ? 'it belongs to an earlier night' : 'it captured nothing'}',
@@ -591,17 +592,6 @@ class SessionService {
       // offer a retry instead of silently moving on to Quick Start.
       rethrow;
     }
-  }
-
-  /// The local date of the evening an observing night started on. A night
-  /// runs from local noon to local noon, so a frame after midnight belongs to
-  /// the evening before.
-  static DateTime _observingNightOf(DateTime time) {
-    final local = time.toLocal();
-    final evening = local.hour < 12
-        ? DateTime(local.year, local.month, local.day - 1)
-        : DateTime(local.year, local.month, local.day);
-    return evening;
   }
 
   /// Resume an interrupted session

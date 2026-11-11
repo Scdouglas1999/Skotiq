@@ -7,6 +7,7 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../../accessible_dropdown.dart';
 import 'sidebar_shared_widgets.dart';
+import '../../../services/equipment_fov_binding.dart';
 
 /// Schematic colors offered for FOV framing overlays. High-contrast hues that
 /// read cleanly over the dark sky canvas and stay distinct when several rigs

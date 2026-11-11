@@ -37,7 +37,7 @@ DateTime _nightOfLocal(
   int hour = 0,
   int minute = 0,
 ]) {
-  return SmartProjectService.observingNightOf(
+  return SmartProjectService.observingNightOfEpochSeconds(
     _localEpochSeconds(year, month, day, hour, minute),
   );
 }
@@ -104,7 +104,7 @@ void main() {
       ];
 
       final nights =
-          captures.map(SmartProjectService.observingNightOf).toSet().toList()
+          captures.map(SmartProjectService.observingNightOfEpochSeconds).toSet().toList()
             ..sort();
 
       expect(nights.length, 3, reason: 'Three sessions, three nights.');
@@ -117,7 +117,7 @@ void main() {
       // And the split night keeps all 8 of its frames on one point.
       final perNight = <DateTime, int>{};
       for (final c in captures) {
-        final n = SmartProjectService.observingNightOf(c);
+        final n = SmartProjectService.observingNightOfEpochSeconds(c);
         perNight[n] = (perNight[n] ?? 0) + 1;
       }
       expect(perNight[DateTime(2026, 7, 29)], 8);

@@ -8,12 +8,11 @@ import '../models/sequence/sequence_models.dart' show SequenceExecutionState;
 import 'equipment_provider.dart' show mountStateProvider;
 import 'meridian_flip_provider.dart'
     show
-        computeHourAngleHours,
-        computeLocalSiderealTimeHours,
         effectiveMeridianFlipSettingsProvider,
         isMeridianFlipEnabledProvider;
 import 'sequence_provider.dart' show sequenceExecutionStateProvider;
 import 'settings_provider.dart' show appSettingsProvider;
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Derived, banner-facing model of "how long until the next meridian flip".
 ///
@@ -195,11 +194,11 @@ MeridianCountdownState computeMeridianCountdown({
   // The minutes-before-limit and on-tracking-limit-hit decisions depend on
   // mount-advertised tracking-limit state that only the Rust trigger evaluator
   // (triggers.rs) carries. Compute HA for display but emit no numeric countdown.
-  final lst = computeLocalSiderealTimeHours(
+  final lst = AstronomyCalculations.localSiderealTime(
     (nowUtc ?? DateTime.now().toUtc()),
     lon,
   );
-  final ha = computeHourAngleHours(mount.ra!, lst);
+  final ha = AstronomyCalculations.hourAngleHours(mount.ra!, lst);
 
   // Pier East past the meridian is the post-flip side, the runtime's
   // `on_pre_flip_side` rule: the flip trigger will not fire there, so no

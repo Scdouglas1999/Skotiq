@@ -265,7 +265,7 @@ class MosaicService {
     final stepDecDeg = config.panelHeightArcmin * overlapFactor / 60.0;
 
     // Delegate the panel-center/overlap/rotation/cos(dec) math to the shared,
-    // canonical [mosaicPanelCenters] implementation (in skotiq_planetarium)
+    // canonical [mosaicPanelCenters] implementation (in skotiq_astro)
     // so the imaging-side layout and the planetarium preview stay identical —
     // one source of truth for panel geometry.
     final centers = mosaicPanelCenters(

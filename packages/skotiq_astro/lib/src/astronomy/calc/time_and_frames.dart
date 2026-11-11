@@ -1,29 +1,10 @@
 part of '../astronomy_calculations.dart';
 
-double _julianDate(DateTime dt, {bool includeMilliseconds = true}) {
-  final utc = dt.toUtc();
-  final y = utc.year;
-  final m = utc.month;
-  final d =
-      utc.day +
-      utc.hour / 24 +
-      utc.minute / 1440 +
-      utc.second / 86400 +
-      (includeMilliseconds ? utc.millisecond / 86400000 : 0);
+/// Julian Date of the Unix epoch, 1970-01-01T00:00:00Z.
+const double _unixEpochJulianDate = 2440587.5;
 
-  final a = ((14 - m) / 12).floor();
-  final y2 = y + 4800 - a;
-  final m2 = m + 12 * a - 3;
-
-  return d +
-      ((153 * m2 + 2) / 5).floor() +
-      365 * y2 +
-      (y2 / 4).floor() -
-      (y2 / 100).floor() +
-      (y2 / 400).floor() -
-      32045 -
-      0.5;
-}
+double _julianDate(DateTime dt) =>
+    dt.millisecondsSinceEpoch / 86400000.0 + _unixEpochJulianDate;
 
 DateTime _fromJulianDate(double jd) {
   final z = (jd + 0.5).floor();

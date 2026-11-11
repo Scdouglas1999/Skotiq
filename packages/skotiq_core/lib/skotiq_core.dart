@@ -238,7 +238,6 @@ export 'src/providers/profiles_provider.dart';
 export 'src/providers/host_scheduled_start_provider.dart';
 export 'src/providers/host_end_of_night_provider.dart';
 export 'src/providers/profile_activation_writethrough.dart';
-export 'src/providers/equipment_fov_provider.dart';
 export 'src/providers/focus_model_profile_data_provider.dart';
 export 'src/providers/guiding_provider.dart';
 export 'src/providers/backend_provider.dart';
@@ -465,7 +464,6 @@ export 'src/providers/current_frame_analysis_provider.dart';
 export 'src/providers/frame_record_updates.dart';
 export 'src/providers/frame_watch_settings_provider.dart';
 export 'src/services/annotation_service.dart';
-export 'src/services/scheduler_service.dart';
 export 'src/services/scheduler/scheduler_engine.dart';
 export 'src/services/scheduler/integration_goal_service.dart'
     hide
@@ -489,7 +487,6 @@ export 'src/services/scheduler/horizon_profile.dart';
 // The single rejection-reason ladder shared by the engine's decision record
 // and the queue row's STATUS chip.
 export 'src/services/scheduler/rejection_labels.dart';
-export 'src/services/scheduler/sky_calculations.dart';
 export 'src/providers/scheduler_provider.dart';
 // Multi-Night & Forecast Planning (Roadmap #5) — services + Riverpod wiring.
 //   * project_service.dart           - Project/membership CRUD + derived

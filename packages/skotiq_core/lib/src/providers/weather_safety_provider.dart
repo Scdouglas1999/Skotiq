@@ -13,7 +13,7 @@ import '../models/sequence/sequence_models.dart'
 import '../backend/disconnected_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../backend/network_backend.dart';
-import '../services/scheduler/sky_calculations.dart';
+import 'sequence/plan_run_end.dart';
 import '../services/adaptive_swap_service.dart';
 import '../services/safe_rig_service.dart';
 import '../services/safety_config_service.dart';
@@ -100,7 +100,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
 
   /// Periodic re-evaluation interval (5 minutes)
   static const _evaluationInterval = Duration(minutes: 5);
-  static const _parkBeforeDawnLeadTime = Duration(minutes: 30);
 
   /// Ceiling on how long [evaluateNow] waits for an evaluation to settle.
   static const _evaluateNowTimeout = Duration(seconds: 10);

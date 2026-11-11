@@ -79,183 +79,172 @@ const double _moonRiseSetAltitude = -0.7;
 double _apparentLimb(double geometricAltDeg) =>
     _trueToApparentAltitude(geometricAltDeg);
 
-/// Find time when sun crosses given altitude.
-///
-/// A coarse 10-minute scan first brackets the FIRST crossing in the
-/// requested direction, then bisection refines inside that bracket.
-/// Comparing only the window's endpoint altitudes cannot do this: matching
-/// signs mean zero OR two crossings, so a window containing both a rise and
-/// a set — high latitudes, or west-of-meridian timezones where sunset slips
-/// past local midnight — reads as no crossing at all.
-DateTime? _findSunAltitudeCrossing({
-  required DateTime startTime,
-  required DateTime endTime,
-  required double targetAlt,
+/// Geometric altitude and azimuth of the Sun's centre, degrees.
+(double alt, double az) _sunAltAz({
+  required DateTime dt,
   required double latitudeDeg,
   required double longitudeDeg,
-  required bool rising,
 }) {
-  const step = Duration(minutes: 10);
-  double altAt(DateTime t) =>
-      _sunAltitude(dt: t, latitudeDeg: latitudeDeg, longitudeDeg: longitudeDeg);
+  final (ra, dec) = _sunPosition(dt);
+  return _equatorialToHorizontal(
+    raDeg: ra,
+    decDeg: dec,
+    latitudeDeg: latitudeDeg,
+    lstHours: _localSiderealTime(dt, longitudeDeg),
+  );
+}
 
-  var t = startTime;
-  var delta = altAt(t) - targetAlt;
-  if (delta.abs() < 0.001) return t;
+/// The Sun's apparent altitude on a ten-minute grid from a site's solar noon
+/// to 30 hours later: the one scan every dusk and dawn of that night is read
+/// from. Samples are computed on first use and shared between the events.
+class _SunScan {
+  static const Duration step = Duration(minutes: 10);
+  static const int _sampleCount = 30 * 6 + 1;
 
-  DateTime? bracketLo;
-  DateTime? bracketHi;
-  while (t.isBefore(endTime)) {
-    var next = t.add(step);
-    if (next.isAfter(endTime)) next = endTime;
-    final nextDelta = altAt(next) - targetAlt;
-    if (nextDelta.abs() < 0.001) return next;
+  final DateTime start;
+  final double latitudeDeg;
+  final double longitudeDeg;
+  final Float64List _altitudes = Float64List(_sampleCount)
+    ..fillRange(0, _sampleCount, double.nan);
 
-    final crossesDown = delta > 0 && nextDelta < 0;
-    final crossesUp = delta < 0 && nextDelta > 0;
-    if ((rising && crossesUp) || (!rising && crossesDown)) {
-      bracketLo = t;
-      bracketHi = next;
-      break;
-    }
-    t = next;
-    delta = nextDelta;
+  _SunScan(this.start, this.latitudeDeg, this.longitudeDeg);
+
+  double _altitudeAt(int i) {
+    final cached = _altitudes[i];
+    if (!cached.isNaN) return cached;
+    return _altitudes[i] = _sunAltitude(
+      dt: _timeAt(i),
+      latitudeDeg: latitudeDeg,
+      longitudeDeg: longitudeDeg,
+    );
   }
-  if (bracketLo == null || bracketHi == null) {
-    // No crossing in the requested direction — legitimately null at
-    // polar latitudes (sun never reaches the target altitude tonight).
+
+  DateTime _timeAt(int i) => start.add(step * i);
+
+  /// First crossing of [targetAlt] in the requested direction between
+  /// [fromHours] and [toHours] after [start], refined by bisection.
+  ///
+  /// Direction matters: a window can hold both a rise and a set (high
+  /// latitudes, or a sunset that slips past local midnight), and comparing
+  /// only its endpoint altitudes reads that as no crossing at all.
+  DateTime? crossing({
+    required double targetAlt,
+    required bool rising,
+    required int fromHours,
+    required int toHours,
+  }) {
+    final first = fromHours * 6;
+    final last = toHours * 6;
+    var delta = _altitudeAt(first) - targetAlt;
+    if (delta.abs() < 0.001) return _timeAt(first);
+
+    for (var i = first; i < last; i++) {
+      final nextDelta = _altitudeAt(i + 1) - targetAlt;
+      if (nextDelta.abs() < 0.001) return _timeAt(i + 1);
+      final crossesDown = delta > 0 && nextDelta < 0;
+      final crossesUp = delta < 0 && nextDelta > 0;
+      if ((rising && crossesUp) || (!rising && crossesDown)) {
+        return _bisect(_timeAt(i), _timeAt(i + 1), targetAlt, rising);
+      }
+      delta = nextDelta;
+    }
+    // No crossing in the requested direction: the Sun never reaches the
+    // target altitude this night (polar day or night).
     return null;
   }
 
-  var t1 = bracketLo;
-  var t2 = bracketHi;
-  for (var i = 0; i < 50; i++) {
-    final tMid = t1.add(
+  DateTime _bisect(DateTime lo, DateTime hi, double targetAlt, bool rising) {
+    var t1 = lo;
+    var t2 = hi;
+    for (var i = 0; i < 50; i++) {
+      final tMid = t1.add(
+        Duration(milliseconds: t2.difference(t1).inMilliseconds ~/ 2),
+      );
+      final alt = _sunAltitude(
+        dt: tMid,
+        latitudeDeg: latitudeDeg,
+        longitudeDeg: longitudeDeg,
+      );
+      if ((alt - targetAlt).abs() < 0.001) return tMid;
+      if (rising == (alt < targetAlt)) {
+        t1 = tMid;
+      } else {
+        t2 = tMid;
+      }
+    }
+    return t1.add(
       Duration(milliseconds: t2.difference(t1).inMilliseconds ~/ 2),
     );
-    final alt = altAt(tMid);
-
-    if ((alt - targetAlt).abs() < 0.001) {
-      return tMid;
-    }
-
-    if (rising) {
-      if (alt < targetAlt) {
-        t1 = tMid;
-      } else {
-        t2 = tMid;
-      }
-    } else {
-      if (alt > targetAlt) {
-        t1 = tMid;
-      } else {
-        t2 = tMid;
-      }
-    }
   }
-
-  return t1.add(Duration(milliseconds: t2.difference(t1).inMilliseconds ~/ 2));
 }
 
-TwilightTimes _calculateTwilightTimes({
-  required DateTime date,
+/// Mean solar noon at [longitudeDeg] on the calendar day of [date].
+///
+/// Only the calendar day of [date] is read. The result is an instant in the
+/// same zone as a local `DateTime`, so the events derived from it print in the
+/// host's local time.
+DateTime _siteSolarNoonOfDate(DateTime date, double longitudeDeg) {
+  final localNoon = DateTime(date.year, date.month, date.day, 12);
+  final tzOffsetHours = localNoon.timeZoneOffset.inMinutes / 60.0;
+  return localNoon.add(
+    Duration(minutes: ((tzOffsetHours - longitudeDeg / 15.0) * 60).round()),
+  );
+}
+
+/// Mean solar noon at [longitudeDeg] on whichever day puts it closest to
+/// [instant]. Mean rather than apparent: the equation of time moves it by at
+/// most ~16 minutes, which cannot move a crossing in or out of a window that
+/// is half a day wide on either side.
+DateTime _siteSolarNoonNearest(DateTime instant, double longitudeDeg) {
+  final utc = instant.toUtc();
+  final noonOffset = Duration(
+    minutes: ((12.0 - longitudeDeg / 15.0) * 60).round(),
+  );
+  final day = DateTime.utc(utc.year, utc.month, utc.day);
+  var nearest = day.add(noonOffset);
+  for (final days in const [-1, 1]) {
+    final candidate = day.add(Duration(days: days) + noonOffset);
+    if (candidate.difference(utc).abs() < nearest.difference(utc).abs()) {
+      nearest = candidate;
+    }
+  }
+  return instant.isUtc ? nearest : nearest.toLocal();
+}
+
+/// Every dusk and dawn of the night that follows [siteSolarNoon].
+///
+/// The night is cut on the SITE's solar day, never the host's civil day. Cut
+/// on the host's day, a site far from the host's timezone (a remote rig, or a
+/// high-latitude site whose sunset slips past local midnight) gets events from
+/// different solar days mixed into one "night": dusk before sunset, dawn after
+/// sunrise, or a dawn earlier than its dusk.
+///
+/// Evening events are the first descending crossing in the 24 hours after
+/// solar noon; morning events the first rising crossing between solar midnight
+/// and 18 hours after it.
+TwilightTimes _twilightTimesFromSolarNoon({
+  required DateTime siteSolarNoon,
   required double latitudeDeg,
   required double longitudeDeg,
 }) {
-  // Anchor the search on the SITE's solar noon, not the machine's
-  // civil noon. Each event below is found independently as "first
-  // crossing in its window" — if the windows were cut on the machine's
-  // civil day, a site far from the machine's timezone (remote/headless
-  // rig, or simply a high-latitude site where sunset slips past local
-  // midnight) gets events from different solar days mixed into one
-  // "night" (dusk before sunset, dawn after sunrise). Anchoring on the
-  // site's solar day keeps every event on the same night for any
-  // machine-TZ/site combination.
-  final localNoon = DateTime(date.year, date.month, date.day, 12);
-  final tzOffsetHours = localNoon.timeZoneOffset.inMinutes / 60.0;
-  final siteSolarNoon = localNoon.add(
-    Duration(minutes: ((tzOffsetHours - longitudeDeg / 15.0) * 60).round()),
-  );
+  final scan = _SunScan(siteSolarNoon, latitudeDeg, longitudeDeg);
+  DateTime? dusk(double alt) =>
+      scan.crossing(targetAlt: alt, rising: false, fromHours: 0, toHours: 24);
+  DateTime? dawn(double alt) =>
+      scan.crossing(targetAlt: alt, rising: true, fromHours: 12, toHours: 30);
 
-  // Evening events: first DESCENDING crossing after the site's solar
-  // noon. Morning events: first RISING crossing after the site's solar
-  // midnight. The generous spans are safe because the direction-aware
-  // bracketing in [_findSunAltitudeCrossing] cannot latch onto the
-  // wrong crossing.
-  final eveningStart = siteSolarNoon;
-  final eveningEnd = siteSolarNoon.add(const Duration(hours: 24));
-  final morningStart = siteSolarNoon.subtract(const Duration(hours: 12));
-  final morningEnd = siteSolarNoon.add(const Duration(hours: 6));
-
+  // Geometric -0.8333 deg expressed on the apparent scale the scan runs on,
+  // so refraction is not counted twice.
+  final limb = _apparentLimb(_sunRiseSetAltitude);
   return TwilightTimes(
-    sunset: _findSunAltitudeCrossing(
-      startTime: eveningStart,
-      endTime: eveningEnd,
-      // Geometric -0.8333° expressed on the apparent scale the search
-      // runs on, so refraction is not counted twice.
-      targetAlt: _apparentLimb(_sunRiseSetAltitude),
-      latitudeDeg: latitudeDeg,
-      longitudeDeg: longitudeDeg,
-      rising: false,
-    ),
-    civilDusk: _findSunAltitudeCrossing(
-      startTime: eveningStart,
-      endTime: eveningEnd,
-      targetAlt: AstronomyCalculations.civilTwilightAngle,
-      latitudeDeg: latitudeDeg,
-      longitudeDeg: longitudeDeg,
-      rising: false,
-    ),
-    nauticalDusk: _findSunAltitudeCrossing(
-      startTime: eveningStart,
-      endTime: eveningEnd,
-      targetAlt: AstronomyCalculations.nauticalTwilightAngle,
-      latitudeDeg: latitudeDeg,
-      longitudeDeg: longitudeDeg,
-      rising: false,
-    ),
-    astronomicalDusk: _findSunAltitudeCrossing(
-      startTime: eveningStart,
-      endTime: eveningEnd,
-      targetAlt: AstronomyCalculations.astronomicalTwilightAngle,
-      latitudeDeg: latitudeDeg,
-      longitudeDeg: longitudeDeg,
-      rising: false,
-    ),
-    astronomicalDawn: _findSunAltitudeCrossing(
-      startTime: morningStart.add(const Duration(hours: 24)),
-      endTime: morningEnd.add(const Duration(hours: 24)),
-      targetAlt: AstronomyCalculations.astronomicalTwilightAngle,
-      latitudeDeg: latitudeDeg,
-      longitudeDeg: longitudeDeg,
-      rising: true,
-    ),
-    nauticalDawn: _findSunAltitudeCrossing(
-      startTime: morningStart.add(const Duration(hours: 24)),
-      endTime: morningEnd.add(const Duration(hours: 24)),
-      targetAlt: AstronomyCalculations.nauticalTwilightAngle,
-      latitudeDeg: latitudeDeg,
-      longitudeDeg: longitudeDeg,
-      rising: true,
-    ),
-    civilDawn: _findSunAltitudeCrossing(
-      startTime: morningStart.add(const Duration(hours: 24)),
-      endTime: morningEnd.add(const Duration(hours: 24)),
-      targetAlt: AstronomyCalculations.civilTwilightAngle,
-      latitudeDeg: latitudeDeg,
-      longitudeDeg: longitudeDeg,
-      rising: true,
-    ),
-    sunrise: _findSunAltitudeCrossing(
-      startTime: morningStart.add(const Duration(hours: 24)),
-      endTime: morningEnd.add(const Duration(hours: 24)),
-      // Geometric -0.8333° expressed on the apparent scale the search
-      // runs on, so refraction is not counted twice.
-      targetAlt: _apparentLimb(_sunRiseSetAltitude),
-      latitudeDeg: latitudeDeg,
-      longitudeDeg: longitudeDeg,
-      rising: true,
-    ),
+    sunset: dusk(limb),
+    civilDusk: dusk(AstronomyCalculations.civilTwilightAngle),
+    nauticalDusk: dusk(AstronomyCalculations.nauticalTwilightAngle),
+    astronomicalDusk: dusk(AstronomyCalculations.astronomicalTwilightAngle),
+    astronomicalDawn: dawn(AstronomyCalculations.astronomicalTwilightAngle),
+    nauticalDawn: dawn(AstronomyCalculations.nauticalTwilightAngle),
+    civilDawn: dawn(AstronomyCalculations.civilTwilightAngle),
+    sunrise: dawn(limb),
   );
 }
 

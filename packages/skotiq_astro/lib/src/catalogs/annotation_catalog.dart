@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import '../celestial_object.dart';
 import 'catalog_manager.dart';
 import 'glade_plus_catalog.dart';
 import 'hyperleda_catalog.dart';
@@ -163,41 +164,30 @@ class AnnotationObject {
     );
   }
 
-  static AnnotationObjectType _inferTypeFromOpenNgc(String typeCode) {
-    switch (typeCode) {
-      case 'G':
-      case 'GPair':
-      case 'GTrpl':
-      case 'GGroup':
-        return AnnotationObjectType.galaxy;
-      case 'PN':
-        return AnnotationObjectType.planetaryNebula;
-      case 'OCl':
-        return AnnotationObjectType.openCluster;
-      case 'GCl':
-        return AnnotationObjectType.globularCluster;
-      case 'Cl+N':
-        return AnnotationObjectType.starCluster;
-      case 'HII':
-        return AnnotationObjectType.hiiRegion;
-      case 'DrkN':
-        return AnnotationObjectType.darkNebula;
-      case 'EmN':
-        return AnnotationObjectType.emissionNebula;
-      case 'RfN':
-        return AnnotationObjectType.reflectionNebula;
-      case 'Neb':
-        return AnnotationObjectType.nebula;
-      case 'SNR':
-        return AnnotationObjectType.supernovaRemnant;
-      case '**':
-        return AnnotationObjectType.doubleStar;
-      case '*Ass':
-        return AnnotationObjectType.asterism;
-      default:
-        return AnnotationObjectType.other;
-    }
-  }
+  static AnnotationObjectType _inferTypeFromOpenNgc(String typeCode) =>
+      switch (dsoTypeFromOpenNgcCode(typeCode)) {
+        DsoType.galaxy ||
+        DsoType.galaxyPair ||
+        DsoType.galaxyTriplet ||
+        DsoType.galaxyGroup => AnnotationObjectType.galaxy,
+        DsoType.planetaryNebula => AnnotationObjectType.planetaryNebula,
+        DsoType.openCluster => AnnotationObjectType.openCluster,
+        DsoType.globularCluster => AnnotationObjectType.globularCluster,
+        DsoType.clusterWithNebulosity => AnnotationObjectType.starCluster,
+        DsoType.hiiRegion => AnnotationObjectType.hiiRegion,
+        DsoType.darkNebula => AnnotationObjectType.darkNebula,
+        DsoType.emissionNebula => AnnotationObjectType.emissionNebula,
+        DsoType.reflectionNebula => AnnotationObjectType.reflectionNebula,
+        DsoType.nebula => AnnotationObjectType.nebula,
+        DsoType.supernova => AnnotationObjectType.supernovaRemnant,
+        DsoType.doubleStar => AnnotationObjectType.doubleStar,
+        DsoType.association => AnnotationObjectType.asterism,
+        DsoType.star ||
+        DsoType.nova ||
+        DsoType.starCloud ||
+        DsoType.asterism ||
+        DsoType.other => AnnotationObjectType.other,
+      };
 
   /// Get object type description
   String get typeDescription {

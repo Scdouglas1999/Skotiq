@@ -224,7 +224,7 @@ class OpenNgcDsoCatalog extends Catalog<DeepSkyObject> {
       id: ngcName,
       name: displayName,
       coordinates: CelestialCoordinate(ra: ra, dec: dec),
-      type: _parseDsoType(typeCode),
+      type: dsoTypeFromOpenNgcCode(typeCode),
       magnitude: magnitude,
       sizeArcMin: size,
       constellation: _getConstellationName(constellation),
@@ -281,50 +281,6 @@ class OpenNgcDsoCatalog extends Catalog<DeepSkyObject> {
     if (d == null || m == null || s == null) return null;
 
     return sign * (d + m / 60 + s / 3600);
-  }
-
-  /// Convert OpenNGC type code to DsoType
-  static DsoType _parseDsoType(String typeCode) {
-    switch (typeCode) {
-      case '*':
-        return DsoType.star;
-      case '**':
-        return DsoType.doubleStar;
-      case '*Ass':
-        return DsoType.association;
-      case 'OCl':
-        return DsoType.openCluster;
-      case 'GCl':
-        return DsoType.globularCluster;
-      case 'Cl+N':
-        return DsoType.clusterWithNebulosity;
-      case 'G':
-        return DsoType.galaxy;
-      case 'GPair':
-        return DsoType.galaxyPair;
-      case 'GTrpl':
-        return DsoType.galaxyTriplet;
-      case 'GGroup':
-        return DsoType.galaxyGroup;
-      case 'PN':
-        return DsoType.planetaryNebula;
-      case 'HII':
-        return DsoType.hiiRegion;
-      case 'DrkN':
-        return DsoType.darkNebula;
-      case 'EmN':
-        return DsoType.emissionNebula;
-      case 'Neb':
-        return DsoType.nebula;
-      case 'RfN':
-        return DsoType.reflectionNebula;
-      case 'SNR':
-        return DsoType.supernova;
-      case 'Nova':
-        return DsoType.nova;
-      default:
-        return DsoType.other;
-    }
   }
 
   /// Get full constellation name from abbreviation.

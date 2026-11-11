@@ -19,12 +19,6 @@ class PlanetaryPositions {
   // Obliquity of ecliptic at J2000
   static const double _obliquityJ2000 = 23.439291111;
 
-  /// Convert DateTime to Julian Date.
-  ///
-  /// Kept as a name on this class because the VSOP87 code and its callers read
-  /// as one unit; the arithmetic is [AstronomyCalculations.julianDate].
-  static double julianDate(DateTime dt) => AstronomyCalculations.julianDate(dt);
-
   /// Convert ecliptic to equatorial coordinates
   static (double ra, double dec) eclipticToEquatorial({
     required double lonDeg,
@@ -112,7 +106,7 @@ class PlanetaryPositions {
     int planetIndex,
     DateTime dt,
   ) {
-    final jd = julianDate(dt);
+    final jd = AstronomyCalculations.julianDate(dt);
     final t = (jd - _j2000) / 365250; // Julian millennia from J2000
 
     // Get heliocentric ecliptic coordinates of planet

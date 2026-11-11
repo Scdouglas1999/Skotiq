@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 
-import '../../services/scheduler/sky_calculations.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import '../database.dart';
 import '../tables/targets.dart';
 
@@ -232,48 +232,13 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
     required double decDeg,
     required DateTime atUtc,
   }) {
-    final lstDeg = _localSiderealTimeDegrees(
-      atUtc: atUtc,
+    final (altitude, _) = AstronomyCalculations.objectAltAz(
+      raDeg: raHours * 15.0,
+      decDeg: decDeg,
+      dt: atUtc,
+      latitudeDeg: latitudeDeg,
       longitudeDeg: longitudeDeg,
     );
-    final raDeg = raHours * 15.0;
-    return SkyCalculations.altitudeDegrees(
-      hourAngleDegrees: _normalizeHa(lstDeg - raDeg),
-      declinationDegrees: decDeg,
-      latitudeDegrees: latitudeDeg,
-    );
-  }
-
-  double _localSiderealTimeDegrees({
-    required DateTime atUtc,
-    required double longitudeDeg,
-  }) {
-    final gmstDeg = _greenwichMeanSiderealTimeDegrees(atUtc);
-    return _normalizeLst(gmstDeg + longitudeDeg);
-  }
-
-  /// This DAO normalizes GMST into [0,360) *before* the site longitude is
-  /// added (see [_localSiderealTimeDegrees]), which is why the wrap stays
-  /// here and only the polynomial comes from [SkyCalculations].
-  double _greenwichMeanSiderealTimeDegrees(DateTime atUtc) =>
-      _normalizeLst(SkyCalculations.gmstDegreesRaw(_julianDate(atUtc)));
-
-  /// Millisecond-accurate day fraction — the precision this DAO has always
-  /// used for its observability filter.
-  double _julianDate(DateTime atUtc) => SkyCalculations.julianDate(atUtc);
-
-  /// Normalize an angle into [0, 360) — appropriate for LST and GMST.
-  double _normalizeLst(double degrees) {
-    var n = degrees % 360.0;
-    if (n < 0) n += 360.0;
-    return n;
-  }
-
-  /// Normalize an angle into [-180, 180] — appropriate for hour angle.
-  double _normalizeHa(double degrees) {
-    var n = degrees % 360.0;
-    if (n < 0) n += 360.0;
-    if (n > 180) n -= 360.0;
-    return n;
+    return altitude;
   }
 }

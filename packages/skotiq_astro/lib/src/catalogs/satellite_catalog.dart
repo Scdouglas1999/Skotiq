@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:math' as math;
 import 'package:path/path.dart' as path;
+import '../astronomy/astronomy_calculations.dart';
 import '../astronomy/sgp4.dart';
 import 'catalog_manager.dart';
 
@@ -589,7 +590,7 @@ class SatelliteCatalog {
         continue;
       }
 
-      final jd = Sgp4.julianDate(currentTime);
+      final jd = AstronomyCalculations.julianDate(currentTime);
       final gmst = Sgp4.gstime(jd);
 
       final look = Sgp4.eciToLookAngles(
@@ -660,7 +661,7 @@ class SatelliteCatalog {
     double observerAltitude = 0,
   }) {
     final utcTime = time.toUtc();
-    final jd = Sgp4.julianDate(utcTime);
+    final jd = AstronomyCalculations.julianDate(utcTime);
     final gmst = Sgp4.gstime(jd);
     final sunEci = Sgp4.sunPositionEci(utcTime);
 

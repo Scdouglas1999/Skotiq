@@ -185,7 +185,7 @@ class VariableStarData {
     }
 
     // Use Julian Date for phase calculation
-    final jd = _julianDate(time);
+    final jd = AstronomyCalculations.julianDate(time);
     // Use J2000 epoch as reference for phase
     const j2000 = 2451545.0;
     final phase = ((jd - j2000) / periodDays!) % 1.0;
@@ -232,12 +232,6 @@ class VariableStarData {
         return (magMax + magMin) / 2 - (magMin - magMax) / 2 * sinPhase;
     }
   }
-
-  /// Whole-second day fraction — this catalog's phase epochs have never
-  /// carried the sub-second term, and [AstronomyCalculations.julianDate]
-  /// reproduces that exactly when told to drop it.
-  static double _julianDate(DateTime dt) =>
-      AstronomyCalculations.julianDate(dt, includeMilliseconds: false);
 
   const VariableStarData({
     required this.name,
