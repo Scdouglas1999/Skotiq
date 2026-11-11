@@ -22,8 +22,8 @@ class _PlanNightChips extends ConsumerWidget {
     }
 
     final now = DateTime.now();
-    final twilight = AstronomyCalculations.calculateTwilightTimes(
-      date: now,
+    final twilight = AstronomyCalculations.nightAt(
+      now: now,
       latitudeDeg: location!.latitude,
       longitudeDeg: location.longitude,
     );

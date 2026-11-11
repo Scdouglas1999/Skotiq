@@ -737,6 +737,22 @@ void main() {
       },
     );
 
+    test(
+      'calculateWindow after a remote site\'s dawn is the coming night',
+      () {
+        // 21:15 UTC: the dark at 155.66 E ended near 18:45 UTC.
+        final now = DateTime.utc(2026, 11, 11, 21, 15);
+        final w = service.calculateWindow(
+          latitudeDeg: 40.0,
+          longitudeDeg: 155.66,
+          now: now,
+        );
+        expect(w.start.isAfter(now), isTrue);
+        expect(w.start.difference(now), lessThan(const Duration(hours: 12)));
+        expect(w.end.isAfter(w.start), isTrue);
+      },
+    );
+
     test('calculateWindow rejects polar midnight sun as a dark window', () {
       expect(
         () => service.calculateWindow(
