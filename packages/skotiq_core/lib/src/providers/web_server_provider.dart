@@ -235,6 +235,7 @@ class WebServerStateNotifier extends StateNotifier<WebServerState> {
   Future<void> _resolveLocalIp() async {
     try {
       final interfaces = await NetworkInterface.list(includeLoopback: false);
+      if (!mounted) return;
 
       String? lanIp;
       String? tailscaleV4;
@@ -273,6 +274,7 @@ class WebServerStateNotifier extends StateNotifier<WebServerState> {
         tailscaleReachable: tailscaleReachable,
       );
     } catch (_) {
+      if (!mounted) return;
       // Network interface enumeration is best-effort. Fail closed on the
       // tailnet signal so a transient enumeration error never leaves a stale
       // "reachable over Tailscale" claim standing.
