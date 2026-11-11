@@ -19,6 +19,7 @@
 
 use crate::fits::{copy_header_cards, read_header, write_fits, FitsError, FitsHeader};
 use crate::integration::{integrate_columns, Combine, IntegrationConfig, IntegrationFrame, Reject};
+use crate::robust_stats::median_and_sigma_upper;
 use crate::{ImageData, PixelType};
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
@@ -301,20 +302,9 @@ impl BandSource {
     }
 }
 
-fn median_in_place(values: &mut [f64]) -> f64 {
-    if values.is_empty() {
-        return 0.0;
-    }
-    let mid = values.len() / 2;
-    let (_, m, _) = values.select_nth_unstable_by(mid, f64::total_cmp);
-    *m
-}
-
 /// Sigma-clipped mean and robust σ of `values` (reordered in place).
 fn clipped_level(values: &mut [f64]) -> (f64, f64) {
-    let median = median_in_place(values);
-    let mut deviations: Vec<f64> = values.iter().map(|v| (v - median).abs()).collect();
-    let sigma = 1.4826 * median_in_place(&mut deviations);
+    let (median, sigma) = median_and_sigma_upper(values);
     let bound = 3.0 * sigma.max(f64::EPSILON);
     let (sum, count) = values
         .iter()

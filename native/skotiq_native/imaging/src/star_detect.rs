@@ -32,6 +32,7 @@
 
 use crate::stats::compute_snr;
 use crate::detection_plane::DetectionPlane;
+use crate::robust_stats::{median_upper_in_place_f32, MAD_TO_SIGMA};
 use crate::{DetectedStar, StarDetectionConfig};
 use rayon::prelude::*;
 
@@ -931,9 +932,7 @@ struct Grid {
 
 impl Grid {
     fn median(&self) -> f32 {
-        let mut v = self.v.clone();
-        let mid = v.len() / 2;
-        *v.select_nth_unstable_by(mid, f32::total_cmp).1
+        median_upper_in_place_f32(&mut self.v.clone())
     }
 
     fn bracket(c: &[f64], t: f64) -> (usize, usize, f64) {
@@ -1084,11 +1083,9 @@ fn clipped_stats(mut v: Vec<f32>) -> Option<(f32, f32)> {
     }
     let mut sigma = 0.0f32;
     for _ in 0..5 {
-        let mid = v.len() / 2;
-        let median = *v.select_nth_unstable_by(mid, f32::total_cmp).1;
+        let median = median_upper_in_place_f32(&mut v);
         let mut dev: Vec<f32> = v.iter().map(|x| (x - median).abs()).collect();
-        let mad = *dev.select_nth_unstable_by(mid, f32::total_cmp).1;
-        sigma = 1.4826 * mad;
+        sigma = MAD_TO_SIGMA as f32 * median_upper_in_place_f32(&mut dev);
         if sigma <= 0.0 {
             sigma = std_dev(&v, median);
         }
@@ -1105,8 +1102,7 @@ fn clipped_stats(mut v: Vec<f32>) -> Option<(f32, f32)> {
             break;
         }
     }
-    let mid = v.len() / 2;
-    let median = *v.select_nth_unstable_by(mid, f32::total_cmp).1;
+    let median = median_upper_in_place_f32(&mut v);
     // Standard deviation of the clipped sample, corrected for the ±3σ
     // truncation of a normal distribution.
     let sd = std_dev(&v, median) / 0.9866;

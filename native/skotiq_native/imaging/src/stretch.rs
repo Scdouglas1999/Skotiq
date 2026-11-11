@@ -29,7 +29,7 @@
 //! See PixInsight reference documentation:
 //!   <https://pixinsight.com/doc/tools/ScreenTransferFunction/ScreenTransferFunction.html>
 
-use crate::robust_stats::{LevelCounts, MAD_TO_SIGMA as MAD_SIGMA_SCALE};
+use crate::robust_stats::{LevelCounts, MAD_TO_SIGMA};
 use crate::ImageData;
 use rayon::prelude::*;
 
@@ -64,7 +64,7 @@ pub enum RgbStretchMode {
     Linked,
 }
 
-// Why: PixInsight STF constants. `MAD_SIGMA_SCALE` (the crate's
+// Why: PixInsight STF constants. `MAD_TO_SIGMA` (the crate's
 // `MAD_TO_SIGMA`) rescales the median absolute deviation into a
 // Gaussian-equivalent standard deviation. `SHADOW_CLIP_SIGMA = -2.8` is the
 // default PixInsight AutoStretch shadow-clipping point (2.8σ below the
@@ -156,9 +156,14 @@ pub fn apply_stretch_rgb_per_channel(
     out.par_chunks_mut(3 << 12)
         .zip(rgb_data.par_chunks(3 << 12))
         .for_each(|(out, rgb)| {
-            for (out, rgb) in out.chunks_exact_mut(3).zip(rgb.chunks_exact(3)) {
-                for channel in 0..3 {
-                    if let Some(table) = &tables[channel] {
+            for (out, rgb) in out
+                .as_chunks_mut::<3>()
+                .0
+                .iter_mut()
+                .zip(rgb.as_chunks::<3>().0)
+            {
+                for (channel, table) in tables.iter().enumerate() {
+                    if let Some(table) = table {
                         out[channel] = table.at(rgb[channel]);
                     }
                 }
@@ -279,7 +284,7 @@ fn stf_from_stats(stats: RobustStats) -> StretchParams {
         return StretchParams::default();
     }
 
-    let sigma = MAD_SIGMA_SCALE * mad;
+    let sigma = MAD_TO_SIGMA * mad;
 
     // Shadow clip: c0 = median - 2.8 σ, clamped to [0, 1].
     let shadows = (median + SHADOW_CLIP_SIGMA * sigma).clamp(0.0, 1.0);
@@ -494,7 +499,7 @@ mod tests {
 
         // Shadow clip should sit near `median - 2.8 * 1.4826 * MAD`.
         let expected_shadow =
-            (true_median + SHADOW_CLIP_SIGMA * MAD_SIGMA_SCALE * true_mad).clamp(0.0, 1.0);
+            (true_median + SHADOW_CLIP_SIGMA * MAD_TO_SIGMA * true_mad).clamp(0.0, 1.0);
 
         // Tolerance: the synthetic generator is triangular not Gaussian
         // so we allow a generous 0.01 (≈655 ADU @ 16-bit) slop.

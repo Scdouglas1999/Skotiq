@@ -61,7 +61,7 @@
 //! the plain weighted mean when there are too few samples to estimate scatter.
 
 use crate::normalization::CoverageMask;
-use crate::robust_stats::{median_sorted as median_of_sorted, MAD_TO_SIGMA};
+use crate::robust_stats::{median_in_place, MAD_TO_SIGMA};
 use crate::{ImageData, PixelType};
 use rayon::prelude::*;
 
@@ -727,11 +727,7 @@ fn linear_fit_clip(samples: &mut Vec<Sample>, low: f64, high: f64, iteration_lim
         if n < 4 {
             break;
         }
-        samples.sort_by(|a, b| {
-            a.value
-                .partial_cmp(&b.value)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        samples.sort_by(|a, b| a.value.total_cmp(&b.value));
 
         // OLS fit of value against rank index (0..n-1).
         let nf = n as f64;
@@ -944,11 +940,7 @@ fn min_max_clip(samples: &mut Vec<Sample>, n_low: usize, n_high: usize) {
         // n_low/n_high.
         return;
     }
-    samples.sort_by(|a, b| {
-        a.value
-            .partial_cmp(&b.value)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    samples.sort_by(|a, b| a.value.total_cmp(&b.value));
     // Retain the middle window [n_low, n - n_high).
     let keep: Vec<Sample> = samples[n_low..n - n_high].to_vec();
     *samples = keep;
@@ -983,11 +975,7 @@ fn median(samples: &mut [Sample]) -> f64 {
     if n == 0 {
         return 0.0;
     }
-    samples.sort_by(|a, b| {
-        a.value
-            .partial_cmp(&b.value)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    samples.sort_by(|a, b| a.value.total_cmp(&b.value));
     if n % 2 == 1 {
         samples[n / 2].value
     } else {
@@ -1034,11 +1022,9 @@ fn winsorized_mean_sigma(samples: &[Sample], low: f64, high: f64) -> (f64, f64) 
     // Robust initial centre/scale from the median + MAD so the Winsorizing
     // bounds are not themselves corrupted by the outliers.
     let mut vals: Vec<f64> = samples.iter().map(|s| s.value).collect();
-    vals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    let med = median_of_sorted(&vals);
+    let med = median_in_place(&mut vals);
     let mut devs: Vec<f64> = vals.iter().map(|v| (v - med).abs()).collect();
-    devs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    let mad = median_of_sorted(&devs);
+    let mad = median_in_place(&mut devs);
     let mut robust_sigma = mad * MAD_TO_SIGMA;
     if robust_sigma <= 0.0 {
         // The MAD collapses to zero whenever more than half the samples share

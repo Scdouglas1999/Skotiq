@@ -1035,9 +1035,7 @@ fn fit_transform_robust(
             })
             .collect();
 
-        let mut sorted = deviations.clone();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        let median = sorted[sorted.len() / 2];
+        let median = crate::robust_stats::median_upper_in_place(&mut deviations.clone());
         let cutoff = (CLIP_SIGMA * median).max(CLIP_FLOOR_PX);
 
         let kept: Vec<StarMatch> = inliers

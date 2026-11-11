@@ -67,7 +67,7 @@
 //! that is the parity the tests assert.
 
 use crate::integration::IntegrationFrame;
-use crate::robust_stats::percentile_interpolated as percentile_of_sorted;
+use crate::robust_stats::percentile_interpolated;
 use crate::{ImageData, PixelType};
 use serde::{Deserialize, Serialize};
 
@@ -834,9 +834,9 @@ fn reference_baseline(
         if vals.is_empty() {
             continue;
         }
-        vals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        let median = percentile_of_sorted(&vals, 0.5);
-        let high = percentile_of_sorted(&vals, 0.95);
+        vals.sort_unstable_by(f64::total_cmp);
+        let median = percentile_interpolated(&vals, 0.5);
+        let high = percentile_interpolated(&vals, 0.95);
         background[ch] = median;
         // Signal spread; floored to 1.0 so a flat reference does not yield a
         // degenerate zero scale.

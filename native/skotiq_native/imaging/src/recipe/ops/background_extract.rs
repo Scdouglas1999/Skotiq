@@ -55,7 +55,7 @@ use crate::background_extraction::{
     eval_poly, iterative_residual_fit, normalise_xy, poly_terms, solve_poly_fit, Sample,
 };
 use crate::recipe::{DarkroomOp, OpApplied, OpContext, OpError, OpImage, OpStage, Params};
-use crate::robust_stats::{median_in_place, percentile_nearest_rank, MAD_TO_SIGMA};
+use crate::robust_stats::{median_and_sigma, median_in_place, percentile_nearest_rank};
 use crate::detection_plane::{collapse_channels, ChannelCollapse, DetectionPlane, Quantize};
 use crate::{detect_stars_in_plane, StarDetectionConfig};
 
@@ -471,9 +471,7 @@ fn residual_sigma(
     if residuals.is_empty() {
         return 0.0;
     }
-    let centre = median_in_place(&mut residuals);
-    let mut deviations: Vec<f64> = residuals.iter().map(|r| (r - centre).abs()).collect();
-    median_in_place(&mut deviations) * MAD_TO_SIGMA
+    median_and_sigma(&mut residuals).1
 }
 
 /// Sample boxes per axis for a spacing in render-level pixels.
@@ -577,9 +575,7 @@ fn clipped_box_median(
             window.push(plane[base + x]);
         }
     }
-    let centre = median_in_place(&mut window);
-    let mut deviations: Vec<f64> = window.iter().map(|value| (value - centre).abs()).collect();
-    let sigma = median_in_place(&mut deviations) * MAD_TO_SIGMA;
+    let (centre, sigma) = median_and_sigma(&mut window);
     if sigma <= 0.0 {
         return Some(centre);
     }

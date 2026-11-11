@@ -60,7 +60,7 @@ use crate::normalization::{
     estimate_normalization, CoverageMask, NormEstimator, NormalizationConfig,
 };
 use crate::registration::Interpolator;
-use crate::robust_stats::median_in_place as median;
+use crate::robust_stats::median_in_place;
 use crate::{ImageData, WcsInfo};
 
 /// Hard upper bound on the output canvas in pixels (per channel-plane). At
@@ -605,15 +605,15 @@ fn build_output_wcs(
         .iter()
         .map(|p| p.proj.crval2_rad.to_degrees())
         .collect();
-    let center_ra = normalize_deg(ra0 + median(&mut ra_offsets));
-    let center_dec = median(&mut decs);
+    let center_ra = normalize_deg(ra0 + median_in_place(&mut ra_offsets));
+    let center_dec = median_in_place(&mut decs);
 
     // Output pixel scale (arcsec/px) → deg/px.
     let scale_arcsec = match cfg.output_pixel_scale_arcsec {
         Some(s) if s > 0.0 => s,
         _ => {
             let mut scales: Vec<f64> = panels.iter().map(|p| p.proj.pixel_scale_arcsec()).collect();
-            median(&mut scales)
+            median_in_place(&mut scales)
         }
     };
     let scale_deg = scale_arcsec / 3600.0;

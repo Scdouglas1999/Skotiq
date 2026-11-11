@@ -58,7 +58,7 @@ static STORE_TILE_NONCE: AtomicU64 = AtomicU64::new(0);
 
 use crate::master_accumulation::{AccumulationMode, NormalizationReference, PerPixelAccumulator};
 use crate::registration::{kernel_inside, sample_interleaved, Interpolator};
-use crate::robust_stats::{percentile_nearest_rank as percentile_sorted, MAD_TO_SIGMA};
+use crate::robust_stats::median_and_sigma_upper;
 use crate::wcs_sip::SipWcs;
 use crate::ImageData;
 
@@ -1976,12 +1976,7 @@ fn estimate_frame_norm(src: &[f64], channels: usize) -> NormalizationReference {
         if vals.is_empty() {
             continue;
         }
-        vals.sort_unstable_by(f64::total_cmp);
-        let median = percentile_sorted(&vals, 0.5);
-        let mut dev: Vec<f64> = vals.iter().map(|&v| (v - median).abs()).collect();
-        dev.sort_unstable_by(f64::total_cmp);
-        let mad = percentile_sorted(&dev, 0.5);
-        let s = MAD_TO_SIGMA * mad;
+        let (median, s) = median_and_sigma_upper(&mut vals);
         background[c] = median;
         scale[c] = if s.is_finite() && s > 0.0 { s } else { 1.0 };
     }

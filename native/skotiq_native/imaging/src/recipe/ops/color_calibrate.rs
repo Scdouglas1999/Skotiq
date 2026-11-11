@@ -589,18 +589,9 @@ fn solve_average_star(image: &OpImage, ctx: &OpContext) -> Result<ColorSolve, Op
     })
 }
 
-/// The median and `1.4826 · MAD` of `values`.
+/// The median and `1.4826 · MAD` of `values`; zeros when there are none.
 fn median_and_sigma(values: impl Iterator<Item = f64>) -> (f64, f64) {
-    let mut values: Vec<f64> = values.collect();
-    if values.is_empty() {
-        return (0.0, 0.0);
-    }
-    let centre = median_in_place(&mut values.clone());
-    let mut deviations: Vec<f64> = values.iter_mut().map(|v| (*v - centre).abs()).collect();
-    (
-        centre,
-        median_in_place(&mut deviations) * crate::robust_stats::MAD_TO_SIGMA,
-    )
+    crate::robust_stats::median_and_sigma(&mut values.collect::<Vec<f64>>())
 }
 
 /// Offsets that bring every channel's sky, after `scales`, to their mean.

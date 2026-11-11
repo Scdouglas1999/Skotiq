@@ -63,7 +63,9 @@
 //! on the normal-equation matrix — fine for the ≤28-term systems a degree-≤6 2-D
 //! polynomial produces, and deterministic so the tests are reproducible.
 
-use crate::robust_stats::{median_in_place as median_f64, percentile_nearest_rank, MAD_TO_SIGMA};
+use crate::robust_stats::{
+    mad_sigma, median_and_sigma, median_in_place, percentile_nearest_rank,
+};
 use crate::detection_plane::{finite_range, DetectionPlane, Quantize};
 use crate::samples::{sample_from_le, sample_to_le};
 use crate::{detect_stars_in_plane, DetectedStar, ImageData, PixelType, StarDetectionConfig};
@@ -552,7 +554,7 @@ fn box_median(
             win.push(plane[row + x]);
         }
     }
-    Some(median_f64(&mut win))
+    Some(median_in_place(&mut win))
 }
 
 /// Reject boxes that overlap a detected star OR whose level sits far above the
@@ -568,13 +570,10 @@ fn reject_contaminated(samples: &mut Vec<Sample>, star_centres: &[StarBox], samp
     // object-contaminated minority of boxes. The spread (MAD of the lower half)
     // sets how far above baseline we tolerate before calling a box contaminated.
     let mut values: Vec<f64> = samples.iter().map(|s| s.value).collect();
-    let baseline = percentile_f64(&mut values, 0.25);
-    let median = percentile_f64(&mut values, 0.5);
-    let mad = {
-        let mut dev: Vec<f64> = samples.iter().map(|s| (s.value - median).abs()).collect();
-        median_f64(&mut dev)
-    };
-    let sigma = (mad * MAD_TO_SIGMA).max(f64::MIN_POSITIVE);
+    values.sort_unstable_by(f64::total_cmp);
+    let baseline = percentile_nearest_rank(&values, 0.25);
+    let median = percentile_nearest_rank(&values, 0.5);
+    let sigma = mad_sigma(&values, median).max(f64::MIN_POSITIVE);
 
     // A box more than this far above baseline is object-dominated. The factor
     // (4σ) is deliberately generous: the high-side sigma clip later does the
@@ -652,10 +651,7 @@ pub(crate) fn iterative_residual_fit(
             })
             .collect();
 
-        let median = median_f64(&mut residuals);
-        let mut dev: Vec<f64> = residuals.iter().map(|&r| (r - median).abs()).collect();
-        let mad = median_f64(&mut dev);
-        let sigma = mad * MAD_TO_SIGMA;
+        let (median, sigma) = median_and_sigma(&mut residuals);
         if sigma <= 0.0 {
             // Residuals are flat (a perfect fit, or too few distinct points) —
             // nothing more to reject.
@@ -1000,15 +996,6 @@ fn mean_plane(planes: &[Vec<f64>], width: usize, height: usize) -> Option<Detect
     }
     let (low, high) = finite_range(&mean)?;
     DetectionPlane::from_range(width, height, &mean, low, high, Quantize::Truncate)
-}
-
-// Small robust-statistics helpers
-
-/// Nearest-rank percentile (`p` in `[0, 1]`) of a mutable slice, sorting it in
-/// place. See [`crate::robust_stats`] for why the convention is named.
-fn percentile_f64(v: &mut [f64], p: f64) -> f64 {
-    v.sort_unstable_by(f64::total_cmp);
-    percentile_nearest_rank(v, p)
 }
 
 // Tests
@@ -1539,18 +1526,5 @@ mod tests {
             "channel 1 not flattened, std {}",
             std_dev(&ch1)
         );
-    }
-
-    #[test]
-    fn percentile_and_median_helpers_are_correct() {
-        let mut v = vec![3.0, 1.0, 2.0];
-        assert_eq!(median_f64(&mut v), 2.0);
-        let mut v2 = vec![4.0, 1.0, 3.0, 2.0];
-        assert_eq!(median_f64(&mut v2), 2.5);
-        let mut p = vec![10.0, 20.0, 30.0, 40.0, 50.0];
-        assert_eq!(percentile_f64(&mut p, 0.0), 10.0);
-        assert_eq!(percentile_f64(&mut p, 1.0), 50.0);
-        // Nearest-rank p=0.5 over 5 elements → idx round(2.0)=2 → value 30.
-        assert_eq!(percentile_f64(&mut p, 0.5), 30.0);
     }
 }

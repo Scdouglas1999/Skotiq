@@ -20,6 +20,7 @@
 use rayon::prelude::*;
 
 use crate::detection_plane::DetectionPlane;
+use crate::robust_stats::{median_upper_in_place, MAD_TO_SIGMA};
 use crate::recipe::ops::star_detect::detection_plane;
 use crate::recipe::{OpContext, OpError, OpImage, CANCEL_POLL_PIXELS};
 use crate::registration::{solve_registration_from_stars, RegistrationConfig, TransformKind};
@@ -541,9 +542,8 @@ fn refine(
                     ((mx - q.0).powi(2) + (my - q.1).powi(2)).sqrt()
                 })
                 .collect();
-            let mut sorted = residuals.clone();
-            sorted.sort_by(f64::total_cmp);
-            let limit = (3.0 * sorted[sorted.len() / 2] * 1.4826).max(0.05);
+            let median = median_upper_in_place(&mut residuals.clone());
+            let limit = (3.0 * median * MAD_TO_SIGMA).max(0.05);
             let mut kept = Vec::with_capacity(pairs.len());
             for (pair, r) in pairs.into_iter().zip(residuals.drain(..)) {
                 if r <= limit {

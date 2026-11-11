@@ -314,7 +314,7 @@ pub fn calibrate_signed(
     if dark.iter().chain(&flat).any(|v| !v.is_finite()) {
         return Err("Calibration masters contain non-finite pixels".into());
     }
-    let norm = super::median(&flat);
+    let norm = crate::robust_stats::median_of(&flat);
     if !norm.is_finite() || norm <= 0.0 {
         return Err("Flat master has no positive response".into());
     }
@@ -393,12 +393,7 @@ pub fn source_mask(light: &ImageData) -> Result<Vec<bool>, String> {
 fn robust_level_and_noise(pixels: &[f64]) -> (f64, f64) {
     let stride = (pixels.len() / 250_000).max(1);
     let mut sample: Vec<f64> = pixels.iter().copied().step_by(stride).collect();
-    sample.sort_by(f64::total_cmp);
-    let median = sample[sample.len() / 2];
-    let mut deviations: Vec<f64> = sample.iter().map(|v| (v - median).abs()).collect();
-    deviations.sort_by(f64::total_cmp);
-    let mad = deviations[deviations.len() / 2];
-    (median, 1.4826 * mad)
+    crate::robust_stats::median_and_sigma_upper(&mut sample)
 }
 
 /// What identifies one exposure independently of where its file lives or how
@@ -776,11 +771,8 @@ fn neighbour_noise(pixels: &[f64], width: usize) -> f64 {
     if diffs.is_empty() {
         return f64::NAN;
     }
-    diffs.sort_by(f64::total_cmp);
-    let median = diffs[diffs.len() / 2];
-    let mut deviations: Vec<f64> = diffs.iter().map(|d| (d - median).abs()).collect();
-    deviations.sort_by(f64::total_cmp);
-    1.4826 * deviations[deviations.len() / 2] / std::f64::consts::SQRT_2
+    let (_, sigma) = crate::robust_stats::median_and_sigma_upper(&mut diffs);
+    sigma / std::f64::consts::SQRT_2
 }
 
 pub fn suggest_floor(
@@ -804,13 +796,13 @@ pub fn suggest_floor(
     let flat_pixels = master_pixels(flat)?;
     let light_pixels = light_pixels(light)?;
     let dark_noise = neighbour_noise(&dark_pixels, width);
-    let flat_level = super::median(&flat_pixels);
+    let flat_level = crate::robust_stats::median_of(&flat_pixels);
     if !flat_level.is_finite() || flat_level <= 0.0 {
         return Err("Flat master has no positive response".into());
     }
     let flat_relative_noise = neighbour_noise(&flat_pixels, width) / flat_level;
     let (light_level, _) = robust_level_and_noise(&light_pixels);
-    let dark_level = super::median(&dark_pixels);
+    let dark_level = crate::robust_stats::median_of(&dark_pixels);
     let sky = (light_level - dark_level).max(0.0);
     if ![dark_noise, flat_relative_noise, sky]
         .iter()

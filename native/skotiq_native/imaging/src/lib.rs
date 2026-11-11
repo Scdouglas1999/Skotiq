@@ -454,7 +454,7 @@ impl ImageData {
                 rgba.par_chunks_mut(4 << 12)
                     .zip(display.par_chunks(1 << 12))
                     .for_each(|(rgba, gray)| {
-                        for (out, &v) in rgba.chunks_exact_mut(4).zip(gray) {
+                        for (out, &v) in rgba.as_chunks_mut::<4>().0.iter_mut().zip(gray) {
                             out[..3].fill(v);
                         }
                     });
@@ -465,7 +465,12 @@ impl ImageData {
                 rgba.par_chunks_mut(4 << 12)
                     .zip(display.par_chunks(3 << 12))
                     .for_each(|(rgba, rgb)| {
-                        for (out, rgb) in rgba.chunks_exact_mut(4).zip(rgb.chunks_exact(3)) {
+                        for (out, rgb) in rgba
+                            .as_chunks_mut::<4>()
+                            .0
+                            .iter_mut()
+                            .zip(rgb.as_chunks::<3>().0)
+                        {
                             out[..3].copy_from_slice(rgb);
                         }
                     });

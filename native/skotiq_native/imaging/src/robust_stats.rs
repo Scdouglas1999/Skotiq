@@ -10,11 +10,17 @@
 //! * [`WeightedSorted::percentile_floor`] — `(n·q)` truncated. Matches
 //!   PixInsight's integer-indexed order statistics, which is why the
 //!   auto-stretch uses it.
+//! * [`percentile_lower_rank`] — `(n−1)·q` truncated, the lower bracketing
+//!   rank. DepthLock's bounds use it so they never overstate.
 //! * [`percentile_interpolated`] — linear between the two bracketing ranks.
 //!   Continuous in `q`, which matters when a percentile is differenced against
 //!   another (the accumulating master's normalisation scale).
 //!
-//! At `q = 0.5` all three agree, so the choice only shows up in the tails.
+//! The median has two conventions for an even count. [`median_sorted`] and
+//! [`median_in_place`] take the mean of the two centre elements;
+//! [`median_upper_in_place`] takes the upper one, as nearest-rank does at
+//! `q = 0.5`. A MAD-based sigma inherits the choice, so it comes in both
+//! forms ([`mad_sigma`], [`mad_sigma_upper`]); for an odd count they agree.
 //!
 //! Ordering is [`f64::total_cmp`] throughout: `partial_cmp` reports `Equal` for
 //! NaN, which is not a total order, so a single NaN leaves the slice unsorted
@@ -51,6 +57,59 @@ pub(crate) fn median_in_place(values: &mut [f64]) -> f64 {
     median_sorted(values)
 }
 
+/// Median of `values` without reordering them.
+pub(crate) fn median_of(values: &[f64]) -> f64 {
+    median_in_place(&mut values.to_vec())
+}
+
+/// Median of `values` taking the upper of the two centre elements for an even
+/// count, which is what [`percentile_nearest_rank`] answers at `q = 0.5`.
+/// Selects rather than sorts, so `values` is left partitioned, not ordered.
+pub(crate) fn median_upper_in_place(values: &mut [f64]) -> f64 {
+    if values.is_empty() {
+        return 0.0;
+    }
+    let mid = values.len() / 2;
+    *values.select_nth_unstable_by(mid, f64::total_cmp).1
+}
+
+/// [`median_upper_in_place`] for `f32` samples.
+pub(crate) fn median_upper_in_place_f32(values: &mut [f32]) -> f32 {
+    if values.is_empty() {
+        return 0.0;
+    }
+    let mid = values.len() / 2;
+    *values.select_nth_unstable_by(mid, f32::total_cmp).1
+}
+
+/// Robust standard deviation of `values` about `center`: the median absolute
+/// deviation times [`MAD_TO_SIGMA`]. The median inside is [`median_sorted`]'s
+/// (mean of the two centres).
+pub(crate) fn mad_sigma(values: &[f64], center: f64) -> f64 {
+    let mut deviations: Vec<f64> = values.iter().map(|v| (v - center).abs()).collect();
+    median_in_place(&mut deviations) * MAD_TO_SIGMA
+}
+
+/// [`mad_sigma`] with the upper-centre median ([`median_upper_in_place`])
+/// inside, for the estimators defined that way.
+pub(crate) fn mad_sigma_upper(values: &[f64], center: f64) -> f64 {
+    let mut deviations: Vec<f64> = values.iter().map(|v| (v - center).abs()).collect();
+    median_upper_in_place(&mut deviations) * MAD_TO_SIGMA
+}
+
+/// Median and [`mad_sigma`] of `values`, which is left sorted.
+pub(crate) fn median_and_sigma(values: &mut [f64]) -> (f64, f64) {
+    let median = median_in_place(values);
+    (median, mad_sigma(values, median))
+}
+
+/// [`median_and_sigma`] by the upper-centre convention throughout. `values`
+/// is left partitioned, not ordered.
+pub(crate) fn median_and_sigma_upper(values: &mut [f64]) -> (f64, f64) {
+    let median = median_upper_in_place(values);
+    (median, mad_sigma_upper(values, median))
+}
+
 /// The rank [`percentile_nearest_rank`] selects, for callers holding a sorted
 /// buffer of something other than `f64` (a `u16` pixel histogram, say).
 ///
@@ -79,6 +138,16 @@ pub(crate) fn percentile_floor(sorted: &[f64], q: f64) -> f64 {
     }
     let idx = ((n as f64) * q) as usize;
     sorted[idx.min(n - 1)]
+}
+
+/// Value at fractional position `q` of an already-sorted slice, at rank
+/// `(n − 1)·q` truncated: the lower of the two bracketing ranks. Never above
+/// the interpolated value, which is what a conservative bound wants.
+pub(crate) fn percentile_lower_rank(sorted: &[f64], q: f64) -> f64 {
+    if sorted.is_empty() {
+        return 0.0;
+    }
+    sorted[((sorted.len() - 1) as f64 * q.clamp(0.0, 1.0)).floor() as usize]
 }
 
 /// Value at fractional position `q` of an already-sorted slice, linearly
@@ -278,14 +347,6 @@ impl WeightedSorted {
     }
 }
 
-// A combined `mad_sigma(sorted, center)` helper is deliberately absent. The
-// six MAD call sites do not agree on the median inside the MAD:
-// `sky_atlas::estimate_frame_norm` and `difference_image::residual_background`
-// take it by nearest rank (the upper centre for an even count) while the rest
-// take the mean of the two centres. One shared helper would have to pick, and
-// picking would move the noise floor of whichever sites it did not match.
-// `MAD_TO_SIGMA` is the part they genuinely share, so that is what is shared.
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -406,5 +467,49 @@ mod tests {
         assert_eq!(green.level_at(1), 20);
         assert_eq!(WeightedSorted::from_runs(vec![(2.0, 1), (1.0, 3), (5.0, 0)]).at(3), 2.0);
         assert_eq!(WeightedSorted::from_runs(Vec::new()).median(), 0.0);
+    }
+
+    #[test]
+    fn the_two_median_conventions_differ_only_for_an_even_count() {
+        let mut even = [4.0, 1.0, 3.0, 2.0];
+        assert_eq!(median_upper_in_place(&mut even), 3.0);
+        assert_eq!(median_in_place(&mut even), 2.5);
+        let mut odd = [5.0, 1.0, 3.0];
+        assert_eq!(median_upper_in_place(&mut odd), 3.0);
+        assert_eq!(median_upper_in_place(&mut []), 0.0);
+        assert_eq!(median_upper_in_place_f32(&mut [4.0, 1.0, 3.0, 2.0]), 3.0);
+        assert_eq!(median_upper_in_place_f32(&mut []), 0.0);
+
+        let sorted = [1.0, 2.0, 3.0, 4.0];
+        assert_eq!(
+            median_upper_in_place(&mut sorted.clone()),
+            percentile_nearest_rank(&sorted, 0.5)
+        );
+    }
+
+    #[test]
+    fn mad_sigma_follows_the_median_convention_it_is_named_for() {
+        let values = [1.0, 2.0, 4.0, 8.0];
+        // Deviations about 3: 2, 1, 1, 5 -> sorted 1, 1, 2, 5.
+        assert_eq!(mad_sigma(&values, 3.0), 1.5 * MAD_TO_SIGMA);
+        assert_eq!(mad_sigma_upper(&values, 3.0), 2.0 * MAD_TO_SIGMA);
+        assert_eq!(median_and_sigma(&mut values.clone()), (3.0, 1.5 * MAD_TO_SIGMA));
+        assert_eq!(
+            median_and_sigma_upper(&mut values.clone()),
+            (4.0, 3.0 * MAD_TO_SIGMA)
+        );
+        assert_eq!(mad_sigma(&[], 0.0), 0.0);
+    }
+
+    #[test]
+    fn the_lower_rank_percentile_never_exceeds_the_interpolated_one() {
+        let sorted = [10.0, 20.0, 30.0, 40.0];
+        assert_eq!(percentile_lower_rank(&sorted, 0.5), 20.0);
+        assert_eq!(percentile_lower_rank(&sorted, 0.99), 30.0);
+        assert_eq!(percentile_lower_rank(&sorted, 1.0), 40.0);
+        assert_eq!(percentile_lower_rank(&[], 0.5), 0.0);
+        for q in [0.1, 0.34, 0.5, 0.75, 0.9] {
+            assert!(percentile_lower_rank(&sorted, q) <= percentile_interpolated(&sorted, q));
+        }
     }
 }

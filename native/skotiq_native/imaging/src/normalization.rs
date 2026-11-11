@@ -97,7 +97,7 @@
 //! always yields the same coefficients — a property the master-accumulation fold
 //! depends on across sessions and processes.
 
-use crate::robust_stats::{median_in_place, MAD_TO_SIGMA};
+use crate::robust_stats::{mad_sigma, median_in_place};
 
 /// Marks, per pixel, whether a frame contributes a valid sample.
 ///
@@ -637,15 +637,6 @@ fn robust_location_dispersion(sample: &mut Vec<f64>, cfg: &NormalizationConfig) 
         dispersion,
         samples: sample.len(),
     }
-}
-
-/// Median absolute deviation about `center`, scaled onto a Gaussian-σ footing.
-fn mad_sigma(values: &[f64], center: f64) -> f64 {
-    if values.is_empty() {
-        return 0.0;
-    }
-    let mut devs: Vec<f64> = values.iter().map(|v| (v - center).abs()).collect();
-    median_in_place(&mut devs) * MAD_TO_SIGMA
 }
 
 /// Fit `x' = m_ref + (x − m_f)·(σ_ref/σ_f)` over the given index range and

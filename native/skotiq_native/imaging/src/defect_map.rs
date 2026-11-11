@@ -45,7 +45,7 @@
 //! Trailing footer: u32 defective pixel count for quick stat lookups
 //! without scanning the bitmap.
 
-use crate::robust_stats::median_sorted as sample_median_sorted;
+use crate::robust_stats::median_sorted;
 use crate::{ImageData, PixelType};
 use std::fs::File;
 use std::io::{Read, Write};
@@ -458,14 +458,14 @@ pub fn build_defect_map(
 
     let mut sorted = per_pixel_medians.clone();
     sorted.sort_unstable_by(|a, b| a.total_cmp(b));
-    let global_median = sample_median_sorted(&sorted);
+    let global_median = median_sorted(&sorted);
 
     let mut deviations: Vec<f64> = per_pixel_medians
         .iter()
         .map(|p| (p - global_median).abs())
         .collect();
     deviations.sort_unstable_by(|a, b| a.total_cmp(b));
-    let mad = sample_median_sorted(&deviations).max(1.0e-9);
+    let mad = median_sorted(&deviations).max(1.0e-9);
 
     let upper_threshold = global_median + DEFECT_MAD_K * mad;
     let lower_threshold = global_median - DEFECT_MAD_K * mad;
