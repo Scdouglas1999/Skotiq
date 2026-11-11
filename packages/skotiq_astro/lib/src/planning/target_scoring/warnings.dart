@@ -17,7 +17,7 @@ extension _TargetWarnings on TargetScoringService {
           severity: WarningSeverity.critical,
           message: 'Target is below the horizon (${alt.toStringAsFixed(1)}°)',
           suggestion: visibility.riseTime != null
-              ? 'Will rise at ${_formatTime(visibility.riseTime!)}'
+              ? 'Will rise at ${ClockFormat.hm(visibility.riseTime!)}'
               : null,
         ),
       );
@@ -215,10 +215,6 @@ extension _TargetWarnings on TargetScoringService {
     return const [];
   }
 
-  String _formatTime(DateTime time) {
-    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-  }
-
   /// Generate warnings based on conditions across the full night window.
   List<TargetWarning> _generateNightWarnings({
     required double peakAlt,
@@ -335,7 +331,7 @@ extension _TargetWarnings on TargetScoringService {
             // "Usable from", not "Rises at": the threshold crossed here is the
             // configured minimum altitude over the local skyline, which a
             // target can clear hours after it geometrically rises.
-            message: 'Usable only from ${_formatTime(firstObservableTime)}',
+            message: 'Usable only from ${ClockFormat.hm(firstObservableTime)}',
             suggestion: 'Target becomes available late in the night',
           ),
         );
@@ -354,7 +350,7 @@ extension _TargetWarnings on TargetScoringService {
             TargetWarning(
               type: WarningType.settingSoon,
               severity: WarningSeverity.caution,
-              message: 'Sets early at ${_formatTime(setTime)}',
+              message: 'Sets early at ${ClockFormat.hm(setTime)}',
               suggestion: 'Image this target early in the session',
             ),
           );

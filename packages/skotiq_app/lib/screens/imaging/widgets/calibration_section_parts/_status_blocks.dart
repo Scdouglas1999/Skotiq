@@ -52,7 +52,7 @@ class _StatusBlock extends ConsumerWidget {
             currentTemperatureC: temperatureC!,
           );
         }
-        final pixels = _formatThousands(status.defectivePixelCount);
+        final pixels = QuantityFormat.grouped(status.defectivePixelCount);
         final age = _relativeAge(status.lastRebuiltAt);
         return _StatusLine(
           colors: colors,

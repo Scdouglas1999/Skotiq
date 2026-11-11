@@ -403,7 +403,7 @@ class _SourceStatusStrip extends ConsumerWidget {
     parts.add(
       lastCheck == null
           ? 'never checked'
-          : 'checked ${_formatClock(lastCheck)}',
+          : 'checked ${ClockFormat.hm(lastCheck.toLocal())}',
     );
 
     return Container(
@@ -438,13 +438,6 @@ class _SourceStatusStrip extends ConsumerWidget {
       ),
     );
   }
-}
-
-String _formatClock(DateTime time) {
-  final local = time.toLocal();
-  final hh = local.hour.toString().padLeft(2, '0');
-  final mm = local.minute.toString().padLeft(2, '0');
-  return '$hh:$mm';
 }
 
 String _sourceLabel(TransientSource source) {

@@ -325,7 +325,7 @@ class CapturePanel extends ConsumerWidget {
             const SizedBox(height: SkotiqTokens.spaceMd),
             KeyValueList(
               rows: [
-                ('Running for', _formatSessionDuration(imagingFor)),
+                ('Running for', ClockFormat.stopwatchPadded(imagingFor)),
               ],
             ),
           ],
@@ -409,15 +409,6 @@ class CapturePanel extends ConsumerWidget {
     );
   }
 
-  String _formatSessionDuration(Duration duration) {
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes.remainder(60);
-    final seconds = duration.inSeconds.remainder(60);
-    return '${hours.toString().padLeft(2, '0')}:'
-        '${minutes.toString().padLeft(2, '0')}:'
-        '${seconds.toString().padLeft(2, '0')}';
-  }
-
   void _showEndSessionDialog(
       BuildContext context, WidgetRef ref, SkotiqColors colors) {
     final sessionState = ref.read(sessionStateProvider);
@@ -461,7 +452,7 @@ class CapturePanel extends ConsumerWidget {
                       // A session with no measured duration renders an em
                       // dash, never '--:--:--'.
                       sessionState.duration != null
-                          ? _formatSessionDuration(sessionState.duration!)
+                          ? ClockFormat.stopwatchPadded(sessionState.duration!)
                           : '\u2014',
                     ),
                   ],

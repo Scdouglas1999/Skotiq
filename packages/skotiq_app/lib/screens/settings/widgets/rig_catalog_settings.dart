@@ -292,18 +292,6 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
     );
   }
 
-  static String _fmtBytes(int bytes) {
-    if (bytes <= 0) return '0 B';
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    var size = bytes.toDouble();
-    var unit = 0;
-    while (size >= 1024 && unit < units.length - 1) {
-      size /= 1024;
-      unit++;
-    }
-    return '${size.toStringAsFixed(size >= 10 || unit == 0 ? 0 : 1)} ${units[unit]}';
-  }
-
   bool get _isInstalled => _installed.isNotEmpty;
 
   /// The product name for an installed catalog.
@@ -460,7 +448,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
           ),
           const SizedBox(height: 4),
           Text(
-            '${c.version ?? '—'} · ${_fmtBytes(c.sizeBytes)} · '
+            '${c.version ?? '—'} · ${ByteFormat.size(c.sizeBytes)} · '
             '${c.objectCount != null ? '${c.objectCount} objects · ' : ''}${c.status}',
             style: SkotiqTypography.caption.copyWith(
               color: colors.textMuted,
@@ -504,7 +492,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                    '${a.version} · ${_fmtBytes(a.sizeBytes)} · ${a.description}',
+                    '${a.version} · ${ByteFormat.size(a.sizeBytes)} · ${a.description}',
                     style: SkotiqTypography.caption.copyWith(
                       color: colors.textMuted,
                     )),

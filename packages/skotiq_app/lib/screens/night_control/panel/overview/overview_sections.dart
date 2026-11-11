@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
@@ -438,7 +439,7 @@ class _NightLogSectionState extends State<NightLogSection> {
             children: <Widget>[
               SizedBox(
                 width: 40,
-                child: Text(nightPanelClock(entry.at), style: timeStyle),
+                child: Text(ClockFormat.hm(entry.at), style: timeStyle),
               ),
               const SizedBox(width: SkotiqTokens.spaceXs),
               Expanded(

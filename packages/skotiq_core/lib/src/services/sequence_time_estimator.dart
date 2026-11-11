@@ -1,3 +1,4 @@
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../models/sequence/sequence_models.dart';
@@ -231,16 +232,16 @@ class SequenceTimeEstimator {
         final startAfter = _effectiveStartAfter(targetNode);
         if (startAfter != null && timing.estimatedStart.isBefore(startAfter)) {
           conflicts.add(
-            '$targetName: "${timing.nodeName}" scheduled at ${_formatTime(timing.estimatedStart)} '
-            'before target start time ${_formatTime(startAfter)}',
+            '$targetName: "${timing.nodeName}" scheduled at ${ClockFormat.hm(timing.estimatedStart)} '
+            'before target start time ${ClockFormat.hm(startAfter)}',
           );
         }
 
         final endBefore = _effectiveEndBefore(targetNode);
         if (endBefore != null && timing.estimatedEnd.isAfter(endBefore)) {
           conflicts.add(
-            '$targetName: "${timing.nodeName}" ends at ${_formatTime(timing.estimatedEnd)} '
-            'after target end time ${_formatTime(endBefore)}',
+            '$targetName: "${timing.nodeName}" ends at ${ClockFormat.hm(timing.estimatedEnd)} '
+            'after target end time ${ClockFormat.hm(endBefore)}',
           );
         }
       }
@@ -263,12 +264,12 @@ class SequenceTimeEstimator {
         final start = timing.estimatedStart;
         if (window.riseTime != null && start.isBefore(window.riseTime!)) {
           conflicts.add(
-            '$targetName: "${timing.nodeName}" scheduled at ${_formatTime(start)} '
+            '$targetName: "${timing.nodeName}" scheduled at ${ClockFormat.hm(start)} '
             'before target rises at ${_formatTimeRelativeTo(window.riseTime!, start)}',
           );
         } else if (window.setTime != null) {
           conflicts.add(
-            '$targetName: "${timing.nodeName}" scheduled at ${_formatTime(start)} '
+            '$targetName: "${timing.nodeName}" scheduled at ${ClockFormat.hm(start)} '
             'after target sets at ${_formatTimeRelativeTo(window.setTime!, start)}',
           );
         }
@@ -285,7 +286,7 @@ class SequenceTimeEstimator {
           !window.isCircumpolar &&
           !window.isVisibleAt(end)) {
         conflicts.add(
-          '$targetName: "${timing.nodeName}" ends at ${_formatTime(end)} '
+          '$targetName: "${timing.nodeName}" ends at ${ClockFormat.hm(end)} '
           'after target sets at ${_formatTimeRelativeTo(window.setTime!, end)}',
         );
       }

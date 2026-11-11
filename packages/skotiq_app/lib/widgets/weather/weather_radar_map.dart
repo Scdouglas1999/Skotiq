@@ -111,14 +111,6 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
     super.dispose();
   }
 
-  String _formatAge(DateTime time) {
-    final diff = DateTime.now().difference(time);
-    if (diff.inSeconds < 60) return 'just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
-  }
-
   double _calculateInitialZoom() {
     if (widget.alertRadiusKm <= 10) return 11.0;
     if (widget.alertRadiusKm <= 30) return 9.0;
@@ -508,7 +500,7 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
                         (widget.currentFrame!.isForecast ? 'Forecast' : 'Live'),
                     label: widget.fetchedAt == null
                         ? 'Source'
-                        : 'Updated ${_formatAge(widget.fetchedAt!)}',
+                        : 'Updated ${RelativeTime.ago(widget.fetchedAt!)}',
                     size: ReadoutSize.sm,
                   ),
                 ],

@@ -326,8 +326,8 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
         detail: NightText(
           'nightSessionCheckDiskPlan',
           params: <String, String>{
-            'free': nightBytes(projection.freeBytes),
-            'need': nightBytes(projection.projectedBytes),
+            'free': ByteFormat.size(projection.freeBytes),
+            'need': ByteFormat.size(projection.projectedBytes),
           },
         ),
       ),
@@ -340,7 +340,7 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
         'nightSessionCheckDisk',
         detail: NightText(
           'nightSessionCheckDiskFree',
-          params: <String, String>{'free': nightBytes(freeBytes)},
+          params: <String, String>{'free': ByteFormat.size(freeBytes)},
         ),
       ),
     );
@@ -440,7 +440,7 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
                 detail: NightText(
                   'nightSessionCheckDawnPark',
                   params: <String, String>{
-                    'time': nightClockTime(ref.watch(clockProvider), park),
+                    'time': ClockFormat.hm(ref.watch(clockProvider).fromUtc(park.toUtc())),
                   },
                 ),
               ),

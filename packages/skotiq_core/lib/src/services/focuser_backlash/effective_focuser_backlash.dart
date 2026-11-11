@@ -1,3 +1,4 @@
+import 'package:skotiq_astro/format.dart';
 import '../../database/daos/settings_dao.dart';
 
 /// Where the backlash figure autofocus will use came from. Ordered best-first:
@@ -134,14 +135,8 @@ String _measuredPhrase(FocuserBacklashCalibrationRecord record) {
   final at = temperature == null
       ? ''
       : ', ${temperature.toStringAsFixed(1)} °C';
-  return 'measured on ${_formatDate(record.measuredAt)} at position '
+  return 'measured on ${ClockFormat.date(record.measuredAt.toLocal())} at position '
       '${record.measuredAtPosition}$at';
-}
-
-String _formatDate(DateTime value) {
-  final local = value.toLocal();
-  return '${local.year}-${local.month.toString().padLeft(2, '0')}-'
-      '${local.day.toString().padLeft(2, '0')}';
 }
 
 String _formatSteps(double value) => value == value.roundToDouble()

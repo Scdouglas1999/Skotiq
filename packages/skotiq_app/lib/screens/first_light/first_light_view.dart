@@ -6,8 +6,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../widgets/narrator/narrator_card.dart';
 import '../../widgets/your_sky_opt_in.dart';
-import '../../widgets/narrator/narrator_feed.dart'
-    show formatNarratorRelativeTime;
 import 'first_light_format.dart';
 import 'widgets/transient_candidate_card.dart';
 
@@ -260,7 +258,7 @@ class _CelebrateBanner extends ConsumerWidget {
           const SizedBox(height: SkotiqTokens.spaceSm),
           NarratorCard(
             event: best,
-            relativeTime: formatNarratorRelativeTime(best.timestamp),
+            relativeTime: RelativeTime.ago(best.timestamp),
           ),
         ],
       ),

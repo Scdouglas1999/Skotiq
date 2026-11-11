@@ -170,22 +170,6 @@ Future<bool> configuredSavePathExists(
   return Directory(savePath).exists();
 }
 
-/// Free space, rendered the way a card row has room for.
-///
-/// Whole GB up to a terabyte, then one decimal of TB. Not "412.7 GB free": the
-/// operator is checking whether the night fits, not auditing the volume.
-@visibleForTesting
-String formatFreeSpace(int freeBytes) {
-  const gb = 1024 * 1024 * 1024;
-  if (freeBytes < gb) {
-    final mb = freeBytes / (1024 * 1024);
-    return '${mb.round()} MB free';
-  }
-  final gigabytes = freeBytes / gb;
-  if (gigabytes < 1024) return '${gigabytes.round()} GB free';
-  return '${(gigabytes / 1024).toStringAsFixed(1)} TB free';
-}
-
 /// The Rig card: the sidebar's pinned footer and the window's one persistent
 /// status surface. First line is the run state; below it, one row per device
 /// with a status dot; then the save path and — while one is in flight — the
@@ -1085,7 +1069,7 @@ class _SavePathRow extends ConsumerWidget {
       context.l10n,
     );
     final space = ref.watch(captureDirDiskSpaceProvider).valueOrNull;
-    final free = space == null ? null : formatFreeSpace(space.freeBytes);
+    final free = space == null ? null : '${ByteFormat.size(space.freeBytes)} free';
     // No free-space figure next to a path we know is unusable: "No save folder
     // · 412 GB free" reports room in a place that does not exist.
     final value = chip.tone == SavePathTone.alarm || free == null

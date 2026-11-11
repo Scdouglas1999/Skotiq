@@ -52,7 +52,7 @@ class _PlanNightChips extends ConsumerWidget {
               ? l10n.text('plannerChipDarkNone')
               : l10n.text(
                   'plannerChipDark',
-                  params: {'start': _hhmm(dusk), 'end': _hhmm(dawn)},
+                  params: {'start': ClockFormat.hm(dusk), 'end': ClockFormat.hm(dawn)},
                 ),
         ),
       ],
@@ -72,7 +72,7 @@ class _PlanNightChips extends ConsumerWidget {
     }
     final timed = l10n.text(
       'plannerChipMoonAt',
-      params: {'value': value, 'time': _hhmm(at)},
+      params: {'value': value, 'time': ClockFormat.hm(at)},
     );
     if (roomForTime) return SkotiqChip(icon: LucideIcons.moon, label: timed);
     return SkotiqTooltip(
@@ -81,10 +81,6 @@ class _PlanNightChips extends ConsumerWidget {
     );
   }
 
-  /// 24-hour clock, zero-padded. `DateFormat.Hm()` would follow the device
-  /// locale into a 12-hour clock; every other time on this screen is 24-hour.
-  static String _hhmm(DateTime t) => '${t.hour.toString().padLeft(2, '0')}:'
-      '${t.minute.toString().padLeft(2, '0')}';
 }
 
 /// The search field's width on the desktop filter row (06 §Plan: "300 px

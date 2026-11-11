@@ -880,14 +880,14 @@ void main() {
     // The run begins when its FIRST member does, not when the last one would.
     final etaCell = find.descendant(
       of: _rowShellOf(find.text('Ha · OIII · SII')).first,
-      matching: find.text(formatLedgerClock(t0)),
+      matching: find.text(ClockFormat.hm(t0.toLocal())),
     );
     expect(etaCell, findsOneWidget);
     expect(
       find.descendant(
         of: _rowShellOf(find.text('Ha · OIII · SII')).first,
         matching:
-            find.text(formatLedgerClock(t0.add(const Duration(hours: 2)))),
+            find.text(ClockFormat.hm((t0.add(const Duration(hours: 2))).toLocal())),
       ),
       findsNothing,
     );

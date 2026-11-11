@@ -453,15 +453,15 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
         items: [
           MetricGridItem(
             label: 'Rise',
-            value: v.riseTime == null ? null : _siteHhmm(v.riseTime!),
+            value: v.riseTime == null ? null : ClockFormat.hm(_clock.fromUtc(v.riseTime!.toUtc())),
           ),
           MetricGridItem(
             label: 'Transit',
-            value: v.transitTime == null ? null : _siteHhmm(v.transitTime!),
+            value: v.transitTime == null ? null : ClockFormat.hm(_clock.fromUtc(v.transitTime!.toUtc())),
           ),
           MetricGridItem(
             label: 'Set',
-            value: v.setTime == null ? null : _siteHhmm(v.setTime!),
+            value: v.setTime == null ? null : ClockFormat.hm(_clock.fromUtc(v.setTime!.toUtc())),
           ),
           MetricGridItem(
             label: 'Transit alt',
@@ -687,7 +687,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
                 }
                 final time = _startTime.add(Duration(minutes: value.toInt()));
                 return Text(
-                  _siteHhmm(time),
+                  ClockFormat.hm(_clock.fromUtc(time.toUtc())),
                   style: SkotiqTypography.caption
                       .copyWith(color: colors.textMuted),
                 );
@@ -801,7 +801,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
             getTooltipItems: (touchedSpots) {
               return touchedSpots.map((spot) {
                 final time = _startTime.add(Duration(minutes: spot.x.toInt()));
-                final timeStr = _siteHhmm(time);
+                final timeStr = ClockFormat.hm(_clock.fromUtc(time.toUtc()));
                 if (_showAirmass) {
                   return LineTooltipItem(
                     '$timeStr\nAirmass: ${spot.y.toStringAsFixed(2)}',
@@ -835,20 +835,6 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
     );
   }
 
-  /// HH:MM as the OBSERVING SITE reads it.
-  ///
-  /// Only the DISPLAY moves: the rise/transit/set solve and the plotted window
-  /// still run on the true instant from [AltitudeChart.nowValue], because
-  /// shifting the input would skew the astronomy itself (see the doc on
-  /// `nowOverride`). Every face in this widget — axis, touch tooltip and the
-  /// three chips — goes through here together, so the chart can never label its
-  /// axis in one zone and its chips in another.
-  String _siteHhmm(DateTime t) {
-    final shown = _clock.fromUtc(t.toUtc());
-    return '${shown.hour.toString().padLeft(2, '0')}:'
-        '${shown.minute.toString().padLeft(2, '0')}';
-  }
-
   Widget _buildVisibilityInfo(SkotiqColors colors) {
     final items = <Widget>[];
 
@@ -856,7 +842,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
       items.add(_buildTimeChip(
         colors,
         'Rise',
-        _siteHhmm(_visibility!.riseTime!),
+        ClockFormat.hm(_clock.fromUtc(_visibility!.riseTime!.toUtc())),
         SkotiqIcons.sunrise,
       ));
     }
@@ -865,7 +851,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
       items.add(_buildTimeChip(
         colors,
         'Transit',
-        _siteHhmm(_visibility!.transitTime!),
+        ClockFormat.hm(_clock.fromUtc(_visibility!.transitTime!.toUtc())),
         SkotiqIcons.arrowUp,
       ));
     }
@@ -874,7 +860,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
       items.add(_buildTimeChip(
         colors,
         'Set',
-        _siteHhmm(_visibility!.setTime!),
+        ClockFormat.hm(_clock.fromUtc(_visibility!.setTime!.toUtc())),
         SkotiqIcons.sunset,
       ));
     }

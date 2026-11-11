@@ -170,7 +170,7 @@ class _Progress extends StatelessWidget {
             padding: const EdgeInsets.only(top: SkotiqTokens.spaceSm),
             child: Text(
               'Started by the night-end automation at '
-              '${clockLabel(job.startedAt)}.',
+              '${ClockFormat.hm(job.startedAt.toLocal())}.',
               style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           ),
@@ -224,7 +224,7 @@ class _Ended extends ConsumerWidget {
             ),
             if (ended != null)
               Text(
-                clockLabel(ended),
+                ClockFormat.hm(ended.toLocal()),
                 style: SkotiqTypography.monoXs.copyWith(
                   color: colors.textSecondary,
                 ),

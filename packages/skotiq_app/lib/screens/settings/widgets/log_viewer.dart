@@ -464,7 +464,7 @@ class _LogViewerState extends ConsumerState<LogViewer>
   Widget _buildLogEntry(LogEntry entry, SkotiqColors colors, bool isMobile) {
     final levelColor = _levelColor(entry.level);
     final levelLabel = _levelLabel(entry.level);
-    final timeStr = _formatTimestamp(entry.timestamp);
+    final timeStr = ClockFormat.hmsMillis(entry.timestamp);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 1),
@@ -519,11 +519,4 @@ class _LogViewerState extends ConsumerState<LogViewer>
     );
   }
 
-  String _formatTimestamp(DateTime dt) {
-    final h = dt.hour.toString().padLeft(2, '0');
-    final m = dt.minute.toString().padLeft(2, '0');
-    final s = dt.second.toString().padLeft(2, '0');
-    final ms = dt.millisecond.toString().padLeft(3, '0');
-    return '$h:$m:$s.$ms';
-  }
 }

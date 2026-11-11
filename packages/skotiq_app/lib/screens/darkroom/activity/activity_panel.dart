@@ -140,13 +140,6 @@ String nightLabel(DateTime time) {
   return '${months[evening.month - 1]} ${evening.day} to $end';
 }
 
-/// `05:42`, local time.
-String clockLabel(DateTime time) {
-  final local = time.toLocal();
-  String two(int v) => v.toString().padLeft(2, '0');
-  return '${two(local.hour)}:${two(local.minute)}';
-}
-
 /// `1 h 05 min`, `12 min` or `40 s`.
 String durationLabel(Duration d) {
   if (d.inMinutes < 1) return '${d.inSeconds} s';

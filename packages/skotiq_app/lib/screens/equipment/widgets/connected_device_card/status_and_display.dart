@@ -612,7 +612,7 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
                     : colors.error,
           ),
           _DeviceMetric(
-            value: age != null ? _formatAge(age) : null,
+            value: age != null ? RelativeTime.age(age) : null,
             unit: age != null ? 'ago' : null,
             label: 'Last checked',
             valueColor: isStale ? colors.warning : null,
@@ -820,17 +820,6 @@ class _AddToProfileLink extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Renders a duration as `12s` / `4m` / `2h`. Takes the age rather than a
-/// timestamp so the caller supplies the clock — see the safety-monitor branch of
-/// `_getMetrics` for why reading `DateTime.now()` in here made the label
-/// structurally incapable of ageing.
-String _formatAge(Duration age) {
-  if (age.isNegative) return '0s';
-  if (age.inSeconds < 60) return '${age.inSeconds}s';
-  if (age.inMinutes < 60) return '${age.inMinutes}m';
-  return '${age.inHours}h';
 }
 
 /// How old a safety reading may be before the card stops presenting it as the

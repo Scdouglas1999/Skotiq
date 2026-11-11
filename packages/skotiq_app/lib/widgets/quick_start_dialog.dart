@@ -109,23 +109,14 @@ class QuickStartDialog extends ConsumerWidget {
         DateUtils.dateOnly(now).difference(DateUtils.dateOnly(dt)).inDays;
 
     if (days == 0) {
-      return 'Today at ${_formatTime(dt)}';
+      return 'Today at ${ClockFormat.hm(dt)}';
     } else if (days == 1) {
-      return 'Yesterday at ${_formatTime(dt)}';
+      return 'Yesterday at ${ClockFormat.hm(dt)}';
     } else if (days > 1 && days < 7) {
-      return '$days days ago at ${_formatTime(dt)}';
+      return '$days days ago at ${ClockFormat.hm(dt)}';
     } else {
-      return '${_formatCalendarDate(dt)} at ${_formatTime(dt)}';
+      return '${ClockFormat.date(dt)} at ${ClockFormat.hm(dt)}';
     }
-  }
-
-  String _formatCalendarDate(DateTime dt) {
-    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
-        '${dt.day.toString().padLeft(2, '0')}';
-  }
-
-  String _formatTime(DateTime dt) {
-    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
   /// Integration in the same h/m/s shape the dashboard's last-run card and

@@ -15,6 +15,7 @@
 // ignore_for_file: invalid_annotation_target
 import 'package:equatable/equatable.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show ScoringWeights;
 import 'package:uuid/uuid.dart';
 import '../imaging/imaging_models.dart' show FrameType;

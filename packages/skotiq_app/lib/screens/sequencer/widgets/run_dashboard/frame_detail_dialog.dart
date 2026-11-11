@@ -202,7 +202,7 @@ class _Header extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 'Frame ${record.frameIndex}/${record.totalFrames} • '
-                'Captured ${_formatDateTime(record.createdAt)}',
+                'Captured ${ClockFormat.dateHms(record.createdAt.toLocal())}',
                 style: TextStyle(
                   fontSize: SkotiqTypography.fontSize11,
                   color: colors.textSecondary,
@@ -575,11 +575,3 @@ String _formatNumber(double? value, String suffix, {int digits = 2}) {
   return '${value.toStringAsFixed(digits)}$suffix';
 }
 
-String _formatDateTime(DateTime dt) {
-  final local = dt.toLocal();
-  return '${local.year}-${local.month.toString().padLeft(2, '0')}-'
-      '${local.day.toString().padLeft(2, '0')} '
-      '${local.hour.toString().padLeft(2, '0')}:'
-      '${local.minute.toString().padLeft(2, '0')}:'
-      '${local.second.toString().padLeft(2, '0')}';
-}

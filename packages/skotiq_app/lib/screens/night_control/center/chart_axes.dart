@@ -8,10 +8,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../data/session/session_format.dart';
-import 'center_format.dart';
 
 /// The axis label style: 9 px mono, line height 1.
 TextStyle nightAxisStyle(BuildContext context) =>
@@ -363,7 +363,7 @@ class _TimeScale extends StatelessWidget {
           top: 3,
           width: labelWidth,
           child: Text(
-            nightClockHm(t),
+            ClockFormat.hm(t),
             style: style,
             maxLines: 1,
             softWrap: false,

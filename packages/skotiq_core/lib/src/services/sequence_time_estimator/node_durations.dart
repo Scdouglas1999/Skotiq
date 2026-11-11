@@ -164,7 +164,7 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
       case LoopConditionType.untilTime:
         final until = node.repeatUntil;
         if (until != null) {
-          return 'Loop until ${_formatTime(until)} - showing single iteration';
+          return 'Loop until ${ClockFormat.hm(until)} - showing single iteration';
         }
         return 'Time-based loop - showing single iteration estimate';
       case LoopConditionType.untilAltitude:
@@ -189,11 +189,6 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
     }
   }
 
-  /// Format time for display.
-  String _formatTime(DateTime time) {
-    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-  }
-
   /// Format [time] for display next to [reference], adding the calendar date
   /// whenever the two fall on different days. A bare "03:41" printed beside a
   /// node scheduled at "12:47" reads as a time that already passed even when
@@ -203,10 +198,10 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
         time.year == reference.year &&
         time.month == reference.month &&
         time.day == reference.day;
-    if (sameDay) return _formatTime(time);
+    if (sameDay) return ClockFormat.hm(time);
     final month = time.month.toString().padLeft(2, '0');
     final day = time.day.toString().padLeft(2, '0');
-    return '${_formatTime(time)} on $month-$day';
+    return '${ClockFormat.hm(time)} on $month-$day';
   }
 
   /// Calculate when the specified twilight type will occur.

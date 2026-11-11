@@ -192,14 +192,14 @@ class _SnapshotBody extends StatelessWidget {
     if (last == null) return 'None this run';
     final from = state?.lastSwapFromTargetId;
     final to = state?.lastSwapToTargetId;
-    final prefix = '${_formatRelative(last)} ago';
+    final prefix = '${RelativeTime.age(DateTime.now().toUtc().difference(last.toUtc()))} ago';
     if ((from ?? '').isEmpty || (to ?? '').isEmpty) return prefix;
     return '$prefix ($from -> $to)';
   }
 
   String _telemetryAge(ConditionsScore? score, DateTime now) {
     if (score == null) return 'No score';
-    return '${_formatRelative(score.generatedAt)} old';
+    return '${RelativeTime.age(DateTime.now().toUtc().difference(score.generatedAt.toUtc()))} old';
   }
 
   Color _telemetryAgeColor(
@@ -211,14 +211,6 @@ class _SnapshotBody extends StatelessWidget {
     final age = now.difference(score.generatedAt.toUtc());
     if (age.inMinutes >= 5) return colors.warning;
     return colors.textSecondary;
-  }
-
-  String _formatRelative(DateTime time) {
-    final diff = DateTime.now().toUtc().difference(time.toUtc());
-    if (diff.inSeconds < 60) return '${diff.inSeconds}s';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
-    if (diff.inHours < 24) return '${diff.inHours}h';
-    return '${diff.inDays}d';
   }
 
   String _formatSecs(double? seconds) {

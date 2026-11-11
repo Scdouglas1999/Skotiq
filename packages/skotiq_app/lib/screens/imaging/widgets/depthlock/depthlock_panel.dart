@@ -647,7 +647,7 @@ class _DepthLockGoalDetailState extends ConsumerState<DepthLockGoalDetail> {
                         measurement: definition.measurement,
                       ),
               ),
-              ('Marked on', depthLockTimestamp(goal.selectedAtMs)),
+              ('Marked on', ClockFormat.dateHm(DateTime.fromMillisecondsSinceEpoch(goal.selectedAtMs))),
               ('Revision', '${goal.revision}'),
             ],
           ),

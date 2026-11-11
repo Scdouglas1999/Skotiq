@@ -38,9 +38,3 @@ String formatSeconds(double seconds) {
   return formatDuration(Duration(seconds: seconds.round()));
 }
 
-String formatTimeOfDay(DateTime t) {
-  final h = t.hour.toString().padLeft(2, '0');
-  final m = t.minute.toString().padLeft(2, '0');
-  final s = t.second.toString().padLeft(2, '0');
-  return '$h:$m:$s';
-}

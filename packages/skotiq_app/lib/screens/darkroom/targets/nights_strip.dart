@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'darkroom_targets_model.dart';
@@ -38,12 +39,6 @@ String darkroomNightLabel(DateTime evening) {
 }
 
 String darkroomWeekday(DateTime day) => _weekdays[day.weekday - 1];
-
-/// `Oct 22`.
-String darkroomShortDate(DateTime day) {
-  final l = day.toLocal();
-  return '${_months[l.month - 1]} ${l.day}';
-}
 
 /// The color a filter's subs are drawn in.
 Color darkroomFilterColor(String filter, SkotiqColors colors) {
@@ -173,13 +168,13 @@ class _NightRow extends StatelessWidget {
         night.use == DarkroomNightUse.all ? 'in masters' : '${night.kept} kept';
     final aria = [
       darkroomNightLabel(night.evening),
-      '${night.subs.length} subs from ${hhmm(night.first)} to '
-          '${hhmm(night.last)}',
+      '${night.subs.length} subs from ${ClockFormat.hm(night.first.toLocal())} to '
+          '${ClockFormat.hm(night.last.toLocal())}',
       '${night.kept} kept',
       if (night.offTarget > 0) '${night.offTarget} off target',
       if (night.pauses.isNotEmpty)
         '${night.pauses.length} pause${night.pauses.length == 1 ? '' : 's'}',
-      for (final m in night.marks) '${m.label} at ${hhmm(m.at)}',
+      for (final m in night.marks) '${m.label} at ${ClockFormat.hm(m.at.toLocal())}',
       if (night.use == DarkroomNightUse.all) 'all in the current masters',
     ].join(', ');
     return Container(

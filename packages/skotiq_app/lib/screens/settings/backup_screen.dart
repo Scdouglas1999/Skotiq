@@ -883,7 +883,7 @@ class _BackupTile extends StatelessWidget {
         style: SkotiqTypography.label.copyWith(color: colors.textPrimary),
       ),
       subtitle: Text(
-        '${_formatFileSize(backup.fileSize)} | $timestamp',
+        '${ByteFormat.size(backup.fileSize)} | $timestamp',
         style: SkotiqTypography.caption.copyWith(
           color: colors.textSecondary,
         ),
@@ -918,11 +918,6 @@ class _BackupTile extends StatelessWidget {
     );
   }
 
-  String _formatFileSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
 }
 
 class _StatusRow extends StatelessWidget {

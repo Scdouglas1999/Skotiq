@@ -320,7 +320,7 @@ class _SessionCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  _formatDateTime(session.startTime),
+                  ClockFormat.dateHm(session.startTime),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
@@ -392,11 +392,6 @@ class _SessionCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatDateTime(DateTime dt) {
-    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
-        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
   String _formatIntegration(double seconds) {

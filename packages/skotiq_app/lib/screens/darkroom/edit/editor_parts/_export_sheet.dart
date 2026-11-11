@@ -1406,7 +1406,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
         lines.add(
           '${format ?? 'file'}: ${path ?? outputPath}'
           '${width != null && height != null ? ' — $width×$height' : ''}'
-          '${bytes is int ? ', ${_bytes(bytes)}' : ''}'
+          '${bytes is int ? ', ${ByteFormat.size(bytes)}' : ''}'
           '${quality != null ? ', quality $quality' : ''}'
           '${clamped is int && clamped > 0 ? ', $clamped samples clamped' : ''}',
         );
@@ -1444,12 +1444,4 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
     return lines.join('\n');
   }
 
-  static String _bytes(int value) {
-    if (value < 1024) return '$value B';
-    if (value < 1024 * 1024) return '${(value / 1024).toStringAsFixed(1)} KB';
-    if (value < 1024 * 1024 * 1024) {
-      return '${(value / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(value / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
-  }
 }

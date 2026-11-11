@@ -153,7 +153,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
       if (!overlaps) {
         context.showWarningSnackBar(
           'Your chosen window falls outside tonight\'s dark window '
-          '(${_formatDateTime(twiStart)} – ${_formatDateTime(twiEnd)}). '
+          '(${ClockFormat.dateHm(twiStart.toLocal())} – ${ClockFormat.dateHm(twiEnd.toLocal())}). '
           'Exposures will be in twilight or daylight.',
         );
       }
@@ -515,11 +515,4 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
   String _formatDuration(Duration d) =>
       DurationFormat.of(d, style: DurationStyle.compact);
 
-  String _formatDateTime(DateTime dt) {
-    final local = dt.toLocal();
-    return '${local.year}-${local.month.toString().padLeft(2, '0')}-'
-        '${local.day.toString().padLeft(2, '0')} '
-        '${local.hour.toString().padLeft(2, '0')}:'
-        '${local.minute.toString().padLeft(2, '0')}';
-  }
 }

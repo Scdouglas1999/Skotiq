@@ -204,7 +204,7 @@ class PassHeader extends StatelessWidget {
     final clocks = <Widget>[
       _Clock(
         label: ended ? 'Took' : 'Elapsed',
-        value: passClock(snapshot.elapsed),
+        value: ClockFormat.stopwatch(snapshot.elapsed),
       ),
       if (ended)
         _Clock(
@@ -214,7 +214,7 @@ class PassHeader extends StatelessWidget {
       else
         _Clock(
           label: complete ? 'Remaining' : 'Remaining, at least',
-          value: passClock(remaining),
+          value: ClockFormat.stopwatch(remaining),
         ),
     ];
     final stop = onStop == null || ended

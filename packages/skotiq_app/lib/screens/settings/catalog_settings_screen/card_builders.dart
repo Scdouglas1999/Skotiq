@@ -264,22 +264,11 @@ mixin _CatalogCardBuilders on ConsumerState<CatalogSettingsScreen> {
     return out;
   }
 
-  String _formatCount(int? count) {
-    if (count == null) return 'Unknown';
-    if (count < 1000) return '$count';
-    if (count < 1000000) return '${(count / 1000).toStringAsFixed(1)}k';
-    return '${(count / 1000000).toStringAsFixed(1)}M';
-  }
+  String _formatCount(int? count) =>
+      count == null ? 'Unknown' : QuantityFormat.compactCount(count);
 
-  String _formatBytes(int? bytes) {
-    if (bytes == null || bytes <= 0) return 'Unknown';
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / 1024 / 1024).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / 1024 / 1024 / 1024).toStringAsFixed(2)} GB';
-  }
+  String _formatBytes(int? bytes) =>
+      bytes == null || bytes <= 0 ? 'Unknown' : ByteFormat.size(bytes);
 
   Widget _buildStatusChip({
     required BuildContext context,

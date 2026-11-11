@@ -233,7 +233,7 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
       if (wantFilter != null && wantFilter.isNotEmpty)
         'Filter $wantFilter match (required for flats)',
       'Newest of ${pool.length} qualifying flat${pool.length == 1 ? '' : 's'} '
-          '(${CalibrationLibraryService._fmtDate(best.createdAt)})',
+          '(${ClockFormat.date(best.createdAt.toLocal())})',
     ];
     final warnings = <String>[];
     var score = _applyUnverifiedTuple(

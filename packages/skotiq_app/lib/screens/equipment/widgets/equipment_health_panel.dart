@@ -140,16 +140,7 @@ class EquipmentHealthPanel extends ConsumerWidget {
     final age = DateTime.now().difference(
       DateTime.fromMillisecondsSinceEpoch(snapshot.lastSuccessfulTimestampMs),
     );
-    return '$state - ${_formatAge(age)} ago';
-  }
-
-  /// `12s` / `4m` / `2h` / `3d`.
-  static String _formatAge(Duration age) {
-    if (age.isNegative || age.inSeconds < 1) return '0s';
-    if (age.inSeconds < 60) return '${age.inSeconds}s';
-    if (age.inMinutes < 60) return '${age.inMinutes}m';
-    if (age.inHours < 24) return '${age.inHours}h';
-    return '${age.inDays}d';
+    return '$state - ${RelativeTime.age(age)} ago';
   }
 
   static Color _severityColor(

@@ -188,8 +188,8 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
 
       // Label: meridian flip / transit time.
       final label = visibility.isCircumpolar
-          ? 'Flip ${_hhmm(transit)} (circumpolar)'
-          : 'Flip ${_hhmm(transit)}';
+          ? 'Flip ${ClockFormat.hm(transit)} (circumpolar)'
+          : 'Flip ${ClockFormat.hm(transit)}';
       final tp = _TextCache.get(
         label,
         const TextStyle(
@@ -280,7 +280,7 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
 
     // Dusk / dawn labels.
     final duskTp = _TextCache.get(
-      'Dusk ${_hhmm(dusk)}',
+      'Dusk ${ClockFormat.hm(dusk)}',
       TextStyle(
         color: _twilightColor.withValues(alpha: 0.95),
         fontSize: 9,
@@ -290,7 +290,7 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     duskTp.paint(canvas, const Offset(left, top + height + 4));
 
     final dawnTp = _TextCache.get(
-      'Dawn ${_hhmm(dawn)}',
+      'Dawn ${ClockFormat.hm(dawn)}',
       TextStyle(
         color: _twilightColor.withValues(alpha: 0.95),
         fontSize: 9,
@@ -300,10 +300,4 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     dawnTp.paint(canvas, Offset(left + width - dawnTp.width, top + height + 4));
   }
 
-  /// Format a [DateTime] as zero-padded local HH:MM.
-  String _hhmm(DateTime t) {
-    final h = t.hour.toString().padLeft(2, '0');
-    final m = t.minute.toString().padLeft(2, '0');
-    return '$h:$m';
-  }
 }

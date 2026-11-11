@@ -578,7 +578,7 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
       top: 0,
       bottom: 0,
       child: Tooltip(
-        message: 'Now: ${_formatClockTime(_now)}',
+        message: 'Now: ${ClockFormat.hm(_now)}',
         child: Container(
           width: 2,
           decoration: BoxDecoration(
@@ -615,7 +615,7 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
     String completionText;
     if (widget.startTime != null) {
       completionText =
-          'Est. completion: ${_formatClockTime(_estimatedEndTime)}';
+          'Est. completion: ${ClockFormat.hm(_estimatedEndTime)}';
       if (!isInPast && remaining.inMinutes > 0) {
         completionText +=
             ' (~${_formatRemainingDuration(remaining)} remaining)';
@@ -661,7 +661,4 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
     return '${minutes}m';
   }
 
-  String _formatClockTime(DateTime time) {
-    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-  }
 }

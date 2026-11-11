@@ -88,7 +88,7 @@ LedgerColumns ledgerColumnsFor(
   NodeOpenEnd? openEnd,
   DateTime? eta,
 }) {
-  final etaText = eta == null ? '' : formatLedgerClock(eta);
+  final etaText = eta == null ? '' : ClockFormat.hm(eta.toLocal());
   // `<1s` is what `formatRollupDuration` returns for zero, which in a column
   // of estimates reads as a measurement rather than as "this step has no
   // length". A node with no duration leaves the column empty instead. One
@@ -175,18 +175,6 @@ String _frameCount(PlannedCapture planned) {
   if (planned.frames == 0) return '—';
   final floor = planned.hasUnboundedRepeat || planned.hasOpenEndedLoop;
   return floor ? '${planned.frames}+' : '${planned.frames}';
-}
-
-/// Format [time] as a local 24-hour `HH:mm` wall clock.
-///
-/// Hand-formatted rather than via `DateFormat` so the ETA column is the same
-/// string in every locale the sequencer runs under — the column is 62 px wide
-/// and a 12-hour `10:14 PM` does not fit it.
-String formatLedgerClock(DateTime time) {
-  final local = time.toLocal();
-  final hour = local.hour.toString().padLeft(2, '0');
-  final minute = local.minute.toString().padLeft(2, '0');
-  return '$hour:$minute';
 }
 
 /// One ETA cell's provenance: [start] is the clock the column prints and

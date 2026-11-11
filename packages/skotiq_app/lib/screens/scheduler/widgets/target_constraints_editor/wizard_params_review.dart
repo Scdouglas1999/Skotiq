@@ -176,7 +176,7 @@ class _Step3Review extends StatelessWidget {
       case TargetConstraintKind.timeWindow:
         typeLabel = 'Time window';
         summary =
-            'Only image $targetName between ${_fmt(timeWindow.startMinutes)} and ${_fmt(timeWindow.endMinutes)} local time.';
+            'Only image $targetName between ${ClockFormat.minutesOfDay(timeWindow.startMinutes)} and ${ClockFormat.minutesOfDay(timeWindow.endMinutes)} local time.';
         break;
       case TargetConstraintKind.moonIlluminationMax:
         // Must match the Step 1 card title. Two moon constraints exist —
@@ -207,8 +207,8 @@ class _Step3Review extends StatelessWidget {
         final endLocal = scheduledWindow.endUtc.toLocal();
         typeLabel = 'Scheduled window';
         summary =
-            'Force the scheduler onto $targetName from ${_fmtDt(startLocal)} '
-            'to ${_fmtDt(endLocal)} local with priority boost '
+            'Force the scheduler onto $targetName from ${ClockFormat.monthDayHm(startLocal)} '
+            'to ${ClockFormat.monthDayHm(endLocal)} local with priority boost '
             '+${scheduledWindow.priorityBoost.toStringAsFixed(1)}.';
         break;
     }
@@ -250,17 +250,4 @@ class _Step3Review extends StatelessWidget {
     );
   }
 
-  String _fmt(int mins) {
-    final h = mins ~/ 60;
-    final m = mins % 60;
-    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
-  }
-
-  String _fmtDt(DateTime t) {
-    final mm = t.month.toString().padLeft(2, '0');
-    final dd = t.day.toString().padLeft(2, '0');
-    final hh = t.hour.toString().padLeft(2, '0');
-    final mn = t.minute.toString().padLeft(2, '0');
-    return '$mm/$dd $hh:$mn';
-  }
 }

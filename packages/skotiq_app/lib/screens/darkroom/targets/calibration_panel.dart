@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/darkroom_navigation.dart';
 import 'darkroom_targets_model.dart';
 import 'darkroom_targets_providers.dart';
-import 'nights_strip.dart' show darkroomShortDate;
 
 const _fitsFiles = XTypeGroup(
   label: 'FITS images',
@@ -219,7 +219,7 @@ class _FilterRow extends ConsumerWidget {
         : cell(
             'flat',
             'Flat',
-            flat == null ? null : darkroomShortDate(flat.record.createdAt),
+            flat == null ? null : ClockFormat.monthDay(flat.record.createdAt.toLocal()),
             flat?.record.filePath,
           );
     return Container(

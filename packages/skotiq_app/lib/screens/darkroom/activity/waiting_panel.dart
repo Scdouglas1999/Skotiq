@@ -117,7 +117,7 @@ class _WaitingRow extends ConsumerWidget {
               if (job.nightRunId != null)
                 'Held by the night-end build of ${nightLabel(job.startedAt)}.'
               else
-                'Held since ${clockLabel(job.startedAt)}.',
+                'Held since ${ClockFormat.hm(job.startedAt.toLocal())}.',
             ].join(' '),
             style: SkotiqTypography.bodySm.copyWith(
               color: colors.textSecondary,

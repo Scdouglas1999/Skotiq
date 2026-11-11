@@ -31,7 +31,7 @@ _PillText _framePill(
 ) {
   final l10n = context.l10n;
   final clock = ref.watch(clockProvider);
-  final time = nightClockHms(clock.fromUtc(image.capturedAt.toUtc()));
+  final time = ClockFormat.hms(clock.fromUtc(image.capturedAt.toUtc()));
   final frame = _stripFrameFor(ref.watch(nightSessionFramesProvider), image);
   if (frame != null) {
     return _stripPill(context, frame, time: time);
@@ -64,7 +64,7 @@ _PillText _stripPill(BuildContext context, StripFrameVm frame, {String? time}) {
   final accepted = frame.accepted;
   return _PillText(
     title: _stripTitle(frame) ?? l10n.text('nightCtrFrame'),
-    time: time ?? nightClockHms(frame.capturedAt),
+    time: time ?? ClockFormat.hms(frame.capturedAt),
     status: switch ((accepted, frame.exclusion)) {
       (false, final FrameExclusionKind kind) => frameExclusionLabel(
           context,
@@ -217,7 +217,7 @@ class _TopPills extends ConsumerWidget {
               : l10n.text(
                   'nightCtrSolveOff',
                   // In the unit every off-target reading uses.
-                  params: <String, String>{'offset': nightAngle(off * 60)},
+                  params: <String, String>{'offset': AngleFormat.arcsec(off * 60)},
                 ),
           statusTone: _PillTone.good,
         );

@@ -252,7 +252,7 @@ class _NightCoolerSectionState extends ConsumerState<NightCoolerSection> {
   Widget _history(SkotiqLocalizations l10n) {
     final history = widget.history;
     final from = history.from;
-    final since = from == null ? null : nightPanelClock(from);
+    final since = from == null ? null : ClockFormat.hm(from);
     final latest = history.lines.first.points.lastOrNull?.y;
     final semantic = <String>[
       if (since != null)
@@ -435,12 +435,12 @@ class NightReadoutSection extends StatelessWidget {
         : nights == null
             ? l10n.text(
                 'nightPanelDiskFree',
-                params: <String, String>{'free': nightBytes(free)},
+                params: <String, String>{'free': ByteFormat.size(free)},
               )
             : l10n.text(
                 'nightPanelDiskFreeNights',
                 params: <String, String>{
-                  'free': nightBytes(free),
+                  'free': ByteFormat.size(free),
                   'nights': '$nights',
                 },
               );

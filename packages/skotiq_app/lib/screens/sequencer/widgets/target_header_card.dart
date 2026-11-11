@@ -446,7 +446,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
           if (node.startAfter != null)
             _ConstraintChip(
               icon: LucideIcons.clock,
-              label: 'Start: ${_formatTime(node.startAfter!)}',
+              label: 'Start: ${ClockFormat.hm(node.startAfter!)}',
               colors: widget.colors,
             ),
           if (node.startAfter != null && node.endBefore != null)
@@ -454,7 +454,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
           if (node.endBefore != null)
             _ConstraintChip(
               icon: LucideIcons.timer,
-              label: 'End: ${_formatTime(node.endBefore!)}',
+              label: 'End: ${ClockFormat.hm(node.endBefore!)}',
               colors: widget.colors,
             ),
 
@@ -671,12 +671,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
         ],
       ),
     );
-  }
-
-  String _formatTime(DateTime time) {
-    final hour = time.hour.toString().padLeft(2, '0');
-    final minute = time.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
   }
 
   /// Count the frames and integration time planned under this target.

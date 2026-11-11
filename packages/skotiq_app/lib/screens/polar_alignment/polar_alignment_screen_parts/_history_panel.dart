@@ -255,16 +255,8 @@ extension _HistoryPanel on _PolarAlignmentScreenState {
 
   String _formatDate(DateTime date) {
     final now = DateTime.now();
-    final diff = now.difference(date);
-
-    if (diff.inDays == 0) {
-      return 'Today ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-    } else if (diff.inDays == 1) {
-      return 'Yesterday';
-    } else if (diff.inDays < 7) {
-      return '${diff.inDays} days ago';
-    } else {
-      return '${date.month}/${date.day}/${date.year}';
-    }
+    return now.difference(date).inDays < 7
+        ? ClockFormat.hmOrMonthDayHm(date, now)
+        : ClockFormat.monthDayYear(date);
   }
 }

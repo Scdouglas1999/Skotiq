@@ -1,3 +1,4 @@
+import 'package:skotiq_astro/format.dart';
 import '../models/sequence/sequence_models.dart';
 import 'sequence_time_estimator.dart';
 
@@ -137,15 +138,15 @@ class PreSessionSimulator {
         PreSessionSimulationIssue(
           severity: PreSessionSimulationSeverity.warning,
           message:
-              'Sequence is expected to start at ${_formatTime(start)}, '
-              'before the dark window starts at ${_formatTime(darkWindowStart)}.',
+              'Sequence is expected to start at ${ClockFormat.hm(start)}, '
+              'before the dark window starts at ${ClockFormat.hm(darkWindowStart)}.',
         ),
       if (darkWindowEnd != null && end.isAfter(darkWindowEnd))
         PreSessionSimulationIssue(
           severity: PreSessionSimulationSeverity.warning,
           message:
-              'Sequence is expected to end at ${_formatTime(end)}, '
-              'after the dark window ends at ${_formatTime(darkWindowEnd)}.',
+              'Sequence is expected to end at ${ClockFormat.hm(end)}, '
+              'after the dark window ends at ${ClockFormat.hm(darkWindowEnd)}.',
         ),
     ];
 
@@ -201,7 +202,4 @@ class PreSessionSimulator {
     }
   }
 
-  String _formatTime(DateTime time) =>
-      '${time.hour.toString().padLeft(2, '0')}:'
-      '${time.minute.toString().padLeft(2, '0')}';
 }

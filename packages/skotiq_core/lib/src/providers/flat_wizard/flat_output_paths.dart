@@ -54,9 +54,6 @@ String _sanitizeComponent(String raw) {
 
 String _two(int v) => v.toString().padLeft(2, '0');
 
-String _fmtDate(DateTime d) =>
-    '${d.year.toString().padLeft(4, '0')}-${_two(d.month)}-${_two(d.day)}';
-
 String _fmtStamp(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}${_two(d.month)}${_two(d.day)}'
     '_${_two(d.hour)}${_two(d.minute)}${_two(d.second)}';

@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show visibleForTesting, listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_astro/format.dart';
 import '../utils/host_paths.dart';
 import '../backend/network_backend.dart';
 import '../models/backend/fits_header.dart' show FitsWriteHeader;

@@ -187,18 +187,6 @@ String depthLockErrorMessage(Object error) {
       : raw;
 }
 
-/// `2026-09-12 21:40` in the device's own time, for a selection timestamp.
-///
-/// A goal's selection date is the line between discovery data and evidence, so
-/// it is shown to the minute rather than as "3 days ago": the operator matches
-/// it against the timestamps on their own subs.
-String depthLockTimestamp(int unixMs) {
-  final when = DateTime.fromMillisecondsSinceEpoch(unixMs);
-  String two(int value) => value.toString().padLeft(2, '0');
-  return '${when.year}-${two(when.month)}-${two(when.day)} '
-      '${two(when.hour)}:${two(when.minute)}';
-}
-
 /// Integration time for [frames] exposures of this goal, in hours.
 double depthLockHours({required int frames, required double exposureSecs}) =>
     frames <= 0 || exposureSecs <= 0 ? 0 : frames * exposureSecs / 3600.0;

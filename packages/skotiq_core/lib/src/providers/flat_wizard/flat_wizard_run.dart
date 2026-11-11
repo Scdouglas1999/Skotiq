@@ -187,7 +187,7 @@ extension FlatWizardRun on FlatWizardNotifier {
           : p.context;
       var baseSavePath = savePath;
       if (runSettings.createDateSubfolder) {
-        baseSavePath = paths.join(baseSavePath, _fmtDate(DateTime.now()));
+        baseSavePath = paths.join(baseSavePath, ClockFormat.date(DateTime.now()));
       }
       final createOutputLocally = backend is! NetworkBackend;
       await prepareFlatOutputDirectory(

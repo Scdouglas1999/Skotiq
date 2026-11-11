@@ -89,16 +89,8 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
     }
   }
 
-  String _formatDateTime(DateTime? dt) {
-    if (dt == null) return 'Never';
-    final now = DateTime.now();
-    final diff = now.difference(dt);
-
-    if (diff.inSeconds < 60) return '${diff.inSeconds}s ago';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
-  }
+  String _formatDateTime(DateTime? dt) =>
+      dt == null ? 'Never' : RelativeTime.ago(dt);
 
   String _formatNextSave(DateTime? lastSave, Duration interval) {
     if (lastSave == null) return 'Pending';

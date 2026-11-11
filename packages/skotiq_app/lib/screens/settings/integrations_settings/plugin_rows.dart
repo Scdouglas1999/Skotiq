@@ -297,7 +297,7 @@ class _PluginStatusPill extends StatelessWidget {
         icon: LucideIcons.power,
         label: lastFiredAt != null ? 'Disabled' : '',
         value:
-            lastFiredAt != null ? formatRelativeTime(lastFiredAt!) : 'Disabled',
+            lastFiredAt != null ? RelativeTime.ago(lastFiredAt!) : 'Disabled',
         status: StatusPillStatus.inactive,
       );
     }
@@ -306,7 +306,7 @@ class _PluginStatusPill extends StatelessWidget {
       return StatusPill(
         icon: LucideIcons.activity,
         label: 'Fired',
-        value: formatRelativeTime(lastFiredAt!),
+        value: RelativeTime.ago(lastFiredAt!),
         status: StatusPillStatus.success,
       );
     }
@@ -320,20 +320,3 @@ class _PluginStatusPill extends StatelessWidget {
   }
 }
 
-/// Formats a [timestamp] as a compact, human-relative string ("just now",
-/// "3m ago", "2h ago", "5d ago"). Exposed for testability.
-String formatRelativeTime(DateTime timestamp, {DateTime? now}) {
-  final reference = now ?? DateTime.now();
-  final delta = reference.difference(timestamp);
-
-  if (delta.isNegative) {
-    // Clock skew / future timestamp — clamp to "just now" rather than emitting
-    // a nonsensical negative duration.
-    return 'just now';
-  }
-  if (delta.inSeconds < 45) return 'just now';
-  if (delta.inMinutes < 1) return '1m ago';
-  if (delta.inMinutes < 60) return '${delta.inMinutes}m ago';
-  if (delta.inHours < 24) return '${delta.inHours}h ago';
-  return '${delta.inDays}d ago';
-}

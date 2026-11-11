@@ -5,7 +5,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'run_dashboard/run_dashboard_format.dart';
 
 class SequenceProgressBar extends ConsumerStatefulWidget {
   final SkotiqColors colors;
@@ -541,7 +540,7 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                               const SizedBox(width: 4),
                               Text(
                                 '~${DurationFormat.seconds(progress.estimatedRemainingSecs!, rounding: DurationRounding.truncate)}'
-                                ' · done ~${formatTimeOfDay(DateTime.now().add(Duration(seconds: progress.estimatedRemainingSecs!.round())))}',
+                                ' · done ~${ClockFormat.hms(DateTime.now().add(Duration(seconds: progress.estimatedRemainingSecs!.round())))}',
                                 style: TextStyle(
                                   fontSize: SkotiqTypography.fontSize11,
                                   color: widget.colors.textMuted,

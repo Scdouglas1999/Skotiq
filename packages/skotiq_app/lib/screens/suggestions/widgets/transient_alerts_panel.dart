@@ -353,13 +353,10 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
         : 'Enable an alert source in the settings above.';
   }
 
-  String _ago(DateTime when) {
-    final delta = DateTime.now().difference(when);
-    if (delta.inMinutes < 1) return 'just now';
-    if (delta.inMinutes < 60) return '${delta.inMinutes} min ago';
-    if (delta.inHours < 24) return '${delta.inHours} h ago';
-    return DateFormat.yMMMd().add_Hm().format(when.toLocal());
-  }
+  String _ago(DateTime when) =>
+      DateTime.now().difference(when).inHours < 24
+          ? RelativeTime.ago(when)
+          : ClockFormat.monthDayYearHm(when.toLocal());
 
   List<TransientAlert> _sortForDisplay(
     List<TransientAlert> alerts,

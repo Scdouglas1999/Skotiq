@@ -284,7 +284,7 @@ class _StageTiming extends StatelessWidget {
         leftText = 'unknown';
         leftColor = colors.warning;
       } else {
-        leftText = '${fromHistory ? '~' : ''}${passClock(left)}';
+        leftText = '${fromHistory ? '~' : ''}${ClockFormat.stopwatch(left)}';
         leftColor = colors.textPrimary;
       }
       rows.add(
@@ -305,7 +305,7 @@ class _StageTiming extends StatelessWidget {
               _cell(total == 0 ? '' : '$done/$total', 50,
                   mono.copyWith(color: colors.textSecondary)),
               _cell(perSub, 46, mono),
-              _cell(took == Duration.zero ? '' : passClock(took), 46,
+              _cell(took == Duration.zero ? '' : ClockFormat.stopwatch(took), 46,
                   mono.copyWith(color: colors.textSecondary)),
               _cell(leftText, 60, mono.copyWith(color: leftColor)),
             ],
@@ -772,7 +772,7 @@ class _DraftList extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    took == null ? '' : passClock(took),
+                    took == null ? '' : ClockFormat.stopwatch(took),
                     style: SkotiqTypography.monoXs
                         .copyWith(color: colors.textSecondary),
                   ),

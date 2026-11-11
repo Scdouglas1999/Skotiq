@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_astro/format.dart';
 
 import '../backend/remote_host.dart';
 import '../backend/roles/host_data/calibration_library.dart';
@@ -556,8 +557,6 @@ class CalibrationLibraryService implements CalibrationLibrary {
 
   static double _clampScore(double score) => score.clamp(0.0, 100.0);
 
-  static String _fmtDate(DateTime when) =>
-      when.toLocal().toIso8601String().split('T').first;
 }
 
 /// The calibration library of whichever machine is the imaging host: this

@@ -16,7 +16,6 @@ import '../../../../localization/skotiq_localizations.dart';
 import '../../actions/manual_action_gating.dart';
 import '../../actions/night_action_controller.dart';
 import '../../data/plan/night_plan_inputs.dart';
-import '../../data/session/last_frame_metrics_provider.dart' show nightAngle;
 import '../../night_control_contracts.dart';
 import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import '../mount/night_panel_parts.dart';
@@ -39,14 +38,6 @@ class NightSolveTab extends ConsumerWidget {
     );
   }
 }
-
-/// An offset in arcseconds, formatted as every off-target reading on Tonight
-/// is (see [nightAngle]).
-String formatArcsec(double arcsec) => nightAngle(arcsec);
-
-/// `23:49`.
-String formatClockTime(DateTime t) =>
-    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
 /// A solver result field that is set: finite and, for sizes, positive.
 double? _known(double value, {bool positive = false}) =>
@@ -98,7 +89,7 @@ class _LastSolveSection extends ConsumerWidget {
       final parts = <String>[
         l10n.text(solved ? 'nightScopeSolveSolved' : 'nightScopeSolveFailed'),
         if (lastRecord != null)
-          formatClockTime(clock.toNightClock(lastRecord.at)),
+          ClockFormat.hm(clock.toNightClock(lastRecord.at)),
         if (duration != null)
           '${(duration.inMilliseconds / 1000).toStringAsFixed(1)} s',
       ];
@@ -182,7 +173,7 @@ class _LastSolveSection extends ConsumerWidget {
             ),
             MetricGridItem(
               label: l10n.text('nightScopeSolveOffTarget'),
-              value: offTarget == null ? null : formatArcsec(offTarget),
+              value: offTarget == null ? null : AngleFormat.arcsec(offTarget),
             ),
           ],
         ),

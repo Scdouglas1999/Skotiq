@@ -641,7 +641,7 @@ class _CoolingCard extends ConsumerWidget {
           ? null
           : l10n.text(
               'nightCtrSince',
-              params: <String, String>{'time': nightClockHm(from)},
+              params: <String, String>{'time': ClockFormat.hm(from)},
             ),
       body: _ChartBody(
         leftUnit: ' °C',

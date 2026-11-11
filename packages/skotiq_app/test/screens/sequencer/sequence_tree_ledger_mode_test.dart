@@ -763,7 +763,7 @@ void main() {
 
     final etaText = tester.widget<Text>(find.descendant(
       of: _rowShellOf(find.text('L subs')).first,
-      matching: find.text(formatLedgerClock(t0)),
+      matching: find.text(ClockFormat.hm(t0.toLocal())),
     ));
     expect(etaText.style?.color, colors.textMuted);
     await _drainValidationDebounce(tester);

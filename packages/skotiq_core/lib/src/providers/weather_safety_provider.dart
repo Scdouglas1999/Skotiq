@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
 import '../models/weather/weather_models.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/settings/app_settings.dart';
@@ -429,7 +430,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     if (alertStale) {
       failModeWarning ??=
           'The weather forecast has not refreshed since '
-          '${_clockTime(rawAlert.generatedAt)}; it is not being acted on';
+          '${ClockFormat.hm(rawAlert.generatedAt.toLocal())}; it is not being acted on';
     }
     bool useFailMode = false;
 
@@ -676,12 +677,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     const floor = Duration(minutes: 15);
     final maxAge = twoRefreshes > floor ? twoRefreshes : floor;
     return _clock().difference(alert.generatedAt) > maxAge;
-  }
-
-  static String _clockTime(DateTime at) {
-    final local = at.toLocal();
-    return '${local.hour.toString().padLeft(2, '0')}:'
-        '${local.minute.toString().padLeft(2, '0')}';
   }
 
   /// The decision policy as loaded so far; the defaults until it is.

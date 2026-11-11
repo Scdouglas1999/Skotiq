@@ -395,8 +395,8 @@ class _LimitingCard extends StatelessWidget {
   static String _when(DarkroomLimitingFrame f, DbCapturedImage? image) {
     if (image == null) return f.group;
     final side = image.pierSide == null ? '' : ' · ${image.pierSide}';
-    return '${darkroomShortDate(image.capturedAt)}, '
-        '${hhmm(image.capturedAt)}$side';
+    return '${ClockFormat.monthDay(image.capturedAt.toLocal())}, '
+        '${ClockFormat.hm(image.capturedAt.toLocal())}$side';
   }
 }
 

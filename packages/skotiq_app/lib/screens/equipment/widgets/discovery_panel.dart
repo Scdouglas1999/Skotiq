@@ -271,24 +271,9 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
       (!scanning || _isScanning) &&
       (!rescanning || _isRescanning);
 
-  String _formatLastScanTime(DateTime? lastScan) {
-    if (lastScan == null) return 'Never scanned';
-
-    final now = DateTime.now();
-    final difference = now.difference(lastScan);
-
-    if (difference.inSeconds < 60) {
-      return 'Just now';
-    } else if (difference.inMinutes < 60) {
-      final mins = difference.inMinutes;
-      return '$mins min${mins == 1 ? '' : 's'} ago';
-    } else if (difference.inHours < 24) {
-      final hours = difference.inHours;
-      return '$hours hour${hours == 1 ? '' : 's'} ago';
-    } else {
-      return 'Over a day ago';
-    }
-  }
+  String _formatLastScanTime(DateTime? lastScan) => lastScan == null
+      ? 'Never scanned'
+      : RelativeTime.ago(lastScan, style: RelativeTimeStyle.words);
 
   @override
   Widget build(BuildContext context) {

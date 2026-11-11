@@ -710,7 +710,7 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
           if (state.lastUpdated != null)
             (
               'Last Updated',
-              '${_formatAge(_tickNow().difference(state.lastUpdated!))} '
+              '${RelativeTime.age(_tickNow().difference(state.lastUpdated!))} '
                   'ago'
             ),
         ];
@@ -733,7 +733,7 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
                         ? 'Yes'
                         : 'No'
           ),
-          if (age != null) ('Last Checked', '${_formatAge(age)} ago'),
+          if (age != null) ('Last Checked', '${RelativeTime.age(age)} ago'),
         ];
 
       case ConnectedDeviceType.coverCalibrator:

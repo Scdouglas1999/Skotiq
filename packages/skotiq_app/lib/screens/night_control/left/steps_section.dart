@@ -11,6 +11,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/skotiq_core.dart' show selectedNodeIdProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -331,7 +332,7 @@ class _StepRow extends StatelessWidget {
   /// "19:52" recorded, "≈03:40" planned, "44/60" running.
   static String? _when(StepWhen? when) => switch (when) {
         null => null,
-        StepWhenActual(:final at) => nightHm(at),
+        StepWhenActual(:final at) => ClockFormat.hm(at),
         StepWhenPlanned(:final at) =>
           nightHmMaybeEstimated(at, estimated: true),
         StepWhenProgress(:final done, :final total) =>

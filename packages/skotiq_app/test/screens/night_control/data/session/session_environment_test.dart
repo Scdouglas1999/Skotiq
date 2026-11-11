@@ -414,7 +414,7 @@ void main() {
       expect(dawn.detail!.key, 'nightSessionCheckDawnPark');
       expect(
         dawn.detail!.params['time'],
-        nightClockTime(const SystemClock(), expected),
+        ClockFormat.hm((const SystemClock()).fromUtc(expected.toUtc())),
       );
     });
 

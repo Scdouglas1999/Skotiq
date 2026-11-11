@@ -128,7 +128,7 @@ String darkroomHeroSentence(DarkroomTarget target, DarkroomBuildJob? job) {
   final more = target.newSubsInBuiltNights;
   final topUp = target.nights
       .where((n) => n.use == DarkroomNightUse.partly)
-      .map((n) => darkroomShortDate(n.evening))
+      .map((n) => ClockFormat.monthDay(n.evening.toLocal()))
       .join(', ');
   if (fresh > 0 && more > 0) {
     return '$fresh new night${fresh == 1 ? '' : 's'} since your last '
@@ -616,7 +616,7 @@ class _LastMasters extends StatelessWidget {
       trailing: newest == null
           ? null
           : Text(
-              '${darkroomShortDate(newest)}'
+              '${ClockFormat.monthDay(newest.toLocal())}'
               '${nights == 0 ? '' : ' · $nights night${nights == 1 ? '' : 's'}'}',
               style: SkotiqTypography.caption.copyWith(
                 color: colors.textSecondary,

@@ -269,7 +269,7 @@ class _ForensicsRow extends StatelessWidget {
                       ),
                       const Spacer(),
                       Text(
-                        _formatTime(record.createdAt),
+                        ClockFormat.hms(record.createdAt.toLocal()),
                         style: SkotiqTypography.withTabular(
                           SkotiqTypography.labelQuiet.copyWith(
                             color: colors.textMuted,
@@ -298,12 +298,6 @@ class _ForensicsRow extends StatelessWidget {
     );
   }
 
-  String _formatTime(DateTime dt) {
-    final local = dt.toLocal();
-    return '${local.hour.toString().padLeft(2, '0')}:'
-        '${local.minute.toString().padLeft(2, '0')}:'
-        '${local.second.toString().padLeft(2, '0')}';
-  }
 }
 
 class _ErrorBanner extends StatelessWidget {

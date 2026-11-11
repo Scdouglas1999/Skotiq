@@ -482,8 +482,3 @@ SeriesChartTone nightChartTone(SeriesTone tone) => switch (tone) {
       SeriesTone.error => SeriesChartTone.error,
     };
 
-/// `HH:mm` of a view-model time, which is already on the operator's clock.
-String nightPanelClock(DateTime time) {
-  String two(int v) => v.toString().padLeft(2, '0');
-  return '${two(time.hour)}:${two(time.minute)}';
-}

@@ -68,7 +68,7 @@ class _TimeWindowField extends StatelessWidget {
         OutlinedButton.icon(
           icon: const Icon(LucideIcons.clock, size: 14),
           onPressed: () => _pickStart(context),
-          label: Text(_format(window.startMinutes)),
+          label: Text(ClockFormat.minutesOfDay(window.startMinutes)),
         ),
         const SizedBox(width: SkotiqTokens.spaceSm),
         Text('to',
@@ -77,7 +77,7 @@ class _TimeWindowField extends StatelessWidget {
         OutlinedButton.icon(
           icon: const Icon(LucideIcons.clock, size: 14),
           onPressed: () => _pickEnd(context),
-          label: Text(_format(window.endMinutes)),
+          label: Text(ClockFormat.minutesOfDay(window.endMinutes)),
         ),
         if (window.endMinutes < window.startMinutes) ...[
           const SizedBox(width: SkotiqTokens.spaceSm),
@@ -127,11 +127,6 @@ class _TimeWindowField extends StatelessWidget {
     ));
   }
 
-  String _format(int mins) {
-    final h = mins ~/ 60;
-    final m = mins % 60;
-    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
-  }
 }
 
 class _MoonField extends StatelessWidget {
@@ -263,7 +258,7 @@ class _ScheduledWindowField extends StatelessWidget {
             OutlinedButton.icon(
               icon: const Icon(LucideIcons.calendar, size: 14),
               onPressed: () => _pickStart(context),
-              label: Text('Start ${_fmt(startLocal)}'),
+              label: Text('Start ${ClockFormat.monthDayHm(startLocal)}'),
             ),
             Text('to',
                 style: SkotiqTypography.body
@@ -271,7 +266,7 @@ class _ScheduledWindowField extends StatelessWidget {
             OutlinedButton.icon(
               icon: const Icon(LucideIcons.calendar, size: 14),
               onPressed: () => _pickEnd(context),
-              label: Text('End ${_fmt(endLocal)}'),
+              label: Text('End ${ClockFormat.monthDayHm(endLocal)}'),
             ),
           ],
         ),
@@ -337,13 +332,6 @@ class _ScheduledWindowField extends StatelessWidget {
     ));
   }
 
-  String _fmt(DateTime t) {
-    final mm = t.month.toString().padLeft(2, '0');
-    final dd = t.day.toString().padLeft(2, '0');
-    final hh = t.hour.toString().padLeft(2, '0');
-    final mn = t.minute.toString().padLeft(2, '0');
-    return '$mm/$dd $hh:$mn';
-  }
 }
 
 Future<DateTime?> _pickDateTime(BuildContext context, DateTime initial) async {

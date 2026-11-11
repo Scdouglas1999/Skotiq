@@ -19,7 +19,7 @@ import '../build_masters/job_views.dart' show describeEta, percent;
 import 'darkroom_targets_model.dart';
 import 'darkroom_targets_providers.dart';
 import 'target_detail.dart' show describeBuiltMasters, joinWords;
-import 'nights_strip.dart' show darkroomNightLabel, darkroomShortDate;
+import 'nights_strip.dart' show darkroomNightLabel;
 
 part 'framing_check_parts/_field.dart';
 part 'framing_check_parts/_aside.dart';
