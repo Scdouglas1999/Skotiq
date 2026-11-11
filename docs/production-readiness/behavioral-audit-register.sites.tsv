@@ -2281,23 +2281,9 @@ packages/skotiq_app/lib/widgets/update/update_manager_widget.dart	_showDownloadP
 packages/skotiq_app/lib/widgets/update/update_manager_widget.dart	_showUpdateReadyDialog	literal_null_coalesce	2	V0261	state.availableUpdate?.version ?? '',
 packages/skotiq_app/lib/widgets/update/update_manager_widget.dart	_showUpdateReadyDialog	literal_null_coalesce	1	V0261	version: state.availableUpdate?.version ?? '',
 packages/skotiq_app/lib/widgets/weather/weather_radar_map.dart	_buildRadarTileLayer	comment_best_effort	1	V0747	// placeholder tiles at the closer default map zooms.
-packages/skotiq_astro/lib/src/catalogs/catalog.dart	objectCount	literal_null_coalesce	1	V0112	int get objectCount => _cachedObjects?.length ?? 0;
-packages/skotiq_astro/lib/src/catalogs/catalog.dart	search	literal_null_coalesce	1	V0112	if (o.constellation?.toLowerCase().contains(q) ?? false) return true;
-packages/skotiq_astro/lib/src/catalogs/catalog_manager/annotation_catalog_io.dart	_downloadAnnotationCatalog	literal_null_coalesce	1	V0121	final contentLength = streamedResponse.contentLength ?? 0;
-packages/skotiq_astro/lib/src/catalogs/catalog_manager/legacy_catalog_io.dart	_cleanupTempFile	comment_best_effort	1	V0121	// Best-effort cleanup; a stale `.partial` is harmless and ignored by
-packages/skotiq_astro/lib/src/catalogs/catalog_manager/legacy_catalog_io.dart	_cleanupTempFile	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_astro/lib/src/catalogs/catalog_manager/legacy_catalog_io.dart	_fetchCatalogCandidate	literal_null_coalesce	1	V0121	final contentLength = streamedResponse.contentLength ?? 0;
-packages/skotiq_astro/lib/src/catalogs/catalog_manager/manager.dart	_getCatalogStatus	literal_null_coalesce	1	V0121	installedDate = DateTime.tryParse(metaJson['installedDate'] ?? '');
-packages/skotiq_astro/lib/src/catalogs/catalog_manager/search_models.dart	HygStarData.fromCsvLine	literal_null_coalesce	1	V0121	dec: double.tryParse(p[8]) ?? 0,
-packages/skotiq_astro/lib/src/catalogs/catalog_manager/search_models.dart	HygStarData.fromCsvLine	literal_null_coalesce	1	V0121	id: int.tryParse(p[0]) ?? 0,
-packages/skotiq_astro/lib/src/catalogs/catalog_manager/search_models.dart	HygStarData.fromCsvLine	literal_null_coalesce	1	V0121	ra: (double.tryParse(p[7]) ?? 0) * 15, // Convert from hours to degrees
-packages/skotiq_astro/lib/src/catalogs/catalog_manager/search_models.dart	parseDec	literal_null_coalesce	1	V0121	final d = double.tryParse(parts[0]) ?? 0;
-packages/skotiq_astro/lib/src/catalogs/catalog_manager/search_models.dart	parseDec	literal_null_coalesce	1	V0121	final m = double.tryParse(parts[1]) ?? 0;
-packages/skotiq_astro/lib/src/catalogs/catalog_manager/search_models.dart	parseDec	literal_null_coalesce	1	V0121	final s = double.tryParse(parts[2]) ?? 0;
-packages/skotiq_astro/lib/src/catalogs/catalog_manager/unified_catalog_api.dart	_downloadAndInstallCatalog	comment_best_effort	1	V0121	// Best-effort cleanup; not throwing here because the cancel itself
-packages/skotiq_astro/lib/src/catalogs/catalog_manager/unified_catalog_api.dart	_downloadAndInstallCatalog	empty_catch	3	V0121	} catch (_) {
-packages/skotiq_astro/lib/src/catalogs/catalog_manager/unified_catalog_api.dart	_statusFor	literal_null_coalesce	1	V0121	raw['installedDate']?.toString() ?? '',
-packages/skotiq_astro/lib/src/catalogs/catalog_manager/unified_catalog_api.dart	_statusFor	literal_null_coalesce	1	V0121	raw['lastVerified']?.toString() ?? '',
+packages/skotiq_astro/lib/src/catalogs/catalog_installer.dart	_transfer	literal_null_coalesce	1	U2-06	final contentLength = response.contentLength ?? 0;
+packages/skotiq_astro/lib/src/catalogs/catalog_installer.dart	status	literal_null_coalesce	1	U2-06	installedAt: DateTime.tryParse(raw['installedDate']?.toString() ?? ''),
+packages/skotiq_astro/lib/src/catalogs/catalog_installer.dart	status	literal_null_coalesce	1	U2-06	lastVerified: DateTime.tryParse(raw['lastVerified']?.toString() ?? ''),
 packages/skotiq_astro/lib/src/catalogs/catalog_region_scan.dart	scanCatalogRegion	empty_catch	1	V0775	} catch (_) {
 packages/skotiq_astro/lib/src/catalogs/deep_star_catalog.dart	status	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_astro/lib/src/catalogs/deep_star_catalog.dart	status	literal_null_coalesce	1	V0121	installedAt = DateTime.tryParse(json['installedAt'] as String? ?? '');
@@ -2316,8 +2302,6 @@ packages/skotiq_astro/lib/src/catalogs/mpcorb.dart	parseAsteroidLine	empty_catch
 packages/skotiq_astro/lib/src/catalogs/mpcorb.dart	parseCometLine	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_astro/lib/src/catalogs/mpcorb.dart	parseAsteroidLine	literal_null_coalesce	1	V0121	final g = double.tryParse(line.substring(14, 19).trim()) ?? 0.15;
 packages/skotiq_astro/lib/src/catalogs/satellite_catalog.dart	_parseTwoLinesWithName	literal_null_coalesce	1	V0112	revolutionNumber = int.tryParse(revStr) ?? 0;
-packages/skotiq_astro/lib/src/catalogs/star_catalog.dart	search	literal_null_coalesce	1	V0112	(s.constellation?.toLowerCase().contains(q) ?? false) ||
-packages/skotiq_astro/lib/src/catalogs/star_catalog.dart	starCount	literal_null_coalesce	1	V0112	int get starCount => _cachedStars?.length ?? 0;
 packages/skotiq_astro/lib/src/catalogs/star_catalog/hyg_parser.dart	_parseHygLine	literal_null_coalesce	1	V0291	'$bayerDesignation ${_getConstellationGenitive(constellation ?? '')}';
 packages/skotiq_astro/lib/src/catalogs/star_catalog/hyg_parser.dart	_parseHygLine	literal_null_coalesce	1	V0293	final compPrimary = parts.length > 31 ? (int.tryParse(parts[31]) ?? 0) : 0;
 packages/skotiq_astro/lib/src/catalogs/star_catalog/hyg_parser.dart	_parseHygLine	literal_null_coalesce	1	V0290	final hygId = int.tryParse(parts[0]) ?? 0;
@@ -2438,6 +2422,16 @@ packages/skotiq_core/lib/src/backend/network_backend/device_operations.dart	moun
 packages/skotiq_core/lib/src/backend/network_backend/device_operations.dart	mountSiteCapabilities	literal_null_coalesce	1	V0121	canWriteSite: json['canWriteSite'] as bool? ?? false,
 packages/skotiq_core/lib/src/backend/network_backend/device_operations.dart	mountSiteCapabilities	literal_null_coalesce	1	V0121	canWriteTime: json['canWriteTime'] as bool? ?? false,
 packages/skotiq_core/lib/src/backend/network_backend/device_operations.dart	cameraGetRecommendedSettings	unimplemented_behavior	1	V0121	'cameraGetRecommendedSettings not implemented on remote '
+packages/skotiq_core/lib/src/backend/network_backend/host_data/remote_host_records.dart	_sequenceFromJson	literal_null_coalesce	1	V0018	estimatedDurationMins: json['estimatedDurationMins'] as int? ?? 0,
+packages/skotiq_core/lib/src/backend/network_backend/host_data/remote_host_records.dart	_sequenceFromJson	literal_null_coalesce	1	V0018	isFavorite: json['isFavorite'] as bool? ?? false,
+packages/skotiq_core/lib/src/backend/network_backend/host_data/remote_host_records.dart	_sequenceFromJson	literal_null_coalesce	1	V0018	isTemplate: json['isTemplate'] as bool? ?? false,
+packages/skotiq_core/lib/src/backend/network_backend/host_data/remote_host_records.dart	_targetFromJson	literal_null_coalesce	1	V0018	(json['goalIntegrationSecs'] as num?)?.toDouble() ?? 0.0,
+packages/skotiq_core/lib/src/backend/network_backend/host_data/remote_host_records.dart	_targetFromJson	literal_null_coalesce	1	V0018	(json['totalIntegrationSecs'] as num?)?.toDouble() ?? 0.0,
+packages/skotiq_core/lib/src/backend/network_backend/host_data/remote_host_records.dart	_targetFromJson	literal_null_coalesce	1	V0018	capturedSubs: json['capturedSubs'] as int? ?? 0,
+packages/skotiq_core/lib/src/backend/network_backend/host_data/remote_host_records.dart	_targetFromJson	literal_null_coalesce	1	V0018	dec: (json['dec'] as num?)?.toDouble() ?? 0.0,
+packages/skotiq_core/lib/src/backend/network_backend/host_data/remote_host_records.dart	_targetFromJson	literal_null_coalesce	1	V0018	isFavorite: json['isFavorite'] as bool? ?? false,
+packages/skotiq_core/lib/src/backend/network_backend/host_data/remote_host_records.dart	_targetFromJson	literal_null_coalesce	1	V0018	ra: (json['ra'] as num?)?.toDouble() ?? 0.0,
+packages/skotiq_core/lib/src/backend/network_backend/host_data/remote_host_records.dart	_targetFromJson	literal_null_coalesce	1	V0018	totalPlannedSubs: json['totalPlannedSubs'] as int? ?? 0,
 packages/skotiq_core/lib/src/backend/network_backend/http_transport.dart	_parseErrorResponse	comment_best_effort	1	V0121	// best-effort JSON decode path; HTTP-status fallback below is the
 packages/skotiq_core/lib/src/backend/network_backend/http_transport.dart	_openRawGetWithAuthRefresh	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/backend/network_backend/http_transport.dart	_parseErrorResponse	literal_null_coalesce	1	V0121	json['message'] as String? ?? json['details'] as String? ?? '';
@@ -2518,6 +2512,7 @@ packages/skotiq_core/lib/src/backend/network_backend/wire_models.dart	RemoteStag
 packages/skotiq_core/lib/src/backend/network_backend/wire_models.dart	RemoteStagedUpdate.fromJson	literal_null_coalesce	1	V0121	stagedVersion: json['stagedVersion'] as String? ?? '',
 packages/skotiq_core/lib/src/backend/network_backend/wire_models.dart	RemoteStagedUpdate.fromJson	literal_null_coalesce	1	V0121	totalBytes: (json['totalBytes'] as num?)?.toInt() ?? 0,
 packages/skotiq_core/lib/src/backend/remote_display_jpeg.dart	capturedImageFromRemoteJpegWire	literal_null_coalesce	1	V0092	isColor: meta['isColor'] as bool? ?? false,
+packages/skotiq_core/lib/src/backend/remote_host.dart	identity	literal_null_coalesce	1	U2-06	'${pinnedFingerprint?.trim().toLowerCase() ?? ''}';
 packages/skotiq_core/lib/src/backend/roles/sequencer_backend.dart	sequencerSetSimulationMode	simulated_runtime_path	1	V0121	Future<void> sequencerSetSimulationMode(bool enabled);
 packages/skotiq_core/lib/src/backend/skotiq_exception.dart	ConnectionException.fromJson	literal_null_coalesce	1	V0011	isRecoverable: json['is_recoverable'] as bool? ?? false,
 packages/skotiq_core/lib/src/backend/skotiq_exception.dart	ConnectionException.fromJson	literal_null_coalesce	1	V0011	shouldReconnect: json['should_reconnect'] as bool? ?? false,
@@ -3042,16 +3037,6 @@ packages/skotiq_core/lib/src/providers/camera_presets_provider.dart	_seedFromCon
 packages/skotiq_core/lib/src/providers/camera_presets_provider.dart	isStillCurrent	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/providers/dark_library_provider.dart	-	literal_null_coalesce	1	V0239	stored[darkLibraryTempToleranceKey] ?? '',
 packages/skotiq_core/lib/src/providers/database_provider.dart	_known	literal_null_coalesce	1	V0018	(_polled?.any((row) => row.id == id) ?? false);
-packages/skotiq_core/lib/src/providers/database_provider.dart	_sequenceRowFromRemoteJson	literal_null_coalesce	1	V0018	estimatedDurationMins: json['estimatedDurationMins'] as int? ?? 0,
-packages/skotiq_core/lib/src/providers/database_provider.dart	_sequenceRowFromRemoteJson	literal_null_coalesce	1	V0018	isFavorite: json['isFavorite'] as bool? ?? false,
-packages/skotiq_core/lib/src/providers/database_provider.dart	_sequenceRowFromRemoteJson	literal_null_coalesce	1	V0018	isTemplate: json['isTemplate'] as bool? ?? false,
-packages/skotiq_core/lib/src/providers/database_provider.dart	_targetFromJson	literal_null_coalesce	1	V0018	(json['goalIntegrationSecs'] as num?)?.toDouble() ?? 0.0,
-packages/skotiq_core/lib/src/providers/database_provider.dart	_targetFromJson	literal_null_coalesce	1	V0018	(json['totalIntegrationSecs'] as num?)?.toDouble() ?? 0.0,
-packages/skotiq_core/lib/src/providers/database_provider.dart	_targetFromJson	literal_null_coalesce	1	V0018	capturedSubs: json['capturedSubs'] as int? ?? 0,
-packages/skotiq_core/lib/src/providers/database_provider.dart	_targetFromJson	literal_null_coalesce	1	V0018	dec: (json['dec'] as num?)?.toDouble() ?? 0.0,
-packages/skotiq_core/lib/src/providers/database_provider.dart	_targetFromJson	literal_null_coalesce	1	V0018	isFavorite: json['isFavorite'] as bool? ?? false,
-packages/skotiq_core/lib/src/providers/database_provider.dart	_targetFromJson	literal_null_coalesce	1	V0018	ra: (json['ra'] as num?)?.toDouble() ?? 0.0,
-packages/skotiq_core/lib/src/providers/database_provider.dart	_targetFromJson	literal_null_coalesce	1	V0018	totalPlannedSubs: json['totalPlannedSubs'] as int? ?? 0,
 packages/skotiq_core/lib/src/providers/defect_map_provider.dart	setApplyDuringCapture	empty_catch	1	V0098	} catch (_) {
 packages/skotiq_core/lib/src/providers/defect_map_provider.dart	_applyLoaded	literal_null_coalesce	1	V0098	int.tryParse(kv[DefectMapSettingsKeys.kernel] ?? '') ?? 3,
 packages/skotiq_core/lib/src/providers/device_connection_progress_provider.dart	endSweep	guessed_now_timestamp	1	V0266	state = state.copyWith(isSweeping: false, finishedAt: at ?? DateTime.now());
@@ -3113,7 +3098,6 @@ packages/skotiq_core/lib/src/providers/notification_router_provider.dart	_persis
 packages/skotiq_core/lib/src/providers/notification_router_provider.dart	save	literal_null_coalesce	1	V0098	secretValues: {SecretField.mqttPassword: config.password ?? ''},
 packages/skotiq_core/lib/src/providers/onboarding_provider.dart	complete	literal_null_coalesce	1	V0098	aperture: draft.apertureMm ?? 0.0,
 packages/skotiq_core/lib/src/providers/onboarding_provider.dart	complete	literal_null_coalesce	1	V0098	name: (draft.profileName ?? '').trim().isNotEmpty
-packages/skotiq_core/lib/src/providers/planning_provider.dart	_activeProjectSettingKeyFor	literal_null_coalesce	1	V0244	'${backend.pinnedFingerprint?.trim().toLowerCase() ?? ''}';
 packages/skotiq_core/lib/src/providers/planning_provider.dart	setActiveProject	literal_null_coalesce	1	V0244	id?.toString() ?? '',
 packages/skotiq_core/lib/src/providers/plate_solver_provider.dart	rescan	empty_catch	1	V0221	} catch (_) {
 packages/skotiq_core/lib/src/providers/plate_solver_provider.dart	updatePreference	empty_catch	1	V0221	} catch (_) {
@@ -3188,7 +3172,6 @@ packages/skotiq_core/lib/src/providers/science_provider/settings.dart	build	lite
 packages/skotiq_core/lib/src/providers/science_provider/settings.dart	build	literal_null_coalesce	1	V0121	tnsBotName: settings[_keys['tnsBotName']] ?? '',
 packages/skotiq_core/lib/src/providers/science_provider/settings.dart	build	literal_null_coalesce	1	V0121	tnsReporterName: settings[_keys['tnsReporterName']] ?? '',
 packages/skotiq_core/lib/src/providers/secondary_rig_provider.dart	SecondaryRigStatus.fromJson	literal_null_coalesce	1	V0121	rigLabel: json['rigLabel'] as String? ?? '',
-packages/skotiq_core/lib/src/providers/secondary_rig_provider.dart	_secondaryRigConfigScope	literal_null_coalesce	1	V0121	'${backend.pinnedFingerprint?.trim().toLowerCase() ?? ''}';
 packages/skotiq_core/lib/src/providers/sequence/node_palette.dart	-	literal_null_coalesce	1	V0098	(appSettings?.adaptiveSwapEnabledByDefault ?? false)
 packages/skotiq_core/lib/src/providers/sequence/node_palette.dart	-	literal_null_coalesce	1	V0098	PolarAlignmentNode(isNorth: (appSettings?.latitude ?? 0.0) >= 0),
 packages/skotiq_core/lib/src/providers/sequence/remote_sequence_editor_sync.dart	-	comment_best_effort	1	V0271	// best-effort final save on dispose — by the time the microtask runs the
@@ -4145,8 +4128,6 @@ packages/skotiq_core/lib/src/utils/export_target.dart	exportInitialDirectory	emp
 packages/skotiq_core/lib/src/utils/legacy_install_migration.dart	migrateLegacyInstall	literal_null_coalesce	1	V0805	final relocated = (env[skotiqDataDirEnv] ?? '').trim().isNotEmpty;
 packages/skotiq_core/lib/src/utils/legacy_install_migration.dart	migrateLegacyInstall	literal_null_coalesce	1	V0805	if ((env[legacyVar] ?? '').trim().isNotEmpty) {
 packages/skotiq_core/lib/src/utils/resilient_poll_stream.dart	scheduleNext	literal_null_coalesce	1	V0254	if (stopped || paused || polling || (timer?.isActive ?? false)) return;
-packages/skotiq_planetarium/lib/src/providers/catalog_providers.dart	totalDsoCount	literal_null_coalesce	1	V0146	int get totalDsoCount => dsoCatalogStatus.objectCount ?? 0;
-packages/skotiq_planetarium/lib/src/providers/catalog_providers.dart	totalStarCount	literal_null_coalesce	1	V0146	int get totalStarCount => starCatalogStatus.objectCount ?? 0;
 packages/skotiq_planetarium/lib/src/providers/target_queue_provider.dart	syncFromSequencer	literal_null_coalesce	1	V0255	completedExposures ?? existing?.completedExposures ?? 0,
 packages/skotiq_planetarium/lib/src/providers/target_queue_provider.dart	syncFromSequencer	literal_null_coalesce	1	V0255	displayName: (seqTarget['name']?.toString().trim().isNotEmpty ?? false)
 packages/skotiq_planetarium/lib/src/providers/target_queue_provider.dart	syncFromSequencer	literal_null_coalesce	1	V0255	plannedExposures: plannedExposures ?? existing?.plannedExposures ?? 0,
