@@ -2,7 +2,7 @@
 // leave the rig — a headline automation surface, not a diagnostic. Filing it
 // under Advanced put it between the Log Viewer and Replay Debug, the two pages
 // a user is told to open only when something is broken, so the feature read as
-// a debug tool and `groupTitleForKey('delivery')` sent every in-app pointer
+// a debug tool and `SettingsSectionId.resolve('delivery')!.group.title` sent every in-app pointer
 // and breadcrumb to "Advanced".
 //
 // It belongs with the rest of the unattended-night configuration. These tests
@@ -62,12 +62,12 @@ void main() {
     // `groupTitleForKey` reads `_structuralGroups`, a separate list from the
     // one `buildSettingsGroups` builds. A move that edits only the builder
     // leaves every deep link and breadcrumb naming the old group.
-    expect(groupTitleForKey('delivery'), 'Automation & Safety');
+    expect(SettingsSectionId.resolve('delivery')!.group.title, 'Automation & Safety');
   });
 
   test('the delivery deep link still resolves', () {
     // `/settings?section=delivery` is a navigation contract; moving the
     // section between groups must not break the link that opens it.
-    expect(resolveSectionKey('delivery'), 'delivery');
+    expect(SettingsSectionId.resolve('delivery')?.key, 'delivery');
   });
 }

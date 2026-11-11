@@ -13,6 +13,7 @@ import '../../utils/snackbar_helper.dart';
 import 'widgets/deep_star_catalog_card.dart';
 import 'widgets/element_refresh_card.dart';
 import 'widgets/settings_widgets.dart' show settingsPagePadding;
+import 'settings_sections.dart';
 
 part 'catalog_settings_screen/card_builders.dart';
 
@@ -542,7 +543,7 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
                     if (ModalRoute.of(context) is PopupRoute) {
                       Navigator.of(context).pop();
                     }
-                    router.go('/settings?section=rig-catalogs');
+                    router.goToSettings(SettingsSectionId.rigCatalogs);
                   },
           ),
         ],

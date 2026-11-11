@@ -77,7 +77,8 @@ extension _CenterPanel on _PolarAlignmentScreenState {
               label: 'Set a location',
               variant: ButtonVariant.secondary,
               size: ButtonSize.small,
-              onPressed: () => context.push('/settings/location'),
+              onPressed: () =>
+                  openSettings(context, SettingsSectionId.location),
             ),
           ),
           bannerGap,

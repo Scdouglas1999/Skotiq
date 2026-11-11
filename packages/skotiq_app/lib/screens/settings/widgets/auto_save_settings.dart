@@ -26,18 +26,7 @@ class AutoSaveSettings extends ConsumerStatefulWidget {
 }
 
 class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
-  // Left empty on purpose: the hydrated config is handed to each
-  // [SettingsNumberInput] as its `authoritativeValue`, and the input seeds and
-  // re-seeds the controller from that. Pre-filling here from the un-hydrated
-  // service is what put the compiled-in defaults on screen.
-  final _sequenceIntervalController = TextEditingController();
   bool _isSavingNow = false;
-
-  @override
-  void dispose() {
-    _sequenceIntervalController.dispose();
-    super.dispose();
-  }
 
   Future<void> _updateConfig(
     AutoSaveService service, {
@@ -222,7 +211,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
               title: 'Sequence save interval',
               subtitle: 'How often to save pending sequence edits',
               trailing: SettingsNumberInput(
-                controller: _sequenceIntervalController,
                 // The persisted config is the authority for these fields; the
                 // input seeds itself from it and re-seeds when the service
                 // instance changes, so the box can never show a default the

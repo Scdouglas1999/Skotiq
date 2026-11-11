@@ -20,7 +20,7 @@ class _MobileSectionList extends StatelessWidget {
   final String query;
   final List<SettingsSearchResult> results;
   final ValueChanged<String> onQueryChanged;
-  final void Function(String key, String? rowTitle) onSectionTap;
+  final void Function(SettingsSectionId section, String? rowTitle) onSectionTap;
   final SkotiqColors colors;
   final String title;
 
@@ -91,7 +91,7 @@ class _MobileSectionList extends StatelessWidget {
                                   icon: section.icon,
                                   label: section.label,
                                   isSelected: false,
-                                  onTap: () => onSectionTap(section.key, null),
+                                  onTap: () => onSectionTap(section.id, null),
                                   colors: colors,
                                   isMobile: true,
                                 ),
@@ -118,7 +118,7 @@ class _MobileSearchResults extends StatelessWidget {
 
   final List<SettingsSearchResult> results;
   final SkotiqColors colors;
-  final void Function(String key, String? rowTitle) onSectionTap;
+  final void Function(SettingsSectionId section, String? rowTitle) onSectionTap;
 
   @override
   Widget build(BuildContext context) {
@@ -146,7 +146,7 @@ class _MobileSearchResults extends StatelessWidget {
               icon: section.icon,
               label: section.label,
               isSelected: false,
-              onTap: () => onSectionTap(section.key, null),
+              onTap: () => onSectionTap(section.id, null),
               colors: colors,
               isMobile: true,
             ),
@@ -154,7 +154,7 @@ class _MobileSearchResults extends StatelessWidget {
               _SearchRowResult(
                 label: row,
                 colors: colors,
-                onTap: () => onSectionTap(section.key, row),
+                onTap: () => onSectionTap(section.id, row),
                 // The same trailing inset the section rows of this list carry,
                 // so the sub-result's rounded corner is on screen with them.
                 endInset: SkotiqTokens.spaceSm,

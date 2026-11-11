@@ -22,6 +22,7 @@ import 'shell_help_popover.dart';
 // Conditional import for window_manager (desktop only)
 import 'window_chrome_stub.dart'
     if (dart.library.io) 'window_chrome_desktop.dart' as window_impl;
+import '../../settings/settings_sections.dart';
 
 /// The host window's maximize and full-screen flags, as the shell last heard
 /// them. The resize edges and the app-drawn hairline gate on this: an
@@ -359,7 +360,7 @@ class ShellTopBand extends StatelessWidget {
                 tooltipPosition: SkotiqTooltipPosition.bottom,
                 onPressed: () {
                   try {
-                    context.go('/settings');
+                    openSettings(context);
                   } catch (e, stack) {
                     developer.log(
                       '[ShellTopBand] Could not navigate to settings: $e',

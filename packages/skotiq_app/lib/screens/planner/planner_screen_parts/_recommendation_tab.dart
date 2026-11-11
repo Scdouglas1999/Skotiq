@@ -349,7 +349,8 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
                   label: l10n.text('plannerNoSiteAction'),
                   variant: ButtonVariant.secondary,
                   size: ButtonSize.small,
-                  onPressed: () => context.go('/settings?section=location'),
+                  onPressed: () =>
+                      openSettings(context, SettingsSectionId.location),
                 ),
               )
             : EmptyState(

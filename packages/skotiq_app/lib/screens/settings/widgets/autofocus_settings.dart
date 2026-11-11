@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -45,8 +44,8 @@ typedef _AfField<T> = SettingField<AppSettingsState, T>;
 AppSettingsNotifier _afNotifier(WidgetRef ref) =>
     ref.read(appSettingsProvider.notifier);
 
-_AfField<int> _afInt(
-  String label, {
+_AfField<int> _afInt({
+  required String title,
   required int Function(AppSettingsState s) read,
   required FutureOr<void> Function(AppSettingsNotifier n, int v) write,
   required int min,
@@ -54,14 +53,14 @@ _AfField<int> _afInt(
   String unit = '',
 }) =>
     _AfField<int>(
-      label: label,
+      label: title,
       read: read,
       write: (ref, value) => write(_afNotifier(ref), value),
       codec: IntCodec(min: min, max: max, unit: unit),
     );
 
-_AfField<double> _afNumber(
-  String label, {
+_AfField<double> _afNumber({
+  required String title,
   required double Function(AppSettingsState s) read,
   required FutureOr<void> Function(AppSettingsNotifier n, double v) write,
   required double min,
@@ -70,31 +69,31 @@ _AfField<double> _afNumber(
   String unit = '',
 }) =>
     _AfField<double>(
-      label: label,
+      label: title,
       read: read,
       write: (ref, value) => write(_afNotifier(ref), value),
       codec: NumberCodec(min: min, max: max, decimals: decimals, unit: unit),
     );
 
-_AfField<bool> _afToggle(
-  String label, {
+_AfField<bool> _afToggle({
+  required String title,
   required bool Function(AppSettingsState s) read,
   required FutureOr<void> Function(AppSettingsNotifier n, bool v) write,
 }) =>
     _AfField<bool>(
-      label: label,
+      label: title,
       read: read,
       write: (ref, value) => write(_afNotifier(ref), value),
     );
 
-_AfField<String> _afChoice(
-  String label, {
+_AfField<String> _afChoice({
+  required String title,
   required String Function(AppSettingsState s) read,
   required FutureOr<void> Function(AppSettingsNotifier n, String v) write,
   required List<String> choices,
 }) =>
     _AfField<String>(
-      label: label,
+      label: title,
       read: read,
       write: (ref, value) => write(_afNotifier(ref), value),
       choices: choices,
@@ -136,7 +135,7 @@ final List<_AfRow<Object?>> _afBehaviorRows = [
   _AfRow<bool>(
     LucideIcons.filter,
     _afToggle(
-      'Use filter offsets',
+      title: 'Use filter offsets',
       read: (s) => s.useFilterFocusOffsets,
       write: (n, v) => n.setUseFilterFocusOffsets(v),
     ),
@@ -145,7 +144,7 @@ final List<_AfRow<Object?>> _afBehaviorRows = [
   _AfRow<int>(
     LucideIcons.arrowUpDown,
     _afInt(
-      'Initial offset steps',
+      title: 'Initial offset steps',
       read: (s) => s.afInitialOffsetSteps,
       write: (n, v) => n.setAfInitialOffsetSteps(v),
       min: 1,
@@ -156,7 +155,7 @@ final List<_AfRow<Object?>> _afBehaviorRows = [
   _AfRow<String>(
     LucideIcons.activity,
     _afChoice(
-      'Autofocus method',
+      title: 'Autofocus method',
       read: (s) => s.afMethod,
       write: (n, v) => n.setAfMethod(v),
       choices: const ['Star HFR'],
@@ -165,7 +164,7 @@ final List<_AfRow<Object?>> _afBehaviorRows = [
   _AfRow<String>(
     LucideIcons.trendingUp,
     _afChoice(
-      'Curve fitting strategy',
+      title: 'Curve fitting strategy',
       read: (s) => s.afCurveFitting,
       write: (n, v) => n.setAfCurveFitting(v),
       choices: AutofocusSettings.curveFittingOptions,
@@ -175,7 +174,7 @@ final List<_AfRow<Object?>> _afBehaviorRows = [
   _AfRow<int>(
     LucideIcons.moveVertical,
     _afInt(
-      'Step size',
+      title: 'Step size',
       read: (s) => s.afStepSize,
       write: (n, v) => n.setAfStepSize(v),
       min: 1,
@@ -187,7 +186,7 @@ final List<_AfRow<Object?>> _afBehaviorRows = [
   _AfRow<double>(
     LucideIcons.timer,
     _afNumber(
-      'Exposure time',
+      title: 'Exposure time',
       read: (s) => s.afExposureTime,
       write: (n, v) => n.setAfExposureTime(v),
       min: 0.1,
@@ -201,7 +200,7 @@ final List<_AfRow<Object?>> _afBehaviorRows = [
   _AfRow<bool>(
     LucideIcons.pause,
     _afToggle(
-      'Disable guiding during AF',
+      title: 'Disable guiding during AF',
       read: (s) => s.afDisableGuidingDuringAf,
       write: (n, v) => n.setAfDisableGuidingDuringAf(v),
     ),
@@ -211,7 +210,7 @@ final List<_AfRow<Object?>> _afBehaviorRows = [
   _AfRow<int>(
     LucideIcons.repeat,
     _afInt(
-      'Number of attempts',
+      title: 'Number of attempts',
       read: (s) => s.afNumberOfAttempts,
       write: (n, v) => n.setAfNumberOfAttempts(v),
       min: 1,
@@ -222,7 +221,7 @@ final List<_AfRow<Object?>> _afBehaviorRows = [
   _AfRow<int>(
     LucideIcons.sparkles,
     _afInt(
-      'Use brightest n stars',
+      title: 'Use brightest n stars',
       read: (s) => s.afUseBrightestNStars,
       write: (n, v) => n.setAfUseBrightestNStars(v),
       min: 0,
@@ -233,7 +232,7 @@ final List<_AfRow<Object?>> _afBehaviorRows = [
   _AfRow<double>(
     LucideIcons.maximize2,
     _afNumber(
-      'Outer crop ratio',
+      title: 'Outer crop ratio',
       read: (s) => s.afOuterCropRatio,
       write: (n, v) => n.setAfOuterCropRatio(v),
       min: 0.01,
@@ -245,7 +244,7 @@ final List<_AfRow<Object?>> _afBehaviorRows = [
   _AfRow<double>(
     LucideIcons.minimize2,
     _afNumber(
-      'Inner crop ratio',
+      title: 'Inner crop ratio',
       read: (s) => s.afInnerCropRatio,
       write: (n, v) => n.setAfInnerCropRatio(v),
       min: 0.0,
@@ -258,7 +257,7 @@ final List<_AfRow<Object?>> _afBehaviorRows = [
   _AfRow<int>(
     LucideIcons.grid,
     _afInt(
-      'Binning',
+      title: 'Binning',
       read: (s) => s.afBinning,
       write: (n, v) => n.setAfBinning(v),
       min: 1,
@@ -268,7 +267,7 @@ final List<_AfRow<Object?>> _afBehaviorRows = [
   _AfRow<double>(
     LucideIcons.checkCircle,
     _afNumber(
-      'R\u00B2 threshold',
+      title: 'R\u00B2 threshold',
       read: (s) => s.afRSquaredThreshold,
       write: (n, v) => n.setAfRSquaredThreshold(v),
       min: 0.0,
@@ -280,7 +279,7 @@ final List<_AfRow<Object?>> _afBehaviorRows = [
   _AfRow<double>(
     LucideIcons.alertTriangle,
     _afNumber(
-      'HFR tolerance on failure',
+      title: 'HFR tolerance on failure',
       read: (s) => s.afFailureHfrToleranceRatio,
       write: (n, v) => n.setAfFailureHfrToleranceRatio(v),
       min: 0.0,
@@ -293,7 +292,7 @@ final List<_AfRow<Object?>> _afBehaviorRows = [
   _AfRow<int>(
     LucideIcons.clock,
     _afInt(
-      'Focuser settle time',
+      title: 'Focuser settle time',
       read: (s) => s.afFocuserSettleTimeMs,
       write: (n, v) => n.setAfFocuserSettleTimeMs(v),
       min: 0,
@@ -306,7 +305,7 @@ final List<_AfRow<Object?>> _afBehaviorRows = [
   _AfRow<int>(
     LucideIcons.layers,
     _afInt(
-      'Exposures per point',
+      title: 'Exposures per point',
       read: (s) => s.afExposuresPerPoint,
       write: (n, v) => n.setAfExposuresPerPoint(v),
       min: 1,
@@ -318,7 +317,7 @@ final List<_AfRow<Object?>> _afBehaviorRows = [
   _AfRow<String>(
     LucideIcons.arrowLeftRight,
     _afChoice(
-      'Backlash compensation',
+      title: 'Backlash compensation',
       read: (s) => s.afBacklashCompMethod,
       write: (n, v) => n.setAfBacklashCompMethod(v),
       choices: const ['None', 'Overshoot', 'Absolute'],
@@ -329,7 +328,7 @@ final List<_AfRow<Object?>> _afBehaviorRows = [
   _AfRow<int>(
     LucideIcons.arrowLeft,
     _afInt(
-      'Backlash IN',
+      title: 'Backlash IN',
       read: (s) => s.afBacklashIn,
       write: (n, v) => n.setAfBacklashIn(v),
       min: 0,
@@ -340,7 +339,7 @@ final List<_AfRow<Object?>> _afBehaviorRows = [
   _AfRow<int>(
     LucideIcons.arrowRight,
     _afInt(
-      'Backlash OUT',
+      title: 'Backlash OUT',
       read: (s) => s.afBacklashOut,
       write: (n, v) => n.setAfBacklashOut(v),
       min: 0,

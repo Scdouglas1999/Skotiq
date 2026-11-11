@@ -15,6 +15,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../run_status_presentation.dart';
 import 'notes_panel.dart';
+import '../../settings/settings_sections.dart';
 part 'session_report_dialog/header_overview.dart';
 part 'session_report_dialog/target_conditions.dart';
 part 'session_report_dialog/recovery_insights.dart';

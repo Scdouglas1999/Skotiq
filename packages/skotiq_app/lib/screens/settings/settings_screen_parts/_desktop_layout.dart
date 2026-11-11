@@ -58,7 +58,7 @@ class _SearchField extends StatelessWidget {
 class _DesktopNav extends StatelessWidget {
   const _DesktopNav({
     required this.groups,
-    required this.selectedKey,
+    required this.selected,
     required this.colors,
     required this.searchController,
     required this.searching,
@@ -69,14 +69,14 @@ class _DesktopNav extends StatelessWidget {
   });
 
   final List<SettingsGroupDef> groups;
-  final String selectedKey;
+  final SettingsSectionId selected;
   final SkotiqColors colors;
   final TextEditingController searchController;
   final bool searching;
   final List<SettingsSearchResult> results;
   final ValueChanged<String> onQueryChanged;
   final VoidCallback onClearQuery;
-  final void Function(String key, String? rowTitle) onSelect;
+  final void Function(SettingsSectionId section, String? rowTitle) onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -110,15 +110,15 @@ class _DesktopNav extends StatelessWidget {
             child: searching
                 ? _DesktopSearchResults(
                     results: results,
-                    selectedKey: selectedKey,
+                    selected: selected,
                     colors: colors,
                     onTap: onSelect,
                   )
                 : _DesktopGroupedList(
                     groups: groups,
-                    selectedKey: selectedKey,
+                    selected: selected,
                     colors: colors,
-                    onSelect: (key) => onSelect(key, null),
+                    onSelect: (section) => onSelect(section, null),
                   ),
           ),
         ],
@@ -130,15 +130,15 @@ class _DesktopNav extends StatelessWidget {
 class _DesktopGroupedList extends StatelessWidget {
   const _DesktopGroupedList({
     required this.groups,
-    required this.selectedKey,
+    required this.selected,
     required this.colors,
     required this.onSelect,
   });
 
   final List<SettingsGroupDef> groups;
-  final String selectedKey;
+  final SettingsSectionId selected;
   final SkotiqColors colors;
-  final void Function(String key) onSelect;
+  final void Function(SettingsSectionId section) onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -159,8 +159,8 @@ class _DesktopGroupedList extends StatelessWidget {
               (section) => _CategoryItem(
                 icon: section.icon,
                 label: section.label,
-                isSelected: section.key == selectedKey,
-                onTap: () => onSelect(section.key),
+                isSelected: section.id == selected,
+                onTap: () => onSelect(section.id),
                 colors: colors,
               ),
             ),
@@ -200,15 +200,15 @@ class _NavEyebrow extends StatelessWidget {
 class _DesktopSearchResults extends StatelessWidget {
   const _DesktopSearchResults({
     required this.results,
-    required this.selectedKey,
+    required this.selected,
     required this.colors,
     required this.onTap,
   });
 
   final List<SettingsSearchResult> results;
-  final String selectedKey;
+  final SettingsSectionId selected;
   final SkotiqColors colors;
-  final void Function(String key, String? rowTitle) onTap;
+  final void Function(SettingsSectionId section, String? rowTitle) onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -232,8 +232,8 @@ class _DesktopSearchResults extends StatelessWidget {
             _CategoryItem(
               icon: section.icon,
               label: section.label,
-              isSelected: section.key == selectedKey,
-              onTap: () => onTap(section.key, null),
+              isSelected: section.id == selected,
+              onTap: () => onTap(section.id, null),
               colors: colors,
             ),
             // The rows that actually matched. Tapping one opens the section
@@ -242,7 +242,7 @@ class _DesktopSearchResults extends StatelessWidget {
               _SearchRowResult(
                 label: row,
                 colors: colors,
-                onTap: () => onTap(section.key, row),
+                onTap: () => onTap(section.id, row),
                 // The sidebar list already pads its own sides.
                 endInset: 0,
               ),

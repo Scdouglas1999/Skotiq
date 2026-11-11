@@ -9,6 +9,7 @@ import 'package:skotiq_core/src/providers/hardware_presets_provider.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'optical_train_step.dart';
+import '../../settings/settings_sections.dart';
 
 /// Terminal "what's next" step shown after the equipment profile is created.
 ///
@@ -138,7 +139,8 @@ class OnboardingNextStepsStep extends ConsumerWidget {
               title: 'Set your observing site',
               subtitle:
                   'Your location powers Tonight, the planner, meridian flips, and the weather radar.',
-              onTap: () => onNavigate('/settings?section=location'),
+              onTap: () =>
+                  onNavigate(settingsLocation(SettingsSectionId.location)),
             ),
           ],
         ],

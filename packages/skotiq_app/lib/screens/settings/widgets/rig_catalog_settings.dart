@@ -10,6 +10,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../utils/confirm_dialog.dart';
 import '../../../utils/snackbar_helper.dart';
 import 'settings_widgets.dart';
+import '../settings_sections.dart';
 
 /// Manage the connected appliance's plate-solve / star catalogs over the
 /// network (`/api/catalog/*`). A freshly-imaged Pi ships with no catalogs, so
@@ -570,7 +571,7 @@ class _NotConnected extends StatelessWidget {
                 size: ButtonSize.small,
                 onPressed: router == null
                     ? null
-                    : () => router.go('/settings?section=remote-access'),
+                    : () => router.goToSettings(SettingsSectionId.remoteAccess),
               ),
               SkotiqButton(
                 label: "This device's catalogs",
@@ -579,7 +580,7 @@ class _NotConnected extends StatelessWidget {
                 size: ButtonSize.small,
                 onPressed: router == null
                     ? null
-                    : () => router.go('/settings?section=catalogs'),
+                    : () => router.goToSettings(SettingsSectionId.catalogs),
               ),
             ],
           ),

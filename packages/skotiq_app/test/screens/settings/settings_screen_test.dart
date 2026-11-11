@@ -3,7 +3,6 @@
 // The Settings screen is a GROUPED, collapsible, searchable sidebar (desktop)
 // / list (mobile) driven by the declarative catalog in settings_catalog.dart.
 // Navigation deep-links by STABLE STRING KEY (the real contract); the integer
-// `kSettingsSectionIndex` is a derived compatibility shim only.
 //
 // These tests cover:
 //   * the default pane (first catalog section) renders,
@@ -357,7 +356,7 @@ void main() {
     _swallowKnownOverflows();
     await pumpAppScreen(
       tester,
-      const SettingsScreen(initialSection: 'location'),
+      SettingsScreen(initialSection: SettingsSectionId.resolve('location')),
       size: const Size(1280, 800),
       extraOverrides: _stubSettings(),
     );
@@ -374,7 +373,7 @@ void main() {
     _swallowKnownOverflows();
     await pumpAppScreen(
       tester,
-      const SettingsScreen(initialSection: 'does-not-exist'),
+      SettingsScreen(initialSection: SettingsSectionId.resolve('does-not-exist')),
       size: const Size(1280, 800),
       extraOverrides: _stubSettings(),
     );
@@ -391,7 +390,7 @@ void main() {
     _swallowKnownOverflows();
     final handle = await pumpAppScreen(
       tester,
-      const SettingsScreen(initialSection: 'file-paths'),
+      SettingsScreen(initialSection: SettingsSectionId.resolve('file-paths')),
       size: const Size(1280, 800),
       extraOverrides: _stubSettings(),
     );
@@ -412,7 +411,7 @@ void main() {
     _swallowKnownOverflows();
     final handle = await pumpAppScreen(
       tester,
-      const SettingsScreen(initialSection: 'auto-save'),
+      SettingsScreen(initialSection: SettingsSectionId.resolve('auto-save')),
       size: const Size(1280, 800),
       extraOverrides: _stubSettings(),
     );
@@ -431,7 +430,7 @@ void main() {
     _swallowKnownOverflows();
     await pumpAppScreen(
       tester,
-      const SettingsScreen(initialSection: 'predictive-af'),
+      SettingsScreen(initialSection: SettingsSectionId.resolve('predictive-af')),
       size: const Size(1280, 800),
       extraOverrides: _stubSettings(),
     );
@@ -450,7 +449,7 @@ void main() {
     _swallowKnownOverflows();
     await pumpAppScreen(
       tester,
-      const SettingsScreen(initialSection: 'notification-routing'),
+      SettingsScreen(initialSection: SettingsSectionId.resolve('notification-routing')),
       size: const Size(1280, 800),
       extraOverrides: _stubSettings(),
     );
@@ -491,58 +490,5 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 1));
     expect(find.byType(LocationSettingsPage), findsOneWidget,
         reason: 'Selecting a search result must open that section.');
-  });
-
-  // Derived index shim (kept only for backward compatibility).
-
-  test(
-      'kSettingsSectionIndex maps every stable key (incl. merged-away aliases) '
-      'to a non-negative index', () {
-    for (final key in const [
-      'general',
-      'appearance',
-      'location',
-      'files-storage',
-      'help',
-      'about',
-      'connection',
-      'equipment-profiles',
-      'phd2-guiding',
-      'plate-solving',
-      'autofocus',
-      'calibration',
-      'dark-library',
-      'imaging',
-      'catalogs',
-      'sequencer',
-      'weather-safety',
-      'science',
-      'notifications',
-      'integrations',
-      'remote-access',
-      'logs',
-      // Merged-away aliases share their combined section's index.
-      'file-paths',
-      'auto-save',
-      'predictive-af',
-      'focus-model',
-      'notification-routing',
-    ]) {
-      expect(kSettingsSectionIndex[key], isNotNull,
-          reason: 'Key "$key" must resolve in the derived index shim.');
-      expect(kSettingsSectionIndex[key]! >= 0, isTrue);
-    }
-
-    // Merged-away aliases resolve to their combined section's index.
-    expect(kSettingsSectionIndex['file-paths'],
-        kSettingsSectionIndex['files-storage']);
-    expect(kSettingsSectionIndex['auto-save'],
-        kSettingsSectionIndex['files-storage']);
-    expect(kSettingsSectionIndex['predictive-af'],
-        kSettingsSectionIndex['autofocus']);
-    expect(kSettingsSectionIndex['focus-model'],
-        kSettingsSectionIndex['autofocus']);
-    expect(kSettingsSectionIndex['notification-routing'],
-        kSettingsSectionIndex['notifications']);
   });
 }
