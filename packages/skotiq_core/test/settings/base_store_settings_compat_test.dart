@@ -877,6 +877,15 @@ const Map<String, Object?> _changedOnPurpose = {
       'unreadable values': {'ditherRaOnly': true, 'exposureFilter': null},
     },
   },
+  'frame watch': {
+    'reads': {
+      'unreadable values': {
+        'recenterEnabled': false,
+        'obstructionDetection': false,
+      },
+      'empty': {'recenterEnabled': false, 'obstructionDetection': false},
+    },
+  },
 };
 
 /// A change that replaces the base value whole instead of being laid over it.

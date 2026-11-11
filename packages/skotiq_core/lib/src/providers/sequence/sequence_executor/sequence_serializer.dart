@@ -213,7 +213,7 @@ class SequenceSerializer {
   String _frameWatchMetadata() {
     final settings =
         _ref.read(frameWatchSettingsProvider).valueOrNull ??
-        const FrameWatchSettings();
+        FrameWatchSettings.initial;
     final site = _ref.read(appObserverLocationProvider);
     return jsonEncode(
       settings.sequenceMetadata(

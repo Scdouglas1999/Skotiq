@@ -386,6 +386,38 @@ abstract final class StoreSettings {
     sync: SettingSync.hostStore,
   );
 
+  // Frame watch: what a run does when the framing drifts or something blocks
+  // the view.
+
+  static const frameWatchRecenter = BoolSetting(
+    'frameWatchRecenter',
+    'frame_watch_recenter_enabled',
+    true,
+    sync: SettingSync.hostStore,
+  );
+
+  /// Arcseconds the solved center may drift before the run recenters.
+  static const frameWatchDriftLimit = DoubleSetting(
+    'frameWatchDriftLimit',
+    'frame_watch_drift_limit_arcsec',
+    30,
+    sync: SettingSync.hostStore,
+  );
+  static const frameWatchObstructionDetection = BoolSetting(
+    'frameWatchObstructionDetection',
+    'frame_watch_obstruction_detection',
+    true,
+    sync: SettingSync.hostStore,
+  );
+
+  /// Obstructions learned from frames that went dark, by site.
+  static const learnedHorizonPoints = OptionalTextSetting(
+    'learnedHorizonPoints',
+    'learned_horizon_points_json',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+
   static const List<Setting<Object?>> all = [
     glanceMode,
     tutorialsEnabled,
@@ -431,6 +463,10 @@ abstract final class StoreSettings {
     liveStackingWatermark,
     liveStackingThumbnailSize,
     liveStackingDisableEverywhere,
+    frameWatchRecenter,
+    frameWatchDriftLimit,
+    frameWatchObstructionDetection,
+    learnedHorizonPoints,
   ];
 
   static const List<SettingFamily> families = [

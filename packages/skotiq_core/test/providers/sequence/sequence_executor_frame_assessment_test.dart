@@ -356,7 +356,9 @@ void main() {
       container.read(liveSequenceStatsProvider)!.warningMessages,
       contains('Trees at alt 64.0 deg, az 286.2 deg. Moving on.'),
     );
-    final stored = await db.settingsDao.getSetting(learnedHorizonPointsKey);
+    final stored = await db.settingsDao.getSetting(
+      'learned_horizon_points_json',
+    );
     expect(stored, contains('286.2'));
   });
 }
