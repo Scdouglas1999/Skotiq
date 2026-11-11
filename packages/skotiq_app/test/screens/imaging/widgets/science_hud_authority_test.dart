@@ -137,7 +137,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.textContaining('Bad state: session config unavailable'),
+      find.textContaining('session config unavailable'),
       findsOneWidget,
     );
     final switches = tester.widgetList<SkotiqSwitch>(
@@ -190,7 +190,7 @@ void main() {
     );
     expect(
       find.textContaining(
-        'Could not save science session: Bad state: session config write failed',
+        'Could not save science session: session config write failed',
       ),
       findsOneWidget,
     );
@@ -224,7 +224,7 @@ void main() {
     );
     expect(
       find.textContaining(
-        'Could not save photometry setup: Bad state: selection write failed',
+        'Could not save photometry setup: selection write failed',
       ),
       findsOneWidget,
     );
