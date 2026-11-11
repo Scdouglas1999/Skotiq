@@ -22,7 +22,6 @@ class ManualLoopStatus {
 
   static const idle = ManualLoopStatus();
 
-  /// A loop is running.
   final bool looping;
 
   /// Stop was asked for and the exposure in flight is being aborted.
