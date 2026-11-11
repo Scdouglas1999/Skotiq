@@ -24,12 +24,22 @@ import 'package:skotiq_core/skotiq_core.dart' as core;
 String userFacingError(Object? error) {
   if (error == null) return 'Unknown error';
   final message = _authoredMessage(error)?.trim();
-  if (message != null && message.isNotEmpty) return _withoutErrorCode(message);
-  final rendered = error.toString().trim();
-  return rendered.isEmpty
-      ? error.runtimeType.toString()
-      : _withoutErrorCode(rendered);
+  final text = message != null && message.isNotEmpty
+      ? message
+      : error.toString().trim();
+  if (text.isEmpty) return error.runtimeType.toString();
+  final database = _databaseFailure.firstMatch(text);
+  if (database != null) return 'database error: ${database.group(1)}';
+  return _withoutErrorCode(text);
 }
+
+/// A failed database statement renders as the engine's exception class, its
+/// result code, the reason, and then the statement and its parameters. Only
+/// the reason is for the person: `SqliteException(1544): while executing
+/// statement, attempt to write a readonly database, …`.
+final RegExp _databaseFailure = RegExp(
+  r'SqliteException\(\d+\): (?:while [^,\n]+, )?([^,\n]+)',
+);
 
 /// The imaging host words a refusal as `run_owns_cooler: <sentence>`; the
 /// code is for programs, the sentence is for the person.

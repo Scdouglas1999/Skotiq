@@ -17,4 +17,17 @@ void main() {
     expect(userFacingError(Exception('Camera: not connected')),
         'Camera: not connected');
   });
+
+  test('a database failure keeps the reason and drops the statement', () {
+    final error = Exception(
+      'SqliteException(1544): while executing statement, attempt to write a '
+      'readonly database, attempt to write a readonly database (code 1544)\n'
+      '  Causing statement: INSERT INTO "app_settings" ("key", "value") '
+      'VALUES (?, ?), parameters: start_minimized, true',
+    );
+    expect(
+      userFacingError(error),
+      'database error: attempt to write a readonly database',
+    );
+  });
 }
