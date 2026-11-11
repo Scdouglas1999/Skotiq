@@ -133,7 +133,9 @@ class StackLightSelector {
       throw StateError('Imaging session $sessionId not found');
     }
     final frames = await _imagesDao.getImagesForSession(sessionId);
-    final targetName = await _resolveTargetName(session.targetId);
+    final targetName = await _resolveTargetName(
+      session.targetId ?? _soleLightTargetId(frames),
+    );
     return _select(
       frames: frames,
       config: config,
@@ -159,6 +161,17 @@ class StackLightSelector {
       scope: 'target $targetId',
       targetName: target.name,
     );
+  }
+
+  /// The one target every light frame of a session was taken on, or null when
+  /// they name none or several. Sessions a sequence starts carry no target of
+  /// their own; their frames do.
+  static int? _soleLightTargetId(List<CapturedImage> frames) {
+    final targets = {
+      for (final frame in frames)
+        if (frame.frameType == 'light') frame.targetId,
+    };
+    return targets.length == 1 ? targets.single : null;
   }
 
   Future<String?> _resolveTargetName(int? targetId) async {
