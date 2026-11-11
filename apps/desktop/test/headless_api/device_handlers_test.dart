@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -105,6 +106,27 @@ class _BusyFocuserBackend implements DeviceBackend {
       'Failed to call method Move: Move Failure',
     );
   }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Records which connect a handler asked for.
+class _RecordingDeviceService implements DeviceService {
+  final List<(DeviceType, String)> connects = [];
+  final List<String> guideCameraConnects = [];
+
+  @override
+  Future<void> connect(
+    DeviceType type,
+    String deviceId, {
+    String? host,
+    int? port,
+  }) async => connects.add((type, deviceId));
+
+  @override
+  Future<void> connectGuideCamera(String deviceId) async =>
+      guideCameraConnects.add(deviceId);
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -322,6 +344,58 @@ void main() {
     // the registry and can lose a device when a stale `Disconnected` event for
     // another device of the same type wipes the slot, which would strand an
     // open driver that `/api/devices/connected` still lists.
+    group("a client's connect of the profile's guide camera", () {
+      late _RecordingDeviceService service;
+
+      Future<Response> connectCamera(String deviceId) async {
+        service = _RecordingDeviceService();
+        container.dispose();
+        container = ProviderContainer(
+          overrides: [
+            loggingServiceProvider.overrideWithValue(logger),
+            databaseProvider.overrideWithValue(db),
+            deviceServiceProvider.overrideWithValue(service),
+          ],
+        );
+        await container.read(equipmentProfilesDaoProvider).createProfile(
+          EquipmentProfilesCompanion.insert(
+            name: 'Guided Rig',
+            cameraId: const Value('sim_camera_1'),
+            guiderId: const Value(builtinGuiderDeviceId),
+            guideCameraId: const Value('sim_camera_2'),
+            isActive: const Value(true),
+          ),
+        );
+        await container.read(equipmentProfilesProvider.future);
+        handlers = DeviceHandlers(container);
+        return translateHandlerErrors(
+          handlers.handleConnectDevice(
+            Request(
+              'POST',
+              Uri.parse('http://localhost/api/devices/connect'),
+              body: jsonEncode({'deviceId': deviceId, 'deviceType': 'camera'}),
+            ),
+          ),
+        );
+      }
+
+      test('connects it as the guide camera, not the imaging camera', () async {
+        final response = await connectCamera('sim_camera_2');
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(service.guideCameraConnects, ['sim_camera_2']);
+        expect(service.connects, isEmpty);
+      });
+
+      test('connects any other camera into the camera slot', () async {
+        final response = await connectCamera('sim_camera_1');
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(service.connects, [(DeviceType.camera, 'sim_camera_1')]);
+        expect(service.guideCameraConnects, isEmpty);
+      });
+    });
+
     group('disconnect falls back to the driver registry', () {
       Future<(Response, _RegistryBackend)> disconnect(
         String deviceId,

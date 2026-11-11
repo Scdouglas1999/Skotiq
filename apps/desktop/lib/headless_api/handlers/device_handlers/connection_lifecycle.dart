@@ -293,7 +293,17 @@ extension DeviceConnectionHandlers on DeviceHandlers {
     String deviceId,
   ) async {
     try {
-      await service.connect(type, deviceId);
+      // A linked client's sweep asks for the profile's guide camera as a
+      // camera; connected as one it would take the imaging camera's place.
+      if (type == DeviceType.camera &&
+          isProfileGuideCamera(
+            container.read(activeEquipmentProfileProvider),
+            deviceId,
+          )) {
+        await service.connectGuideCamera(deviceId);
+      } else {
+        await service.connect(type, deviceId);
+      }
     } on Exception catch (e) {
       // DeviceService throws `Exception('<Kind> not found: <id>')` when
       // discovery doesn't surface the requested device. Translate that
