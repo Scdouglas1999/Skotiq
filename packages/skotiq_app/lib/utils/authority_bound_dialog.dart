@@ -35,10 +35,20 @@ void closeAuthorityBoundDialog(BuildContext context) {
 /// The dialog closes, with [hostChangedMessage] when one is given, as soon as
 /// the app links to another host, also when that happens before the dialog
 /// first builds. [ref] belongs to the widget asking for the dialog.
+///
+/// [builder] is handed the dialog's host. Its route is removed when the host
+/// changes, but the dialog's context stays mounted until the next frame, so
+/// work the dialog awaited tests `host.isStale` (not `context.mounted`)
+/// before it pops anything or shows its outcome: an answer from the old host
+/// in that window would otherwise pop the page under the dialog and report
+/// its success on the new host.
 Future<T?> showHostBoundDialog<T>({
   required BuildContext context,
   required WidgetRef ref,
-  required WidgetBuilder builder,
+  required Widget Function(
+    BuildContext dialogContext,
+    AsyncScope<SkotiqBackend> host,
+  ) builder,
   String? hostChangedMessage,
   bool hostChangeDiscardsInput = false,
   bool barrierDismissible = true,
@@ -47,6 +57,13 @@ Future<T?> showHostBoundDialog<T>({
   BuildContext? routeContext;
   var hostChanged = false;
   var closed = false;
+  // Read through the container: the asking widget may be gone while its
+  // dialog is still open.
+  final host = AsyncScopes(
+    ProviderScope.containerOf(context, listen: false).read,
+    backendProvider,
+    alive: () => !hostChanged && !closed && (routeContext?.mounted ?? true),
+  ).begin();
   void close() {
     final dialogContext = routeContext;
     if (closed || dialogContext == null || !dialogContext.mounted) return;
@@ -76,7 +93,7 @@ Future<T?> showHostBoundDialog<T>({
         if (hostChanged) {
           WidgetsBinding.instance.addPostFrameCallback((_) => close());
         }
-        return builder(dialogContext);
+        return builder(dialogContext, host);
       },
     );
   } finally {

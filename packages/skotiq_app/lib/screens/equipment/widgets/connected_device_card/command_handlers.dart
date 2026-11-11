@@ -82,7 +82,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     await showHostBoundDialog<void>(
       context: context,
       ref: ref,
-      builder: (ctx) {
+      builder: (ctx, host) {
         return StatefulBuilder(builder: (context, setState) {
           final colors = SkotiqColors.of(context);
           return SkotiqDialog(
@@ -117,7 +117,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
                               restorePriorSetting: false);
                           await deviceService.setCameraCooling(
                               enabled: true, targetTemp: temp);
-                          if (!context.mounted) return;
+                          if (host.isStale) return;
                           ref
                               .read(cameraStateProvider.notifier)
                               .setTargetTemp(temp);
@@ -127,7 +127,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
                                 'Cooling to ${formatCelsius(temp, decimals: 0)}');
                           }
                         } catch (e) {
-                          if (!context.mounted) return;
+                          if (host.isStale) return;
                           setState(() {
                             isSaving = false;
                             errorText = 'Failed to start cooling: ${userFacingError(e)}';
@@ -271,7 +271,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
       final confirmed = await showHostBoundDialog<bool>(
         context: context,
         ref: ref,
-        builder: (ctx) => SkotiqDialog(
+        builder: (ctx, _) => SkotiqDialog(
           title: 'Meridian Flip Now?',
           icon: LucideIcons.flipHorizontal,
           width: 400,

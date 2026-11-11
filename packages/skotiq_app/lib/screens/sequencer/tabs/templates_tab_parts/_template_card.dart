@@ -711,7 +711,6 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
   Future<void> _deleteTemplate(BuildContext context) async {
     final dbId = widget.template.databaseId;
     if (dbId == null) return;
-    final host = ref.backendScope();
     final repository = ref.read(sequenceRepositoryProvider);
     var isDeleting = false;
     await showHostBoundDialog<void>(
@@ -720,7 +719,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
       hostChangedMessage:
           'The connected host changed. Template deletion canceled.',
       hostChangeDiscardsInput: true,
-      builder: (dialogContext) {
+      builder: (dialogContext, host) {
         return StatefulBuilder(
           builder: (dialogContext, setDialogState) => PopScope(
             canPop: !isDeleting,
@@ -758,15 +757,9 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
                       : () async {
                           setDialogState(() => isDeleting = true);
                           try {
-                            if (host.isStale) {
-                              Navigator.of(dialogContext).pop();
-                              return;
-                            }
+                            if (host.isStale) return;
                             await repository.deleteSequence(dbId);
-
-                            if (!dialogContext.mounted || host.isStale) {
-                              return;
-                            }
+                            if (host.isStale) return;
 
                             notifySequenceCatalogChanged(
                               ref,
@@ -777,12 +770,12 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
                             );
                             ref.invalidate(sequenceTemplatesProvider);
 
-                            if (!dialogContext.mounted) return;
+                            if (host.isStale) return;
                             dialogContext.showSuccessSnackBar(
                                 'Deleted "${widget.template.name}"');
                             Navigator.of(dialogContext).pop();
                           } catch (e) {
-                            if (!dialogContext.mounted) return;
+                            if (host.isStale) return;
                             setDialogState(() => isDeleting = false);
                             dialogContext.showErrorSnackBar(
                                 'Failed to delete template: $e');

@@ -9,7 +9,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
     await showHostBoundDialog(
       context: context,
       ref: ref,
-      builder: (ctx) {
+      builder: (ctx, _) {
         final colors = SkotiqColors.of(ctx);
         return SkotiqDialog(
           title: 'Mount configuration',
@@ -83,7 +83,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
     await showHostBoundDialog(
         context: context,
         ref: ref,
-        builder: (ctx) {
+        builder: (ctx, host) {
           return StatefulBuilder(builder: (context, setState) {
             final colors = SkotiqColors.of(context);
             return SkotiqDialog(
@@ -135,14 +135,14 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                               tempCoefficient: coeff,
                               backlashCompensation: backlash,
                             );
-                            if (!context.mounted) return;
+                            if (host.isStale) return;
                             Navigator.pop(context);
                             if (pageContext.mounted) {
                               pageContext.showSuccessSnackBar(
                                   'Focuser settings updated');
                             }
                           } catch (e) {
-                            if (!context.mounted) return;
+                            if (host.isStale) return;
                             setState(() {
                               isSaving = false;
                               errorText = 'Failed to save: ${userFacingError(e)}';
@@ -280,7 +280,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
     await showHostBoundDialog(
         context: context,
         ref: ref,
-        builder: (ctx) {
+        builder: (ctx, host) {
           return StatefulBuilder(builder: (context, setState) {
             final colors = SkotiqColors.of(context);
             return SkotiqDialog(
@@ -307,7 +307,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                             await ref
                                 .read(deviceServiceProvider)
                                 .setRotatorReversed(reversed);
-                            if (!context.mounted) return;
+                            if (host.isStale) return;
                             Navigator.pop(context);
                             if (pageContext.mounted) {
                               pageContext.showSuccessSnackBar(
@@ -315,7 +315,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                               );
                             }
                           } catch (e) {
-                            if (!context.mounted) return;
+                            if (host.isStale) return;
                             setState(() => isSaving = false);
                             context.showErrorSnackBar(
                               'Failed to set reverse direction: ${userFacingError(e)}',
@@ -373,7 +373,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
     await showHostBoundDialog(
         context: context,
         ref: ref,
-        builder: (ctx) {
+        builder: (ctx, host) {
           return StatefulBuilder(builder: (context, setState) {
             final colors = SkotiqColors.of(context);
             return SkotiqDialog(
@@ -408,7 +408,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                             ref
                                 .read(domeStateProvider.notifier)
                                 .setSlaved(slaved);
-                            if (!context.mounted) return;
+                            if (host.isStale) return;
                             Navigator.pop(context);
                             if (pageContext.mounted) {
                               pageContext.showSuccessSnackBar(
@@ -418,7 +418,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                               );
                             }
                           } catch (e) {
-                            if (!context.mounted) return;
+                            if (host.isStale) return;
                             setState(() => isSaving = false);
                             context.showErrorSnackBar(
                               'Dome slave failed: ${userFacingError(e)}',
@@ -502,7 +502,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
     await showHostBoundDialog(
         context: context,
         ref: ref,
-        builder: (ctx) {
+        builder: (ctx, host) {
           return StatefulBuilder(builder: (context, setState) {
             final colors = SkotiqColors.of(context);
             return SkotiqDialog(
@@ -543,14 +543,14 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                             // close. A failure keeps the typed value on screen
                             // and re-enables Save for a retry.
                             await _applyCalibratorBrightness(target);
-                            if (!context.mounted) return;
+                            if (host.isStale) return;
                             Navigator.pop(context);
                             if (pageContext.mounted) {
                               pageContext.showSuccessSnackBar(
                                   'Calibrator brightness updated to $target');
                             }
                           } catch (e) {
-                            if (!context.mounted) return;
+                            if (host.isStale) return;
                             setState(() {
                               isSaving = false;
                               errorText = 'Failed to set brightness: ${userFacingError(e)}';
