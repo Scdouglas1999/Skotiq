@@ -1,7 +1,5 @@
 part of '../polar_alignment_provider.dart';
 
-// Polar alignment configuration provider (persisted)
-
 /// Provider for persisted polar alignment configuration
 final polarAlignmentConfigProvider =
     StateNotifierProvider<PolarAlignmentConfigNotifier, PolarAlignmentConfig>((
@@ -116,7 +114,6 @@ class PolarAlignmentConfigNotifier extends StateNotifier<PolarAlignmentConfig> {
     }
   }
 
-  /// Update a single field
   Future<void> setExposureTime(double value) =>
       _edit(state.copyWith(exposureTime: value));
 
@@ -148,6 +145,5 @@ class PolarAlignmentConfigNotifier extends StateNotifier<PolarAlignmentConfig> {
 
   Future<void> setOffset(int? value) => _edit(state.copyWith(offset: value));
 
-  /// Reset to defaults
   Future<void> resetToDefaults() => _edit(const PolarAlignmentConfig());
 }

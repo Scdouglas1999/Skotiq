@@ -26,7 +26,6 @@ final polarAlignmentHistoryProvider =
       );
     });
 
-/// Provider for the last alignment result
 final lastPolarAlignmentProvider =
     FutureProvider.family<PolarAlignmentHistoryEntry?, int?>((
       ref,

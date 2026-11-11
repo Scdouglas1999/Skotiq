@@ -1,8 +1,5 @@
 part of '../framing_provider.dart';
 
-// Computed FOV provider
-
-/// Equipment status for framing
 enum EquipmentStatus {
   /// No equipment profile configured
   noProfile,
@@ -17,7 +14,6 @@ enum EquipmentStatus {
   ready,
 }
 
-/// Result of checking equipment for framing
 class FramingEquipmentResult {
   final EquipmentStatus status;
   final FramingEquipment? equipment;
@@ -38,7 +34,6 @@ class FramingEquipmentResult {
 final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
   final framingState = ref.watch(framingProvider);
 
-  // If using custom equipment, return it directly
   if (framingState.useCustomEquipment && framingState.customEquipment != null) {
     return FramingEquipmentResult(
       status: EquipmentStatus.ready,
@@ -50,7 +45,6 @@ final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
   // Get from active profile (host-authoritative when paired).
   final profile = ref.watch(activeEquipmentProfileProvider);
 
-  // Check if profile exists
   if (profile == null) {
     return const FramingEquipmentResult(
       status: EquipmentStatus.noProfile,
@@ -59,7 +53,6 @@ final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
     );
   }
 
-  // Check if focal length is configured
   if (profile.focalLength <= 0) {
     return FramingEquipmentResult(
       status: EquipmentStatus.noFocalLength,
@@ -118,7 +111,6 @@ final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
         pixelsY = status.sensorHeight;
         pixelSizeMicrons = status.pixelSizeX;
 
-        // Calculate sensor physical size from pixel count and pixel size
         sensorWidthMm = (pixelsX * pixelSizeMicrons) / 1000;
         sensorHeightMm = (pixelsY * status.pixelSizeY) / 1000;
 
@@ -272,8 +264,6 @@ String _extractDeviceName(String deviceId) {
   }
   return deviceId;
 }
-
-// Coordinate conversion utilities
 
 class CoordinateUtils {
   /// Parse RA from string (supports HH:MM:SS, HHhMMmSSs, decimal hours/degrees)
