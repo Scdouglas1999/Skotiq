@@ -414,14 +414,14 @@ class _LedgerFoldRowState extends ConsumerState<_LedgerFoldRow> {
     return (
       columns: LedgerColumns(
         filterExp:
-            durationSecs == null ? '' : '${formatLedgerSeconds(durationSecs)}s',
+            durationSecs == null ? '' : '${QuantityFormat.trimmed(durationSecs)}s',
         count: count == null ? '' : '${count * group.memberIds.length}',
         duration: openEnd != null
             ? formatNodeRollup(total, openEnd)
             : total.inSeconds <= 0
                 ? ''
                 : formatRollupDuration(total),
-        eta: earliest == null ? '' : formatLedgerClock(earliest.start),
+        eta: earliest == null ? '' : ClockFormat.hm(earliest.start.toLocal()),
       ),
       etaMuted: earliest != null && !earliest.isActual && state.hasBar,
     );

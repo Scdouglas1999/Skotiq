@@ -206,7 +206,7 @@ class _ScienceJumpNav extends ConsumerWidget {
       messenger.clearSnackBars();
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Export failed: $e'),
+          content: Text('Export failed: ${userFacingError(e)}'),
           behavior: SnackBarBehavior.floating,
         ),
       );

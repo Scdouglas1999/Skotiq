@@ -62,18 +62,6 @@ MetricVm _metric(
   );
 }
 
-/// An offset from the target: `0.8"`, `46.3"`, `2574"`, and `1.2°` only
-/// past a degree, where the mount is nowhere near the target. One unit for
-/// every offset a centered or nearly centered frame has, so consecutive
-/// readings compare at a glance: switching to arcminutes at 60" made a frame
-/// 42.9' off and the next 46.3" off read as if they were measured in the
-/// same unit. ASCII marks: the bundled faces have no ″ or ′.
-String nightAngle(double arcsec) {
-  if (arcsec < 100) return '${arcsec.toStringAsFixed(1)}"';
-  if (arcsec < 3600) return '${arcsec.round()}"';
-  return '${(arcsec / 3600).toStringAsFixed(1)}°';
-}
-
 final nightLastFrameProvider = Provider<NightLastFrameVm?>((ref) {
   // An autofocus or solve frame on screen is not the night's last frame:
   // the newest light row stands in for it, as it does with nothing shown.
@@ -110,15 +98,13 @@ final nightLastFrameProvider = Provider<NightLastFrameVm?>((ref) {
       row.isPlateSolved &&
       solvedRa != null &&
       solvedDec != null) {
-    solve = nightAngle(
-      AstronomyCalculations.angularSeparation(
+    solve = AngleFormat.arcsec(AstronomyCalculations.angularSeparation(
             ra1Deg: solvedRa * 15.0,
             dec1Deg: solvedDec,
             ra2Deg: target.raHours * 15.0,
             dec2Deg: target.decDegrees,
           ) *
-          3600,
-    );
+          3600);
   }
 
   final histogram = current?.histogram;

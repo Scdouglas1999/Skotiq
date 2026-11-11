@@ -292,7 +292,7 @@ class _TickerLine extends StatelessWidget {
         ),
         const SizedBox(width: SkotiqTokens.spaceSm),
         Text(
-          formatNarratorRelativeTime(event.timestamp),
+          RelativeTime.ago(event.timestamp),
           style: SkotiqTypography.withTabular(
             SkotiqTypography.labelQuiet.copyWith(color: colors.textMuted),
           ),

@@ -3,10 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// Formats a Duration into a human-readable string like "5m 30s", "1h 20m", etc.
-String formatDurationNice(Duration duration) =>
-    DurationFormat.of(duration, style: DurationStyle.hoursMinutesTrimmed);
-
 /// Checks if a node type has a meaningful duration that should be displayed.
 ///
 /// `SequenceNode` is sealed: the switch is exhaustive, so adding a new node
@@ -146,7 +142,7 @@ class NodeTimingSection extends ConsumerWidget {
           gap: SkotiqTokens.space2xl,
           children: <Readout>[
             Readout(
-              value: formatDurationNice(duration),
+              value: DurationFormat.of(duration, style: DurationStyle.short),
               label: 'Duration',
             ),
             if (totalDuration.inSeconds > 0 && percentage > 0.1)
@@ -199,7 +195,7 @@ class NodeTimingSection extends ConsumerWidget {
         ),
         _DurationDetail(
           label: 'Total',
-          value: formatDurationNice(Duration(seconds: total.round())),
+          value: DurationFormat.of(Duration(seconds: total.round()), style: DurationStyle.short),
         ),
       ];
     }
@@ -238,7 +234,7 @@ class NodeTimingSection extends ConsumerWidget {
         ),
         _DurationDetail(
           label: 'Est. duration',
-          value: formatDurationNice(Duration(seconds: totalSecs.round())),
+          value: DurationFormat.of(Duration(seconds: totalSecs.round()), style: DurationStyle.short),
         ),
         if (autofocus.useSettingsDefaults)
           const _DurationDetail(
@@ -253,8 +249,7 @@ class NodeTimingSection extends ConsumerWidget {
       return [
         _DurationDetail(
           label: 'Delay',
-          value: formatDurationNice(
-              Duration(milliseconds: (delay.seconds * 1000).round())),
+          value: DurationFormat.of(Duration(milliseconds: (delay.seconds * 1000).round()), style: DurationStyle.short),
         ),
       ];
     }
@@ -331,7 +326,7 @@ class NodeTimingSection extends ConsumerWidget {
         ),
         _DurationDetail(
           label: 'Est. total',
-          value: formatDurationNice(Duration(seconds: totalSecs.round())),
+          value: DurationFormat.of(Duration(seconds: totalSecs.round()), style: DurationStyle.short),
         ),
       ];
     }
@@ -489,7 +484,7 @@ class NodeTimingSection extends ConsumerWidget {
         ),
         _DurationDetail(
           label: 'Total',
-          value: formatDurationNice(Duration(seconds: total.round())),
+          value: DurationFormat.of(Duration(seconds: total.round()), style: DurationStyle.short),
         ),
       ];
     }

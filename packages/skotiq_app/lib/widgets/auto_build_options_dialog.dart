@@ -251,8 +251,8 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                        'Frame center: ${CoordinateParser.formatRaHms(widget.target.raHours)} '
-                        '${CoordinateParser.formatDecDms(widget.target.decDegrees)}'),
+                        'Frame center: ${CoordinateFormat.raReadout(widget.target.raHours)} '
+                        '${CoordinateFormat.decReadout(widget.target.decDegrees)}'),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<SmartNightStrategy>(
                       isExpanded: true,
@@ -431,7 +431,7 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
       if (mounted) {
         setState(() {
           _saving = false;
-          _error = 'Could not save recipe: $e';
+          _error = 'Could not save recipe: ${userFacingError(e)}';
         });
       }
     }

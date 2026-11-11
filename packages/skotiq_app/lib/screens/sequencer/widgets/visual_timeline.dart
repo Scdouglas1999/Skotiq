@@ -233,7 +233,7 @@ class VisualTimeline extends ConsumerWidget {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  _formatTotalDuration(totalDuration),
+                  '${DurationFormat.of(totalDuration, style: DurationStyle.coarse)} total',
                   style: TextStyle(
                       fontSize: SkotiqTypography.fontSize11,
                       color: colors.textMuted),
@@ -333,12 +333,6 @@ class VisualTimeline extends ConsumerWidget {
     );
   }
 
-  String _formatTotalDuration(Duration d) {
-    final hours = d.inHours;
-    final mins = d.inMinutes % 60;
-    if (hours > 0) return '${hours}h ${mins}m total';
-    return '${mins}m total';
-  }
 }
 
 class _TimelinePainter extends CustomPainter {

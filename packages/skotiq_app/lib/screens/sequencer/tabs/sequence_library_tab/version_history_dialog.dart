@@ -230,7 +230,7 @@ class _VersionHistoryDialogState extends ConsumerState<_VersionHistoryDialog>
       restored = await _repository.restoreVersion(version.id);
     } catch (e) {
       if (mounted && host.isCurrent) {
-        context.showErrorSnackBar('Failed to restore version: $e');
+        context.showErrorSnackBar('Failed to restore version: ${userFacingError(e)}');
       }
       return;
     }

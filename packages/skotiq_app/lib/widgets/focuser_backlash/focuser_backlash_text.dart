@@ -26,7 +26,7 @@ String backlashConditions(FocuserBacklashCalibration c) {
         'measurement against';
   }
   return 'position ${c.measuredAtPosition} at '
-      '${temperature.toStringAsFixed(1)} °C on $date';
+      '${formatCelsius(temperature)} on $date';
 }
 
 /// The compact form for a settings sub-line: "measured on 14 Sep 2026 at

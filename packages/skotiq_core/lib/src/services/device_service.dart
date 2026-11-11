@@ -26,7 +26,7 @@ import '../backend/skotiq_exception.dart' show ConnectionException;
 import '../models/equipment/equipment_models.dart';
 import '../models/imaging/imaging_models.dart'
     show AutofocusSettings, FilterAutofocusConfig;
-import '../utils/coordinate_format.dart';
+import 'package:skotiq_astro/format.dart';
 import '../utils/device_id.dart';
 import 'camera_temperature_poller.dart';
 import 'camera_warmup_controller.dart';

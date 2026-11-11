@@ -1,3 +1,4 @@
+import '../errors/error_text.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -185,7 +186,7 @@ class ObservationLogNotifier extends StateNotifier<ObservationLogUiState> {
       if (scope.isCurrent) {
         state = state.copyWith(
           isSaving: false,
-          errorMessage: 'Failed to log observation: $e',
+          errorMessage: 'Failed to log observation: ${userFacingError(e)}',
         );
       }
       return null;
@@ -210,7 +211,7 @@ class ObservationLogNotifier extends StateNotifier<ObservationLogUiState> {
     } catch (e) {
       if (scope.isCurrent) {
         state = state.copyWith(
-          errorMessage: 'Failed to delete observation: $e',
+          errorMessage: 'Failed to delete observation: ${userFacingError(e)}',
         );
       }
       return false;
@@ -247,7 +248,7 @@ class ObservationLogNotifier extends StateNotifier<ObservationLogUiState> {
       return csv;
     } catch (e) {
       if (scope.isCurrent) {
-        state = state.copyWith(errorMessage: 'Failed to export: $e');
+        state = state.copyWith(errorMessage: 'Failed to export: ${userFacingError(e)}');
       }
       return null;
     }
@@ -270,7 +271,7 @@ class ObservationLogNotifier extends StateNotifier<ObservationLogUiState> {
     } catch (e) {
       if (scope.isCurrent) {
         state = state.copyWith(
-          errorMessage: 'Failed to delete observations: $e',
+          errorMessage: 'Failed to delete observations: ${userFacingError(e)}',
         );
       }
     } finally {

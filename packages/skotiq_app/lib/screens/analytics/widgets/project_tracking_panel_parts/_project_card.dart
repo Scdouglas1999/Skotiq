@@ -10,9 +10,6 @@ class _EnhancedProjectCard extends ConsumerWidget {
     required this.filterBreakdown,
   });
 
-  String _formatHours(double seconds) =>
-      '${(seconds / 3600.0).toStringAsFixed(1)}h';
-
   Future<void> _editGoal(BuildContext context, WidgetRef ref) async {
     final authority = ref.read(backendProvider);
     final l10n = context.l10n;
@@ -100,7 +97,7 @@ class _EnhancedProjectCard extends ConsumerWidget {
           !identical(ref.read(backendProvider), authority)) {
         return;
       }
-      context.showErrorSnackBar('Failed to save goal: $e');
+      context.showErrorSnackBar('Failed to save goal: ${userFacingError(e)}');
     }
   }
 
@@ -179,9 +176,7 @@ class _EnhancedProjectCard extends ConsumerWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 12),
-
           if (progress.isTracked) ...[
             Row(
               children: [
@@ -211,7 +206,6 @@ class _EnhancedProjectCard extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
           ],
-
           Wrap(
             spacing: 20,
             runSpacing: 8,
@@ -219,14 +213,14 @@ class _EnhancedProjectCard extends ConsumerWidget {
               _MetricChip(
                 icon: LucideIcons.timer,
                 label: 'Integrated',
-                value: _formatHours(progress.integratedSecs),
+                value: DurationFormat.decimalHours(progress.integratedSecs),
                 colors: colors,
               ),
               _MetricChip(
                 icon: LucideIcons.target,
                 label: 'Goal',
                 value: progress.isTracked
-                    ? _formatHours(progress.goalIntegrationSecs)
+                    ? DurationFormat.decimalHours(progress.goalIntegrationSecs)
                     : 'Not set',
                 colors: colors,
               ),
@@ -234,7 +228,7 @@ class _EnhancedProjectCard extends ConsumerWidget {
                 icon: LucideIcons.hourglass,
                 label: 'Remaining',
                 value: progress.isTracked
-                    ? _formatHours(progress.remainingSecs)
+                    ? DurationFormat.decimalHours(progress.remainingSecs)
                     : kReadoutUnknown,
                 colors: colors,
               ),
@@ -255,7 +249,6 @@ class _EnhancedProjectCard extends ConsumerWidget {
               ),
             ],
           ),
-
           if (filterBreakdown.isNotEmpty) ...[
             const SizedBox(height: 12),
             _FilterBreakdownRow(
@@ -263,7 +256,6 @@ class _EnhancedProjectCard extends ConsumerWidget {
               colors: colors,
             ),
           ],
-
           if (progress.lastSessionAt != null) ...[
             const SizedBox(height: 10),
             Text(

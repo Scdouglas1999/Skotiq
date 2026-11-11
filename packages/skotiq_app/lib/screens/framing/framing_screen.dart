@@ -500,7 +500,7 @@ class _FramingViewState extends ConsumerState<FramingView> {
       if (!mounted) return;
       context.showSuccessSnackBar('Target saved');
     } catch (e) {
-      context.showErrorSnackBar('Failed to save: $e');
+      context.showErrorSnackBar('Failed to save: ${userFacingError(e)}');
       if (!mounted) return;
     }
   }
@@ -535,7 +535,7 @@ class _FramingViewState extends ConsumerState<FramingView> {
       context.showSuccessSnackBar('Cached at ${entry.filePath}');
     } catch (e) {
       if (!mounted) return;
-      context.showErrorSnackBar('Failed to cache survey image: $e');
+      context.showErrorSnackBar('Failed to cache survey image: ${userFacingError(e)}');
     }
   }
 }

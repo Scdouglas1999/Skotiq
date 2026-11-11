@@ -105,7 +105,7 @@ class CatalogOverlayWidget extends ConsumerWidget {
       error: (err, _) => CatalogOverlayBanner(
         icon: LucideIcons.alertCircle,
         title: 'Catalog overlay failed',
-        message: err.toString(),
+        message: userFacingError(err),
         tone: CatalogOverlayBannerTone.error,
       ),
       data: (result) {

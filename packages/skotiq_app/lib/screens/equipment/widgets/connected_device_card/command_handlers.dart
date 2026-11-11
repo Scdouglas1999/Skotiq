@@ -61,7 +61,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     } catch (e) {
       if (mounted &&
           _hasCurrentDeviceAuthority(backend, deviceService, deviceId)) {
-        context.showErrorSnackBar('Failed to disconnect: $e');
+        context.showErrorSnackBar('Failed to disconnect: ${userFacingError(e)}');
       }
     } finally {
       _finishDeviceCommand(revision, backend);
@@ -86,7 +86,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     } catch (e) {
       if (mounted &&
           _hasCurrentDeviceAuthority(backend, deviceService, deviceId)) {
-        context.showErrorSnackBar('Failed to start cooling: $e');
+        context.showErrorSnackBar('Failed to start cooling: ${userFacingError(e)}');
       }
     } finally {
       _finishDeviceCommand(revision, backend);
@@ -160,7 +160,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
                           if (!context.mounted) return;
                           setState(() {
                             isSaving = false;
-                            errorText = 'Failed to start cooling: $e';
+                            errorText = 'Failed to start cooling: ${userFacingError(e)}';
                           });
                         }
                       },
@@ -365,7 +365,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     } catch (e) {
       if (mounted &&
           _hasCurrentDeviceAuthority(backend, deviceService, deviceId)) {
-        context.showErrorSnackBar('Failed to change filter: $e');
+        context.showErrorSnackBar('Failed to change filter: ${userFacingError(e)}');
       }
     } finally {
       _finishDeviceCommand(revision, backend);
@@ -395,7 +395,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     } catch (e) {
       if (mounted &&
           _hasCurrentDeviceAuthority(backend, deviceService, deviceId)) {
-        context.showErrorSnackBar('Guiding operation failed: $e');
+        context.showErrorSnackBar('Guiding operation failed: ${userFacingError(e)}');
       }
     } finally {
       _finishDeviceCommand(revision, backend);
@@ -483,7 +483,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
       }
     } catch (e) {
       if (mounted && _hasCurrentDomeAuthority(backend, deviceId)) {
-        context.showErrorSnackBar('Dome shutter operation failed: $e');
+        context.showErrorSnackBar('Dome shutter operation failed: ${userFacingError(e)}');
       }
     } finally {
       _finishDomeCommand(revision, backend);
@@ -504,7 +504,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
       }
     } catch (e) {
       if (mounted && _hasCurrentDomeAuthority(backend, deviceId)) {
-        context.showErrorSnackBar('Dome park operation failed: $e');
+        context.showErrorSnackBar('Dome park operation failed: ${userFacingError(e)}');
       }
     } finally {
       _finishDomeCommand(revision, backend);
@@ -525,7 +525,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
       }
     } catch (e) {
       if (mounted && _hasCurrentDomeAuthority(backend, deviceId)) {
-        context.showErrorSnackBar('Dome home failed: $e');
+        context.showErrorSnackBar('Dome home failed: ${userFacingError(e)}');
       }
     } finally {
       _finishDomeCommand(revision, backend);
@@ -546,7 +546,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
       }
     } catch (e) {
       if (mounted && _hasCurrentDomeAuthority(backend, deviceId)) {
-        context.showErrorSnackBar('Dome halt failed: $e');
+        context.showErrorSnackBar('Dome halt failed: ${userFacingError(e)}');
       }
     } finally {
       _finishDomeCommand(revision, backend);
@@ -593,7 +593,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
       }
     } catch (e) {
       if (mounted && identical(ref.read(backendProvider), backend)) {
-        context.showErrorSnackBar('Cover operation failed: $e');
+        context.showErrorSnackBar('Cover operation failed: ${userFacingError(e)}');
       }
     } finally {
       _finishCoverCalibratorCommand(revision, backend);
@@ -650,7 +650,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
       }
     } catch (e) {
       if (mounted && identical(ref.read(backendProvider), backend)) {
-        context.showErrorSnackBar('Calibrator operation failed: $e');
+        context.showErrorSnackBar('Calibrator operation failed: ${userFacingError(e)}');
       }
     } finally {
       _finishCoverCalibratorCommand(revision, backend);

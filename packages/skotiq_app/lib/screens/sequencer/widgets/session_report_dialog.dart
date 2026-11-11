@@ -75,7 +75,7 @@ class SessionReportDialog extends ConsumerWidget {
         child: EmptyState(
           icon: LucideIcons.alertTriangle,
           title: 'Could not build session report',
-          body: '$err',
+          body: userFacingError(err),
           action: SkotiqButton(
             label: 'Retry',
             icon: LucideIcons.refreshCw,
@@ -276,7 +276,7 @@ class _ReportBody extends ConsumerWidget {
                 colors: colors,
               ),
               error: (error, _) => _AuxiliaryReportState(
-                label: 'Could not load recovery history: $error',
+                label: 'Could not load recovery history: ${userFacingError(error)}',
                 colors: colors,
                 error: true,
                 onRetry: () => ref.invalidate(
@@ -317,7 +317,7 @@ class _ReportBody extends ConsumerWidget {
                 colors: colors,
               ),
               error: (error, _) => _AuxiliaryReportState(
-                label: 'Could not load diagnostic settings: $error',
+                label: 'Could not load diagnostic settings: ${userFacingError(error)}',
                 colors: colors,
                 error: true,
                 onRetry: () => ref.invalidate(appSettingsProvider),
@@ -334,7 +334,7 @@ class _ReportBody extends ConsumerWidget {
                     colors: colors,
                   ),
                   error: (error, _) => _AuxiliaryReportState(
-                    label: 'Could not load optical-train diagnostics: $error',
+                    label: 'Could not load optical-train diagnostics: ${userFacingError(error)}',
                     colors: colors,
                     error: true,
                     onRetry: () => ref.invalidate(
@@ -487,7 +487,7 @@ class _ReportBody extends ConsumerWidget {
                 colors: colors,
               ),
               error: (error, _) => _AuxiliaryReportState(
-                label: 'Could not load retrospective suggestions: $error',
+                label: 'Could not load retrospective suggestions: ${userFacingError(error)}',
                 colors: colors,
                 error: true,
                 onRetry: () => ref.invalidate(
@@ -734,7 +734,7 @@ class _ReportBody extends ConsumerWidget {
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export failed: $e')),
+        SnackBar(content: Text('Export failed: ${userFacingError(e)}')),
       );
     }
   }

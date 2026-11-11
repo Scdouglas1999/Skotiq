@@ -109,30 +109,15 @@ class QuickStartDialog extends ConsumerWidget {
         DateUtils.dateOnly(now).difference(DateUtils.dateOnly(dt)).inDays;
 
     if (days == 0) {
-      return 'Today at ${_formatTime(dt)}';
+      return 'Today at ${ClockFormat.hm(dt)}';
     } else if (days == 1) {
-      return 'Yesterday at ${_formatTime(dt)}';
+      return 'Yesterday at ${ClockFormat.hm(dt)}';
     } else if (days > 1 && days < 7) {
-      return '$days days ago at ${_formatTime(dt)}';
+      return '$days days ago at ${ClockFormat.hm(dt)}';
     } else {
-      return '${_formatCalendarDate(dt)} at ${_formatTime(dt)}';
+      return '${ClockFormat.date(dt)} at ${ClockFormat.hm(dt)}';
     }
   }
-
-  String _formatCalendarDate(DateTime dt) {
-    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
-        '${dt.day.toString().padLeft(2, '0')}';
-  }
-
-  String _formatTime(DateTime dt) {
-    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-  }
-
-  /// Integration in the same h/m/s shape the dashboard's last-run card and
-  /// the history tab use. Whole minutes reported a real 12-second session as
-  /// "0 minutes integration" — the operator's cue that the run captured
-  /// nothing, right next to a card saying "12s".
-  String _formatIntegration(double hours) => formatIntegrationHours(hours);
 
   Widget _buildTitle(SkotiqColors colors, ThemeData theme) {
     return Row(
@@ -320,12 +305,12 @@ class QuickStartDialog extends ConsumerWidget {
     String progressText;
     if (frames > 0 && total > 0) {
       progressText =
-          '$frames/$total frames captured, ${_formatIntegration(integration)} integration';
+          '$frames/$total frames captured, ${DurationFormat.seconds(integration * 3600)} integration';
     } else if (frames > 0) {
       progressText =
-          '$frames frames captured, ${_formatIntegration(integration)} integration';
+          '$frames frames captured, ${DurationFormat.seconds(integration * 3600)} integration';
     } else if (integration > 0) {
-      progressText = '${_formatIntegration(integration)} integration';
+      progressText = '${DurationFormat.seconds(integration * 3600)} integration';
     } else {
       progressText = 'No progress yet';
     }

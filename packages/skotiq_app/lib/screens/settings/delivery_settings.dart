@@ -57,7 +57,6 @@ import 'package:path/path.dart' as p;
 
 import '../../utils/confirm_dialog.dart';
 import '../../utils/snackbar_helper.dart';
-import '../../utils/user_facing_error.dart';
 import 'widgets/settings_widgets.dart';
 
 part 'delivery_settings/delivery_settings_store.dart';

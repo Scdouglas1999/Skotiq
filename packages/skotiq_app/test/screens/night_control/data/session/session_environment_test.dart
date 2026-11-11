@@ -391,7 +391,7 @@ void main() {
       );
       expect(
         _item(items, ChecklistItemId.disk).detail!.params['free'],
-        '639 GB',
+        '639 GiB',
       );
     });
 
@@ -414,7 +414,7 @@ void main() {
       expect(dawn.detail!.key, 'nightSessionCheckDawnPark');
       expect(
         dawn.detail!.params['time'],
-        nightClockTime(const SystemClock(), expected),
+        ClockFormat.hm((const SystemClock()).fromUtc(expected.toUtc())),
       );
     });
 

@@ -13,22 +13,6 @@ import '../../../utils/plan_tonight_sequencer_helper.dart';
 import '../planetarium_screen.dart';
 import 'sidebar_shared_widgets.dart';
 
-/// Render an instant as the HH:MM face the OBSERVING SITE reads.
-///
-/// Every time on this tab — twilight, moonrise/set, transit, satellite passes —
-/// is a fact about the place the rig sits, and the operator may be in another
-/// zone entirely. These were formatted with `.toLocal()`, i.e. the controlling
-/// laptop's zone, so Settings → Location → Timezone changed nothing here while
-/// the dashboard's own twilight strip and the status-bar clock (which do read
-/// [clockProvider]) moved: one app showing two zones, with nothing saying which
-/// was which. [SystemClock.fromUtc] is `toLocal()`, so a rig on "use system
-/// time" renders exactly as before.
-String _siteHhmm(DateTime t, Clock clock) {
-  final shown = clock.fromUtc(t.toUtc());
-  return '${shown.hour.toString().padLeft(2, '0')}:'
-      '${shown.minute.toString().padLeft(2, '0')}';
-}
-
 class TonightTab extends ConsumerWidget {
   final SkotiqColors colors;
 
@@ -159,25 +143,25 @@ class TonightTab extends ConsumerWidget {
                   if (twilight.sunset != null)
                     TwilightRow(
                       label: 'Sunset',
-                      time: _siteHhmm(twilight.sunset!, clock),
+                      time: ClockFormat.hm(clock.fromUtc(twilight.sunset!.toUtc())),
                       colors: colors,
                     ),
                   if (twilight.civilDusk != null)
                     TwilightRow(
                       label: 'Civil dusk',
-                      time: _siteHhmm(twilight.civilDusk!, clock),
+                      time: ClockFormat.hm(clock.fromUtc(twilight.civilDusk!.toUtc())),
                       colors: colors,
                     ),
                   if (twilight.nauticalDusk != null)
                     TwilightRow(
                       label: 'Nautical dusk',
-                      time: _siteHhmm(twilight.nauticalDusk!, clock),
+                      time: ClockFormat.hm(clock.fromUtc(twilight.nauticalDusk!.toUtc())),
                       colors: colors,
                     ),
                   if (twilight.astronomicalDusk != null)
                     TwilightRow(
                       label: 'Astro dusk',
-                      time: _siteHhmm(twilight.astronomicalDusk!, clock),
+                      time: ClockFormat.hm(clock.fromUtc(twilight.astronomicalDusk!.toUtc())),
                       isPrimary: true,
                       colors: colors,
                     ),
@@ -206,26 +190,26 @@ class TonightTab extends ConsumerWidget {
                   if (twilight.astronomicalDawn != null)
                     TwilightRow(
                       label: 'Astro dawn',
-                      time: _siteHhmm(twilight.astronomicalDawn!, clock),
+                      time: ClockFormat.hm(clock.fromUtc(twilight.astronomicalDawn!.toUtc())),
                       isPrimary: true,
                       colors: colors,
                     ),
                   if (twilight.nauticalDawn != null)
                     TwilightRow(
                       label: 'Nautical dawn',
-                      time: _siteHhmm(twilight.nauticalDawn!, clock),
+                      time: ClockFormat.hm(clock.fromUtc(twilight.nauticalDawn!.toUtc())),
                       colors: colors,
                     ),
                   if (twilight.civilDawn != null)
                     TwilightRow(
                       label: 'Civil dawn',
-                      time: _siteHhmm(twilight.civilDawn!, clock),
+                      time: ClockFormat.hm(clock.fromUtc(twilight.civilDawn!.toUtc())),
                       colors: colors,
                     ),
                   if (twilight.sunrise != null)
                     TwilightRow(
                       label: 'Sunrise',
-                      time: _siteHhmm(twilight.sunrise!, clock),
+                      time: ClockFormat.hm(clock.fromUtc(twilight.sunrise!.toUtc())),
                       colors: colors,
                     ),
                 ],
@@ -285,13 +269,13 @@ class TonightTab extends ConsumerWidget {
                 if (moonTimes?.moonrise != null)
                   TwilightRow(
                     label: 'Moonrise',
-                    time: _siteHhmm(moonTimes!.moonrise!, clock),
+                    time: ClockFormat.hm(clock.fromUtc(moonTimes!.moonrise!.toUtc())),
                     colors: colors,
                   ),
                 if (moonTimes?.moonset != null)
                   TwilightRow(
                     label: 'Moonset',
-                    time: _siteHhmm(moonTimes!.moonset!, clock),
+                    time: ClockFormat.hm(clock.fromUtc(moonTimes!.moonset!.toUtc())),
                     colors: colors,
                   ),
               ],
@@ -396,7 +380,7 @@ class TonightTab extends ConsumerWidget {
                     // use, and which was exactly what let daylight targets
                     // head this list.
                     final peakTime = item.peakTime != null
-                        ? _siteHhmm(item.peakTime!, clock)
+                        ? ClockFormat.hm(clock.fromUtc(item.peakTime!.toUtc()))
                         : '-';
                     return TargetCard(
                       name: displayName,
@@ -699,7 +683,7 @@ class _SatellitePassCard extends StatelessWidget {
             children: [
               _PassTimeLabel(
                 label: 'Rise',
-                time: _siteHhmm(pass.riseTime, clock),
+                time: ClockFormat.hm(clock.fromUtc(pass.riseTime.toUtc())),
                 az: '${pass.riseAzimuth.toStringAsFixed(0)}\u00b0',
                 colors: colors,
               ),
@@ -708,7 +692,7 @@ class _SatellitePassCard extends StatelessWidget {
               const SizedBox(width: 8),
               _PassTimeLabel(
                 label: 'Max',
-                time: _siteHhmm(pass.maxElevationTime, clock),
+                time: ClockFormat.hm(clock.fromUtc(pass.maxElevationTime.toUtc())),
                 az: '${pass.maxElevationAzimuth.toStringAsFixed(0)}\u00b0',
                 colors: colors,
               ),
@@ -717,7 +701,7 @@ class _SatellitePassCard extends StatelessWidget {
               const SizedBox(width: 8),
               _PassTimeLabel(
                 label: 'Set',
-                time: _siteHhmm(pass.setTime, clock),
+                time: ClockFormat.hm(clock.fromUtc(pass.setTime.toUtc())),
                 az: '${pass.setAzimuth.toStringAsFixed(0)}\u00b0',
                 colors: colors,
               ),

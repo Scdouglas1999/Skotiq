@@ -7,7 +7,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:file_selector/file_selector.dart';
 
-import '../../../utils/user_facing_error.dart';
 import '../../../widgets/remote_host_path_dialog.dart';
 import 'settings_widgets.dart';
 

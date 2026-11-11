@@ -105,7 +105,7 @@ Future<EquipmentDisconnectSummary> runEquipmentDisconnectAll(
     } on DeviceNotConnectedException {
       continue;
     } catch (e) {
-      failures.add('${target.label}: $e');
+      failures.add('${target.label}: ${userFacingError(e)}');
     }
   }
 

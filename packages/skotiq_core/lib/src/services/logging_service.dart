@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
 import '../utils/skotiq_data_directory.dart';
@@ -289,7 +290,7 @@ class LoggingService {
   String? get currentDartLogFile {
     final directory = _logDirectory;
     if (directory == null) return null;
-    final day = _dayStamp(DateTime.now());
+    final day = ClockFormat.date(DateTime.now().toUtc());
     return '$directory${Platform.pathSeparator}$dartLogFileBaseName.$day';
   }
 
@@ -392,7 +393,7 @@ class LoggingService {
     // the closed [_logEntryController] makes for a late subscriber.
     if (_disposed) return;
 
-    final day = _dayStamp(entry.timestamp);
+    final day = ClockFormat.date(entry.timestamp.toUtc());
     try {
       var handle = _fileHandle;
       if (handle == null || _fileHandleDay != day) {
@@ -426,17 +427,6 @@ class LoggingService {
         _statingRefusal = false;
       }
     }
-  }
-
-  /// The `YYYY-MM-DD` stamp that names one day's file.
-  ///
-  /// UTC, because the Rust appender rolls on UTC and a reader holding both
-  /// files open must not find them cut on two different midnights.
-  static String _dayStamp(DateTime when) {
-    final utc = when.toUtc();
-    final month = utc.month.toString().padLeft(2, '0');
-    final day = utc.day.toString().padLeft(2, '0');
-    return '${utc.year}-$month-$day';
   }
 
   /// Convenience methods

@@ -134,7 +134,7 @@ extension _LogViewerActions on _LogViewerState {
                   subtitle: historyBytes == null
                       ? 'Every retained log file — size could not be read'
                       : 'Every retained log file — about '
-                          '${_formatFileSize(historyBytes)}',
+                          '${ByteFormat.size(historyBytes)}',
                   scope: LogExportScope.fullHistory,
                 ),
               ],
@@ -232,13 +232,13 @@ extension _LogViewerActions on _LogViewerState {
         target.path,
         subject: 'Skotiq logs',
         desktopMessage: 'Logs exported to: ${target.path} '
-            '(${_formatFileSize(writtenBytes)})',
+            '(${ByteFormat.size(writtenBytes)})',
       );
     } catch (e) {
       if (mounted && _isCurrentAction(token, backend)) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Export failed: $e'),
+            content: Text('Export failed: ${userFacingError(e)}'),
             backgroundColor: SkotiqColors.of(context).error,
           ),
         );
@@ -271,7 +271,7 @@ extension _LogViewerActions on _LogViewerState {
         if (mounted && _isCurrentAction(token, backend)) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Could not list the host’s log files: $e'),
+              content: Text('Could not list the host’s log files: ${userFacingError(e)}'),
               backgroundColor: SkotiqColors.of(context).error,
             ),
           );
@@ -371,7 +371,7 @@ extension _LogViewerActions on _LogViewerState {
                     ),
                   ),
                   subtitle: Text(
-                    '${_formatFileSize(file.sizeBytes)}'
+                    '${ByteFormat.size(file.sizeBytes)}'
                     '${file.isCurrent ? ' · current' : ''}',
                     style: SkotiqTypography.captionSm.copyWith(
                       color: colors.textMuted,
@@ -393,14 +393,6 @@ extension _LogViewerActions on _LogViewerState {
         );
       },
     );
-  }
-
-  String _formatFileSize(int bytes) {
-    if (bytes >= 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    if (bytes >= 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '$bytes B';
   }
 
   Future<void> _confirmClearLogs() async {
@@ -517,7 +509,7 @@ extension _LogViewerActions on _LogViewerState {
       if (!mounted || !_isCurrentAction(token, backend)) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Clear failed: $e'),
+          content: Text('Clear failed: ${userFacingError(e)}'),
           backgroundColor: SkotiqColors.of(context).error,
         ),
       );

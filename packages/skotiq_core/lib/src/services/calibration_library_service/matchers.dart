@@ -233,7 +233,7 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
       if (wantFilter != null && wantFilter.isNotEmpty)
         'Filter $wantFilter match (required for flats)',
       'Newest of ${pool.length} qualifying flat${pool.length == 1 ? '' : 's'} '
-          '(${CalibrationLibraryService._fmtDate(best.createdAt)})',
+          '(${ClockFormat.date(best.createdAt.toLocal())})',
     ];
     final warnings = <String>[];
     var score = _applyUnverifiedTuple(
@@ -306,7 +306,7 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
       if (delta > 5.0) {
         score -= math.min(20.0, 2.0 * delta);
         warnings.add(
-          'Defect map was built ${delta.toStringAsFixed(1)}°C from '
+          'Defect map was built ${formatCelsius(delta)} from '
           'the current sensor temperature — hot-pixel sets shift with '
           'cooling setpoint.',
         );
@@ -403,13 +403,13 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
     if (ctx.temperature != null && record.temperature != null) {
       final delta = (record.temperature! - ctx.temperature!).abs();
       reasons.add(
-        'Temperature ${record.temperature!.toStringAsFixed(1)}°C '
+        'Temperature ${formatCelsius(record.temperature!)} '
         '(Δ${delta.toStringAsFixed(1)}°C, tolerance ±$toleranceC°C)',
       );
       score -= math.min(20.0, 4.0 * delta);
       if (fellBack || delta > toleranceC) {
         warnings.add(
-          'Sensor temperature differs by ${delta.toStringAsFixed(1)}°C '
+          'Sensor temperature differs by ${formatCelsius(delta)} '
           'from the $label (tolerance ±$toleranceC°C).',
         );
       }

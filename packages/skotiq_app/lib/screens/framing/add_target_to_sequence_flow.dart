@@ -302,7 +302,7 @@ Future<bool> addFramedTargetToExistingSequence({
           content: Text(
             'Could not add '
             '${target.name.isEmpty ? 'the target' : target.name} '
-            'to the sequence: $e',
+            'to the sequence: ${userFacingError(e)}',
           ),
         ),
       );
@@ -336,7 +336,7 @@ Future<bool?> _showSequenceLibraryError(
         ),
       ],
       child: Text(
-        'Skotiq could not verify the sequence library: $error\n\n'
+        'Skotiq could not verify the sequence library: ${userFacingError(error)}\n\n'
         'No destination list or new-sequence option will be shown until the '
         'library loads successfully.',
       ),

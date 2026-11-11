@@ -81,7 +81,7 @@ Future<void> restoreDeletedProfile(
     report(l10n.text('equipmentProfileRestored'), colors.success);
   } catch (e) {
     report(
-      l10n.text('equipmentRestoreFailed', params: {'error': '$e'}),
+      l10n.text('equipmentRestoreFailed', params: {'error': userFacingError(e)}),
       colors.error,
     );
   }

@@ -131,7 +131,7 @@ class _DarkroomImageSurfaceState extends State<_DarkroomImageSurface> {
       setState(() {
         _decoding = null;
         _decodeError = 'The newest render could not be decoded into an image: '
-            '$error';
+            '${userFacingError(error)}';
       });
       return;
     }

@@ -242,7 +242,7 @@ class _CandidateColumnHeader extends StatelessWidget {
               windowLabel: l10n.text('plannerColWindow'),
               windowScale: switch (night) {
                 null => null,
-                final n => (_clock(n.start.toLocal()), _clock(n.end.toLocal())),
+                final n => (ClockFormat.hm(n.start.toLocal()), ClockFormat.hm(n.end.toLocal())),
               },
               columns: grid,
             ),
@@ -381,7 +381,7 @@ String? _transitValue(TargetVisibilityInfo visibility) {
   final time = visibility.transitTime;
   final altitude = visibility.transitAltitude;
   if (time == null && altitude == null) return null;
-  final clock = time == null ? null : _clock(time);
+  final clock = time == null ? null : ClockFormat.hm(time);
   final alt = altitude == null ? null : '${altitude.round()}°';
   if (clock == null) return alt;
   if (alt == null) return clock;
@@ -402,10 +402,6 @@ String? _hoursAndMinutes(double? hours) {
   if (m == 0) return '${h}h';
   return '${h}h ${m}m';
 }
-
-/// 24-hour clock, zero-padded.
-String _clock(DateTime t) =>
-    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
 /// Tonight's astronomical-dark window, and where a target's own rise/set span
 /// falls inside it.

@@ -152,14 +152,12 @@ class _ProjectTrackingPanelState extends ConsumerState<ProjectTrackingPanel> {
             const _CleanupHeaderRow(),
             _SummaryStatsHeader(projects: projects, colors: colors),
             const SizedBox(height: 12),
-
             _SortBar(
               currentSort: _sortMode,
               onSortChanged: (mode) => setState(() => _sortMode = mode),
               colors: colors,
             ),
             const SizedBox(height: 12),
-
             Expanded(
               child: ListView.separated(
                 padding: const EdgeInsets.only(bottom: 24),
@@ -185,7 +183,7 @@ class _ProjectTrackingPanelState extends ConsumerState<ProjectTrackingPanel> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            'Error loading projects: $error',
+            'Error loading projects: ${userFacingError(error)}',
             textAlign: TextAlign.center,
             maxLines: 4,
             overflow: TextOverflow.ellipsis,

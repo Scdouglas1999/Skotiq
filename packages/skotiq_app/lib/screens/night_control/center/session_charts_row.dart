@@ -24,7 +24,6 @@ import '../data/session/session_series_provider.dart';
 import '../data/session/guide_series_provider.dart';
 import '../night_control_contracts.dart';
 import '../night_control_layout.dart';
-import 'center_format.dart';
 import 'chart_axes.dart';
 import 'frame_stage.dart' show nightIsBeforeRun;
 
@@ -618,7 +617,7 @@ class _HfrChart extends ConsumerWidget {
     ];
     final afTimes = <String>[
       for (final marker in vm.markers)
-        if (marker.kind == SeriesMarkerKind.autofocus) nightClockHm(marker.t),
+        if (marker.kind == SeriesMarkerKind.autofocus) ClockFormat.hm(marker.t),
     ];
 
     final values = _values(hfr);
@@ -995,7 +994,7 @@ class _TemperatureChart extends ConsumerWidget {
               l10n.text(
                 'nightCtrSemAfShift',
                 params: <String, String>{
-                  'time': nightClockHm(shift!.at),
+                  'time': ClockFormat.hm(shift!.at),
                   'steps': signedSteps(steps),
                 },
               ),
@@ -1016,7 +1015,7 @@ class _TemperatureChart extends ConsumerWidget {
     } else if (shift != null) {
       final at = l10n.text(
         'nightCtrFocusLastAfAt',
-        params: <String, String>{'time': nightClockHm(shift.at)},
+        params: <String, String>{'time': ClockFormat.hm(shift.at)},
       );
       final steps = shift.steps;
       if (steps == null) {
@@ -1025,7 +1024,7 @@ class _TemperatureChart extends ConsumerWidget {
         note = l10n.text(
           'nightCtrFocusLastAf',
           params: <String, String>{
-            'time': nightClockHm(shift.at),
+            'time': ClockFormat.hm(shift.at),
             'steps': signedSteps(steps),
           },
         );
@@ -1040,7 +1039,7 @@ class _TemperatureChart extends ConsumerWidget {
     } else if (from != null) {
       note = l10n.text(
         'nightCtrSince',
-        params: <String, String>{'time': nightClockHm(from)},
+        params: <String, String>{'time': ClockFormat.hm(from)},
       );
     }
 

@@ -356,21 +356,14 @@ class _RunRow extends StatelessWidget {
   }
 
   String _subtitle(String? target, DateTime startedAt, Duration? duration) {
-    final time = _formatStart(startedAt);
+    final time = ClockFormat.dateHm(startedAt.toLocal());
     final dur = duration != null
-        ? DurationFormat.of(duration, style: DurationStyle.hoursMinutes)
+        ? DurationFormat.of(duration, style: DurationStyle.short)
         : 'in progress';
     if (target != null && target.isNotEmpty) {
       return '$target  •  $time  •  $dur';
     }
     return '$time  •  $dur';
-  }
-
-  String _formatStart(DateTime t) {
-    final local = t.toLocal();
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${local.year}-${two(local.month)}-${two(local.day)} '
-        '${two(local.hour)}:${two(local.minute)}';
   }
 
   Color _statusColor(String status, SkotiqColors colors) {

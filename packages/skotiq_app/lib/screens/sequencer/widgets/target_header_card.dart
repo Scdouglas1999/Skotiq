@@ -75,12 +75,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     }
   }
 
-  String _formatRA(double raHours) =>
-      CoordinateFormat.ra(raHours, seconds: SecondsPrecision.integerRounded);
-
-  String _formatDec(double decDegrees) => CoordinateFormat.dec(decDegrees,
-      seconds: SecondsPrecision.integerRounded);
-
   /// Whether this target header's subtree is being executed **right now**.
   ///
   /// `nodeStatus == running` is the node's own last-reported status. A PAUSED
@@ -344,14 +338,14 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
               children: [
                 _CoordinateChip(
                   label: 'RA',
-                  value: unset ? 'Not set' : _formatRA(node.raHours),
+                  value: unset ? 'Not set' : CoordinateFormat.raReadout(node.raHours),
                   colors: widget.colors,
                   isPlaceholder: unset,
                 ),
 
                 _CoordinateChip(
                   label: 'Dec',
-                  value: unset ? 'Not set' : _formatDec(node.decDegrees),
+                  value: unset ? 'Not set' : CoordinateFormat.decReadout(node.decDegrees),
                   colors: widget.colors,
                   isPlaceholder: unset,
                 ),
@@ -446,7 +440,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
           if (node.startAfter != null)
             _ConstraintChip(
               icon: LucideIcons.clock,
-              label: 'Start: ${_formatTime(node.startAfter!)}',
+              label: 'Start: ${ClockFormat.hm(node.startAfter!)}',
               colors: widget.colors,
             ),
           if (node.startAfter != null && node.endBefore != null)
@@ -454,7 +448,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
           if (node.endBefore != null)
             _ConstraintChip(
               icon: LucideIcons.timer,
-              label: 'End: ${_formatTime(node.endBefore!)}',
+              label: 'End: ${ClockFormat.hm(node.endBefore!)}',
               colors: widget.colors,
             ),
 
@@ -538,14 +532,14 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     final String planLabel;
     if (plan.hasOpenEndedLoop) {
       final loopPart = plan.openEndedBudgetSecs > 0
-          ? 'Looping • up to ${_formatDuration(plan.openEndedBudgetSecs)} (until window end)'
+          ? 'Looping • up to ${DurationFormat.seconds(plan.openEndedBudgetSecs, style: DurationStyle.coarse)} (until window end)'
           : 'Looping until window end';
       planLabel = plan.frames > 0
           ? '${plan.frames} planned exposures + $loopPart'
           : loopPart;
     } else if (plan.frames > 0) {
       final counted =
-          '${plan.frames} planned exposures • ${_formatDuration(plan.integrationSecs)}';
+          '${plan.frames} planned exposures • ${DurationFormat.seconds(plan.integrationSecs, style: DurationStyle.coarse)}';
       // Under a time/altitude/forever loop the counted figure is one pass, not
       // the night's total — say so rather than quoting a floor as the plan.
       planLabel = plan.hasUnboundedRepeat
@@ -615,8 +609,8 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     // directly above it in the same card read "~34s". The estimate beside it
     // uses the shared compact duration format, so this uses it too and the two
     // halves of one card finally quote the same unit.
-    final completedElapsed = _formatDuration(stats.completedIntegrationSecs);
-    final totalElapsed = _formatDuration(stats.totalIntegrationSecs);
+    final completedElapsed = DurationFormat.seconds(stats.completedIntegrationSecs, style: DurationStyle.coarse);
+    final totalElapsed = DurationFormat.seconds(stats.totalIntegrationSecs, style: DurationStyle.coarse);
     final progressState = executionState == SequenceExecutionState.paused
         ? SkotiqProgressState.paused
         : SkotiqProgressState.normal;
@@ -673,12 +667,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     );
   }
 
-  String _formatTime(DateTime time) {
-    final hour = time.hour.toString().padLeft(2, '0');
-    final minute = time.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
-  }
-
   /// Count the frames and integration time planned under this target.
   ///
   /// Delegates to the shared [plannedCaptureUnder] walk so this card, the
@@ -690,8 +678,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     return plannedCaptureUnder(sequence, widget.node.id);
   }
 
-  String _formatDuration(double totalSeconds) =>
-      DurationFormat.seconds(totalSeconds, style: DurationStyle.compact);
 }
 
 class _CoordinateChip extends StatelessWidget {

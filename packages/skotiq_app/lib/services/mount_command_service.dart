@@ -125,7 +125,7 @@ class MountCommandService {
         return CommandActionResult.ok;
       } catch (e) {
         final operation = unparkRequested ? 'unpark' : 'park';
-        return CommandActionResult.failure('Failed to $operation mount: $e');
+        return CommandActionResult.failure('Failed to $operation mount: ${userFacingError(e)}');
       }
     });
   }
@@ -144,7 +144,7 @@ class MountCommandService {
         await _deviceService.parkMount();
         return CommandActionResult.ok;
       } catch (e) {
-        return CommandActionResult.failure('Failed to park mount: $e');
+        return CommandActionResult.failure('Failed to park mount: ${userFacingError(e)}');
       }
     });
   }
@@ -163,7 +163,7 @@ class MountCommandService {
         await _deviceService.unparkMount();
         return CommandActionResult.ok;
       } catch (e) {
-        return CommandActionResult.failure('Failed to unpark mount: $e');
+        return CommandActionResult.failure('Failed to unpark mount: ${userFacingError(e)}');
       }
     });
   }
@@ -200,7 +200,7 @@ class MountCommandService {
       } on MountSlewException catch (e) {
         return CommandActionResult.failure(e.message);
       } catch (e) {
-        return CommandActionResult.failure('Slew failed: $e');
+        return CommandActionResult.failure('Slew failed: ${userFacingError(e)}');
       }
     });
   }
@@ -231,7 +231,7 @@ class MountCommandService {
       }
       return CommandActionResult.ok;
     } catch (e) {
-      return CommandActionResult.failure('Failed to abort slew: $e');
+      return CommandActionResult.failure('Failed to abort slew: ${userFacingError(e)}');
     }
   }
 
@@ -249,7 +249,7 @@ class MountCommandService {
         await _deviceService.setMountTracking(enabled);
         return CommandActionResult.ok;
       } catch (e) {
-        return CommandActionResult.failure('Failed to set tracking: $e');
+        return CommandActionResult.failure('Failed to set tracking: ${userFacingError(e)}');
       }
     });
   }
@@ -282,7 +282,7 @@ class MountCommandService {
         await _deviceService.setMountTrackingRate(rate.index);
         return CommandActionResult.ok;
       } catch (e) {
-        return CommandActionResult.failure('Failed to set tracking rate: $e');
+        return CommandActionResult.failure('Failed to set tracking rate: ${userFacingError(e)}');
       }
     });
   }
@@ -307,7 +307,7 @@ class MountCommandService {
           message: 'Mount synced to coordinates',
         );
       } catch (e) {
-        return CommandActionResult.failure('Sync failed: $e');
+        return CommandActionResult.failure('Sync failed: ${userFacingError(e)}');
       }
     });
   }
@@ -345,7 +345,7 @@ class MountCommandService {
       } on MountHomeException catch (e) {
         return CommandActionResult.failure(e.message);
       } catch (e) {
-        return CommandActionResult.failure('Home failed: $e');
+        return CommandActionResult.failure('Home failed: ${userFacingError(e)}');
       }
     });
   }
@@ -373,7 +373,7 @@ class MountCommandService {
           message: 'Park position set to where the mount is pointing',
         );
       } catch (e) {
-        return CommandActionResult.failure('Set park failed: $e');
+        return CommandActionResult.failure('Set park failed: ${userFacingError(e)}');
       }
     });
   }
@@ -467,7 +467,7 @@ class MountCommandService {
         );
         return CommandActionResult.ok;
       } catch (e) {
-        return CommandActionResult.failure('Pulse guide failed: $e');
+        return CommandActionResult.failure('Pulse guide failed: ${userFacingError(e)}');
       }
     });
   }

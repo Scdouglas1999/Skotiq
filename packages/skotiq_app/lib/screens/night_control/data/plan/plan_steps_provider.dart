@@ -36,15 +36,11 @@ final nightActiveStepProvider = Provider<NightPlanEntry?>((ref) {
 String nightStepLabel(SequenceNode node) {
   if (node is ExposureNode) {
     final filter = node.filter;
-    final burst = '${node.count} × ${_seconds(node.durationSecs)} s';
+    final burst = '${node.count} × ${QuantityFormat.trimmed(node.durationSecs)} s';
     return filter == null || filter.isEmpty ? burst : '$filter $burst';
   }
   return node.name;
 }
-
-String _seconds(double secs) => secs == secs.roundToDouble()
-    ? secs.round().toString()
-    : secs.toStringAsFixed(1);
 
 PlanStepStatus _statusOf(NodeStatus? status) => switch (status) {
       NodeStatus.success => PlanStepStatus.done,

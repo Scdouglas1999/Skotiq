@@ -348,7 +348,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       setState(() {
         _saving = false;
         _notice = _WizardNotice(
-          'Could not save profile: $e',
+          'Could not save profile: ${userFacingError(e)}',
           BannerTone.error,
         );
       });
@@ -376,7 +376,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       setState(() {
         _saving = false;
         _notice = _WizardNotice(
-          'Could not finish setup: $e',
+          'Could not finish setup: ${userFacingError(e)}',
           BannerTone.error,
         );
       });

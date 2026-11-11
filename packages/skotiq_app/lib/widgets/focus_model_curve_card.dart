@@ -279,7 +279,7 @@ class _FocusModelCurveCardState extends ConsumerState<FocusModelCurveCard> {
         }).catchError((Object e, StackTrace st) {
           if (messenger.mounted) {
             messenger.showSnackBar(
-              SnackBar(content: Text('Autofocus failed: $e')),
+              SnackBar(content: Text('Autofocus failed: ${userFacingError(e)}')),
             );
           }
         }),
@@ -292,7 +292,7 @@ class _FocusModelCurveCardState extends ConsumerState<FocusModelCurveCard> {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to start autofocus: $e')),
+          SnackBar(content: Text('Failed to start autofocus: ${userFacingError(e)}')),
         );
       }
     }
@@ -325,7 +325,7 @@ class _StatusRow extends StatelessWidget {
           child: _MetricCell(
             icon: LucideIcons.thermometer,
             label: 'Temp',
-            value: temp != null ? '${temp.toStringAsFixed(1)} °C' : '—',
+            value: temp != null ? formatCelsius(temp) : '—',
             colors: colors,
           ),
         ),

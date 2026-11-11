@@ -100,7 +100,7 @@ class MosaicProjectsListScreen extends ConsumerWidget {
                     EmptyState(
                       icon: SkotiqIcons.warning,
                       title: 'Could not load mosaic projects',
-                      body: '$e',
+                      body: userFacingError(e),
                     ),
                   ),
                   data: (projects) => projects.isEmpty

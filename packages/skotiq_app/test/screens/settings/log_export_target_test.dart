@@ -136,7 +136,7 @@ void main() {
     expect(find.text('Entries on screen'), findsOneWidget);
     expect(find.text('2 entries, exactly as filtered'), findsOneWidget);
     expect(
-      find.textContaining('Every retained log file — about 4.0 KB'),
+      find.textContaining('Every retained log file — about 4.0 KiB'),
       findsOneWidget,
       reason: 'the full-history size must be stated before it is written',
     );

@@ -221,8 +221,6 @@ void main() {
   const pushoverId = kPushoverPluginId;
   const haId = kHomeAssistantPluginId;
 
-  // Nullable: the pure-unit `formatRelativeTime` group never builds a host, so
-  // tearDown must tolerate it being unset.
   PluginHost? host;
 
   // Render at a tall desktop surface so every plugin row (and its Configure
@@ -552,38 +550,6 @@ void main() {
     expect(find.text('Discord test failed'), findsOneWidget);
   });
 
-  group('formatRelativeTime', () {
-    final base = DateTime(2026, 5, 30, 12, 0, 0);
-
-    test('clamps near-now / future to "just now"', () {
-      expect(formatRelativeTime(base, now: base), 'just now');
-      expect(
-        formatRelativeTime(base.add(const Duration(minutes: 5)), now: base),
-        'just now',
-      );
-      expect(
-        formatRelativeTime(base.subtract(const Duration(seconds: 10)),
-            now: base),
-        'just now',
-      );
-    });
-
-    test('formats minutes, hours, and days', () {
-      expect(
-        formatRelativeTime(base.subtract(const Duration(minutes: 3)),
-            now: base),
-        '3m ago',
-      );
-      expect(
-        formatRelativeTime(base.subtract(const Duration(hours: 2)), now: base),
-        '2h ago',
-      );
-      expect(
-        formatRelativeTime(base.subtract(const Duration(days: 5)), now: base),
-        '5d ago',
-      );
-    });
-  });
 }
 
 /// A plugin that throws on enable, used to drive the error-pill rendering.

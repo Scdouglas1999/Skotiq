@@ -115,7 +115,7 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
   }
 
   String _resultLoadErrorMessage(Object error) {
-    final message = _cleanErrorMessage(error);
+    final message = userFacingError(error);
     return message.isEmpty
         ? 'The imaging host could not be reached. Try again when the '
             'connection is available.'
@@ -619,22 +619,8 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
   }
 
   String _previewErrorMessage(Object error) {
-    final message = _cleanErrorMessage(error);
+    final message = userFacingError(error);
     return message.isEmpty ? 'The saved preview could not be opened.' : message;
-  }
-
-  String _cleanErrorMessage(Object error) {
-    var message = error.toString().trim();
-    for (final prefix in const [
-      'StateError: ',
-      'Bad state: ',
-      'FormatException: ',
-    ]) {
-      if (message.startsWith(prefix)) {
-        message = message.substring(prefix.length).trim();
-      }
-    }
-    return message;
   }
 
   /// Render [buffer] to display RGBA under the current [_stretch].

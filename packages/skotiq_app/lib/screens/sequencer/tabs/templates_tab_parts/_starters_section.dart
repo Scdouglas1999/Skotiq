@@ -393,7 +393,7 @@ class _StartersError extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              '$error',
+              userFacingError(error),
               textAlign: TextAlign.center,
               style: TextStyle(
                   fontSize: SkotiqTypography.fontSize12,

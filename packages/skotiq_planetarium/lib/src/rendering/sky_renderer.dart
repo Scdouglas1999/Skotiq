@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'render_quality.dart';
 import 'sprite_atlas.dart';

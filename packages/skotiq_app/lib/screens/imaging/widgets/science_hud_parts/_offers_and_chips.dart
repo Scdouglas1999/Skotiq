@@ -25,7 +25,7 @@ class _ScienceHudAuthorityNotice extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Some science controls are unavailable: $error'
+              'Some science controls are unavailable: ${userFacingError(error)}'
               '${additionalErrorCount > 0 ? ' (+$additionalErrorCount more)' : ''}',
               maxLines: 3,
               overflow: TextOverflow.ellipsis,

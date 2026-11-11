@@ -1,3 +1,4 @@
+import '../errors/error_text.dart';
 import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart' show compute;
@@ -123,7 +124,7 @@ class PeriodAnalysisNotifier extends Notifier<PeriodAnalysisState> {
       );
       state = state.copyWith(
         isRunning: false,
-        error: error.toString(),
+        error: userFacingError(error),
         clearResult: true,
       );
     }

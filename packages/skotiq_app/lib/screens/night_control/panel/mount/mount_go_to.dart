@@ -116,17 +116,8 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
     } else {
       _name.text = name;
     }
-    _ra.text = CoordinateFormat.ra(
-      raHours,
-      style: SexagesimalStyle.compactLetters,
-      seconds: SecondsPrecision.integerRounded,
-      wrapHours: true,
-    );
-    _dec.text = CoordinateFormat.dec(
-      decDegrees,
-      style: SexagesimalStyle.compactLetters,
-      seconds: SecondsPrecision.integerRounded,
-    );
+    _ra.text = CoordinateFormat.raDense(raHours);
+    _dec.text = CoordinateFormat.decDense(decDegrees);
   }
 
   ({double ra, double dec})? get _coordinates {
@@ -160,7 +151,7 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
     } catch (e) {
       if (mounted) {
         setState(() => _lookupError = context.l10n
-            .text('nightScopeGoToLookupFailed', params: {'error': '$e'}));
+            .text('nightScopeGoToLookupFailed', params: {'error': userFacingError(e)}));
       }
     } finally {
       if (mounted) setState(() => _busy = null);
@@ -344,7 +335,7 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
       return null;
     } catch (e) {
       return CommandActionResult.failure(
-        l10n.text('nightScopeErrStopGuiding', params: {'error': '$e'}),
+        l10n.text('nightScopeErrStopGuiding', params: {'error': userFacingError(e)}),
       );
     }
   }

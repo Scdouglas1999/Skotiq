@@ -26,7 +26,7 @@ Future<bool> confirmDisconnectCooledCamera(
 
   final temp = cam.temperature;
   final tempNote =
-      temp != null ? ' (sensor at ${temp.toStringAsFixed(1)}°C)' : '';
+      temp != null ? ' (sensor at ${formatCelsius(temp)})' : '';
   return ConfirmDialog.show(
     context: context,
     title: 'Disconnect cooled camera?',

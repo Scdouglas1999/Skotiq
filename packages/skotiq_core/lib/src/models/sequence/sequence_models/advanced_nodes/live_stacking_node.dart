@@ -267,18 +267,3 @@ double? parseHumanDurationSecs(String input) {
   return total;
 }
 
-/// Format a duration in seconds as a compact "Xh Ym" string. Used by the
-/// integration-budget read-back in the properties editor and the Run
-/// Dashboard's filter-integration panel.
-String formatHumanDurationSecs(double secs) {
-  if (secs <= 0) return '0s';
-  final totalSecs = secs.round();
-  final hours = totalSecs ~/ 3600;
-  final minutes = (totalSecs % 3600) ~/ 60;
-  final seconds = totalSecs % 60;
-  if (hours > 0 && minutes > 0) return '${hours}h ${minutes}m';
-  if (hours > 0) return '${hours}h';
-  if (minutes > 0 && seconds > 0) return '${minutes}m ${seconds}s';
-  if (minutes > 0) return '${minutes}m';
-  return '${seconds}s';
-}

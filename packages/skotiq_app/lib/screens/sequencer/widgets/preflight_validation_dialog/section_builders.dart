@@ -198,7 +198,7 @@ extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
           icon: LucideIcons.ganttChart,
           title: 'Simulation',
           trailing: Text(
-            'Ends ${simulation == null ? kReadoutUnknown : _formatClock(simulation.end)}',
+            'Ends ${simulation == null ? kReadoutUnknown : ClockFormat.hm(simulation.end)}',
             style: SkotiqTypography.readoutXs.copyWith(color: colors.textMuted),
           ),
         ),
@@ -233,7 +233,7 @@ extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
                         Readout(
                           value: DurationFormat.of(
                             simulation.duration,
-                            style: DurationStyle.compact,
+                            style: DurationStyle.coarse,
                           ),
                           label: 'Duration',
                           size: ReadoutSize.sm,

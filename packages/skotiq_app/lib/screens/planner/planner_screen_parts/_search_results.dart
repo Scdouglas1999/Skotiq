@@ -58,7 +58,7 @@ class _InstalledCatalogResultsSection extends ConsumerWidget {
           const _SearchProgressLine(label: 'Searching installed catalogs'),
       error: (e, _) => _SearchProblemLine(
         label: 'Installed catalog lookup failed',
-        detail: '$e',
+        detail: userFacingError(e),
       ),
       data: (matches) {
         if (matches.isEmpty) return const SizedBox.shrink();
@@ -132,7 +132,7 @@ class _SimbadResultsSection extends ConsumerWidget {
       loading: () => const _SearchProgressLine(label: 'Searching SIMBAD'),
       error: (e, _) => _SearchProblemLine(
         label: 'SIMBAD lookup failed',
-        detail: '$e',
+        detail: userFacingError(e),
       ),
       data: (matches) {
         if (matches.isEmpty) {
@@ -214,8 +214,8 @@ class _SearchResultActions extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'RA ${CoordinateFormat.ra(raHours)}  '
-          'Dec ${CoordinateFormat.dec(decDegrees)}',
+          'RA ${CoordinateFormat.raReadout(raHours)}  '
+          'Dec ${CoordinateFormat.decReadout(decDegrees)}',
           style: SkotiqTypography.monoCaption.copyWith(
             color: SkotiqColors.of(context).textMuted,
           ),

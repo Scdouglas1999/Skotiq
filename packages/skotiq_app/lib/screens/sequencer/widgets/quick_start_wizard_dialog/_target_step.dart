@@ -86,8 +86,8 @@ extension _TargetStep on _QuickStartWizardDialogState {
                         if (target.catalogId case final id?
                             when id.isNotEmpty && id != target.name)
                           id,
-                        'RA ${_formatRa(target.ra)}',
-                        'Dec ${_formatDec(target.dec)}',
+                        'RA ${CoordinateFormat.raReadout(target.ra)}',
+                        'Dec ${CoordinateFormat.decReadout(target.dec)}',
                       ].join(' · '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

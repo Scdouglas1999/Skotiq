@@ -87,7 +87,7 @@ class CalibrationSettingsPanel extends ConsumerWidget {
     } catch (error) {
       if (context.mounted) {
         context.showErrorSnackBar(
-          'Could not update the calibration settings: $error',
+          'Could not update the calibration settings: ${userFacingError(error)}',
         );
       }
     }
@@ -389,7 +389,7 @@ class _CalibrationFileBrowseButtonState
     } catch (error) {
       if (!mounted || !_isCurrent(generation, authority)) return;
       context.showErrorSnackBar(
-        'Could not update calibration settings: $error',
+        'Could not update calibration settings: ${userFacingError(error)}',
       );
     } finally {
       if (_isCurrent(generation, authority)) {

@@ -114,7 +114,7 @@ final nightSessionStatsProvider = Provider<NightSessionVm>((ref) {
       if (freeBytes != null)
         MetricVm(
           label: const NightText('nightSessionStatDisk'),
-          value: nightBytes(freeBytes),
+          value: ByteFormat.size(freeBytes),
         ),
       if (dropouts != null)
         MetricVm(

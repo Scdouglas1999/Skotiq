@@ -239,7 +239,7 @@ class _ObservationLogSettingsState
             const SizedBox(width: 16),
             _StatChip(
               label: 'Since',
-              value: _formatDate(stats.firstObservation!),
+              value: ClockFormat.date(stats.firstObservation!),
             ),
           ],
         ],
@@ -261,13 +261,13 @@ class _ObservationLogSettingsState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _formatDate(log.timestamp),
+                  ClockFormat.date(log.timestamp),
                   style: SkotiqTypography.caption
                       .copyWith(fontWeight: FontWeight.w600)
                       .copyWith(color: colors.textPrimary),
                 ),
                 Text(
-                  _formatTime(log.timestamp),
+                  ClockFormat.hm(log.timestamp),
                   style: SkotiqTypography.captionSm.copyWith(
                     color: colors.textSecondary,
                   ),
@@ -485,7 +485,7 @@ class _ObservationLogSettingsState
       }
     } catch (e) {
       if (context.mounted) {
-        context.showErrorSnackBar('Export failed: $e');
+        context.showErrorSnackBar('Export failed: ${userFacingError(e)}');
       }
     } finally {
       if (mounted) {
@@ -494,13 +494,6 @@ class _ObservationLogSettingsState
     }
   }
 
-  String _formatDate(DateTime dt) {
-    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
-  }
-
-  String _formatTime(DateTime dt) {
-    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-  }
 }
 
 class _StatChip extends StatelessWidget {

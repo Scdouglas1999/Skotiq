@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:skotiq_core/skotiq_core.dart' show IntegrationCurve;
@@ -62,7 +60,7 @@ class ImprovementCurvePanel extends StatelessWidget {
     // lands a step-label fractionally below maxY (the original overlap bug).
     // Rounding minY/maxY to multiples of a nice step makes the top step-label
     // coincide exactly with maxY — one label, not two stacked.
-    final yInterval = _niceInterval(snrRange);
+    final yInterval = ChartScale.niceStep(snrRange / 5);
     final minY = (minSnr / yInterval).floorToDouble() * yInterval;
     var maxY = (maxSnr / yInterval).ceilToDouble() * yInterval;
     // Guarantee a little headroom above the peak so the curve never touches the
@@ -344,28 +342,6 @@ class ImprovementCurvePanel extends StatelessWidget {
   double _axisInterval(int total) {
     if (total <= 6) return 1;
     return (total / 6).ceilToDouble();
-  }
-
-  /// A "nice" Y-axis step (1/2/2.5/5 × a power of ten) sized to yield ~5 evenly
-  /// spaced SNR labels across [range]. Snapping the axis to a multiple of this
-  /// keeps the labels collision-free at the top of the chart.
-  double _niceInterval(double range, {int targetTicks = 5}) {
-    final raw = range / targetTicks;
-    final magnitude = math.pow(10, (math.log(raw) / math.ln10).floor()) * 1.0;
-    final normalized = raw / magnitude; // in [1, 10)
-    final double step;
-    if (normalized <= 1) {
-      step = 1;
-    } else if (normalized <= 2) {
-      step = 2;
-    } else if (normalized <= 2.5) {
-      step = 2.5;
-    } else if (normalized <= 5) {
-      step = 5;
-    } else {
-      step = 10;
-    }
-    return step * magnitude;
   }
 
   /// One decimal place for sub-unit steps (e.g. 0.5), none for whole steps, so

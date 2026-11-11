@@ -6,12 +6,6 @@ class _BudgetPreview extends StatelessWidget {
 
   const _BudgetPreview({required this.colors, required this.budget});
 
-  String _formatDuration(double secs) => DurationFormat.seconds(
-        secs,
-        style: DurationStyle.compactTrimmed,
-        roundToMinute: true,
-      );
-
   @override
   Widget build(BuildContext context) {
     final resolved = <String, double>{
@@ -22,8 +16,8 @@ class _BudgetPreview extends StatelessWidget {
 
     final totalResolved = resolved.values.fold<double>(0, (a, b) => a + b);
     final summary = budget.totalSecs > 0
-        ? 'Total: ${_formatDuration(budget.totalSecs)}'
-        : 'Total: ${_formatDuration(totalResolved)} (sum of caps)';
+        ? 'Total: ${DurationFormat.seconds(budget.totalSecs, style: DurationStyle.coarse, roundToMinute: true)}'
+        : 'Total: ${DurationFormat.seconds(totalResolved, style: DurationStyle.coarse, roundToMinute: true)} (sum of caps)';
 
     return Container(
       padding: const EdgeInsets.all(8),
@@ -55,7 +49,7 @@ class _BudgetPreview extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               resolved.entries
-                  .map((e) => '${e.key} ${_formatDuration(e.value)}')
+                  .map((e) => '${e.key} ${DurationFormat.seconds(e.value, style: DurationStyle.coarse, roundToMinute: true)}')
                   .join(' · '),
               style: TextStyle(
                   fontSize: SkotiqTypography.fontSize11,

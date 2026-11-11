@@ -230,7 +230,7 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to export chart: $e'),
+            content: Text('Failed to export chart: ${userFacingError(e)}'),
             behavior: SnackBarBehavior.floating,
             backgroundColor: SkotiqColors.of(context).error,
           ),
@@ -428,7 +428,7 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
         }
       } catch (e) {
         if (mounted) {
-          context.showErrorSnackBar('Rotation failed: $e');
+          context.showErrorSnackBar('Rotation failed: ${userFacingError(e)}');
         }
       }
     } else if (mounted) {

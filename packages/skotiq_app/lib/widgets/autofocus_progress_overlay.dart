@@ -501,7 +501,7 @@ class _AutofocusProgressOverlayState
           ) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Could not cancel autofocus: $error')),
+                SnackBar(content: Text('Could not cancel autofocus: ${userFacingError(error)}')),
               );
             }
           }),

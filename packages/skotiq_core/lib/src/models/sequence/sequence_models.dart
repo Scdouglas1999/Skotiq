@@ -15,6 +15,7 @@
 // ignore_for_file: invalid_annotation_target
 import 'package:equatable/equatable.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show ScoringWeights;
 import 'package:uuid/uuid.dart';
 import '../imaging/imaging_models.dart' show FrameType;
@@ -319,13 +320,14 @@ abstract class SequenceEstimate with _$SequenceEstimate {
       final iterationMins = (singleIterationSecs / 60).round();
       return '${iterationMins}m/iter (unbounded)';
     }
-    final hours = (estimatedSecs / 3600).floor();
-    final mins = ((estimatedSecs % 3600) / 60).round();
-    if (hours > 0) {
-      return '${hours}h ${mins}m';
-    }
-    return '${mins}m';
+    return _coarse(estimatedSecs);
   }
+
+  static String _coarse(double seconds) => DurationFormat.seconds(
+    seconds,
+    style: DurationStyle.coarse,
+    roundToMinute: true,
+  );
 
   /// Format with overhead-aware total time display
   /// Returns "Integration: 6h 30m | Est. total: ~9h 15m"
@@ -334,15 +336,7 @@ abstract class SequenceEstimate with _$SequenceEstimate {
     if (overheadSecs <= 0 || isUnbounded) {
       return integrationStr;
     }
-    final totalSecs = totalEstimatedSecs;
-    final totalHours = (totalSecs / 3600).floor();
-    final totalMins = ((totalSecs % 3600) / 60).round();
-    String totalStr;
-    if (totalHours > 0) {
-      totalStr = '~${totalHours}h ${totalMins}m';
-    } else {
-      totalStr = '~${totalMins}m';
-    }
+    final totalStr = '~${_coarse(totalEstimatedSecs)}';
     return 'Integration: $integrationStr | Est. total: $totalStr';
   }
 }

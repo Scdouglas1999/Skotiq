@@ -217,14 +217,14 @@ class _DiagnosticDumpScreenState extends ConsumerState<DiagnosticDumpScreen> {
         file.path,
         subject: 'Skotiq diagnostic dump',
         desktopMessage:
-            'Diagnostic dump written: ${file.path} (${_formatBytes(size)})',
+            'Diagnostic dump written: ${file.path} (${ByteFormat.size(size)})',
         desktopDuration: const Duration(seconds: 6),
       );
     } catch (e) {
       if (!mounted) return;
       // Surface the failure rather than swallowing it. The service has
       // already logged the structured stack trace via LoggingService.
-      context.showErrorSnackBar('Diagnostic dump failed: $e');
+      context.showErrorSnackBar('Diagnostic dump failed: ${userFacingError(e)}');
     } finally {
       if (mounted) {
         setState(() {
@@ -362,7 +362,7 @@ class _LastResultCard extends StatelessWidget {
                 if (bytes != null) ...[
                   const SizedBox(height: 4),
                   Text(
-                    'Size: ${_formatBytes(bytes!)}',
+                    'Size: ${ByteFormat.size(bytes!)}',
                     style: TextStyle(
                       fontSize: SkotiqTypography.fontSize12,
                       color: colors.textMuted,
@@ -378,8 +378,3 @@ class _LastResultCard extends StatelessWidget {
   }
 }
 
-String _formatBytes(int bytes) {
-  if (bytes < 1024) return '$bytes B';
-  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KiB';
-  return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MiB';
-}

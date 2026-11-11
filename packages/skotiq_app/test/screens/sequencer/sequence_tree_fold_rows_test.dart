@@ -15,7 +15,6 @@ import 'package:skotiq_app/screens/sequencer/sequence_fold_model.dart';
 import 'package:skotiq_app/screens/sequencer/sequence_fold_state.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/batch_operations_toolbar.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree.dart';
-import 'package:skotiq_app/screens/sequencer/ledger_seconds.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree_shortcuts.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/visual_timeline.dart';
@@ -634,7 +633,7 @@ void main() {
     // spelled differently by design (spec §6 vs §2) — but the DIGITS come from
     // one formatter, because a row quoting `1.5 s` beside a cell saying `2s`
     // is reporting two different exposures.
-    final seconds = formatLedgerSeconds(300);
+    final seconds = QuantityFormat.trimmed(300);
     expect(find.text('$seconds s ×12 each'), findsOneWidget);
     expect(find.text('${seconds}s'), findsOneWidget);
     await _drainValidationDebounce(tester);
@@ -880,14 +879,14 @@ void main() {
     // The run begins when its FIRST member does, not when the last one would.
     final etaCell = find.descendant(
       of: _rowShellOf(find.text('Ha · OIII · SII')).first,
-      matching: find.text(formatLedgerClock(t0)),
+      matching: find.text(ClockFormat.hm(t0.toLocal())),
     );
     expect(etaCell, findsOneWidget);
     expect(
       find.descendant(
         of: _rowShellOf(find.text('Ha · OIII · SII')).first,
         matching:
-            find.text(formatLedgerClock(t0.add(const Duration(hours: 2)))),
+            find.text(ClockFormat.hm((t0.add(const Duration(hours: 2))).toLocal())),
       ),
       findsNothing,
     );

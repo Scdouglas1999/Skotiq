@@ -49,7 +49,7 @@ class _PlateSolveParametersSectionState
           SettingRow(
             icon: LucideIcons.alertCircle,
             title: 'Failed to load solve parameters',
-            subtitle: '$error',
+            subtitle: userFacingError(error),
             trailing: const SizedBox.shrink(),
             isLast: true,
           ),

@@ -121,7 +121,7 @@ class ScienceStatusBanner extends ConsumerWidget {
           : 'Science up to date';
       final completedAt = last.finishedAt ?? last.startedAt;
       subtitle =
-          '${snapshot.processedCount} frame${snapshot.processedCount == 1 ? '' : 's'} processed · last ${_relativeTime(completedAt)}';
+          '${snapshot.processedCount} frame${snapshot.processedCount == 1 ? '' : 's'} processed · last ${RelativeTime.ago(completedAt)}';
       icon =
           last.hasFailure ? LucideIcons.alertCircle : LucideIcons.checkCircle;
     } else if (persistedFrameCount != null && persistedFrameCount > 0) {
@@ -156,15 +156,6 @@ class ScienceStatusBanner extends ConsumerWidget {
 
   bool _isRecent(DateTime ts) =>
       DateTime.now().difference(ts) < const Duration(minutes: 10);
-
-  String _relativeTime(DateTime ts) {
-    final delta = DateTime.now().difference(ts);
-    if (delta.inSeconds < 30) return 'just now';
-    if (delta.inSeconds < 60) return '${delta.inSeconds}s ago';
-    if (delta.inMinutes < 60) return '${delta.inMinutes}m ago';
-    if (delta.inHours < 24) return '${delta.inHours}h ago';
-    return '${delta.inDays}d ago';
-  }
 }
 
 class _StatusContainer extends StatelessWidget {

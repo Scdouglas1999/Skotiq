@@ -318,7 +318,7 @@ void main() {
   group('formatLedgerClock', () {
     test('local HH:mm, zero-padded', () {
       final time = DateTime(2026, 9, 13, 7, 5);
-      expect(formatLedgerClock(time), '07:05');
+      expect(ClockFormat.hm(time.toLocal()), '07:05');
     });
   });
 

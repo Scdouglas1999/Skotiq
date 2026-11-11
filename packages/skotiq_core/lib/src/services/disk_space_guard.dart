@@ -1,3 +1,4 @@
+import 'package:skotiq_astro/format.dart';
 import 'dart:async';
 
 import '../models/backend/device_capabilities.dart';
@@ -259,7 +260,7 @@ class DiskSpaceGuardService {
         projectedBytes: 0,
         severity: DiskSpaceSeverity.info,
         headline:
-            '${_gb(snapshot.freeBytes)} GB free on ${snapshot.path}; projected size unknown',
+            '${ByteFormat.size(snapshot.freeBytes)} free on ${snapshot.path}; projected size unknown',
         detail:
             'Connect a camera so sequence size can be projected against free space.',
       );
@@ -275,8 +276,8 @@ class DiskSpaceGuardService {
         projectedBytes: projected,
         severity: DiskSpaceSeverity.blocking,
         headline:
-            'Run cannot complete: would leave only ${_gb(afterRun)} GB free '
-            '(${_gb(projected)} GB needed, ${_gb(free)} GB available)',
+            'Run cannot complete: would leave only ${ByteFormat.size(afterRun)} free '
+            '(${ByteFormat.size(projected)} needed, ${ByteFormat.size(free)} available)',
         detail:
             'The capture directory does not have enough free space to finish '
             'this sequence with a 2 GB safety margin. Free up space, choose a '
@@ -291,8 +292,8 @@ class DiskSpaceGuardService {
         projectedBytes: projected,
         severity: DiskSpaceSeverity.warning,
         headline:
-            'Run will leave ${_gb(afterRun)} GB free '
-            '(needs ${_gb(projected)} of ${_gb(free)} GB available)',
+            'Run will leave ${ByteFormat.size(afterRun)} free '
+            '(needs ${ByteFormat.size(projected)} of ${ByteFormat.size(free)} available)',
         detail:
             'This sequence will consume more than 60% of the available space. '
             'Consider archiving recent images before starting.',
@@ -305,9 +306,9 @@ class DiskSpaceGuardService {
       projectedBytes: projected,
       severity: DiskSpaceSeverity.info,
       headline:
-          'You have ${_gb(free)} GB free; this run will consume ~${_gb(projected)} GB',
+          'You have ${ByteFormat.size(free)} free; this run will consume ~${ByteFormat.size(projected)}',
       detail:
-          '${_gb(afterRun)} GB will remain free after the sequence finishes.',
+          '${ByteFormat.size(afterRun)} will remain free after the sequence finishes.',
     );
   }
 
@@ -355,7 +356,7 @@ class DiskSpaceGuardService {
               snapshot: snapshot,
               severity: DiskSpaceSeverity.blocking,
               message:
-                  'Critical: only ${_gb(snapshot.freeBytes)} GB free on ${snapshot.path}. '
+                  'Critical: only ${ByteFormat.size(snapshot.freeBytes)} free on ${snapshot.path}. '
                   'Pause and free up space before continuing.',
             ),
           );
@@ -366,7 +367,7 @@ class DiskSpaceGuardService {
               snapshot: snapshot,
               severity: DiskSpaceSeverity.warning,
               message:
-                  'Low disk space: ${_gb(snapshot.freeBytes)} GB free on ${snapshot.path}. '
+                  'Low disk space: ${ByteFormat.size(snapshot.freeBytes)} free on ${snapshot.path}. '
                   'Consider stopping after the current target.',
             ),
           );
@@ -430,11 +431,6 @@ class DiskSpaceGuardService {
 
   void _emit(DiskSpaceWatchdogEvent event) {
     _eventsController?.add(event);
-  }
-
-  static String _gb(int bytes) {
-    final gb = bytes / (1024 * 1024 * 1024);
-    return gb < 10 ? gb.toStringAsFixed(2) : gb.toStringAsFixed(1);
   }
 }
 

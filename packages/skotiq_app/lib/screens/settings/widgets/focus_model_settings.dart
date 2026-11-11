@@ -102,7 +102,7 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
       if (!_isCurrentLoad(backend, generation)) return;
       setState(() {
         _loading = false;
-        _error = '$e';
+        _error = userFacingError(e);
       });
     }
   }
@@ -153,7 +153,7 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
       }
     } catch (e) {
       if (mounted && _isCurrentClear(backend, token)) {
-        context.showErrorSnackBar('Clear failed: $e');
+        context.showErrorSnackBar('Clear failed: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentClear(backend, token)) {

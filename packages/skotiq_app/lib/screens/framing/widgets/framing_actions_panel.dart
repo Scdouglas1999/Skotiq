@@ -333,10 +333,10 @@ class _FramingTelescopeSectionState
       if (!_ownsSolve(backend, revision)) return;
       setState(() {
         _isSolving = false;
-        _lastSolve = _SolveOutcome.failed(e.toString());
+        _lastSolve = _SolveOutcome.failed(userFacingError(e));
       });
       if (!mounted) return;
-      context.showErrorSnackBar('Solve failed: $e');
+      context.showErrorSnackBar('Solve failed: ${userFacingError(e)}');
     }
   }
 
@@ -444,8 +444,8 @@ class _SolveOutcomeView extends StatelessWidget {
     final deltaMessage = against != null
         ? _formatDelta(result: result, target: against)
         : 'Solved center: '
-            '${CoordinateFormat.ra(result.ra, seconds: SecondsPrecision.integerRounded)} '
-            '${CoordinateFormat.dec(result.dec, seconds: SecondsPrecision.integerRounded)}';
+            '${CoordinateFormat.raReadout(result.ra)} '
+            '${CoordinateFormat.decReadout(result.dec)}';
 
     return SkotiqBanner(
         title: 'Frame solved', message: deltaMessage, tone: BannerTone.success);
@@ -479,8 +479,8 @@ class _SolveOutcomeView extends StatelessWidget {
     final decDir = decDeltaDeg >= 0 ? 'N' : 'S';
 
     return 'Solved center '
-        '${CoordinateFormat.ra(result.ra, seconds: SecondsPrecision.integerRounded)} '
-        '${CoordinateFormat.dec(result.dec, seconds: SecondsPrecision.integerRounded)}\n'
+        '${CoordinateFormat.raReadout(result.ra)} '
+        '${CoordinateFormat.decReadout(result.dec)}\n'
         'Offset from target: '
         '${raDeltaArcmin.toStringAsFixed(1)}\' $raDir, '
         '${decDeltaArcmin.toStringAsFixed(1)}\' $decDir';

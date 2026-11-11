@@ -43,26 +43,23 @@ class _PresetAnalysis extends PeriodAnalysisNotifier {
   PeriodAnalysisState build() => _state;
 }
 
-/// Every axis-label list the two spectrum painters are about to draw.
-///
-/// The labels go straight onto a canvas, so there is no Text widget to find;
-/// the painters expose exactly the strings paint() renders.
-List<List<String>> _axisLabelSets(WidgetTester tester) {
+/// The value-axis labels of every chart in the panel whose series is named
+/// [seriesLabel].
+List<List<String>> _valueLabels(WidgetTester tester, String seriesLabel) {
   final out = <List<String>>[];
-  for (final paint
-      in tester.widgetList<CustomPaint>(find.byType(CustomPaint))) {
-    final dynamic painter = paint.painter;
-    if (painter == null) continue;
-    try {
-      out.add((painter.powerAxisLabels as List).cast<String>());
-    } on NoSuchMethodError {
-      // Not the Lomb-Scargle painter.
-    }
-    try {
-      out.add((painter.srAxisLabels as List).cast<String>());
-    } on NoSuchMethodError {
-      // Not the BLS painter.
-    }
+  for (final chart in tester.widgetList<SkotiqChart>(
+    find.byType(SkotiqChart),
+  )) {
+    if (!chart.series.any((s) => s.label == seriesLabel)) continue;
+    final layout = ChartLayout(
+      series: chart.series,
+      x: chart.x,
+      y: chart.y,
+      y2: chart.y2,
+      rules: chart.rules,
+    );
+    final ticks = layout.valueRange(ChartValueAxis.left)!.ticks;
+    out.add(ticks.values.map(ticks.label).toList());
   }
   return out;
 }
@@ -129,7 +126,10 @@ void main() {
       reason: 'SDE without its bar is not a verdict',
     );
 
-    final sets = _axisLabelSets(tester);
+    final sets = <List<String>>[
+      ..._valueLabels(tester, 'Power'),
+      ..._valueLabels(tester, 'SR'),
+    ];
     expect(sets, hasLength(2), reason: 'LS power axis and BLS SR axis');
     for (final labels in sets) {
       expect(labels.length, greaterThanOrEqualTo(3));

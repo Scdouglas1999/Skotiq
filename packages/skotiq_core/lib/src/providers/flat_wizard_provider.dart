@@ -6,6 +6,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show visibleForTesting, listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_astro/format.dart';
+
 import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import '../utils/host_paths.dart';

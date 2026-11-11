@@ -83,7 +83,7 @@ Future<String?> _validateCaptureDirectory(String path) async {
   } on FileSystemException catch (error) {
     return describeCaptureDirWriteFailure(error);
   } catch (error) {
-    return 'Validation failed: $error';
+    return 'Validation failed: ${userFacingError(error)}';
   }
 }
 
@@ -310,7 +310,7 @@ class _OnboardingCaptureDirStepState
       setState(() {
         _validating = false;
         _check = _FolderCheck.failed;
-        _checkDetail = 'Could not set the capture folder: $error';
+        _checkDetail = 'Could not set the capture folder: ${userFacingError(error)}';
       });
     } finally {
       if (mounted && generation == _operationGeneration && _validating) {
@@ -362,7 +362,7 @@ class _OnboardingCaptureDirStepState
           }
         } catch (error) {
           outcome = _FolderCheck.unverified;
-          detail = 'Could not ask the imaging host about this folder: $error';
+          detail = 'Could not ask the imaging host about this folder: ${userFacingError(error)}';
         }
       } else {
         outcome = _FolderCheck.unverified;
@@ -377,7 +377,7 @@ class _OnboardingCaptureDirStepState
         detail = error;
       } catch (error) {
         outcome = _FolderCheck.unverified;
-        detail = 'Could not check this folder: $error';
+        detail = 'Could not check this folder: ${userFacingError(error)}';
       }
     }
 
@@ -435,7 +435,7 @@ class _OnboardingCaptureDirStepState
         _selecting = false;
         _validating = false;
         _check = _FolderCheck.failed;
-        _checkDetail = 'Could not set the capture folder: $error';
+        _checkDetail = 'Could not set the capture folder: ${userFacingError(error)}';
       });
     } finally {
       if (mounted && generation == _operationGeneration) {

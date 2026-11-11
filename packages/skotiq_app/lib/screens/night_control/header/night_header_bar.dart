@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/skotiq_core.dart' show clockProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -188,13 +189,13 @@ class NightHeaderBar extends ConsumerWidget {
         (
           dark,
           NightTimelineLabel(
-            l10n.text('nightCtlTlDark', params: {'time': nightHm(dark)}),
+            l10n.text('nightCtlTlDark', params: {'time': ClockFormat.hm(dark)}),
           ),
         ),
       (
         now,
         NightTimelineLabel(
-          l10n.text('nightCtlTlNow', params: {'time': nightHm(now)}),
+          l10n.text('nightCtlTlNow', params: {'time': ClockFormat.hm(now)}),
           emphasized: true,
         ),
       ),
@@ -215,7 +216,7 @@ class NightHeaderBar extends ConsumerWidget {
         (
           dawn,
           NightTimelineLabel(
-            l10n.text('nightCtlTlDawn', params: {'time': nightHm(dawn)}),
+            l10n.text('nightCtlTlDawn', params: {'time': ClockFormat.hm(dawn)}),
           ),
         ),
     ]..sort((a, b) => a.$1.compareTo(b.$1));
@@ -250,9 +251,9 @@ class NightHeaderBar extends ConsumerWidget {
     NightTimelineVm timeline,
   ) {
     final base = l10n.text('nightCtlTlSemantics', params: {
-      'sunset': nightHm(timeline.sunset),
-      'sunrise': nightHm(timeline.sunrise),
-      'now': nightHm(timeline.now),
+      'sunset': ClockFormat.hm(timeline.sunset),
+      'sunrise': ClockFormat.hm(timeline.sunrise),
+      'now': ClockFormat.hm(timeline.now),
     });
     if (timeline.windows.isEmpty) return base;
     final windows = timeline.windows
@@ -412,7 +413,7 @@ class NightHeaderBar extends ConsumerWidget {
             ? l10n.text('nightActStartAtDark')
             : l10n.text(
                 'nightScrArmButton',
-                params: {'time': nightHm(darkOnClock)},
+                params: {'time': ClockFormat.hm(darkOnClock)},
               ),
         onStartSequence: () async {
           final api = ref.read(nightActionApiProvider);
@@ -530,7 +531,7 @@ class _InfoRow extends ConsumerWidget {
       }
       final exposure = [
         if (header.currentFilter case final filter?) filter,
-        if (header.currentExposureSecs case final secs?) '${_secs(secs)} s',
+        if (header.currentExposureSecs case final secs?) '${QuantityFormat.trimmed(secs)} s',
       ].join(' ');
       if (exposure.isNotEmpty) parts.add(exposure);
       if (header.framesDone case final done?) {
@@ -577,9 +578,6 @@ class _InfoRow extends ConsumerWidget {
     return parts.isEmpty ? null : parts.join(' · ');
   }
 
-  static String _secs(double secs) => secs == secs.roundToDouble()
-      ? secs.toStringAsFixed(0)
-      : secs.toStringAsFixed(1);
 }
 
 /// "Running 4 h 04 m", "Ready · not started", "Paused for autofocus".
@@ -821,7 +819,7 @@ class _ArmedControl extends _Control {
   static TextStyle get _style => SkotiqTypography.labelSm;
 
   String _label(SkotiqLocalizations l10n) =>
-      l10n.text('nightActArmedStartsAt', params: {'time': nightHm(armedAt)});
+      l10n.text('nightActArmedStartsAt', params: {'time': ClockFormat.hm(armedAt)});
 
   @override
   double measure(BuildContext context) {

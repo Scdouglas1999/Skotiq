@@ -1,3 +1,4 @@
+import 'package:skotiq_astro/format.dart';
 import 'camera_sensor_database.dart';
 import 'camera_sensor_specs.dart';
 import 'published_figure.dart';
@@ -409,13 +410,7 @@ class CameraSensorSpecResolver {
     if (at == null) {
       return 'remembered from the last time $subject was connected';
     }
-    return 'remembered from $subject on ${_formatDate(at)}';
-  }
-
-  static String _formatDate(DateTime value) {
-    final local = value.toLocal();
-    return '${local.year}-${local.month.toString().padLeft(2, '0')}-'
-        '${local.day.toString().padLeft(2, '0')}';
+    return 'remembered from $subject on ${ClockFormat.date(at.toLocal())}';
   }
 
   static String _formatNumber(double value) {

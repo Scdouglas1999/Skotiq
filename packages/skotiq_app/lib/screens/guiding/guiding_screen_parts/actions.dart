@@ -10,14 +10,6 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
     return (value: raw, unit: ' px');
   }
 
-  /// Pull a human-readable message out of whatever the brain-params fetch
-  /// threw. `StateError` (our explicit empty-dump guard) carries a clean
-  /// sentence; everything else falls back to its string form.
-  String _brainErrorMessage(Object error) {
-    if (error is StateError) return error.message;
-    return error.toString();
-  }
-
   Color _getSnrColor(double snr, SkotiqColors colors) {
     // A real star measurement is strictly positive. Zero means "no star has
     // been measured", which is not an alarm — painting it error-red made an

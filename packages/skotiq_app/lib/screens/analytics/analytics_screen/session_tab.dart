@@ -1,4 +1,3 @@
-
 part of '../analytics_screen.dart';
 
 class _SessionTab extends ConsumerStatefulWidget {
@@ -433,9 +432,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                   ),
                   error: (_, __) => const SizedBox.shrink(),
                 ),
-
                 const SizedBox(height: SkotiqTokens.space2xl),
-
                 SkotiqPanel(
                   head: PanelHead(
                     icon: LucideIcons.image,
@@ -602,19 +599,10 @@ class _AnalyticsError extends StatelessWidget {
 
 /// Null (not 'No data') when there is nothing to report: the caller is a
 /// [Readout], whose one way of saying "unknown" is the em dash.
-String? _formatAnalyticsIntegration(double seconds) {
-  if (!seconds.isFinite || seconds <= 0) return null;
-  final rounded = seconds.round();
-  if (rounded < 60) return '${rounded}s';
-  if (rounded < 3600) {
-    final minutes = rounded ~/ 60;
-    final remainder = rounded % 60;
-    return remainder == 0 ? '${minutes}m' : '${minutes}m ${remainder}s';
-  }
-  final hours = rounded ~/ 3600;
-  final minutes = (rounded % 3600) ~/ 60;
-  return '${hours}h ${minutes}m';
-}
+String? _formatAnalyticsIntegration(double seconds) =>
+    !seconds.isFinite || seconds <= 0
+        ? null
+        : DurationFormat.seconds(seconds, style: DurationStyle.short);
 
 final dbSessionImagesProvider =
     StreamProvider.family<List<DbCapturedImage>, int>((ref, sessionId) {

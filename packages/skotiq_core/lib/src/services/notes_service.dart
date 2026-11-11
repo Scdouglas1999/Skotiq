@@ -5,7 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../database/database.dart' as db;
 import '../models/notes/journal_note.dart';
-import '../utils/duration_format.dart';
+import 'package:skotiq_astro/format.dart';
 
 /// Persistence + business logic for per-target /
 /// per-run notes.

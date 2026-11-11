@@ -257,7 +257,7 @@ class BatchOperationsToolbar extends ConsumerWidget {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Failed to delete nodes: $error'),
+                      content: Text('Failed to delete nodes: ${userFacingError(error)}'),
                       backgroundColor: colors.error,
                       duration: const Duration(seconds: 4),
                     ),

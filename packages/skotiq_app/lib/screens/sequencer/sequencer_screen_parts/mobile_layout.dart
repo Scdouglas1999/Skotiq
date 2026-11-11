@@ -235,7 +235,7 @@ class _MobileTelemetryStrip extends ConsumerWidget {
           label: 'Cam',
           icon: LucideIcons.thermometer,
           value: camera.temperature != null
-              ? '${camera.temperature!.toStringAsFixed(1)}°C'
+              ? formatCelsius(camera.temperature!)
               : '--',
         ),
       if (connected(focuser.connectionState))

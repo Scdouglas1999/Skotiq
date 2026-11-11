@@ -56,7 +56,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
       settings = await ref.read(appSettingsProvider.future);
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Could not load focuser settings: $e');
+        context.showErrorSnackBar('Could not load focuser settings: ${userFacingError(e)}');
       }
       return;
     }
@@ -143,7 +143,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                             if (!context.mounted) return;
                             setState(() {
                               isSaving = false;
-                              errorText = 'Failed to save: $e';
+                              errorText = 'Failed to save: ${userFacingError(e)}';
                             });
                           }
                         },
@@ -315,7 +315,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                             if (!context.mounted) return;
                             setState(() => isSaving = false);
                             context.showErrorSnackBar(
-                              'Failed to set reverse direction: $e',
+                              'Failed to set reverse direction: ${userFacingError(e)}',
                             );
                           }
                         },
@@ -417,7 +417,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                             if (!context.mounted) return;
                             setState(() => isSaving = false);
                             context.showErrorSnackBar(
-                              'Dome slave failed: $e',
+                              'Dome slave failed: ${userFacingError(e)}',
                             );
                           }
                         },
@@ -469,7 +469,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
       );
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Could not read calibrator capabilities: $e');
+        context.showErrorSnackBar('Could not read calibrator capabilities: ${userFacingError(e)}');
       }
       return;
     }
@@ -548,7 +548,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                             if (!context.mounted) return;
                             setState(() {
                               isSaving = false;
-                              errorText = 'Failed to set brightness: $e';
+                              errorText = 'Failed to set brightness: ${userFacingError(e)}';
                             });
                           }
                         },

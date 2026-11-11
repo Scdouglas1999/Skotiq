@@ -170,7 +170,7 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
       if (mounted &&
           generation == _assignGeneration &&
           backendOwner.isCurrentBackend(authority)) {
-        context.showErrorSnackBar('Failed to assign device: $e');
+        context.showErrorSnackBar('Failed to assign device: ${userFacingError(e)}');
       }
     } finally {
       if (mounted && generation == _assignGeneration) {

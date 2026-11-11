@@ -196,7 +196,7 @@ class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog> {
       if (mounted) {
         setState(() {
           _rulesLoading = false;
-          _rulesError = error.toString();
+          _rulesError = userFacingError(error);
         });
       }
     }
@@ -229,7 +229,7 @@ class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog> {
       if (_isCurrentAuthority(backend, generation)) {
         setState(() {
           _psfMetricsLoading = false;
-          _psfMetricsError = error.toString();
+          _psfMetricsError = userFacingError(error);
         });
       }
     }
@@ -297,7 +297,7 @@ class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog> {
       if (!_isCurrentAuthority(backend, generation)) return;
       setState(() {
         _applying = false;
-        _applyError = e.toString();
+        _applyError = userFacingError(e);
       });
     }
   }

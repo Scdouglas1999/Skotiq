@@ -612,13 +612,3 @@ String formatUsage(LlmUsage usage) {
       'completion = ${usage.totalTokens} tokens';
 }
 
-/// Helper used by the system-prompt builder and the dialog: rounds a
-/// duration to a friendly "1.5h" / "30m" string. Kept in this file so
-/// the dialog can import it from the same module rather than rolling
-/// its own.
-String formatHours(double hours) {
-  if (hours >= 1.0) {
-    return '${hours.toStringAsFixed(1)}h';
-  }
-  return '${(hours * 60).round()}m';
-}

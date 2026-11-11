@@ -4,7 +4,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'first_light_format.dart';
 import 'widgets/cutout_strip.dart';
 
 /// Match radius (degrees) for grouping the same physical transient across
@@ -87,7 +86,7 @@ class FirstLightDetailScreen extends ConsumerWidget {
               error: (error, _) => EmptyState(
                 icon: LucideIcons.alertCircle,
                 title: 'Could not load history',
-                body: describeFirstLightError(error),
+                body: userFacingError(error),
               ),
             ),
           ],
@@ -118,8 +117,8 @@ class _PositionCard extends StatelessWidget {
           const SizedBox(width: SkotiqTokens.spaceSm),
           Expanded(
             child: Text(
-              '${CoordinateFormat.ra(detection.raDeg / 15.0)}   '
-              '${CoordinateFormat.dec(detection.decDeg)}',
+              '${CoordinateFormat.raReadout(detection.raDeg / 15.0)}   '
+              '${CoordinateFormat.decReadout(detection.decDeg)}',
               style: SkotiqTypography.monoSm.copyWith(
                 color: colors.textSecondary,
               ),

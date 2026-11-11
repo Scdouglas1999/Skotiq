@@ -551,8 +551,8 @@ class PlanetariumHandlers implements RouteSource {
       'ra': exactMatch.ra,
       'raHours': exactMatch.ra / 15.0, // canonical hours field; see B14
       'dec': exactMatch.dec,
-      'raFormatted': CoordinateFormat.ra(exactMatch.ra / 15.0),
-      'decFormatted': CoordinateFormat.dec(exactMatch.dec),
+      'raFormatted': CoordinateFormat.raReadoutFromDegrees(exactMatch.ra),
+      'decFormatted': CoordinateFormat.decReadout(exactMatch.dec),
       'type': exactMatch.type,
       'magnitude': exactMatch.magnitude,
       'constellation': exactMatch.constellation,

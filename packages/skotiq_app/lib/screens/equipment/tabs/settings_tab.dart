@@ -36,7 +36,7 @@ class EquipmentSettingsTab extends ConsumerWidget {
           }),
         ),
       ),
-      error: (e, _) => Center(child: Text('Error loading settings: $e')),
+      error: (e, _) => Center(child: Text('Error loading settings: ${userFacingError(e)}')),
       data: (settings) => SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         // No in-content title: both hosts (the desktop SkotiqDialog and
@@ -441,7 +441,7 @@ class _BuiltinGuiderSettingsCardState
         return;
       }
       setState(() {
-        _loadError = e.toString();
+        _loadError = userFacingError(e);
         _loading = false;
       });
     }
@@ -607,7 +607,7 @@ class _BuiltinGuiderSettingsCardState
       setState(() => _lastApplied = newConfig);
     } catch (e) {
       if (!mounted || !_isCurrentBackend(backend, backendGeneration)) return;
-      context.showErrorSnackBar('Failed to apply settings: $e');
+      context.showErrorSnackBar('Failed to apply settings: ${userFacingError(e)}');
     } finally {
       if (_isCurrentBackend(backend, backendGeneration)) {
         setState(() => _saving = false);
@@ -633,7 +633,7 @@ class _BuiltinGuiderSettingsCardState
       setState(() => _lastApplied = defaults);
     } catch (e) {
       if (!mounted || !_isCurrentBackend(backend, backendGeneration)) return;
-      context.showErrorSnackBar('Failed to reset settings: $e');
+      context.showErrorSnackBar('Failed to reset settings: ${userFacingError(e)}');
     } finally {
       if (_isCurrentBackend(backend, backendGeneration)) {
         setState(() => _saving = false);

@@ -466,7 +466,7 @@ class _RemoteConnectionSheetState
     } catch (e) {
       if (mounted && _isCurrentReconnect(generation, backend)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Reconnect failed: $e')),
+          SnackBar(content: Text('Reconnect failed: ${userFacingError(e)}')),
         );
       }
     } finally {
@@ -491,7 +491,7 @@ class _RemoteConnectionSheetState
       if (!mounted) return;
       setState(() => _disconnecting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Disconnect blocked: $e')),
+        SnackBar(content: Text('Disconnect blocked: ${userFacingError(e)}')),
       );
     }
   }

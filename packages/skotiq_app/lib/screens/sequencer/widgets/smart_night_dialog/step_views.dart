@@ -165,7 +165,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                       Icon(LucideIcons.sunset, size: 16, color: colors.primary),
                       const SizedBox(width: 8),
                       Text(
-                        'Start: ${_formatDateTime(start)}',
+                        'Start: ${ClockFormat.dateHm(start.toLocal())}',
                         style: TextStyle(
                           color: colors.textPrimary,
                           fontSize: SkotiqTypography.fontSize13,
@@ -188,7 +188,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                           size: 16, color: colors.primary),
                       const SizedBox(width: 8),
                       Text(
-                        'End: ${_formatDateTime(end)}',
+                        'End: ${ClockFormat.dateHm(end.toLocal())}',
                         style: TextStyle(
                           color: colors.textPrimary,
                           fontSize: SkotiqTypography.fontSize13,
@@ -206,7 +206,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Total: ${_formatDuration(end.difference(start))}',
+                    'Total: ${DurationFormat.of(end.difference(start), style: DurationStyle.coarse)}',
                     style: TextStyle(
                       color: colors.textSecondary,
                       fontSize: SkotiqTypography.fontSize12,
@@ -500,7 +500,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Failed to load suggestions: $e',
+                    'Failed to load suggestions: ${userFacingError(e)}',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: colors.error),
                   ),
@@ -836,17 +836,13 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                 _SummaryRow(
                   icon: LucideIcons.camera,
                   label: 'Total integration',
-                  value: _formatDuration(
-                    Duration(seconds: plan.totalIntegrationSecs.round()),
-                  ),
+                  value: DurationFormat.of(Duration(seconds: plan.totalIntegrationSecs.round()), style: DurationStyle.coarse),
                   colors: colors,
                 ),
                 _SummaryRow(
                   icon: LucideIcons.clock,
                   label: 'Estimated wall-clock',
-                  value: _formatDuration(
-                    Duration(seconds: plan.estimatedWallClockSecs.round()),
-                  ),
+                  value: DurationFormat.of(Duration(seconds: plan.estimatedWallClockSecs.round()), style: DurationStyle.coarse),
                   colors: colors,
                 ),
                 _SummaryRow(

@@ -75,8 +75,8 @@ class _SlewToTargetDialog extends StatelessWidget {
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
           Text(
-            'RA ${CoordinateParser.formatRaHms(raHours)}   '
-            'Dec ${CoordinateParser.formatDecDms(decDegrees)}',
+            'RA ${CoordinateFormat.raReadout(raHours)}   '
+            'Dec ${CoordinateFormat.decReadout(decDegrees)}',
             style: SkotiqTypography.bodySm.copyWith(
               color: colors.textSecondary,
               fontFamily: SkotiqTypography.fontFamilyMono,

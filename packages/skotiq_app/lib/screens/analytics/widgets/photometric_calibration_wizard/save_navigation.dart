@@ -138,7 +138,7 @@ extension _PhotometricWizardSaveNavigation
       if (!_isCurrentOperation(generation, authority)) return;
       _update(() {
         _isSaving = false;
-        _statusMessage = 'Save failed: $error';
+        _statusMessage = 'Save failed: ${userFacingError(error)}';
       });
     }
   }

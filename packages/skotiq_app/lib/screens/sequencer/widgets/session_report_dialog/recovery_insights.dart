@@ -93,7 +93,7 @@ class _RecoveryHistoryTile extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             '${entry.attempts} attempt${entry.attempts == 1 ? '' : 's'} · '
-            '${_formatDuration(entry.durationSecs)}',
+            '${DurationFormat.seconds(entry.durationSecs, style: DurationStyle.short)}',
             style: TextStyle(
               fontSize: SkotiqTypography.fontSize11,
               color: colors.textSecondary,
@@ -118,13 +118,6 @@ class _RecoveryHistoryTile extends StatelessWidget {
     );
   }
 
-  String _formatDuration(double secs) {
-    if (secs < 60) return '${secs.toStringAsFixed(0)}s';
-    final mins = (secs / 60).floor();
-    final rem = (secs - mins * 60).round();
-    if (rem == 0) return '${mins}m';
-    return '${mins}m ${rem}s';
-  }
 }
 
 /// Render one post-session [SessionInsight] inside the
@@ -285,7 +278,7 @@ class _SessionInsightTileState extends ConsumerState<_SessionInsightTile> {
       setState(() => _dismissed = false);
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
         SnackBar(
-          content: Text('Could not save dismissed suggestion: $error'),
+          content: Text('Could not save dismissed suggestion: ${userFacingError(error)}'),
           backgroundColor: widget.colors.error,
         ),
       );

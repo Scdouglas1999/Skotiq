@@ -208,7 +208,7 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
         try {
           rigCatalogs = await rig.getCatalogStatus();
         } catch (e) {
-          rigError = '$e';
+          rigError = userFacingError(e);
         }
       }
 

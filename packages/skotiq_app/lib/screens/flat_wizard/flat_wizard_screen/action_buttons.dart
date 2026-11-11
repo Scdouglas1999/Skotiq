@@ -177,7 +177,7 @@ class _ActionButtons extends ConsumerWidget {
       await notifier.runCapture();
     } catch (error) {
       if (context.mounted && identical(ref.read(backendProvider), authority)) {
-        notifier.setErrorMessage('Could not start flat capture: $error');
+        notifier.setErrorMessage('Could not start flat capture: ${userFacingError(error)}');
       }
     } finally {
       notifier.releaseStartPrompt();

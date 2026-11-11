@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
 
 import '../backend/skotiq_backend.dart';
 import '../backend/skotiq_exception.dart'
@@ -172,10 +173,10 @@ class CameraWarmupController {
 
     _log(
       (l) => l.info(
-        'Starting gradual warm-up from ${startTemp.toStringAsFixed(1)}°C '
+        'Starting gradual warm-up from ${formatCelsius(startTemp)} '
         'at ${ratePerMin.toStringAsFixed(1)}°C/min (power-based stopping); '
         'the cooler was holding '
-        '${run.priorSetpoint!.toStringAsFixed(1)}°C',
+        '${formatCelsius(run.priorSetpoint!)}',
       ),
     );
 
@@ -303,7 +304,7 @@ class CameraWarmupController {
         _log(
           (l) => l.error(
             'Error during warm-up step '
-            '(setpoint ${currentSetpoint.toStringAsFixed(1)}°C): $e',
+            '(setpoint ${formatCelsius(currentSetpoint)}): $e',
           ),
         );
         // Not fatal: the next tick tries again, and the 30-minute safety
@@ -458,14 +459,14 @@ class CameraWarmupController {
       _log(
         (l) => l.info(
           'Warm-up canceled; the cooler is back at the '
-          '${prior.toStringAsFixed(1)}°C it held before',
+          '${formatCelsius(prior)} it held before',
         ),
       );
     } on Object catch (e) {
       _log(
         (l) => l.error(
           'Warm-up canceled, but putting the cooler back to '
-          '${prior.toStringAsFixed(1)}°C failed: $e. The cooler is still on '
+          '${formatCelsius(prior)} failed: $e. The cooler is still on '
           'at the warm-up set-point.',
         ),
       );

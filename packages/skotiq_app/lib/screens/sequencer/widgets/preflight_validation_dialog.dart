@@ -160,7 +160,7 @@ class _PreFlightValidationDialogState
       );
       return (simulation, null);
     } catch (e) {
-      return (null, 'Simulation failed: $e');
+      return (null, 'Simulation failed: ${userFacingError(e)}');
     }
   }
 
@@ -424,7 +424,7 @@ class _PreFlightValidationDialogState
             padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
             decoration: SkotiqDecorations.well(colors),
             child: Text(
-              error.toString(),
+              userFacingError(error),
               style: SkotiqTypography.monoXs.copyWith(color: colors.textMuted),
             ),
           ),
@@ -462,7 +462,4 @@ class _PreFlightValidationDialogState
     );
   }
 
-  String _formatClock(DateTime time) =>
-      '${time.hour.toString().padLeft(2, '0')}:'
-      '${time.minute.toString().padLeft(2, '0')}';
 }

@@ -4,18 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        MountCapabilities,
-        MountState,
-        mountStateProvider,
-        equipmentMountCapabilitiesProvider,
-        gateCapability,
-        slewCoordinatesProvider,
-        CoordinateParser,
-        CoordinateUtils,
-        DeviceConnectionState;
+import 'package:skotiq_core/skotiq_core.dart' show MountCapabilities, MountState, mountStateProvider, equipmentMountCapabilitiesProvider, gateCapability, slewCoordinatesProvider, CoordinateParser, DeviceConnectionState;
 import '../../../services/mount_command_service.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/slew_dropdown_button.dart';
@@ -671,14 +662,14 @@ class _StatusBlock extends StatelessWidget {
             'RA',
             mountState.ra == null
                 ? null
-                : CoordinateUtils.formatRA(mountState.ra!)
+                : CoordinateFormat.raReadout(mountState.ra!)
           ),
           // Mount Dec is degrees (-90..+90); render signed DMS.
           (
             'Dec',
             mountState.dec == null
                 ? null
-                : CoordinateUtils.formatDec(mountState.dec!)
+                : CoordinateFormat.decReadout(mountState.dec!)
           ),
         ]),
         const SizedBox(height: SkotiqTokens.spaceSm),

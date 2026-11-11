@@ -207,7 +207,7 @@ class _SaveSequenceDialogState extends ConsumerState<_SaveSequenceDialog>
       }
     } catch (e) {
       if (mounted && host.isCurrent) {
-        context.showErrorSnackBar('Failed to save sequence: $e');
+        context.showErrorSnackBar('Failed to save sequence: ${userFacingError(e)}');
       }
     } finally {
       if (mounted && host.isCurrent) {

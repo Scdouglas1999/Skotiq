@@ -360,8 +360,8 @@ class _NameRegionSheetState extends ConsumerState<NameRegionSheet> {
         final centre = _parsedCentre();
         final text = centre == null
             ? 'Enter a position in either convention — sexagesimal or decimal.'
-            : 'Reads as ${CoordinateParser.formatRaHms(centre.raDeg / 15.0)} '
-                '${CoordinateParser.formatDecDms(centre.decDeg)} '
+            : 'Reads as ${CoordinateFormat.raReadout(centre.raDeg / 15.0)} '
+                '${CoordinateFormat.decReadout(centre.decDeg)} '
                 '(${centre.raDeg.toStringAsFixed(3)}°, '
                 '${centre.decDeg.toStringAsFixed(3)}°)';
         return Padding(
@@ -459,7 +459,7 @@ class _NameRegionSheetState extends ConsumerState<NameRegionSheet> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = 'Could not create region: $e';
+        _error = 'Could not create region: ${userFacingError(e)}';
       });
     }
   }

@@ -62,7 +62,7 @@ class _PluginInstructionPropertiesState
             widget.node.copyWith(configJson: value),
           );
     } catch (e) {
-      setState(() => _jsonError = 'Invalid JSON: $e');
+      setState(() => _jsonError = 'Invalid JSON: ${userFacingError(e)}');
     }
   }
 

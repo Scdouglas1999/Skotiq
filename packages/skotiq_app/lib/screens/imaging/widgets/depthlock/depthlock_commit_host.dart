@@ -163,7 +163,7 @@ class _DepthLockRegionCommitHostState
       if (!mounted) return;
       ref.read(depthLockRegionBusyProvider.notifier).state = false;
       ref.read(depthLockRegionErrorProvider.notifier).state =
-          depthLockErrorMessage(error);
+          userFacingError(error);
     }
   }
 
@@ -208,7 +208,7 @@ class _DepthLockRegionCommitHostState
     } catch (error) {
       // A library that cannot answer is not a reason to refuse the goal — the
       // editor asks for the two files instead, and says why it is asking.
-      final reason = depthLockErrorMessage(error);
+      final reason = userFacingError(error);
       return (
         dark: DepthLockMasterChoice(path: '', unmatchedReason: reason),
         flat: DepthLockMasterChoice(path: '', unmatchedReason: reason),
@@ -222,7 +222,7 @@ class _DepthLockRegionCommitHostState
       '${acquisition.exposureSecs.toStringAsFixed(acquisition.exposureSecs % 1 == 0 ? 0 : 1)} s',
       if (acquisition.gain != null) 'gain ${acquisition.gain}',
       if (acquisition.ccdTempC != null)
-        '${acquisition.ccdTempC!.toStringAsFixed(0)} °C',
+        formatCelsius(acquisition.ccdTempC!, decimals: 0),
       'bin ${acquisition.binX}×${acquisition.binY}',
     ];
     return 'matches this sub (${parts.join(', ')}). Choose one.';

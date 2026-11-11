@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../theme/skotiq_colors.dart';
@@ -179,11 +180,7 @@ class NightBand extends StatelessWidget {
   /// The caret is drawn as a Lucide icon beside it rather than as a "▲" in the
   /// string: neither bundled font carries U+25B2, and the golden showed it as a
   /// tofu box.
-  String _formatNow() {
-    final hh = now.hour.toString().padLeft(2, '0');
-    final mm = now.minute.toString().padLeft(2, '0');
-    return 'now $hh:$mm';
-  }
+  String _formatNow() => 'now ${ClockFormat.hm(now)}';
 }
 
 class _NightBandPainter extends CustomPainter {

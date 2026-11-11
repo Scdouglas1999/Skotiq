@@ -59,12 +59,6 @@ DepthLockGoal _goal({
 
 void main() {
   group('duration', () {
-    test('reads in the unit the quantity deserves', () {
-      expect(depthLockDuration(2.4), '2.4 h');
-      expect(depthLockDuration(0.5), '30 min');
-      expect(depthLockDuration(0), '0 min');
-    });
-
     test('hours come from frames and the goal\'s own exposure', () {
       expect(depthLockHours(frames: 18, exposureSecs: 300), closeTo(1.5, 1e-9));
       expect(depthLockHours(frames: 0, exposureSecs: 300), 0);
@@ -87,7 +81,7 @@ void main() {
 
       expect(
         line,
-        'About 2.4 h more (18 exposures) at the recent sky, then 16 to '
+        'About 2.4h more (18 exposures) at the recent sky, then 16 to '
         'confirm.',
       );
     });
@@ -264,7 +258,7 @@ void main() {
         ),
       ]);
 
-      expect(summary, 'Ha · done · OIII · 2.8 h');
+      expect(summary, 'Ha · done · OIII · 2.8h');
     });
 
     test('a capped filter says so instead of quoting hours', () {

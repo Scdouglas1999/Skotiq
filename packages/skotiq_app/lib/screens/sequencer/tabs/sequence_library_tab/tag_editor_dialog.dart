@@ -71,7 +71,7 @@ class _TagEditorDialogState extends ConsumerState<_TagEditorDialog>
     } catch (e) {
       if (!mounted || host.isStale) return;
       setState(() => _saving = false);
-      context.showErrorSnackBar('Failed to save tags: $e');
+      context.showErrorSnackBar('Failed to save tags: ${userFacingError(e)}');
     }
   }
 

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:uuid/uuid.dart';
 
@@ -1041,7 +1042,7 @@ class SmartNightService {
       case SmartNightAfCadence.everyNMinutes:
         return 'every ${s.afEveryMinutes} min';
       case SmartNightAfCadence.onTempDelta:
-        return 'on Δtemp ${s.afTempDeltaC.toStringAsFixed(1)}°C';
+        return 'on Δtemp ${formatCelsius(s.afTempDeltaC)}';
     }
   }
 }

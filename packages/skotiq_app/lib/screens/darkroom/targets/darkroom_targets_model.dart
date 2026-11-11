@@ -158,10 +158,10 @@ class DarkroomNight {
   /// The one thing worth knowing about how the night went.
   String get note {
     final flip = marks.where((m) => m.label == 'flip').firstOrNull;
-    if (flip != null) return 'Flip at ${hhmm(flip.at)}';
+    if (flip != null) return 'Flip at ${ClockFormat.hm(flip.at.toLocal())}';
     final lost = marks.where((m) => m.label != 'flip').firstOrNull;
-    if (lost != null) return 'Stars lost ${hhmm(lost.at)}';
-    return 'Ended ${hhmm(last)}';
+    if (lost != null) return 'Stars lost ${ClockFormat.hm(lost.at.toLocal())}';
+    return 'Ended ${ClockFormat.hm(last.toLocal())}';
   }
 }
 
@@ -268,12 +268,6 @@ class DarkroomTarget {
 }
 
 String two(int v) => v.toString().padLeft(2, '0');
-
-/// Local wall-clock time, `HH:MM`.
-String hhmm(DateTime t) {
-  final l = t.toLocal();
-  return '${two(l.hour)}:${two(l.minute)}';
-}
 
 /// The nights of [frames], newest first. [folded] holds the image ids a
 /// build of the current masters was given, [used] those it integrated.

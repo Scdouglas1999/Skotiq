@@ -105,7 +105,7 @@ class _YourSkyOffNoticeDialogState
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = 'That did not work: $e';
+          _error = 'That did not work: ${userFacingError(e)}';
         });
       }
     }

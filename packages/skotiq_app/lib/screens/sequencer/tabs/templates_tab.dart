@@ -231,7 +231,7 @@ class TemplatesTab extends ConsumerWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            error.toString(),
+                            userFacingError(error),
                             style: SkotiqTypography.caption
                                 .copyWith(color: colors.textMuted),
                           ),

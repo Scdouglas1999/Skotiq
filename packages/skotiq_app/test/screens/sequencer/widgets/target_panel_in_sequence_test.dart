@@ -171,7 +171,7 @@ void main() {
         openEndedBudgetSecs: 7200,
         hasUnboundedRepeat: false,
       );
-      expect(targetPlanSummary(planned), 'Looping up to 2h 0m');
+      expect(targetPlanSummary(planned), 'Looping up to 2h');
     });
 
     test('a target with nothing under it says so', () {

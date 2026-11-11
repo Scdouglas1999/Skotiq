@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/constellation/constellation_format.dart';
+import 'package:skotiq_core/skotiq_core.dart' show userFacingError;
 
 void main() {
   group('formatYourContribution', () {
@@ -10,21 +11,21 @@ void main() {
           yourSeconds: 3600 * 2.0,
           swarmSeconds: 3600 * 10.0,
         ),
-        '2.0h available to contribute (20% of swarm)',
+        '2h available to contribute (20% of swarm)',
       );
     });
 
     test('clamps the percentage to 100 when you exceed the reported total', () {
       expect(
         formatYourContribution(yourSeconds: 7200, swarmSeconds: 3600),
-        '2.0h available to contribute (100% of swarm)',
+        '2h available to contribute (100% of swarm)',
       );
     });
 
     test('drops the swarm comparison when the total is unknown', () {
       expect(
         formatYourContribution(yourSeconds: 3600, swarmSeconds: 0),
-        '1.0h available to contribute',
+        '1h available to contribute',
       );
       expect(
         formatYourContribution(yourSeconds: 0, swarmSeconds: 0),
@@ -117,16 +118,14 @@ void main() {
   group('describeConstellationError', () {
     test('strips the ConstellationException envelope', () {
       expect(
-        describeConstellationError(
-          'ConstellationException(auth): No hub configured.',
-        ),
+        userFacingError('ConstellationException(auth): No hub configured.'),
         'No hub configured.',
       );
     });
 
     test('strips a bare Exception prefix', () {
       expect(
-        describeConstellationError('Exception: boom'),
+        userFacingError('Exception: boom'),
         'boom',
       );
     });

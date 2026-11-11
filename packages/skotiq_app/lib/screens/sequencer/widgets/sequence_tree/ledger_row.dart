@@ -536,7 +536,7 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
       filterExp: base.filterExp,
       count: base.count,
       duration: base.duration,
-      eta: eta == null ? '' : formatLedgerClock(eta.start),
+      eta: eta == null ? '' : ClockFormat.hm(eta.start.toLocal()),
     );
     // A projected ETA for a node the run has already passed is stale — once
     // the run's NodeStarted events arrive they replace the projection, but
@@ -879,18 +879,11 @@ List<Widget> _targetCoordinateChips(
   return <Widget>[
     _LedgerChip(
       colors: colors,
-      label: CoordinateFormat.raHm(
-        node.raHours,
-        style: SexagesimalStyle.compactLetters,
-        wrapHours: true,
-      ),
+      label: CoordinateFormat.raCompact(node.raHours),
     ),
     _LedgerChip(
       colors: colors,
-      label: CoordinateFormat.decDm(
-        node.decDegrees,
-        style: SexagesimalStyle.compactLetters,
-      ),
+      label: CoordinateFormat.decCompact(node.decDegrees),
     ),
   ];
 }

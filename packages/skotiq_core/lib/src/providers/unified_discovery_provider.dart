@@ -1,3 +1,4 @@
+import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -426,7 +427,7 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
         error: errors.isEmpty ? null : errors.join('; '),
       );
     } catch (e) {
-      return _BackendResult(backend: backend, devices: [], error: e.toString());
+      return _BackendResult(backend: backend, devices: [], error: userFacingError(e));
     }
   }
 }

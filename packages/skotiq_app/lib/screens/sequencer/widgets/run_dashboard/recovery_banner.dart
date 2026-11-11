@@ -178,7 +178,7 @@ class _RunDashboardRecoveryBannerState
                         weatherHold
                             ? l10n.text(
                                 'recoveryWeatherStatus',
-                                params: {'held': _formatSecs(heldSecs)},
+                                params: {'held': DurationFormat.seconds(heldSecs, style: DurationStyle.short)},
                               )
                             : _statusLine(
                                 ctx, nextAttemptSecs, remainingBudgetSecs),
@@ -252,8 +252,8 @@ class _RunDashboardRecoveryBannerState
       if (nextAttemptSecs <= 1.0) {
         return '$attempts · next attempt firing now';
       }
-      return '$attempts · next retry in ${_formatSecs(nextAttemptSecs)}'
-          ' · budget left ${_formatSecs(remainingBudgetSecs)}';
+      return '$attempts · next retry in ${DurationFormat.seconds(nextAttemptSecs, style: DurationStyle.short)}'
+          ' · budget left ${DurationFormat.seconds(remainingBudgetSecs, style: DurationStyle.short)}';
     }
     if (ctx.isRecovered) {
       return '$attempts · recovered — resuming sequence';
@@ -264,14 +264,6 @@ class _RunDashboardRecoveryBannerState
     return attempts;
   }
 
-  String _formatSecs(double s) {
-    if (s < 60) {
-      return '${s.round()}s';
-    }
-    final mins = (s / 60).floor();
-    final secs = (s - mins * 60).round();
-    return secs == 0 ? '${mins}m' : '${mins}m ${secs}s';
-  }
 }
 
 /// Trio of recovery-mode buttons: Try Now, Skip Node, Abort.
@@ -321,7 +313,7 @@ class _RecoveryActionButtonsState extends State<_RecoveryActionButtons> {
     try {
       await widget.control.tryNow();
     } catch (e) {
-      _showError(extractRecoveryActionError('Retry failed', e));
+      _showError(failureText('Retry failed', e));
     } finally {
       if (mounted) setState(() => _tryNowBusy = false);
     }
@@ -333,7 +325,7 @@ class _RecoveryActionButtonsState extends State<_RecoveryActionButtons> {
     try {
       await widget.control.skipNode();
     } catch (e) {
-      _showError(extractRecoveryActionError('Skip failed', e));
+      _showError(failureText('Skip failed', e));
     } finally {
       if (mounted) setState(() => _skipBusy = false);
     }
@@ -345,7 +337,7 @@ class _RecoveryActionButtonsState extends State<_RecoveryActionButtons> {
     try {
       await widget.control.abort();
     } catch (e) {
-      _showError(extractRecoveryActionError('Abort failed', e));
+      _showError(failureText('Abort failed', e));
     } finally {
       if (mounted) setState(() => _abortBusy = false);
     }
@@ -418,22 +410,6 @@ class _RecoveryActionButtonsState extends State<_RecoveryActionButtons> {
       ],
     );
   }
-}
-
-/// Best-effort error formatter for the recovery action buttons.
-///
-/// [SkotiqError] from the network backend carries a userMessage that
-/// is already operator-friendly; anything else falls back to the raw
-/// `toString()` after stripping the `Exception:` prefix common to
-/// Dart `Exception` subclasses.
-String extractRecoveryActionError(String prefix, Object error) {
-  if (error is SkotiqError) {
-    return '$prefix: ${error.userMessage}';
-  }
-  final raw = error.toString();
-  final cleaned =
-      raw.startsWith('Exception: ') ? raw.substring('Exception: '.length) : raw;
-  return '$prefix: $cleaned';
 }
 
 /// Status-LED widget used by the sequencer screen's top bar and the

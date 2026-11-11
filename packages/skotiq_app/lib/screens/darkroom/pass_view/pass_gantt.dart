@@ -136,7 +136,7 @@ class _GanttPainter extends CustomPainter {
     for (var t = 0.0; t <= totalSec + 1e-6; t += step) {
       final px = plot.left + t / totalSec * plot.width;
       canvas.drawLine(Offset(px, plot.top), Offset(px, plot.bottom + 3), grid);
-      _text(canvas, passClock(Duration(seconds: t.round())),
+      _text(canvas, ClockFormat.stopwatch(Duration(seconds: t.round())),
           Offset(px, plot.bottom + 5), axis,
           align: t == 0
               ? TextAlign.left
@@ -281,7 +281,7 @@ class _GanttPainter extends CustomPainter {
     canvas.drawLine(Offset(nx, plot.top - 4), Offset(nx, plot.bottom + 2), now);
     _text(
       canvas,
-      'now ${passClock(snapshot.elapsed)}',
+      'now ${ClockFormat.stopwatch(snapshot.elapsed)}',
       Offset(nx, 0),
       axis.copyWith(color: colors.primary),
       align: nx > plot.right - 50 ? TextAlign.right : TextAlign.center,

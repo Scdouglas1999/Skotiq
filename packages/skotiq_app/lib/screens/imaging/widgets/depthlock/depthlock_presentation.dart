@@ -153,7 +153,7 @@ String depthLockMasterSummary(CalibrationMasterRecord record) {
       parts.add(_seconds(exposure));
     }
     if (record.temperature != null) {
-      parts.add('${record.temperature!.toStringAsFixed(0)} °C');
+      parts.add(formatCelsius(record.temperature!, decimals: 0));
     }
     if (record.gain != null) parts.add('gain ${record.gain}');
   }
@@ -169,50 +169,9 @@ String _seconds(double value) => value >= 1
     ? '${value.toStringAsFixed(0)} s'
     : '${value.toStringAsFixed(2)} s';
 
-/// The message an error carries, without rewording it.
-///
-/// A DepthLock refusal is the native engine explaining a geometry, a stale
-/// revision or an unusable master to the operator. Anything this layer
-/// substituted would be less useful than what it replaced, so the only work
-/// done here is unwrapping the envelope the error arrived in.
-String depthLockErrorMessage(Object error) {
-  if (error is SkotiqError) return error.userMessage;
-  // The FFI backend throws the bridge union, whose toString leaks the
-  // freezed wrapper around the native reason.
-  final bridged = bridgeErrorMessage(error);
-  if (bridged != null) return bridged;
-  final raw = error.toString();
-  return raw.startsWith('Exception: ')
-      ? raw.substring('Exception: '.length)
-      : raw;
-}
-
-/// `2026-09-12 21:40` in the device's own time, for a selection timestamp.
-///
-/// A goal's selection date is the line between discovery data and evidence, so
-/// it is shown to the minute rather than as "3 days ago": the operator matches
-/// it against the timestamps on their own subs.
-String depthLockTimestamp(int unixMs) {
-  final when = DateTime.fromMillisecondsSinceEpoch(unixMs);
-  String two(int value) => value.toString().padLeft(2, '0');
-  return '${when.year}-${two(when.month)}-${two(when.day)} '
-      '${two(when.hour)}:${two(when.minute)}';
-}
-
 /// Integration time for [frames] exposures of this goal, in hours.
 double depthLockHours({required int frames, required double exposureSecs}) =>
     frames <= 0 || exposureSecs <= 0 ? 0 : frames * exposureSecs / 3600.0;
-
-/// Integration time written the way an observer plans with it.
-///
-/// Hours to one decimal above one hour, minutes below: "2.4 h", "35 min".
-/// Never a clock time or a finish date — the forecast is a quantity of
-/// integration, and the night it lands on depends on weather nobody has.
-String depthLockDuration(double hours) {
-  if (hours <= 0) return '0 min';
-  if (hours < 1) return '${(hours * 60).round()} min';
-  return '${hours.toStringAsFixed(1)} h';
-}
 
 /// What the goal expects still to cost, or null when there is nothing to say.
 ///
@@ -260,7 +219,7 @@ String? depthLockForecastLine(DepthLockGoal goal) {
   final String confirm = forecast.framesToConfirm > 0
       ? ', then ${forecast.framesToConfirm} to confirm'
       : '';
-  return 'About ${depthLockDuration(hours)} more ($toThreshold '
+  return 'About ${DurationFormat.decimalHours(hours * 3600)} more ($toThreshold '
       'exposure${toThreshold == 1 ? '' : 's'}) at the recent sky$confirm.';
 }
 
@@ -319,7 +278,7 @@ String? depthLockAllocationSummary(List<DepthLockGoal> goals) {
   for (final filter in order) {
     final String value;
     if (anyReachable[filter] == true) {
-      value = depthLockDuration(remainingHours[filter] ?? 0);
+      value = DurationFormat.decimalHours((remainingHours[filter] ?? 0) * 3600);
     } else if (anyCapped[filter] == true) {
       value = 'floor limit';
     } else {

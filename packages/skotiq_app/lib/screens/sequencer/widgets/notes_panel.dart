@@ -9,7 +9,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../utils/user_facing_error.dart';
 
 part 'notes_panel/target_notes_dialog.dart';
 part 'notes_panel/note_tile.dart';
@@ -126,7 +125,7 @@ class TargetNotesSection extends ConsumerWidget {
       error: (e, _) => Padding(
         padding: const EdgeInsets.all(8),
         child: Text(
-          'Notes unavailable: $e',
+          'Notes unavailable: ${userFacingError(e)}',
           style: TextStyle(
               fontSize: SkotiqTypography.fontSize11, color: colors.error),
         ),

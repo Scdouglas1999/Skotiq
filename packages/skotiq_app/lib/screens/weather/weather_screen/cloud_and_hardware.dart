@@ -54,11 +54,11 @@ class _WeatherConditions extends ConsumerWidget {
         ),
       if (hasWeatherDevice) ...[
         if (weatherState.temperature != null)
-          ('Temperature', '${weatherState.temperature!.toStringAsFixed(1)} °C'),
+          ('Temperature', formatCelsius(weatherState.temperature!)),
         if (weatherState.humidity != null)
           ('Humidity', '${weatherState.humidity!.toStringAsFixed(0)} %'),
         if (weatherState.dewPoint != null)
-          ('Dew point', '${weatherState.dewPoint!.toStringAsFixed(1)} °C'),
+          ('Dew point', formatCelsius(weatherState.dewPoint!)),
         if (weatherState.windSpeed != null)
           ('Wind', '${weatherState.windSpeed!.toStringAsFixed(1)} m/s'),
         if (weatherState.cloudCover != null)
@@ -73,7 +73,7 @@ class _WeatherConditions extends ConsumerWidget {
         if (weatherState.rainRate != null && weatherState.rainRate! > 0)
           ('Rain', '${weatherState.rainRate!.toStringAsFixed(1)} mm/hr'),
         if (weatherState.lastUpdated != null)
-          ('Updated', _relativeAge(weatherState.lastUpdated!)),
+          ('Updated', RelativeTime.ago(weatherState.lastUpdated!)),
       ],
     ];
 
@@ -204,9 +204,3 @@ class _ConditionsEyebrow extends StatelessWidget {
   }
 }
 
-String _relativeAge(DateTime time) {
-  final diff = DateTime.now().difference(time);
-  if (diff.inSeconds < 60) return 'just now';
-  if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-  return '${diff.inHours}h ago';
-}

@@ -162,7 +162,7 @@ class _AnnotationObjectsPanelState
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$failureMessage: $error'),
+          content: Text('$failureMessage: ${userFacingError(error)}'),
           backgroundColor: SkotiqColors.of(context).error,
           duration: const Duration(seconds: 4),
         ),
@@ -181,7 +181,7 @@ class _AnnotationObjectsPanelState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Re-annotation failed: $error'),
+            content: Text('Re-annotation failed: ${userFacingError(error)}'),
             backgroundColor: SkotiqColors.of(context).error,
           ),
         );
@@ -243,7 +243,7 @@ class _AnnotationObjectsPanelState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to save annotated image: $e'),
+            content: Text('Failed to save annotated image: ${userFacingError(e)}'),
             backgroundColor: SkotiqColors.of(context).error,
             duration: const Duration(seconds: 4),
           ),

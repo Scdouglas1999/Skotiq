@@ -52,9 +52,9 @@ void main() {
           (n) => n.key == '2026-10-21',
         );
     expect(oct21.pauses, hasLength(1));
-    expect(hhmm(oct21.pauses.single.end), '01:36');
+    expect(ClockFormat.hm(oct21.pauses.single.end.toLocal()), '01:36');
     expect([
-      for (final m in oct21.marks) (m.label, hhmm(m.at))
+      for (final m in oct21.marks) (m.label, ClockFormat.hm(m.at.toLocal()))
     ], [
       ('flip', '01:36'),
     ]);
@@ -65,7 +65,7 @@ void main() {
       () async {
     final oct23 = (await ngc891()).nights.first;
     expect([
-      for (final m in oct23.marks) (m.label, hhmm(m.at))
+      for (final m in oct23.marks) (m.label, ClockFormat.hm(m.at.toLocal()))
     ], [
       ('flip', '01:36'),
       ('no stars', '03:28'),

@@ -267,7 +267,7 @@ void main() {
       MetricTone.bad,
     );
     expect(value('nightSessionStatIntegration'), '12m');
-    expect(value('nightSessionStatDisk'), '639 GB');
+    expect(value('nightSessionStatDisk'), '639 GiB');
     // The run's own counters are the only source for these.
     expect(
       vm.metrics.map((m) => m.label.key),

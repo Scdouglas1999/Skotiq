@@ -49,7 +49,7 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
       unawaited(loadComposites());
     } catch (e) {
       if (!mounted) return;
-      state = state.copyWith(loading: false, error: 'Failed to load: $e');
+      state = state.copyWith(loading: false, error: 'Failed to load: ${userFacingError(e)}');
     }
   }
 
@@ -268,7 +268,7 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
       );
       if (mounted) {
         state = state.copyWith(
-          error: 'Night analysis failed: $e',
+          error: 'Night analysis failed: ${userFacingError(e)}',
         );
       }
       return null;
@@ -437,7 +437,7 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
       return result.outputPath;
     } catch (e) {
       if (mounted) {
-        state = state.copyWith(error: 'Color calibration failed: $e');
+        state = state.copyWith(error: 'Color calibration failed: ${userFacingError(e)}');
       }
       return null;
     } finally {
@@ -504,7 +504,7 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
         await _publishMasters();
         return written;
       } catch (e) {
-        if (mounted) state = state.copyWith(error: '$label failed: $e');
+        if (mounted) state = state.copyWith(error: '$label failed: ${userFacingError(e)}');
         return null;
       } finally {
         if (mounted) state = busy(false);

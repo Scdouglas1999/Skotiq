@@ -66,7 +66,7 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
     if (totalSecs <= 0) return kReadoutUnknown;
     return DurationFormat.seconds(
       totalSecs,
-      style: DurationStyle.compact,
+      style: DurationStyle.coarse,
       rounding: DurationRounding.truncate,
     );
   }
@@ -485,14 +485,14 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
     if (planned.frames > 0) {
       parts.add(
         '${countLabel(planned.frames, 'frame')} • '
-        '${_formatSecs(planned.integrationSecs)}'
+        '${DurationFormat.seconds(planned.integrationSecs, style: DurationStyle.coarse, roundToMinute: true)}'
         '${planned.hasUnboundedRepeat ? ' per pass' : ''}',
       );
     }
     if (planned.hasOpenEndedLoop) {
       parts.add(
         planned.openEndedBudgetSecs > 0
-            ? 'looping up to ${_formatSecs(planned.openEndedBudgetSecs)}'
+            ? 'looping up to ${DurationFormat.seconds(planned.openEndedBudgetSecs, style: DurationStyle.coarse, roundToMinute: true)}'
             : 'looping until the window closes',
       );
     }
@@ -548,7 +548,7 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
             Padding(
               padding: const EdgeInsets.only(left: 18, top: 2),
               child: Text(
-                '${entry.key}: ${_formatSecs(entry.value)}',
+                '${entry.key}: ${DurationFormat.seconds(entry.value, style: DurationStyle.coarse, roundToMinute: true)}',
                 style: TextStyle(
                   fontSize: SkotiqTypography.fontSize11,
                   color: widget.colors.textSecondary,
@@ -557,14 +557,6 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
             ),
       ],
     );
-  }
-
-  String _formatSecs(double secs) {
-    if (secs <= 0) return '0m';
-    final hours = (secs / 3600).floor();
-    final mins = ((secs % 3600) / 60).round();
-    if (hours > 0) return '${hours}h ${mins}m';
-    return '${mins}m';
   }
 
   /// Load the full sequence from the repository, used by every tree-requiring
@@ -583,7 +575,7 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
       return sequence;
     } catch (e) {
       if (context.mounted && _isCurrentAuthority(authority)) {
-        context.showErrorSnackBar('Failed to load sequence: $e');
+        context.showErrorSnackBar('Failed to load sequence: ${userFacingError(e)}');
       }
       return null;
     }
@@ -632,7 +624,7 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
       ref.invalidate(savedSequenceSummariesProvider);
     } catch (e) {
       if (mounted && _isCurrentAuthority(authority)) {
-        context.showErrorSnackBar('Failed to update favorite: $e');
+        context.showErrorSnackBar('Failed to update favorite: ${userFacingError(e)}');
       }
     }
   }
@@ -786,7 +778,7 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
       }
     } catch (e) {
       if (context.mounted && _isCurrentAuthority(authority)) {
-        context.showErrorSnackBar('Failed to duplicate: $e');
+        context.showErrorSnackBar('Failed to duplicate: ${userFacingError(e)}');
       }
     }
   }
@@ -852,12 +844,12 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
         }
       } catch (err) {
         if (context.mounted && _isCurrentAuthority(authority)) {
-          context.showErrorSnackBar('Failed to export: $err');
+          context.showErrorSnackBar('Failed to export: ${userFacingError(err)}');
         }
       }
     } catch (e) {
       if (context.mounted && _isCurrentAuthority(authority)) {
-        context.showErrorSnackBar('Failed to export: $e');
+        context.showErrorSnackBar('Failed to export: ${userFacingError(e)}');
       }
     }
   }

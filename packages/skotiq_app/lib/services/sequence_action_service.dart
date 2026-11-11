@@ -77,7 +77,7 @@ class SequenceActionService {
         } catch (e) {
           // The Start control that asked may be gone by the time the refusal
           // comes back, so the reason goes out as an app-wide notification.
-          final reason = describeStartFailure(e);
+          final reason = userFacingError(e);
           _ref.read(loggingServiceProvider).warning(
                 'The run did not start: $reason',
                 source: 'SequenceActionService',
@@ -104,7 +104,7 @@ class SequenceActionService {
               return CommandActionResult.ok;
             } catch (e) {
               return CommandActionResult.failure(
-                  'Failed to pause sequence: $e');
+                  'Failed to pause sequence: ${userFacingError(e)}');
             }
           }));
 
@@ -119,7 +119,7 @@ class SequenceActionService {
               return CommandActionResult.ok;
             } catch (e) {
               return CommandActionResult.failure(
-                  'Failed to resume sequence: $e');
+                  'Failed to resume sequence: ${userFacingError(e)}');
             }
           }));
 
@@ -149,7 +149,7 @@ class SequenceActionService {
               await _executor.stop(preserveCheckpoint: preserveCheckpoint);
               return CommandActionResult.ok;
             } catch (e) {
-              return CommandActionResult.failure('Failed to stop sequence: $e');
+              return CommandActionResult.failure('Failed to stop sequence: ${userFacingError(e)}');
             }
           }));
 
@@ -178,7 +178,7 @@ class SequenceActionService {
               }
               return CommandActionResult.ok;
             } catch (e) {
-              return CommandActionResult.failure('Failed to skip: $e');
+              return CommandActionResult.failure('Failed to skip: ${userFacingError(e)}');
             }
           }));
 
@@ -201,7 +201,7 @@ class SequenceActionService {
               return CommandActionResult.ok;
             } catch (e) {
               return CommandActionResult.failure(
-                  'Failed to reset sequence: $e');
+                  'Failed to reset sequence: ${userFacingError(e)}');
             }
           }));
 
@@ -214,17 +214,3 @@ class SequenceActionService {
   }
 }
 
-/// A start refusal as the operator should read it: the host's or the
-/// validator's own sentence, without a Dart exception prefix.
-String describeStartFailure(Object error) {
-  final text = switch (error) {
-    ServerError(:final message) => message,
-    SkotiqError(:final userMessage) => userMessage,
-    _ => '$error',
-  }
-      .trim();
-  for (final prefix in const ['Exception: ', 'Bad state: ']) {
-    if (text.startsWith(prefix)) return text.substring(prefix.length);
-  }
-  return text;
-}

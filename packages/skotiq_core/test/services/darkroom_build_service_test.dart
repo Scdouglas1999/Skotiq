@@ -456,7 +456,7 @@ void main() {
           isA<StateError>().having(
             (e) => e.message,
             'message',
-            allOf(contains('needs 3.5 GB'), contains('2.0 GB is free')),
+            allOf(contains('needs 3.5 GiB'), contains('2.0 GiB is free')),
           ),
         ),
       );
@@ -481,7 +481,7 @@ void main() {
               'message',
               allOf(
                 contains('needs'),
-                contains('2.0 GB is free'),
+                contains('2.0 GiB is free'),
                 isNot(contains('null')),
               ),
             ),

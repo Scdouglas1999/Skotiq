@@ -118,7 +118,7 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog>
       }
     } catch (e) {
       if (mounted && host.isCurrent) {
-        context.showErrorSnackBar('Failed to save template: $e');
+        context.showErrorSnackBar('Failed to save template: ${userFacingError(e)}');
       }
     } finally {
       if (mounted && host.isCurrent) {
@@ -409,7 +409,7 @@ class _TargetOptionState extends State<_TargetOption> {
                           .copyWith(color: widget.colors.textPrimary),
                     ),
                     Text(
-                      'RA: ${_formatRA(widget.target.raHours)} · Dec: ${_formatDec(widget.target.decDegrees)}',
+                      'RA: ${CoordinateFormat.raCompact(widget.target.raHours)} · Dec: ${CoordinateFormat.decCompact(widget.target.decDegrees)}',
                       style: TextStyle(
                         fontSize: SkotiqTypography.fontSize11,
                         color: widget.colors.textMuted,
@@ -432,9 +432,4 @@ class _TargetOptionState extends State<_TargetOption> {
     );
   }
 
-  String _formatRA(double raHours) =>
-      CoordinateFormat.raHm(raHours, style: SexagesimalStyle.plainLetters);
-
-  String _formatDec(double decDegrees) =>
-      CoordinateFormat.decDecimal(decDegrees);
 }

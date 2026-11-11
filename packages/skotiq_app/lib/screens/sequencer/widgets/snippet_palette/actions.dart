@@ -310,7 +310,7 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to create template: $e'),
+            content: Text('Failed to create template: ${userFacingError(e)}'),
             backgroundColor: widget.colors.error,
           ),
         );
@@ -390,7 +390,7 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to delete template: $e'),
+          content: Text('Failed to delete template: ${userFacingError(e)}'),
           backgroundColor: widget.colors.error,
         ),
       );
@@ -455,7 +455,7 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to import snippet: $e'),
+          content: Text('Failed to import snippet: ${userFacingError(e)}'),
           backgroundColor: widget.colors.error,
         ),
       );
@@ -488,7 +488,7 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to export snippet: $e'),
+          content: Text('Failed to export snippet: ${userFacingError(e)}'),
           backgroundColor: widget.colors.error,
         ),
       );
@@ -532,7 +532,7 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to share snippet: $e'),
+          content: Text('Failed to share snippet: ${userFacingError(e)}'),
           backgroundColor: widget.colors.error,
         ),
       );

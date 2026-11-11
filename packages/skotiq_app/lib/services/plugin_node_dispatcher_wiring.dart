@@ -63,7 +63,7 @@ Override pluginNodeDispatcherOverride() {
         } catch (error) {
           return _invalidPluginConfigResult(
             request,
-            'configuration is not valid JSON: $error',
+            'configuration is not valid JSON: ${userFacingError(error)}',
           );
         }
       }

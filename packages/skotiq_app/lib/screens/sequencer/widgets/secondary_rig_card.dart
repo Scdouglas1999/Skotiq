@@ -266,7 +266,7 @@ class SecondaryRigCard extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not start secondary rig: $e')),
+          SnackBar(content: Text('Could not start secondary rig: ${userFacingError(e)}')),
         );
       }
     }
@@ -278,7 +278,7 @@ class SecondaryRigCard extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not stop secondary rig: $e')),
+          SnackBar(content: Text('Could not stop secondary rig: ${userFacingError(e)}')),
         );
       }
     }

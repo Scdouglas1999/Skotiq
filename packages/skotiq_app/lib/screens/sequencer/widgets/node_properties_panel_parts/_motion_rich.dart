@@ -582,7 +582,7 @@ class _CoordinateReadout extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Text(
-        '${formatRaHoursAsHms(raHours)}   ${formatDecDegAsDms(decDeg)}',
+        '${CoordinateFormat.raReadout(raHours)}   ${CoordinateFormat.decReadout(decDeg)}',
         style: TextStyle(
           fontSize: Responsive.fontSize(context, 11),
           color: colors.textMuted,
@@ -656,8 +656,8 @@ class _TargetResolutionPreview extends ConsumerWidget {
                             'coordinates set — this node has nowhere to point.\n'
                             'Look up or enter RA/Dec in the target editor.'
                         : 'Will use target: ${targetGroup.targetName}\n'
-                            '${formatRaHoursAsHms(targetGroup.raHours)}   '
-                            '${formatDecDegAsDms(targetGroup.decDegrees)}',
+                            '${CoordinateFormat.raReadout(targetGroup.raHours)}   '
+                            '${CoordinateFormat.decReadout(targetGroup.decDegrees)}',
                 style: TextStyle(
                   fontSize: Responsive.fontSize(context, 12),
                   color: resolved ? colors.success : colors.warning,
@@ -671,13 +671,3 @@ class _TargetResolutionPreview extends ConsumerWidget {
   }
 }
 
-/// Format decimal RA hours as `HHh MMm SS.Ss`.
-String formatRaHoursAsHms(double hours) => CoordinateFormat.ra(
-      hours,
-      seconds: SecondsPrecision.oneDecimalPadded,
-      wrapHours: true,
-    );
-
-/// Format decimal declination degrees as `\u00B1DD\u00B0 MM' SS"`.
-String formatDecDegAsDms(double degrees) =>
-    CoordinateFormat.dec(degrees, seconds: SecondsPrecision.integerRounded);

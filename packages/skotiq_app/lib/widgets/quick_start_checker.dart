@@ -438,7 +438,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
         final colors = SkotiqColors.of(uiContext);
         ScaffoldMessenger.of(uiContext).showSnackBar(
           SnackBar(
-            content: Text('Failed to start fresh: $e'),
+            content: Text('Failed to start fresh: ${userFacingError(e)}'),
             backgroundColor: colors.error,
           ),
         );
@@ -507,7 +507,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
         final colors = SkotiqColors.of(uiContext);
         ScaffoldMessenger.of(uiContext).showSnackBar(
           SnackBar(
-            content: Text('Failed to resume progress: $e'),
+            content: Text('Failed to resume progress: ${userFacingError(e)}'),
             backgroundColor: colors.error,
           ),
         );

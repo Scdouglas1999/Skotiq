@@ -279,7 +279,7 @@ class _TargetConfirmCard extends StatelessWidget {
       error: (e, _) => _NoTargetCard(
         colors: colors,
         title: 'Could not pick a target',
-        body: '$e',
+        body: userFacingError(e),
         onAction: onRefreshPick,
       ),
       data: (target) {
@@ -295,8 +295,8 @@ class _TargetConfirmCard extends StatelessWidget {
     final peakAlt =
         target.visibility.peakAltitude ?? target.visibility.currentAltitude;
     final hoursAbove = target.visibility.hoursAboveMinAlt ?? 0.0;
-    final ra = CoordinateUtils.formatRA(target.raHours);
-    final dec = CoordinateUtils.formatDec(target.decDegrees);
+    final ra = CoordinateFormat.raReadout(target.raHours);
+    final dec = CoordinateFormat.decReadout(target.decDegrees);
 
     return SkotiqCard(
       variant: CardVariant.elevated,
@@ -514,7 +514,7 @@ class _MorningPayoff extends StatelessWidget {
         colors: colors,
         icon: LucideIcons.alertTriangle,
         title: 'Morning report unavailable',
-        body: '$error',
+        body: userFacingError(error),
         onRetry: onRetry,
       ),
       data: (sessionId) {

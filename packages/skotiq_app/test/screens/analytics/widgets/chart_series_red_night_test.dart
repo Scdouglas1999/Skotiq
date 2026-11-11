@@ -9,7 +9,6 @@
 // constant and painted it raw. Red night is a WAVELENGTH constraint, so a blue
 // line is not merely off-palette: it undoes the dark adaptation the mode exists
 // to protect.
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -91,17 +90,29 @@ Widget _sessionTab(ThemeData theme, List<DbCapturedImage> frames) {
   );
 }
 
-/// Card title -> the colour that card's line is told to draw itself in.
-Map<String, Color> _lineColorsByTitle(WidgetTester tester) {
+/// Card title -> the colour that card's line is drawn in under [colors].
+Map<String, Color> _lineColorsByTitle(
+    WidgetTester tester, SkotiqColors colors) {
   final out = <String, Color>{};
+  for (final (title, line) in _linesByTitle(tester)) {
+    out[title] = SkotiqChart.resolveColor(colors, line.tone, line.color);
+  }
+  return out;
+}
+
+/// Each session card's title with the line series it draws.
+List<(String, ChartSeries)> _linesByTitle(WidgetTester tester) {
+  final out = <(String, ChartSeries)>[];
   final charts = find.byType(SessionChart);
   for (var i = 0; i < charts.evaluate().length; i++) {
     final card = charts.at(i);
-    final title = tester.widget<SessionChart>(card).title;
-    final chart = tester.widget<LineChart>(
-      find.descendant(of: card, matching: find.byType(LineChart)),
+    final chart = tester.widget<SkotiqChart>(
+      find.descendant(of: card, matching: find.byType(SkotiqChart)),
     );
-    out[title] = chart.data.lineBarsData.single.color!;
+    out.add((
+      tester.widget<SessionChart>(card).title,
+      chart.series.firstWhere((s) => s.kind == ChartSeriesKind.line),
+    ));
   }
   return out;
 }
@@ -137,26 +148,17 @@ List<LightCurvePoint> _lightCurve() {
   });
 }
 
-/// Every plot/peak colour the period painters are about to draw with.
-List<Color> _painterSeriesColors(WidgetTester tester) {
-  final out = <Color>[];
-  for (final paint
-      in tester.widgetList<CustomPaint>(find.byType(CustomPaint))) {
-    final dynamic painter = paint.painter;
-    if (painter == null) continue;
-    try {
-      out.add(painter.plotColor as Color);
-    } on NoSuchMethodError {
-      continue; // not a period-analysis painter
-    }
-    try {
-      out.add(painter.peakColor as Color);
-    } on NoSuchMethodError {
-      // phase-fold painter has no peak marker
-    }
-  }
-  return out;
-}
+/// Every series and marker colour the period charts draw with under [colors].
+List<Color> _periodChartColors(WidgetTester tester, SkotiqColors colors) => [
+      for (final chart in tester.widgetList<SkotiqChart>(
+        find.byType(SkotiqChart),
+      )) ...[
+        for (final s in chart.series)
+          SkotiqChart.resolveColor(colors, s.tone, s.color),
+        for (final r in chart.rules)
+          SkotiqChart.resolveColor(colors, r.tone, r.color),
+      ],
+    ];
 
 void main() {
   setUp(() {
@@ -178,7 +180,7 @@ void main() {
     await tester.pumpWidget(_sessionTab(SkotiqTheme.redNight, _frames()));
     await tester.pump();
 
-    final drawn = _lineColorsByTitle(tester);
+    final drawn = _lineColorsByTitle(tester, SkotiqColors.redNight);
     expect(drawn.keys.toSet(), _namedHues.keys.toSet());
 
     drawn.forEach((title, color) {
@@ -199,16 +201,14 @@ void main() {
     await tester.pumpWidget(_sessionTab(SkotiqTheme.redNight, _frames()));
     await tester.pump();
 
-    final charts = find.byType(SessionChart);
-    for (var i = 0; i < charts.evaluate().length; i++) {
-      final card = charts.at(i);
-      final title = tester.widget<SessionChart>(card).title;
-      final chart = tester.widget<LineChart>(
-        find.descendant(of: card, matching: find.byType(LineChart)),
+    // The fill is the line's own resolved colour at low alpha, so a filled
+    // line is safe exactly when its line is.
+    for (final (title, line) in _linesByTitle(tester)) {
+      if (!line.filled) continue;
+      _expectRedNightSafe(
+        SkotiqChart.resolveColor(SkotiqColors.redNight, line.tone, line.color),
+        '$title area fill',
       );
-      final below = chart.data.lineBarsData.single.belowBarData;
-      if (!below.show) continue;
-      _expectRedNightSafe(below.color!, '$title area fill');
     }
   });
 
@@ -216,7 +216,7 @@ void main() {
     await tester.pumpWidget(_sessionTab(SkotiqTheme.dark, _frames()));
     await tester.pump();
 
-    final drawn = _lineColorsByTitle(tester);
+    final drawn = _lineColorsByTitle(tester, SkotiqColors.dark);
     expect(drawn.keys.toSet(), _namedHues.keys.toSet());
     drawn.forEach((title, color) {
       expect(color, _namedHues[title],
@@ -258,7 +258,7 @@ void main() {
     );
     await tester.pump();
 
-    final colors = _painterSeriesColors(tester);
+    final colors = _periodChartColors(tester, SkotiqColors.redNight);
     // Lomb-Scargle (plot + peak), phase fold (plot), BLS (plot + peak).
     expect(colors.length, greaterThanOrEqualTo(5),
         reason: 'the period panel draws fewer spectra than expected');

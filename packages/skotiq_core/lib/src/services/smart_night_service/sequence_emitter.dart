@@ -59,7 +59,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
         CoolCameraNode(
           id: SmartNightService._uuid.v4(),
           name:
-              'Cool camera to ${settings.coolDownTargetC.toStringAsFixed(0)}°C',
+              'Cool camera to ${formatCelsius(settings.coolDownTargetC, decimals: 0)}',
           targetTemp: settings.coolDownTargetC,
           durationMins: 10.0,
           parentId: rootId,
@@ -293,7 +293,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     addRootChild(
       CoolCameraNode(
         id: SmartNightService._uuid.v4(),
-        name: 'Cool camera to ${settings.coolDownTargetC.toStringAsFixed(0)}°C',
+        name: 'Cool camera to ${formatCelsius(settings.coolDownTargetC, decimals: 0)}',
         targetTemp: settings.coolDownTargetC,
         durationMins: 10.0,
         parentId: rootId,
@@ -474,7 +474,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
       for (final req in context.missingDarkRequirements) {
         final tempLabel = req.targetTemp == null
             ? 'any'
-            : '${req.targetTemp!.toStringAsFixed(0)}°C';
+            : formatCelsius(req.targetTemp!, decimals: 0);
         darkChildren.add(
           ExposureNode(
             id: SmartNightService._uuid.v4(),

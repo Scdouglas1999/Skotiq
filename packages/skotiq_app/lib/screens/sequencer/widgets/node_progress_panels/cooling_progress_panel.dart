@@ -149,7 +149,7 @@ class _TempDisplay extends StatelessWidget {
           ),
         ),
         Text(
-          temp != null ? '${temp!.toStringAsFixed(1)}°C' : '--°C',
+          temp != null ? formatCelsius(temp!) : '--°C',
           style: TextStyle(
             fontSize: SkotiqTypography.fontSize16,
             fontWeight: FontWeight.w700,

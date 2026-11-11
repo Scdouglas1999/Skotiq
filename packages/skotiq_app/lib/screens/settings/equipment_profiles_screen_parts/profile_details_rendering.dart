@@ -344,7 +344,7 @@ extension _ProfileDetailsRendering on _ProfileDetailsState {
                           value: widget.isEditing
                               ? null
                               : (widget.profile.defaultCoolingTemp != null
-                                  ? '${widget.profile.defaultCoolingTemp!.toStringAsFixed(0)}°C'
+                                  ? formatCelsius(widget.profile.defaultCoolingTemp!, decimals: 0)
                                   : 'Not set'),
                           controller:
                               widget.isEditing ? _coolingController : null,
@@ -387,7 +387,7 @@ extension _ProfileDetailsRendering on _ProfileDetailsState {
                             value: widget.isEditing
                                 ? null
                                 : (widget.profile.defaultCoolingTemp != null
-                                    ? '${widget.profile.defaultCoolingTemp!.toStringAsFixed(0)}°C'
+                                    ? formatCelsius(widget.profile.defaultCoolingTemp!, decimals: 0)
                                     : 'Not set'),
                             controller:
                                 widget.isEditing ? _coolingController : null,

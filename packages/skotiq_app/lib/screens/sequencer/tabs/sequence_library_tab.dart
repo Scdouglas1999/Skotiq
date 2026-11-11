@@ -230,7 +230,7 @@ class SequenceLibraryTab extends ConsumerWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      error.toString(),
+                      userFacingError(error),
                       style: TextStyle(
                           color: colors.textMuted,
                           fontSize: SkotiqTypography.fontSize12),

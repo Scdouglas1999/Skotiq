@@ -153,7 +153,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
       if (!overlaps) {
         context.showWarningSnackBar(
           'Your chosen window falls outside tonight\'s dark window '
-          '(${_formatDateTime(twiStart)} – ${_formatDateTime(twiEnd)}). '
+          '(${ClockFormat.dateHm(twiStart.toLocal())} – ${ClockFormat.dateHm(twiEnd.toLocal())}). '
           'Exposures will be in twilight or daylight.',
         );
       }
@@ -360,7 +360,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
         setState(() => _previewDraftId = draft.id);
       } catch (e) {
         if (mounted) {
-          context.showWarningSnackBar('Could not save adjusted counts: $e');
+          context.showWarningSnackBar('Could not save adjusted counts: ${userFacingError(e)}');
         }
       }
     });
@@ -445,7 +445,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
       );
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Could not start Smart Night sequence: $e');
+        context.showErrorSnackBar('Could not start Smart Night sequence: ${userFacingError(e)}');
       }
       return;
     } finally {
@@ -474,7 +474,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
           .saveSequence(plan.sequence, isTemplate: true);
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Could not save template: $e');
+        context.showErrorSnackBar('Could not save template: ${userFacingError(e)}');
       }
       return;
     } finally {
@@ -512,14 +512,4 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     ));
   }
 
-  String _formatDuration(Duration d) =>
-      DurationFormat.of(d, style: DurationStyle.compact);
-
-  String _formatDateTime(DateTime dt) {
-    final local = dt.toLocal();
-    return '${local.year}-${local.month.toString().padLeft(2, '0')}-'
-        '${local.day.toString().padLeft(2, '0')} '
-        '${local.hour.toString().padLeft(2, '0')}:'
-        '${local.minute.toString().padLeft(2, '0')}';
-  }
 }

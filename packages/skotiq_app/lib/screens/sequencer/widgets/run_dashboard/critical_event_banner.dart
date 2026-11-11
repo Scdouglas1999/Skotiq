@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'run_dashboard_format.dart';
 import 'run_dashboard_providers.dart';
 
 /// Persistent banner above the Run Dashboard for **critical** executor
@@ -212,7 +212,7 @@ class _BannerRow extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      formatTimeOfDay(event.time),
+                      ClockFormat.hms(event.time),
                       style: SkotiqTypography.withTabular(
                         SkotiqTypography.captionSm.copyWith(
                           color: colors.textMuted,

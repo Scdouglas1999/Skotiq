@@ -516,7 +516,8 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
         context.showSuccessSnackBar('${_formatLabel(_format)} report copied');
       }
     } catch (e) {
-      if (mounted) context.showErrorSnackBar('Report failed: $e');
+      if (mounted)
+        context.showErrorSnackBar('Report failed: ${userFacingError(e)}');
     }
   }
 
@@ -570,7 +571,8 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
         );
       }
     } catch (e) {
-      if (mounted) context.showErrorSnackBar('Export failed: $e');
+      if (mounted)
+        context.showErrorSnackBar('Export failed: ${userFacingError(e)}');
     }
   }
 
@@ -630,7 +632,9 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
         }
       }
     } catch (e) {
-      if (mounted) context.showErrorSnackBar('TNS submission failed: $e');
+      if (mounted)
+        context
+            .showErrorSnackBar('TNS submission failed: ${userFacingError(e)}');
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

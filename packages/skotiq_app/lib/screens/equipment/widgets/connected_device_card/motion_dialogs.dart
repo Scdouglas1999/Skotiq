@@ -38,7 +38,7 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
               if (!dialogContext.mounted) return;
               setState(() {
                 isHalting = false;
-                errorText = 'Failed to halt focuser: $e';
+                errorText = 'Failed to halt focuser: ${userFacingError(e)}';
               });
             }
           }
@@ -111,7 +111,7 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
                             if (!dialogContext.mounted) return;
                             setState(() {
                               isMoving = false;
-                              errorText = 'Failed to move focuser: $e';
+                              errorText = 'Failed to move focuser: ${userFacingError(e)}';
                             });
                           }
                         },
@@ -229,7 +229,7 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
               if (!dialogContext.mounted) return;
               setState(() {
                 isHalting = false;
-                errorText = 'Failed to halt rotator: $e';
+                errorText = 'Failed to halt rotator: ${userFacingError(e)}';
               });
             }
           }
@@ -298,7 +298,7 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
                             if (!dialogContext.mounted) return;
                             setState(() {
                               isRotating = false;
-                              errorText = 'Failed to rotate: $e';
+                              errorText = 'Failed to rotate: ${userFacingError(e)}';
                             });
                           }
                         },
@@ -429,7 +429,7 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
                             if (!dialogContext.mounted) return;
                             setState(() {
                               isSending = false;
-                              errorText = 'Dome slew failed: $e';
+                              errorText = 'Dome slew failed: ${userFacingError(e)}';
                             });
                           }
                         },

@@ -83,7 +83,7 @@ class _AavsoExportButtonState extends ConsumerState<_AavsoExportButton> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Export failed: $e'),
+          content: Text('Export failed: ${userFacingError(e)}'),
           backgroundColor: widget.colors.error,
           duration: const Duration(seconds: 5),
         ),
@@ -223,7 +223,7 @@ class _LightCurveChartCard extends StatelessWidget {
     }
     // Shared nice axis so the boundary label coincides with a tick instead of
     // printing a second value beside it.
-    final axis = NiceAxis.forRange(minY, maxY);
+    final axis = ChartScale.niceRange(minY, maxY);
     final maxX = spots.last.x == 0 ? 1.0 : spots.last.x;
     final xInterval = maxX / 4;
 
@@ -262,7 +262,7 @@ class _LightCurveChartCard extends StatelessWidget {
                 ),
                 gridData: FlGridData(
                   drawVerticalLine: true,
-                  horizontalInterval: axis.interval,
+                  horizontalInterval: axis.ticks.step,
                   verticalInterval: xInterval,
                   getDrawingHorizontalLine: (_) =>
                       FlLine(color: colors.border.withValues(alpha: 0.35)),
@@ -283,7 +283,7 @@ class _LightCurveChartCard extends StatelessWidget {
                       interval: xInterval,
                       getTitlesWidget: (value, meta) {
                         return Text(
-                          elapsedAxisLabel(value),
+                          ChartScale.elapsedLabel(value),
                           style: SkotiqTypography.caption
                               .copyWith(color: colors.textSecondary),
                         );
@@ -299,13 +299,13 @@ class _LightCurveChartCard extends StatelessWidget {
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 44,
-                      interval: axis.interval,
+                      interval: axis.ticks.step,
                       // Plotted negated so brighter is higher; label with the
-                      // real magnitude. NiceAxis.label also folds -0.00 back
+                      // real magnitude. The tick label also folds -0.00 back
                       // to 0.00 — a negative zero is a rounding artefact, not
                       // a measurement.
                       getTitlesWidget: (value, meta) => Text(
-                        axis.label(-value),
+                        axis.ticks.label(-value),
                         style: SkotiqTypography.caption
                             .copyWith(color: colors.textSecondary),
                       ),

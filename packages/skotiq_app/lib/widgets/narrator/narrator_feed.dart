@@ -182,7 +182,7 @@ class _NarratorFeedState extends State<NarratorFeed> {
       // animates the right rows. `_tick` is read implicitly via relativeTime.
       key: ValueKey<int>(event.id),
       event: event,
-      relativeTime: formatNarratorRelativeTime(event.timestamp),
+      relativeTime: RelativeTime.ago(event.timestamp),
     );
   }
 }
@@ -247,15 +247,3 @@ class _NarratorEmptyState extends StatelessWidget {
   }
 }
 
-/// Format a Narrator event timestamp as a compact relative label, e.g.
-/// "just now", "4m ago", "2h ago", "3d ago". Shared so the card, ticker, and
-/// timeline read identically.
-String formatNarratorRelativeTime(DateTime timestamp, {DateTime? now}) {
-  final reference = now ?? DateTime.now();
-  var delta = reference.difference(timestamp);
-  if (delta.isNegative) delta = Duration.zero;
-  if (delta.inSeconds < 45) return 'just now';
-  if (delta.inMinutes < 60) return '${delta.inMinutes}m ago';
-  if (delta.inHours < 24) return '${delta.inHours}h ago';
-  return '${delta.inDays}d ago';
-}

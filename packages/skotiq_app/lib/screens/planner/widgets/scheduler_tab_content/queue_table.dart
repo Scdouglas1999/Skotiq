@@ -200,7 +200,7 @@ class _QueueTable extends ConsumerWidget {
                   child: Padding(
                     padding: const EdgeInsets.only(right: SkotiqTokens.spaceSm),
                     child: Text(
-                      'Last evaluation ${_formatTime(decision!.evaluatedAt)}',
+                      'Last evaluation ${ClockFormat.hms(decision!.evaluatedAt.toLocal())}',
                       overflow: TextOverflow.ellipsis,
                       style: SkotiqTypography.caption
                           .copyWith(color: colors.textMuted),
@@ -236,7 +236,7 @@ class _QueueTable extends ConsumerWidget {
               error: (e, _) => Padding(
                 padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
                 child: Text(
-                  'Failed to load integration goals: $e',
+                  'Failed to load integration goals: ${userFacingError(e)}',
                   style: SkotiqTypography.caption.copyWith(color: colors.error),
                 ),
               ),
@@ -279,13 +279,6 @@ class _QueueTable extends ConsumerWidget {
     );
   }
 
-  String _formatTime(DateTime t) {
-    final local = t.toLocal();
-    final hh = local.hour.toString().padLeft(2, '0');
-    final mm = local.minute.toString().padLeft(2, '0');
-    final ss = local.second.toString().padLeft(2, '0');
-    return '$hh:$mm:$ss';
-  }
 }
 
 class _ColumnHeaders extends StatelessWidget {

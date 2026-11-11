@@ -6,7 +6,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/transient_type_style.dart';
-import '../../../utils/user_facing_error.dart';
 
 part 'transient_alerts_panel_parts/_alert_tiles.dart';
 part 'transient_alerts_panel_parts/_settings_dialog.dart';
@@ -353,13 +352,10 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
         : 'Enable an alert source in the settings above.';
   }
 
-  String _ago(DateTime when) {
-    final delta = DateTime.now().difference(when);
-    if (delta.inMinutes < 1) return 'just now';
-    if (delta.inMinutes < 60) return '${delta.inMinutes} min ago';
-    if (delta.inHours < 24) return '${delta.inHours} h ago';
-    return DateFormat.yMMMd().add_Hm().format(when.toLocal());
-  }
+  String _ago(DateTime when) =>
+      DateTime.now().difference(when).inHours < 24
+          ? RelativeTime.ago(when)
+          : ClockFormat.monthDayYearHm(when.toLocal());
 
   List<TransientAlert> _sortForDisplay(
     List<TransientAlert> alerts,

@@ -353,7 +353,7 @@ class _RemoteBrowserDialogState extends State<_RemoteBrowserDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is SyncTargetException ? e.message : e.toString();
+        _error = e is SyncTargetException ? e.message : userFacingError(e);
         _loading = false;
       });
     }
@@ -375,7 +375,7 @@ class _RemoteBrowserDialogState extends State<_RemoteBrowserDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is SyncTargetException ? e.message : e.toString();
+        _error = e is SyncTargetException ? e.message : userFacingError(e);
         _loading = false;
       });
     }

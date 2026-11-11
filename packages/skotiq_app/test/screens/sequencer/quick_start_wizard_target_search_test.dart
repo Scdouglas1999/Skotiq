@@ -187,7 +187,7 @@ void main() {
     final ra = tester.widget<TextField>(
       find.widgetWithText(TextField, 'Right Ascension'),
     );
-    expect(ra.controller!.text, startsWith('5h 35m'));
+    expect(ra.controller!.text, startsWith('05h 35m'));
   });
 
   testWidgets('a name the catalog lacks goes to SIMBAD by exact name',

@@ -315,7 +315,7 @@ class _ProfileDetailsState extends ConsumerState<_ProfileDetails> {
       }
     } catch (e) {
       if (mounted && _isCurrentOperation(generation, profileId, authority)) {
-        context.showErrorSnackBar('Failed to save profile: $e');
+        context.showErrorSnackBar('Failed to save profile: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentOperation(generation, profileId, authority)) {
@@ -356,7 +356,7 @@ class _ProfileDetailsState extends ConsumerState<_ProfileDetails> {
       }
     } catch (e) {
       if (mounted && _isCurrentOperation(generation, profileId, authority)) {
-        context.showErrorSnackBar('Failed to sync filters: $e');
+        context.showErrorSnackBar('Failed to sync filters: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentOperation(generation, profileId, authority)) {

@@ -396,7 +396,7 @@ class _NightMountMovePadState extends ConsumerState<NightMountMovePad> {
           if (mounted) {
             context.showErrorSnackBar(
               context.l10n
-                  .text('nightScopeJogFailed', params: {'error': '$error'}),
+                  .text('nightScopeJogFailed', params: {'error': userFacingError(error)}),
             );
           }
           // The driver may still have started the axis before throwing.
@@ -441,7 +441,7 @@ class _NightMountMovePadState extends ConsumerState<NightMountMovePad> {
       if (mounted) {
         context.showErrorSnackBar(
           context.l10n
-              .text('nightScopeJogStopFailed', params: {'error': '$error'}),
+              .text('nightScopeJogStopFailed', params: {'error': userFacingError(error)}),
         );
       }
     }

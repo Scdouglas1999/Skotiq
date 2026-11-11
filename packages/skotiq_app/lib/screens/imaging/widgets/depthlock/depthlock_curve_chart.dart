@@ -78,7 +78,7 @@ class _DepthLockCurveChartState extends ConsumerState<DepthLockCurveChart> {
       error: (error, _) => _ChartFrame(
         title: 'Progress',
         child: Text(
-          depthLockErrorMessage(error),
+          userFacingError(error),
           style: SkotiqTypography.caption.copyWith(color: colors.warning),
         ),
       ),
@@ -396,7 +396,7 @@ class _CurveTable extends StatelessWidget {
                   flex: 3,
                   child: _cell(
                     context,
-                    '${depthLockDuration(depthLockHours(frames: point.frames, exposureSecs: exposureSecs))}'
+                    '${DurationFormat.decimalHours(depthLockHours(frames: point.frames, exposureSecs: exposureSecs) * 3600)}'
                     '${point.projected ? ' (projected)' : ''}',
                   ),
                 ),
@@ -653,7 +653,7 @@ class DepthLockCurvePainter extends CustomPainter {
     );
     _paintText(
       canvas,
-      depthLockDuration(geometry.maxHours),
+      DurationFormat.decimalHours(geometry.maxHours * 3600),
       Offset(geometry.plot.right, geometry.plot.bottom + 3),
       colors.textMuted,
       alignRight: true,
@@ -766,7 +766,7 @@ class DepthLockCurvePainter extends CustomPainter {
     );
 
     final String text =
-        '${depthLockDuration(geometry.hours[index])} · ${point.frames} frames\n'
+        '${DurationFormat.decimalHours(geometry.hours[index] * 3600)} · ${point.frames} frames\n'
         'S/N ${point.score.toStringAsFixed(1)} · conservative '
         '${point.conservativeScore.toStringAsFixed(1)}'
         '${point.projected ? '\nprojected' : ''}';

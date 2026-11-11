@@ -87,7 +87,7 @@ class SharedTargetCard extends ConsumerWidget {
             stats: [
               ResponsiveStat(
                 label: 'FUSED',
-                value: formatIntegration(target.integrationSeconds),
+                value: DurationFormat.decimalHours(target.integrationSeconds),
                 icon: LucideIcons.layers,
               ),
               ResponsiveStat(

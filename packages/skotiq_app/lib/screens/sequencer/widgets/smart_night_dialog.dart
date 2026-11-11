@@ -309,7 +309,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '$error',
+                  userFacingError(error),
                   textAlign: TextAlign.center,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
@@ -573,7 +573,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
       return true;
     } catch (e) {
       if (!_isCurrentAuthority(backend, generation)) return false;
-      setState(() => _previewError = 'Unexpected error: $e');
+      setState(() => _previewError = 'Unexpected error: ${userFacingError(e)}');
       return true;
     }
   }

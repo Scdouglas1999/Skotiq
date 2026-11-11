@@ -1,3 +1,4 @@
+import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -280,7 +281,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       if (!_isCurrentSession(generation, backend)) return;
       state = state.copyWith(
         status: LiveStackingStatus.error,
-        errorMessage: e.toString(),
+        errorMessage: userFacingError(e),
       );
       _logger.error(
         'Failed to arm remote live stacking: $e',
@@ -453,7 +454,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       if (!_isCurrentSession(generation, authority)) return;
       state = state.copyWith(
         status: LiveStackingStatus.error,
-        errorMessage: e.toString(),
+        errorMessage: userFacingError(e),
       );
       _logger.error(
         'Failed to start live stacking: $e',
@@ -530,7 +531,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       if (!_isCurrentSession(generation, authority)) return;
       state = state.copyWith(
         status: LiveStackingStatus.error,
-        errorMessage: e.toString(),
+        errorMessage: userFacingError(e),
       );
     }
   }
@@ -707,7 +708,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         'Failed to reset stacker: $e',
         source: 'LiveStackingNotifier',
       );
-      state = state.copyWith(errorMessage: 'Failed to reset stack: $e');
+      state = state.copyWith(errorMessage: 'Failed to reset stack: ${userFacingError(e)}');
       final remote = _remoteSessionBackend;
       if (remote != null) _startRemotePolling(generation, authority);
     }
@@ -754,7 +755,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       if (mounted &&
           generation == _sessionGeneration &&
           identical(authority, _sessionAuthority)) {
-        state = state.copyWith(errorMessage: 'Failed to stop stack: $e');
+        state = state.copyWith(errorMessage: 'Failed to stop stack: ${userFacingError(e)}');
       }
       return;
     }

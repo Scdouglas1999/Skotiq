@@ -44,7 +44,7 @@ class AnnotationSettingsPage extends ConsumerWidget {
               if (error != null) ...[
                 const SizedBox(height: 6),
                 Text(
-                  error.toString(),
+                  userFacingError(error),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
@@ -79,7 +79,7 @@ class AnnotationSettingsPage extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not reset $label: $error'),
+            content: Text('Could not reset $label: ${userFacingError(error)}'),
             backgroundColor: SkotiqColors.of(context).error,
           ),
         );

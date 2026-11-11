@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'astronomy/astronomy_calculations.dart';
+import 'format/coordinate_format.dart';
 
 /// Great-circle separation between two catalog positions.
 ///
@@ -50,38 +51,7 @@ class CelestialCoordinate {
   double get decRadians => dec * math.pi / 180;
 
   @override
-  String toString() => 'RA: ${formatRA()}, Dec: ${formatDec()}';
-
-  /// Format RA as hours, minutes, seconds string
-  String formatRA({bool compact = false}) {
-    final h = ra.floor();
-    final m = ((ra - h) * 60).floor();
-    final s = ((ra - h - m / 60) * 3600);
-    if (compact) {
-      return '${h.toString().padLeft(2, '0')}h${m.toString().padLeft(2, '0')}m';
-    }
-    return '${h}h ${m}m ${s.toStringAsFixed(1)}s';
-  }
-
-  /// Format Dec as degrees, arcminutes, arcseconds string
-  String formatDec({bool compact = false}) {
-    final sign = dec >= 0 ? '+' : '-';
-    final d = dec.abs().floor();
-    final m = ((dec.abs() - d) * 60).floor();
-    final s = ((dec.abs() - d - m / 60) * 3600);
-    if (compact) {
-      return "$sign${d.toString().padLeft(2, '0')}°${m.toString().padLeft(2, '0')}'";
-    }
-    return "$sign$d° $m' ${s.toStringAsFixed(1)}\"";
-  }
-
-  /// Get RA in HMS format suitable for sequencer/equipment
-  String get raHms => formatRA();
-
-  /// Get Dec in DMS format suitable for sequencer/equipment
-  String get decDms => formatDec();
-
-  /// Get short form for display (e.g., "12h 30m, +45° 15'")
-  String get shortForm =>
-      '${formatRA(compact: true)}, ${formatDec(compact: true)}';
+  String toString() =>
+      'RA: ${CoordinateFormat.raReadout(ra)}, '
+      'Dec: ${CoordinateFormat.decReadout(dec)}';
 }

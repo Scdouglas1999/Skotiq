@@ -80,7 +80,7 @@ class _BuiltinGuiderConfigSection extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
               ),
               child: Text(
-                'Failed to load guider config: $error',
+                'Failed to load guider config: ${userFacingError(error)}',
                 style: SkotiqTypography.caption.copyWith(color: colors.error),
               ),
             ),
@@ -241,7 +241,7 @@ class _BuiltinGuiderConfigFormState
           .read(builtinGuiderConfigProvider.notifier)
           .updateConfig(newConfig);
     } catch (e) {
-      if (mounted) context.showErrorSnackBar('Failed to apply settings: $e');
+      if (mounted) context.showErrorSnackBar('Failed to apply settings: ${userFacingError(e)}');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -254,7 +254,7 @@ class _BuiltinGuiderConfigFormState
       await ref.read(builtinGuiderConfigProvider.notifier).resetToDefaults();
       if (mounted) context.showSuccessSnackBar('Guider defaults restored');
     } catch (e) {
-      if (mounted) context.showErrorSnackBar('Failed to reset settings: $e');
+      if (mounted) context.showErrorSnackBar('Failed to reset settings: ${userFacingError(e)}');
     } finally {
       if (mounted) setState(() => _saving = false);
     }

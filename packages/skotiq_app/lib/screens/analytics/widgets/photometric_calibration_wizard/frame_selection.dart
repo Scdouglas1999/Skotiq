@@ -40,7 +40,7 @@ extension _PhotometricWizardFrameSelection
                 const SizedBox(width: SkotiqTokens.spaceMd),
                 Expanded(
                   child: Text(
-                    'Could not load imaging sessions: $error',
+                    'Could not load imaging sessions: ${userFacingError(error)}',
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style:
@@ -195,7 +195,7 @@ extension _PhotometricWizardFrameSelection
         children: [
           Expanded(
             child: Text(
-              'Error loading images: $error',
+              'Error loading images: ${userFacingError(error)}',
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: SkotiqTypography.body.copyWith(color: colors.error),
@@ -358,8 +358,8 @@ extension _PhotometricWizardFrameSelection
                 // solvedRa is HOURS, not degrees (the ASCOM convention this
                 // app carries internally), so a bare "RA: 5.5000" was both
                 // unitless and easy to read as degrees.
-                'RA ${img.solvedRa == null ? "?" : CoordinateParser.formatRaHms(img.solvedRa!)} '
-                'Dec ${img.solvedDec == null ? "?" : CoordinateParser.formatDecDms(img.solvedDec!)}',
+                'RA ${img.solvedRa == null ? "?" : CoordinateFormat.raReadout(img.solvedRa!)} '
+                'Dec ${img.solvedDec == null ? "?" : CoordinateFormat.decReadout(img.solvedDec!)}',
                 style: SkotiqTypography.captionSm.copyWith(
                   color: airmassForFrame(img.mountAltitude) == null
                       ? colors.warning
@@ -420,7 +420,6 @@ extension _PhotometricWizardFrameSelection
     return 'Alt ${altitudeDeg!.toStringAsFixed(1)}° · X '
         '${airmass.toStringAsFixed(2)}';
   }
-
 }
 
 /// The airmass the extinction fit will use for a frame, or null when the frame

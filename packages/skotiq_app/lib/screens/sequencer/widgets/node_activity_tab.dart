@@ -596,7 +596,7 @@ class _ExposureActivitySectionState
             Text(
               DurationFormat.seconds(
                 frames.durationSecs * frames.totalFrames,
-                style: DurationStyle.compactTrimmed,
+                style: DurationStyle.coarse,
               ),
               style: SkotiqTypography.monoSm.copyWith(
                 color: colors.textMuted,

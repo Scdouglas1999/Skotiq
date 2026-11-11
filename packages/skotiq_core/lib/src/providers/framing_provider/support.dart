@@ -154,7 +154,7 @@ final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
             'Camera is connected but did not report valid sensor dimensions.';
       }
     } catch (e) {
-      cameraMessage = 'Could not query camera specs: $e';
+      cameraMessage = 'Could not query camera specs: ${userFacingError(e)}';
     }
   } else if (profile.cameraId == null) {
     cameraMessage =
@@ -281,11 +281,4 @@ class CoordinateUtils {
 
   /// Parse Dec from string (supports ±DD:MM:SS, ±DD°MM'SS", decimal)
   static double? parseDec(String input) => CoordinateParser.parseDec(input);
-
-  /// Format RA (decimal hours) as `HHh MMm SS.Ss`.
-  static String formatRA(double raHours) => CoordinateFormat.ra(raHours);
-
-  /// Format Dec as `±DD° MM' SS.S"`
-  static String formatDec(double decDegrees) =>
-      CoordinateFormat.dec(decDegrees);
 }

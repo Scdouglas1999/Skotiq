@@ -229,7 +229,7 @@ void _pushTransientDiscoveries(
     final router = ref.read(notificationRouterProvider);
     for (final r in discoveries) {
       final coords =
-          '${CoordinateFormat.ra(r.raDeg / 15.0)} ${CoordinateFormat.dec(r.decDeg)}';
+          '${CoordinateFormat.raReadout(r.raDeg / 15.0)} ${CoordinateFormat.decReadout(r.decDeg)}';
       router.route(NotificationCategory.transientDiscovered, {
         'transient.coords': coords,
         'transient.snr': r.snr.toStringAsFixed(1),

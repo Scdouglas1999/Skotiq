@@ -256,7 +256,7 @@ Future<DarkroomSessionTarget> _resolveDarkroomTarget({
     set = await resolver.resolve(sessionId);
   } catch (error) {
     return DarkroomSessionTarget.unavailable(
-      'This session\'s masters could not be read: $error',
+      'This session\'s masters could not be read: ${userFacingError(error)}',
     );
   }
 

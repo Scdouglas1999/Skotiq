@@ -244,7 +244,7 @@ NightText? _sub(NightActionInputs inputs, ManualActionId id) {
     case ManualActionId.snapshot:
       final seconds = inputs.exposureSeconds;
       if (seconds == null || !seconds.isFinite || seconds <= 0) return null;
-      return NightText.literal(formatExposureSeconds(seconds));
+      return NightText.literal('${QuantityFormat.trimmed(seconds)} s');
     case ManualActionId.autofocus:
       final filter = inputs.filterName;
       return filter == null || filter.isEmpty
@@ -275,8 +275,3 @@ NightText? _sub(NightActionInputs inputs, ManualActionId id) {
 String manualActionKey(String prefix, ManualActionId id) =>
     '$prefix${id.name[0].toUpperCase()}${id.name.substring(1)}';
 
-/// `5 s`, `0.5 s`, `180 s`.
-String formatExposureSeconds(double seconds) {
-  final whole = seconds == seconds.roundToDouble();
-  return whole ? '${seconds.toInt()} s' : '${seconds.toStringAsFixed(1)} s';
-}

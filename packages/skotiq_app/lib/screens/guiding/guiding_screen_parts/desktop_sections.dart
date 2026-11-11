@@ -607,7 +607,7 @@ mixin _GuidingDesktopSections
           // Surface the real error so the user can act on it instead of
           // staring at a generic "failed" message (silent fallbacks hide
           // bugs). Common cause: PHD2 connected but no equipment profile.
-          body: _brainErrorMessage(e),
+          body: userFacingError(e),
           action: SkotiqButton(
             label: 'Retry',
             icon: SkotiqIcons.refresh,

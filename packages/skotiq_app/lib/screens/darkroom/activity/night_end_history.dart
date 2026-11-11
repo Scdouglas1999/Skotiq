@@ -97,8 +97,8 @@ class _NightRun extends ConsumerWidget {
               ),
               Text(
                 finished == null
-                    ? 'running since ${clockLabel(run.startedAt)}'
-                    : '${clockLabel(run.startedAt)} to ${clockLabel(finished)}',
+                    ? 'running since ${ClockFormat.hm(run.startedAt.toLocal())}'
+                    : '${ClockFormat.hm(run.startedAt.toLocal())} to ${ClockFormat.hm(finished.toLocal())}',
                 style: SkotiqTypography.monoXs.copyWith(
                   color: colors.textSecondary,
                 ),
@@ -379,7 +379,7 @@ class RecentBuildsPanel extends ConsumerWidget {
                     ),
                   ),
                   Text(
-                    clockLabel(b.finishedAt ?? b.startedAt),
+                    ClockFormat.hm((b.finishedAt ?? b.startedAt).toLocal()),
                     style: SkotiqTypography.monoXs.copyWith(
                       color: colors.textMuted,
                     ),
@@ -461,7 +461,7 @@ class PassesPanel extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        '${nightLabel(pass.startedAt)}  ${clockLabel(pass.startedAt)}',
+                        '${nightLabel(pass.startedAt)}  ${ClockFormat.hm(pass.startedAt.toLocal())}',
                         style: SkotiqTypography.monoXs.copyWith(
                           color: colors.textMuted,
                         ),

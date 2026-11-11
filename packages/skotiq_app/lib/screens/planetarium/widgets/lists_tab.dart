@@ -47,7 +47,7 @@ class _ListsTabState extends ConsumerState<ListsTab> {
         child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
       ),
       error: (e, _) => Center(
-        child: Text('Error: $e', style: TextStyle(color: widget.colors.error)),
+        child: Text('Error: ${userFacingError(e)}', style: TextStyle(color: widget.colors.error)),
       ),
     );
   }
@@ -231,7 +231,7 @@ class _ListsTabState extends ConsumerState<ListsTab> {
               child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
             ),
             error: (e, _) => Center(
-              child: Text('Error: $e',
+              child: Text('Error: ${userFacingError(e)}',
                   style: TextStyle(color: widget.colors.error)),
             ),
           ),

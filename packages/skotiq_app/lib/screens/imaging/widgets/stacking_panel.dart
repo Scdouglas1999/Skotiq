@@ -190,7 +190,7 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
     } catch (error) {
       if (!mounted || !_isCurrentStart(generation, authority)) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not start live stacking: $error')),
+        SnackBar(content: Text('Could not start live stacking: ${userFacingError(error)}')),
       );
     } finally {
       if (_isCurrentStart(generation, authority)) {
@@ -352,7 +352,7 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not stop live stacking: $error')),
+        SnackBar(content: Text('Could not stop live stacking: ${userFacingError(error)}')),
       );
     } finally {
       if (_isCurrentOperation(generation, _stopGeneration, authority)) {
@@ -374,7 +374,7 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not reset live stacking: $error')),
+        SnackBar(content: Text('Could not reset live stacking: ${userFacingError(error)}')),
       );
     } finally {
       if (_isCurrentOperation(generation, _resetGeneration, authority)) {

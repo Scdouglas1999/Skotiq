@@ -527,7 +527,7 @@ class _PlanRow extends StatelessWidget {
                     color: colors.primary,
                   ),
                   label: Text(
-                    'Suggested ${_formatExposureSeconds(recommendation.seconds)}',
+                    'Suggested ${'${QuantityFormat.trimmed(recommendation.seconds)}s'}',
                     style: TextStyle(
                       fontSize: Responsive.fontSize(context, 11),
                       color: colors.primary,
@@ -730,7 +730,7 @@ class _BudgetInputState extends State<_BudgetInput> {
     super.initState();
     _controller = TextEditingController(
       text: widget.node.integrationBudgetSecs > 0
-          ? formatHumanDurationSecs(widget.node.integrationBudgetSecs)
+          ? DurationFormat.seconds(widget.node.integrationBudgetSecs, style: DurationStyle.short)
           : '',
     );
   }
@@ -741,7 +741,7 @@ class _BudgetInputState extends State<_BudgetInput> {
     if (oldWidget.node.integrationBudgetSecs !=
         widget.node.integrationBudgetSecs) {
       _controller.text = widget.node.integrationBudgetSecs > 0
-          ? formatHumanDurationSecs(widget.node.integrationBudgetSecs)
+          ? DurationFormat.seconds(widget.node.integrationBudgetSecs, style: DurationStyle.short)
           : '';
     }
   }
@@ -828,14 +828,6 @@ double _recommendedExposureSeconds(
   return seconds;
 }
 
-String _formatExposureSeconds(double seconds) {
-  final rounded = seconds.roundToDouble();
-  if ((seconds - rounded).abs() < 0.05) {
-    return '${rounded.toInt()}s';
-  }
-  return '${seconds.toStringAsFixed(1)}s';
-}
-
 class _EstimateSummary extends ConsumerWidget {
   final SkotiqColors colors;
   final SmartExposureNode node;
@@ -883,9 +875,9 @@ class _EstimateSummary extends ConsumerWidget {
     final loop = node.loopUntilStopped;
     final integrationLine = loop
         ? (node.integrationBudgetSecs > 0
-            ? 'Integration: up to ${formatHumanDurationSecs(node.integrationBudgetSecs)} (looping)'
+            ? 'Integration: up to ${DurationFormat.seconds(node.integrationBudgetSecs, style: DurationStyle.short)} (looping)'
             : 'Integration: until the target’s window ends (looping)')
-        : 'Integration: ${formatHumanDurationSecs(integration)}';
+        : 'Integration: ${DurationFormat.seconds(integration, style: DurationStyle.short)}';
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -922,7 +914,7 @@ class _EstimateSummary extends ConsumerWidget {
                 Icon(LucideIcons.alarmClock, size: 14, color: colors.textMuted),
                 const SizedBox(width: 8),
                 Text(
-                  'Wall clock (approx): ${formatHumanDurationSecs(wallClock)}',
+                  'Wall clock (approx): ${DurationFormat.seconds(wallClock, style: DurationStyle.short)}',
                   style: TextStyle(
                     fontSize: Responsive.fontSize(context, 11),
                     color: colors.textMuted,

@@ -29,7 +29,7 @@ class EndOfNightCapBanner extends ConsumerWidget {
         ? 'The filter wheel has no dark slot. Put the cap on, then confirm.'
         : 'The filter wheel has no dark slot. Put the cap on, then confirm. '
             'Without a confirmation the darks and bias are skipped at '
-            '${_clock(deadline)} '
+            '${ClockFormat.hm(deadline.toLocal())} '
             'and the night-end steps go on without them.';
 
     Future<void> answerHost(Future<EonStatus?> Function() call) async {
@@ -39,7 +39,7 @@ class EndOfNightCapBanner extends ConsumerWidget {
       } catch (error) {
         ref
             .read(uiNotificationProvider.notifier)
-            .showError('The imaging host did not take the answer: $error');
+            .showError('The imaging host did not take the answer: ${userFacingError(error)}');
       }
     }
 
@@ -132,9 +132,3 @@ class EndOfNightCapBanner extends ConsumerWidget {
   }
 }
 
-/// A wall-clock time on the 24-hour clock the rest of the app uses.
-String _clock(DateTime at) {
-  final local = at.toLocal();
-  String two(int v) => v.toString().padLeft(2, '0');
-  return '${two(local.hour)}:${two(local.minute)}';
-}

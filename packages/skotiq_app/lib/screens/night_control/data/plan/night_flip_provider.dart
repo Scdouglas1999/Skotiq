@@ -292,11 +292,6 @@ final nightFlipStepProvider = Provider<NightFlipStepVm?>((ref) {
   if (!ref.watch(nightRunPhaseProvider).isRunLive) return null;
   final flip = ref.watch(nightFlipProvider);
   final clock = ref.watch(clockProvider);
-  String hm(DateTime at) {
-    final t = clock.toNightClock(at);
-    return '${t.hour.toString().padLeft(2, '0')}:'
-        '${t.minute.toString().padLeft(2, '0')}';
-  }
 
   final failure = flip.failure;
   if (!flip.inProgress) {
@@ -307,7 +302,7 @@ final nightFlipStepProvider = Provider<NightFlipStepVm?>((ref) {
         flip.pierChanged ? 'nightCtlFlipFailedMoved' : 'nightCtlFlipFailed',
         params: <String, String>{
           'attempts': '${failure.attempts}',
-          'time': hm(failure.at),
+          'time': ClockFormat.hm(clock.toNightClock(failure.at)),
         },
       ),
     );
@@ -326,7 +321,7 @@ final nightFlipStepProvider = Provider<NightFlipStepVm?>((ref) {
           params: <String, String>{
             'attempt': '$failed',
             'max': '$max',
-            'time': hm(nextTry),
+            'time': ClockFormat.hm(clock.toNightClock(nextTry)),
           },
         ),
       );

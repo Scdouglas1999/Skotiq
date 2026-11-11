@@ -10,7 +10,6 @@ import '../collaborative_sky/coimaging_create_sheet.dart';
 import '../your_sky/region_detail_screen.dart';
 import '../your_sky/sky_atlas_format.dart';
 import 'constellation_contribute_sheet.dart';
-import 'constellation_format.dart';
 import 'constellation_ui_providers.dart';
 import 'widgets/contribution_bar.dart';
 
@@ -256,7 +255,7 @@ class _SharedTargetDetailScreenState
       if (!mounted) return;
       setState(() => _pulling = false);
       messenger.showSnackBar(
-        SnackBar(content: Text(describeConstellationError(error))),
+        SnackBar(content: Text(userFacingError(error))),
       );
     }
   }
@@ -302,7 +301,7 @@ class _SharedTargetDetailScreenState
           'This subtracts your contribution to tile ${record.tileId} '
           '(${record.contributedFrames} frame'
           '${record.contributedFrames == 1 ? '' : 's'} · '
-          '${formatIntegration(record.contributedIntegrationSeconds)}) back '
+          '${DurationFormat.decimalHours(record.contributedIntegrationSeconds)}) back '
           'off the swarm.',
         ),
         actions: [
@@ -341,7 +340,7 @@ class _SharedTargetDetailScreenState
     } catch (error) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text(describeConstellationError(error))),
+        SnackBar(content: Text(userFacingError(error))),
       );
     } finally {
       if (mounted) setState(() => _retracting = false);
@@ -374,7 +373,7 @@ class _SwarmSummaryCard extends StatelessWidget {
               stats: [
                 ResponsiveStat(
                   label: 'FUSED DEPTH',
-                  value: formatIntegration(target.integrationSeconds),
+                  value: DurationFormat.decimalHours(target.integrationSeconds),
                   icon: LucideIcons.layers,
                   valueColor: colors.accent,
                 ),
@@ -555,7 +554,7 @@ class _ContributeCard extends StatelessWidget {
             const SizedBox(height: SkotiqTokens.spaceSm),
             Text(
               hasLocal
-                  ? 'Add your ${formatIntegration(yourSeconds)} of imaging on this '
+                  ? 'Add your ${DurationFormat.decimalHours(yourSeconds)} of imaging on this '
                       'field to the swarm. You will confirm exactly what leaves '
                       'your device first.'
                   : 'You have not imaged this field yet. Image and fold it into '
@@ -702,7 +701,7 @@ class _BlendPayoffCard extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  formatIntegration(ownSecondsBefore),
+                  DurationFormat.decimalHours(ownSecondsBefore),
                   style: SkotiqTypography.bodyStrong.copyWith(
                     color: colors.textSecondary,
                   ),
@@ -715,7 +714,7 @@ class _BlendPayoffCard extends StatelessWidget {
                 ),
                 const SizedBox(width: SkotiqTokens.spaceSm),
                 Text(
-                  formatIntegration(after),
+                  DurationFormat.decimalHours(after),
                   style: SkotiqTypography.bodyStrong.copyWith(
                     color: colors.accent,
                   ),
@@ -731,8 +730,8 @@ class _BlendPayoffCard extends StatelessWidget {
             ),
             const SizedBox(height: SkotiqTokens.spaceXs),
             Text(
-              'The swarm added ${formatIntegration(swarmSeconds)} of community '
-              'integration to your ${formatIntegration(ownSecondsBefore)} on this '
+              'The swarm added ${DurationFormat.decimalHours(swarmSeconds)} of community '
+              'integration to your ${DurationFormat.decimalHours(ownSecondsBefore)} on this '
               'field.',
               style: SkotiqTypography.caption.copyWith(
                 color: colors.textSecondary,
@@ -848,7 +847,7 @@ class _ContributionsCard extends ConsumerWidget {
         children: [
           SkotiqBanner(
               title: 'Contribution receipts unavailable',
-              message: '${describeConstellationError(error)}\n\n'
+              message: '${userFacingError(error)}\n\n'
                   'Retract actions are hidden until Skotiq can verify your '
                   'receipts with the imaging host.',
               tone: BannerTone.warning),
@@ -901,7 +900,7 @@ class _ContributionRow extends StatelessWidget {
                 Text(
                   '${record.contributedFrames} frame'
                   '${record.contributedFrames == 1 ? '' : 's'} · '
-                  '${formatIntegration(record.contributedIntegrationSeconds)}',
+                  '${DurationFormat.decimalHours(record.contributedIntegrationSeconds)}',
                   style: SkotiqTypography.captionSm.copyWith(
                     color: colors.textMuted,
                   ),

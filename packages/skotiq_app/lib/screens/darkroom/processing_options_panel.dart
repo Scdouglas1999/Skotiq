@@ -125,7 +125,7 @@ class _ProcessingDefaultsPanelState
             } catch (e) {
               if (mounted) {
                 setState(
-                    () => _error = 'Could not save processing options: $e');
+                    () => _error = 'Could not save processing options: ${userFacingError(e)}');
               }
             } finally {
               if (mounted) setState(() => _saving = false);

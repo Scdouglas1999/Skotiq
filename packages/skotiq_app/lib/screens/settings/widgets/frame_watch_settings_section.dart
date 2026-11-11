@@ -30,7 +30,7 @@ class _FrameWatchSettingsSectionState
     try {
       await write();
     } catch (e) {
-      if (mounted) context.showErrorSnackBar('Could not save: $e');
+      if (mounted) context.showErrorSnackBar('Could not save: ${userFacingError(e)}');
     }
   }
 

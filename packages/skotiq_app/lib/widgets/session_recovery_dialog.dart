@@ -320,7 +320,7 @@ class _SessionCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  _formatDateTime(session.startTime),
+                  ClockFormat.dateHm(session.startTime),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
@@ -347,7 +347,7 @@ class _SessionCard extends StatelessWidget {
                 _StatChip(
                   icon: LucideIcons.clock,
                   label: DurationFormat.of(session.duration,
-                      style: DurationStyle.compact),
+                      style: DurationStyle.coarse),
                 ),
                 _StatChip(
                   icon: LucideIcons.timer,
@@ -394,30 +394,9 @@ class _SessionCard extends StatelessWidget {
     );
   }
 
-  String _formatDateTime(DateTime dt) {
-    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
-        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-  }
-
-  String _formatIntegration(double seconds) {
-    final hours = seconds ~/ 3600;
-    final minutes = (seconds % 3600) ~/ 60;
-    if (hours > 0) {
-      return '${hours}h ${minutes}m total';
-    }
-    if (minutes > 0) {
-      return '${minutes}m total';
-    }
-    // Sub-minute integration is meaningful (e.g. a couple of 10-second
-    // calibration frames). Avoid the misleading "0m total" by reporting
-    // the actual seconds when we have any, and "no integration" when we
-    // genuinely have none.
-    if (seconds > 0) {
-      final secs = seconds.round();
-      return _pluralize(secs, 'second', suffix: ' total');
-    }
-    return 'no integration';
-  }
+  String _formatIntegration(double seconds) => seconds > 0
+      ? '${DurationFormat.seconds(seconds, style: DurationStyle.coarse)} total'
+      : 'no integration';
 
   String _pluralize(int count, String singular,
       {String? plural, String suffix = ''}) {

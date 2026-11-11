@@ -195,7 +195,7 @@ class RunPauseGuard {
     } catch (e) {
       return RunReleaseResult(
         RunReleaseOutcome.resumeFailed,
-        error: e.toString(),
+        error: userFacingError(e),
       );
     }
   }
@@ -259,7 +259,7 @@ class RunPauseGuard {
               if (!done.isCompleted) {
                 done.completeError(RunHoldAborted(
                   RunHoldAbortReason.pauseFailed,
-                  detail: 'Cannot confirm camera is idle: $error',
+                  detail: 'Cannot confirm camera is idle: ${userFacingError(error)}',
                 ));
               }
             }

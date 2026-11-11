@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 import '../backend/roles/host_data/calibration_library.dart';
@@ -1555,19 +1556,16 @@ class DarkroomBuildService {
     if (free >= needed) return;
     final spoolDetail = largest == 0
         ? ''
-        : ' (${lightsPerFilter[largestFilter]} subs of ${_mb(subBytes)} each)';
+        : ' (${lightsPerFilter[largestFilter]} subs of ${ByteFormat.size(subBytes)} each)';
     throw StateError(
       'Not enough free disk space to build masters in ${directory.path}: '
-      'This build needs ${_gb(needed)} for registered subs and outputs'
+      'This build needs ${ByteFormat.size(needed)} for registered subs and outputs'
       '$spoolDetail and '
-      '${_gb(free)} is free. Free up space on that drive or choose an '
+      '${ByteFormat.size(free)} is free. Free up space on that drive or choose an '
       'output folder on a larger one.',
     );
   }
 
-  static String _gb(int bytes) =>
-      '${(bytes / (1 << 30)).toStringAsFixed(1)} GB';
-  static String _mb(int bytes) => '${(bytes / (1 << 20)).round()} MB';
 
   static Future<void> _write(File file, Map<String, dynamic> data) async {
     final temporary = File('${file.path}.tmp');

@@ -202,7 +202,7 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
       if (!_isCurrentOperation(generation, authority)) return;
       _update(() {
         _isComputing = false;
-        _statusMessage = 'Star matching failed: $error';
+        _statusMessage = 'Star matching failed: ${userFacingError(error)}';
       });
       ref.read(loggingServiceProvider).error(
             'Calibration wizard star matching failed: $error\n$stack',
@@ -616,5 +616,4 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
       'Cannot determine image dimensions for remote catalog matching',
     );
   }
-
 }

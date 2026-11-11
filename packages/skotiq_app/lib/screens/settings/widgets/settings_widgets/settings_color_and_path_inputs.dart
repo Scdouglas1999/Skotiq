@@ -377,7 +377,7 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
     } catch (error) {
       if (mounted && generation == _browseGeneration) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not update this path: $error')),
+          SnackBar(content: Text('Could not update this path: ${userFacingError(error)}')),
         );
       }
     } finally {

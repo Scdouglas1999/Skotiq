@@ -39,6 +39,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: depend_on_referenced_packages
 import 'package:http/http.dart' as http;
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_plugins/skotiq_plugins.dart';
 // C3's registration provider is the single seam that loads the bundled
 // plugins into the host. It is intentionally not surfaced through the package

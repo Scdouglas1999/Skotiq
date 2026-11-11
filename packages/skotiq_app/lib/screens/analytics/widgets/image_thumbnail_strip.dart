@@ -16,7 +16,8 @@ import 'package:skotiq_core/skotiq_core.dart'
         FrameQualityAssessment,
         FrameQualityAssessmentService,
         FrameQualityLevel,
-        frameExclusionKindOf;
+        frameExclusionKindOf,
+        userFacingError;
 
 import '../../../utils/snackbar_helper.dart';
 import '../analytics_screen.dart' show dbSessionImagesProvider;

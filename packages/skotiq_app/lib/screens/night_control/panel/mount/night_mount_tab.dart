@@ -258,22 +258,13 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
               label: l10n.text('nightScopeRaJNow'),
               value: ra == null
                   ? null
-                  : CoordinateFormat.ra(
-                      ra,
-                      style: SexagesimalStyle.compactLetters,
-                      seconds: SecondsPrecision.integerRounded,
-                      wrapHours: true,
-                    ),
+                  : CoordinateFormat.raDense(ra),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeDecJNow'),
               value: dec == null
                   ? null
-                  : CoordinateFormat.dec(
-                      dec,
-                      style: SexagesimalStyle.compactLetters,
-                      seconds: SecondsPrecision.integerRounded,
-                    ),
+                  : CoordinateFormat.decDense(dec),
             ),
           ],
         ),

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_core/skotiq_core.dart' show userFacingError;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// A parameter value in the PHD2 Brain
@@ -469,7 +470,7 @@ class _BrainSettingsPanelState extends State<BrainSettingsPanel> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorText = e is StateError ? e.message : e.toString();
+          _errorText = e is StateError ? e.message : userFacingError(e);
         });
       }
     } finally {
@@ -491,7 +492,7 @@ class _BrainSettingsPanelState extends State<BrainSettingsPanel> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorText = e is StateError ? e.message : e.toString();
+          _errorText = e is StateError ? e.message : userFacingError(e);
         });
       }
     } finally {

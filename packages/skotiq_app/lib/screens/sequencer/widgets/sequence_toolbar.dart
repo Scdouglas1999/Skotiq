@@ -448,7 +448,7 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               }
             } catch (e) {
               if (requireCurrentContext() && context.mounted) {
-                context.showErrorSnackBar('Failed to load sequence: $e');
+                context.showErrorSnackBar('Failed to load sequence: ${userFacingError(e)}');
               }
             }
           }
@@ -505,14 +505,14 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               } catch (err) {
                 if (context.mounted) {
                   context.showErrorSnackBar(
-                    'Failed to export sequence file: $err',
+                    'Failed to export sequence file: ${userFacingError(err)}',
                   );
                 }
               }
             } catch (e) {
               if (context.mounted) {
                 context.showErrorSnackBar(
-                  'Failed to export sequence file: $e',
+                  'Failed to export sequence file: ${userFacingError(e)}',
                 );
               }
             }
@@ -546,8 +546,8 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
             }
             logger.info(
               'Slewing to ${target.targetName} '
-              '(RA ${CoordinateParser.formatRaHms(target.raHours)}, '
-              'Dec ${CoordinateParser.formatDecDms(target.decDegrees)}) '
+              '(RA ${CoordinateFormat.raReadout(target.raHours)}, '
+              'Dec ${CoordinateFormat.decReadout(target.decDegrees)}) '
               'from the sequencer toolbar.',
               source: 'Sequencer',
             );
@@ -573,7 +573,7 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                 source: 'Sequencer',
               );
               if (context.mounted) {
-                context.showErrorSnackBar('Failed to slew: $e');
+                context.showErrorSnackBar('Failed to slew: ${userFacingError(e)}');
               }
             }
           }
@@ -1183,7 +1183,7 @@ class _CanvasBarMeta extends ConsumerWidget {
       if (openEnd != null)
         formatNodeRollup(Duration.zero, openEnd)
       else if (totalSecs > 0)
-        '~${DurationFormat.seconds(totalSecs.toDouble(), style: DurationStyle.compact, rounding: DurationRounding.truncate)}',
+        '~${DurationFormat.seconds(totalSecs.toDouble(), style: DurationStyle.coarse, rounding: DurationRounding.truncate)}',
     ].join(' · ');
 
     // The summary is the one chip here that is informational rather than

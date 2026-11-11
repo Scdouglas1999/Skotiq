@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../analytics/widgets/adaptive_chart_container.dart';
@@ -118,7 +119,7 @@ class GrowthCurvePanel extends StatelessWidget {
                               top: SkotiqTokens.spaceSm,
                             ),
                             child: Text(
-                              _shortDate(sorted[i].date),
+                              ClockFormat.monthDay(sorted[i].date),
                               style: SkotiqTypography.captionSm.copyWith(
                                 color: colors.textSecondary,
                               ),
@@ -177,7 +178,7 @@ class GrowthCurvePanel extends StatelessWidget {
                           touchedSpots.map((spot) {
                         final i = spot.x.round();
                         final date = (i >= 0 && i < sorted.length)
-                            ? _shortDate(sorted[i].date)
+                            ? ClockFormat.monthDay(sorted[i].date)
                             : '';
                         return LineTooltipItem(
                           '$date\n${spot.y.toStringAsFixed(1)}h total',
@@ -241,7 +242,7 @@ class GrowthCurvePanel extends StatelessWidget {
     return StatusPill(
       icon: SkotiqIcons.star,
       label: 'Best night',
-      value: '${_shortDate(best.date)} · '
+      value: '${ClockFormat.monthDay(best.date)} · '
           '${best.integrationHours.toStringAsFixed(1)}h',
       status: StatusPillStatus.success,
     );
@@ -266,25 +267,6 @@ class GrowthCurvePanel extends StatelessWidget {
 
   static bool _sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
-
-  static String _shortDate(DateTime d) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    final m = months[(d.month - 1).clamp(0, 11)];
-    return '$m ${d.day}';
-  }
 
   /// Keep ≤ ~5 date labels on the bottom axis.
   double _axisInterval(int count) {

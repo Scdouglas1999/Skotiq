@@ -66,7 +66,7 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
       }
     } catch (e) {
       if (mounted && _isCurrentService(deviceService)) {
-        context.showErrorSnackBar('Failed to start guiding: $e');
+        context.showErrorSnackBar('Failed to start guiding: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(deviceService)) {
@@ -84,7 +84,7 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
       }
     } catch (e) {
       if (mounted && _isCurrentService(deviceService)) {
-        context.showErrorSnackBar('Failed to stop guiding: $e');
+        context.showErrorSnackBar('Failed to stop guiding: ${userFacingError(e)}');
       }
     }
   }
@@ -103,7 +103,7 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
       );
     } catch (e) {
       if (mounted && _isCurrentService(deviceService)) {
-        context.showErrorSnackBar('Dither failed: $e');
+        context.showErrorSnackBar('Dither failed: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(deviceService)) {

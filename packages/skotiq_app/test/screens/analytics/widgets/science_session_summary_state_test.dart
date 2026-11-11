@@ -52,9 +52,10 @@ void main() {
 
       expect(find.textContaining('Science summary incomplete'), findsOneWidget);
       expect(
-        find.textContaining('Bad state: calibration store unavailable'),
+        find.textContaining('calibration store unavailable'),
         findsOneWidget,
       );
+      expect(find.textContaining('Bad state'), findsNothing);
       expect(find.text('PLATE SOLVES'), findsOneWidget);
       expect(find.text('ZERO POINT'), findsOneWidget);
       expect(find.text('TRANSPARENCY'), findsOneWidget);

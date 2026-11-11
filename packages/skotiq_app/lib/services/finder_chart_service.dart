@@ -267,8 +267,8 @@ class FinderChartService {
     final lonStr = _formatLongitude(longitude);
 
     final fovStr = _formatFOV(viewState.fieldOfView);
-    final raStr = _formatRA(viewState.centerRA);
-    final decStr = _formatDec(viewState.centerDec);
+    final raStr = CoordinateFormat.raReadout(viewState.centerRA);
+    final decStr = CoordinateFormat.decReadout(viewState.centerDec);
     final projectionStr = _projectionName(viewState.projection);
 
     final image = pw.MemoryImage(chartImage);
@@ -622,15 +622,6 @@ class FinderChartService {
       return '${(fovDeg * 60).toStringAsFixed(1)}\'';
     }
   }
-
-  static String _formatRA(double raHours) =>
-      CoordinateFormat.ra(raHours, style: SexagesimalStyle.plainLetters);
-
-  static String _formatDec(double decDeg) => CoordinateFormat.dec(
-        decDeg,
-        style: SexagesimalStyle.plainLetters,
-        seconds: SecondsPrecision.integerFloored,
-      );
 
   static String _projectionName(SkyProjection projection) {
     switch (projection) {

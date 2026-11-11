@@ -122,7 +122,7 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
       }
     } catch (e) {
       if (mounted && _isCurrentService(service)) {
-        context.showErrorSnackBar('Autofocus failed: $e');
+        context.showErrorSnackBar('Autofocus failed: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(service)) {
@@ -248,7 +248,7 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
                             style: SkotiqTypography.caption
                                 .copyWith(color: widget.colors.textSecondary)),
                         Text(
-                          '${temperature.toStringAsFixed(1)}°C',
+                          formatCelsius(temperature),
                           style: SkotiqTypography.caption
                               .copyWith(color: widget.colors.textPrimary),
                         ),
@@ -582,7 +582,7 @@ class _GoToPositionDialogState extends State<GoToPositionDialog> {
       // flight owns the visible error, so don't clobber it here.
       setState(() {
         _submitting = false;
-        if (!_halting) _errorText = 'Move failed: $e';
+        if (!_halting) _errorText = 'Move failed: ${userFacingError(e)}';
       });
     }
   }
@@ -608,7 +608,7 @@ class _GoToPositionDialogState extends State<GoToPositionDialog> {
       // a focuser that may still be moving.
       setState(() {
         _halting = false;
-        _haltError = 'Stop failed: $e';
+        _haltError = 'Stop failed: ${userFacingError(e)}';
       });
     }
   }

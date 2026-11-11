@@ -175,7 +175,7 @@ class _OnboardingGuiderStepState extends ConsumerState<OnboardingGuiderStep> {
       setState(() {
         _testing = false;
         _lastResult = false;
-        _lastError = e.toString();
+        _lastError = userFacingError(e);
       });
     }
   }

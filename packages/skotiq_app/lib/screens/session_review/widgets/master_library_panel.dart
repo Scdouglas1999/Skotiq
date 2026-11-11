@@ -209,7 +209,7 @@ class _MasterCard extends StatelessWidget {
                 Text(
                   '${master.width}×${master.height} · '
                   '${master.isColor ? 'color' : 'mono'} · '
-                  'updated ${_relativeDate(master.updatedAt)}',
+                  'updated ${ClockFormat.date(master.updatedAt.toLocal())}',
                   style: SkotiqTypography.caption.copyWith(
                     color: colors.textMuted,
                   ),
@@ -268,12 +268,6 @@ class _MasterCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static String _relativeDate(DateTime when) {
-    final d = when.toLocal();
-    return '${d.year}-${d.month.toString().padLeft(2, '0')}-'
-        '${d.day.toString().padLeft(2, '0')}';
   }
 }
 

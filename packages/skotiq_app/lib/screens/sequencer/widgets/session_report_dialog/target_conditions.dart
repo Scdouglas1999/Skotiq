@@ -156,7 +156,7 @@ class _TargetBlock extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                '${target.framesAccepted}/${target.framesAttempted} frames | ${DurationFormat.seconds(target.totalIntegrationSecs, style: DurationStyle.hoursMinutes, rounding: DurationRounding.truncate)}',
+                '${target.framesAccepted}/${target.framesAttempted} frames | ${DurationFormat.seconds(target.totalIntegrationSecs, style: DurationStyle.short, rounding: DurationRounding.truncate)}',
                 style: TextStyle(
                     fontSize: SkotiqTypography.fontSize12,
                     color: colors.textMuted),
@@ -205,7 +205,7 @@ class _TargetBlock extends StatelessWidget {
                       color: f.framesRejected > 0 ? colors.warning : null,
                     ),
                     _bodyCell(DurationFormat.seconds(f.totalIntegrationSecs,
-                        style: DurationStyle.hoursMinutes,
+                        style: DurationStyle.short,
                         rounding: DurationRounding.truncate)),
                     _bodyCell(_formatDouble(f.meanHfr, 2)),
                     _bodyCell(_formatDouble(f.meanFwhm, 2)),

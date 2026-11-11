@@ -93,7 +93,7 @@ class FrameInfoPill extends ConsumerWidget {
               ),
               const SizedBox(width: gap),
               Text(
-                _clock(image.capturedAt),
+                ClockFormat.hms(image.capturedAt.toLocal()),
                 style: SkotiqTypography.caption.copyWith(
                   color: colors.textSecondary,
                 ),
@@ -164,11 +164,6 @@ class FrameInfoPill extends ConsumerWidget {
   /// number it was meant to make readable.
   static String _whole(double value) => value.round().toString();
 
-  static String _clock(DateTime at) {
-    final local = at.toLocal();
-    String two(int v) => v.toString().padLeft(2, '0');
-    return '${two(local.hour)}:${two(local.minute)}:${two(local.second)}';
-  }
 }
 
 /// Bottom-right, opt-in: the preview histogram.

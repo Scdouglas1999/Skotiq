@@ -8,7 +8,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../widgets/your_sky_opt_in.dart';
 
-import 'constellation_format.dart';
 import 'constellation_sign_in_sheet.dart';
 import 'constellation_ui_providers.dart';
 import 'share_target_sheet.dart';
@@ -98,7 +97,7 @@ class ConstellationView extends ConsumerWidget {
     return EmptyState(
       icon: LucideIcons.alertCircle,
       title: 'Could not reach the swarm',
-      body: describeConstellationError(error),
+      body: userFacingError(error),
       action: SkotiqButton(
         label: 'Retry',
         icon: SkotiqIcons.refresh,
@@ -212,7 +211,7 @@ class _ConnectedBody extends ConsumerWidget {
               children: [
                 SkotiqBanner(
                     title: 'Hub unavailable',
-                    message: describeConstellationError(error),
+                    message: userFacingError(error),
                     tone: BannerTone.warning),
                 const SizedBox(height: SkotiqTokens.spaceMd),
                 Wrap(
@@ -338,7 +337,7 @@ class _FollowTheNightSection extends StatelessWidget {
           const SizedBox(height: SkotiqTokens.spaceMd),
           SkotiqBanner(
               title: 'Could not check tonight\'s handoffs',
-              message: describeConstellationError(error),
+              message: userFacingError(error),
               tone: BannerTone.warning),
           const SizedBox(height: SkotiqTokens.spaceSm),
           Align(
@@ -409,7 +408,7 @@ class _FollowTheNightCardWiredState
     } catch (error) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text(describeConstellationError(error))),
+        SnackBar(content: Text(userFacingError(error))),
       );
     } finally {
       if (mounted) setState(() => _releasing = false);
@@ -441,7 +440,7 @@ class _FollowTheNightCardWiredState
     } catch (error) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text(describeConstellationError(error))),
+        SnackBar(content: Text(userFacingError(error))),
       );
     } finally {
       if (mounted) setState(() => _planning = false);
@@ -470,7 +469,7 @@ class _FollowTheNightCardWiredState
     } catch (error) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text(describeConstellationError(error))),
+        SnackBar(content: Text(userFacingError(error))),
       );
     } finally {
       if (mounted) setState(() => _claiming = false);
@@ -526,7 +525,7 @@ class _SharedTargetsSection extends StatelessWidget {
       ),
       error: (error, _) => SkotiqBanner(
           title: 'Could not list shared targets',
-          message: describeConstellationError(error),
+          message: userFacingError(error),
           tone: BannerTone.warning),
     );
   }

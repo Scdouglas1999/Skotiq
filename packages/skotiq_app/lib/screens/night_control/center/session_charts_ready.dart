@@ -511,7 +511,8 @@ class _GuiderIdleCard extends ConsumerWidget {
     unawaited(
       ref.read(phd2ControllerProvider).loop().catchError((Object error) {
         notifications.showError(
-          l10n.text('nightCtrGuideLoopFailed', params: {'detail': '$error'}),
+          l10n.text('nightCtrGuideLoopFailed',
+              params: {'detail': userFacingError(error)}),
         );
       }),
     );
@@ -532,7 +533,8 @@ class _GuiderIdleCard extends ConsumerWidget {
           .connectDeviceGuider(guiderId, guideCameraId: guider.guideCameraId)
           .catchError((Object error) {
         notifications.showError(
-          l10n.text('nightCtrGuideConnectFailed', params: {'detail': '$error'}),
+          l10n.text('nightCtrGuideConnectFailed',
+              params: {'detail': userFacingError(error)}),
         );
       }),
     );
@@ -549,7 +551,8 @@ class _GuiderIdleCard extends ConsumerWidget {
         await controller.connect(settings.phd2Host, settings.phd2Port);
       } catch (error) {
         notifications.showError(
-          l10n.text('nightCtrGuideOpenFailed', params: {'detail': '$error'}),
+          l10n.text('nightCtrGuideOpenFailed',
+              params: {'detail': userFacingError(error)}),
         );
       }
     }());
@@ -641,7 +644,7 @@ class _CoolingCard extends ConsumerWidget {
           ? null
           : l10n.text(
               'nightCtrSince',
-              params: <String, String>{'time': nightClockHm(from)},
+              params: <String, String>{'time': ClockFormat.hm(from)},
             ),
       body: _ChartBody(
         leftUnit: ' °C',

@@ -1,6 +1,7 @@
 import 'dart:collection';
 import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../errors/error_text.dart';
 import '../providers/ui_notification_provider.dart';
 import 'logging_service.dart';
 
@@ -152,11 +153,20 @@ class ErrorService {
 
     // Push to UI notifications for error and critical severity
     if (_uiNotificationNotifier != null) {
-      final userFriendly = entry.userFriendly;
+      final text = describeError(
+        entry.message,
+        domain: switch (entry.category) {
+          ErrorCategory.device => ErrorDomain.device,
+          ErrorCategory.imaging => ErrorDomain.imaging,
+          ErrorCategory.guiding => ErrorDomain.guiding,
+          ErrorCategory.platesolve => ErrorDomain.plateSolve,
+          _ => null,
+        },
+      );
       switch (entry.severity) {
         case ErrorSeverity.error:
           _uiNotificationNotifier!.showError(
-            userFriendly.fullMessage,
+            text.full,
             title: entry.deviceType != null
                 ? '${entry.deviceType} Error'
                 : '${_categoryToTitle(entry.category)} Error',
@@ -164,7 +174,7 @@ class ErrorService {
           break;
         case ErrorSeverity.critical:
           _uiNotificationNotifier!.showError(
-            userFriendly.fullMessage,
+            text.full,
             title: 'Critical: ${_categoryToTitle(entry.category)}',
             duration: const Duration(
               seconds: 15,
@@ -173,7 +183,7 @@ class ErrorService {
           break;
         case ErrorSeverity.warning:
           _uiNotificationNotifier!.showWarning(
-            userFriendly.userMessage,
+            text.message,
             title: entry.deviceType != null
                 ? '${entry.deviceType} Warning'
                 : '${_categoryToTitle(entry.category)} Warning',
@@ -264,296 +274,3 @@ final errorServiceProvider = Provider<ErrorService>((ref) {
   service.setUiNotificationNotifier(uiNotifier);
   return service;
 });
-
-// User-Friendly Error Messages
-
-/// Maps technical error messages to user-friendly messages
-class UserFriendlyError {
-  /// The original technical error
-  final String technicalError;
-
-  /// The user-friendly message
-  final String userMessage;
-
-  /// Optional suggestion for how to fix the problem
-  final String? suggestion;
-
-  /// Whether the error is recoverable
-  final bool isRecoverable;
-
-  const UserFriendlyError({
-    required this.technicalError,
-    required this.userMessage,
-    this.suggestion,
-    this.isRecoverable = true,
-  });
-
-  @override
-  String toString() => userMessage;
-
-  /// Full message including suggestion
-  String get fullMessage {
-    if (suggestion != null) {
-      return '$userMessage\n\n$suggestion';
-    }
-    return userMessage;
-  }
-}
-
-/// Converts technical error messages to user-friendly messages
-class ErrorMessageMapper {
-  /// Device connection error patterns
-  static const Map<Pattern, UserFriendlyError> _deviceErrors = {
-    'Device not found': UserFriendlyError(
-      technicalError: 'Device not found',
-      userMessage: 'The device could not be found.',
-      suggestion:
-          'Check that the device is powered on, connected, and the driver is installed.',
-    ),
-    'Connection refused': UserFriendlyError(
-      technicalError: 'Connection refused',
-      userMessage: 'Could not connect to the device.',
-      suggestion:
-          'Verify the device is on, connected via USB/network, and no other software is using it.',
-    ),
-    'Connection timed out': UserFriendlyError(
-      technicalError: 'Connection timed out',
-      userMessage: 'Connection to the device timed out.',
-      suggestion: 'Check network settings and that the device is responding.',
-    ),
-    'Device already connected': UserFriendlyError(
-      technicalError: 'Device already connected',
-      userMessage: 'This device is already connected.',
-      isRecoverable: true,
-    ),
-    'Device not connected': UserFriendlyError(
-      technicalError: 'Device not connected',
-      userMessage: 'The device is not connected.',
-      suggestion: 'Connect to the device before performing this operation.',
-    ),
-    'ASCOM': UserFriendlyError(
-      technicalError: 'ASCOM',
-      userMessage: 'ASCOM driver error occurred.',
-      suggestion:
-          'Check that the ASCOM driver is installed and configured correctly.',
-    ),
-    'COM': UserFriendlyError(
-      technicalError: 'COM',
-      userMessage: 'Windows COM interface error.',
-      suggestion: 'Try restarting the application or reconnecting the device.',
-    ),
-  };
-
-  /// Imaging error patterns
-  static const Map<Pattern, UserFriendlyError> _imagingErrors = {
-    'Exposure cancelled': UserFriendlyError(
-      technicalError: 'Exposure cancelled',
-      userMessage: 'The exposure was canceled.',
-      isRecoverable: true,
-    ),
-    'Exposure failed': UserFriendlyError(
-      technicalError: 'Exposure failed',
-      userMessage: 'The exposure failed.',
-      suggestion: 'Check camera connection and settings, then try again.',
-    ),
-    'Download failed': UserFriendlyError(
-      technicalError: 'Download failed',
-      userMessage: 'Failed to download image from camera.',
-      suggestion: 'Check USB connection and try again.',
-    ),
-    'No image available': UserFriendlyError(
-      technicalError: 'No image available',
-      userMessage: 'No image is available.',
-      suggestion: 'Take an exposure first.',
-    ),
-    'File write': UserFriendlyError(
-      technicalError: 'File write',
-      userMessage: 'Failed to save the image file.',
-      suggestion:
-          'Check that the save location is accessible and has sufficient disk space.',
-    ),
-    'Disk space': UserFriendlyError(
-      technicalError: 'Disk space',
-      userMessage: 'Insufficient disk space.',
-      suggestion: 'Free up disk space or choose a different save location.',
-    ),
-  };
-
-  /// Mount error patterns
-  static const Map<Pattern, UserFriendlyError> _mountErrors = {
-    'Slew failed': UserFriendlyError(
-      technicalError: 'Slew failed',
-      userMessage: 'Mount slew failed.',
-      suggestion: 'Check that the mount is unparked and tracking is enabled.',
-    ),
-    'Target below horizon': UserFriendlyError(
-      technicalError: 'Target below horizon',
-      userMessage: 'The target is below the horizon.',
-      suggestion: 'Wait until the target rises above the horizon.',
-      isRecoverable: false,
-    ),
-    'Mount parked': UserFriendlyError(
-      technicalError: 'Mount parked',
-      userMessage: 'The mount is parked.',
-      suggestion: 'Unpark the mount before slewing.',
-    ),
-    'Park failed': UserFriendlyError(
-      technicalError: 'Park failed',
-      userMessage: 'Failed to park the mount.',
-      suggestion: 'Manually park the mount using the hand controller.',
-    ),
-    'Limit': UserFriendlyError(
-      technicalError: 'Limit',
-      userMessage: 'Mount has reached a limit.',
-      suggestion:
-          'The mount has reached its movement limits. Perform a meridian flip or reconfigure limits.',
-    ),
-  };
-
-  /// Guiding error patterns
-  static const Map<Pattern, UserFriendlyError> _guidingErrors = {
-    'Guide star lost': UserFriendlyError(
-      technicalError: 'Guide star lost',
-      userMessage: 'Guide star was lost.',
-      suggestion: 'Check guider focus and try selecting a brighter star.',
-    ),
-    'PHD2': UserFriendlyError(
-      technicalError: 'PHD2',
-      userMessage: 'PHD2 guiding error.',
-      suggestion: 'Check PHD2 connection and guide camera settings.',
-    ),
-    'Settle timeout': UserFriendlyError(
-      technicalError: 'Settle timeout',
-      userMessage: 'Guiding failed to settle in time.',
-      suggestion: 'Increase settle timeout or check for tracking issues.',
-    ),
-    'Calibration': UserFriendlyError(
-      technicalError: 'Calibration',
-      userMessage: 'Guiding calibration failed.',
-      suggestion: 'Recalibrate guiding near the celestial equator.',
-    ),
-  };
-
-  /// Plate solving error patterns
-  static const Map<Pattern, UserFriendlyError> _plateSolveErrors = {
-    'Plate solve failed': UserFriendlyError(
-      technicalError: 'Plate solve failed',
-      userMessage: 'Plate solving failed.',
-      suggestion:
-          'Ensure the mount is roughly pointed at the target. Try using a longer exposure or wider field hint.',
-    ),
-    'No solution': UserFriendlyError(
-      technicalError: 'No solution',
-      userMessage: 'Could not determine image location.',
-      suggestion:
-          'The image may be out of focus or pointing far from expected. Check focus and alignment.',
-    ),
-    'ASTAP': UserFriendlyError(
-      technicalError: 'ASTAP',
-      userMessage: 'ASTAP plate solver error.',
-      suggestion:
-          'Verify ASTAP is installed and the star database is downloaded.',
-    ),
-  };
-
-  /// Convert a technical error to a user-friendly message
-  static UserFriendlyError mapError(
-    String technicalError, {
-    ErrorCategory? category,
-  }) {
-    // Try category-specific patterns first
-    if (category != null) {
-      final categoryPatterns = _getCategoryPatterns(category);
-      for (final entry in categoryPatterns.entries) {
-        if (technicalError.toLowerCase().contains(
-          entry.key.toString().toLowerCase(),
-        )) {
-          return entry.value;
-        }
-      }
-    }
-
-    // Try all patterns
-    final allPatterns = [
-      ..._deviceErrors.entries,
-      ..._imagingErrors.entries,
-      ..._mountErrors.entries,
-      ..._guidingErrors.entries,
-      ..._plateSolveErrors.entries,
-    ];
-
-    for (final entry in allPatterns) {
-      if (technicalError.toLowerCase().contains(
-        entry.key.toString().toLowerCase(),
-      )) {
-        return entry.value;
-      }
-    }
-
-    // Default: return a generic user-friendly error
-    return UserFriendlyError(
-      technicalError: technicalError,
-      userMessage: _cleanupErrorMessage(technicalError),
-      suggestion: 'If the problem persists, check the logs for more details.',
-    );
-  }
-
-  static Map<Pattern, UserFriendlyError> _getCategoryPatterns(
-    ErrorCategory category,
-  ) {
-    switch (category) {
-      case ErrorCategory.device:
-        return _deviceErrors;
-      case ErrorCategory.imaging:
-        return _imagingErrors;
-      case ErrorCategory.guiding:
-        return _guidingErrors;
-      case ErrorCategory.platesolve:
-        return _plateSolveErrors;
-      default:
-        return {};
-    }
-  }
-
-  /// Clean up a technical error message to be more readable
-  static String _cleanupErrorMessage(String error) {
-    // Remove common prefixes
-    var cleaned = error
-        .replaceAll(
-          RegExp(r'^(Error:|Exception:|Failed:)\s*', caseSensitive: false),
-          '',
-        )
-        .replaceAll(RegExp(r'^skotiq_\w+::\w+::\s*', caseSensitive: false), '')
-        .replaceAll(RegExp(r'Err\((.*)\)', caseSensitive: false), r'$1');
-
-    // Capitalize first letter
-    if (cleaned.isNotEmpty) {
-      cleaned = cleaned[0].toUpperCase() + cleaned.substring(1);
-    }
-
-    // Ensure it ends with a period
-    if (!cleaned.endsWith('.') &&
-        !cleaned.endsWith('!') &&
-        !cleaned.endsWith('?')) {
-      cleaned += '.';
-    }
-
-    return cleaned;
-  }
-
-  /// Get a user-friendly message from an exception
-  static UserFriendlyError fromException(
-    Object error, {
-    ErrorCategory? category,
-  }) {
-    return mapError(error.toString(), category: category);
-  }
-}
-
-/// Extension to add user-friendly message methods to ErrorEntry
-extension ErrorEntryUserFriendly on ErrorEntry {
-  /// Get a user-friendly version of this error
-  UserFriendlyError get userFriendly {
-    return ErrorMessageMapper.mapError(message, category: category);
-  }
-}

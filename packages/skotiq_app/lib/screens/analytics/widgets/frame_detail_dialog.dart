@@ -4,14 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/skotiq_core.dart'
     show
-        CoordinateParser,
         DbCapturedImage,
         FramePhotometricCalibrationRow,
         FrameQualityAssessment,
         imagingRecordsRepositoryProvider,
-        isRemoteModeProvider;
+        isRemoteModeProvider,
+        userFacingError;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/filter_label.dart';
@@ -208,7 +209,7 @@ class _FrameDetailDialogState extends ConsumerState<FrameDetailDialog> {
       if (image.offset != null) ('Offset', '${image.offset}'),
       ('Binning', '${image.binX}x${image.binY}'),
       if (image.sensorTemp != null)
-        ('Sensor temperature', '${image.sensorTemp!.toStringAsFixed(1)} °C'),
+        ('Sensor temperature', formatCelsius(image.sensorTemp!)),
       if (image.hfr != null) ('HFR', '${image.hfr!.toStringAsFixed(2)} px'),
       if (image.starCount != null) ('Stars detected', '${image.starCount}'),
       // Both scores, each named. The rail's tile shows the advisory number; the
@@ -239,8 +240,8 @@ class _FrameDetailDialogState extends ConsumerState<FrameDetailDialog> {
           image.solvedDec != null)
         (
           'Solved position',
-          'RA ${CoordinateParser.formatRaHms(image.solvedRa!)}  '
-              'Dec ${CoordinateParser.formatDecDms(image.solvedDec!)}'
+          'RA ${CoordinateFormat.raReadout(image.solvedRa!)}  '
+              'Dec ${CoordinateFormat.decReadout(image.solvedDec!)}'
         ),
       if (image.solvedPixelScale != null)
         (
@@ -323,7 +324,8 @@ class _FrameDetailDialogState extends ConsumerState<FrameDetailDialog> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _busy = false);
-      context.showErrorSnackBar('Failed to update frame: $error');
+      context.showErrorSnackBar(
+          'Failed to update frame: ${userFacingError(error)}');
     }
   }
 }

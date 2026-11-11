@@ -9,7 +9,7 @@ import '../models/sequence/sequence_models.dart';
 import '../database/daos/sequence_runs_dao.dart';
 import '../database/daos/sequence_versions_dao.dart';
 import '../database/daos/session_diagnostics_dao.dart';
-import '../utils/duration_format.dart';
+import 'package:skotiq_astro/format.dart';
 import 'backend_provider.dart';
 import '../backend/remote_host.dart';
 import '../backend/roles/host_data/host_records.dart';
@@ -451,7 +451,7 @@ class ParsedRunStats {
 
   /// Delegates to the shared formatter so the run cards, the history tab and
   /// the Continue Session dialog all describe one run identically.
-  String formatDuration(double secs) => formatIntegrationSeconds(secs);
+  String formatDuration(double secs) => DurationFormat.seconds(secs);
 }
 
 // Providers

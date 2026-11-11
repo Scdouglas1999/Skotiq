@@ -223,7 +223,7 @@ void showSaveAsSnippetDialog(
                 if (context.mounted) {
                   messenger.showSnackBar(
                     SnackBar(
-                      content: Text('Failed to create template: $e'),
+                      content: Text('Failed to create template: ${userFacingError(e)}'),
                       backgroundColor: colors.error,
                     ),
                   );

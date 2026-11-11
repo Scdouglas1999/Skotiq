@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:skotiq_core/skotiq_core.dart' show userFacingError;
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -93,7 +94,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
         setState(() {
           _cameraError =
               'Camera unavailable. Allow camera permission for Skotiq '
-              'and try again.\n\n($e)';
+              'and try again.\n\n(${userFacingError(e)})';
         });
       }
     } finally {
@@ -122,7 +123,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('$failurePrefix: $error')));
+        ).showSnackBar(SnackBar(content: Text('$failurePrefix: ${userFacingError(error)}')));
       }
     } finally {
       if (mounted) setState(() => _cameraActionPending = false);

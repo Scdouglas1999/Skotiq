@@ -125,7 +125,7 @@ class _TargetEditorOverlay extends ConsumerWidget {
                                                     .showSnackBar(
                                                   SnackBar(
                                                     content: Text(
-                                                      'Could not re-evaluate scheduler: $error',
+                                                      'Could not re-evaluate scheduler: ${userFacingError(error)}',
                                                     ),
                                                   ),
                                                 );

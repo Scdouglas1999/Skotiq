@@ -38,7 +38,7 @@ class _CorrectionSettings extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Could not update defect-map settings: $error'),
+          content: Text('Could not update defect-map settings: ${userFacingError(error)}'),
           backgroundColor: colors.error,
         ),
       );
@@ -254,49 +254,8 @@ class _ResponsiveDropdownSetting extends StatelessWidget {
   }
 }
 
-/// Insert thousands separators into a non-negative integer's decimal
-/// representation. We deliberately avoid the `intl` NumberFormat machinery
-/// here because it would force a locale dependency for a single grouping
-/// rule.
-String _formatThousands(int value) {
-  final digits = value.toString();
-  final buffer = StringBuffer();
-  for (var i = 0; i < digits.length; i++) {
-    final remaining = digits.length - i;
-    if (i > 0 && remaining % 3 == 0) {
-      buffer.write(',');
-    }
-    buffer.write(digits[i]);
-  }
-  return buffer.toString();
-}
-
 /// Format a build timestamp as a coarse "x time ago" string. Returns
 /// "(unknown date)" when the source had no usable mtime.
-String _relativeAge(DateTime? at) {
-  if (at == null) return '(unknown date)';
-  final delta = DateTime.now().toUtc().difference(at.toUtc());
-  if (delta.isNegative) {
-    // Clock skew. Treat as "just now" rather than reporting a negative age.
-    return 'just now';
-  }
-  if (delta.inMinutes < 1) return 'just now';
-  if (delta.inHours < 1) {
-    final m = delta.inMinutes;
-    return '$m minute${m == 1 ? '' : 's'} ago';
-  }
-  if (delta.inDays < 1) {
-    final h = delta.inHours;
-    return '$h hour${h == 1 ? '' : 's'} ago';
-  }
-  if (delta.inDays < 30) {
-    final d = delta.inDays;
-    return '$d day${d == 1 ? '' : 's'} ago';
-  }
-  if (delta.inDays < 365) {
-    final months = (delta.inDays / 30).floor();
-    return '$months month${months == 1 ? '' : 's'} ago';
-  }
-  final years = (delta.inDays / 365).floor();
-  return '$years year${years == 1 ? '' : 's'} ago';
-}
+String _relativeAge(DateTime? at) => at == null
+    ? '(unknown date)'
+    : RelativeTime.ago(at, style: RelativeTimeStyle.words);

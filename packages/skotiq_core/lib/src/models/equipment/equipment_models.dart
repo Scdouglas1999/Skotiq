@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../backend/device_capabilities.dart' show TrackingRate;
+import '../../errors/error_text.dart';
 import '../errors/skotiq_error.dart';
 
 // Re-export TrackingRate from device_capabilities as the canonical source
@@ -97,7 +98,7 @@ class DeviceError extends Equatable {
       );
     }
 
-    final message = error.toString();
+    final message = userFacingError(error);
     final normalized = message.toLowerCase();
 
     // Try to categorize the error from the message

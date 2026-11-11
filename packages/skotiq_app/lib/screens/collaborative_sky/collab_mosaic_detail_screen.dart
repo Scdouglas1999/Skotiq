@@ -5,7 +5,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../constellation/constellation_format.dart';
 import '../mosaic/mosaic_project_screen.dart';
 import '../your_sky/sky_atlas_format.dart';
 import 'collaborative_sky_format.dart';
@@ -133,7 +132,7 @@ class _CollabMosaicDetailScreenState
                 error: (error, _) => EmptyState(
                   icon: LucideIcons.alertCircle,
                   title: 'Could not load the mosaic',
-                  body: describeConstellationError(error),
+                  body: userFacingError(error),
                   action: SkotiqButton(
                     label: 'Retry',
                     icon: SkotiqIcons.refresh,
@@ -406,7 +405,7 @@ class _JoinMosaicButtonState extends ConsumerState<_JoinMosaicButton> {
     } catch (error) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text(describeConstellationError(error))),
+        SnackBar(content: Text(userFacingError(error))),
       );
     } finally {
       if (mounted) setState(() => _joining = false);

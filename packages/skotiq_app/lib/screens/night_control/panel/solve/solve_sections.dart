@@ -207,27 +207,25 @@ class NightRecentSolvesSection extends ConsumerWidget {
                 params: {'count': '$tries'},
               );
         final offset = record.offsetArcsec;
-        value = offset == null ? null : formatArcsec(offset);
+        value = offset == null ? null : AngleFormat.arcsec(offset);
       } else {
         what = l10n.text('nightScopeSolveRecentSolve');
         final ra = record.raDegrees;
         final dec = record.decDegrees;
         if (ra != null && dec != null && target != null) {
-          value = formatArcsec(
-            AstronomyCalculations.angularSeparation(
+          value = AngleFormat.arcsec(AstronomyCalculations.angularSeparation(
                   ra1Deg: ra,
                   dec1Deg: dec,
                   ra2Deg: target.raHours * 15,
                   dec2Deg: target.decDegrees,
                 ) *
-                3600,
-          );
+                3600);
         }
       }
       if (!record.success) value = l10n.text('nightScopeSolveRecentFailed');
       children.add(
         _RecentRow(
-          time: formatClockTime(clock.toNightClock(record.at)),
+          time: ClockFormat.hm(clock.toNightClock(record.at)),
           what: what,
           value: value,
           valueColor: record.success ? null : colors.error,

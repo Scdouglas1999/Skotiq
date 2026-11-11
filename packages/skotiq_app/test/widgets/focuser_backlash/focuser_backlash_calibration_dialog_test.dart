@@ -353,7 +353,7 @@ void main() {
       expect(find.text('105 steps'), findsOneWidget);
       // The position, the temperature and the date travel with the figure.
       expect(
-        find.textContaining('Measured at position 6620 at 14.5 °C on'),
+        find.textContaining('Measured at position 6620 at 14.5°C on'),
         findsOneWidget,
       );
       expect(find.textContaining('14 September 2026'), findsOneWidget);
@@ -432,7 +432,7 @@ void main() {
 
       expect(find.text('83 steps'), findsOneWidget);
       expect(
-        find.textContaining('Measured at position 2506 at 11.2 °C on'),
+        find.textContaining('Measured at position 2506 at 11.2°C on'),
         findsOneWidget,
       );
       expect(find.text('Moderate confidence'), findsOneWidget);

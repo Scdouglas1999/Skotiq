@@ -196,7 +196,7 @@ class _DecisionRow extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                _formatRelative(decision.time),
+                RelativeTime.ago(decision.time),
                 style: TextStyle(
                     fontSize: SkotiqTypography.fontSize10,
                     color: colors.textMuted),
@@ -243,14 +243,4 @@ class _DecisionRow extends StatelessWidget {
     );
   }
 
-  /// "12s ago" / "3m ago" / "yesterday". Same formatting style the trigger
-  /// feed uses; keeping a local copy avoids reaching across panel files.
-  String _formatRelative(DateTime t) {
-    final now = DateTime.now();
-    final diff = now.difference(t);
-    if (diff.inSeconds < 60) return '${diff.inSeconds}s ago';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
-  }
 }

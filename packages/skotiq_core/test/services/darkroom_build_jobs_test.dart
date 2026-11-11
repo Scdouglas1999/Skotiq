@@ -375,8 +375,8 @@ void main() {
           );
       expect(job.stage, DarkroomJobStage.failed);
       expect(native.built, isEmpty);
-      expect(job.error, contains('needs 5.0 GB'));
-      expect(job.error, contains('1.0 GB is free'));
+      expect(job.error, contains('needs 5.0 GiB'));
+      expect(job.error, contains('1.0 GiB is free'));
       expect(
         notifications.sent.single,
         allOf(startsWith('Master build failed: NGC891'), contains('is free')),

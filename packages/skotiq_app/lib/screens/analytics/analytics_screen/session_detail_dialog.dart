@@ -293,7 +293,6 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
                       imagesAsyncValue,
                     ),
                     const SizedBox(height: SkotiqTokens.spaceLg),
-
                     imagesAsyncValue.when(
                       data: (images) =>
                           _buildImagesSection(context, colors, images),
@@ -691,7 +690,7 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
       }
     } catch (e) {
       if (context.mounted) {
-        context.showErrorSnackBar('Export failed: $e');
+        context.showErrorSnackBar('Export failed: ${userFacingError(e)}');
       }
     }
   }
@@ -730,7 +729,7 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
       }
     } catch (e) {
       if (context.mounted) {
-        context.showErrorSnackBar('Export failed: $e');
+        context.showErrorSnackBar('Export failed: ${userFacingError(e)}');
       }
     }
   }
@@ -766,7 +765,7 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
       );
     } catch (e) {
       if (context.mounted) {
-        context.showErrorSnackBar('Export failed: $e');
+        context.showErrorSnackBar('Export failed: ${userFacingError(e)}');
       }
     }
   }
@@ -803,7 +802,8 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
       }
     } catch (e) {
       if (context.mounted) {
-        context.showErrorSnackBar('Report export failed: $e');
+        context
+            .showErrorSnackBar('Report export failed: ${userFacingError(e)}');
       }
     }
   }

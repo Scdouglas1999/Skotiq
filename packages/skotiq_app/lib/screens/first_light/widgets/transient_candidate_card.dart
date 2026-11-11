@@ -105,8 +105,8 @@ class _Header extends StatelessWidget {
                   const SizedBox(width: SkotiqTokens.spaceXs),
                   Flexible(
                     child: Text(
-                      '${CoordinateFormat.ra(detection.raDeg / 15.0)}  '
-                      '${CoordinateFormat.dec(detection.decDeg)}',
+                      '${CoordinateFormat.raReadout(detection.raDeg / 15.0)}  '
+                      '${CoordinateFormat.decReadout(detection.decDeg)}',
                       style: SkotiqTypography.monoSm.copyWith(
                         color: colors.textSecondary,
                       ),
@@ -319,7 +319,7 @@ class _ActionsRow extends StatelessWidget {
       );
     } catch (e) {
       messenger?.showSnackBar(
-        SnackBar(content: Text('Could not update detection: $e')),
+        SnackBar(content: Text('Could not update detection: ${userFacingError(e)}')),
       );
     }
   }
@@ -359,8 +359,8 @@ class _ActionsRow extends StatelessWidget {
       return;
     }
 
-    final coords = '${CoordinateFormat.ra(detection.raDeg / 15.0)}  '
-        '${CoordinateFormat.dec(detection.decDeg)}';
+    final coords = '${CoordinateFormat.raReadout(detection.raDeg / 15.0)}  '
+        '${CoordinateFormat.decReadout(detection.decDeg)}';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => SkotiqDialog(

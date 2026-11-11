@@ -165,7 +165,7 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
               const SizedBox(height: 8),
               _InfoRow(
                 label: 'Time',
-                value: _formatTimestamp(DateTime.now()),
+                value: ClockFormat.dateHms(DateTime.now()),
                 colors: colors,
               ),
 
@@ -289,10 +289,6 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
     return PopScope(canPop: !_isSaving, child: dialog);
   }
 
-  String _formatTimestamp(DateTime dt) {
-    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
-        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
-  }
 }
 
 class _InfoRow extends StatelessWidget {

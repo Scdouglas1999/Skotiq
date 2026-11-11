@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:skotiq_core/skotiq_core.dart' show userFacingError;
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 /// Network connection status
@@ -346,7 +347,7 @@ class NetworkService {
       _updateState(
         _state.copyWith(
           status: NetworkStatus.disconnected,
-          statusMessage: 'Failed to reconnect: $e',
+          statusMessage: 'Failed to reconnect: ${userFacingError(e)}',
         ),
       );
 
@@ -417,7 +418,7 @@ class NetworkService {
       _updateState(
         _state.copyWith(
           status: NetworkStatus.disconnected,
-          statusMessage: 'Discovery failed: $e',
+          statusMessage: 'Discovery failed: ${userFacingError(e)}',
         ),
       );
       return null;

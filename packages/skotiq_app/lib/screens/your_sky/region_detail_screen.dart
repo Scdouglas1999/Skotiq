@@ -129,7 +129,7 @@ class RegionDetailScreen extends ConsumerWidget {
           error: (error, _) => EmptyState(
             icon: LucideIcons.alertCircle,
             title: 'Could not load region',
-            body: describeAtlasError(error),
+            body: userFacingError(error),
           ),
         ),
       ),
@@ -503,7 +503,7 @@ class _RegionCutoutActionsState extends ConsumerState<RegionCutoutActions> {
     } on Object catch (e) {
       if (!_isCurrent(generation, backend, regionId)) return;
       messenger.showSnackBar(SnackBar(
-        content: Text('Could not export: $e'),
+        content: Text('Could not export: ${userFacingError(e)}'),
         duration: const Duration(seconds: 4),
       ));
     } finally {
@@ -544,7 +544,7 @@ class _RegionCutoutActionsState extends ConsumerState<RegionCutoutActions> {
     } on Object catch (e) {
       if (!_isCurrent(generation, backend, regionId)) return;
       messenger.showSnackBar(SnackBar(
-        content: Text('Could not set reference frame: $e'),
+        content: Text('Could not set reference frame: ${userFacingError(e)}'),
         duration: const Duration(seconds: 4),
       ));
     } finally {
@@ -708,7 +708,7 @@ class _FoldRow extends StatelessWidget {
                 const SizedBox(height: SkotiqTokens.spaceXs),
                 Text(
                   '${fold.framesAdded} frame${fold.framesAdded == 1 ? '' : 's'}'
-                  '  ·  +${formatIntegration(fold.integrationSecondsAdded)}'
+                  '  ·  +${DurationFormat.decimalHours(fold.integrationSecondsAdded)}'
                   '  ·  tile ${fold.tileId}'
                   '${fold.rejected > 0 ? '  ·  ${fold.rejected} rejected' : ''}',
                   style: SkotiqTypography.captionSm
@@ -807,13 +807,13 @@ class _ProvenancePanel extends ConsumerWidget {
               _StatLine(
                 icon: LucideIcons.clock,
                 label: 'Total integration',
-                value: formatIntegration(region.integrationSeconds),
+                value: DurationFormat.decimalHours(region.integrationSeconds),
                 colors: colors,
               ),
               _StatLine(
                 icon: LucideIcons.layers,
                 label: 'Deepest tile',
-                value: formatIntegration(maxDepth),
+                value: DurationFormat.decimalHours(maxDepth),
                 colors: colors,
               ),
               if (provenance != null)
@@ -912,7 +912,7 @@ class _ProvenanceTrail extends StatelessWidget {
                   ),
                   Text(
                     '${ordered[i].framesAdded}f · '
-                    '+${formatIntegration(ordered[i].integrationSecondsAdded)}',
+                    '+${DurationFormat.decimalHours(ordered[i].integrationSecondsAdded)}',
                     style: SkotiqTypography.captionSm
                         .copyWith(color: colors.textMuted),
                   ),

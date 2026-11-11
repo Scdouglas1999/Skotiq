@@ -404,7 +404,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
       );
     } catch (error) {
       if (mounted && identical(ref.read(backendProvider), authority)) {
-        context.showErrorSnackBar('Could not read device location: $error');
+        context.showErrorSnackBar('Could not read device location: ${userFacingError(error)}');
       }
     } finally {
       if (mounted) setState(() => _locating = false);
@@ -498,7 +498,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
       error: (error, _) => SkotiqBanner(
         tone: BannerTone.error,
         title: 'Could not load location settings.',
-        message: '$error',
+        message: userFacingError(error),
       ),
       data: (settings) {
         _seedFrom(settings);

@@ -144,7 +144,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
       // The `/api/system/update/*` + version routes are only registered when
       // the appliance has an update server configured; otherwise they 404.
       // Surface that as a clear "not enabled" note rather than a raw error.
-      final msg = '$e';
+      final msg = userFacingError(e);
       final notEnabled = (e is ServerError && e.httpStatus == 404) ||
           RegExp(r'\bHTTP 404\b').hasMatch(msg);
       setState(() {
@@ -201,7 +201,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
       // Keep the last valid snapshot, but never hide a broken monitoring
       // link: the operator needs to know progress may now be stale.
       setState(() {
-        _pollError = 'Could not refresh update progress: $e';
+        _pollError = 'Could not refresh update progress: ${userFacingError(e)}';
       });
     } finally {
       if (_statusRefreshInFlightGeneration == backendGeneration) {
@@ -254,7 +254,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
       }
     } catch (e) {
       if (mounted && identical(_backend, backend)) {
-        context.showErrorSnackBar('$label failed: $e');
+        context.showErrorSnackBar('$label failed: ${userFacingError(e)}');
       }
     } finally {
       if (mounted && identical(_backend, backend)) {
@@ -375,7 +375,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
     } catch (e) {
       if (mounted && identical(_backend, backend)) {
         context.showErrorSnackBar(
-          '$label canceled because the rig state could not be verified: $e',
+          '$label canceled because the rig state could not be verified: ${userFacingError(e)}',
         );
       }
       return null;

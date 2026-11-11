@@ -277,9 +277,8 @@ extension _PhotometricWizardCoefficients on _PhotometricCalibrationWizardState {
       if (!_isCurrentOperation(generation, authority)) return;
       _update(() {
         _isComputing = false;
-        _statusMessage = 'Computation failed: $error';
+        _statusMessage = 'Computation failed: ${userFacingError(error)}';
       });
     }
   }
-
 }

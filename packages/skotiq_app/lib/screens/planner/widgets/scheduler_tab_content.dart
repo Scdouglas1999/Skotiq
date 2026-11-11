@@ -173,7 +173,7 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
       if (generation == _schedulerActionGeneration &&
           identical(ref.read(backendProvider), backend)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Scheduler action failed: $error')),
+          SnackBar(content: Text('Scheduler action failed: ${userFacingError(error)}')),
         );
       }
     } finally {
@@ -275,7 +275,7 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
           _configSaveErrorVisible = true;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Could not save scheduler settings: $error'),
+              content: Text('Could not save scheduler settings: ${userFacingError(error)}'),
             ),
           );
         }
@@ -310,7 +310,7 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Could not load scheduler state: $error'),
+                Text('Could not load scheduler state: ${userFacingError(error)}'),
                 const SizedBox(height: SkotiqTokens.spaceMd),
                 SkotiqButton(
                   label: 'Retry',
@@ -339,7 +339,7 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Could not load scheduler configuration: $error'),
+                Text('Could not load scheduler configuration: ${userFacingError(error)}'),
                 const SizedBox(height: SkotiqTokens.spaceMd),
                 SkotiqButton(
                   label: 'Retry',

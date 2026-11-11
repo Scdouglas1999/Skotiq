@@ -182,7 +182,7 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
     } catch (e) {
       if (mounted) {
         context.showErrorSnackBar(
-          l10n.text('nightCtrGuideConnectFailed', params: {'detail': '$e'}),
+          l10n.text('nightCtrGuideConnectFailed', params: {'detail': userFacingError(e)}),
         );
       }
     } finally {
@@ -203,7 +203,7 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
     } catch (e) {
       if (mounted) {
         context.showErrorSnackBar(
-          l10n.text('nightScopeGuideConnectFailed', params: {'error': '$e'}),
+          l10n.text('nightScopeGuideConnectFailed', params: {'error': userFacingError(e)}),
         );
       }
     } finally {
@@ -429,7 +429,7 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
     } catch (e) {
       if (mounted) {
         context.showErrorSnackBar(
-          l10n.text('nightScopeGuideCommandFailed', params: {'error': '$e'}),
+          l10n.text('nightScopeGuideCommandFailed', params: {'error': userFacingError(e)}),
         );
       }
     } finally {

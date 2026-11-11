@@ -136,7 +136,7 @@ class CapturePanel extends ConsumerWidget {
             trailing: cameraState.temperature == null
                 ? null
                 : SkotiqChip(
-                    label: '${cameraState.temperature!.toStringAsFixed(1)} °C',
+                    label: formatCelsius(cameraState.temperature!),
                     tone: ChipTone.success,
                     dot: true,
                   ),
@@ -305,7 +305,7 @@ class CapturePanel extends ConsumerWidget {
             children: [
               Readout(value: '$capturedCount', label: 'Captured'),
               Readout(
-                value: formatIntegrationSeconds(integrationSecs),
+                value: DurationFormat.seconds(integrationSecs),
                 label: 'Integration',
               ),
               Readout(
@@ -325,7 +325,7 @@ class CapturePanel extends ConsumerWidget {
             const SizedBox(height: SkotiqTokens.spaceMd),
             KeyValueList(
               rows: [
-                ('Running for', _formatSessionDuration(imagingFor)),
+                ('Running for', ClockFormat.stopwatchPadded(imagingFor)),
               ],
             ),
           ],
@@ -409,15 +409,6 @@ class CapturePanel extends ConsumerWidget {
     );
   }
 
-  String _formatSessionDuration(Duration duration) {
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes.remainder(60);
-    final seconds = duration.inSeconds.remainder(60);
-    return '${hours.toString().padLeft(2, '0')}:'
-        '${minutes.toString().padLeft(2, '0')}:'
-        '${seconds.toString().padLeft(2, '0')}';
-  }
-
   void _showEndSessionDialog(
       BuildContext context, WidgetRef ref, SkotiqColors colors) {
     final sessionState = ref.read(sessionStateProvider);
@@ -452,16 +443,14 @@ class CapturePanel extends ConsumerWidget {
                     ('Images captured', '${sessionState.completedExposures}'),
                     (
                       'Total integration',
-                      formatIntegrationSeconds(
-                        sessionState.totalIntegrationSecs,
-                      ),
+                      DurationFormat.seconds(sessionState.totalIntegrationSecs),
                     ),
                     (
                       'Duration',
                       // A session with no measured duration renders an em
                       // dash, never '--:--:--'.
                       sessionState.duration != null
-                          ? _formatSessionDuration(sessionState.duration!)
+                          ? ClockFormat.stopwatchPadded(sessionState.duration!)
                           : '\u2014',
                     ),
                   ],
@@ -557,7 +546,7 @@ class CapturePanel extends ConsumerWidget {
           logger.error('[Imaging] Session ended but mount park failed: $e',
               source: 'CapturePanel', fields: {'error': e.toString()});
           if (context.mounted) {
-            context.showErrorSnackBar('Session ended, but parking failed: $e');
+            context.showErrorSnackBar('Session ended, but parking failed: ${userFacingError(e)}');
           }
         }
       }
@@ -566,7 +555,7 @@ class CapturePanel extends ConsumerWidget {
       logger.error('[Imaging] Error ending session: $e',
           source: 'CapturePanel', fields: {'error': e.toString()});
       if (context.mounted) {
-        context.showErrorSnackBar('Failed to end session: $e');
+        context.showErrorSnackBar('Failed to end session: ${userFacingError(e)}');
       }
       return false;
     }
@@ -656,7 +645,7 @@ class _CaptureSavePathButtonState extends ConsumerState<CaptureSavePathButton> {
           !identical(ref.read(backendProvider), authority)) {
         return;
       }
-      context.showErrorSnackBar('Could not update the capture folder: $error');
+      context.showErrorSnackBar('Could not update the capture folder: ${userFacingError(error)}');
     } finally {
       if (mounted && generation == _operationGeneration) {
         setState(() => _busy = false);

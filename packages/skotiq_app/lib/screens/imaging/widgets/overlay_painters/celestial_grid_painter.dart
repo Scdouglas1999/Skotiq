@@ -153,7 +153,7 @@ class CelestialGridPainter extends CustomPainter {
     if (firstVisiblePoint != null) {
       canvas.drawPath(path, paint);
 
-      final label = _formatDec(dec);
+      final label = CoordinateFormat.decCompact(dec);
       _drawLabel(canvas, size, firstVisiblePoint, label,
           alignment: _LabelEdge.left);
     }
@@ -199,7 +199,7 @@ class CelestialGridPainter extends CustomPainter {
     if (firstVisiblePoint != null) {
       canvas.drawPath(path, paint);
 
-      final label = _formatRa(raNorm);
+      final label = CoordinateFormat.raCompactFromDegrees(raNorm);
       _drawLabel(canvas, size, firstVisiblePoint, label,
           alignment: _LabelEdge.top);
     }
@@ -336,20 +336,6 @@ class CelestialGridPainter extends CustomPainter {
 
     return (min: minRa, max: maxRa);
   }
-
-  /// Format RA (degrees) as HH:MM
-  String _formatRa(double raDeg) => CoordinateFormat.raHmFromDegrees(
-        raDeg,
-        style: SexagesimalStyle.compactLetters,
-        minutes: MinutesPrecision.rounded,
-      );
-
-  /// Format Dec (degrees) as +/-DD°MM'
-  String _formatDec(double decDeg) => CoordinateFormat.decDm(
-        decDeg,
-        style: SexagesimalStyle.compactLetters,
-        minutes: MinutesPrecision.rounded,
-      );
 
   @override
   bool shouldRepaint(covariant CelestialGridPainter oldDelegate) {

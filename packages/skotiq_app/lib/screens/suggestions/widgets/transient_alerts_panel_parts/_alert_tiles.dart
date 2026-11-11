@@ -185,7 +185,7 @@ class _TransientAlertTileState extends ConsumerState<_TransientAlertTile> {
                                 ),
                               ),
                             Text(
-                              'RA ${_formatRa(alert.raHours)} Dec ${_formatDec(alert.decDegrees)}',
+                              'RA ${CoordinateFormat.raCompact(alert.raHours)} Dec ${CoordinateFormat.decCompact(alert.decDegrees)}',
                               style: TextStyle(
                                   fontSize: SkotiqTypography.fontSize11,
                                   color: colors.textMuted),
@@ -266,16 +266,6 @@ class _TransientAlertTileState extends ConsumerState<_TransientAlertTile> {
     );
   }
 
-  String _formatRa(double raHours) => CoordinateFormat.ra(
-        raHours,
-        style: SexagesimalStyle.compactLeadPlainLetters,
-        seconds: SecondsPrecision.integerFloored,
-      );
-
-  String _formatDec(double decDegrees) => CoordinateFormat.decDm(
-        decDegrees,
-        style: SexagesimalStyle.compactLeadPlainLetters,
-      );
 }
 
 class _TypeBadge extends StatelessWidget {

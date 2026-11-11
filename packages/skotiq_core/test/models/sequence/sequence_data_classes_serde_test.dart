@@ -164,7 +164,7 @@ void main() {
         singleIterationSecs: 3600,
         isUnbounded: false,
       );
-      expect(e.formatWithOverhead(), equals('1h 0m'));
+      expect(e.formatWithOverhead(), equals('1h'));
     });
 
     test('format_with_overhead_includes_total_band', () {

@@ -93,7 +93,7 @@ class NightGuideStarSection extends ConsumerWidget {
             'nightScopeGuideLost',
             params: {
               'count': '${lost.length}',
-              'time': _clockTime(clock.toNightClock(lastLost)),
+              'time': ClockFormat.hm(clock.toNightClock(lastLost)),
             },
           );
     final settle = settings?.settleThreshold;
@@ -142,7 +142,7 @@ class NightGuideStarSection extends ConsumerWidget {
                 l10n.text(
                   'nightScopeGuideSettleTimedOut',
                   params: {
-                    'time': _clockTime(clock.toNightClock(settleTimeout.at)),
+                    'time': ClockFormat.hm(clock.toNightClock(settleTimeout.at)),
                   },
                 ),
               ),
@@ -181,7 +181,7 @@ class NightGuideCalibrationSection extends ConsumerWidget {
             ? l10n.text('nightScopeGuideCalibrated')
             : l10n.text(
                 'nightScopeGuideCalibratedAt',
-                params: {'time': _clockTime(clock.toNightClock(at))},
+                params: {'time': ClockFormat.hm(clock.toNightClock(at))},
               );
     String? rate(double? value) =>
         value == null || !value.isFinite ? null : value.toStringAsFixed(2);
@@ -296,6 +296,3 @@ String guideStopReasonLabel(SkotiqLocalizations l10n, String reason) {
 String? _withUnit(String? value, String unit) =>
     value == null ? null : '$value $unit';
 
-/// `23:12`.
-String _clockTime(DateTime t) =>
-    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';

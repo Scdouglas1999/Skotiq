@@ -42,7 +42,7 @@ String describeProfileImportFailure(Object error, {String? fileName}) {
   if (error is ProfileImportException) {
     return error.message.replaceFirst('That file', subject);
   }
-  return 'Could not import $subject: $error';
+  return 'Could not import $subject: ${userFacingError(error)}';
 }
 
 Future<XFile?> _pickEquipmentProfileImport() {

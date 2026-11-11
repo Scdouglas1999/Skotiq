@@ -140,8 +140,8 @@ class _TransientCardState extends State<TransientCard> {
               const SizedBox(width: SkotiqTokens.spaceXs),
               Flexible(
                 child: Text(
-                  '${CoordinateFormat.ra(widget.alert.raHours, seconds: SecondsPrecision.integerFloored)}  '
-                  '${CoordinateFormat.dec(widget.alert.decDegrees, seconds: SecondsPrecision.integerFloored)}',
+                  '${CoordinateFormat.raReadout(widget.alert.raHours)}  '
+                  '${CoordinateFormat.decReadout(widget.alert.decDegrees)}',
                   style: SkotiqTypography.monoSm
                       .copyWith(color: colors.textSecondary),
                   overflow: TextOverflow.ellipsis,
@@ -375,22 +375,10 @@ class _TransientCardState extends State<TransientCard> {
     }
   }
 
-  String _formatDateTime(DateTime dateTime) {
-    final now = DateTime.now();
-    final diff = now.difference(dateTime);
-
-    if (diff.inDays > 7) {
-      return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}';
-    } else if (diff.inDays > 0) {
-      return '${diff.inDays}d ago';
-    } else if (diff.inHours > 0) {
-      return '${diff.inHours}h ago';
-    } else if (diff.inMinutes > 0) {
-      return '${diff.inMinutes}m ago';
-    } else {
-      return 'Just now';
-    }
-  }
+  String _formatDateTime(DateTime dateTime) =>
+      DateTime.now().difference(dateTime).inDays > 7
+          ? ClockFormat.date(dateTime)
+          : RelativeTime.ago(dateTime);
 }
 
 class _StateBadge extends StatelessWidget {

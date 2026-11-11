@@ -1,24 +1,6 @@
 part of '../imaging_screen.dart';
 
 extension _ImagingScreenActions on _ImagingScreenState {
-  /// Strips a leading `SomeException(category): ` prefix so capture failures
-  /// read as English for the operator.
-  ///
-  /// A raw `$error` interpolation puts the Dart class name in front of the
-  /// operator ("Capture error: SkotiqException(connection): Camera not
-  /// connected"). Matched on `toString()` rather than the exception type
-  /// because `SkotiqException` is intentionally NOT exported from the
-  /// `skotiq_core` barrel, so this layer cannot type-check it without
-  /// widening that surface. The full object still reaches the log untouched.
-  static final RegExp _exceptionPrefix =
-      RegExp(r'^[A-Za-z_][A-Za-z0-9_]*(?:\([^)]*\))?:\s*');
-
-  String _captureErrorText(Object error) {
-    final raw = error.toString().trim();
-    final stripped = raw.replaceFirst(_exceptionPrefix, '').trim();
-    return stripped.isEmpty ? raw : stripped;
-  }
-
   /// Initialize the annotation service so it starts listening for new images
   void _initializeAnnotationService() {
     // Reading the provider creates the AnnotationService instance
@@ -86,7 +68,7 @@ extension _ImagingScreenActions on _ImagingScreenState {
       }
     } catch (e) {
       if (!mounted) return;
-      context.showErrorSnackBar('Capture failed: ${_captureErrorText(e)}');
+      context.showErrorSnackBar('Capture failed: ${userFacingError(e)}');
     } finally {
       previewSubscription.close();
       if (mounted) {
@@ -117,7 +99,7 @@ extension _ImagingScreenActions on _ImagingScreenState {
     try {
       await controller.loop(onError: (error) {
         if (!mounted) return;
-        context.showErrorSnackBar('Capture stopped: $error');
+        context.showErrorSnackBar('Capture stopped: ${userFacingError(error)}');
       });
     } finally {
       if (identical(_startedLoop, controller)) _startedLoop = null;

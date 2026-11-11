@@ -8,6 +8,9 @@ environment:
   flutter: ">=3.0.0"
 
 dependencies:
+  # Formatters only (package:skotiq_astro/format.dart); astro is pure Dart.
+  skotiq_astro:
+    path: ../skotiq_astro
   skotiq_design:
     path: ../skotiq_design
   flutter:

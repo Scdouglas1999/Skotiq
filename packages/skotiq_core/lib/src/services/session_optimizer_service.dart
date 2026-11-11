@@ -2,7 +2,7 @@ import '../database/database.dart' as db;
 import '../models/optical_config.dart';
 import '../models/planning/target_suggestion.dart';
 import '../models/session_report.dart';
-import '../utils/duration_format.dart';
+import 'package:skotiq_astro/format.dart';
 import 'mosaic_service.dart';
 import 'target_suggestion_service.dart';
 import 'smart_night/exposure_calculator.dart';
@@ -624,7 +624,7 @@ class SessionOptimizerService {
           thresholds.altitudeSuggestionMarginDeg;
       final formattedDur = DurationFormat.of(
         Duration(seconds: trace.secondsBelowMinAltitude.round()),
-        style: DurationStyle.compact,
+        style: DurationStyle.coarse,
       );
       final id =
           'altitude_window:${trace.targetId ?? trace.targetName.toLowerCase()}';

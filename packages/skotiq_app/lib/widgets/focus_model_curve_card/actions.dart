@@ -93,7 +93,7 @@ class _ActionRowState extends ConsumerState<_ActionRow> {
       }
     } catch (error) {
       if (_isCurrent(backend, generation)) {
-        _showMessage('Focus model action failed: $error');
+        _showMessage('Focus model action failed: ${userFacingError(error)}');
       }
     } finally {
       if (_isCurrent(backend, generation)) {
@@ -433,7 +433,8 @@ class _FocusImportDialogState extends State<_FocusImportDialog> {
       }
       Navigator.of(context).pop(Map<String, dynamic>.from(decoded));
     } catch (error) {
-      setState(() => _error = 'Invalid focus-data JSON: $error');
+      setState(
+          () => _error = 'Invalid focus-data JSON: ${userFacingError(error)}');
     }
   }
 
@@ -487,7 +488,8 @@ class _PredictiveAfRow extends ConsumerWidget {
       if (predicted != null) 'predicted $predicted',
       if (confidence != null) 'R² ${confidence.toStringAsFixed(2)}',
       if (status.actualPosition != null) 'actual ${status.actualPosition}',
-      if (error != null) 'Δ ${error >= 0 ? '+' : ''}$error steps',
+      if (error != null)
+        'Δ ${error >= 0 ? '+' : ''}${userFacingError(error)} steps',
     ];
 
     final tone = switch (status.decision) {

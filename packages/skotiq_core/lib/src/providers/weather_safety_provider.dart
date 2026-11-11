@@ -1,7 +1,9 @@
+import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
 import '../models/weather/weather_models.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/settings/app_settings.dart';
@@ -319,7 +321,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     } catch (error) {
       if (!mounted) return;
       final failure = WeatherSafetyState.initial().copyWith(
-        failModeWarning: 'Weather safety configuration unavailable: $error',
+        failModeWarning: 'Weather safety configuration unavailable: ${userFacingError(error)}',
         lastEvaluation: DateTime.now(),
       );
       state = failure;
@@ -429,7 +431,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     if (alertStale) {
       failModeWarning ??=
           'The weather forecast has not refreshed since '
-          '${_clockTime(rawAlert.generatedAt)}; it is not being acted on';
+          '${ClockFormat.hm(rawAlert.generatedAt.toLocal())}; it is not being acted on';
     }
     bool useFailMode = false;
 
@@ -678,12 +680,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     return _clock().difference(alert.generatedAt) > maxAge;
   }
 
-  static String _clockTime(DateTime at) {
-    final local = at.toLocal();
-    return '${local.hour.toString().padLeft(2, '0')}:'
-        '${local.minute.toString().padLeft(2, '0')}';
-  }
-
   /// The decision policy as loaded so far; the defaults until it is.
   WeatherDecisionPolicy _currentDecisionPolicy() {
     if (!_decisionPolicyWatched) return WeatherDecisionPolicy.defaults;
@@ -791,7 +787,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
             .catchError((Object error) {
               if (mounted) {
                 state = WeatherSafetyState.initial().copyWith(
-                  failModeWarning: 'Could not snooze host safety: $error',
+                  failModeWarning: 'Could not snooze host safety: ${userFacingError(error)}',
                   lastEvaluation: DateTime.now(),
                 );
               }
@@ -872,7 +868,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
             .catchError((Object error) {
               if (mounted) {
                 state = WeatherSafetyState.initial().copyWith(
-                  failModeWarning: 'Could not cancel host snooze: $error',
+                  failModeWarning: 'Could not cancel host snooze: ${userFacingError(error)}',
                   lastEvaluation: DateTime.now(),
                 );
               }

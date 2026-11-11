@@ -1,3 +1,4 @@
+import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
@@ -19,7 +20,6 @@ import '../models/target/target_models.dart';
 import '../services/mosaic_project_service.dart';
 import '../services/sensor_specs/camera_sensor_specs.dart';
 import '../services/target_library_service.dart';
-import '../utils/coordinate_format.dart';
 import '../utils/coordinate_parser.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';

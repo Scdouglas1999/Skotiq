@@ -702,7 +702,7 @@ String targetPlanSummary(PlannedCapture planned) {
   if (planned.frames > 0) {
     final integration = DurationFormat.seconds(
       planned.integrationSecs,
-      style: DurationStyle.compact,
+      style: DurationStyle.coarse,
     );
     parts.add(
       '${countLabel(planned.frames, 'frame')} \u00b7 $integration'
@@ -713,7 +713,7 @@ String targetPlanSummary(PlannedCapture planned) {
     final budget = planned.openEndedBudgetSecs > 0
         ? 'looping up to ${DurationFormat.seconds(
             planned.openEndedBudgetSecs,
-            style: DurationStyle.compact,
+            style: DurationStyle.coarse,
           )}'
         : 'looping until the window closes';
     parts.add(parts.isEmpty ? _sentenceCase(budget) : budget);
@@ -773,15 +773,8 @@ class _InSequenceRow extends ConsumerWidget {
     final chipLabels = unset
         ? const <String>['Not set']
         : <String>[
-            CoordinateFormat.raHm(
-              node.raHours,
-              style: SexagesimalStyle.compactLetters,
-              wrapHours: true,
-            ),
-            CoordinateFormat.decDm(
-              node.decDegrees,
-              style: SexagesimalStyle.compactLetters,
-            ),
+            CoordinateFormat.raCompact(node.raHours),
+            CoordinateFormat.decCompact(node.decDegrees),
           ];
 
     return Semantics(
@@ -1003,7 +996,7 @@ class _RowCard extends StatelessWidget {
         : _formatTimeRemaining(v!.setTime!);
 
     final coordsText =
-        'RA ${_formatHours(target.coordinates.ra)}  Dec ${_formatDegrees(target.coordinates.dec)}';
+        'RA ${CoordinateFormat.raCompact(target.coordinates.ra)}  Dec ${CoordinateFormat.decCompact(target.coordinates.dec)}';
 
     final accent = target.isActive ? colors.primary : colors.border;
     return Container(
@@ -1100,20 +1093,6 @@ class _RowCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static String _formatHours(double ra) {
-    final h = ra.floor();
-    final m = ((ra - h) * 60).floor();
-    return '${h.toString().padLeft(2, '0')}h${m.toString().padLeft(2, '0')}m';
-  }
-
-  static String _formatDegrees(double dec) {
-    final sign = dec >= 0 ? '+' : '-';
-    final absDec = dec.abs();
-    final d = absDec.floor();
-    final m = ((absDec - d) * 60).floor();
-    return '$sign${d.toString().padLeft(2, '0')}°${m.toString().padLeft(2, '0')}\'';
   }
 
   static String _formatTimeRemaining(DateTime when) {
