@@ -21,13 +21,10 @@ import 'motion_indicator.dart';
 /// user location marker, alert radius circle, and optional cloud motion indicator.
 /// Supports both compact (dashboard) and full-screen modes.
 class WeatherRadarMap extends ConsumerStatefulWidget {
-  /// Current radar frame to display
   final RadarFrame? currentFrame;
 
-  /// User's latitude
   final double latitude;
 
-  /// User's longitude
   final double longitude;
 
   /// Compact mode for dashboard widget
@@ -114,7 +111,6 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
     super.dispose();
   }
 
-  /// Formats how long ago [time] was, in compact human terms.
   String _formatAge(DateTime time) {
     final diff = DateTime.now().difference(time);
     if (diff.inSeconds < 60) return 'just now';
@@ -123,10 +119,7 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
     return '${diff.inDays}d ago';
   }
 
-  /// Calculate initial zoom level to fit alert radius
   double _calculateInitialZoom() {
-    // Approximate zoom level based on alert radius
-    // Larger radius = zoom out more
     if (widget.alertRadiusKm <= 10) return 11.0;
     if (widget.alertRadiusKm <= 30) return 9.0;
     if (widget.alertRadiusKm <= 50) return 8.0;
@@ -176,7 +169,6 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
     ]);
   }
 
-  /// Wraps a tile widget with contrast enhancement and opacity.
   Widget _buildEnhancedTile(
       Widget tileWidget, double opacity, double contrast) {
     if (contrast <= 0 && opacity >= 1.0) {
@@ -188,7 +180,6 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
     );
   }
 
-  /// Builds the appropriate tile layer based on the frame's tile type
   Widget _buildRadarTileLayer(
       RadarFrame frame, double opacity, double contrast) {
     // Create tile bounds from frame coverage to prevent NaN errors
@@ -275,7 +266,6 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
 
     final userLocation = LatLng(widget.latitude, widget.longitude);
 
-    // Build the map widget
     final mapWidget = FlutterMap(
       mapController: _mapController,
       options: MapOptions(
@@ -356,7 +346,6 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
           },
         ),
 
-        // Radar overlay layer - handles both XYZ and WMS tile types
         if (widget.currentFrame != null) ...[
           _buildRadarTileLayer(
             widget.currentFrame!,
@@ -390,7 +379,6 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
               RedNightImage(child: tileWidget),
         ),
 
-        // Alert radius circle
         CircleLayer(
           circles: [
             CircleMarker(
@@ -404,7 +392,6 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
           ],
         ),
 
-        // User location marker
         MarkerLayer(
           markers: [
             Marker(
@@ -417,7 +404,6 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
           ],
         ),
 
-        // Cloud motion indicator (if provided)
         if (widget.motionDirection != null)
           MarkerLayer(
             markers: [
@@ -447,7 +433,6 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
       ],
     );
 
-    // Wrap with controls if not compact
     if (widget.compact) {
       return ClipRRect(
         borderRadius: SkotiqTokens.borderRadiusLg,
