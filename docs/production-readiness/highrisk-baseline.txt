@@ -26,7 +26,6 @@ native/skotiq_native/bridge/src/api/darkroom/composite_tests.rs	drafted_backgrou
 native/skotiq_native/bridge/src/api/darkroom/real_master_harness_tests.rs	darkroom_real_composite	highrisk	1	baseline	let steps = recipe["steps"].as_array().cloned().unwrap_or_default();
 native/skotiq_native/bridge/src/api/finishing_analyze.rs	image_to_f64	highrisk	2	baseline	.unwrap_or_default(),
 native/skotiq_native/bridge/src/api/imaging.rs	api_detect_stars_in_file	highrisk	1	baseline	let config = config.unwrap_or_default();
-native/skotiq_native/bridge/src/api/imaging.rs	api_update_fits_keywords	highrisk	1	baseline	let mut ext = p.extension().map(|e| e.to_owned()).unwrap_or_default();
 native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	a_manual_capture_frame_solves_at_the_mounts_pointing	highrisk	1	baseline	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
 native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	the_manual_capture_path_renders_the_catalogue_sky	highrisk	1	baseline	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
 native/skotiq_native/bridge/src/api/mod.rs	-	highrisk	1	baseline	/// silent no-op — and silent no-ops mask real bugs. If a
@@ -121,15 +120,8 @@ native/skotiq_native/bridge/src/dispatch/device_common_metadata.rs	-	highrisk	1	
 native/skotiq_native/bridge/src/dispatch/device_common_metadata.rs	-	highrisk	1	baseline	let driver_version = device.driver_version().await.ok();
 native/skotiq_native/bridge/src/dispatch/device_common_metadata.rs	-	highrisk	1	baseline	let interface_version = device.interface_version().await.ok();
 native/skotiq_native/bridge/src/dispatch/native.rs	connect_native	highrisk	1	baseline	.unwrap_or_default()
-native/skotiq_native/bridge/src/event/correlation.rs	-	highrisk	1	baseline	/// `duration_since(UNIX_EPOCH).unwrap_or_default()` — only fails if the
-native/skotiq_native/bridge/src/event/correlation.rs	generate_correlation_id	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/bridge/src/hotplug.rs	current_time_ms	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/bridge/src/hotplug.rs	start_platform_hotplug_listener	highrisk	1	baseline	tracing::debug!("USB hotplug listener is not implemented for this Unix platform yet");
-native/skotiq_native/bridge/src/lib.rs	export_logs_to_file	highrisk	1	baseline	write!(output, "{}", content).ok();
-native/skotiq_native/bridge/src/lib.rs	export_logs_to_file	highrisk	1	baseline	writeln!(output, "").ok();
-native/skotiq_native/bridge/src/lib.rs	export_logs_to_file	highrisk	1	baseline	writeln!(output, "=== Skotiq Log Export ===").ok();
-native/skotiq_native/bridge/src/lib.rs	export_logs_to_file	highrisk	1	baseline	writeln!(output, "Exported: {}", chrono::Local::now().to_rfc3339()).ok();
-native/skotiq_native/bridge/src/lib.rs	export_logs_to_file	highrisk	1	baseline	writeln!(output, "\n=== {} ===\n", log_file).ok();
 native/skotiq_native/bridge/src/lib.rs	init_native_internal	highrisk	1	baseline	LOG_DIR.set(log_path.clone()).ok();
 native/skotiq_native/bridge/src/lib.rs	init_native_internal	highrisk	1	baseline	LOG_GUARD.set(guard).ok();
 native/skotiq_native/bridge/src/sim_sky.rs	astap_dir	highrisk	1	baseline	let home = std::env::var("HOME").unwrap_or_default();
@@ -151,7 +143,6 @@ native/skotiq_native/imaging/src/raw.rs	read_raw	highrisk	1	baseline	max_memory_
 native/skotiq_native/imaging/src/raw.rs	read_raw	highrisk	1	baseline	user_sat: params.user_sat.unwrap_or_default(),
 native/skotiq_native/imaging/src/recipe/ops/channel_combine.rs	apply_measured	highrisk	1	baseline	|role: FilterRole| -> Vec<Vec<f32>> { by_role.get(&role).cloned().unwrap_or_default() };
 native/skotiq_native/imaging/src/recipe/ops/channel_combine.rs	read_settings	highrisk	1	baseline	for (role, sigma) in raw.star_sigma.unwrap_or_default() {
-native/skotiq_native/indi/src/autofocus.rs	run	highrisk	1	baseline	let current_temperature = self.focuser.get_temperature().await.ok();
 native/skotiq_native/indi/src/client/properties.rs	set_switch_exclusive	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/indi/src/client/reader.rs	reader_task_with_timeout	highrisk	1	baseline	group: get_attribute(e, "group").unwrap_or_default(),
 native/skotiq_native/indi/src/client/reader.rs	reader_task_with_timeout	highrisk	1	baseline	let text = e.unescape().unwrap_or_default().to_string();
