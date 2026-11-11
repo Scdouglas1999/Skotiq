@@ -126,7 +126,9 @@ class CatalogNameQuery {
     return false;
   }
 
-  /// Whether any newline-separated segment of [joined] occurs inside [text].
+  /// Whether any newline-separated segment of [joined] occurs inside [text]
+  /// without cutting a number short: "m3" is not within "m31", but "ngc7000"
+  /// is within "ngc7000nebula".
   static bool _hasSegmentWithin(String joined, String text) {
     var start = 0;
     while (start < joined.length) {
@@ -140,11 +142,24 @@ class CatalogNameQuery {
               joined.codeUnitAt(start + k) == text.codeUnitAt(at + k)) {
             k++;
           }
-          if (k == length) return true;
+          if (k == length &&
+              !_splitsNumber(text, at) &&
+              !_splitsNumber(text, at + length)) {
+            return true;
+          }
         }
       }
       start = end + 1;
     }
     return false;
   }
+
+  /// Whether a cut of [text] before index [at] falls between two digits.
+  static bool _splitsNumber(String text, int at) =>
+      at > 0 &&
+      at < text.length &&
+      _isDigit(text.codeUnitAt(at - 1)) &&
+      _isDigit(text.codeUnitAt(at));
+
+  static bool _isDigit(int codeUnit) => codeUnit >= 0x30 && codeUnit <= 0x39;
 }

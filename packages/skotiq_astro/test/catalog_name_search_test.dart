@@ -11,6 +11,16 @@ const _header =
     'x,y,z,vx,vy,vz,rarad,decrad,pmrarad,pmdecrad,bayer,flam,con,comp,'
     'comp_primary,base,lum,var,var_min,var_max';
 
+const _openNgcHeader =
+    'Name;Type;RA;Dec;Const;MajAx;MinAx;PosAng;B-Mag;V-Mag;J-Mag;H-Mag;K-Mag;'
+    'SurfBr;Hubble;Pax;Pm-RA;Pm-Dec;RadVel;Redshift;Cstar U-Mag;Cstar B-Mag;'
+    'Cstar V-Mag;M;NGC;IC;Cstar Names;Identifiers;Common names;NED notes;'
+    'OpenNGC notes;Sources';
+
+String _dso(String id, String messier, {String common = ''}) =>
+    '$id;G;00:42:44.35;+41:16:08.6;And;10.00;5.00;;4.00;4.00;;;;;;;;;;;;;;'
+    '$messier;;;;;$common;;;test';
+
 String _row({
   required int id,
   required int hip,
@@ -33,6 +43,15 @@ void main() {
         _row(id: 1, hip: 91262, proper: 'Vega', con: 'Lyr', mag: 0.03),
         _row(id: 2, hip: 3881, bayer: 'Nu', con: 'And'),
         _row(id: 3, hip: 3293, mag: 7.0),
+      ].join('\n'),
+    );
+    await File('${dir.path}/NGC.csv').writeAsString(
+      [
+        _openNgcHeader,
+        _dso('NGC5272', '003'),
+        _dso('NGC0224', '031'),
+        _dso('NGC0700', ''),
+        _dso('NGC7000', '', common: 'North America Nebula'),
       ].join('\n'),
     );
     await CatalogManager.instance.initialize(dir.path);
@@ -59,5 +78,17 @@ void main() {
     expect(bayer.single.name, 'Nu Andromedae');
     final bare = await CatalogManager.instance.search('HIP 3293');
     expect(bare.single.name, 'HIP 3293');
+  });
+
+  test('a designation does not find the objects whose number it extends',
+      () async {
+    Future<List<String>> ids(String query) async => [
+          for (final r in await CatalogManager.instance.search(query))
+            r.catalogId,
+        ];
+    expect(await ids('M31'), ['NGC224']);
+    expect(await ids('M 3'), contains('NGC5272'));
+    expect(await ids('NGC 7000'), ['NGC7000']);
+    expect(await ids('NGC 7000 nebula'), ['NGC7000']);
   });
 }
