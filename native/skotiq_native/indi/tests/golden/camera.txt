@@ -1,0 +1,68 @@
+## get_temperature, published
+result: Ok(-10.5)
+sent: (nothing)
+
+## get_temperature, not published
+result: Err(Temperature not available)
+sent: (nothing)
+
+## get_gain, published
+result: Ok(120)
+sent: (nothing)
+
+## get_gain, not published
+result: Err(Gain not available)
+sent: (nothing)
+
+## get_offset, published
+result: Ok(30)
+sent: (nothing)
+
+## get_offset, not published
+result: Err(Offset not available)
+sent: (nothing)
+
+## reset_frame, published sensor size
+result: Ok(())
+sent: <newNumberVector device="CCD" name="CCD_FRAME"><oneNumber name="X">0</oneNumber><oneNumber name="Y">0</oneNumber><oneNumber name="WIDTH">4656</oneNumber><oneNumber name="HEIGHT">3520</oneNumber></newNumberVector>
+
+## reset_frame, no sensor size
+result: Err(Sensor width not available)
+sent: (nothing)
+
+## reset_frame, width without height
+result: Err(Sensor height not available)
+sent: (nothing)
+
+## reset_frame, read-only frame
+result: Err(Permission denied: Property 'CCD_FRAME' is read-only)
+sent: (nothing)
+
+## capture_image_with_timeout, image on CCD1
+result: Ok([255, 216, 255, 224, 0, 0])
+sent: <newNumberVector device="CBlob" name="CCD_EXPOSURE"><oneNumber name="CCD_EXPOSURE_VALUE">0.1</oneNumber></newNumberVector>
+
+## capture_image_with_timeout, image on CCD2
+result: Ok([255, 216, 255, 224, 0, 0])
+sent: <newNumberVector device="CBlob2" name="CCD_EXPOSURE"><oneNumber name="CCD_EXPOSURE_VALUE">0.1</oneNumber></newNumberVector>
+
+## capture_image_with_timeout, no image arrives
+result: Err(Timeout waiting for image from device 'CCD' after exposure of 0.1s + buffer of 200ms. The camera may have failed to complete the exposure or transfer the image.)
+sent: <newNumberVector device="CCD" name="CCD_EXPOSURE"><oneNumber name="CCD_EXPOSURE_VALUE">0.1</oneNumber></newNumberVector>
+
+## capture_image_with_timeout, exposure beyond the driver's limits
+result: Err(Value 4000 out of range [0, 3600] for CCD.CCD_EXPOSURE.CCD_EXPOSURE_VALUE)
+sent: (nothing)
+
+## capture_image_with_timeout, client not connected
+result: Err(Not connected to INDI server)
+sent: (client never connected)
+
+## reset_frame, client not connected
+result: Err(Sensor width not available)
+sent: (client never connected)
+
+## get_temperature, client not connected
+result: Err(Temperature not available)
+sent: (client never connected)
+

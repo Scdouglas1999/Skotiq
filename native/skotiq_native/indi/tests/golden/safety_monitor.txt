@@ -1,0 +1,56 @@
+## is_safe, SWeatherOk
+result: Ok(true)
+sent: (nothing)
+
+## is_safe, SWeatherIdle
+result: Ok(true)
+sent: (nothing)
+
+## is_safe, SWeatherBusy
+result: Ok(false)
+sent: (nothing)
+
+## is_safe, SWeatherAlert
+result: Ok(false)
+sent: (nothing)
+
+## is_safe, SSwitchSafe
+result: Ok(true)
+sent: (nothing)
+
+## is_safe, SSwitchUnsafe
+result: Ok(false)
+sent: (nothing)
+
+## is_safe, SAuxOn
+result: Ok(true)
+sent: (nothing)
+
+## is_safe, SAuxOff
+result: Ok(false)
+sent: (nothing)
+
+## is_safe, SRain
+result: Ok(false)
+sent: (nothing)
+
+## is_safe, SWind
+result: Ok(false)
+sent: (nothing)
+
+## is_safe, SClouds
+result: Ok(false)
+sent: (nothing)
+
+## is_safe, SQuiet
+result: Err(No INDI safety indicators resolved for device 'SQuiet' (checked WEATHER_STATUS/WEATHER_SAFE, SAFETY_STATUS/SAFE, AUX_SAFETY/ENABLED, and rain/wind/cloud alerts))
+sent: (nothing)
+
+## is_safe, Bare
+result: Err(No INDI safety indicators resolved for device 'Bare' (checked WEATHER_STATUS/WEATHER_SAFE, SAFETY_STATUS/SAFE, AUX_SAFETY/ENABLED, and rain/wind/cloud alerts))
+sent: (nothing)
+
+## is_safe, client not connected
+result: Err(No INDI safety indicators resolved for device 'Safety' (checked WEATHER_STATUS/WEATHER_SAFE, SAFETY_STATUS/SAFE, AUX_SAFETY/ENABLED, and rain/wind/cloud alerts))
+sent: (client never connected)
+

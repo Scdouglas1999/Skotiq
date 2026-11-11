@@ -1,0 +1,85 @@
+## get_position, published
+result: Ok(5000)
+sent: (nothing)
+
+## get_position, not published
+result: Err(Position not available)
+sent: (nothing)
+
+## get_temperature, published
+result: Ok(12.5)
+sent: (nothing)
+
+## get_temperature, not published
+result: Err(Temperature not available)
+sent: (nothing)
+
+## move_to_with_timeout, driver goes Busy then Ok at the target
+result: Ok(())
+sent: <newNumberVector device="FAbsOk" name="ABS_FOCUS_POSITION"><oneNumber name="FOCUS_ABSOLUTE_POSITION">6000</oneNumber></newNumberVector>
+
+## move_to_with_timeout, driver stays Busy past the timeout
+result: Err(Focuser move to position 6000 failed: Operation timeout for device 'FAbsBusy', property 'ABS_FOCUS_POSITION': Timed out waiting for property to finish (not Busy) after 300ms)
+sent: <newNumberVector device="FAbsBusy" name="ABS_FOCUS_POSITION"><oneNumber name="FOCUS_ABSOLUTE_POSITION">6000</oneNumber></newNumberVector>
+
+## move_to_with_timeout, driver answers Alert
+result: Err(Device alert: FAbsAlert refused the focuser move (ABS_FOCUS_POSITION went to Alert))
+sent: <newNumberVector device="FAbsAlert" name="ABS_FOCUS_POSITION"><oneNumber name="FOCUS_ABSOLUTE_POSITION">6000</oneNumber></newNumberVector>
+
+## move_to_with_timeout, driver goes Busy then Alert
+result: Err(Focuser move to position 6000 failed: Operation timeout for device 'FAbsLate', property 'ABS_FOCUS_POSITION': Property entered Alert state)
+sent: <newNumberVector device="FAbsLate" name="ABS_FOCUS_POSITION"><oneNumber name="FOCUS_ABSOLUTE_POSITION">6000</oneNumber></newNumberVector>
+
+## move_to_with_timeout, target beyond the driver's limits
+result: Err(Value 60000 out of range [0, 50000] for Focuser.ABS_FOCUS_POSITION.FOCUS_ABSOLUTE_POSITION)
+sent: (nothing)
+
+## move_to, driver answers Alert
+result: Err(Device alert: FAbsAlert refused the focuser move (ABS_FOCUS_POSITION went to Alert))
+sent: <newNumberVector device="FAbsAlert" name="ABS_FOCUS_POSITION"><oneNumber name="FOCUS_ABSOLUTE_POSITION">6000</oneNumber></newNumberVector>
+
+## move_relative_with_timeout, inward, driver goes Busy then Ok
+result: Ok(())
+sent: <newSwitchVector device="FRelOk" name="FOCUS_MOTION"><oneSwitch name="FOCUS_IN">On</oneSwitch><oneSwitch name="FOCUS_OUT">Off</oneSwitch></newSwitchVector>
+sent: <newNumberVector device="FRelOk" name="REL_FOCUS_POSITION"><oneNumber name="FOCUS_RELATIVE_POSITION">100</oneNumber></newNumberVector>
+
+## move_relative_with_timeout, outward
+result: Ok(())
+sent: <newSwitchVector device="FRelOut" name="FOCUS_MOTION"><oneSwitch name="FOCUS_IN">Off</oneSwitch><oneSwitch name="FOCUS_OUT">On</oneSwitch></newSwitchVector>
+sent: <newNumberVector device="FRelOut" name="REL_FOCUS_POSITION"><oneNumber name="FOCUS_RELATIVE_POSITION">50</oneNumber></newNumberVector>
+
+## move_relative_with_timeout, driver stays Busy past the timeout
+result: Err(Focuser relative move by 100 steps failed: Operation timeout for device 'FRelBusy', property 'REL_FOCUS_POSITION': Timed out waiting for property to finish (not Busy) after 300ms)
+sent: <newSwitchVector device="FRelBusy" name="FOCUS_MOTION"><oneSwitch name="FOCUS_IN">On</oneSwitch><oneSwitch name="FOCUS_OUT">Off</oneSwitch></newSwitchVector>
+sent: <newNumberVector device="FRelBusy" name="REL_FOCUS_POSITION"><oneNumber name="FOCUS_RELATIVE_POSITION">100</oneNumber></newNumberVector>
+
+## move_relative_with_timeout, driver answers Alert
+result: Err(Device alert: FRelAlert refused the focuser move (REL_FOCUS_POSITION went to Alert))
+sent: <newSwitchVector device="FRelAlert" name="FOCUS_MOTION"><oneSwitch name="FOCUS_IN">On</oneSwitch><oneSwitch name="FOCUS_OUT">Off</oneSwitch></newSwitchVector>
+sent: <newNumberVector device="FRelAlert" name="REL_FOCUS_POSITION"><oneNumber name="FOCUS_RELATIVE_POSITION">100</oneNumber></newNumberVector>
+
+## move_to_with_timeout, driver never answers (default timeout)
+result: Ok(())
+sent: <newNumberVector device="FAbsSilent" name="ABS_FOCUS_POSITION"><oneNumber name="FOCUS_ABSOLUTE_POSITION">6000</oneNumber></newNumberVector>
+
+## move_to, driver never answers
+result: Ok(())
+sent: <newNumberVector device="FAbsSilent" name="ABS_FOCUS_POSITION"><oneNumber name="FOCUS_ABSOLUTE_POSITION">6100</oneNumber></newNumberVector>
+
+## move_relative_with_timeout, no relative property
+result: Err(Focuser relative move by 100 steps failed: Operation timeout for device 'Bare', property 'REL_FOCUS_POSITION': Timed out waiting for property to finish (not Busy) after 300ms)
+sent: <newSwitchVector device="Bare" name="FOCUS_MOTION"><oneSwitch name="FOCUS_IN">On</oneSwitch></newSwitchVector>
+sent: <newNumberVector device="Bare" name="REL_FOCUS_POSITION"><oneNumber name="FOCUS_RELATIVE_POSITION">100</oneNumber></newNumberVector>
+
+## move_to_with_timeout, client not connected
+result: Err(Not connected to INDI server)
+sent: (client never connected)
+
+## move_relative_with_timeout, client not connected
+result: Err(Not connected to INDI server)
+sent: (client never connected)
+
+## get_position, client not connected
+result: Err(Position not available)
+sent: (client never connected)
+
