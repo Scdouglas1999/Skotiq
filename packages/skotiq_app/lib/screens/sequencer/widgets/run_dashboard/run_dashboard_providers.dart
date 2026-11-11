@@ -251,17 +251,6 @@ final runDashboardSessionIntegrationProvider =
   );
 });
 
-/// Pulls accepted light-frame integration totals from the database for the
-/// session id provided. Derived from [runDashboardSessionIntegrationProvider]
-/// so callers that only need the accepted map (e.g. the budget panel) don't
-/// trigger a second DB scan.
-final runDashboardSessionFilterTotalsProvider =
-    Provider.family<AsyncValue<Map<String, double>>, int>((ref, sessionId) {
-  return ref
-      .watch(runDashboardSessionIntegrationProvider(sessionId))
-      .whenData((integration) => integration.acceptedSecs);
-});
-
 /// Combined per-filter totals + goals for the active sequence/session.
 ///
 /// Surfaces three honest quantities per filter:
