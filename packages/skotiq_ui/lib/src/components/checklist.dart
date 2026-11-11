@@ -7,7 +7,8 @@ import '../theme/skotiq_typography.dart';
 
 /// Where a checklist step stands.
 enum ChecklistStepState {
-  /// Finished. The title is struck through and the disc carries a check.
+  /// Finished. The disc carries a check and the title steps back to the
+  /// secondary ink. Not struck through: a struck line reads as canceled.
   done,
 
   /// The step to do next. The disc takes the accent tint and a halo.
@@ -43,8 +44,8 @@ class ChecklistStep {
 /// The numbered setup list on Tonight — the ONE place a setup problem is
 /// stated.
 ///
-/// It replaces ten tour toasts and four catalog nags. Done steps are struck
-/// through, the next one is highlighted, and every step that is still open
+/// It replaces ten tour toasts and four catalog nags. Done steps are checked
+/// off, the next one is highlighted, and every step that is still open
 /// carries its own action.
 class Checklist extends StatelessWidget {
   const Checklist({super.key, required this.steps});
@@ -124,8 +125,6 @@ class _ChecklistRow extends StatelessWidget {
                   step.title,
                   style: SkotiqTypography.bodyStrong.copyWith(
                     color: done ? colors.textSecondary : colors.textPrimary,
-                    decoration: done ? TextDecoration.lineThrough : null,
-                    decorationColor: colors.textSecondary,
                   ),
                 ),
                 if (step.detail != null)
