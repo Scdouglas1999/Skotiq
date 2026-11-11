@@ -114,7 +114,7 @@ class _TargetDisplayPainter extends CustomPainter {
 
     _drawCrosshairs(canvas, center, radius);
 
-    _drawScaleLabels(canvas, center, radius);
+    _drawScaleLegend(canvas, size);
 
     _drawHistory(canvas, center, pixelsPerArcsec);
 
@@ -167,37 +167,30 @@ class _TargetDisplayPainter extends CustomPainter {
     canvas.drawCircle(center, 2, centerPaint);
   }
 
-  void _drawScaleLabels(Canvas canvas, Offset center, double radius) {
+  /// The ring spacing, once, in the corner outside the rings: labels on the
+  /// rings sat on top of the scatter of recent steps.
+  void _drawScaleLegend(Canvas canvas, Size size) {
+    final number = scaleArcsec == scaleArcsec.roundToDouble()
+        ? scaleArcsec.toStringAsFixed(0)
+        : scaleArcsec.toStringAsFixed(1);
     final textPainter = TextPainter(
       textDirection: TextDirection.ltr,
-    );
-
-    // Outermost first, so the ring that names the full scale always gets its
-    // label; an inner label that would touch the one outside it is left out.
-    double? nextLeft;
-    for (int i = numRings; i >= 1; i--) {
-      final value = scaleArcsec * i;
-      final number = value == value.roundToDouble()
-          ? value.toStringAsFixed(0)
-          : value.toStringAsFixed(1);
-      textPainter.text = TextSpan(
-        text: '$number$unitSuffix',
+      text: TextSpan(
+        text: 'rings $number$unitSuffix',
         style: TextStyle(
-          color: colors.textMuted.withValues(alpha: 0.7),
+          color: colors.textMuted,
           fontSize: SkotiqTypography.fontSize9,
           fontWeight: FontWeight.w500,
         ),
-      );
-      textPainter.layout();
-
-      final ringRadius = (radius / numRings) * i;
-      final left = center.dx + ringRadius - textPainter.width - 4;
-      if (nextLeft != null && left + textPainter.width + 4 > nextLeft) {
-        continue;
-      }
-      textPainter.paint(canvas, Offset(left, center.dy + 4));
-      nextLeft = left;
-    }
+      ),
+    )..layout();
+    textPainter.paint(
+      canvas,
+      Offset(
+        size.width - textPainter.width - 2,
+        size.height - textPainter.height,
+      ),
+    );
     textPainter.dispose();
   }
 
