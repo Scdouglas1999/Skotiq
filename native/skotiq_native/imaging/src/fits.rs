@@ -479,7 +479,7 @@ pub fn copy_astrometry_headers(dst: &mut FitsHeader, src: &FitsHeader) -> usize 
 
 /// Carry the source frame's observation identity ([`is_observation_keyword`])
 /// into `dst`, returning the number of cards copied.
-pub fn copy_observation_headers(dst: &mut FitsHeader, src: &FitsHeader) -> usize {
+fn copy_observation_headers(dst: &mut FitsHeader, src: &FitsHeader) -> usize {
     copy_header_cards(dst, src, is_observation_keyword)
 }
 
@@ -507,12 +507,6 @@ pub fn carry_source_header(dst: &mut FitsHeader, src: &FitsHeader) {
 
 /// The image geometry a FITS header describes, plus the pixel type its BITPIX
 /// selects.
-///
-/// Why one function: `read_fits_from_reader` and `MappedFitsReader::open` both
-/// derived this from the same five keywords, and the copies drifted. The mapped
-/// reader accepted the 4-D cubes `read_fits` refuses — reading only the NAXIS3
-/// planes and silently discarding the rest — and defaulted a missing NAXIS3 to
-/// one channel where `read_fits` reported the malformed header.
 ///
 /// `NAXIS = 0` (header-only HDU) is an error here; `read_fits_from_reader`
 /// answers it with an empty image before asking, which is its own documented
@@ -1728,57 +1722,6 @@ pub fn write_wcs_into_fits(path: &Path, wcs: &WcsInfo) -> Result<(), FitsError> 
     })
 }
 
-/// Standard FITS keywords for astrophotography
-pub struct StandardKeywords;
-
-impl StandardKeywords {
-    pub const BITPIX: &'static str = "BITPIX";
-    pub const NAXIS: &'static str = "NAXIS";
-    pub const NAXIS1: &'static str = "NAXIS1";
-    pub const NAXIS2: &'static str = "NAXIS2";
-    pub const BZERO: &'static str = "BZERO";
-    pub const BSCALE: &'static str = "BSCALE";
-    pub const OBJECT: &'static str = "OBJECT";
-    pub const TELESCOP: &'static str = "TELESCOP";
-    pub const INSTRUME: &'static str = "INSTRUME";
-    pub const OBSERVER: &'static str = "OBSERVER";
-    pub const DATE_OBS: &'static str = "DATE-OBS";
-    pub const EXPTIME: &'static str = "EXPTIME";
-    pub const CCD_TEMP: &'static str = "CCD-TEMP";
-    pub const GAIN: &'static str = "GAIN";
-    pub const OFFSET: &'static str = "OFFSET";
-    pub const XBINNING: &'static str = "XBINNING";
-    pub const YBINNING: &'static str = "YBINNING";
-    pub const FILTER: &'static str = "FILTER";
-    pub const RA: &'static str = "RA";
-    pub const DEC: &'static str = "DEC";
-    pub const FOCALLEN: &'static str = "FOCALLEN";
-    pub const APTDIA: &'static str = "APTDIA";
-    pub const IMAGETYP: &'static str = "IMAGETYP";
-    pub const SITELAT: &'static str = "SITELAT";
-    pub const SITELONG: &'static str = "SITELONG";
-    pub const SITEELEV: &'static str = "SITEELEV";
-    pub const AIRMASS: &'static str = "AIRMASS";
-    pub const PIXSIZE1: &'static str = "PIXSIZE1";
-    pub const PIXSIZE2: &'static str = "PIXSIZE2";
-    pub const XPIXSZ: &'static str = "XPIXSZ";
-    pub const YPIXSZ: &'static str = "YPIXSZ";
-
-    // WCS Keywords
-    pub const CRVAL1: &'static str = "CRVAL1";
-    pub const CRVAL2: &'static str = "CRVAL2";
-    pub const CRPIX1: &'static str = "CRPIX1";
-    pub const CRPIX2: &'static str = "CRPIX2";
-    pub const CD1_1: &'static str = "CD1_1";
-    pub const CD1_2: &'static str = "CD1_2";
-    pub const CD2_1: &'static str = "CD2_1";
-    pub const CD2_2: &'static str = "CD2_2";
-    pub const CTYPE1: &'static str = "CTYPE1";
-    pub const CTYPE2: &'static str = "CTYPE2";
-    pub const EQUINOX: &'static str = "EQUINOX";
-    pub const RADESYS: &'static str = "RADESYS";
-}
-
 /// Calculate airmass from true (geometric) altitude.
 ///
 /// Airmass is the relative optical path length through Earth's atmosphere
@@ -2195,7 +2138,8 @@ impl ImageValidationOptions {
 /// Validate image data, checking the dimensions against `expected_width` /
 /// `expected_height` when they are given. `is_bias_frame` allows uniform pixel
 /// values, which a bias frame naturally has.
-pub fn validate_image_with_options(
+#[cfg(test)]
+fn validate_image_with_options(
     image: &ImageData,
     expected_width: Option<u32>,
     expected_height: Option<u32>,
@@ -2589,88 +2533,6 @@ pub fn validate_fits_header(header: &FitsHeader) -> ImageValidation {
     }
 
     validation
-}
-
-/// Score a frame 0-100 (100 is best) from three terms:
-/// - HFR (smaller is better, below 3.0 is excellent)
-/// - star count (more stars indicate better data)
-/// - background uniformity (lower `std_dev` relative to `mean` is better)
-pub fn calculate_quality_score(
-    hfr: Option<f64>,
-    star_count: Option<i32>,
-    mean: f64,
-    std_dev: f64,
-) -> f64 {
-    let mut score = 0.0;
-    let mut weight_sum = 0.0;
-
-    // HFR component (40% weight)
-    // Excellent: < 2.0, Good: 2-3, Fair: 3-5, Poor: > 5
-    if let Some(hfr_val) = hfr {
-        if hfr_val > 0.0 {
-            let hfr_score = if hfr_val < 2.0 {
-                100.0
-            } else if hfr_val < 3.0 {
-                100.0 - (hfr_val - 2.0) * 25.0
-            } else if hfr_val < 5.0 {
-                75.0 - (hfr_val - 3.0) * 25.0
-            } else {
-                (25.0 - (hfr_val - 5.0).min(5.0) * 5.0).max(0.0)
-            };
-            score += hfr_score * 0.4;
-            weight_sum += 0.4;
-        }
-    }
-
-    // Star count component (30% weight)
-    // Excellent: > 100, Good: 50-100, Fair: 20-50, Poor: < 20
-    if let Some(stars) = star_count {
-        let star_score = if stars >= 100 {
-            100.0
-        } else if stars >= 50 {
-            66.0 + (stars - 50) as f64 / 50.0 * 34.0
-        } else if stars >= 20 {
-            33.0 + (stars - 20) as f64 / 30.0 * 33.0
-        } else {
-            (stars as f64 / 20.0 * 33.0).max(0.0)
-        };
-        score += star_score * 0.3;
-        weight_sum += 0.3;
-    }
-
-    // Background uniformity component (30% weight)
-    // Lower noise is better - check coefficient of variation
-    if mean > 0.0 {
-        let cv = std_dev / mean; // Coefficient of variation
-        let uniformity_score = if cv < 0.1 {
-            100.0
-        } else if cv < 0.3 {
-            100.0 - (cv - 0.1) * 333.0
-        } else {
-            (33.0 - (cv - 0.3).min(0.33) * 100.0).max(0.0)
-        };
-        score += uniformity_score * 0.3;
-        weight_sum += 0.3;
-    }
-
-    if weight_sum <= 0.0 {
-        return 0.0;
-    }
-
-    let mut normalized_score = (score / weight_sum).clamp(0.0, 100.0);
-
-    // Apply an additional global penalty for severe focus issues.
-    // Extremely high HFR should reduce overall quality even when star count
-    // and background metrics still appear favorable.
-    if let Some(hfr_val) = hfr {
-        if hfr_val > 5.0 {
-            let hfr_excess = (hfr_val - 5.0).min(15.0);
-            let penalty_factor = 1.0 - (hfr_excess / 15.0) * 0.25;
-            normalized_score *= penalty_factor;
-        }
-    }
-
-    normalized_score.clamp(0.0, 100.0)
 }
 
 #[cfg(test)]
@@ -3498,47 +3360,6 @@ mod tests {
     }
 
     #[test]
-    fn test_quality_score_excellent() {
-        let score = calculate_quality_score(Some(1.8), Some(150), 5000.0, 500.0);
-        assert!(
-            score > 85.0,
-            "Excellent image (HFR=1.8, stars=150, CV=0.1) should score > 85, got {}",
-            score
-        );
-    }
-
-    #[test]
-    fn test_quality_score_good() {
-        let score = calculate_quality_score(Some(2.5), Some(75), 5000.0, 800.0);
-        // HFR 2.5 = 75/100, stars 75 = 83/100, CV 0.16 = ~70/100
-        // Weighted: 75*0.4 + 83*0.3 + 70*0.3 = 75.9
-        assert!(
-            score > 70.0 && score < 85.0,
-            "Good image should score 70-85, got {}",
-            score
-        );
-    }
-
-    #[test]
-    fn test_quality_score_poor() {
-        let score = calculate_quality_score(Some(6.0), Some(15), 5000.0, 2000.0);
-        assert!(
-            score < 40.0,
-            "Poor image (HFR=6.0, stars=15, CV=0.4) should score < 40, got {}",
-            score
-        );
-    }
-
-    #[test]
-    fn test_quality_score_no_data() {
-        let score = calculate_quality_score(None, None, 5000.0, 800.0);
-        assert!(
-            (0.0..=100.0).contains(&score),
-            "Score should be in valid range even with no HFR/star data"
-        );
-    }
-
-    #[test]
     fn test_fits_header_set_get() {
         let mut header = FitsHeader::new();
         header.set_string("OBJECT", "M31");
@@ -3673,30 +3494,6 @@ mod tests {
         assert!(header.get("DATE-OBS").is_some());
         assert!(header.get("IMAGETYP").is_some());
         assert!(header.get("AIRMASS").is_some());
-    }
-
-    #[test]
-    fn test_quality_score_edge_cases() {
-        // Test with zero values
-        let score = calculate_quality_score(Some(0.0), Some(0), 0.0, 0.0);
-        assert!(
-            (0.0..=100.0).contains(&score),
-            "Score should be valid even with zeros"
-        );
-
-        // Test with very high HFR
-        let score = calculate_quality_score(Some(20.0), Some(150), 5000.0, 500.0);
-        assert!(
-            score < 50.0,
-            "Very high HFR should lower score significantly"
-        );
-
-        // Test with perfect image
-        let score = calculate_quality_score(Some(1.5), Some(200), 10000.0, 500.0);
-        assert!(
-            score > 90.0,
-            "Perfect image (HFR=1.5, stars=200, CV=0.05) should score > 90"
-        );
     }
 
     #[test]

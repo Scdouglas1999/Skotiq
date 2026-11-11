@@ -512,9 +512,6 @@ unsafe impl<T: Default + Clone + Send> Send for PooledBuffer<T> {}
 /// Global buffer pool for u8 image data (raw bytes)
 static GLOBAL_U8_POOL: std::sync::OnceLock<BufferPool<u8>> = std::sync::OnceLock::new();
 
-/// Global buffer pool for u16 image data (16-bit pixels)
-static GLOBAL_U16_POOL: std::sync::OnceLock<BufferPool<u16>> = std::sync::OnceLock::new();
-
 /// Get the global u8 buffer pool for raw byte data
 pub fn global_u8_pool() -> &'static BufferPool<u8> {
     GLOBAL_U8_POOL.get_or_init(|| {
@@ -535,53 +532,6 @@ pub fn global_u8_pool() -> &'static BufferPool<u8> {
         };
         BufferPool::new(config)
     })
-}
-
-/// Get the global u16 buffer pool for 16-bit pixel data
-pub fn global_u16_pool() -> &'static BufferPool<u16> {
-    GLOBAL_U16_POOL.get_or_init(|| {
-        let config = BufferPoolConfig {
-            initial_capacity: 2,
-            max_capacity: 6,
-            // Pixel counts for common sensors
-            size_buckets: vec![
-                1936 * 1096, // Small sensors (~2MP)
-                2048 * 2048, // 4MP square sensors
-                4144 * 2822, // ASI2600 (11.7MP)
-                4656 * 3520, // ASI6200 (16.4MP)
-                6248 * 4176, // ASI2400 (26MP)
-                9576 * 6388, // ASI128 (61MP)
-            ],
-            idle_ttl: Some(DEFAULT_POOL_TTL),
-            max_total_elements: Some(DEFAULT_POOL_MAX_TOTAL_ELEMENTS),
-        };
-        BufferPool::new(config)
-    })
-}
-
-/// Initialize global pools with custom configurations
-///
-/// This should be called early in application startup if custom
-/// configurations are needed. If not called, default configurations
-/// are used on first access.
-pub fn init_global_pools(
-    u8_config: Option<BufferPoolConfig>,
-    u16_config: Option<BufferPoolConfig>,
-) {
-    if let Some(config) = u8_config {
-        let _ = GLOBAL_U8_POOL.set(BufferPool::new(config));
-    }
-    if let Some(config) = u16_config {
-        let _ = GLOBAL_U16_POOL.set(BufferPool::new(config));
-    }
-}
-
-/// Get combined metrics from both global pools
-pub fn global_pool_metrics() -> (MetricsSnapshot, MetricsSnapshot) {
-    (
-        global_u8_pool().metrics_snapshot(),
-        global_u16_pool().metrics_snapshot(),
-    )
 }
 
 #[cfg(test)]
@@ -761,18 +711,6 @@ mod tests {
 
         // All buffers should be returned
         assert_eq!(pool.active_buffers(), 0);
-    }
-
-    #[test]
-    fn test_global_pools() {
-        // Just verify they can be accessed
-        let _u8 = global_u8_pool();
-        let _u16 = global_u16_pool();
-
-        let (u8_metrics, u16_metrics) = global_pool_metrics();
-        // Should have pre-allocated buffers
-        assert!(u8_metrics.pool_size > 0 || u8_metrics.total_allocations > 0);
-        assert!(u16_metrics.pool_size > 0 || u16_metrics.total_allocations > 0);
     }
 
     #[test]

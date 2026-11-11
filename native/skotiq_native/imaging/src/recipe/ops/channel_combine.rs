@@ -81,13 +81,13 @@ const OP_VERSION: u32 = 1;
 
 /// Default blur of the chromaticity in [`apply_luminance`], in full-resolution
 /// pixels.
-pub const CHROMA_SMOOTHING_DEFAULT: f64 = 1.0;
+const CHROMA_SMOOTHING_DEFAULT: f64 = 1.0;
 /// Largest chromaticity blur accepted.
 const CHROMA_SMOOTHING_MAX: f64 = 8.0;
 /// Default share of Ha in the red channel.
-pub const HA_RED_WEIGHT_DEFAULT: f64 = 0.5;
+const HA_RED_WEIGHT_DEFAULT: f64 = 0.5;
 /// Default share of Ha in the luminance.
-pub const HA_LUMINANCE_WEIGHT_DEFAULT: f64 = 0.3;
+const HA_LUMINANCE_WEIGHT_DEFAULT: f64 = 0.3;
 
 /// Combines registered per-filter masters into a color image.
 pub struct ChannelCombineV1;

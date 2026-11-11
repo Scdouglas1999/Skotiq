@@ -361,11 +361,6 @@ mod tests {
 
         let (back, _) = crate::read_fits(&path).unwrap();
         assert_eq!(back.data, image.data);
-        let mapped = crate::MappedFitsReader::open(&path).unwrap();
-        assert_eq!(
-            mapped.read_region(0, 0, w as u32, h as u32).unwrap().data,
-            image.data
-        );
     }
 
     #[test]
@@ -381,11 +376,5 @@ mod tests {
 
         let (back, _) = crate::read_fits(&path).unwrap();
         assert_eq!(back.data, image.data);
-        let mapped = crate::MappedFitsReader::open(&path).unwrap();
-        let region = mapped.read_region(5, 7, 20, 10).unwrap();
-        let expected = &interleaved[(7 * w + 5) * 3..(7 * w + 5) * 3 + 3];
-        assert_eq!(region.as_f32().unwrap()[..3], *expected);
-        let thumb = mapped.read_downsampled(4).unwrap();
-        assert_eq!(thumb.as_f32().unwrap()[3..6], interleaved[12..15]);
     }
 }

@@ -27,7 +27,7 @@ use serde_json::Value;
 
 use super::cache::{CacheKey, RenderCache};
 use super::model::{
-    OpApplied, OpContext, OpError, OpImage, OpStage, Recipe, RecipeError, CANCEL_POLL_PIXELS,
+    OpApplied, OpContext, OpError, OpImage, OpStage, Recipe, RecipeError,
 };
 use super::pyramid::ImagePyramid;
 use super::registry::OpRegistry;
@@ -420,9 +420,6 @@ pub fn render_preview(
         RenderOptions::full().at_level(level),
     )
 }
-
-/// The pixel budget between cancel polls, re-exported for operation authors.
-pub const OP_CANCEL_POLL_PIXELS: usize = CANCEL_POLL_PIXELS;
 
 #[cfg(test)]
 #[path = "render_tests.rs"]

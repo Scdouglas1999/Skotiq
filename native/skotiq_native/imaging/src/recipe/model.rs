@@ -685,11 +685,6 @@ impl OpImage {
         &self.data
     }
 
-    /// Samples, mutable and in place.
-    pub fn data_mut(&mut self) -> &mut [f32] {
-        &mut self.data
-    }
-
     /// Number of samples (`width * height * channels`).
     pub fn len(&self) -> usize {
         self.data.len()
@@ -720,11 +715,6 @@ impl OpImage {
     /// provenance keyword truthful.
     pub fn header_mut(&mut self) -> &mut FitsHeader {
         &mut self.header
-    }
-
-    /// Replace the header wholesale.
-    pub fn set_header(&mut self, header: FitsHeader) {
-        self.header = header;
     }
 
     /// A new image with the same geometry and header and different samples.

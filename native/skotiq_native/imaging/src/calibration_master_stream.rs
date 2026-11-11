@@ -348,14 +348,6 @@ fn measure_level(source: &mut BandSource) -> Result<FrameLevel, String> {
     })
 }
 
-/// Measure every frame's level without combining anything.
-pub fn measure_frame_levels(paths: &[PathBuf]) -> Result<Vec<FrameLevel>, String> {
-    paths
-        .iter()
-        .map(|p| BandSource::open(p).and_then(|mut s| measure_level(&mut s)))
-        .collect()
-}
-
 fn card_f64(header: &FitsHeader, keys: &[&str]) -> Option<f64> {
     keys.iter().find_map(|k| header.get_float(k))
 }

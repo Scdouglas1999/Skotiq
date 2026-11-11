@@ -297,12 +297,6 @@ impl DefectMap {
         }
     }
 
-    /// Raw bitmap byte slice. Mainly for serialisation / Dart-side blob
-    /// storage; callers should normally use [`Self::is_defective`].
-    pub fn bitmap_bytes(&self) -> &[u8] {
-        &self.bitmap
-    }
-
     #[inline]
     fn bitmap_get(&self, idx: usize) -> bool {
         (self.bitmap[idx / 8] >> (idx % 8)) & 1 != 0
