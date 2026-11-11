@@ -320,7 +320,11 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
       children: [
         NightPanelValues(
           items: metrics,
-          semanticLabel: l10n.text('nightScopeGuideMetricsLabel'),
+          semanticLabel: l10n.text(
+            scale == null
+                ? 'nightScopeGuideMetricsLabel'
+                : 'nightScopeGuideMetricsLabelArcsec',
+          ),
         ),
         NightPanelButtonGrid(
           buttons: [

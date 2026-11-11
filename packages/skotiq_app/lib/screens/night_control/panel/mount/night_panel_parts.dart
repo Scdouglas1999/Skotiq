@@ -198,13 +198,25 @@ class NightPanelButtonGrid extends StatelessWidget {
 
 /// A small button that carries its disabled reason in a tooltip and in the
 /// semantics hint.
-class NightPanelButton extends StatelessWidget {
+class NightPanelButton extends StatefulWidget {
   NightPanelButton({required this.spec}) : super(key: spec.key);
 
   final NightPanelButtonSpec spec;
 
   @override
+  State<NightPanelButton> createState() => _NightPanelButtonState();
+}
+
+class _NightPanelButtonState extends State<NightPanelButton> {
+  /// Keeps the button's element, and with it its accessibility node, when a
+  /// tooltip comes or goes around it. Rebuilt in place, the Guide tab's Loop,
+  /// Find star and Stop dropped out of the Linux accessibility tree each time
+  /// looping enabled or disabled them.
+  final GlobalKey _buttonKey = GlobalKey();
+
+  @override
   Widget build(BuildContext context) {
+    final spec = widget.spec;
     final reason = spec.enabled ? null : spec.disabledReason;
     final variant = spec.destructive
         ? ButtonVariant.destructive
@@ -221,6 +233,7 @@ class NightPanelButton extends StatelessWidget {
     );
     final message = reason ?? spec.tooltip;
     final child = Semantics(
+      key: _buttonKey,
       selected: spec.selected,
       child: SizedBox(width: double.infinity, child: button),
     );

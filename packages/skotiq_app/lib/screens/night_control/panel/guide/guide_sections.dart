@@ -175,8 +175,9 @@ class NightGuideStarSection extends ConsumerWidget {
   }
 }
 
-/// PHD2's calibration: whether it is valid and its angle and rates.
-class NightGuideCalibrationSection extends ConsumerWidget {
+/// The guider's calibration: whether it is valid and its angle and rates;
+/// with PHD2, flipping or clearing it.
+class NightGuideCalibrationSection extends ConsumerStatefulWidget {
   const NightGuideCalibrationSection({super.key});
 
   @override

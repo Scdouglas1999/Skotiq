@@ -342,6 +342,16 @@ void main() {
     expect(tooltipOf(tester, guide), 'Already guiding');
   });
 
+  testWidgets('dither is one short word, and its cadence is the run\'s', (
+    tester,
+  ) async {
+    await pumpPanelTab(tester, const NightGuideTab(), overrides: _connected());
+    expect(find.text('Dither'), findsOneWidget);
+    expect(find.text('Dither now'), findsNothing);
+    // With no plan step of its own, an exposure dithers at the app setting.
+    expect(find.text('3 frames'), findsOneWidget);
+  });
+
   testWidgets('the calibration buttons are PHD2\'s and sit with its calibration',
       (tester) async {
     await pumpPanelTab(
