@@ -150,46 +150,6 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
     ref.read(selectedAnnotationObjectProvider.notifier).state = object;
   }
 
-  Future<void> _exportCsv(List<CelestialObjectAnnotation> objects) async {
-    if (objects.isEmpty) return;
-    final timestamp = DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now());
-    final csv = generateAnnotationCsv(objects);
-    final path = await _saveExportFile(
-      suggestedName: 'annotations_$timestamp.csv',
-      content: csv,
-      label: 'CSV files',
-      extensions: ['csv'],
-    );
-    if (path != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Annotations exported to $path'),
-          duration: const Duration(seconds: 4),
-        ),
-      );
-    }
-  }
-
-  Future<void> _exportDs9(List<CelestialObjectAnnotation> objects) async {
-    if (objects.isEmpty) return;
-    final timestamp = DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now());
-    final reg = generateDs9RegionFile(objects);
-    final path = await _saveExportFile(
-      suggestedName: 'annotations_$timestamp.reg',
-      content: reg,
-      label: 'DS9 region files',
-      extensions: ['reg'],
-    );
-    if (path != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('DS9 regions exported to $path'),
-          duration: const Duration(seconds: 4),
-        ),
-      );
-    }
-  }
-
   Future<void> _saveAsPreset() async {
     final name = await showDialog<String>(
       context: context,
@@ -505,65 +465,10 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
                       ),
                     ),
               const SizedBox(width: 4),
-              PopupMenuButton<String>(
-                tooltip: 'Export annotations',
-                color: widget.colors.surfaceElevated,
-                surfaceTintColor: Colors.transparent,
-                elevation: 0,
-                shape: _annotationMenuShape(widget.colors),
-                enabled: displayableObjects.isNotEmpty,
-                onSelected: (value) {
-                  switch (value) {
-                    case 'csv':
-                      unawaited(_runPanelAction(
-                        () => _exportCsv(displayableObjects),
-                        'CSV export failed',
-                      ));
-                    case 'ds9':
-                      unawaited(_runPanelAction(
-                        () => _exportDs9(displayableObjects),
-                        'DS9 export failed',
-                      ));
-                  }
-                },
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'csv',
-                    child: Row(
-                      children: [
-                        Icon(LucideIcons.fileSpreadsheet,
-                            size: 14, color: widget.colors.textPrimary),
-                        const SizedBox(width: 8),
-                        Text('Export CSV',
-                            style: SkotiqTypography.caption
-                                .copyWith(color: widget.colors.textPrimary)),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'ds9',
-                    child: Row(
-                      children: [
-                        Icon(SkotiqIcons.map,
-                            size: 14, color: widget.colors.textPrimary),
-                        const SizedBox(width: 8),
-                        Text('Export DS9 Regions',
-                            style: SkotiqTypography.caption
-                                .copyWith(color: widget.colors.textPrimary)),
-                      ],
-                    ),
-                  ),
-                ],
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: Icon(
-                    LucideIcons.fileOutput,
-                    size: 14,
-                    color: displayableObjects.isNotEmpty
-                        ? widget.colors.textMuted
-                        : widget.colors.textMuted.withValues(alpha: 0.3),
-                  ),
-                ),
+              _AnnotationExportMenu(
+                colors: widget.colors,
+                annotation: annotation,
+                objects: displayableObjects,
               ),
               const SizedBox(width: 4),
               PopupMenuButton<String>(
