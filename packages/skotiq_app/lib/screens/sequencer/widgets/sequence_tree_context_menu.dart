@@ -634,14 +634,11 @@ class SequenceTreeContextMenu extends ConsumerWidget {
     final notifier = ref.read(currentSequenceProvider.notifier);
     final selected = ref.read(multiSelectedNodeIdsProvider);
 
-    // Trivial cases: 0 or 1 selection, or right-click outside the multi-
-    // selection → fall back to single-node wrap of the clicked node.
     if (selected.length < 2 || !selected.contains(node.id)) {
       notifier.wrapNode(node.id, makeWrapper());
       return;
     }
 
-    // All selected nodes must share the same parent.
     String? sharedParent;
     for (final id in selected) {
       final n = sequence.nodes[id];

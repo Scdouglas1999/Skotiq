@@ -41,7 +41,6 @@ final runDashboardActiveTargetProvider = Provider<TargetHeaderNode?>((ref) {
 /// location stored in app settings. Returns null when location isn't set or
 /// no target is active.
 class RunDashboardSkyStats {
-  /// Current altitude in degrees.
   final double altitudeDeg;
 
   /// Azimuth in degrees (0 = north, 90 = east).
@@ -178,7 +177,6 @@ class RunDashboardFilterTotals {
 
 }
 
-/// Accepted + total-acquired per-filter integration for a session.
 class RunDashboardSessionIntegration {
   /// Filter -> accepted (isAccepted == true) light-frame seconds.
   final Map<String, double> acceptedSecs;
@@ -195,7 +193,6 @@ class RunDashboardSessionIntegration {
       RunDashboardSessionIntegration(acceptedSecs: {}, totalSecs: {});
 }
 
-/// Compute the goal totals from the loaded sequence's exposure nodes.
 Map<String, double> _computeGoalSecs(Sequence? sequence) {
   if (sequence == null) return const {};
   final out = <String, double>{};
@@ -309,7 +306,6 @@ final runDashboardFilterTotalsProvider =
 /// active TargetHeader. `null` when the active target has no budget
 /// configured (so the dashboard hides the panel).
 class RunDashboardBudgetProgress {
-  /// The TargetHeader node id this progress applies to.
   final String targetId;
 
   /// Resolved per-filter cap (seconds), keyed by filter name. Computed
@@ -350,7 +346,6 @@ class RunDashboardBudgetProgress {
   }
 }
 
-/// Severity classification used by the trigger feed.
 enum RunDashboardEventSeverity { info, warning, error, critical }
 
 /// A normalised event entry for the trigger feed.
@@ -853,7 +848,6 @@ bool _isRunFault(sk_events.SkotiqEvent event) {
   };
 }
 
-/// True for the flip outcome that says the flip worked.
 bool _isSuccessfulFlip(sk_events.SkotiqEvent event) {
   final payload = event.payload;
   if (payload is! sk_events.EventPayload_Sequencer) return false;
@@ -953,8 +947,6 @@ final runDashboardRecentEventsProvider =
   // the panel showing one collapsed row and four blanks' worth of lost history.
   return runDashboardFeedRows(history).take(limit).toList(growable: false);
 });
-
-// Critical event escalation
 
 /// State of critical events that the user has *not* dismissed yet.
 ///

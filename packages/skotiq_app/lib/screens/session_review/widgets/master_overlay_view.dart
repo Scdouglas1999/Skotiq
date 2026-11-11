@@ -30,7 +30,6 @@ class FinishingResultLayer {
   /// controller rendered next to the `_bgx`/`_decon`/`_starred` FITS).
   final String pngPath;
 
-  /// Chip icon.
   final IconData icon;
 
   const FinishingResultLayer({

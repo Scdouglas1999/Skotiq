@@ -188,7 +188,6 @@ class _SciencePhotometryPropertiesState
     final id = raw.trim();
     if (id.isEmpty) return;
     final existing = widget.node.referenceStars;
-    // Deduplicate by case-insensitive match; preserve insertion order.
     if (existing.any((e) => e.toLowerCase() == id.toLowerCase())) {
       return;
     }

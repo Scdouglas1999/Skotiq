@@ -336,7 +336,6 @@ class _WeightSliderState extends State<_WeightSlider> {
                 });
               },
               onChangeEnd: (v) {
-                // Final commit on release; cancel any pending debounce.
                 _commitDebounce?.cancel();
                 widget.onChanged(v);
                 setState(() => _dragValue = null);

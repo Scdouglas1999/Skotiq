@@ -45,7 +45,6 @@ class _NodeTreeView extends ConsumerWidget {
     final node = sequence.nodes[nodeId];
     if (node == null) return const SizedBox.shrink();
 
-    // Register a GlobalKey for auto-scroll
     final scrollKey = keyRegistry.putIfAbsent(nodeId, () => GlobalKey());
 
     // Watch only whether THIS node is selected, not the entire selectedNodeId.
@@ -75,7 +74,6 @@ class _NodeTreeView extends ConsumerWidget {
     final canMoveDown =
         node.parentId != null && node.orderIndex < siblingCount - 1;
 
-    // Check if node can have children (is a container)
     final isContainer = isSequenceContainer(node);
 
     final isLedger = density == SequencerDensity.ledger;
@@ -148,7 +146,6 @@ class _NodeTreeView extends ConsumerWidget {
               children.length,
             );
       } else if (data is FoldDragPayload) {
-        // A folded run appends as one block, in one undo step.
         moveFoldGroup(
           context,
           ref,
@@ -473,7 +470,6 @@ class _NodeTreeView extends ConsumerWidget {
                     notifier.addNode(
                       newNode,
                       parentId: nodeId,
-                      // No index = append
                     );
                     final children = data.createChildren?.call();
                     if (children != null) {
@@ -542,7 +538,6 @@ class _NodeTreeView extends ConsumerWidget {
                               ),
                           },
                         ],
-                        // Always show a drop zone at the end on desktop, even if empty
                         if (!isMobile)
                           _DropZone(
                             colors: colors,
@@ -623,7 +618,6 @@ class _NodeTreeView extends ConsumerWidget {
       onNodeTap: onNodeTap,
       keyRegistry: keyRegistry,
     );
-    // On mobile there is no drag affordance at all.
     if (isMobile) return subtree;
 
     return LongPressDraggable<String>(
@@ -686,7 +680,6 @@ class _NodeTreeView extends ConsumerWidget {
     );
   }
 
-  /// The shared density cross-fade, applied to one row.
   Widget _densityCrossfade(BuildContext context, Widget row) =>
       densityCrossfade(
         context: context,

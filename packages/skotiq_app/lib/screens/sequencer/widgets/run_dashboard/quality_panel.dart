@@ -34,14 +34,9 @@ class RunDashboardQualityPanel extends ConsumerWidget {
     final summary = ref.watch(runDashboardQualitySummaryProvider);
     final adaptive = ref.watch(runDashboardAdaptiveExposureProvider);
 
-    // Hidden when no grading has happened yet AND no adaptive event has
-    // landed — keeps an idle dashboard uncluttered. The panel auto-
-    // appears the moment the Rust path emits its first event.
     if (summary.total == 0 && adaptive == null) {
       return const SizedBox.shrink();
     }
-    // If only adaptive-exposure has fired (grading off / not yet
-    // active), render a slim adaptive-only banner.
     if (summary.total == 0 && adaptive != null) {
       return _AdaptiveExposureBanner(event: adaptive, colors: colors);
     }
@@ -80,7 +75,6 @@ class RunDashboardQualityPanel extends ConsumerWidget {
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
 
-          // Headline: accept / reject counts + percentage.
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
@@ -140,7 +134,6 @@ class RunDashboardQualityPanel extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: SkotiqTokens.spaceSm),
-            // Up to the 6 most-recent decisions, newest at the top.
             for (final event in summary.recent.reversed.take(6))
               _GradeRow(event: event, colors: colors),
           ],
@@ -214,8 +207,6 @@ class _AdaptiveExposureBanner extends StatelessWidget {
   }
 }
 
-/// The inline body that renders the live adaptive-
-/// exposure state for the quality panel.
 class _AdaptiveExposureInline extends StatelessWidget {
   const _AdaptiveExposureInline({
     required this.event,
@@ -344,8 +335,6 @@ class _GradeRow extends StatelessWidget {
   }
 }
 
-// Provider — accumulates grading events into a per-run summary.
-
 /// Maximum recent events retained for the dashboard. Older events scroll
 /// off the bottom of the list; the totals stay accurate.
 const int _kQualityRecentLimit = 50;
@@ -384,12 +373,10 @@ class _QualityNotifier extends StateNotifier<FrameGradeRunSummary> {
 
   void _onEvent(SkotiqEvent event) {
     if (event.category != EventCategory.sequencer) return;
-    // 'Started' resets per-run counters.
     if (event.eventType == 'Started') {
       state = FrameGradeRunSummary.empty;
       return;
     }
-    // Only the typed grading variants drive the panel.
     if (event.eventType != 'FrameAccepted' &&
         event.eventType != 'FrameRejected') {
       return;
@@ -411,8 +398,6 @@ class _QualityNotifier extends StateNotifier<FrameGradeRunSummary> {
     if (grade.hfr != null) {
       nextSparkline.add(grade.hfr!);
       nextSparklineAccepted.add(grade.decision == FrameGradeDecision.accepted);
-      // Cap the sparkline to a reasonable window so memory + paint cost
-      // stay bounded across long sessions.
       if (nextSparkline.length > 200) {
         nextSparkline.removeRange(0, nextSparkline.length - 200);
         nextSparklineAccepted.removeRange(
@@ -451,13 +436,6 @@ final runDashboardQualitySummaryProvider =
     StateNotifierProvider<_QualityNotifier, FrameGradeRunSummary>((ref) {
   return _QualityNotifier(ref);
 });
-
-// Sky-brightness adaptive exposure surface
-//
-// Mirrors the `_QualityNotifier` pattern: subscribe to the active backend
-// event stream, watch for `ExposureAdjusted`, and expose the most recent
-// decision via a StateNotifierProvider so the dashboard panel can re-paint
-// without holding the backend reference itself.
 
 class _AdaptiveExposureNotifier extends StateNotifier<AdaptiveExposureEvent?> {
   _AdaptiveExposureNotifier(this._ref) : super(null) {

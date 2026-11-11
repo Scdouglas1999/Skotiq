@@ -89,8 +89,6 @@ class _RunDashboardRecoveryBannerState
     // app did, and a recovery (a weather hold included) never appeared.
     ref.watch(recoveryEventBridgeProvider);
     final ctx = ref.watch(currentRecoveryProvider);
-    // Only run the countdown ticker while a recovery is waiting for its next
-    // retry; otherwise the 500ms setState loop runs for nothing.
     _syncTicker(needsCountdown: ctx != null && ctx.isWaiting);
     if (ctx == null) return const SizedBox.shrink();
 
@@ -215,7 +213,6 @@ class _RunDashboardRecoveryBannerState
                 ),
               ],
             );
-            // Narrow: the buttons go under the text instead of squeezing it.
             if (constraints.maxWidth < _stackButtonsBelowWidth) {
               return Column(
                 mainAxisSize: MainAxisSize.min,

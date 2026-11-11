@@ -29,7 +29,6 @@ class MasterPreviewView extends StatefulWidget {
     this.statLine,
   });
 
-  /// Build from a fresh integration outcome.
   factory MasterPreviewView.fromOutcome(PostSessionIntegrationOutcome outcome) {
     final r = outcome.result;
     return MasterPreviewView(
@@ -41,7 +40,6 @@ class MasterPreviewView extends StatefulWidget {
     );
   }
 
-  /// Build from a persisted master row.
   static Widget fromMaster(IntegratedMaster master) {
     return MasterPreviewView(
       previewPath: master.previewPngPath,

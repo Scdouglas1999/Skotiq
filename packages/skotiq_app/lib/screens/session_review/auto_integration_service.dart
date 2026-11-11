@@ -11,7 +11,6 @@ const String kAutoIntegrateSettingKey = NightEndAutomationSettings.buildKey;
 /// What a night-end run did, surfaced to the run-completion host so it can
 /// toast the operator.
 class AutoIntegrationResult {
-  /// True when an integration / accumulation actually ran.
   final bool ran;
 
   /// Human-readable summary for the toast / notification body.
@@ -118,7 +117,6 @@ class AutoIntegrationService {
   }
 }
 
-/// Provider for the [AutoIntegrationService].
 final autoIntegrationServiceProvider = Provider<AutoIntegrationService>(
   (ref) => AutoIntegrationService(ref),
 );

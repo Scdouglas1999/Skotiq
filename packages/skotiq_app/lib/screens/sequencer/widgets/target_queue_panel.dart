@@ -96,7 +96,6 @@ bool _isQualifiedTargetName(String candidate, String base) {
   return RegExp(r'[\s\(\[\{\-–—/:]').hasMatch(candidate[base.length]);
 }
 
-/// Sort modes for the target queue list.
 enum _QueueSortMode {
   userOrder,
   score,
@@ -122,7 +121,6 @@ extension _QueueSortModeLabel on _QueueSortMode {
   }
 }
 
-/// Filter modes.
 enum _QueueFilterMode {
   all,
   aboveHorizon,
@@ -499,8 +497,6 @@ class _TargetQueuePanelState extends ConsumerState<TargetQueuePanel> {
   }
 }
 
-// Section chrome
-
 /// The padding both target lists take, so the sequence rows and the wishlist
 /// rows share one left edge down the whole panel.
 const EdgeInsets _listPadding =
@@ -690,8 +686,6 @@ class _Dropdown<T> extends StatelessWidget {
     );
   }
 }
-
-// In this sequence
 
 /// What a target's subtree plans to capture, in one phrase.
 ///
@@ -892,8 +886,6 @@ class _TargetChip extends StatelessWidget {
     );
   }
 }
-
-// Single queue row + draggable
 
 class _QueueRow extends ConsumerWidget {
   final SkotiqColors colors;

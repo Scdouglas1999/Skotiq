@@ -512,7 +512,6 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
     });
   }
 
-  /// The in-scope master with [id], or null when not loaded.
   IntegratedMaster? _masterById(int id) {
     for (final m in state.masters) {
       if (m.id == id) return m;

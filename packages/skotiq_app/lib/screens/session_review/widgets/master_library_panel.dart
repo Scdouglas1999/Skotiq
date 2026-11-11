@@ -19,7 +19,6 @@ class MasterLibraryPanel extends StatelessWidget {
   /// Accepted-light count in scope, so "add tonight" can be disabled when empty.
   final int acceptedSubCount;
 
-  /// True while any integration / accumulation run is in flight.
   final bool busy;
 
   final void Function(IntegratedMaster) onOpen;

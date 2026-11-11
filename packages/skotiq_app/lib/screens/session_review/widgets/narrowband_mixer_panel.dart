@@ -27,7 +27,6 @@ class NarrowbandChannelRef {
     this.label = '',
   });
 
-  /// The label to render for this channel.
   String get displayLabel => label.trim().isNotEmpty ? label.trim() : filter;
 }
 

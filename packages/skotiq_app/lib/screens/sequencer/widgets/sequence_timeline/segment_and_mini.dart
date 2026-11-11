@@ -1,6 +1,5 @@
 part of '../sequence_timeline.dart';
 
-/// Type of timeline segment
 enum TimelineSegmentType {
   exposure,
   focus,
@@ -12,7 +11,6 @@ enum TimelineSegmentType {
   instruction,
 }
 
-/// A segment in the timeline
 class TimelineSegment {
   final String nodeId;
   final String name;

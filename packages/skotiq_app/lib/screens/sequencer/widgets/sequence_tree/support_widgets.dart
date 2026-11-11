@@ -776,9 +776,6 @@ class _DropZone extends ConsumerWidget {
           }
           ref.read(selectedNodeIdProvider.notifier).state = node.id;
         } else if (data is TemplateSnippet) {
-          // Route through the guarded helper so a locked-state /
-          // unknown-node-type insert surfaces a snackbar, matching the
-          // tap path.
           insertSnippetGuarded(context, ref, data,
               parentId: parentId, index: index);
         } else if (data is TargetQueueDragPayload) {
@@ -791,7 +788,6 @@ class _DropZone extends ConsumerWidget {
           notifier.addNode(data.node, parentId: parentId, index: index);
           ref.read(selectedNodeIdProvider.notifier).state = data.node.id;
         }
-        // Reset drag state after drop
         ref.read(isDraggingNodeProvider.notifier).state = false;
       },
       builder: (context, candidateData, rejectedData) {
@@ -899,7 +895,6 @@ class _DropZone extends ConsumerWidget {
   }
 }
 
-/// Creates a dashed-border-style decoration for drop zone indicators.
 BoxDecoration _dashedDropDecoration(SkotiqColors colors) {
   return SkotiqDecorations.tintedBadge(
     colors.primary,
@@ -924,7 +919,6 @@ class _DashedLinePainter extends CustomPainter {
     const dashSpace = 4.0;
     final y = size.height / 2;
 
-    // Draw left dashes (up to center minus icon space)
     final leftEnd = size.width / 2 - 12;
     var x = 4.0;
     while (x < leftEnd) {
@@ -936,7 +930,6 @@ class _DashedLinePainter extends CustomPainter {
       x += dashWidth + dashSpace;
     }
 
-    // Draw right dashes (from center plus icon space)
     final rightStart = size.width / 2 + 12;
     x = rightStart;
     while (x < size.width - 4) {

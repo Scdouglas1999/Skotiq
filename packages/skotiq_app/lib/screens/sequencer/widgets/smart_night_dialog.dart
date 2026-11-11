@@ -108,7 +108,6 @@ Future<void> showSmartNightDialog(
 class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
   int _step = 0;
 
-  // Step 1: window
   DateTime? _windowStart;
   DateTime? _windowEnd;
   bool _windowInitialised = false;
@@ -120,7 +119,6 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
   DateTime? _twilightStart;
   DateTime? _twilightEnd;
 
-  // Step 3: targets
   /// User-selected target IDs. Empty → auto-pick top N by score.
   final Set<int> _selectedTargetIds = <int>{};
   bool _autoSelect = true;
@@ -163,10 +161,8 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
       generation == _authorityGeneration &&
       identical(ref.read(backendProvider), backend);
 
-  // Step 4: strategy
   SmartNightStrategy _strategy = SmartNightStrategy.autoLrgb;
 
-  // Step 5: preview
   SmartNightPlan? _preview;
   String? _previewError;
   String? _previewDraftId;
@@ -338,8 +334,6 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
     );
   }
 
-  // Header / stepper / footer
-
   void _ensureWindowInitialised() {
     if (_windowInitialised) return;
     final location = ref.read(appObserverLocationProvider);
@@ -470,7 +464,6 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
       final cloudCover = ref.read(cloudCoverPercentageProvider).valueOrNull;
       final cloudProb = cloudCover == null ? null : cloudCover / 100.0;
 
-      // Polar alignment freshness.
       final lastPolarAlign =
           ref.read(lastPolarAlignmentProvider(activeProfile.id)).valueOrNull;
       int? daysSinceLastPolar;

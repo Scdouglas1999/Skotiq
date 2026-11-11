@@ -17,9 +17,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// One scheduler decision row as surfaced to the panel. Every
-/// field is read straight off the typed
-/// `SequencerEvent.schedulerDecision` variant; no string parsing involved.
 class SchedulerDecisionView {
   final DateTime time;
 
@@ -86,9 +83,6 @@ final recentSchedulerDecisionsProvider =
 });
 
 SchedulerDecisionView? _maybeSchedulerDecision(sk_events.SkotiqEvent event) {
-  // The typed SchedulerDecision variant is the canonical
-  // source. Pattern-match through EventPayload → SequencerEvent →
-  // SchedulerDecision; ignore everything else.
   final payload = event.payload;
   if (payload is! EventPayload_Sequencer) return null;
   final sequencer = payload.field0;
@@ -180,9 +174,6 @@ class _DecisionRow extends StatelessWidget {
     final accent = decision.picked ? colors.success : colors.warning;
     final icon =
         decision.picked ? LucideIcons.checkCircle2 : LucideIcons.alertTriangle;
-    // Show the top three rows of the typed score table so the
-    // user can see ranked candidates at a glance. The full list is in
-    // `decision.scores`; this is a summary surface.
     final topScores = decision.scores.take(3).toList(growable: false);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,

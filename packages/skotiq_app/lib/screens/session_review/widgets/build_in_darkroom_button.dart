@@ -23,7 +23,6 @@ String sessionReviewBuildLocation(String? targetName) {
       : darkroomFramingLocation(name);
 }
 
-/// "Build masters" in the session review.
 class BuildInDarkroomButton extends ConsumerWidget {
   /// The session's target, as the guided build names it; null when the
   /// session's frames name none.

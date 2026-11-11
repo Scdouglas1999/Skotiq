@@ -217,7 +217,6 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
               ),
               child: Row(
                 children: [
-                  // Current node indicator
                   Expanded(
                     flex: 2,
                     child: Row(
@@ -289,7 +288,6 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                     ),
                   ),
 
-                  // Target and filter
                   if (progress.currentTarget != null ||
                       progress.currentFilter != null) ...[
                     Container(
@@ -351,7 +349,6 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                     color: widget.colors.border,
                   ),
 
-                  // Progress bar with percentage
                   SizedBox(
                     width: 220,
                     child: Column(
@@ -414,7 +411,6 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                           ],
                         ),
                         const SizedBox(height: 6),
-                        // Overall progress bar
                         Stack(
                           children: [
                             Container(
@@ -437,7 +433,6 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                                 ),
                               ),
                             ),
-                            // Integration progress overlay
                             if (progress.totalIntegrationSecs > 0)
                               FractionallySizedBox(
                                 widthFactor:
@@ -468,7 +463,6 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                     color: widget.colors.border,
                   ),
 
-                  // Time info
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     mainAxisSize: MainAxisSize.min,

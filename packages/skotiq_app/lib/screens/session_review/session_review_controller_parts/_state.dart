@@ -1,7 +1,5 @@
-// The immutable SessionReviewState view-model.
 part of '../session_review_controller.dart';
 
-/// Immutable view-model for the Session Review surface.
 class SessionReviewState {
   /// Every light sub in scope (accepted and rejected), capture-time ascending.
   final List<DbCapturedImage> subs;
@@ -34,7 +32,6 @@ class SessionReviewState {
   /// points the finishing actions at the wrong file.
   final IntegratedMaster? reviewedMaster;
 
-  /// True while subs are loading.
   final bool loading;
 
   /// True while an integration / accumulation run is in flight.
@@ -73,8 +70,6 @@ class SessionReviewState {
   /// so the night showed its masters and its score with nothing saying the
   /// drafting, the night report and the delivery had been cut off mid-run.
   final String? interruptedPassNotice;
-
-  // Smart morning report (Pillar 5) data backbone
 
   /// The Night Doctor's verdict for this scope (score + headline + findings),
   /// or null before [SessionReviewController.loadSmartData] has run / produced
@@ -123,16 +118,12 @@ class SessionReviewState {
   /// True while a catalog colour-calibration re-integration is in flight.
   final bool calibrating;
 
-  /// True while a background-extraction finishing pass is in flight.
   final bool extractingBackground;
 
-  /// True while a deconvolution-preview finishing pass is in flight.
   final bool deconvolving;
 
-  /// True while a star-reduction-preview finishing pass is in flight.
   final bool reducingStars;
 
-  /// True while a narrowband palette combine is in flight.
   final bool combiningNarrowband;
 
   /// The most-recently applied narrowband palette composite (the persisted

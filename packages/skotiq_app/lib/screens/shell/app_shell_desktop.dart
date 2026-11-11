@@ -7,10 +7,8 @@ import 'package:window_manager/window_manager.dart';
 import 'shell_exit_recorder.dart';
 import 'widgets/window_chrome_desktop.dart' as chrome_impl;
 
-/// Callback type for when window close is requested
 typedef OnCloseRequested = Future<bool> Function();
 
-/// Window close listener that holds a reference to the close callback
 class _WindowCloseListener extends WindowListener {
   final OnCloseRequested? onCloseRequested;
 
@@ -43,7 +41,6 @@ class _WindowCloseListener extends WindowListener {
 /// Global listener instance (needed because WindowManager uses static methods)
 _WindowCloseListener? _closeListener;
 
-/// Initialize window manager with optional close confirmation callback
 void initWindowManager(State state, {OnCloseRequested? onCloseRequested}) {
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     try {

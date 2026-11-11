@@ -19,8 +19,6 @@ import 'sequencer_density.dart';
 /// shortcuts here means widget tests can dispatch [Intent]s directly
 /// without spinning up a full tree.
 
-// Intent types
-
 /// Move tree selection to the previous visible node.
 class TreeMoveSelectionUpIntent extends Intent {
   const TreeMoveSelectionUpIntent({this.extend = false});
@@ -53,8 +51,6 @@ class TreeExpandFocusedIntent extends Intent {
 class TreeFocusPropertiesIntent extends Intent {
   const TreeFocusPropertiesIntent();
 }
-
-// Bindings table — read this first
 
 /// The user-visible keyboard bindings for the sequencer tree.
 ///
@@ -120,7 +116,6 @@ class _CollapsedNodeIdsNotifier extends StateNotifier<Set<String>> {
     state = {...state, ...containerIds};
   }
 
-  /// Expand everything (clears the collapsed set).
   void expandAll() {
     if (state.isEmpty) return;
     state = const <String>{};
@@ -191,8 +186,6 @@ FoldGroup? _foldGroupForSelection(WidgetRef ref, String nodeId) {
   if (sequence == null) return null;
   return foldGroupForNode(sequence, nodeId);
 }
-
-// Action implementations
 
 /// Build the [Actions] map for the tree's `Focus`/`Shortcuts` widget.
 ///
@@ -272,7 +265,6 @@ void _moveSelection(
   final current = ref.read(selectedNodeIdProvider);
   int currentIdx = current == null ? -1 : order.indexOf(current);
   if (currentIdx < 0) {
-    // No selection: snap to the first/last row depending on direction.
     currentIdx = delta > 0 ? -1 : order.length;
   }
 

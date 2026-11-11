@@ -180,8 +180,6 @@ class _SessionReviewScreenState extends ConsumerState<SessionReviewScreen> {
                 ),
               ],
             ),
-            // Live integration progress (phase + fraction). Only present while a
-            // long-running run is reporting progress.
             if (progress != null)
               _ProgressStrip(
                 phase: progress.phase,

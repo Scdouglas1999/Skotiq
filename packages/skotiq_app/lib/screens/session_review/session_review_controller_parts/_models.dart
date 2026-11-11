@@ -1,4 +1,3 @@
-// Value/model types for the Session Review surface.
 part of '../session_review_controller.dart';
 
 /// The core multi-night service's best-night value type, aliased so the

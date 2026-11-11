@@ -182,8 +182,6 @@ class _LeftColumn extends StatelessWidget {
       children: [
         const SectionTitle(icon: SkotiqIcons.image, title: 'Subs & culling'),
         const SizedBox(height: SkotiqTokens.spaceSm),
-        // SubCullRail extends the existing sub gallery: blink + bulk-reject
-        // plus multi-select / lasso cull and a curve-linked "drop to keepN".
         SizedBox(
           height: 520,
           child: SubCullRail(
@@ -236,7 +234,6 @@ class _RightColumn extends ConsumerWidget {
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
         ],
-        // ── Master with every overlay toggle. ────────────────────────────
         const SectionTitle(
             icon: SkotiqIcons.layers, title: 'Master & overlays'),
         const SizedBox(height: SkotiqTokens.spaceSm),
@@ -280,11 +277,9 @@ class _RightColumn extends ConsumerWidget {
           ),
         const SizedBox(height: SkotiqTokens.spaceMd),
 
-        // ── Finishing actions (non-destructive post-steps on the master). ─
         _FinishingActions(state: state, controller: controller),
         const SizedBox(height: SkotiqTokens.spaceLg),
 
-        // ── Multi-night master library (accumulate / finalize). ──────────
         MasterLibraryPanel(
           masters: state.masters,
           acceptedSubCount: state.acceptedCount,
@@ -333,7 +328,6 @@ class _RightColumn extends ConsumerWidget {
         _FieldQualityCard(subs: state.acceptedLights),
         const SizedBox(height: SkotiqTokens.spaceLg),
 
-        // ── Narrowband channel mixer. ────────────────────────────────────
         const SectionTitle(
             icon: SkotiqIcons.sliders, title: 'Narrowband mixer'),
         const SizedBox(height: SkotiqTokens.spaceSm),
@@ -363,13 +357,11 @@ class _RightColumn extends ConsumerWidget {
         _NarrowbandCompositeCard(composite: state.narrowbandComposite),
         const SizedBox(height: SkotiqTokens.spaceLg),
 
-        // ── A/B compare two integration recipes. ─────────────────────────
         const SectionTitle(icon: SkotiqIcons.layers, title: 'A / B compare'),
         const SizedBox(height: SkotiqTokens.spaceSm),
         AbComparePanel(controller: controller),
         const SizedBox(height: SkotiqTokens.spaceLg),
 
-        // ── Integration settings + actions. ──────────────────────────────
         const SectionTitle(
             icon: SkotiqIcons.sliders, title: 'Integration settings'),
         const SizedBox(height: SkotiqTokens.spaceSm),

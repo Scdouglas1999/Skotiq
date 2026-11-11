@@ -204,5 +204,3 @@ class _BudgetEditor extends ConsumerWidget {
     );
   }
 }
-
-/// One row in the per-filter list. The Absolute/Ratio toggle is a small

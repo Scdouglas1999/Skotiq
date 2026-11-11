@@ -56,7 +56,6 @@ class HfrSparklinePainter extends CustomPainter {
     double xAt(int i) => size.width * (i / (values.length - 1));
     double yAt(int i) {
       final normalized = (values[i] - min) / span;
-      // Lower HFR is better focus → smaller y → higher on screen.
       return size.height * normalized;
     }
 
