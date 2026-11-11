@@ -66,7 +66,6 @@ class _WebRtcLiveViewSubscription {
     });
     await pc.setLocalDescription(offer);
 
-    // POST the offer to the server.
     final offerUri = backend._apiUri('webrtc/live-view/offer');
     final headers = backend._addAuthHeaders(
       {},
@@ -471,7 +470,3 @@ class _WebRtcLiveViewSubscription {
 /// here as a separate const so changing one without the other is a
 /// visible diff in code review.
 const String kLiveViewClientDataChannelLabel = 'live-view-frames';
-
-/// Client-side mirror of the headless server's Job model. Tolerates
-/// missing/extra fields so a server that gains additional metadata does
-/// not break older clients.

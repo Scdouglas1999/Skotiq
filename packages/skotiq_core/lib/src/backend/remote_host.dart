@@ -31,7 +31,6 @@ import 'roles/host_data/host_sequence_library.dart';
 import 'roles/host_data/observation_log.dart';
 import 'roles/host_data/observing_lists_store.dart';
 import 'skotiq_backend.dart';
-// h2-night role imports
 import 'roles/host_data/host_runtime_mirror.dart';
 import 'roles/host_data/host_secondary_rig.dart';
 import 'roles/host_data/host_pointing.dart';
@@ -70,7 +69,6 @@ export 'roles/host_data/host_live_stack.dart';
 export 'roles/host_data/host_planning_data.dart';
 export 'roles/host_data/host_post_session.dart';
 export 'roles/host_data/host_sequence_library.dart';
-// h2-night role exports
 export 'roles/host_data/host_runtime_mirror.dart';
 export 'roles/host_data/host_secondary_rig.dart';
 export 'roles/host_data/host_pointing.dart';
@@ -167,8 +165,6 @@ final class RemoteHost {
 
   HostSequenceLibrary get sequences => _backend;
 
-  // h2-night roles
-
   HostRuntimeMirror get runtimeMirror => _backend;
 
   HostSecondaryRig get secondaryRig => _backend;
@@ -245,8 +241,6 @@ RemoteHost? _remoteHostOf(Object backend) {
   if (backend is! NetworkBackend) return null;
   return RemoteHost._hosts[backend] ??= RemoteHost._(backend);
 }
-
-// h2-night additions
 
 /// The same questions for a backend held as its diagnostics role, which is
 /// how the notification router and the host sync binding receive it.

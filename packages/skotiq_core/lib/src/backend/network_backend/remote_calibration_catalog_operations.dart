@@ -2,7 +2,6 @@ part of '../network_backend.dart';
 
 mixin _NetworkBackendRemoteCalibrationCatalogOperations
     on _NetworkBackendTransport {
-  // Remote calibration library management.
 
   /// Read the complete automatic-calibration configuration owned by the
   /// imaging host. This is intentionally separate from the app-settings wire
@@ -530,8 +529,6 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
   Future<Map<String, dynamic>> regenerateDefectMap(int id) async {
     return _post('calibration/defect-maps/$id/regenerate');
   }
-
-  // Remote catalog management.
 
   /// GET /api/catalog/status. Returns the on-disk state of every known
   /// catalog on the *server*. The mobile/desktop remote client surfaces

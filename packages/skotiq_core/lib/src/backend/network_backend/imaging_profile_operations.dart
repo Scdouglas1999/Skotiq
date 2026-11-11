@@ -1,7 +1,6 @@
 part of '../network_backend.dart';
 
 mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
-  // Equipment profiles
 
   @override
   Future<List<EquipmentProfile>> getProfiles() async {
@@ -80,8 +79,6 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
       response['profile'] as Map<String, dynamic>,
     );
   }
-
-  // Settings & Location
 
   /// `GET /api/system/disk-space` — the HOST's capture-directory disk
   /// telemetry. Deliberately not part of [SkotiqBackend]: local backends
@@ -278,8 +275,6 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
   Future<void> setLocation(models.ObserverLocation? location) async {
     await _post('settings/location', {'location': location?.toJson()});
   }
-
-  // Image processing
 
   @override
   Future<List<StarCrop>> getStarCropsFromLastImage(
@@ -499,8 +494,6 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     );
   }
 
-  // Polar alignment
-
   @override
   Stream<Map<String, dynamic>> get polarAlignmentEvents =>
       _polarAlignController.stream;
@@ -562,8 +555,6 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
       if (offset != null) 'offset': offset,
     });
   }
-
-  // Image Download (for Mobile)
 
   @override
   Future<List<CapturedImage>> getSessionImages(int sessionId) async {
@@ -1108,8 +1099,6 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     }
   }
 
-  // Device health monitoring
-
   @override
   Future<void> startDeviceHeartbeat({
     required DeviceType deviceType,
@@ -1136,8 +1125,6 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     return (lastComm, isHealthy);
   }
 
-  // Raw image data
-
   @override
   Future<List<int>> getLastRawImageData(String deviceId) async {
     return _retryableRequest(() async {
@@ -1148,7 +1135,6 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
         send: (headers) => _http.get(uri, headers: headers),
       );
 
-      // Check for transient status codes
       if (_isTransientStatusCode(response.statusCode)) {
         throw Exception(
           'HTTP ${response.statusCode}: Transient failure for GET imaging/raw-data',
@@ -1201,7 +1187,6 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
       final request = await _httpClient.postUrl(uri);
       request.headers.contentType = ContentType.json;
 
-      // Add authentication headers
       final headers = _addAuthHeaders(
         {},
         endpoint: 'imaging/save-fits-from-capture',
@@ -1222,7 +1207,6 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
 
       final response = await request.close();
 
-      // Check for transient status codes
       if (_isTransientStatusCode(response.statusCode)) {
         throw Exception(
           'HTTP ${response.statusCode}: Transient failure for POST imaging/save-fits-from-capture',

@@ -10,8 +10,6 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     required Duration timeout,
   });
 
-  // Device Discovery & Connection
-
   // Cache for device discovery to prevent redundant API calls
   List<Map<String, dynamic>>? _cachedDevices;
   Map<DeviceType, List<DeviceInfo>>? _cachedDevicesByType;
@@ -21,7 +19,6 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
 
   @override
   Future<List<DeviceInfo>> discoverDevices(DeviceType deviceType) async {
-    // Check if we have a valid cache
     if (_cachedDevices != null &&
         _cacheTimestamp != null &&
         DateTime.now().difference(_cacheTimestamp!) < _cacheDuration) {
@@ -32,7 +29,6 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
       );
       _cachedDevicesByType ??= _indexCachedDevicesByType(_cachedDevices!);
     } else if (_ongoingDiscovery != null) {
-      // Another discovery is in progress, wait for it
       developer.log(
         '[NetworkBackend] Waiting for ongoing discovery...',
         name: 'NetworkBackend',
@@ -41,7 +37,6 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
       _cachedDevices = await _ongoingDiscovery!;
       _cachedDevicesByType = _indexCachedDevicesByType(_cachedDevices!);
     } else {
-      // Start new discovery
       developer.log(
         '[NetworkBackend] Starting new device discovery...',
         name: 'NetworkBackend',
@@ -342,8 +337,6 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     return _rowsFromJson(response['devices'], DeviceInfo.fromJson);
   }
 
-  // Camera control
-
   @override
   Future<void> cameraStartExposure({
     required String deviceId,
@@ -594,8 +587,6 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     }
   }
 
-  // Mount control
-
   @override
   Future<void> mountSlewToCoordinates(
     String deviceId,
@@ -756,8 +747,6 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     });
   }
 
-  // Focuser control
-
   @override
   Future<void> focuserMoveTo(String deviceId, int position) async {
     await _post('focuser/move-to', {
@@ -838,7 +827,6 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
       timeout: const Duration(minutes: 30),
     );
 
-    // Parse using pure Dart types from JSON
     return AutofocusResult.fromJson(response);
   }
 
@@ -898,8 +886,6 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     await _post('focuser/autofocus/cancel');
   }
 
-  // Filter wheel control
-
   @override
   Future<void> filterWheelSetPosition(String deviceId, int position) async {
     await _post('filter-wheel/position', {
@@ -926,8 +912,6 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
       'name': name,
     });
   }
-
-  // Rotator control
 
   @override
   Future<void> rotatorMoveTo(String deviceId, double angle) async {
