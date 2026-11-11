@@ -28,7 +28,6 @@ import '../../providers/settings_provider.dart' show LocationSettings;
 /// the event stream (e.g., log viewer, status banner) can depend on
 /// [DiagnosticsBackend] directly.
 abstract class DiagnosticsBackend {
-  /// Event stream for backend events
   Stream<SkotiqEvent> get eventStream;
 
   /// Whether this process should execute PluginNode requests from the event
@@ -39,7 +38,6 @@ abstract class DiagnosticsBackend {
   /// dispatching plugin nodes from its own installed plugin host.
   bool get dispatchPluginNodesLocally;
 
-  /// Event stream for polar alignment updates
   Stream<Map<String, dynamic>> get polarAlignmentEvents;
 
   /// Dispose of backend resources.

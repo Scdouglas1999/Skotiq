@@ -5,22 +5,17 @@ import 'package:drift/drift.dart';
 @TableIndex(name: 'idx_observing_lists_name', columns: {#name})
 @TableIndex(name: 'idx_observing_lists_sort_order', columns: {#sortOrder})
 class ObservingLists extends Table {
-  /// Primary key
   IntColumn get id => integer().autoIncrement()();
 
   /// User-chosen name for this list (e.g., "Winter Galaxies", "Messier Marathon")
   TextColumn get name => text().withLength(min: 1, max: 300)();
 
-  /// Optional description
   TextColumn get description => text().nullable()();
 
-  /// Sort order for display
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 
-  /// Creation timestamp
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
-  /// Last modified timestamp
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }
 
@@ -34,10 +29,8 @@ class ObservingLists extends Table {
   columns: {#listId, #sortOrder},
 )
 class ObservingListItems extends Table {
-  /// Primary key
   IntColumn get id => integer().autoIncrement()();
 
-  /// Foreign key to the parent observing list
   IntColumn get listId =>
       integer().references(ObservingLists, #id, onDelete: KeyAction.cascade)();
 
@@ -62,13 +55,10 @@ class ObservingListItems extends Table {
   /// Angular size in arcminutes
   RealColumn get sizeArcmin => real().nullable()();
 
-  /// User notes for this item
   TextColumn get notes => text().nullable()();
 
-  /// Sort order within the list
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 
-  /// When the item was added
   DateTimeColumn get addedAt => dateTime().withDefault(currentDateAndTime)();
 
   @override

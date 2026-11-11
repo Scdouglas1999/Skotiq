@@ -113,7 +113,6 @@ class FlatLibraryDao {
     return rows.map(_mapRow).toList();
   }
 
-  /// Fetch one entry by id, or null.
   Future<FlatLibraryEntry?> getEntryById(int id) async {
     final rows = await _db
         .customSelect(
@@ -204,7 +203,6 @@ class FlatLibraryDao {
     return candidates.first;
   }
 
-  /// Delete one entry by id.
   Future<int> deleteEntry(int id) {
     return _db.customUpdate(
       'DELETE FROM flat_library WHERE id = ?',
@@ -234,7 +232,6 @@ class FlatLibraryDao {
   }
 }
 
-/// Riverpod provider for [FlatLibraryDao].
 final flatLibraryDaoProvider = Provider<FlatLibraryDao>((ref) {
   return FlatLibraryDao(ref.watch(databaseProvider));
 });

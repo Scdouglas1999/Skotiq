@@ -10,7 +10,6 @@ abstract class EquipmentProfile with _$EquipmentProfile {
     required String name,
     String? description,
 
-    // Device identifiers
     String? cameraId,
     String? mountId,
     String? focuserId,
@@ -25,12 +24,10 @@ abstract class EquipmentProfile with _$EquipmentProfile {
     String? switchId,
     String? coverCalibratorId,
 
-    // Optical setup
     @Default(0.0) double focalLength,
     @Default(0.0) double aperture,
     double? focalRatio,
 
-    // Camera defaults
     int? defaultGain,
     int? defaultOffset,
     @Default(1) int defaultBinX,
@@ -48,7 +45,6 @@ abstract class EquipmentProfile with _$EquipmentProfile {
     // Meridian flip settings overrides (JSON)
     String? meridianFlipOverrides,
 
-    // User-friendly device names
     String? cameraName,
     String? mountName,
     String? focuserName,
@@ -59,22 +55,18 @@ abstract class EquipmentProfile with _$EquipmentProfile {
     String? safetyMonitorName,
     String? switchName,
 
-    // Telescope/OTA information
     String? telescopeName,
     @Default(0.0) double telescopeFocalLength,
     @Default(0.0) double telescopeAperture,
 
-    // Profile customization
     String? profileIcon,
     int? profileColor,
     @Default(0) int sortOrder,
     @Default(false) bool isDefault,
 
-    // Timestamps
     DateTime? createdAt,
     DateTime? updatedAt,
 
-    // State flags
     @Default(false) bool isActive,
 
     // Camera pixel size in microns (not in DB, used by bridge)
@@ -85,21 +77,17 @@ abstract class EquipmentProfile with _$EquipmentProfile {
       _$EquipmentProfileFromJson(json);
 }
 
-// Extension to provide computed properties and compatibility
 extension EquipmentProfileExtension on EquipmentProfile {
   /// Get effective focal length (uses focalLength if set, otherwise telescopeFocalLength)
   double get effectiveFocalLength {
-    // Use focalLength field if it's set (> 0), otherwise fall back to telescopeFocalLength
     return focalLength > 0 ? focalLength : telescopeFocalLength;
   }
 
   /// Get effective aperture (uses aperture if set, otherwise telescopeAperture)
   double get effectiveAperture {
-    // Use aperture field if it's set (> 0), otherwise fall back to telescopeAperture
     return aperture > 0 ? aperture : telescopeAperture;
   }
 
-  /// Get computed focal ratio
   double? get computedFocalRatio {
     if (focalRatio != null) return focalRatio;
     final ap = effectiveAperture;

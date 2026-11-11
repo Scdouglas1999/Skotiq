@@ -10,7 +10,6 @@ part 'optical_config.g.dart';
 @freezed
 abstract class OpticalConfig with _$OpticalConfig {
   const factory OpticalConfig({
-    /// Name of the telescope/OTA
     String? telescopeName,
 
     /// Focal length in millimeters
@@ -22,7 +21,6 @@ abstract class OpticalConfig with _$OpticalConfig {
     /// Focal ratio (f/number), computed from focalLength/aperture if not set
     double? focalRatio,
 
-    /// Camera name
     String? cameraName,
 
     /// Sensor width in pixels
@@ -53,11 +51,9 @@ abstract class OpticalConfig with _$OpticalConfig {
     }
     if (focalLength == 0) return null;
 
-    // Convert sensor dimensions from pixels to mm
     final widthMm = sensorWidth! * pixelSize! / 1000;
     final heightMm = sensorHeight! * pixelSize! / 1000;
 
-    // Calculate FOV using atan formula
     final fovWidth = 2 * atan(widthMm / (2 * focalLength!)) * 180 / pi;
     final fovHeight = 2 * atan(heightMm / (2 * focalLength!)) * 180 / pi;
 
@@ -101,7 +97,6 @@ abstract class OpticalConfig with _$OpticalConfig {
     return '${scale.toStringAsFixed(2)}"/px';
   }
 
-  /// Returns true if all required values are present to compute FOV
   bool get canComputeFov {
     return focalLength != null &&
         focalLength! > 0 &&
@@ -110,7 +105,6 @@ abstract class OpticalConfig with _$OpticalConfig {
         pixelSize != null;
   }
 
-  /// Returns true if all required values are present to compute image scale
   bool get canComputeScale {
     return focalLength != null && focalLength! > 0 && pixelSize != null;
   }

@@ -1,7 +1,6 @@
 /// Sequencer status and checkpoint types.
 library;
 
-/// Current status of the sequence executor
 class SequencerStatus {
   /// Current state (idle, running, paused, stopped, error)
   final String state;
@@ -15,7 +14,6 @@ class SequencerStatus {
   /// Overall progress (0.0 to 1.0)
   final double progress;
 
-  /// Status message
   final String? message;
 
   /// Live run-vitals snapshot for the in-flight run, when one is active.
@@ -48,7 +46,6 @@ class SequencerStatus {
     this.reportsGuidingStopReason = false,
   });
 
-  /// Create from JSON (for network transport)
   factory SequencerStatus.fromJson(Map<String, dynamic> json) {
     return SequencerStatus(
       state: json['state'] as String,
@@ -66,7 +63,6 @@ class SequencerStatus {
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'state': state,
     'currentNodeId': currentNodeId,
@@ -77,13 +73,10 @@ class SequencerStatus {
     if (reportsGuidingStopReason) 'guidingStopReason': guidingStopReason,
   };
 
-  /// Check if sequencer is running
   bool get isRunning => state == 'running';
 
-  /// Check if sequencer is paused
   bool get isPaused => state == 'paused';
 
-  /// Check if sequencer is idle
   bool get isIdle => state == 'idle';
 }
 
@@ -181,10 +174,8 @@ class SequencerRunVitals {
 
 /// Checkpoint information for crash recovery
 class CheckpointInfo {
-  /// Name of the sequence
   final String sequenceName;
 
-  /// When the checkpoint was saved
   final DateTime timestamp;
 
   /// Number of exposures completed before checkpoint
@@ -193,7 +184,6 @@ class CheckpointInfo {
   /// Total integration time completed in seconds
   final double completedIntegrationSecs;
 
-  /// Whether the checkpoint can be resumed
   final bool canResume;
 
   /// Age of the checkpoint in seconds
@@ -219,7 +209,6 @@ class CheckpointInfo {
   /// but was not interrupted.
   bool get wasInterrupted => ended == null;
 
-  /// Create from JSON (for network transport)
   factory CheckpointInfo.fromJson(Map<String, dynamic> json) {
     return CheckpointInfo(
       sequenceName: json['sequenceName'] as String,
@@ -233,7 +222,6 @@ class CheckpointInfo {
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'sequenceName': sequenceName,
     'timestamp': timestamp.toIso8601String(),
@@ -244,7 +232,6 @@ class CheckpointInfo {
     if (ended != null) 'ended': ended,
   };
 
-  /// Get a human-readable age string
   String get ageString {
     if (ageSeconds < 60) return '${ageSeconds}s ago';
     if (ageSeconds < 3600) return '${ageSeconds ~/ 60}m ago';

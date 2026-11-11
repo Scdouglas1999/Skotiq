@@ -28,7 +28,6 @@ class JournalNote extends Equatable {
   /// describes. `null` for target-scoped notes that span multiple runs.
   final int? sequenceRunId;
 
-  /// First-created timestamp.
   final DateTime createdAt;
 
   /// Last-updated timestamp; equal to [createdAt] until edited.

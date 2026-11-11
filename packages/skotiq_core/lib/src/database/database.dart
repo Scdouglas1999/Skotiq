@@ -110,7 +110,6 @@ part 'database/schema_helpers.dart';
 part 'database/default_settings.dart';
 part 'database/connection.dart';
 
-/// The main database class for Skotiq
 @DriftDatabase(
   include: {
     'schema/post_session.drift',

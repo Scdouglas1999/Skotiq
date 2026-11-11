@@ -402,8 +402,6 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
     return samples;
   }
 
-  // Endpoints
-
   /// Start (or arm) live stacking on the host. With [referencePath] (a host
   /// path) the stack starts immediately from that frame; without it the host
   /// arms and the next captured frame becomes the reference.

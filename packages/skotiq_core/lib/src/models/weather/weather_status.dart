@@ -10,13 +10,11 @@ part 'weather_status.g.dart';
 @freezed
 abstract class WeatherStatus with _$WeatherStatus {
   const factory WeatherStatus({
-    /// Current alert level
     @Default(AlertLevel.clear) AlertLevel currentLevel,
 
     /// Active alert (null if no alert)
     WeatherAlert? activeAlert,
 
-    /// Cloud motion analysis
     CloudMotion? motion,
 
     /// Radar frames for animation
@@ -34,7 +32,6 @@ abstract class WeatherStatus with _$WeatherStatus {
     /// for the whole session when the fetch never succeeds).
     DateTime? lastUpdate,
 
-    /// Whether data is currently loading
     @Default(false) bool isLoading,
 
     /// Error message if update failed

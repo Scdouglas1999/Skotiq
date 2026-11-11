@@ -12,7 +12,6 @@
 /// Wire form of a row in the `dark_library` Drift table, plus an
 /// on-disk presence check the server performs at list time.
 class RemoteDarkLibraryEntry {
-  /// Database primary key.
   final int id;
 
   /// Absolute path to the raw or master dark FITS/XISF file on the host.
@@ -28,16 +27,12 @@ class RemoteDarkLibraryEntry {
   /// the host could not read sensor temperature.
   final double? sensorTempC;
 
-  /// Camera gain setting.
   final int gain;
 
-  /// Camera offset setting.
   final int offset;
 
-  /// Horizontal binning.
   final int binX;
 
-  /// Vertical binning.
   final int binY;
 
   /// Frame type: `dark` or `bias`.
@@ -55,7 +50,6 @@ class RemoteDarkLibraryEntry {
   /// Number of raw frames combined into this master. Null for raw rows.
   final int? frameCount;
 
-  /// When this row was inserted.
   final DateTime createdAt;
 
   /// File size in bytes, computed server-side at list time. Null when the

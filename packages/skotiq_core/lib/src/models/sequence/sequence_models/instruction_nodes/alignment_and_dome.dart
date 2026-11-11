@@ -2,22 +2,18 @@
 
 part of '../../sequence_models.dart';
 
-/// Meridian Flip instruction
 class MeridianFlipNode extends SequenceNode {
-  // Trigger conditions
   final MeridianTriggerMethod triggerMethod;
   final double minutesPastMeridian;
   final double minutesBeforeLimit;
   final double hourAngleThreshold;
 
-  // Flip sequence options
   final bool pauseGuiding;
   final bool autoCenter;
   final bool refocusAfter;
   final double settleTime;
   final bool resumeGuiding;
 
-  // Error handling
   final int maxRetries;
   final FlipFailureAction failureAction;
 
@@ -133,7 +129,6 @@ class MeridianFlipNode extends SequenceNode {
   ];
 }
 
-/// Open Dome instruction
 class OpenDomeNode extends SequenceNode {
   final bool shutterOnly;
 
@@ -178,7 +173,6 @@ class OpenDomeNode extends SequenceNode {
   List<Object?> get props => [...super.props, shutterOnly];
 }
 
-/// Close Dome instruction
 class CloseDomeNode extends SequenceNode {
   final bool shutterOnly;
 
@@ -223,7 +217,6 @@ class CloseDomeNode extends SequenceNode {
   List<Object?> get props => [...super.props, shutterOnly];
 }
 
-/// Park Dome instruction
 class ParkDomeNode extends SequenceNode {
   final bool shutterOnly;
 
@@ -268,7 +261,6 @@ class ParkDomeNode extends SequenceNode {
   List<Object?> get props => [...super.props, shutterOnly];
 }
 
-/// Polar alignment instruction
 class PolarAlignmentNode extends SequenceNode {
   final double exposureDuration;
   final int binning;

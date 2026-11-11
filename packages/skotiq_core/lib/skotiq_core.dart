@@ -29,7 +29,6 @@ export 'src/database/session_orphan_sweep.dart';
 export 'src/database/single_instance_lock.dart';
 export 'src/database/sqlite_busy.dart';
 
-// DAOs
 export 'src/database/daos/equipment_profiles_dao.dart';
 export 'src/database/daos/targets_dao.dart';
 export 'src/database/daos/sessions_dao.dart';
@@ -183,7 +182,6 @@ export 'src/services/target_library_service.dart'
 export 'src/models/import/canonical_sequence_node.dart';
 export 'src/models/import/import_result.dart';
 
-// Providers
 export 'src/providers/app_version_provider.dart';
 export 'src/providers/focuser_backlash_calibration_provider.dart';
 export 'src/providers/focuser_backlash_provider.dart';
@@ -363,7 +361,6 @@ export 'src/providers/onboarding_provider.dart';
 export 'src/providers/next_use_prompt_provider.dart';
 export 'src/providers/disk_space_provider.dart';
 
-// Backend interface
 export 'src/backend/skotiq_backend.dart';
 export 'src/backend/ffi_backend.dart';
 export 'src/backend/network_backend.dart';
@@ -407,7 +404,6 @@ export 'src/models/backend/remote_api_compatibility.dart';
 // the executor publishes.
 export 'src/models/sequencer/recovery_status.dart';
 
-// Services
 export 'src/services/device_commands.dart';
 export 'src/services/device_service.dart';
 export 'src/services/mount_home_watcher.dart';
@@ -778,7 +774,6 @@ export 'src/services/disk_space_guard.dart';
 export 'src/services/safe_rig_service.dart';
 export 'src/services/safety_config_service.dart';
 
-// Utilities
 export 'src/utils/coordinate_parser.dart';
 export 'package:skotiq_astro/format.dart';
 export 'src/utils/resilient_poll_stream.dart';

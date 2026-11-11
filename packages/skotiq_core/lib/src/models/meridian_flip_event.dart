@@ -6,7 +6,6 @@ part 'meridian_flip_event.g.dart';
 
 // Note: PierSide is imported from device_types.dart to avoid duplication
 
-/// Steps in the meridian flip sequence
 enum FlipStep {
   pausingGuider,
   stoppingTracking,
@@ -19,7 +18,6 @@ enum FlipStep {
   settling,
 }
 
-/// Extension for FlipStep display names
 extension FlipStepExtension on FlipStep {
   String get displayName {
     switch (this) {
@@ -71,44 +69,37 @@ extension FlipStepExtension on FlipStep {
 /// Events emitted during meridian flip execution
 @freezed
 sealed class MeridianFlipEvent with _$MeridianFlipEvent {
-  /// Flip is starting
   const factory MeridianFlipEvent.starting({
     required String targetName,
     required PierSide fromPierSide,
     required double hourAngle,
   }) = MeridianFlipStarting;
 
-  /// A step has started
   const factory MeridianFlipEvent.stepStarted({
     required FlipStep step,
     required int stepIndex,
     required int totalSteps,
   }) = MeridianFlipStepStarted;
 
-  /// A step completed successfully
   const factory MeridianFlipEvent.stepCompleted({
     required FlipStep step,
     double? durationSecs,
   }) = MeridianFlipStepCompleted;
 
-  /// A step failed
   const factory MeridianFlipEvent.stepFailed({
     required FlipStep step,
     required String error,
   }) = MeridianFlipStepFailed;
 
-  /// Overall progress update
   const factory MeridianFlipEvent.progress({required int percent}) =
       MeridianFlipProgress;
 
-  /// Retry scheduled after failure
   const factory MeridianFlipEvent.retryScheduled({
     required int attempt,
     required int maxAttempts,
     required double delaySecs,
   }) = MeridianFlipRetryScheduled;
 
-  /// Flip completed successfully
   const factory MeridianFlipEvent.completed({
     required PierSide newPierSide,
     required double durationSecs,

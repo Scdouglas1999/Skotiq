@@ -42,7 +42,6 @@ class SessionDiagnosticsDao extends DatabaseAccessor<SkotiqDatabase>
     )..where((d) => d.sessionId.equals(sessionId))).getSingleOrNull();
   }
 
-  /// Delete the diagnostics row for a session.
   Future<int> deleteForSession(int sessionId) {
     return (delete(
       sessionDiagnostics,

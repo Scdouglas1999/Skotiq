@@ -2,18 +2,13 @@ part 'tutorial_models_parts/onboarding_definitions.dart';
 part 'tutorial_models_parts/workflow_tours.dart';
 part 'tutorial_models_parts/screen_tours.dart';
 
-/// Shape of the spotlight cutout
 enum SpotlightShape { circle, roundedRect, pill }
 
-/// Tutorial step definition
 class TutorialStep {
-  /// Unique identifier for this step
   final String id;
 
-  /// Title of this step
   final String title;
 
-  /// Description/instruction for the user
   final String description;
 
   /// GlobalKey identifier to find the target widget (null = no spotlight)
@@ -22,13 +17,10 @@ class TutorialStep {
   /// Position of the tooltip relative to the target
   final TooltipPosition position;
 
-  /// Whether this step can be skipped
   final bool canSkip;
 
-  /// Order in the tutorial sequence
   final int order;
 
-  /// Tutorial category this step belongs to
   final TutorialCategory category;
 
   /// Optional action to highlight (e.g., "Click here")
@@ -43,7 +35,6 @@ class TutorialStep {
   /// Can user click through the spotlight? Default true
   final bool isInteractive;
 
-  /// Shape of the spotlight cutout
   final SpotlightShape spotlightShape;
 
   const TutorialStep({
@@ -63,12 +54,10 @@ class TutorialStep {
   });
 }
 
-/// Position of the tutorial tooltip
 enum TooltipPosition { top, bottom, left, right, center }
 
 /// Tutorial categories - focused mini-tours
 enum TutorialCategory {
-  // Workflow tours (existing)
 
   /// New-user "First Night Wizard" — 7-step modal walkthrough covering the
   /// minimum-viable path from cold app launch to a running imaging sequence.
@@ -133,9 +122,7 @@ enum TutorialCategory {
   polarAlignmentTour,
 }
 
-/// Tutorial progress state
 class TutorialProgress {
-  /// Completed tutorial step IDs
   final Set<String> completedSteps;
 
   /// Whether the initial tour has been shown
@@ -147,7 +134,6 @@ class TutorialProgress {
   /// Currently active tutorial (null = none)
   final TutorialCategory? activeCategory;
 
-  /// Current step index in active tutorial
   final int currentStepIndex;
 
   const TutorialProgress({
@@ -180,8 +166,6 @@ class TutorialProgress {
   bool isStepCompleted(String stepId) => completedSteps.contains(stepId);
 }
 
-/// Built-in tutorial definitions
-/// Built-in tutorial definitions
 class TutorialDefinitions {
   static const List<TutorialStep> firstNight = _firstNight;
   static const List<TutorialStep> firstLight = _firstLight;

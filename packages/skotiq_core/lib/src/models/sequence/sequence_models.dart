@@ -203,12 +203,10 @@ extension SequenceExecutionStateCapabilities on SequenceExecutionState {
   };
 }
 
-/// Node execution status
 enum NodeStatus { pending, running, success, failure, skipped, cancelled }
 
 // FrameType is imported from imaging_models.dart
 
-/// Binning options
 enum BinningMode { one, two, three, four }
 
 extension BinningModeExtension on BinningMode {
@@ -226,10 +224,8 @@ extension BinningModeExtension on BinningMode {
   }
 }
 
-/// Autofocus method
 enum AutofocusMethod { vCurve, hyperbolic, quadratic }
 
-/// Loop condition type
 enum LoopConditionType {
   count,
   untilTime,
@@ -317,7 +313,6 @@ abstract class SequenceEstimate with _$SequenceEstimate {
   /// Total estimated wall-clock time (integration + overhead)
   double get totalEstimatedSecs => estimatedSecs + overheadSecs;
 
-  /// Format the estimate as a human-readable string
   String format() {
     if (isUnbounded) {
       final iterationMins = (singleIterationSecs / 60).round();
@@ -344,7 +339,6 @@ abstract class SequenceEstimate with _$SequenceEstimate {
   }
 }
 
-/// Conditional check type
 enum ConditionalType {
   always,
   altitudeAbove,
@@ -356,7 +350,6 @@ enum ConditionalType {
   safetyMonitorSafe,
 }
 
-/// Recovery action type
 enum RecoveryActionType {
   continueExecution,
   pause,
@@ -430,10 +423,8 @@ enum TriggerType {
   transparencyDropped,
 }
 
-/// Notification level
 enum NotificationLevel { info, warning, error, success }
 
-/// Twilight type
 enum TwilightType { civil, nautical, astronomical }
 
 /// Base class for all sequence nodes.
@@ -480,7 +471,6 @@ sealed class SequenceNode extends Equatable {
   /// Device types the node needs to execute.
   Set<DeviceType> get requiredDevices => kind.requiredDevices;
 
-  /// Create a copy with updated values
   SequenceNode copyWith({
     String? id,
     String? name,
@@ -505,8 +495,6 @@ sealed class SequenceNode extends Equatable {
 
 /// Node category for coloring
 enum NodeCategory { instruction, trigger, logic, target }
-
-// Mosaic panel info
 
 /// Information about a mosaic panel for multi-panel imaging
 @Freezed(fromJson: true, toJson: true)

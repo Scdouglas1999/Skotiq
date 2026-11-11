@@ -252,7 +252,6 @@ class RecipesDao {
     );
   }
 
-  /// Fetch a recipe by id, or null when absent.
   Future<DarkroomRecipe?> getById(int id) async {
     final rows = await _db
         .customSelect(
@@ -547,7 +546,6 @@ class RecipesDao {
   }
 }
 
-/// Riverpod provider for [RecipesDao].
 final recipesDaoProvider = Provider<RecipesDao>((ref) {
   return RecipesDao(ref.watch(databaseProvider));
 });

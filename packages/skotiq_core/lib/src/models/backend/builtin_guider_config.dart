@@ -6,13 +6,10 @@ class BuiltinGuiderConfig {
   /// Guide camera exposure time in seconds
   final double exposureSecs;
 
-  /// Guide camera gain
   final int gain;
 
-  /// Guide camera offset
   final int offset;
 
-  /// Guide camera binning
   final int binning;
 
   /// Calibration pulse duration in milliseconds
@@ -63,7 +60,6 @@ class BuiltinGuiderConfig {
     );
   }
 
-  /// Create from JSON (for network transport)
   factory BuiltinGuiderConfig.fromJson(Map<String, dynamic> json) {
     return BuiltinGuiderConfig(
       exposureSecs: (json['exposureSecs'] as num?)?.toDouble() ?? 1.0,
@@ -77,7 +73,6 @@ class BuiltinGuiderConfig {
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'exposureSecs': exposureSecs,
     'gain': gain,

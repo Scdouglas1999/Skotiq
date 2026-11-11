@@ -53,7 +53,6 @@ class FitsWriteHeader {
     this.siteElevation,
   });
 
-  /// Create from JSON (for network transport)
   factory FitsWriteHeader.fromJson(Map<String, dynamic> json) {
     return FitsWriteHeader(
       objectName: json['objectName'] as String?,
@@ -82,7 +81,6 @@ class FitsWriteHeader {
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'objectName': objectName,
     'exposureTime': exposureTime,

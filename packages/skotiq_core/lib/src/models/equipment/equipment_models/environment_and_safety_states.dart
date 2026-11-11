@@ -1,6 +1,5 @@
 part of '../equipment_models.dart';
 
-/// Weather state
 class WeatherState extends Equatable implements DeviceSlotState<WeatherState> {
   @override
   final DeviceConnectionState connectionState;
@@ -27,7 +26,6 @@ class WeatherState extends Equatable implements DeviceSlotState<WeatherState> {
   @override
   final DeviceError? lastError;
 
-  /// Whether auto-reconnection is enabled for this device.
   @override
   final bool autoReconnectEnabled;
 
@@ -129,7 +127,6 @@ class SafetyMonitorState extends Equatable
   @override
   final DeviceError? lastError;
 
-  /// Whether auto-reconnection is enabled for this device.
   @override
   final bool autoReconnectEnabled;
 

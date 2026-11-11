@@ -87,7 +87,6 @@ class DeviceId {
   /// The exact raw id as supplied (untrimmed, original case preserved).
   final String raw;
 
-  /// The driver layer this id belongs to.
   final DeviceDriverKind kind;
 
   /// Lower-cased, trimmed segments after the driver prefix is stripped.
@@ -410,10 +409,8 @@ bool _fuzzyDeviceIdsMatch(String profileId, String connectedId) {
   // matcher must remain correct on its own.
   if (isPhd2WireToken(p) && isPhd2WireToken(c)) return true;
 
-  // Direct match
   if (p == c) return true;
 
-  // Normalize by removing all non-alphanumeric characters
   final normP = p.replaceAll(RegExp(r'[^a-z0-9]'), '');
   final normC = c.replaceAll(RegExp(r'[^a-z0-9]'), '');
   if (normP == normC) return true;
@@ -448,7 +445,6 @@ bool _fuzzyDeviceIdsMatch(String profileId, String connectedId) {
         .isNotEmpty) {
       return true;
     }
-    // Check if one model contains another
     for (final pm in profileNumberedModels) {
       for (final cm in connectedNumberedModels) {
         if (pm.contains(cm) || cm.contains(pm)) return true;
@@ -457,7 +453,6 @@ bool _fuzzyDeviceIdsMatch(String profileId, String connectedId) {
     return false;
   }
 
-  // Token-based matching
   final pTokens = p
       .split(RegExp(r'[_\-\s:]+'))
       .where((t) => t.length >= 2)

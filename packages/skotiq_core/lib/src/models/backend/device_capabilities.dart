@@ -4,10 +4,8 @@
 /// eliminating the dependency on the FRB bridge types.
 library;
 
-/// Mount tracking rates
 enum TrackingRate { sidereal, lunar, solar, king, custom }
 
-/// Camera capabilities
 class CameraCapabilities {
   final int maxWidth;
   final int maxHeight;
@@ -215,7 +213,6 @@ class CameraCapabilities {
   };
 }
 
-/// Mount capabilities
 class MountCapabilities {
   final bool canSlew;
   final bool canSlewAsync;
@@ -396,7 +393,6 @@ class MountCapabilities {
   };
 }
 
-/// Focuser capabilities
 class FocuserCapabilities {
   final int maxPosition;
   final int maxIncrement;
@@ -469,7 +465,6 @@ class FocuserCapabilities {
   };
 }
 
-/// Filter wheel capabilities
 class FilterWheelCapabilities {
   final int positionCount;
   final int? currentPosition;
@@ -527,7 +522,6 @@ class FilterWheelCapabilities {
   };
 }
 
-/// Rotator capabilities
 class RotatorCapabilities {
   final bool canReverse;
   final bool reverse;

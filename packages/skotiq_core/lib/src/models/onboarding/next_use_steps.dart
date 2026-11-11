@@ -41,7 +41,6 @@ enum NextUseActionId {
 /// Maps a single [NextUseActionId] to the human-facing copy, a stable icon key,
 /// and the deep-link target the presentation layer navigates to.
 class NextUseStep {
-  /// The action this step represents.
   final NextUseActionId id;
 
   /// Short, action-oriented heading (e.g. `Plan tonight automatically`).

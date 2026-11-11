@@ -52,8 +52,6 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
     return raw.toInt();
   }
 
-  // Target management
-
   /// Get all targets from the headless server
   /// Returns JSON maps that can be used to construct CelestialTarget objects
   Future<List<Map<String, dynamic>>> getAllTargets() async {
@@ -61,7 +59,6 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
     return _domainObjectRows(response, 'targets', 'GET /api/targets');
   }
 
-  /// Get a specific target by ID
   Future<Map<String, dynamic>?> getTargetById(int id) async {
     try {
       final response = await _get('targets/$id');
@@ -72,41 +69,34 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
     }
   }
 
-  /// Search targets by query string
   Future<List<Map<String, dynamic>>> searchTargets(String query) async {
     final response = await _get('targets/search', {'query': query});
     return _domainObjectRows(response, 'targets', 'GET /api/targets/search');
   }
 
-  /// Create a new target
   Future<int> createTarget(Map<String, dynamic> target) async {
     final response = await _post('targets', target);
     return _domainId(response, 'POST /api/targets');
   }
 
-  /// Update an existing target
   Future<void> updateTarget(int id, Map<String, dynamic> target) async {
     await _put('targets/$id', target);
   }
 
-  /// Delete a target
   Future<void> deleteTarget(int id) async {
     await _delete('targets/$id');
   }
 
-  /// Get favorite targets
   Future<List<Map<String, dynamic>>> getFavoriteTargets() async {
     final response = await _get('targets/favorites');
     return _domainObjectRows(response, 'targets', 'GET /api/targets/favorites');
   }
 
-  /// Get targets by object type
   Future<List<Map<String, dynamic>>> getTargetsByType(String objectType) async {
     final response = await _get('targets/by-type', {'type': objectType});
     return _domainObjectRows(response, 'targets', 'GET /api/targets/by-type');
   }
 
-  /// Get targets by priority
   Future<List<Map<String, dynamic>>> getTargetsByPriority(int priority) async {
     final response = await _get('targets/by-priority', {
       'priority': priority.toString(),
@@ -120,7 +110,6 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
 
   // Sequence Management (CRUD - separate from sequencer execution)
 
-  /// Get all sequences
   Future<List<Map<String, dynamic>>> getSequenceList() async {
     final response = await _get('sequence-management/list');
     return _domainObjectRows(
@@ -130,7 +119,6 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
     );
   }
 
-  /// Get all sequence templates
   Future<List<Map<String, dynamic>>> getSequenceTemplates() async {
     final response = await _get('sequence-management/templates');
     return _domainObjectRows(
@@ -140,23 +128,19 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
     );
   }
 
-  /// Create a new sequence
   Future<int> createSequence(Map<String, dynamic> sequence) async {
     final response = await _post('sequence-management', sequence);
     return _domainId(response, 'POST /api/sequence-management');
   }
 
-  /// Update an existing sequence
   Future<void> updateSequence(int id, Map<String, dynamic> sequence) async {
     await _put('sequence-management/$id', sequence);
   }
 
-  /// Delete a sequence
   Future<void> deleteSequence(int id) async {
     await _delete('sequence-management/$id');
   }
 
-  /// Duplicate a sequence
   Future<int> duplicateSequence(int sourceId, String newName) async {
     final response = await _post('sequence-management/$sourceId/duplicate', {
       'newName': newName,
@@ -289,16 +273,11 @@ mixin _NetworkBackendDomainOperations on _NetworkBackendTransport {
     }
   }
 
-  /// Create a new sequence node
   Future<void> createSequenceNode(
     int sequenceId,
     Map<String, dynamic> node,
   ) async {
     await _post('sequence-management/$sequenceId/nodes', node);
   }
-
-  // Flat wizard
-
-  // Mosaic planning
 
 }

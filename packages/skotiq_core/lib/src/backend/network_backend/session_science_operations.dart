@@ -105,15 +105,11 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     }
   }
 
-  // Sessions & Analytics
-
-  /// Get all imaging sessions
   Future<List<Map<String, dynamic>>> getAllSessions() async {
     final response = await _get('sessions');
     return _sessionScienceObjectList(response, 'sessions', 'GET /api/sessions');
   }
 
-  /// Get session by ID
   Future<Map<String, dynamic>?> getSessionById(int id) async {
     try {
       final response = await _get('sessions/$id');
@@ -128,7 +124,6 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     }
   }
 
-  /// Create a new session
   Future<int> createSession(Map<String, dynamic> session) async {
     final response = await _post('sessions', session);
     return _sessionScienceNumber(response, 'id', 'POST /api/sessions').toInt();
@@ -139,12 +134,10 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     await _put('sessions/$id', body);
   }
 
-  /// End a session with the given status.
   Future<void> endSession(int id, {String status = 'completed'}) async {
     await _post('sessions/$id/end', {'status': status});
   }
 
-  /// Sessions for a target.
   Future<List<Map<String, dynamic>>> getSessionsForTarget(int targetId) async {
     final response = await _get('sessions/target/$targetId');
     return _sessionScienceObjectList(
@@ -165,7 +158,6 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     await _put('images/$id', patch);
   }
 
-  /// Fetch one captured-image row by id.
   Future<Map<String, dynamic>?> getCapturedImageById(int id) async {
     try {
       final response = await _get('images/$id');
@@ -180,13 +172,11 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     }
   }
 
-  /// Every image row the host has recorded.
   Future<List<Map<String, dynamic>>> getAllImages() async {
     final response = await _get('images');
     return _sessionScienceObjectList(response, 'images', 'GET /api/images');
   }
 
-  /// Images for a target.
   Future<List<Map<String, dynamic>>> getImagesForTarget(int targetId) async {
     final response = await _get('images', {'targetId': targetId.toString()});
     return _sessionScienceObjectList(response, 'images', 'GET /api/images');
@@ -249,7 +239,6 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     return vectors;
   }
 
-  /// Get analytics summary
   Future<Map<String, dynamic>> getAnalyticsSummary({
     DateTime? startDate,
     DateTime? endDate,
@@ -268,7 +257,6 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     return response;
   }
 
-  /// Get total integration time
   Future<Map<String, dynamic>> getTotalIntegrationTime({
     DateTime? startDate,
     DateTime? endDate,
@@ -314,9 +302,6 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     ).toInt();
   }
 
-  // Weather & Radar
-
-  /// Get weather radar data
   Future<Map<String, dynamic>> getWeatherRadar(
     double lat,
     double lon, {
@@ -330,7 +315,6 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     return response;
   }
 
-  /// Get weather alerts
   Future<List<Map<String, dynamic>>> getWeatherAlerts() async {
     final response = await _get('weather/alerts');
     return _sessionScienceObjectList(
@@ -340,7 +324,6 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     );
   }
 
-  /// Get weather settings
   Future<Map<String, dynamic>> getWeatherSettings() async {
     final response = await _get('weather/settings');
     return _sessionScienceObject(
@@ -350,12 +333,10 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     );
   }
 
-  /// Update weather settings
   Future<void> updateWeatherSettings(Map<String, dynamic> settings) async {
     await _post('weather/settings', settings);
   }
 
-  /// Clear weather cache
   Future<void> clearWeatherCache() async {
     await _post('weather/clear-cache');
   }
@@ -557,9 +538,6 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     });
   }
 
-  // Target suggestions
-
-  /// Get target suggestions for tonight
   Future<Map<String, dynamic>> getSuggestionsForTonight({
     double? minAltitude,
     double? minScore,
@@ -611,15 +589,11 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     ).map(TargetSuggestion.fromJson).toList(growable: false);
   }
 
-  /// Get target score
   Future<Map<String, dynamic>> getTargetScore(int targetId) async {
     final response = await _get('suggestions/score/$targetId');
     return response;
   }
 
-  // Transient alerts
-
-  /// Get active transient alerts
   Future<Map<String, dynamic>> getActiveTransients() async {
     final response = await _get('transients');
     return {
@@ -632,7 +606,6 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     };
   }
 
-  /// Get transient settings
   Future<Map<String, dynamic>> getTransientSettings() async {
     final response = await _get('transients/settings');
     return _sessionScienceObject(
@@ -642,17 +615,14 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     );
   }
 
-  /// Update transient settings
   Future<void> updateTransientSettings(Map<String, dynamic> settings) async {
     await _post('transients/settings', settings);
   }
 
-  /// Queue a transient for observation
   Future<void> queueTransient(String transientId) async {
     await _post('transients/$transientId/queue');
   }
 
-  /// Dismiss a transient
   Future<void> dismissTransient(String transientId) async {
     await _post('transients/$transientId/dismiss');
   }
@@ -677,20 +647,15 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     await _delete('transients/states');
   }
 
-  /// Refresh transient alerts
   Future<void> refreshTransientAlerts() async {
     await _post('transients/refresh');
   }
 
-  /// Get queued transients
   Future<Map<String, dynamic>> getQueuedTransients() async {
     final response = await _get('transients/queued');
     return response;
   }
 
-  // Backup & Restore
-
-  /// List available backups
   Future<List<Map<String, dynamic>>> listBackups() async {
     final response = await _get('backup/list');
     final backupsList = response['backups'];
@@ -711,7 +676,6 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
         .toList(growable: false);
   }
 
-  /// Create a new backup
   Future<Map<String, dynamic>> createBackup({bool autoSave = false}) async {
     final response = await _post('backup/create', {'autoSave': autoSave});
     return response;
@@ -749,18 +713,15 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     return response;
   }
 
-  /// Delete a backup
   Future<void> deleteBackup(String backupId) async {
     await _delete('backup/$backupId');
   }
 
-  /// Get backup metadata
   Future<Map<String, dynamic>> getBackupMetadata(String backupId) async {
     final response = await _get('backup/$backupId/metadata');
     return response;
   }
 
-  /// Download backup file bytes
   Future<Uint8List> downloadBackup(String backupId) async {
     return _downloadBytes('backup/$backupId/download');
   }
@@ -1088,8 +1049,6 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   Future<Uint8List> generateObservationReport(int sessionId) async {
     return _downloadBytes('science/session/$sessionId/report/pdf');
   }
-
-  // Remote filesystem
 
   Future<RemoteDirectoryListing> browseRemoteDirectories({String? path}) async {
     final response = await _get(

@@ -25,7 +25,6 @@ remote_profile.EquipmentProfile dbProfileToRemote(db.EquipmentProfile row) {
     name: row.name,
     description: row.description,
 
-    // Device identifiers
     cameraId: row.cameraId,
     mountId: row.mountId,
     focuserId: row.focuserId,
@@ -40,12 +39,10 @@ remote_profile.EquipmentProfile dbProfileToRemote(db.EquipmentProfile row) {
     switchId: row.switchId,
     coverCalibratorId: row.coverCalibratorId,
 
-    // Optical setup
     focalLength: row.focalLength,
     aperture: row.aperture,
     focalRatio: row.focalRatio,
 
-    // Camera defaults
     defaultGain: row.defaultGain,
     defaultOffset: row.defaultOffset,
     defaultBinX: row.defaultBinX,
@@ -54,14 +51,11 @@ remote_profile.EquipmentProfile dbProfileToRemote(db.EquipmentProfile row) {
     coolOnConnect: row.coolOnConnect,
     defaultCenteringExposure: row.defaultCenteringExposure,
 
-    // Filter configuration
     filterNames: row.filterNames,
     filterFocusOffsets: row.filterFocusOffsets,
 
-    // Meridian flip overrides
     meridianFlipOverrides: row.meridianFlipOverrides,
 
-    // User-friendly device names
     cameraName: row.cameraName,
     mountName: row.mountName,
     focuserName: row.focuserName,
@@ -77,17 +71,14 @@ remote_profile.EquipmentProfile dbProfileToRemote(db.EquipmentProfile row) {
     telescopeFocalLength: row.telescopeFocalLength ?? 0.0,
     telescopeAperture: row.telescopeAperture ?? 0.0,
 
-    // Customization
     profileIcon: row.profileIcon,
     profileColor: row.profileColor,
     sortOrder: row.sortOrder,
     isDefault: row.isDefault,
 
-    // Timestamps
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
 
-    // State
     isActive: row.isActive,
   );
 }
@@ -105,7 +96,6 @@ db.EquipmentProfilesCompanion remoteProfileToCompanion(
     name: profile.name,
     description: Value(profile.description),
 
-    // Device identifiers
     cameraId: Value(profile.cameraId),
     mountId: Value(profile.mountId),
     focuserId: Value(profile.focuserId),
@@ -120,12 +110,10 @@ db.EquipmentProfilesCompanion remoteProfileToCompanion(
     switchId: Value(profile.switchId),
     coverCalibratorId: Value(profile.coverCalibratorId),
 
-    // Optical setup
     focalLength: Value(profile.focalLength),
     aperture: Value(profile.aperture),
     focalRatio: Value(profile.focalRatio),
 
-    // Camera defaults
     defaultGain: Value(profile.defaultGain),
     defaultOffset: Value(profile.defaultOffset),
     defaultBinX: Value(profile.defaultBinX),
@@ -134,14 +122,11 @@ db.EquipmentProfilesCompanion remoteProfileToCompanion(
     coolOnConnect: Value(profile.coolOnConnect),
     defaultCenteringExposure: Value(profile.defaultCenteringExposure),
 
-    // Filter configuration
     filterNames: Value(profile.filterNames),
     filterFocusOffsets: Value(profile.filterFocusOffsets),
 
-    // Meridian flip overrides
     meridianFlipOverrides: Value(profile.meridianFlipOverrides),
 
-    // User-friendly device names
     cameraName: Value(profile.cameraName),
     mountName: Value(profile.mountName),
     focuserName: Value(profile.focuserName),
@@ -152,12 +137,10 @@ db.EquipmentProfilesCompanion remoteProfileToCompanion(
     safetyMonitorName: Value(profile.safetyMonitorName),
     switchName: Value(profile.switchName),
 
-    // Telescope/OTA
     telescopeName: Value(profile.telescopeName),
     telescopeFocalLength: Value(profile.telescopeFocalLength),
     telescopeAperture: Value(profile.telescopeAperture),
 
-    // Customization
     profileIcon: Value(profile.profileIcon),
     profileColor: Value(profile.profileColor),
     sortOrder: Value(profile.sortOrder),
@@ -186,7 +169,6 @@ db.EquipmentProfile remoteProfileToDbRow(
     name: profile.name,
     description: profile.description,
 
-    // Device identifiers
     cameraId: profile.cameraId,
     mountId: profile.mountId,
     focuserId: profile.focuserId,
@@ -201,12 +183,10 @@ db.EquipmentProfile remoteProfileToDbRow(
     switchId: profile.switchId,
     coverCalibratorId: profile.coverCalibratorId,
 
-    // Optical setup
     focalLength: profile.focalLength,
     aperture: profile.aperture,
     focalRatio: profile.focalRatio,
 
-    // Camera defaults
     defaultGain: profile.defaultGain,
     defaultOffset: profile.defaultOffset,
     defaultBinX: profile.defaultBinX,
@@ -215,7 +195,6 @@ db.EquipmentProfile remoteProfileToDbRow(
     coolOnConnect: profile.coolOnConnect,
     defaultCenteringExposure: profile.defaultCenteringExposure,
 
-    // Filter configuration
     filterNames: profile.filterNames,
     filterFocusOffsets: profile.filterFocusOffsets,
 
@@ -228,7 +207,6 @@ db.EquipmentProfile remoteProfileToDbRow(
     meridianFlipOverrides:
         profile.meridianFlipOverrides ?? existing?.meridianFlipOverrides,
 
-    // User-friendly device names
     cameraName: profile.cameraName,
     mountName: profile.mountName,
     focuserName: profile.focuserName,
@@ -239,12 +217,10 @@ db.EquipmentProfile remoteProfileToDbRow(
     safetyMonitorName: profile.safetyMonitorName,
     switchName: profile.switchName,
 
-    // Telescope/OTA
     telescopeName: profile.telescopeName,
     telescopeFocalLength: profile.telescopeFocalLength,
     telescopeAperture: profile.telescopeAperture,
 
-    // Customization
     profileIcon: profile.profileIcon,
     profileColor: profile.profileColor,
     // Preserve sort order / default / active flags from the existing row on the

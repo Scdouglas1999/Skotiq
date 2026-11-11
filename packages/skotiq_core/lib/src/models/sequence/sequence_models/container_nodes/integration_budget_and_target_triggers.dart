@@ -2,8 +2,6 @@
 
 part of '../../sequence_models.dart';
 
-// Container / logic nodes
-
 /// Dart mirror of the Rust `FilterBudgetEntry`.
 /// `Absolute(secs)` caps that filter at a fixed time; `Ratio(value)` is
 /// normalised against the other ratios in the same target and the

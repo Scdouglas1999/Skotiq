@@ -140,7 +140,6 @@ class DeliveryTargetsDao {
     );
   }
 
-  /// Fetch a destination by id, or null when absent.
   Future<ArtifactDestination?> getById(int id) async {
     final rows = await _db
         .customSelect(
@@ -355,7 +354,6 @@ class DeliveryTargetsDao {
   }
 }
 
-/// Riverpod provider for [DeliveryTargetsDao].
 final deliveryTargetsDaoProvider = Provider<DeliveryTargetsDao>((ref) {
   return DeliveryTargetsDao(ref.watch(databaseProvider));
 });

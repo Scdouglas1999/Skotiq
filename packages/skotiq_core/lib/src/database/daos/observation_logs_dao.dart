@@ -12,7 +12,6 @@ class ObservationLogsDao extends DatabaseAccessor<SkotiqDatabase>
     implements ObservationLog {
   ObservationLogsDao(super.db);
 
-  /// Insert a new observation log entry. Returns the generated row ID.
   @override
   Future<int> insertLog({
     required DateTime timestamp,
@@ -54,18 +53,15 @@ class ObservationLogsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 
-  /// Update an existing observation log entry.
   Future<bool> updateLog(ObservationLogEntry entry) {
     return update(observationLogs).replace(entry);
   }
 
-  /// Delete a single observation log entry by ID.
   @override
   Future<int> deleteLog(int id) {
     return (delete(observationLogs)..where((t) => t.id.equals(id))).go();
   }
 
-  /// Get a single observation log entry by ID.
   Future<ObservationLogEntry?> getLogById(int id) async {
     final query = select(observationLogs)..where((t) => t.id.equals(id));
     final results = await query.get();
@@ -93,7 +89,6 @@ class ObservationLogsDao extends DatabaseAccessor<SkotiqDatabase>
     return query.watch();
   }
 
-  /// Get observation logs within a date range.
   Future<List<ObservationLogEntry>> getLogsByDateRange({
     required DateTime start,
     required DateTime end,
@@ -120,7 +115,6 @@ class ObservationLogsDao extends DatabaseAccessor<SkotiqDatabase>
     return query.get();
   }
 
-  /// Get observation logs filtered by rating.
   Future<List<ObservationLogEntry>> getLogsByMinRating(int minRating) {
     final query = select(observationLogs)
       ..where((t) => t.rating.isBiggerOrEqualValue(minRating))
@@ -128,7 +122,6 @@ class ObservationLogsDao extends DatabaseAccessor<SkotiqDatabase>
     return query.get();
   }
 
-  /// Get observation logs for a specific equipment profile.
   Future<List<ObservationLogEntry>> getLogsByProfile(int profileId) {
     final query = select(observationLogs)
       ..where((t) => t.equipmentProfileId.equals(profileId))
@@ -159,7 +152,6 @@ class ObservationLogsDao extends DatabaseAccessor<SkotiqDatabase>
     return results.whereType<String>().toSet();
   }
 
-  /// Watch the set of observed catalog IDs as a reactive stream.
   @override
   Stream<Set<String>> watchObservedCatalogIds() {
     final query = selectOnly(observationLogs, distinct: true)
@@ -198,13 +190,11 @@ class ObservationLogsDao extends DatabaseAccessor<SkotiqDatabase>
         .toList();
   }
 
-  /// Generate CSV string of all observation logs.
   @override
   Future<String> exportToCsv() async {
     return observationLogsToCsv(await getAllLogs());
   }
 
-  /// Get total count of observation logs.
   Future<int> getLogCount() async {
     final countExpr = observationLogs.id.count();
     final query = selectOnly(observationLogs)..addColumns([countExpr]);
@@ -242,7 +232,6 @@ class ObservationLogsDao extends DatabaseAccessor<SkotiqDatabase>
     return row.read(countExpr) ?? 0;
   }
 
-  /// Get observation statistics.
   @override
   Future<ObservationLogStats> getStats() async {
     final logs = await getAllLogs();
@@ -277,14 +266,12 @@ class ObservationLogsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 
-  /// Delete all observation logs for a specific equipment profile.
   Future<int> deleteLogsForProfile(int profileId) {
     return (delete(
       observationLogs,
     )..where((t) => t.equipmentProfileId.equals(profileId))).go();
   }
 
-  /// Delete all observation logs.
   @override
   Future<int> deleteAllLogs() {
     return delete(observationLogs).go();
@@ -334,7 +321,6 @@ String observationLogsToCsv(Iterable<ObservationLogEntry> logs) {
   return [headers, ...dataRows].join('\n');
 }
 
-/// Summary statistics for observation logs.
 class ObservationLogStats {
   final int totalObservations;
   final int uniqueObjects;

@@ -231,7 +231,6 @@ class CalibrationTagsDao {
   }
 }
 
-/// Riverpod provider for [CalibrationTagsDao].
 final calibrationTagsDaoProvider = Provider<CalibrationTagsDao>((ref) {
   return CalibrationTagsDao(ref.watch(databaseProvider));
 });

@@ -97,10 +97,8 @@ class TargetHeaderNode extends SequenceNode {
     return targetName;
   }
 
-  /// Check if this target has time constraints
   bool get hasTimeConstraints => startAfter != null || endBefore != null;
 
-  /// Check if this target has altitude constraints
   bool get hasAltitudeConstraints => minAltitude != null || maxAltitude != null;
 
   /// True iff the integration budget is configured and

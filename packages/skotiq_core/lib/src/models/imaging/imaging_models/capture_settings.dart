@@ -91,7 +91,6 @@ class ExposureSettings extends Equatable {
   ];
 }
 
-/// Cooling settings
 class CoolingSettings extends Equatable {
   final double targetTemp;
   final bool enabled;
@@ -123,7 +122,6 @@ class CoolingSettings extends Equatable {
   List<Object?> get props => [targetTemp, enabled, warmupRate, cooldownRate];
 }
 
-/// Cooling status
 class CoolingStatus extends Equatable {
   final double currentTemp;
   final double targetTemp;
@@ -170,7 +168,6 @@ class FocusSettings extends Equatable {
   /// Manual focus step size
   final int stepSize;
 
-  /// Autofocus method
   final String method;
 
   /// Autofocus step size
@@ -234,7 +231,6 @@ class DitherSettings extends Equatable {
   /// Settle time in seconds
   final double settleTime;
 
-  /// Whether to settle after dither
   final bool settleAfterDither;
 
   const DitherSettings({

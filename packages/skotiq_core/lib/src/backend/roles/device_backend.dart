@@ -115,15 +115,11 @@ abstract interface class DomeStatusBackend {
 /// owned by the focuser/camera drivers in Rust, and the orchestration is
 /// stateless from the Dart side.
 abstract class DeviceBackend {
-  // Device Discovery & Connection
 
-  /// Discover available devices of a specific type
   Future<List<DeviceInfo>> discoverDevices(DeviceType deviceType);
 
-  /// Discover INDI devices at a specific server address
   Future<List<DeviceInfo>> discoverIndiAtAddress(String host, int port);
 
-  /// Discover Alpaca devices at a specific server address
   Future<List<DeviceInfo>> discoverAlpacaAtAddress(String host, int port);
 
   /// Connect to a device.
@@ -140,10 +136,8 @@ abstract class DeviceBackend {
     String? expectedModel,
   });
 
-  /// Disconnect from a device
   Future<void> disconnectDevice(DeviceType deviceType, String deviceId);
 
-  /// Get list of currently connected devices
   Future<List<DeviceInfo>> getConnectedDevices();
 
   /// Force an immediate hot-plug re-enumeration on the *active backend's host*.
@@ -165,8 +159,6 @@ abstract class DeviceBackend {
   /// failure reaches the operator instead of a success toast.
   Future<void> rescanDevices();
 
-  // Camera control
-
   /// Start a camera exposure
   ///
   /// [gain] and [offset] are optional - if null, the camera's current/default
@@ -185,10 +177,8 @@ abstract class DeviceBackend {
     int? height,
   });
 
-  /// Abort current camera exposure
   Future<void> cameraAbortExposure(String deviceId);
 
-  /// Get the last captured image for a specific device
   Future<CapturedImageResult?> cameraGetLastImage(String deviceId);
 
   /// Capture a live-view preview JPEG from the camera when the driver supports it.
@@ -204,7 +194,6 @@ abstract class DeviceBackend {
   /// This frees memory when a camera is disconnected or when explicitly requested
   Future<void> clearDeviceImage(String deviceId);
 
-  /// Set camera cooling
   Future<void> cameraSetCooling({
     required String deviceId,
     required bool enabled,
@@ -215,10 +204,8 @@ abstract class DeviceBackend {
   /// modeIndex: 0 = default/high quality, 1 = fast readout, etc.
   Future<void> cameraSetReadoutMode(String deviceId, int modeIndex);
 
-  /// Set camera gain
   Future<void> cameraSetGain(String deviceId, int gain);
 
-  /// Set camera offset
   Future<void> cameraSetOffset(String deviceId, int offset);
 
   /// Query the camera SDK for manufacturer-recommended gain/offset values.
@@ -232,34 +219,24 @@ abstract class DeviceBackend {
     String deviceId,
   );
 
-  // Mount control
-
-  /// Slew mount to coordinates
   Future<void> mountSlewToCoordinates(String deviceId, double ra, double dec);
 
-  /// Sync mount to coordinates
   Future<void> mountSync(String deviceId, double ra, double dec);
 
-  /// Park the mount
   Future<void> mountPark(String deviceId);
 
-  /// Unpark the mount
   Future<void> mountUnpark(String deviceId);
 
-  /// Set mount tracking
   Future<void> mountSetTracking(String deviceId, bool enabled);
 
-  /// Pulse guide (for corrections)
   Future<void> mountPulseGuide({
     required String deviceId,
     required String direction,
     required int durationMs,
   });
 
-  /// Abort mount slew
   Future<void> mountAbort(String deviceId);
 
-  /// Get mount status
   Future<dynamic> mountGetStatus(String deviceId);
 
   /// Set mount tracking rate (0=Sidereal, 1=Lunar, 2=Solar, 3=King)
@@ -273,7 +250,6 @@ abstract class DeviceBackend {
   /// Slew mount to alt/az coordinates (altitude in degrees, azimuth in degrees)
   Future<void> mountSlewAltAz(String deviceId, double altitude, double azimuth);
 
-  /// Find mount home position
   Future<void> mountFindHome(String deviceId);
 
   /// Store the mount's current position as its park position. Nothing moves.
@@ -306,15 +282,10 @@ abstract class DeviceBackend {
     double utcOffsetHours,
   );
 
-  // Focuser control
-
-  /// Move focuser to absolute position
   Future<void> focuserMoveTo(String deviceId, int position);
 
-  /// Move focuser by relative amount
   Future<void> focuserMoveRelative(String deviceId, int delta);
 
-  /// Halt focuser movement
   Future<void> focuserHalt(String deviceId);
 
   /// Run autofocus
@@ -347,7 +318,6 @@ abstract class DeviceBackend {
     int? measuredBacklashIn,
   });
 
-  /// Cancel autofocus
   Future<void> autofocusCancel();
 
   /// Measure the focuser's backlash by scanning focus twice, approaching
@@ -380,32 +350,20 @@ abstract class DeviceBackend {
     required int centerPosition,
   });
 
-  // Filter wheel control
-
-  /// Set filter wheel position
   Future<void> filterWheelSetPosition(String deviceId, int position);
 
-  /// Get filter names
   Future<List<String>> filterWheelGetNames(String deviceId);
 
-  /// Set filter names
   Future<void> filterWheelSetNames(String deviceId, List<String> names);
 
-  /// Set filter by name
   Future<void> filterWheelSetByName(String deviceId, String name);
 
-  // Rotator control
-
-  /// Move rotator to absolute angle
   Future<void> rotatorMoveTo(String deviceId, double angle);
 
-  /// Move rotator by relative angle
   Future<void> rotatorMoveRelative(String deviceId, double delta);
 
-  /// Get rotator angle
   Future<double> rotatorGetAngle(String deviceId);
 
-  /// Halt rotator
   Future<void> rotatorHalt(String deviceId);
 
   /// Set the rotator's reverse-direction flag (IRotatorV3 `Reverse`,
@@ -419,12 +377,8 @@ abstract class DeviceBackend {
   /// the "Sync to image PA" plate-solve workflow needs the Sync semantic.
   Future<void> rotatorSyncToPa(String deviceId, double pa);
 
-  // Dome control
-
-  /// Open the dome shutter
   Future<void> domeOpenShutter(String deviceId);
 
-  /// Close the dome shutter
   Future<void> domeCloseShutter(String deviceId);
 
   /// Slew the dome to an azimuth (degrees)
@@ -433,53 +387,31 @@ abstract class DeviceBackend {
   /// Enable/disable dome-mount slaving (slewing the dome with the mount)
   Future<void> domeSetSlaved(String deviceId, bool slaved);
 
-  /// Park the dome
   Future<void> domePark(String deviceId);
 
   /// Move the dome to its home position. ASCOM domes have no explicit unpark
   /// verb; finding home releases the parked state (standard ASCOM behaviour).
   Future<void> domeFindHome(String deviceId);
 
-  /// Abort dome slew/movement
   Future<void> domeAbortSlew(String deviceId);
 
-  // Cover calibrator control
-
-  /// Open the cover
   Future<void> coverOpen(String deviceId);
 
-  /// Close the cover
   Future<void> coverClose(String deviceId);
 
-  /// Turn the calibrator light on at [brightness]
   Future<void> calibratorOn(String deviceId, int brightness);
 
-  /// Turn the calibrator light off
   Future<void> calibratorOff(String deviceId);
 
-  // Equipment status
-
-  /// Get camera status
-  /// Returns typed CameraStatus with all sensor and cooling information
   Future<CameraStatus> getCameraStatus(String deviceId);
 
-  /// Get mount status
-  /// Returns typed MountStatus with position, tracking, and capability flags
   Future<MountStatus> getMountStatus(String deviceId);
 
-  /// Get focuser status
-  /// Returns typed FocuserStatus with position, movement, and temperature info
   Future<FocuserStatus> getFocuserStatus(String deviceId);
 
-  /// Get filter wheel status
-  /// Returns typed FilterWheelStatus with position and filter names
   Future<FilterWheelStatus> getFilterWheelStatus(String deviceId);
 
-  /// Get rotator status
-  /// Returns typed RotatorStatus with position and movement info
   Future<RotatorStatus> getRotatorStatus(String deviceId);
-
-  // Device capabilities
 
   /// Get camera capabilities
   /// Returns null if the device is not connected or capabilities unavailable
@@ -500,8 +432,6 @@ abstract class DeviceBackend {
   /// Get rotator capabilities
   /// Returns null if the device is not connected or capabilities unavailable
   Future<RotatorCapabilities?> getRotatorCapabilities(String deviceId);
-
-  // Device health monitoring
 
   /// Start heartbeat monitoring for a device
   ///

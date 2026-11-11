@@ -1024,7 +1024,6 @@ DateTime? _historyOptionalDate(
   return _historyRequiredDate(json, key, context);
 }
 
-/// Helper function to consolidate HTTP response bytes
 Future<List<int>> consolidateHttpClientResponseBytes(
   HttpClientResponse response,
 ) {

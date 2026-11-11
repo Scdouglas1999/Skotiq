@@ -53,7 +53,6 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     await connect();
   }
 
-  /// Update connection state and notify listeners
   void _updateConnectionState(BackendConnectionState newState) {
     if (_connectionState != newState) {
       _connectionState = newState;
@@ -66,7 +65,6 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     }
   }
 
-  /// Test connectivity to server
   Future<bool> _testConnection() async {
     try {
       final compatibility = await _checkServerCompatibility();
@@ -220,7 +218,6 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     _previousServerInstanceId = advertisedInstance;
   }
 
-  /// Initialize the WebSocket connection for real-time events
   Future<void> _connect() async {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
@@ -307,7 +304,6 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
       _wsChannel = IOWebSocketChannel.connect(wsUri);
       _lastWebSocketMessageAt = DateTime.now();
 
-      // Cancel any existing subscription before creating a new one
       await _wsSubscription?.cancel();
       _wsSubscription = _wsChannel!.stream.listen(
         (message) {
@@ -349,7 +345,6 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
               return;
             }
 
-            // Route push notifications to the dedicated stream
             if (type == 'push_notification') {
               _pushNotificationController.add(json);
               return;
@@ -401,7 +396,6 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
             _handleEventSideEffects(event);
             _eventController.add(event);
 
-            // Route polar alignment events to the dedicated stream
             if (event.category == EventCategory.polarAlignment) {
               _polarAlignController.add(event.data);
             }
@@ -444,7 +438,6 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
       // thrash loop on every retry.
       await _wsChannel!.ready.timeout(requestTimeout);
 
-      // Connection successful
       _updateConnectionState(BackendConnectionState.connected);
       _hasEverConnected = true;
       final wasReconnect = _reconnectAttempt > 0;
@@ -605,7 +598,6 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     }
   }
 
-  /// Handle connection failures with exponential backoff
   void _handleConnectionFailure() {
     if (_disposed || _disconnecting) {
       return;
@@ -862,7 +854,6 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     }
   }
 
-  /// Dispose resources
   void _dispose() {
     _disposed = true;
     _disconnecting = true;

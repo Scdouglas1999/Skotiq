@@ -29,7 +29,6 @@ class ImageStatsResult {
     required this.starCount,
   });
 
-  /// Create from JSON (for network transport)
   factory ImageStatsResult.fromJson(Map<String, dynamic> json) {
     return ImageStatsResult(
       min: (json['min'] as num).toDouble(),
@@ -46,7 +45,6 @@ class ImageStatsResult {
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'min': min,
     'max': max,
@@ -75,7 +73,6 @@ class CapturedImageResult {
   /// Histogram data (256 bins)
   final List<int> histogram;
 
-  /// Image statistics
   final ImageStatsResult stats;
 
   /// Exposure time in seconds
@@ -98,7 +95,6 @@ class CapturedImageResult {
     this.isColor = false,
   });
 
-  /// Create from JSON (for network transport)
   factory CapturedImageResult.fromJson(Map<String, dynamic> json) {
     return CapturedImageResult(
       width: json['width'] as int,
@@ -112,7 +108,6 @@ class CapturedImageResult {
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'width': width,
     'height': height,

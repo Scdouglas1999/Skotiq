@@ -3,7 +3,6 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'flat_wizard_settings.freezed.dart';
 part 'flat_wizard_settings.g.dart';
 
-/// Global settings for flat wizard
 @freezed
 abstract class FlatWizardGlobalSettings with _$FlatWizardGlobalSettings {
   const factory FlatWizardGlobalSettings({
@@ -22,23 +21,15 @@ abstract class FlatWizardGlobalSettings with _$FlatWizardGlobalSettings {
     /// Number of frames to capture per filter
     @Default(30) int frameCount,
 
-    /// Default gain for flats
     @Default(0) int gain,
 
-    /// Default binning for flats
     @Default(1) int binning,
 
-    /// Save path for flat frames
     String? savePath,
 
-    /// Create date subfolder
     @Default(true) bool createDateSubfolder,
 
-    /// Create filter subfolders
     @Default(true) bool createFilterSubfolders,
-
-    // Magic-number defaults promoted from
-    // hardcoded constants in flat_wizard_service.dart.
 
     /// Per-frame download timeout (seconds). Was hardcoded
     /// `_imageDownloadTimeout = Duration(seconds: 60)`. Increase for very
@@ -62,7 +53,6 @@ abstract class FlatFilterSettings with _$FlatFilterSettings {
     /// Filter position in wheel (0-indexed)
     required int filterPosition,
 
-    /// Whether this filter is enabled for capture
     @Default(true) bool enabled,
 
     /// Null inherits the resolved camera/profile setting; zero is explicit.
@@ -90,13 +80,10 @@ abstract class FlatFilterSettings with _$FlatFilterSettings {
     /// Current calibrated exposure (set after tuning)
     double? calibratedExposure,
 
-    /// Frames captured so far
     @Default(0) int capturedCount,
 
-    /// Current measured ADU
     double? currentAdu,
 
-    /// Calibration status
     @Default(FilterCalibrationStatus.pending) FilterCalibrationStatus status,
   }) = _FlatFilterSettings;
 

@@ -1,7 +1,6 @@
 part of '../network_backend.dart';
 
 mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
-  // /  — Long-running operation job client API
 
   /// Snapshot of a server-side job. Mirrors the wire shape of
   /// `apps/desktop/lib/headless_api/job_manager.dart#Job.toJson`. We
@@ -143,8 +142,6 @@ mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
   static bool _isTerminalRemoteJobState(String state) {
     return state == 'succeeded' || state == 'failed' || state == 'cancelled';
   }
-
-  // Session ownership client API
 
   /// POST /api/session/claim — returns true on success, false when the
   /// slot is already taken.

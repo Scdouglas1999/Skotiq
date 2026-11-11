@@ -1,7 +1,6 @@
 part of '../ffi_backend.dart';
 
 mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
-  // Sequencer control
 
   @override
   Future<void> sequencerStart() async {
@@ -487,9 +486,6 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
 
   @override
   Future<void> recoveryTryNow() async {
-    // Typed FRB binding (apiSequencerRecoveryTryNow) replaces the
-    // Dynamic-dispatch shim that intercepted NoSuchMethodError while
-    // bindings were pending.
     await bridge.apiSequencerRecoveryTryNow();
   }
 
@@ -547,8 +543,6 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
       message: status.message,
     );
   }
-
-  // Checkpoint / Crash Recovery
 
   @override
   Future<void> sequencerSetCheckpointDir(String path) async {

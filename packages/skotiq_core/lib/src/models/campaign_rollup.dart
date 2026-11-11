@@ -172,7 +172,6 @@ class CampaignRollup {
   /// across all completed sessions in the campaign.
   final double meanEffectiveImagingFraction;
 
-  /// When the rollup was generated.
   final DateTime generatedAt;
 
   const CampaignRollup({
@@ -189,7 +188,6 @@ class CampaignRollup {
     required this.generatedAt,
   });
 
-  /// Number of sessions in the campaign.
   int get sessionCount => sessions.length;
 
   /// True when at least one filter has a configured integration goal.

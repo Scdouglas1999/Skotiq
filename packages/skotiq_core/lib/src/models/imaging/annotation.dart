@@ -13,7 +13,6 @@ enum AnnotationKind {
   /// A catalogued star (named bright star).
   star,
 
-  /// A galaxy.
   galaxy,
 
   /// An emission / reflection / planetary nebula.

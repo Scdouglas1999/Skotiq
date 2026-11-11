@@ -1,6 +1,5 @@
 part of '../equipment_models.dart';
 
-/// Camera state snapshot
 class CameraStateSnapshot extends Equatable
     implements DeviceSlotState<CameraStateSnapshot> {
   @override
@@ -24,10 +23,8 @@ class CameraStateSnapshot extends Equatable
   @override
   final DeviceError? lastError;
 
-  /// Last successful communication timestamp
   final DateTime? lastSuccessfulCommunication;
 
-  /// Whether auto-reconnection is enabled for this device
   @override
   final bool autoReconnectEnabled;
 
@@ -50,7 +47,6 @@ class CameraStateSnapshot extends Equatable
     this.autoReconnectEnabled = true,
   });
 
-  /// Whether the camera has an error
   bool get hasError => lastError != null;
 
   /// Whether the device is healthy (communicated within last 30 seconds)
@@ -63,7 +59,6 @@ class CameraStateSnapshot extends Equatable
         30;
   }
 
-  /// Clear error and return a new state
   CameraStateSnapshot clearError() => copyWith(clearError: true);
 
   @override
@@ -129,7 +124,6 @@ class CameraStateSnapshot extends Equatable
   ];
 }
 
-/// Mount state
 class MountState extends Equatable implements DeviceSlotState<MountState> {
   @override
   final DeviceConnectionState connectionState;

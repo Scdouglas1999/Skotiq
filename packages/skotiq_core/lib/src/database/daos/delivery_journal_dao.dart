@@ -419,7 +419,6 @@ class DeliveryJournalDao {
   }
 }
 
-/// Riverpod provider for [DeliveryJournalDao].
 final deliveryJournalDaoProvider = Provider<DeliveryJournalDao>((ref) {
   return DeliveryJournalDao(ref.watch(databaseProvider));
 });

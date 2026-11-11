@@ -87,7 +87,6 @@ class MosaicPanelsDao {
     return row == null ? null : _map(row);
   }
 
-  /// Fetch a panel by its row id, or null when absent.
   Future<MosaicProjectPanel?> getById(int id) async {
     final rows = await _db
         .customSelect(
@@ -247,7 +246,6 @@ class MosaicPanelsDao {
   }
 }
 
-/// Riverpod provider for [MosaicPanelsDao].
 final mosaicPanelsDaoProvider = Provider<MosaicPanelsDao>((ref) {
   return MosaicPanelsDao(ref.watch(databaseProvider));
 });

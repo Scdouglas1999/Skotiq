@@ -88,11 +88,9 @@ class AutofocusResult {
     'backlashApplied': backlashApplied,
   };
 
-  /// Check if this is a good focus result
   bool get isGoodFocus => curveFitQuality > 0.9;
 }
 
-/// Autofocus configuration
 class AutofocusConfig {
   final double exposureTime;
   final int stepSize;

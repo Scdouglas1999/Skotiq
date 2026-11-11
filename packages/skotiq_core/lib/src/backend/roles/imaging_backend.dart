@@ -29,7 +29,6 @@ import '../../models/plate_solver.dart'
 ///   * Sequencer image grading / quality config — see [SequencerBackend].
 ///   * Profile / settings — see [ProfileSettingsBackend].
 abstract class ImagingBackend {
-  // FITS Save
 
   /// Save FITS file directly from the last captured image stored server-side.
   /// This eliminates raw pixel data transfer across FFI/network boundaries.
@@ -39,8 +38,6 @@ abstract class ImagingBackend {
     required String filePath,
     required FitsWriteHeader headerData,
   });
-
-  // Plate solving
 
   /// Solve an image file. [ra] is a solver hint in degrees; [dec] and
   /// [fovDegrees] are also degrees. [timeoutSeconds] bounds the external
@@ -77,8 +74,6 @@ abstract class ImagingBackend {
   /// Persist plate-solver UX configuration. Invalidates the solver-
   /// availability cache so subsequent solves re-probe with the new paths.
   Future<void> setPlateSolverConfig(PlateSolverPreference pref);
-
-  // Image processing
 
   /// Get star crops from the last captured image for autofocus UI
   Future<List<StarCrop>> getStarCropsFromLastImage(
@@ -141,8 +136,6 @@ abstract class ImagingBackend {
     required String outputPng,
   });
 
-  // Polar alignment
-
   /// Start three-point polar alignment
   ///
   /// This captures 3 images at different mount rotations to calculate
@@ -162,7 +155,6 @@ abstract class ImagingBackend {
     double? autoCompleteThreshold,
   });
 
-  /// Stop the polar alignment process
   Future<void> stopPolarAlignment();
 
   /// Start all-sky (Sharpcap-style) polar alignment.
@@ -194,8 +186,6 @@ abstract class ImagingBackend {
     int? gain,
     int? offset,
   });
-
-  // Image Download (for Mobile)
 
   /// Get list of images for a session
   /// Returns image metadata without full image data

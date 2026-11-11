@@ -231,7 +231,6 @@ class ConstellationContributionsDao extends DatabaseAccessor<SkotiqDatabase>
   }
 }
 
-/// Riverpod provider for [ConstellationContributionsDao].
 final constellationContributionsDaoProvider =
     Provider<ConstellationContributionsDao>((ref) {
       return ConstellationContributionsDao(ref.watch(databaseProvider));

@@ -20,7 +20,6 @@ import '../models/settings/app_settings.dart' as models;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/io.dart';
 
-// Import pure Dart types from backend_types for return types
 import '../models/errors/skotiq_error.dart' as dart_error;
 // Error parsing: parse the headless server's structured error
 // envelope ({code, message, details}) into a typed [ServerError] so the
@@ -154,7 +153,6 @@ abstract class _NetworkBackendTransport {
   /// caller owns its lifecycle.
   final bool _ownsHttpClient;
 
-  // Connection state management
   BackendConnectionState _connectionState = BackendConnectionState.disconnected;
   final StreamController<BackendConnectionState> _connectionStateController =
       StreamController<BackendConnectionState>.broadcast();
@@ -307,7 +305,6 @@ abstract class _NetworkBackendTransport {
                : _lanRequestTimeout),
        _http = httpClient ?? http.Client(),
        _ownsHttpClient = httpClient == null {
-    // Initialize persistent HTTP client with connection pooling
     _httpClient = HttpClient()
       ..idleTimeout = const Duration(seconds: 30)
       ..connectionTimeout =
@@ -376,11 +373,9 @@ abstract class _NetworkBackendTransport {
 
   bool get dispatchPluginNodesLocally => false;
 
-  /// Stream of connection state changes
   Stream<BackendConnectionState> get connectionStateStream =>
       _connectionStateController.stream;
 
-  /// Current connection state
   BackendConnectionState get connectionState => _connectionState;
 
   /// True when the host definitively rejected the current credentials —

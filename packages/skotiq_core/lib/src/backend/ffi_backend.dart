@@ -9,7 +9,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 import '../models/settings/app_settings.dart' as models;
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
-// Import pure Dart types from backend_types for return types
 import '../models/backend/device_capabilities.dart' as dart_caps;
 import '../models/backend/device_status.dart' as dart_status;
 import '../models/backend/device_types.dart' as dart_types;
@@ -60,7 +59,6 @@ abstract class _FfiBackendBase implements SkotiqBackend {
   @override
   bool get dispatchPluginNodesLocally => true;
 
-  /// Whether this backend has been disposed
   bool _disposed = false;
 
   _FfiBackendBase({
@@ -88,15 +86,12 @@ abstract class _FfiBackendBase implements SkotiqBackend {
       throw StateError('Cannot access eventStream after dispose');
     }
 
-    // Return cached broadcast stream to allow multiple subscribers
     if (_cachedEventStream == null) {
       _logger.info('Creating event stream from native bridge');
       _cachedEventStream = _nativeEventStream().map((bridgeEvent) {
-        // Extract eventType and data from the EventPayload
         final payloadInfo = _extractPayloadInfo(bridgeEvent.payload);
         final category = _fromBridgeCategory(bridgeEvent.category);
 
-        // Log guiding events at info level for diagnostics
         if (category == EventCategory.guiding) {
           _logger.info(
             'FfiBackend received guiding event: ${payloadInfo.$1} data=${payloadInfo.$2}',
@@ -114,8 +109,6 @@ abstract class _FfiBackendBase implements SkotiqBackend {
 
       _logger.info('Event stream created as broadcast stream');
 
-      // Wire up polar alignment events to the dedicated stream
-      // Store subscription for proper cleanup on dispose
       _polarAlignSubscription = _cachedEventStream!.listen((event) {
         if (event.category == EventCategory.polarAlignment) {
           _polarAlignController.add(event.data);

@@ -46,7 +46,6 @@ extension _SkotiqDatabaseMigration on SkotiqDatabase {
         }
       },
       beforeOpen: (details) async {
-        // Enable foreign key enforcement
         await customStatement('PRAGMA foreign_keys = ON');
 
         // Retired settings are pruned here, not in onCreate/onUpgrade:

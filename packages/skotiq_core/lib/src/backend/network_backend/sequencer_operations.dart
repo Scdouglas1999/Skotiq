@@ -54,8 +54,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     required Duration timeout,
   });
 
-  // Plate solving
-
   @override
   Future<PlateSolveResult> plateSolve({
     required String imagePath,
@@ -170,8 +168,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
       'solverChoice': pref.choice.serialized,
     });
   }
-
-  // Sequencer control
 
   @override
   Future<void> sequencerStart() async {
@@ -342,7 +338,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
 
   @override
   Future<void> sequencerSetDecisionLoggingEnabled(bool enabled) async {
-    // Replay Debug — runtime toggle.
     await _post('sequencer/decision-logging-enabled', {'enabled': enabled});
   }
 
@@ -685,8 +680,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     await _post('sequencer/clear-default-adaptive-exposure', const {});
   }
 
-  // Recovery mode
-
   @override
   Future<void> recoveryTryNow() async {
     await _post('sequencer/recovery/try-now', const {});
@@ -750,8 +743,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
       reportsGuidingStopReason: response.containsKey('guidingStopReason'),
     );
   }
-
-  // Checkpoint / Crash Recovery
 
   @override
   Future<void> sequencerSetCheckpointDir(String path) async {
@@ -832,8 +823,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     );
   }
 
-  // Equipment status
-
   @override
   Future<CameraStatus> getCameraStatus(String deviceId) async {
     final response = await _get('equipment/camera/status', {
@@ -873,8 +862,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     });
     return RotatorStatus.fromJson(response);
   }
-
-  // Device capabilities
 
   void _requireRemoteCapabilityFields(
     Map<String, dynamic> response,

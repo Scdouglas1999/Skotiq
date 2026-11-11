@@ -50,7 +50,6 @@ class WeatherSettingsDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
-  /// Update specific fields
   Future<void> updateSettings({
     double? triggerDistanceKm,
     double? cloudDensityThreshold,
@@ -96,7 +95,6 @@ class WeatherSettingsDao extends DatabaseAccessor<SkotiqDatabase>
     // Ensure at least one row exists
     final existing = await getOrCreateSettings();
 
-    // Update the row by ID
     await (update(
       weatherSettings,
     )..where((s) => s.id.equals(existing.id))).write(
@@ -153,7 +151,6 @@ class WeatherSettingsDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
-  /// Stream for Riverpod to watch
   Stream<WeatherSettingRow?> watchSettings() {
     return (select(weatherSettings)..limit(1)).watchSingleOrNull();
   }

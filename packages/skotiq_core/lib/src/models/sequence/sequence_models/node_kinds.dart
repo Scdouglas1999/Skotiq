@@ -103,8 +103,6 @@ final FieldCodec<List<FilterPlan>> _plansCodec = FieldCodec.custom(
       .toList(growable: false),
 );
 
-// --- Target ---------------------------------------------------------------
-
 final _targetName = NodeField<TargetHeaderNode, String>(
   'targetName',
   (n) => n.targetName,
@@ -181,8 +179,6 @@ final _targetPollSecs = NodeField<TargetHeaderNode, int>(
   (n) => n.triggerPollIntervalSecs,
   FieldCodec.integer,
 );
-
-// --- Logic ----------------------------------------------------------------
 
 final _loopCondition = NodeField<LoopNode, LoopConditionType>(
   'conditionType',
@@ -408,8 +404,6 @@ final _schedulerHorizon = NodeField<TargetSchedulerNode, HorizonProfile?>(
   _horizonCodec,
   alternateKeys: const ['horizon_profile'],
 );
-
-// --- Mount and imaging ----------------------------------------------------
 
 final _slewUseTarget = NodeField<SlewNode, bool>(
   'useTargetCoords',
@@ -687,8 +681,6 @@ final _rotatorRelative = NodeField<RotatorNode, bool>(
   (n) => n.relative,
   FieldCodec.flag,
 );
-
-// --- Timing and automation --------------------------------------------------
 
 final _waitUntil = NodeField<WaitTimeNode, DateTime?>(
   'waitUntil',

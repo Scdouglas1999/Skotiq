@@ -12,23 +12,19 @@ class EquipmentProfilesDao extends DatabaseAccessor<SkotiqDatabase>
     implements EquipmentProfileLibrary {
   EquipmentProfilesDao(super.db);
 
-  /// Get all equipment profiles
   Future<List<EquipmentProfile>> getAllProfiles() =>
       select(equipmentProfiles).get();
 
-  /// Watch all equipment profiles
   @override
   Stream<List<EquipmentProfile>> watchAllProfiles() =>
       select(equipmentProfiles).watch();
 
-  /// Get the active profile
   Future<EquipmentProfile?> getActiveProfile() {
     return (select(
       equipmentProfiles,
     )..where((p) => p.isActive.equals(true))).getSingleOrNull();
   }
 
-  /// Watch the active profile
   @override
   Stream<EquipmentProfile?> watchActiveProfile() {
     return (select(
@@ -36,14 +32,12 @@ class EquipmentProfilesDao extends DatabaseAccessor<SkotiqDatabase>
     )..where((p) => p.isActive.equals(true))).watchSingleOrNull();
   }
 
-  /// Get a profile by ID
   Future<EquipmentProfile?> getProfileById(int id) {
     return (select(
       equipmentProfiles,
     )..where((p) => p.id.equals(id))).getSingleOrNull();
   }
 
-  /// Get the default profile.
   Future<EquipmentProfile?> getDefaultProfile() {
     return (select(
       equipmentProfiles,
@@ -78,7 +72,6 @@ class EquipmentProfilesDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
-  /// Update a profile in place.
   Future<bool> updateProfile(EquipmentProfile profile) async {
     return update(equipmentProfiles).replace(profile);
   }
@@ -206,7 +199,6 @@ class EquipmentProfilesDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
-  /// Duplicate a profile
   Future<int> duplicateProfile(int sourceId, String newName) async {
     final source = await getProfileById(sourceId);
     if (source == null) {

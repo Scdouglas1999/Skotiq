@@ -129,9 +129,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     return send();
   }
 
-  /// Determine if an HTTP exception is a transient failure that can be retried
   bool _isTransientFailure(dynamic error) {
-    // Check for structured SkotiqError
     if (error is dart_error.SkotiqError) {
       return error.isRecoverable;
     }
@@ -148,11 +146,9 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
       return false;
     }
     if (error is SocketException) {
-      // Network errors are transient
       return true;
     }
     if (error is TimeoutException) {
-      // Timeouts are transient
       return true;
     }
     if (error is HttpException) {
@@ -161,7 +157,6 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     }
     if (error is Exception) {
       final errorStr = error.toString().toLowerCase();
-      // Check for common transient error messages
       if (errorStr.contains('connection') ||
           errorStr.contains('timeout') ||
           errorStr.contains('reset') ||
@@ -173,7 +168,6 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     return false;
   }
 
-  /// Check if an HTTP status code indicates a transient failure
   bool _isTransientStatusCode(int statusCode) {
     // 408 Request Timeout, 429 Too Many Requests, 500 Internal Server Error,
     // 502 Bad Gateway, 503 Service Unavailable, 504 Gateway Timeout
@@ -199,7 +193,6 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     String endpoint,
   ) {
     _markAuthRejectedIfTerminal(statusCode, responseBody, method, endpoint);
-    // Try to parse as structured error JSON
     try {
       final json = jsonDecode(responseBody);
       if (json is Map<String, dynamic>) {
@@ -221,7 +214,6 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
           }
         }
 
-        // Check for full structured error format
         if (json.containsKey('category') && json.containsKey('message')) {
           return dart_error.SkotiqError.fromJson(json);
         }
@@ -260,7 +252,6 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
       );
     }
 
-    // Fallback: create error from HTTP status
     final isTransient = _isTransientStatusCode(statusCode);
     return dart_error.SkotiqError(
       category: statusCode == 404
@@ -372,7 +363,6 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
         lastStackTrace = stackTrace;
         attempt++;
 
-        // Check if this is the last attempt
         if (attempt >= maxAttempts) {
           developer.log(
             '[NetworkBackend] Request failed after $maxAttempts attempts: $e',
@@ -389,7 +379,6 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
           rethrow;
         }
 
-        // Only retry transient failures
         if (!_isTransientFailure(e)) {
           developer.log(
             '[NetworkBackend] Non-transient failure, not retrying: $e',

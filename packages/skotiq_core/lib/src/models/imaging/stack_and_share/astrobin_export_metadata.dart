@@ -21,7 +21,6 @@ class AstroBinExportMetadata {
   /// Telescope / optical train description.
   final String? telescope;
 
-  /// Camera description.
   final String? camera;
 
   /// Filter used, if single-filter.

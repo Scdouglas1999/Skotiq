@@ -74,7 +74,6 @@ class LivingSkyRetentionDao extends DatabaseAccessor<SkotiqDatabase>
   }
 }
 
-/// Riverpod provider for [LivingSkyRetentionDao].
 final livingSkyRetentionDaoProvider = Provider<LivingSkyRetentionDao>((ref) {
   return LivingSkyRetentionDao(ref.watch(databaseProvider));
 });

@@ -94,10 +94,8 @@ abstract class CelestialObjectAnnotation with _$CelestialObjectAnnotation {
 @freezed
 abstract class ObjectData with _$ObjectData {
   const factory ObjectData({
-    // Basic info
     String? description,
     String? objectClass, // e.g., "Spiral Galaxy", "Open Cluster"
-    // Stellar data (for stars)
     SpectralClass? spectralType,
     double? temperature, // Kelvin
     double? mass, // Solar masses
@@ -107,7 +105,6 @@ abstract class ObjectData with _$ObjectData {
     double? parallax, // milliarcseconds
     String? properMotion,
 
-    // Exoplanet data
     List<ExoplanetData>? exoplanets,
 
     // DSO data (galaxies, nebulae, clusters)
@@ -115,11 +112,9 @@ abstract class ObjectData with _$ObjectData {
     double? redshift,
     String? morphology,
 
-    // External references
     String? simbadId,
     String? wikipediaUrl,
     Map<String, String>? catalogIds, // {"NGC": "224", "M": "31"}
-    // Cache metadata
     DateTime? lastUpdated,
     String? dataSource, // "SIMBAD", "Gaia", "Exoplanet Archive"
   }) = _ObjectData;

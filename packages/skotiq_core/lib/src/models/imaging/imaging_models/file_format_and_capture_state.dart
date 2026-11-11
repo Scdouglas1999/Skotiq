@@ -255,7 +255,6 @@ class CapturedImage extends Equatable {
   ];
 }
 
-/// Exposure progress
 class ExposureProgress extends Equatable {
   final double elapsed;
   final double remaining;
@@ -293,7 +292,6 @@ class ExposureProgress extends Equatable {
   ];
 }
 
-/// Capture mode
 enum CaptureMode {
   single,
   loop,

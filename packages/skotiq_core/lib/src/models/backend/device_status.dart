@@ -7,8 +7,6 @@ library;
 import 'device_capabilities.dart' show TrackingRate;
 import 'device_types.dart' show CameraState, PierSide;
 
-// Camera status
-
 /// Current status of a connected camera
 class CameraStatus {
   final bool connected;
@@ -51,7 +49,6 @@ class CameraStatus {
     required this.canSetOffset,
   });
 
-  /// Create from JSON (for network transport)
   factory CameraStatus.fromJson(Map<String, dynamic> json) {
     return CameraStatus(
       connected: json['connected'] as bool? ?? false,
@@ -82,7 +79,6 @@ class CameraStatus {
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'connected': connected,
     'state': state.name,
@@ -114,8 +110,6 @@ class CameraStatus {
     );
   }
 }
-
-// Mount status
 
 /// Current status of a connected mount
 class MountStatus {
@@ -176,7 +170,6 @@ class MountStatus {
     this.availability = const {},
   });
 
-  /// Create from JSON (for network transport)
   factory MountStatus.fromJson(Map<String, dynamic> json) {
     return MountStatus(
       connected: json['connected'] as bool? ?? false,
@@ -214,7 +207,6 @@ class MountStatus {
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'connected': connected,
     'tracking': tracking,
@@ -257,8 +249,6 @@ class MountStatus {
   }
 }
 
-// Focuser status
-
 /// Current status of a connected focuser
 class FocuserStatus {
   final bool connected;
@@ -281,7 +271,6 @@ class FocuserStatus {
     required this.hasTemperature,
   });
 
-  /// Create from JSON (for network transport)
   factory FocuserStatus.fromJson(Map<String, dynamic> json) {
     return FocuserStatus(
       connected: json['connected'] as bool? ?? false,
@@ -298,7 +287,6 @@ class FocuserStatus {
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'connected': connected,
     'position': position,
@@ -310,8 +298,6 @@ class FocuserStatus {
     'hasTemperature': hasTemperature,
   };
 }
-
-// Filter wheel status
 
 /// Current status of a connected filter wheel
 class FilterWheelStatus {
@@ -329,13 +315,11 @@ class FilterWheelStatus {
     required this.filterNames,
   });
 
-  /// Get the name of the current filter
   String? get currentFilterName {
     if (position < 0 || position >= filterNames.length) return null;
     return filterNames[position];
   }
 
-  /// Create from JSON (for network transport)
   factory FilterWheelStatus.fromJson(Map<String, dynamic> json) {
     return FilterWheelStatus(
       connected: json['connected'] as bool? ?? false,
@@ -348,7 +332,6 @@ class FilterWheelStatus {
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'connected': connected,
     'position': position,
@@ -357,8 +340,6 @@ class FilterWheelStatus {
     'filterNames': filterNames,
   };
 }
-
-// Rotator status
 
 /// Current status of a connected rotator
 class RotatorStatus {
@@ -378,7 +359,6 @@ class RotatorStatus {
     required this.canReverse,
   });
 
-  /// Create from JSON (for network transport)
   factory RotatorStatus.fromJson(Map<String, dynamic> json) {
     final position = json['position']?.toDouble() ?? 0.0;
     return RotatorStatus(
@@ -394,7 +374,6 @@ class RotatorStatus {
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'connected': connected,
     'position': position,

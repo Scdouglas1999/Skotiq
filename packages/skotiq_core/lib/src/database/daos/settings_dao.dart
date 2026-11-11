@@ -223,7 +223,6 @@ class SettingsDao extends DatabaseAccessor<SkotiqDatabase>
     implements SettingRows {
   SettingsDao(super.db);
 
-  /// Get a setting by key
   Future<String?> getSetting(String key) async {
     final result = await (select(
       appSettings,
@@ -231,21 +230,18 @@ class SettingsDao extends DatabaseAccessor<SkotiqDatabase>
     return result?.value;
   }
 
-  /// Watch a setting by key
   Stream<String?> watchSetting(String key) {
     return (select(appSettings)..where((s) => s.key.equals(key)))
         .watchSingleOrNull()
         .map((s) => s?.value);
   }
 
-  /// Get all settings
   @override
   Future<Map<String, String>> getAllSettings() async {
     final settings = await select(appSettings).get();
     return {for (var s in settings) s.key: s.value};
   }
 
-  /// Watch all settings
   Stream<Map<String, String>> watchAllSettings() {
     return select(appSettings).watch().map((settings) {
       return {for (var s in settings) s.key: s.value};
@@ -288,7 +284,6 @@ class SettingsDao extends DatabaseAccessor<SkotiqDatabase>
     return jsonEncode({...(existing ?? base), ...fields});
   }
 
-  /// Set a setting
   Future<void> setSetting(String key, String value) async {
     await into(appSettings).insert(
       AppSettingsCompanion.insert(key: key, value: value),
@@ -302,7 +297,6 @@ class SettingsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 
-  /// Set multiple settings at once
   @override
   Future<void> setSettings(Map<String, String> settings) async {
     await batch((batch) {
@@ -322,12 +316,9 @@ class SettingsDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
-  /// Delete a setting
   Future<int> deleteSetting(String key) {
     return (delete(appSettings)..where((s) => s.key.equals(key))).go();
   }
-
-  // Typed getters for common settings
 
   Future<String> getTheme() async {
     return await getSetting('theme') ?? 'dark';
@@ -386,7 +377,6 @@ class SettingsDao extends DatabaseAccessor<SkotiqDatabase>
   Future<void> setObserverElevation(double elevation) =>
       setSetting('observer_elevation', elevation.toString());
 
-  // Auto-stretch settings
   static const String _autoStretchKey = 'auto_stretch_settings';
 
   /// Get auto-stretch settings as JSON string
@@ -394,7 +384,6 @@ class SettingsDao extends DatabaseAccessor<SkotiqDatabase>
     return await getSetting(_autoStretchKey);
   }
 
-  /// Watch auto-stretch settings
   Stream<String?> watchAutoStretchSettings() {
     return watchSetting(_autoStretchKey);
   }

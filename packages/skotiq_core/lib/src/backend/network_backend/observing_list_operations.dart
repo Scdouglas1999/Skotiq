@@ -15,7 +15,6 @@ part of '../network_backend.dart';
 /// [SkotiqBackend] surface — only a slave calls them, through the
 /// `ObservingListsStore` that `backend.remoteHost` hands out.
 mixin _NetworkBackendObservingListOperations on _NetworkBackendTransport {
-  // Reads
 
   /// GET /api/observing-lists — every observing list on the host, ordered by
   /// sortOrder.

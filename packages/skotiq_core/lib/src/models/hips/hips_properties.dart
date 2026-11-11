@@ -87,7 +87,6 @@ enum HipsTileFormat {
 /// defaulting: the survey's geometry and tile format cannot be guessed. The
 /// [key] (when known) identifies the offending property line.
 class HipsPropertiesParseException implements Exception {
-  /// Human-readable description of the failure.
   final String message;
 
   /// The property key that triggered the failure, if a single key is at fault.

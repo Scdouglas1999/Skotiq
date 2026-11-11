@@ -1,7 +1,6 @@
 part of '../network_backend.dart';
 
 mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
-  // PHD2 Guiding
 
   @override
   Future<bool> isPhd2Running({
@@ -323,8 +322,6 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
   Future<void> phd2DeselectStar() async {
     await _post('phd2/deselect-star', {});
   }
-
-  // Generic Guiding (driver-agnostic abstraction)
 
   @override
   Future<void> guiderStartGuiding({

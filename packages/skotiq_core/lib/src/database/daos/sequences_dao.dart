@@ -64,7 +64,6 @@ class SequencesDao extends DatabaseAccessor<SkotiqDatabase>
     'SmartExposure',
   };
 
-  /// Get all sequences
   Future<List<Sequence>> getAllSequences() {
     return (select(sequences)
           ..where((s) => s.isTemplate.equals(false))
@@ -72,7 +71,6 @@ class SequencesDao extends DatabaseAccessor<SkotiqDatabase>
         .get();
   }
 
-  /// Watch all sequences
   @override
   Stream<List<Sequence>> watchAllSequences() {
     return (select(sequences)
@@ -81,7 +79,6 @@ class SequencesDao extends DatabaseAccessor<SkotiqDatabase>
         .watch();
   }
 
-  /// Get all templates
   Future<List<Sequence>> getAllTemplates() {
     return (select(sequences)
           ..where((s) => s.isTemplate.equals(true))
@@ -89,7 +86,6 @@ class SequencesDao extends DatabaseAccessor<SkotiqDatabase>
         .get();
   }
 
-  /// Watch all templates
   Stream<List<Sequence>> watchAllTemplates() {
     return (select(sequences)
           ..where((s) => s.isTemplate.equals(true))
@@ -97,17 +93,14 @@ class SequencesDao extends DatabaseAccessor<SkotiqDatabase>
         .watch();
   }
 
-  /// Get sequence by ID
   Future<Sequence?> getSequenceById(int id) {
     return (select(sequences)..where((s) => s.id.equals(id))).getSingleOrNull();
   }
 
-  /// Create a new sequence
   Future<int> createSequence(SequencesCompanion sequence) {
     return into(sequences).insert(sequence);
   }
 
-  /// Update a sequence
   Future<bool> updateSequence(Sequence sequence) {
     return update(sequences).replace(sequence);
   }
@@ -240,9 +233,7 @@ class SequencesDao extends DatabaseAccessor<SkotiqDatabase>
   /// Delete a sequence and its nodes
   Future<void> deleteSequence(int id) async {
     await transaction(() async {
-      // Delete all nodes
       await (delete(sequenceNodes)..where((n) => n.sequenceId.equals(id))).go();
-      // Delete the sequence
       await (delete(sequences)..where((s) => s.id.equals(id))).go();
     });
   }
@@ -260,19 +251,16 @@ class SequencesDao extends DatabaseAccessor<SkotiqDatabase>
     final sourceNodes = await getNodesForSequence(sourceId);
     const uuid = Uuid();
 
-    // Build mapping from old nodeId → new nodeId
     final idMapping = <String, String>{};
     for (final node in sourceNodes) {
       idMapping[node.nodeId] = uuid.v4();
     }
 
-    // Remap rootNodeId
     final newRootNodeId = source.rootNodeId != null
         ? idMapping[source.rootNodeId!] ?? source.rootNodeId
         : null;
 
     return transaction(() async {
-      // Create new sequence with remapped root
       final newId = await into(sequences).insert(
         SequencesCompanion.insert(
           name: newName,
@@ -310,9 +298,6 @@ class SequencesDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
-  // Node operations
-
-  /// Get all nodes for a sequence
   Future<List<SequenceNode>> getNodesForSequence(int sequenceId) {
     return (select(sequenceNodes)
           ..where((n) => n.sequenceId.equals(sequenceId))
@@ -320,7 +305,6 @@ class SequencesDao extends DatabaseAccessor<SkotiqDatabase>
         .get();
   }
 
-  /// Watch nodes for a sequence
   Stream<List<SequenceNode>> watchNodesForSequence(int sequenceId) {
     return (select(sequenceNodes)
           ..where((n) => n.sequenceId.equals(sequenceId))
@@ -328,43 +312,36 @@ class SequencesDao extends DatabaseAccessor<SkotiqDatabase>
         .watch();
   }
 
-  /// Get node by ID
   Future<SequenceNode?> getNodeById(int id) {
     return (select(
       sequenceNodes,
     )..where((n) => n.id.equals(id))).getSingleOrNull();
   }
 
-  /// Get node by UUID
   Future<SequenceNode?> getNodeByUuid(String nodeId) {
     return (select(
       sequenceNodes,
     )..where((n) => n.nodeId.equals(nodeId))).getSingleOrNull();
   }
 
-  /// Create a new node
   Future<int> createNode(SequenceNodesCompanion node) {
     return into(sequenceNodes).insert(node);
   }
 
-  /// Update a node
   Future<bool> updateNode(SequenceNode node) {
     return update(sequenceNodes).replace(node);
   }
 
-  /// Delete a node
   Future<int> deleteNode(int id) {
     return (delete(sequenceNodes)..where((n) => n.id.equals(id))).go();
   }
 
-  /// Enable/disable a node
   Future<void> setNodeEnabled(int id, bool enabled) {
     return (update(sequenceNodes)..where((n) => n.id.equals(id))).write(
       SequenceNodesCompanion(isEnabled: Value(enabled)),
     );
   }
 
-  /// Reorder nodes
   Future<void> reorderNodes(int sequenceId, List<String> nodeIds) async {
     await batch((batch) {
       for (var i = 0; i < nodeIds.length; i++) {
@@ -378,7 +355,6 @@ class SequencesDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
-  /// Get children of a node
   Future<List<SequenceNode>> getChildNodes(
     int sequenceId,
     String parentNodeId,

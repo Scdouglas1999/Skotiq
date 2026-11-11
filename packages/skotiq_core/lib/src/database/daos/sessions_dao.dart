@@ -25,14 +25,12 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
     implements SessionHistory {
   SessionsDao(super.db);
 
-  /// Get all sessions
   Future<List<ImagingSession>> getAllSessions() {
     return (select(
       imagingSessions,
     )..orderBy([(s) => OrderingTerm.desc(s.startTime)])).get();
   }
 
-  /// Watch all sessions
   @override
   Stream<List<ImagingSession>> watchAllSessions() {
     return (select(
@@ -40,7 +38,6 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
     )..orderBy([(s) => OrderingTerm.desc(s.startTime)])).watch();
   }
 
-  /// Get recent sessions
   Future<List<ImagingSession>> getRecentSessions({int limit = 10}) {
     return (select(imagingSessions)
           ..orderBy([(s) => OrderingTerm.desc(s.startTime)])
@@ -48,14 +45,12 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
         .get();
   }
 
-  /// Get session by ID
   Future<ImagingSession?> getSessionById(int id) {
     return (select(
       imagingSessions,
     )..where((s) => s.id.equals(id))).getSingleOrNull();
   }
 
-  /// Get sessions for a target
   Future<List<ImagingSession>> getSessionsForTarget(int targetId) {
     return (select(imagingSessions)
           ..where((s) => s.targetId.equals(targetId))
@@ -63,7 +58,6 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
         .get();
   }
 
-  /// Get sessions in date range
   Future<List<ImagingSession>> getSessionsInRange(
     DateTime start,
     DateTime end,
@@ -78,12 +72,10 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
         .get();
   }
 
-  /// Create a new session
   Future<int> createSession(ImagingSessionsCompanion session) {
     return into(imagingSessions).insert(session);
   }
 
-  /// Start a new session
   Future<int> startSession({
     String? name,
     int? profileId,
@@ -169,7 +161,6 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 
-  /// End a session
   Future<void> endSession(int id, {String status = 'completed'}) {
     return (update(imagingSessions)..where((s) => s.id.equals(id))).write(
       ImagingSessionsCompanion(
@@ -222,7 +213,6 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 
-  /// Update session statistics
   Future<void> updateSessionStats(
     int id, {
     int? totalExposures,
@@ -260,14 +250,12 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
     )..where((s) => s.id.equals(id))).write(updates);
   }
 
-  /// Add notes to a session
   Future<void> updateNotes(int id, String notes) {
     return (update(imagingSessions)..where((s) => s.id.equals(id))).write(
       ImagingSessionsCompanion(notes: Value(notes)),
     );
   }
 
-  /// Delete a session
   Future<int> deleteSession(int id) {
     return (delete(imagingSessions)..where((s) => s.id.equals(id))).go();
   }
@@ -293,8 +281,6 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
     };
   }
 
-  // Session recovery methods
-
   /// Get all active sessions (for recovery)
   Future<List<ImagingSession>> getActiveSessions() {
     return (select(imagingSessions)
@@ -303,7 +289,6 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
         .get();
   }
 
-  /// Watch active sessions
   Stream<List<ImagingSession>> watchActiveSessions() {
     return (select(imagingSessions)
           ..where((s) => s.status.equals('active'))
@@ -318,7 +303,6 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 
-  /// Get sessions by status
   Future<List<ImagingSession>> getSessionsByStatus(String status) {
     return (select(imagingSessions)
           ..where((s) => s.status.equals(status))
@@ -351,7 +335,6 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
     };
   }
 
-  /// Update weather/environmental conditions
   Future<void> updateWeatherConditions(
     int id, {
     double? avgTemperature,
@@ -385,13 +368,10 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
   Future<List<ImagingSession>> getInterruptedSessions() =>
       getSessionsByStatus(kInterruptedSessionStatus);
 
-  /// Check if there are any incomplete/crashed sessions
   Future<bool> hasIncompleteSessions() async {
     final interrupted = await getInterruptedSessions();
     return interrupted.isNotEmpty;
   }
-
-  // Quick start methods
 
   /// Get the most recent session for Quick Start (within last 7 days)
   Future<ImagingSession?> getMostRecentSession() async {
@@ -403,14 +383,12 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
         .getSingleOrNull();
   }
 
-  /// Update equipment snapshot for a session
   Future<void> updateEquipmentSnapshot(int id, String snapshotJson) {
     return (update(imagingSessions)..where((s) => s.id.equals(id))).write(
       ImagingSessionsCompanion(equipmentSnapshot: Value(snapshotJson)),
     );
   }
 
-  /// Update sequence ID for a session
   Future<void> updateSequenceId(int id, int sequenceId) {
     return (update(imagingSessions)..where((s) => s.id.equals(id))).write(
       ImagingSessionsCompanion(sequenceId: Value(sequenceId)),

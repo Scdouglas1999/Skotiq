@@ -61,7 +61,6 @@ class AutofocusProgressData {
         : used.map((p) => p.hfr).reduce((a, b) => a < b ? a : b);
   }
 
-  /// Get the maximum HFR from the V-curve points
   double get maxHfr => vcurvePoints.isEmpty
       ? 0.0
       : vcurvePoints.map((p) => p.hfr).reduce((a, b) => a > b ? a : b);

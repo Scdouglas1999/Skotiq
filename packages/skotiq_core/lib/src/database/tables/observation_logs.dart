@@ -12,10 +12,8 @@ import 'equipment_profiles.dart';
 @TableIndex(name: 'idx_obs_logs_rating', columns: {#rating})
 @TableIndex(name: 'idx_obs_logs_profile', columns: {#equipmentProfileId})
 class ObservationLogs extends Table {
-  /// Primary key
   IntColumn get id => integer().autoIncrement()();
 
-  /// When the observation was made
   DateTimeColumn get timestamp => dateTime()();
 
   /// Display name of the observed object (e.g., "Orion Nebula", "M42")
@@ -39,13 +37,11 @@ class ObservationLogs extends Table {
   /// Azimuth in degrees at time of observation
   RealColumn get azimuth => real().nullable()();
 
-  /// User-supplied notes about the observation
   TextColumn get notes => text().nullable()();
 
   /// User rating 1-5 stars
   IntColumn get rating => integer().nullable()();
 
-  /// Equipment profile used during the observation
   IntColumn get equipmentProfileId => integer().nullable().references(
     EquipmentProfiles,
     #id,
@@ -58,7 +54,6 @@ class ObservationLogs extends Table {
   /// Transparency description (e.g., "excellent", "good", "fair", "poor")
   TextColumn get transparency => text().nullable()();
 
-  /// Name of the observing location
   TextColumn get locationName => text().nullable()();
 
   /// Observer latitude in decimal degrees

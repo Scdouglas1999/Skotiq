@@ -57,14 +57,12 @@ abstract class AppSettings with _$AppSettings {
     @Default('') String pushoverKey,
     @Default('') String pushoverUser,
     @Default('') String astapPath,
-    // Discovery settings
     @Default(true) bool autoDiscoverOnLaunch,
     @Default('') String accentColor,
     @Default('Medium') String fontSize,
     @Default('Auto')
     String
     uiScale, // Auto, Small (0.8x), Normal (1.0x), Large (1.2x), Extra Large (1.4x)
-    // Protocol settings
     @Default('localhost') String indiServerHost,
     @Default(7624) int indiServerPort,
     @Default(false) bool indiAutoConnect,
@@ -76,12 +74,10 @@ abstract class AppSettings with _$AppSettings {
     // stays so stored and remote payloads that still carry it decode; nothing
     // reads it.
     @Default(false) bool useSimulationMode,
-    // Image capture settings
     @Default('') String imageOutputPath,
     @Default('') String observer,
     @Default('') String telescope,
     @Default('') String instrument,
-    // Update settings
     @Default(true) bool updateCheckEnabled,
     @Default('') String updateServerUrl,
     @Default('stable') String updateChannel,
@@ -539,14 +535,10 @@ abstract class AppSettings with _$AppSettings {
       _$AppSettingsFromJson(json);
 }
 
-// Extension to provide compatibility getters
 extension AppSettingsExtension on AppSettings {
-  /// Get latitude from location or direct field
   double get effectiveLatitude => location?.latitude ?? latitude;
 
-  /// Get longitude from location or direct field
   double get effectiveLongitude => location?.longitude ?? longitude;
 
-  /// Get elevation from location or direct field
   double get effectiveElevation => location?.elevation ?? elevation;
 }

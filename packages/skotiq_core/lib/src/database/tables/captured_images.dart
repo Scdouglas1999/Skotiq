@@ -3,8 +3,6 @@ import 'package:drift/drift.dart';
 import 'imaging_sessions.dart';
 import 'targets.dart';
 
-/// Captured images table
-/// Records metadata for every captured image
 @DataClassName('CapturedImage')
 @TableIndex(name: 'idx_images_session', columns: {#sessionId})
 @TableIndex(name: 'idx_images_target', columns: {#targetId})
@@ -26,14 +24,12 @@ import 'targets.dart';
 class CapturedImages extends Table {
   IntColumn get id => integer().autoIncrement()();
 
-  // File information
   TextColumn get filePath => text()();
   TextColumn get fileName => text()();
   TextColumn get fileFormat =>
       text().withDefault(const Constant('fits'))(); // fits, xisf, raw
   IntColumn get fileSize => integer().nullable()();
 
-  // Foreign keys
   IntColumn get sessionId => integer().nullable().references(
     ImagingSessions,
     #id,
@@ -45,11 +41,9 @@ class CapturedImages extends Table {
     onDelete: KeyAction.setNull,
   )();
 
-  // Frame type
   TextColumn get frameType =>
       text().withDefault(const Constant('light'))(); // light, dark, flat, bias
 
-  // Exposure settings
   RealColumn get exposureDuration => real()();
   IntColumn get gain => integer().nullable()();
   IntColumn get offset => integer().nullable()();
@@ -57,11 +51,9 @@ class CapturedImages extends Table {
   IntColumn get binY => integer().withDefault(const Constant(1))();
   TextColumn get filter => text().nullable()();
 
-  // Camera state
   RealColumn get sensorTemp => real().nullable()();
   RealColumn get coolerPower => real().nullable()();
 
-  // Quality metrics
   RealColumn get hfr => real().nullable()();
   IntColumn get starCount => integer().nullable()();
   RealColumn get background => real().nullable()();
@@ -89,14 +81,11 @@ class CapturedImages extends Table {
   RealColumn get mountAzimuth => real().nullable()();
   TextColumn get pierSide => text().nullable()();
 
-  // Focuser position
   IntColumn get focuserPosition => integer().nullable()();
   RealColumn get focuserTemp => real().nullable()();
 
-  // Rotator position
   RealColumn get rotatorAngle => real().nullable()();
 
-  // Plate solve result
   BoolColumn get isPlateSolved =>
       boolean().withDefault(const Constant(false))();
   RealColumn get solvedRa => real().nullable()();
@@ -104,7 +93,6 @@ class CapturedImages extends Table {
   RealColumn get solvedRotation => real().nullable()();
   RealColumn get solvedPixelScale => real().nullable()();
 
-  // Timestamps
   DateTimeColumn get capturedAt => dateTime()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
@@ -115,7 +103,6 @@ class CapturedImages extends Table {
   /// master/slave sync architecture) cannot double-count photons.
   DateTimeColumn get atlasFoldedAt => dateTime().nullable()();
 
-  // Flags
   BoolColumn get isAccepted =>
       boolean().withDefault(const Constant(true))(); // For rejection marking
   TextColumn get rejectionReason => text().nullable()();

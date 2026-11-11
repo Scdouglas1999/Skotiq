@@ -8,44 +8,32 @@ library;
 ///
 /// These categories match the Rust `SkotiqError::error_category()` values.
 enum BackendErrorCategory {
-  /// Connection/discovery errors
   connection,
 
-  /// Hardware-level errors
   hardware,
 
-  /// Timeout errors
   timeout,
 
-  /// Input validation errors
   validation,
 
-  /// Unsupported operation errors
   unsupported,
 
-  /// Device busy errors
   busy,
 
-  /// Imaging/camera errors
   imaging,
 
-  /// File I/O errors
   io,
 
-  /// Sequence execution errors
   sequence,
 
   /// Driver-specific errors (ASCOM, Alpaca, INDI, native)
   driver,
 
-  /// System/internal errors
   system,
 
-  /// Unknown error category
   unknown,
 }
 
-/// Extension for parsing backend error category from strings
 extension BackendErrorCategoryParsing on BackendErrorCategory {
   static BackendErrorCategory fromString(String value) {
     return switch (value.toLowerCase()) {
@@ -89,7 +77,6 @@ class SkotiqError implements Exception {
   /// Whether reconnection to the device should be attempted
   final bool shouldReconnect;
 
-  /// Whether this was a timeout error
   final bool isTimeout;
 
   /// Device ID if error is device-related
@@ -133,7 +120,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'category': category.name,
     'message': message,
@@ -159,14 +145,12 @@ class SkotiqError implements Exception {
     bool isTimeout = false;
     String? deviceId;
 
-    // Detect timeout errors
     if (lowerMessage.contains('timeout') ||
         lowerMessage.contains('timed out')) {
       category = BackendErrorCategory.timeout;
       isTimeout = true;
       isRecoverable = true;
     }
-    // Detect connection errors
     else if (lowerMessage.contains('not connected') ||
         lowerMessage.contains('connection failed') ||
         lowerMessage.contains('disconnected')) {
@@ -174,34 +158,28 @@ class SkotiqError implements Exception {
       shouldReconnect = true;
       isRecoverable = true;
     }
-    // Detect hardware errors
     else if (lowerMessage.contains('hardware') ||
         lowerMessage.contains('communication error')) {
       category = BackendErrorCategory.hardware;
       isRecoverable = true;
     }
-    // Detect busy errors
     else if (lowerMessage.contains('busy')) {
       category = BackendErrorCategory.busy;
       isRecoverable = true;
     }
-    // Detect validation errors
     else if (lowerMessage.contains('invalid') ||
         lowerMessage.contains('out of range')) {
       category = BackendErrorCategory.validation;
     }
-    // Detect unsupported operations
     else if (lowerMessage.contains('not supported') ||
         lowerMessage.contains('unsupported')) {
       category = BackendErrorCategory.unsupported;
     }
-    // Detect imaging errors
     else if (lowerMessage.contains('exposure') ||
         lowerMessage.contains('camera') ||
         lowerMessage.contains('image')) {
       category = BackendErrorCategory.imaging;
     }
-    // Detect driver errors
     else if (lowerMessage.contains('ascom') ||
         lowerMessage.contains('alpaca') ||
         lowerMessage.contains('indi')) {
@@ -225,7 +203,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Create from a generic exception
   factory SkotiqError.fromException(
     Object exception, [
     StackTrace? stackTrace,
@@ -236,9 +213,6 @@ class SkotiqError implements Exception {
     return SkotiqError.fromString(exception.toString());
   }
 
-  // Convenience constructors
-
-  /// Create a device not found error
   factory SkotiqError.deviceNotFound(String deviceId) {
     return SkotiqError(
       category: BackendErrorCategory.connection,
@@ -248,7 +222,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Create a connection failed error
   factory SkotiqError.connectionFailed(String deviceId, String reason) {
     return SkotiqError(
       category: BackendErrorCategory.connection,
@@ -260,7 +233,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Create a device not connected error
   factory SkotiqError.notConnected(String deviceId) {
     return SkotiqError(
       category: BackendErrorCategory.connection,
@@ -271,7 +243,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Create a device disconnected error
   factory SkotiqError.deviceDisconnected(String deviceId, String reason) {
     return SkotiqError(
       category: BackendErrorCategory.connection,
@@ -283,7 +254,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Create a timeout error
   factory SkotiqError.timeout(
     String operation, {
     String? deviceId,
@@ -302,7 +272,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Create an operation not supported error
   factory SkotiqError.notSupported(String deviceId, String operation) {
     return SkotiqError(
       category: BackendErrorCategory.unsupported,
@@ -312,7 +281,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Create a device busy error
   factory SkotiqError.deviceBusy(String deviceId, String currentOperation) {
     return SkotiqError(
       category: BackendErrorCategory.busy,
@@ -323,7 +291,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Create a hardware error
   factory SkotiqError.hardwareError(
     String deviceId,
     String message, {
@@ -339,7 +306,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Create a cancelled operation error
   factory SkotiqError.cancelled() {
     return const SkotiqError(
       category: BackendErrorCategory.system,
@@ -348,7 +314,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Create an internal error
   factory SkotiqError.internal(String message) {
     return SkotiqError(
       category: BackendErrorCategory.system,
@@ -356,15 +321,10 @@ class SkotiqError implements Exception {
     );
   }
 
-  // Classification methods
-
-  /// Whether this is a hardware-level error
   bool get isHardwareError => category == BackendErrorCategory.hardware;
 
-  /// Whether this is an unsupported operation error
   bool get isNotSupported => category == BackendErrorCategory.unsupported;
 
-  /// Whether this is a validation/input error
   bool get isValidationError => category == BackendErrorCategory.validation;
 
   /// Whether this is a cancellation (not really an error)

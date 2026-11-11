@@ -11,7 +11,6 @@ String _sanitizeDeviceText(String value) => value
     .trim();
 
 mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
-  // Device Discovery & Connection
 
   @override
   Future<List<DeviceInfo>> discoverDevices(DeviceType deviceType) async {
@@ -208,8 +207,6 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
         )
         .toList();
   }
-
-  // Camera control
 
   @override
   Future<void> cameraStartExposure({

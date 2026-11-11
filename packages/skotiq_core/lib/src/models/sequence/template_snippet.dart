@@ -4,15 +4,11 @@ import 'package:uuid/uuid.dart';
 part 'template_snippet.freezed.dart';
 part 'template_snippet.g.dart';
 
-/// Category for template snippets
 enum SnippetCategory {
-  /// Autofocus routines
   autofocus,
 
-  /// Dithering patterns
   dithering,
 
-  /// Filter sequence workflows
   filterSequence,
 
   /// Calibration routines (meridian flip, polar alignment, etc.)
@@ -31,16 +27,12 @@ abstract class TemplateSnippet with _$TemplateSnippet {
   const TemplateSnippet._();
 
   const factory TemplateSnippet({
-    /// Unique identifier for this snippet
     required String id,
 
-    /// Display name for the snippet
     required String name,
 
-    /// Description of what this snippet does
     required String description,
 
-    /// Category for organization
     required SnippetCategory category,
 
     /// Lucide icon name (e.g., 'focus', 'filter', 'shield')
@@ -52,14 +44,12 @@ abstract class TemplateSnippet with _$TemplateSnippet {
     /// Whether this is a built-in snippet (cannot be deleted)
     @Default(false) bool isBuiltIn,
 
-    /// When this snippet was created
     required DateTime createdAt,
   }) = _TemplateSnippet;
 
   factory TemplateSnippet.fromJson(Map<String, dynamic> json) =>
       _$TemplateSnippetFromJson(json);
 
-  /// Create a new custom snippet
   factory TemplateSnippet.custom({
     required String name,
     required String description,
@@ -830,19 +820,15 @@ class BuiltInSnippets {
     createdAt: DateTime(2024, 1, 1),
   );
 
-  /// All built-in snippets
   static List<TemplateSnippet> get all => [
-    // Autofocus snippets
     autofocusRoutine,
     hfrTriggeredAf,
     tempDriftAf,
     perFilterAf,
-    // Dithering snippets
     ditherAfterEach,
     aggressiveDither,
     gentleDither,
     ditherEveryN,
-    // Filter sequence snippets
     lrgbFilterCycle,
     haOiiiBicolor,
     shoHubble,
@@ -854,16 +840,13 @@ class BuiltInSnippets {
     safetyCheck,
     weatherPause,
     guidingRecovery,
-    // Calibration snippets
     meridianFlipHandler,
   ];
 
-  /// Get built-in snippets by category
   static List<TemplateSnippet> byCategory(SnippetCategory category) {
     return all.where((s) => s.category == category).toList();
   }
 
-  /// Get a built-in snippet by ID
   static TemplateSnippet? byId(String id) {
     try {
       return all.firstWhere((s) => s.id == id);
