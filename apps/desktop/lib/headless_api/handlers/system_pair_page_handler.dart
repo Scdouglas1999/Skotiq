@@ -12,7 +12,6 @@ import 'package:shelf/shelf.dart';
 import '../response_helpers.dart';
 import 'system_handlers.dart';
 
-/// The `/pair` browser pairing page handler.
 extension SystemPairPageHandler on SystemHandlers {
   /// `GET /pair` — a self-contained browser pairing page.
   ///

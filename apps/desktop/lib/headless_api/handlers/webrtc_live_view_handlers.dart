@@ -173,8 +173,6 @@ class WebRtcLiveViewHandlers implements RouteSource {
     }
   }
 
-  // Route handlers
-
   /// POST /api/webrtc/live-view/offer
   Future<Response> handleOffer(Request request) async {
     if (_disposed) {
@@ -460,8 +458,6 @@ class WebRtcLiveViewHandlers implements RouteSource {
     await _destroySession(sessionId, reason: 'client_delete');
     return noContentResponse();
   }
-
-  // Session lifecycle
 
   Future<_WebRtcLiveViewSession> _createSession({
     required String sessionId,

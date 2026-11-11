@@ -7,7 +7,6 @@ import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
 
-/// Handlers for transient astronomical event alerts
 class TransientHandlers implements RouteSource {
   @override
   Map<ApiEndpoint, Function> get routes => {
@@ -66,8 +65,6 @@ class TransientHandlers implements RouteSource {
       tnsUseSandbox: science.tnsUseSandbox,
     );
   }
-
-  // Get active transients
 
   /// This host's own First Light discoveries that are not dismissed, as
   /// alerts; the title-bar badge counts them ahead of the external feed.
@@ -128,8 +125,6 @@ class TransientHandlers implements RouteSource {
     });
   }
 
-  // Get transient settings
-
   Future<Response> handleGetSettings(Request request) async {
     final settings = await _readSettings();
 
@@ -144,8 +139,6 @@ class TransientHandlers implements RouteSource {
       },
     });
   }
-
-  // Update transient settings
 
   Future<Response> handleUpdateSettings(Request request) async {
     _logInfo('[API] POST /api/transients/settings');
@@ -210,8 +203,6 @@ class TransientHandlers implements RouteSource {
     });
   }
 
-  // Queue transient for observation
-
   Future<Response> handleQueueTransient(Request request, String id) async {
     _logInfo('[API] POST /api/transients/$id/queue');
     final notifier = container.read(transientAlertStatesProvider.notifier);
@@ -224,8 +215,6 @@ class TransientHandlers implements RouteSource {
       "queuedCount": _countState(states, TransientAlertState.queued),
     });
   }
-
-  // Dismiss transient
 
   Future<Response> handleDismissTransient(Request request, String id) async {
     _logInfo('[API] POST /api/transients/$id/dismiss');
@@ -289,8 +278,6 @@ class TransientHandlers implements RouteSource {
     return jsonOk({"status": "cache_cleared"});
   }
 
-  // Get queued transients
-
   Future<Response> handleGetQueued(Request request) async {
     final settings = await _readSettings();
     final statesNotifier = container.read(
@@ -299,7 +286,6 @@ class TransientHandlers implements RouteSource {
     await statesNotifier.loaded;
     final states = container.read(transientAlertStatesProvider);
 
-    // Fetch all alerts and filter to queued ones
     final alerts = await _fetchAlerts(settings);
     final queuedAlerts = alerts
         .where(
@@ -313,8 +299,6 @@ class TransientHandlers implements RouteSource {
       "queued": queuedAlerts.map((a) => _alertToJson(a, states)).toList(),
     });
   }
-
-  // Helpers
 
   TransientSource? _parseSource(String value) {
     final normalized = value.trim().toLowerCase();

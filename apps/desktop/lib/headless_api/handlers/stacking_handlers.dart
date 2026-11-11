@@ -58,8 +58,6 @@ class StackingHandlers implements RouteSource {
   StackedResultsDao get _resultsDao =>
       container.read(stackedResultsDaoProvider);
 
-  // Coordinator state
-
   /// True once the client has started stacking and the host should feed frames.
   bool _armed = false;
 
@@ -113,8 +111,6 @@ class StackingHandlers implements RouteSource {
     }
   }
 
-  // Host auto-feed hook
-
   /// Called by the server's `ImageSaved` event subscription for every frame the
   /// host writes to disk. No-op unless stacking is armed.
   Future<void> onImageSaved(String filePath) async {
@@ -144,8 +140,6 @@ class StackingHandlers implements RouteSource {
       }
     });
   }
-
-  // Endpoints
 
   /// POST /api/stacking/start
   /// Body: `{ config?: {...}, referencePath?: "host-path" }`
@@ -524,8 +518,6 @@ class StackingHandlers implements RouteSource {
       });
     });
   }
-
-  // (de)serialization
 
   int _parseSavedResultId(String raw) {
     final parsed = int.tryParse(raw);

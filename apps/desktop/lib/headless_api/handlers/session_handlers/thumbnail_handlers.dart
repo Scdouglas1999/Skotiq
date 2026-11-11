@@ -348,7 +348,6 @@ extension SessionThumbnailHandlers on SessionHandlers {
   Future<Response> handleDownloadImage(Request request, String imageId) async {
     final iid = _parsePathId(imageId, 'imageId');
 
-    // Look up the image from the database
     final database = container.read(databaseProvider);
     final imagesDao = database.imagesDao;
     final dbImage = await imagesDao.getImageById(iid);
@@ -357,7 +356,6 @@ extension SessionThumbnailHandlers on SessionHandlers {
       return jsonNotFound({"error": "Image not found: $iid"});
     }
 
-    // Get the file path and check if it exists
     final file = File(dbImage.filePath);
     if (!await file.exists()) {
       return jsonNotFound({
@@ -392,7 +390,6 @@ extension SessionThumbnailHandlers on SessionHandlers {
       });
     }
 
-    // Determine content type based on file extension
     final ext = dbImage.filePath.toLowerCase();
     String contentType;
     if (ext.endsWith('.fits') || ext.endsWith('.fit')) {

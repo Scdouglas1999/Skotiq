@@ -7,7 +7,6 @@ import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
 
-/// Handlers for target suggestion service
 class SuggestionHandlers implements RouteSource {
   @override
   Map<ApiEndpoint, Function> get routes => {
@@ -36,8 +35,6 @@ class SuggestionHandlers implements RouteSource {
     }
     return parsed;
   }
-
-  // Get suggestions for tonight
 
   Future<Response> handleGetSuggestionsForTonight(Request request) async {
     // Validate every query parameter BEFORE touching the database so a
@@ -74,7 +71,6 @@ class SuggestionHandlers implements RouteSource {
 
     final database = container.read(databaseProvider);
 
-    // Get location from settings
     final latitude = await database.settingsDao.getObserverLatitude();
     final longitude = await database.settingsDao.getObserverLongitude();
     if (latitude == 0.0 && longitude == 0.0) {
@@ -83,16 +79,13 @@ class SuggestionHandlers implements RouteSource {
       });
     }
 
-    // Get all targets
     final targets = await database.targetsDao.getAllTargets();
     if (targets.isEmpty) {
       return jsonOk({"suggestions": []});
     }
 
-    // Get all sessions for progress calculation
     final sessions = await database.sessionsDao.getAllSessions();
 
-    // Create suggestion config
     final config = TargetSuggestionConfig(
       minAltitude: minAltitude,
       minScore: minScore,
@@ -101,7 +94,6 @@ class SuggestionHandlers implements RouteSource {
       preferredObjectTypes: preferredObjectTypes,
     );
 
-    // Generate suggestions
     final loggingService = container.read(loggingServiceProvider);
     final suggestionService = TargetSuggestionService(
       loggingService: loggingService,
@@ -115,7 +107,6 @@ class SuggestionHandlers implements RouteSource {
       sessions: sessions,
     );
 
-    // Limit results
     final limited = suggestions.take(maxResults).toList();
 
     return jsonOk({
@@ -147,8 +138,6 @@ class SuggestionHandlers implements RouteSource {
   List<String> _parseObjectTypes(String? raw) => raw == null
       ? <String>[]
       : raw.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
-
-  // Tonight's ranking as this host's own Plan screen computes it
 
   /// `GET /api/suggestions/ranked`: the list a linked client shows on Plan >
   /// Tonight. It is the host's own ranking (catalog candidates, the active
@@ -195,10 +184,7 @@ class SuggestionHandlers implements RouteSource {
     }
   }
 
-  // Get suggestion config
-
   Future<Response> handleGetConfig(Request request) async {
-    // Return default configuration
     const config = TargetSuggestionConfig();
 
     return jsonOk({
@@ -213,8 +199,6 @@ class SuggestionHandlers implements RouteSource {
     });
   }
 
-  // Get target score
-
   Future<Response> handleGetTargetScore(
     Request request,
     String targetId,
@@ -222,23 +206,19 @@ class SuggestionHandlers implements RouteSource {
     final tid = _parsePathId(targetId, 'targetId');
     final database = container.read(databaseProvider);
 
-    // Get target
     final target = await database.targetsDao.getTargetById(tid);
     if (target == null) {
       return jsonNotFound({"error": "Target not found: $targetId"});
     }
 
-    // Get location
     final latitude = await database.settingsDao.getObserverLatitude();
     final longitude = await database.settingsDao.getObserverLongitude();
     if (latitude == 0.0 && longitude == 0.0) {
       return jsonBadRequest({"error": "No location configured"});
     }
 
-    // Get sessions for progress calculation
     final sessions = await database.sessionsDao.getSessionsForTarget(tid);
 
-    // Generate suggestion for this target
     final loggingService = container.read(loggingServiceProvider);
     final suggestionService = TargetSuggestionService(
       loggingService: loggingService,
@@ -275,8 +255,6 @@ class SuggestionHandlers implements RouteSource {
       "suggestion": _suggestionToJson(suggestion),
     });
   }
-
-  // Helpers
 
   Map<String, dynamic> _suggestionToJson(TargetSuggestion s) {
     return {
