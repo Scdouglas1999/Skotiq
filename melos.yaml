@@ -257,8 +257,7 @@ scripts:
   build:desktop:windows:
     run: |
       set -euo pipefail
-      cargo build --locked --release --manifest-path native/skotiq_native/bridge/Cargo.toml
-      dart run melos exec --scope="skotiq_desktop" -- flutter build windows --release
+      dart scripts/build.dart desktop windows
       powershell -ExecutionPolicy Bypass -File scripts/stage_windows_release.ps1 -Profile Release
     description: Build Windows desktop app (Rust + Flutter + stage native DLLs)
 
@@ -269,15 +268,14 @@ scripts:
   build:desktop:macos:
     run: |
       set -euo pipefail
-      cargo build --locked --release --target x86_64-apple-darwin --manifest-path native/skotiq_native/bridge/Cargo.toml || cargo build --locked --release --target aarch64-apple-darwin --manifest-path native/skotiq_native/bridge/Cargo.toml
-      dart run melos exec --scope="skotiq_desktop" -- flutter build macos
+      dart scripts/build.dart bridge --target x86_64-apple-darwin || dart scripts/build.dart bridge --target aarch64-apple-darwin
+      dart scripts/build.dart flutter macos
     description: Build macOS desktop app
 
   build:desktop:linux:
     run: |
       set -eu
-      cargo build --locked --release --manifest-path native/skotiq_native/bridge/Cargo.toml
-      dart run melos exec --scope="skotiq_desktop" -- flutter build linux
+      dart scripts/build.dart desktop linux
     description: Build Linux desktop app
 
   build:mobile:android:

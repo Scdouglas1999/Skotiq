@@ -131,10 +131,9 @@ Write-Step "Building Rust native library..."
 
 Set-Location $NativeDir
 
-$cargoArgs = @("build", "--package", "skotiq_bridge", "--release")
 $BuildProfile = "release"
 
-cargo @cargoArgs
+dart (Join-Path $PSScriptRoot "build.dart") bridge
 
 if ($LASTEXITCODE -ne 0) {
     Write-Err "Cargo build failed"

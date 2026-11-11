@@ -38,10 +38,8 @@ if (Test-Path $updaterSource) {
     Write-Host "  copied updater.exe"
 } else {
     Write-Host "  updater.exe not built; building now"
-    Push-Location $rustDir
-    cargo build --release --package skotiq_updater
+    dart (Join-Path $PSScriptRoot "build.dart") updater
     $rc = $LASTEXITCODE
-    Pop-Location
     if ($rc -ne 0) { throw "cargo build updater failed (exit $rc)" }
     Copy-File $updaterSource $updaterDest
     Write-Host "  built + copied updater.exe"

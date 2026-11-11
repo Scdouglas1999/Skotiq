@@ -8,24 +8,14 @@ echo ==========================================
 echo Skotiq Imaging Laptop Deployer
 echo ==========================================
 
-echo [1/5] Building Rust backend...
-cd native/skotiq_native
-call cargo build --release --manifest-path bridge/Cargo.toml
+echo [1/5] Building Rust backend, [2/5] Building Flutter frontend...
+call dart scripts\build.dart desktop windows
 if %errorlevel% neq 0 (
-    echo Rust build failed!
+    echo Build failed!
     pause
     exit /b %errorlevel%
 )
-cd ../..
-
-echo [2/5] Building Flutter frontend...
 cd apps/desktop
-call flutter build windows --release
-if %errorlevel% neq 0 (
-    echo Flutter build failed!
-    pause
-    exit /b %errorlevel%
-)
 
 echo [3/5] Copying Skotiq Bridge DLL...
 copy /Y "..\..\native\skotiq_native\target\release\skotiq_bridge.dll" "build\windows\x64\runner\Release\"
