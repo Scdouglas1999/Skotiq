@@ -1,0 +1,278 @@
+AscomCamera::connect() | connection.connect
+AscomCamera::disconnect() | connection.disconnect
+AscomCamera::setup_dialog() | method SetupDialog() -> void | Failed to call method SetupDialog: {cause} | -
+AscomCamera::name() | get Name() -> BSTR | Failed to get property Name: {cause} | Property Name is not a string
+AscomCamera::description() | get Description() -> BSTR | Failed to get property Description: {cause} | Property Description is not a string
+AscomCamera::interface_version() | get InterfaceVersion() -> I4 | Failed to get property InterfaceVersion: {cause} | Property InterfaceVersion is not an int (VARIANT type={vt})
+AscomCamera::driver_version() | get DriverVersion() -> BSTR | Failed to get property DriverVersion: {cause} | Property DriverVersion is not a string
+AscomCamera::driver_info() | get DriverInfo() -> BSTR | Failed to get property DriverInfo: {cause} | Property DriverInfo is not a string
+AscomCamera::supported_actions() | get SupportedActions() -> SAFEARRAY(BSTR) | Failed to get property SupportedActions: {cause} | Property SupportedActions is not a string array: {detail}
+AscomCamera::camera_x_size() | get CameraXSize() -> I4 | Failed to get property CameraXSize: {cause} | Property CameraXSize is not an int (VARIANT type={vt})
+AscomCamera::camera_y_size() | get CameraYSize() -> I4 | Failed to get property CameraYSize: {cause} | Property CameraYSize is not an int (VARIANT type={vt})
+AscomCamera::pixel_size_x() | get PixelSizeX() -> R8 | Failed to get property PixelSizeX: {cause} | Property PixelSizeX is not a double
+AscomCamera::pixel_size_y() | get PixelSizeY() -> R8 | Failed to get property PixelSizeY: {cause} | Property PixelSizeY is not a double
+AscomCamera::max_bin_x() | get MaxBinX() -> I4 | Failed to get property MaxBinX: {cause} | Property MaxBinX is not an int (VARIANT type={vt})
+AscomCamera::max_bin_y() | get MaxBinY() -> I4 | Failed to get property MaxBinY: {cause} | Property MaxBinY is not an int (VARIANT type={vt})
+AscomCamera::bin_x() | get BinX() -> I4 | Failed to get property BinX: {cause} | Property BinX is not an int (VARIANT type={vt})
+AscomCamera::bin_y() | get BinY() -> I4 | Failed to get property BinY: {cause} | Property BinY is not an int (VARIANT type={vt})
+AscomCamera::set_bin_x(value: i32) | put BinX(I4 value) -> void | Failed to set property BinX: {cause} | -
+AscomCamera::set_bin_y(value: i32) | put BinY(I4 value) -> void | Failed to set property BinY: {cause} | -
+AscomCamera::can_set_ccd_temperature() | get CanSetCCDTemperature() -> BOOL | Failed to get property CanSetCCDTemperature: {cause} | Property CanSetCCDTemperature is not a bool
+AscomCamera::ccd_temperature() | get CCDTemperature() -> R8 | Failed to get property CCDTemperature: {cause} | Property CCDTemperature is not a double
+AscomCamera::set_ccd_temperature(temp: f64) | put SetCCDTemperature(R8 temp) -> void | Failed to set property SetCCDTemperature: {cause} | -
+AscomCamera::cooler_on() | get CoolerOn() -> BOOL | Failed to get property CoolerOn: {cause} | Property CoolerOn is not a bool
+AscomCamera::set_cooler_on(on: bool) | put CoolerOn(BOOL on) -> void | Failed to set property CoolerOn: {cause} | -
+AscomCamera::cooler_power() | get CoolerPower() -> R8 | Failed to get property CoolerPower: {cause} | Property CoolerPower is not a double
+AscomCamera::gain() | get Gain() -> I4 | Failed to get property Gain: {cause} | Property Gain is not an int (VARIANT type={vt})
+AscomCamera::set_gain(gain: i32) | put Gain(I4 gain) -> void | Failed to set property Gain: {cause} | -
+AscomCamera::offset() | get Offset() -> I4 | Failed to get property Offset: {cause} | Property Offset is not an int (VARIANT type={vt})
+AscomCamera::set_offset(offset: i32) | put Offset(I4 offset) -> void | Failed to set property Offset: {cause} | -
+AscomCamera::camera_state() | get CameraState() -> I4 | Failed to get property CameraState: {cause} | Property CameraState is not an int (VARIANT type={vt})
+AscomCamera::image_ready() | get ImageReady() -> BOOL | Failed to get property ImageReady: {cause} | Property ImageReady is not a bool
+AscomCamera::percent_completed() | get PercentCompleted() -> I4 | Failed to get property PercentCompleted: {cause} | Property PercentCompleted is not an int (VARIANT type={vt})
+AscomCamera::start_exposure(duration: f64, light: bool) | method StartExposure(R8 duration, BOOL light) -> void | Failed to call method StartExposure: {cause} | -
+AscomCamera::abort_exposure() | method AbortExposure() -> void | Failed to call method AbortExposure: {cause} | -
+AscomCamera::stop_exposure() | method StopExposure() -> void | Failed to call method StopExposure: {cause} | -
+AscomCamera::image_array() | get ImageArray() -> SAFEARRAY(I4)+dims | Failed to get ImageArray property: {cause} | (extractor's own error)
+AscomCamera::readout_modes() | get ReadoutModes() -> SAFEARRAY(BSTR) | Failed to get property ReadoutModes: {cause} | Property ReadoutModes is not a string array: {detail}
+AscomCamera::set_readout_mode(mode: i32) | put ReadoutMode(I4 mode) -> void | Failed to set property ReadoutMode: {cause} | -
+AscomCamera::sensor_type() | get SensorType() -> I4 | Failed to get property SensorType: {cause} | Property SensorType is not an int (VARIANT type={vt})
+AscomCamera::bayer_offset_x() | get BayerOffsetX() -> I4 | Failed to get property BayerOffsetX: {cause} | Property BayerOffsetX is not an int (VARIANT type={vt})
+AscomCamera::bayer_offset_y() | get BayerOffsetY() -> I4 | Failed to get property BayerOffsetY: {cause} | Property BayerOffsetY is not an int (VARIANT type={vt})
+AscomCamera::start_x() | get StartX() -> I4 | Failed to get property StartX: {cause} | Property StartX is not an int (VARIANT type={vt})
+AscomCamera::start_y() | get StartY() -> I4 | Failed to get property StartY: {cause} | Property StartY is not an int (VARIANT type={vt})
+AscomCamera::num_x() | get NumX() -> I4 | Failed to get property NumX: {cause} | Property NumX is not an int (VARIANT type={vt})
+AscomCamera::num_y() | get NumY() -> I4 | Failed to get property NumY: {cause} | Property NumY is not an int (VARIANT type={vt})
+AscomCamera::set_start_x(value: i32) | put StartX(I4 value) -> void | Failed to set property StartX: {cause} | -
+AscomCamera::set_start_y(value: i32) | put StartY(I4 value) -> void | Failed to set property StartY: {cause} | -
+AscomCamera::set_num_x(value: i32) | put NumX(I4 value) -> void | Failed to set property NumX: {cause} | -
+AscomCamera::set_num_y(value: i32) | put NumY(I4 value) -> void | Failed to set property NumY: {cause} | -
+AscomCamera::can_abort_exposure() | get CanAbortExposure() -> BOOL | Failed to get property CanAbortExposure: {cause} | Property CanAbortExposure is not a bool
+AscomCamera::can_stop_exposure() | get CanStopExposure() -> BOOL | Failed to get property CanStopExposure: {cause} | Property CanStopExposure is not a bool
+AscomCamera::has_shutter() | get HasShutter() -> BOOL | Failed to get property HasShutter: {cause} | Property HasShutter is not a bool
+AscomCamera::sensor_name() | get SensorName() -> BSTR | Failed to get property SensorName: {cause} | Property SensorName is not a string
+AscomCamera::max_adu() | get MaxADU() -> I4 | Failed to get property MaxADU: {cause} | Property MaxADU is not an int (VARIANT type={vt})
+AscomCamera::heartbeat() | connection.heartbeat
+AscomCamera::get_health() | connection.get_health
+AscomCoverCalibrator::connect() | connection.connect
+AscomCoverCalibrator::disconnect() | connection.disconnect
+AscomCoverCalibrator::is_connected() | connection.is_connected
+AscomCoverCalibrator::name() | get Name() -> BSTR | Failed to get property Name: {cause} | Property Name is not a string
+AscomCoverCalibrator::interface_version() | get InterfaceVersion() -> I4 | Failed to get property InterfaceVersion: {cause} | Property InterfaceVersion is not an int (VARIANT type={vt})
+AscomCoverCalibrator::driver_version() | get DriverVersion() -> BSTR | Failed to get property DriverVersion: {cause} | Property DriverVersion is not a string
+AscomCoverCalibrator::driver_info() | get DriverInfo() -> BSTR | Failed to get property DriverInfo: {cause} | Property DriverInfo is not a string
+AscomCoverCalibrator::supported_actions() | get SupportedActions() -> SAFEARRAY(BSTR) | Failed to get property SupportedActions: {cause} | Property SupportedActions is not a string array: {detail}
+AscomCoverCalibrator::cover_state() | get CoverState() -> I4 | Failed to get property CoverState: {cause} | Property CoverState is not an int (VARIANT type={vt})
+AscomCoverCalibrator::calibrator_state() | get CalibratorState() -> I4 | Failed to get property CalibratorState: {cause} | Property CalibratorState is not an int (VARIANT type={vt})
+AscomCoverCalibrator::brightness() | get Brightness() -> I4 | Failed to get property Brightness: {cause} | Property Brightness is not an int (VARIANT type={vt})
+AscomCoverCalibrator::set_brightness(brightness: i32) | put Brightness(I4 brightness) -> void | Failed to set property Brightness: {cause} | -
+AscomCoverCalibrator::max_brightness() | get MaxBrightness() -> I4 | Failed to get property MaxBrightness: {cause} | Property MaxBrightness is not an int (VARIANT type={vt})
+AscomCoverCalibrator::open_cover() | method OpenCover() -> void | Failed to call method OpenCover: {cause} | -
+AscomCoverCalibrator::close_cover() | method CloseCover() -> void | Failed to call method CloseCover: {cause} | -
+AscomCoverCalibrator::halt_cover() | method HaltCover() -> void | Failed to call method HaltCover: {cause} | -
+AscomCoverCalibrator::calibrator_on(brightness: i32) | method CalibratorOn(I4 brightness) -> void | Failed to call CalibratorOn: {cause} | -
+AscomCoverCalibrator::calibrator_off() | method CalibratorOff() -> void | Failed to call method CalibratorOff: {cause} | -
+AscomCoverCalibrator::heartbeat() | connection.heartbeat
+AscomCoverCalibrator::get_health() | connection.get_health
+AscomDome::connect() | connection.connect
+AscomDome::disconnect() | connection.disconnect
+AscomDome::is_connected() | connection.is_connected
+AscomDome::name() | get Name() -> BSTR | Failed to get property Name: {cause} | Property Name is not a string
+AscomDome::interface_version() | get InterfaceVersion() -> I4 | Failed to get property InterfaceVersion: {cause} | Property InterfaceVersion is not an int (VARIANT type={vt})
+AscomDome::driver_version() | get DriverVersion() -> BSTR | Failed to get property DriverVersion: {cause} | Property DriverVersion is not a string
+AscomDome::driver_info() | get DriverInfo() -> BSTR | Failed to get property DriverInfo: {cause} | Property DriverInfo is not a string
+AscomDome::supported_actions() | get SupportedActions() -> SAFEARRAY(BSTR) | Failed to get property SupportedActions: {cause} | Property SupportedActions is not a string array: {detail}
+AscomDome::open_shutter() | method OpenShutter() -> void | Failed to call method OpenShutter: {cause} | -
+AscomDome::close_shutter() | method CloseShutter() -> void | Failed to call method CloseShutter: {cause} | -
+AscomDome::park() | method Park() -> void | Failed to call method Park: {cause} | -
+AscomDome::shutter_status() | get ShutterStatus() -> I4 | Failed to get property ShutterStatus: {cause} | Property ShutterStatus is not an int (VARIANT type={vt})
+AscomDome::at_park() | get AtPark() -> BOOL | Failed to get property AtPark: {cause} | Property AtPark is not a bool
+AscomDome::slewing() | get Slewing() -> BOOL | Failed to get property Slewing: {cause} | Property Slewing is not a bool
+AscomDome::azimuth() | get Azimuth() -> R8 | Failed to get property Azimuth: {cause} | Property Azimuth is not a double
+AscomDome::slew_to_azimuth(azimuth: f64) | method SlewToAzimuth(R8 azimuth) -> void | Failed to call method SlewToAzimuth: {cause} | -
+AscomDome::abort_slew() | method AbortSlew() -> void | Failed to call method AbortSlew: {cause} | -
+AscomDome::find_home() | method FindHome() -> void | Failed to call method FindHome: {cause} | -
+AscomDome::set_slaved(slaved: bool) | put Slaved(BOOL slaved) -> void | Failed to set property Slaved: {cause} | -
+AscomDome::heartbeat() | connection.heartbeat
+AscomDome::get_health() | connection.get_health
+AscomFilterWheel::connect() | connection.connect
+AscomFilterWheel::disconnect() | connection.disconnect
+AscomFilterWheel::is_connected() | connection.is_connected
+AscomFilterWheel::name() | get Name() -> BSTR | Failed to get property Name: {cause} | Property Name is not a string
+AscomFilterWheel::interface_version() | get InterfaceVersion() -> I4 | Failed to get property InterfaceVersion: {cause} | Property InterfaceVersion is not an int (VARIANT type={vt})
+AscomFilterWheel::driver_version() | get DriverVersion() -> BSTR | Failed to get property DriverVersion: {cause} | Property DriverVersion is not a string
+AscomFilterWheel::driver_info() | get DriverInfo() -> BSTR | Failed to get property DriverInfo: {cause} | Property DriverInfo is not a string
+AscomFilterWheel::supported_actions() | get SupportedActions() -> SAFEARRAY(BSTR) | Failed to get property SupportedActions: {cause} | Property SupportedActions is not a string array: {detail}
+AscomFilterWheel::position() | get Position() -> I4 | Failed to get property Position: {cause} | Property Position is not an int (VARIANT type={vt})
+AscomFilterWheel::set_position(position: i32) | put Position(I4 position) -> void | Failed to set property Position: {cause} | -
+AscomFilterWheel::names() | get Names() -> SAFEARRAY(BSTR) | Failed to get property Names: {cause} | Property Names is not a string array: {detail}
+AscomFilterWheel::focus_offsets() | get FocusOffsets() -> SAFEARRAY(I4) | Failed to get property FocusOffsets: {cause} | Property FocusOffsets is not an int array: {detail}
+AscomFilterWheel::heartbeat() | connection.heartbeat
+AscomFilterWheel::get_health() | connection.get_health
+AscomFocuser::connect() | connection.connect
+AscomFocuser::disconnect() | connection.disconnect
+AscomFocuser::is_connected() | connection.is_connected
+AscomFocuser::name() | get Name() -> BSTR | Failed to get property Name: {cause} | Property Name is not a string
+AscomFocuser::interface_version() | get InterfaceVersion() -> I4 | Failed to get property InterfaceVersion: {cause} | Property InterfaceVersion is not an int (VARIANT type={vt})
+AscomFocuser::driver_version() | get DriverVersion() -> BSTR | Failed to get property DriverVersion: {cause} | Property DriverVersion is not a string
+AscomFocuser::driver_info() | get DriverInfo() -> BSTR | Failed to get property DriverInfo: {cause} | Property DriverInfo is not a string
+AscomFocuser::supported_actions() | get SupportedActions() -> SAFEARRAY(BSTR) | Failed to get property SupportedActions: {cause} | Property SupportedActions is not a string array: {detail}
+AscomFocuser::position() | get Position() -> I4 | Failed to get property Position: {cause} | Property Position is not an int (VARIANT type={vt})
+AscomFocuser::max_step() | get MaxStep() -> I4 | Failed to get property MaxStep: {cause} | Property MaxStep is not an int (VARIANT type={vt})
+AscomFocuser::max_increment() | get MaxIncrement() -> I4 | Failed to get property MaxIncrement: {cause} | Property MaxIncrement is not an int (VARIANT type={vt})
+AscomFocuser::step_size() | get StepSize() -> R8 | Failed to get property StepSize: {cause} | Property StepSize is not a double
+AscomFocuser::is_moving() | get IsMoving() -> BOOL | Failed to get property IsMoving: {cause} | Property IsMoving is not a bool
+AscomFocuser::absolute() | get Absolute() -> BOOL | Failed to get property Absolute: {cause} | Property Absolute is not a bool
+AscomFocuser::temp_comp() | get TempComp() -> BOOL | Failed to get property TempComp: {cause} | Property TempComp is not a bool
+AscomFocuser::set_temp_comp(value: bool) | put TempComp(BOOL value) -> void | Failed to set property TempComp: {cause} | -
+AscomFocuser::temp_comp_available() | get TempCompAvailable() -> BOOL | Failed to get property TempCompAvailable: {cause} | Property TempCompAvailable is not a bool
+AscomFocuser::temperature() | get Temperature() -> R8 | Failed to get property Temperature: {cause} | Property Temperature is not a double
+AscomFocuser::move_to(position: i32) | method Move(I4 position) -> void | Failed to call method Move: {cause} | -
+AscomFocuser::halt() | method Halt() -> void | Failed to call method Halt: {cause} | -
+AscomFocuser::heartbeat() | connection.heartbeat
+AscomFocuser::get_health() | connection.get_health
+AscomMount::connect() | connection.connect
+AscomMount::disconnect() | connection.disconnect
+AscomMount::name() | get Name() -> BSTR | Failed to get property Name: {cause} | Property Name is not a string
+AscomMount::interface_version() | get InterfaceVersion() -> I4 | Failed to get property InterfaceVersion: {cause} | Property InterfaceVersion is not an int (VARIANT type={vt})
+AscomMount::driver_version() | get DriverVersion() -> BSTR | Failed to get property DriverVersion: {cause} | Property DriverVersion is not a string
+AscomMount::driver_info() | get DriverInfo() -> BSTR | Failed to get property DriverInfo: {cause} | Property DriverInfo is not a string
+AscomMount::supported_actions() | get SupportedActions() -> SAFEARRAY(BSTR) | Failed to get property SupportedActions: {cause} | Property SupportedActions is not a string array: {detail}
+AscomMount::right_ascension() | get RightAscension() -> R8 | Failed to get property RightAscension: {cause} | Property RightAscension is not a double
+AscomMount::target_right_ascension() | get TargetRightAscension() -> R8 | Failed to get property TargetRightAscension: {cause} | Property TargetRightAscension is not a double
+AscomMount::set_target_right_ascension(ra_hours: f64) | put TargetRightAscension(R8 ra_hours) -> void | Failed to set property TargetRightAscension: {cause} | -
+AscomMount::declination() | get Declination() -> R8 | Failed to get property Declination: {cause} | Property Declination is not a double
+AscomMount::target_declination() | get TargetDeclination() -> R8 | Failed to get property TargetDeclination: {cause} | Property TargetDeclination is not a double
+AscomMount::set_target_declination(dec_degrees: f64) | put TargetDeclination(R8 dec_degrees) -> void | Failed to set property TargetDeclination: {cause} | -
+AscomMount::altitude() | get Altitude() -> R8 | Failed to get property Altitude: {cause} | Property Altitude is not a double
+AscomMount::azimuth() | get Azimuth() -> R8 | Failed to get property Azimuth: {cause} | Property Azimuth is not a double
+AscomMount::side_of_pier() | get SideOfPier() -> I4 | Failed to get property SideOfPier: {cause} | Property SideOfPier is not an int (VARIANT type={vt})
+AscomMount::sidereal_time() | get SiderealTime() -> R8 | Failed to get property SiderealTime: {cause} | Property SiderealTime is not a double
+AscomMount::site_latitude() | get SiteLatitude() -> R8 | Failed to get property SiteLatitude: {cause} | Property SiteLatitude is not a double
+AscomMount::set_site_latitude(latitude_degrees: f64) | put SiteLatitude(R8 latitude_degrees) -> void | Failed to set property SiteLatitude: {cause} | -
+AscomMount::site_longitude() | get SiteLongitude() -> R8 | Failed to get property SiteLongitude: {cause} | Property SiteLongitude is not a double
+AscomMount::set_site_longitude(longitude_degrees: f64) | put SiteLongitude(R8 longitude_degrees) -> void | Failed to set property SiteLongitude: {cause} | -
+AscomMount::site_elevation() | get SiteElevation() -> R8 | Failed to get property SiteElevation: {cause} | Property SiteElevation is not a double
+AscomMount::set_site_elevation(elevation_meters: f64) | put SiteElevation(R8 elevation_meters) -> void | Failed to set property SiteElevation: {cause} | -
+AscomMount::utc_date() | get UTCDate() -> DATE | Failed to get property UTCDate: {cause} | Property UTCDate is not a VT_DATE
+AscomMount::set_utc_date(utc_date: f64) | put UTCDate(DATE utc_date) -> void | Failed to set property UTCDate: {cause} | -
+AscomMount::does_refraction() | get DoesRefraction() -> BOOL | Failed to get property DoesRefraction: {cause} | Property DoesRefraction is not a bool
+AscomMount::set_does_refraction(enabled: bool) | put DoesRefraction(BOOL enabled) -> void | Failed to set property DoesRefraction: {cause} | -
+AscomMount::tracking() | get Tracking() -> BOOL | Failed to get property Tracking: {cause} | Property Tracking is not a bool
+AscomMount::set_tracking(tracking: bool) | put Tracking(BOOL tracking) -> void | Failed to set property Tracking: {cause} | -
+AscomMount::slewing() | get Slewing() -> BOOL | Failed to get property Slewing: {cause} | Property Slewing is not a bool
+AscomMount::at_park() | get AtPark() -> BOOL | Failed to get property AtPark: {cause} | Property AtPark is not a bool
+AscomMount::at_home() | get AtHome() -> BOOL | Failed to get property AtHome: {cause} | Property AtHome is not a bool
+AscomMount::can_park() | get CanPark() -> BOOL | Failed to get property CanPark: {cause} | Property CanPark is not a bool
+AscomMount::can_find_home() | get CanFindHome() -> BOOL | Failed to get property CanFindHome: {cause} | Property CanFindHome is not a bool
+AscomMount::can_set_park() | get CanSetPark() -> BOOL | Failed to get property CanSetPark: {cause} | Property CanSetPark is not a bool
+AscomMount::alignment_mode() | get AlignmentMode() -> I4 | Failed to get property AlignmentMode: {cause} | Property AlignmentMode is not an int (VARIANT type={vt})
+AscomMount::can_unpark() | get CanUnpark() -> BOOL | Failed to get property CanUnpark: {cause} | Property CanUnpark is not a bool
+AscomMount::can_slew() | get CanSlew() -> BOOL | Failed to get property CanSlew: {cause} | Property CanSlew is not a bool
+AscomMount::can_slew_async() | get CanSlewAsync() -> BOOL | Failed to get property CanSlewAsync: {cause} | Property CanSlewAsync is not a bool
+AscomMount::can_sync() | get CanSync() -> BOOL | Failed to get property CanSync: {cause} | Property CanSync is not a bool
+AscomMount::can_set_tracking() | get CanSetTracking() -> BOOL | Failed to get property CanSetTracking: {cause} | Property CanSetTracking is not a bool
+AscomMount::park() | method Park() -> void | Failed to call method Park: {cause} | -
+AscomMount::unpark() | method Unpark() -> void | Failed to call method Unpark: {cause} | -
+AscomMount::abort_slew() | method AbortSlew() -> void | Failed to call method AbortSlew: {cause} | -
+AscomMount::find_home() | method FindHome() -> void | Failed to call method FindHome: {cause} | -
+AscomMount::set_park() | method SetPark() -> void | Failed to call method SetPark: {cause} | -
+AscomMount::slew_to_coordinates_async(ra: f64, dec: f64) | method SlewToCoordinatesAsync(R8 ra, R8 dec) -> void | Failed to call method SlewToCoordinatesAsync: {cause} | -
+AscomMount::slew_to_coordinates(ra: f64, dec: f64) | method SlewToCoordinates(R8 ra, R8 dec) -> void | Failed to call method SlewToCoordinates: {cause} | -
+AscomMount::sync_to_coordinates(ra: f64, dec: f64) | method SyncToCoordinates(R8 ra, R8 dec) -> void | Failed to call method SyncToCoordinates: {cause} | -
+AscomMount::slew_to_alt_az_async(alt: f64, az: f64) | method SlewToAltAzAsync(R8 az, R8 alt) -> void | Failed to call method SlewToAltAzAsync: {cause} | -
+AscomMount::can_pulse_guide() | get CanPulseGuide() -> BOOL | Failed to get property CanPulseGuide: {cause} | Property CanPulseGuide is not a bool
+AscomMount::is_pulse_guiding() | get IsPulseGuiding() -> BOOL | Failed to get property IsPulseGuiding: {cause} | Property IsPulseGuiding is not a bool
+AscomMount::pulse_guide(direction: i32, duration_ms: u32) | method PulseGuide(I4 direction, I4 duration_i32) -> void | Failed to call method PulseGuide: {cause} | -
+AscomMount::guide_rate_right_ascension() | get GuideRateRightAscension() -> R8 | Failed to get property GuideRateRightAscension: {cause} | Property GuideRateRightAscension is not a double
+AscomMount::guide_rate_declination() | get GuideRateDeclination() -> R8 | Failed to get property GuideRateDeclination: {cause} | Property GuideRateDeclination is not a double
+AscomMount::set_guide_rate_right_ascension(rate: f64) | put GuideRateRightAscension(R8 rate) -> void | Failed to set property GuideRateRightAscension: {cause} | -
+AscomMount::set_guide_rate_declination(rate: f64) | put GuideRateDeclination(R8 rate) -> void | Failed to set property GuideRateDeclination: {cause} | -
+AscomMount::tracking_rate() | get TrackingRate() -> I4 | Failed to get property TrackingRate: {cause} | Property TrackingRate is not an int (VARIANT type={vt})
+AscomMount::set_tracking_rate(rate: i32) | put TrackingRate(I4 rate) -> void | Failed to set property TrackingRate: {cause} | -
+AscomMount::can_move_axis(axis: i32) | method CanMoveAxis(I4 axis) -> BOOL | Failed to call method CanMoveAxis: {cause} | Method CanMoveAxis did not return a boolean
+AscomMount::move_axis(axis: i32, rate: f64) | method MoveAxis(I4 axis, R8 rate) -> void | Failed to call method MoveAxis: {cause} | -
+AscomMount::heartbeat() | connection.heartbeat
+AscomMount::get_health() | connection.get_health
+AscomObservingConditions::connect() | connection.connect
+AscomObservingConditions::disconnect() | connection.disconnect
+AscomObservingConditions::is_connected() | connection.is_connected
+AscomObservingConditions::name() | get Name() -> BSTR | Failed to get property Name: {cause} | Property Name is not a string
+AscomObservingConditions::interface_version() | get InterfaceVersion() -> I4 | Failed to get property InterfaceVersion: {cause} | Property InterfaceVersion is not an int (VARIANT type={vt})
+AscomObservingConditions::driver_version() | get DriverVersion() -> BSTR | Failed to get property DriverVersion: {cause} | Property DriverVersion is not a string
+AscomObservingConditions::driver_info() | get DriverInfo() -> BSTR | Failed to get property DriverInfo: {cause} | Property DriverInfo is not a string
+AscomObservingConditions::supported_actions() | get SupportedActions() -> SAFEARRAY(BSTR) | Failed to get property SupportedActions: {cause} | Property SupportedActions is not a string array: {detail}
+AscomObservingConditions::cloud_cover() | get CloudCover() -> R8 | Failed to get property CloudCover: {cause} | Property CloudCover is not a double
+AscomObservingConditions::dew_point() | get DewPoint() -> R8 | Failed to get property DewPoint: {cause} | Property DewPoint is not a double
+AscomObservingConditions::humidity() | get Humidity() -> R8 | Failed to get property Humidity: {cause} | Property Humidity is not a double
+AscomObservingConditions::pressure() | get Pressure() -> R8 | Failed to get property Pressure: {cause} | Property Pressure is not a double
+AscomObservingConditions::rain_rate() | get RainRate() -> R8 | Failed to get property RainRate: {cause} | Property RainRate is not a double
+AscomObservingConditions::sky_brightness() | get SkyBrightness() -> R8 | Failed to get property SkyBrightness: {cause} | Property SkyBrightness is not a double
+AscomObservingConditions::sky_quality() | get SkyQuality() -> R8 | Failed to get property SkyQuality: {cause} | Property SkyQuality is not a double
+AscomObservingConditions::sky_temperature() | get SkyTemperature() -> R8 | Failed to get property SkyTemperature: {cause} | Property SkyTemperature is not a double
+AscomObservingConditions::star_fwhm() | get StarFWHM() -> R8 | Failed to get property StarFWHM: {cause} | Property StarFWHM is not a double
+AscomObservingConditions::temperature() | get Temperature() -> R8 | Failed to get property Temperature: {cause} | Property Temperature is not a double
+AscomObservingConditions::wind_direction() | get WindDirection() -> R8 | Failed to get property WindDirection: {cause} | Property WindDirection is not a double
+AscomObservingConditions::wind_gust() | get WindGust() -> R8 | Failed to get property WindGust: {cause} | Property WindGust is not a double
+AscomObservingConditions::wind_speed() | get WindSpeed() -> R8 | Failed to get property WindSpeed: {cause} | Property WindSpeed is not a double
+AscomObservingConditions::refresh() | method Refresh() -> void | Failed to call method Refresh: {cause} | -
+AscomObservingConditions::average_period() | get AveragePeriod() -> R8 | Failed to get property AveragePeriod: {cause} | Property AveragePeriod is not a double
+AscomObservingConditions::set_average_period(period: f64) | put AveragePeriod(R8 period) -> void | Failed to set property AveragePeriod: {cause} | -
+AscomObservingConditions::time_since_last_update(property_name: &str) | get TimeSinceLastUpdate(BSTR property_name) -> R8 | Failed to get property TimeSinceLastUpdate: {cause} | Property TimeSinceLastUpdate is not a double
+AscomObservingConditions::sensor_description(property_name: &str) | get SensorDescription(BSTR property_name) -> BSTR | Failed to get property SensorDescription: {cause} | Property SensorDescription is not a string
+AscomObservingConditions::heartbeat() | connection.heartbeat
+AscomObservingConditions::get_health() | connection.get_health
+AscomRotator::connect() | connection.connect
+AscomRotator::disconnect() | connection.disconnect
+AscomRotator::is_connected() | connection.is_connected
+AscomRotator::name() | get Name() -> BSTR | Failed to get property Name: {cause} | Property Name is not a string
+AscomRotator::interface_version() | get InterfaceVersion() -> I4 | Failed to get property InterfaceVersion: {cause} | Property InterfaceVersion is not an int (VARIANT type={vt})
+AscomRotator::driver_version() | get DriverVersion() -> BSTR | Failed to get property DriverVersion: {cause} | Property DriverVersion is not a string
+AscomRotator::driver_info() | get DriverInfo() -> BSTR | Failed to get property DriverInfo: {cause} | Property DriverInfo is not a string
+AscomRotator::supported_actions() | get SupportedActions() -> SAFEARRAY(BSTR) | Failed to get property SupportedActions: {cause} | Property SupportedActions is not a string array: {detail}
+AscomRotator::position() | get Position() -> R8 | Failed to get property Position: {cause} | Property Position is not a double
+AscomRotator::mechanical_position() | get MechanicalPosition() -> R8 | Failed to get property MechanicalPosition: {cause} | Property MechanicalPosition is not a double
+AscomRotator::is_moving() | get IsMoving() -> BOOL | Failed to get property IsMoving: {cause} | Property IsMoving is not a bool
+AscomRotator::can_reverse() | get CanReverse() -> BOOL | Failed to get property CanReverse: {cause} | Property CanReverse is not a bool
+AscomRotator::reverse() | get Reverse() -> BOOL | Failed to get property Reverse: {cause} | Property Reverse is not a bool
+AscomRotator::set_reverse(reverse: bool) | put Reverse(BOOL reverse) -> void | Failed to set property Reverse: {cause} | -
+AscomRotator::target_position() | get TargetPosition() -> R8 | Failed to get property TargetPosition: {cause} | Property TargetPosition is not a double
+AscomRotator::step_size() | get StepSize() -> R8 | Failed to get property StepSize: {cause} | Property StepSize is not a double
+AscomRotator::move_to(position: f64) | method Move(R8 position) -> void | Failed to call method Move: {cause} | -
+AscomRotator::move_absolute(position: f64) | method MoveAbsolute(R8 position) -> void | Failed to call method MoveAbsolute: {cause} | -
+AscomRotator::halt() | method Halt() -> void | Failed to call method Halt: {cause} | -
+AscomRotator::sync(position: f64) | method Sync(R8 position) -> void | Failed to call method Sync: {cause} | -
+AscomRotator::heartbeat() | connection.heartbeat
+AscomRotator::get_health() | connection.get_health
+AscomSafetyMonitor::connect() | connection.connect
+AscomSafetyMonitor::disconnect() | connection.disconnect
+AscomSafetyMonitor::is_connected() | connection.is_connected
+AscomSafetyMonitor::name() | get Name() -> BSTR | Failed to get property Name: {cause} | Property Name is not a string
+AscomSafetyMonitor::interface_version() | get InterfaceVersion() -> I4 | Failed to get property InterfaceVersion: {cause} | Property InterfaceVersion is not an int (VARIANT type={vt})
+AscomSafetyMonitor::driver_version() | get DriverVersion() -> BSTR | Failed to get property DriverVersion: {cause} | Property DriverVersion is not a string
+AscomSafetyMonitor::driver_info() | get DriverInfo() -> BSTR | Failed to get property DriverInfo: {cause} | Property DriverInfo is not a string
+AscomSafetyMonitor::supported_actions() | get SupportedActions() -> SAFEARRAY(BSTR) | Failed to get property SupportedActions: {cause} | Property SupportedActions is not a string array: {detail}
+AscomSafetyMonitor::is_safe() | get IsSafe() -> BOOL | Failed to get property IsSafe: {cause} | Property IsSafe is not a bool
+AscomSafetyMonitor::heartbeat() | connection.heartbeat
+AscomSafetyMonitor::get_health() | connection.get_health
+AscomSwitch::connect() | connection.connect
+AscomSwitch::disconnect() | connection.disconnect
+AscomSwitch::is_connected() | connection.is_connected
+AscomSwitch::name() | get Name() -> BSTR | Failed to get property Name: {cause} | Property Name is not a string
+AscomSwitch::interface_version() | get InterfaceVersion() -> I4 | Failed to get property InterfaceVersion: {cause} | Property InterfaceVersion is not an int (VARIANT type={vt})
+AscomSwitch::driver_version() | get DriverVersion() -> BSTR | Failed to get property DriverVersion: {cause} | Property DriverVersion is not a string
+AscomSwitch::driver_info() | get DriverInfo() -> BSTR | Failed to get property DriverInfo: {cause} | Property DriverInfo is not a string
+AscomSwitch::supported_actions() | get SupportedActions() -> SAFEARRAY(BSTR) | Failed to get property SupportedActions: {cause} | Property SupportedActions is not a string array: {detail}
+AscomSwitch::max_switch() | get MaxSwitch() -> I4 | Failed to get property MaxSwitch: {cause} | Property MaxSwitch is not an int (VARIANT type={vt})
+AscomSwitch::get_switch(id: i32) | method GetSwitch(I4 id) -> BOOL | Failed to call GetSwitch: {cause} | GetSwitch did not return a bool
+AscomSwitch::set_switch(id: i32, state: bool) | method SetSwitch(I4 id, BOOL state) -> void | Failed to call SetSwitch: {cause} | -
+AscomSwitch::get_switch_name(id: i32) | method GetSwitchName(I4 id) -> BSTR | Failed to call GetSwitchName: {cause} | GetSwitchName did not return a string
+AscomSwitch::get_switch_description(id: i32) | method GetSwitchDescription(I4 id) -> BSTR | Failed to call GetSwitchDescription: {cause} | GetSwitchDescription did not return a string
+AscomSwitch::get_switch_value(id: i32) | method GetSwitchValue(I4 id) -> R8 | Failed to call GetSwitchValue: {cause} | GetSwitchValue did not return a number
+AscomSwitch::set_switch_value(id: i32, value: f64) | method SetSwitchValue(I4 id, R8 value) -> void | Failed to call SetSwitchValue: {cause} | -
+AscomSwitch::min_switch_value(id: i32) | method MinSwitchValue(I4 id) -> R8 | Failed to call MinSwitchValue: {cause} | MinSwitchValue did not return a number
+AscomSwitch::max_switch_value(id: i32) | method MaxSwitchValue(I4 id) -> R8 | Failed to call MaxSwitchValue: {cause} | MaxSwitchValue did not return a number
+AscomSwitch::switch_step(id: i32) | method SwitchStep(I4 id) -> R8 | Failed to call SwitchStep: {cause} | SwitchStep did not return a number
+AscomSwitch::can_write(id: i32) | method CanWrite(I4 id) -> BOOL | Failed to call CanWrite: {cause} | CanWrite did not return a bool
+AscomSwitch::heartbeat() | connection.heartbeat
+AscomSwitch::get_health() | connection.get_health

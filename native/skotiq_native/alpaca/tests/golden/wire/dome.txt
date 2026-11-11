@@ -1,0 +1,1412 @@
+## dome.connect [ok]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=1]
+= Ok(())
+
+## dome.connect [ascom 0x400]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.connect [ascom 0x4FF without Value]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(Device error 1279: Unspecified driver fault)
+
+## dome.connect [http 400]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.connect [http 500]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=true]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.connect [malformed json]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=true]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.connect [connected reads false x1]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+> GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=3]
+= Ok(())
+
+## dome.connect [connected reads false x99]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+> GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=3]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=4&Connected=true]
+> GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=5]
+= Err(Connection validation failed: Connected=true succeeded, but the device still reports disconnected after 3 attempts)
+
+## dome.disconnect [ok]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Ok(())
+
+## dome.disconnect [ascom 0x400]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.disconnect [ascom 0x4FF without Value]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(Device error 1279: Unspecified driver fault)
+
+## dome.disconnect [http 400]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.disconnect [http 500]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=false]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=false]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.disconnect [malformed json]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=false]
+> PUT /api/v1/dome/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=false]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.is_connected [ok]
+> GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## dome.is_connected [ascom 0x400]
+> GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.is_connected [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.is_connected [http 400]
+> GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.is_connected [http 500]
+> GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.is_connected [malformed json]
+> GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.name [ok]
+> GET /api/v1/dome/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Name")
+
+## dome.name [ascom 0x400]
+> GET /api/v1/dome/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.name [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/name query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/name query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/name query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.name [http 400]
+> GET /api/v1/dome/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.name [http 500]
+> GET /api/v1/dome/#/name query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/name query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/name query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.name [malformed json]
+> GET /api/v1/dome/#/name query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/name query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/name query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.description [ok]
+> GET /api/v1/dome/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Description")
+
+## dome.description [ascom 0x400]
+> GET /api/v1/dome/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.description [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/description query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/description query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/description query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.description [http 400]
+> GET /api/v1/dome/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.description [http 500]
+> GET /api/v1/dome/#/description query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/description query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/description query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.description [malformed json]
+> GET /api/v1/dome/#/description query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/description query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/description query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.driver_version [ok]
+> GET /api/v1/dome/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Ok("1.2.3")
+
+## dome.driver_version [ascom 0x400]
+> GET /api/v1/dome/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.driver_version [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.driver_version [http 400]
+> GET /api/v1/dome/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.driver_version [http 500]
+> GET /api/v1/dome/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.driver_version [malformed json]
+> GET /api/v1/dome/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.driver_info [ok]
+> GET /api/v1/dome/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Driver Info")
+
+## dome.driver_info [ascom 0x400]
+> GET /api/v1/dome/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.driver_info [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.driver_info [http 400]
+> GET /api/v1/dome/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.driver_info [http 500]
+> GET /api/v1/dome/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.driver_info [malformed json]
+> GET /api/v1/dome/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.interface_version [ok]
+> GET /api/v1/dome/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Ok(3)
+
+## dome.interface_version [ascom 0x400]
+> GET /api/v1/dome/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.interface_version [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.interface_version [http 400]
+> GET /api/v1/dome/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.interface_version [http 500]
+> GET /api/v1/dome/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.interface_version [malformed json]
+> GET /api/v1/dome/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.supported_actions [ok]
+> GET /api/v1/dome/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Ok(["ActionA", "ActionB"])
+
+## dome.supported_actions [ascom 0x400]
+> GET /api/v1/dome/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.supported_actions [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.supported_actions [http 400]
+> GET /api/v1/dome/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.supported_actions [http 500]
+> GET /api/v1/dome/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.supported_actions [malformed json]
+> GET /api/v1/dome/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.altitude [ok]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=0]
+= Ok(45.5)
+
+## dome.altitude [ascom 0x400]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.altitude [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.altitude [http 400]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.altitude [http 500]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.altitude [malformed json]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.azimuth [ok]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
+= Ok(180.5)
+
+## dome.azimuth [ascom 0x400]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.azimuth [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.azimuth [http 400]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.azimuth [http 500]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.azimuth [malformed json]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.azimuth [ascom 0x401]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1025: Invalid value)
+
+## dome.azimuth [ascom 0x402]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1026: Value not set)
+
+## dome.azimuth [ascom 0x407]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1031: Not connected)
+
+## dome.azimuth [ascom 0x408]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1032: Invalid while parked)
+
+## dome.azimuth [ascom 0x409]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1033: Invalid while slaved)
+
+## dome.azimuth [ascom 0x40B]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1035: Invalid operation)
+
+## dome.azimuth [ascom 0x40C without Value]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+
+## dome.azimuth [ascom 0x500]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1280: Driver specific error)
+
+## dome.azimuth [http 404]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 404: Not Found)
+
+## dome.azimuth [http 429 retry-after 0]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+
+## dome.azimuth [http 503]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+
+## dome.azimuth [wrong value type]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected f64 at line 1 column 91)
+
+## dome.at_home [ok]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=0]
+= Ok(false)
+
+## dome.at_home [ascom 0x400]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.at_home [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.at_home [http 400]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.at_home [http 500]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.at_home [malformed json]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.at_park [ok]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## dome.at_park [ascom 0x400]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.at_park [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.at_park [http 400]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.at_park [http 500]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.at_park [malformed json]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.shutter_status [ok]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
+= Ok(Closed)
+
+## dome.shutter_status [ascom 0x400]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.shutter_status [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.shutter_status [http 400]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.shutter_status [http 500]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.shutter_status [malformed json]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.shutter_status [ascom 0x401]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1025: Invalid value)
+
+## dome.shutter_status [ascom 0x402]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1026: Value not set)
+
+## dome.shutter_status [ascom 0x407]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1031: Not connected)
+
+## dome.shutter_status [ascom 0x408]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1032: Invalid while parked)
+
+## dome.shutter_status [ascom 0x409]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1033: Invalid while slaved)
+
+## dome.shutter_status [ascom 0x40B]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1035: Invalid operation)
+
+## dome.shutter_status [ascom 0x40C without Value]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+
+## dome.shutter_status [ascom 0x500]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1280: Driver specific error)
+
+## dome.shutter_status [http 404]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 404: Not Found)
+
+## dome.shutter_status [http 429 retry-after 0]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+
+## dome.shutter_status [http 503]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+
+## dome.shutter_status [wrong value type]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected i32 at line 1 column 91)
+
+## dome.slewing [ok]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=0]
+= Ok(false)
+
+## dome.slewing [ascom 0x400]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.slewing [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.slewing [http 400]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.slewing [http 500]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.slewing [malformed json]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.slaved [ok]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=0]
+= Ok(false)
+
+## dome.slaved [ascom 0x400]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.slaved [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.slaved [http 400]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.slaved [http 500]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.slaved [malformed json]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.set_slaved [ok]
+> PUT /api/v1/dome/#/slaved query[] form[ClientID=<id>&ClientTransactionID=0&Slaved=true]
+= Ok(())
+
+## dome.set_slaved [ascom 0x400]
+> PUT /api/v1/dome/#/slaved query[] form[ClientID=<id>&ClientTransactionID=0&Slaved=true]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.set_slaved [ascom 0x4FF without Value]
+> PUT /api/v1/dome/#/slaved query[] form[ClientID=<id>&ClientTransactionID=0&Slaved=true]
+= Err(Device error 1279: Unspecified driver fault)
+
+## dome.set_slaved [http 400]
+> PUT /api/v1/dome/#/slaved query[] form[ClientID=<id>&ClientTransactionID=0&Slaved=true]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.set_slaved [http 500]
+> PUT /api/v1/dome/#/slaved query[] form[ClientID=<id>&ClientTransactionID=0&Slaved=true]
+> PUT /api/v1/dome/#/slaved query[] form[ClientID=<id>&ClientTransactionID=1&Slaved=true]
+> PUT /api/v1/dome/#/slaved query[] form[ClientID=<id>&ClientTransactionID=2&Slaved=true]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.set_slaved [malformed json]
+> PUT /api/v1/dome/#/slaved query[] form[ClientID=<id>&ClientTransactionID=0&Slaved=true]
+> PUT /api/v1/dome/#/slaved query[] form[ClientID=<id>&ClientTransactionID=1&Slaved=true]
+> PUT /api/v1/dome/#/slaved query[] form[ClientID=<id>&ClientTransactionID=2&Slaved=true]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.can_find_home [ok]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## dome.can_find_home [ascom 0x400]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.can_find_home [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.can_find_home [http 400]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.can_find_home [http 500]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.can_find_home [malformed json]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.can_park [ok]
+> GET /api/v1/dome/#/canpark query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## dome.can_park [ascom 0x400]
+> GET /api/v1/dome/#/canpark query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.can_park [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/canpark query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/canpark query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/canpark query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.can_park [http 400]
+> GET /api/v1/dome/#/canpark query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.can_park [http 500]
+> GET /api/v1/dome/#/canpark query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/canpark query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/canpark query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.can_park [malformed json]
+> GET /api/v1/dome/#/canpark query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/canpark query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/canpark query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.can_set_altitude [ok]
+> GET /api/v1/dome/#/cansetaltitude query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## dome.can_set_altitude [ascom 0x400]
+> GET /api/v1/dome/#/cansetaltitude query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.can_set_altitude [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/cansetaltitude query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/cansetaltitude query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/cansetaltitude query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.can_set_altitude [http 400]
+> GET /api/v1/dome/#/cansetaltitude query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.can_set_altitude [http 500]
+> GET /api/v1/dome/#/cansetaltitude query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/cansetaltitude query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/cansetaltitude query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.can_set_altitude [malformed json]
+> GET /api/v1/dome/#/cansetaltitude query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/cansetaltitude query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/cansetaltitude query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.can_set_azimuth [ok]
+> GET /api/v1/dome/#/cansetazimuth query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## dome.can_set_azimuth [ascom 0x400]
+> GET /api/v1/dome/#/cansetazimuth query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.can_set_azimuth [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/cansetazimuth query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/cansetazimuth query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/cansetazimuth query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.can_set_azimuth [http 400]
+> GET /api/v1/dome/#/cansetazimuth query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.can_set_azimuth [http 500]
+> GET /api/v1/dome/#/cansetazimuth query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/cansetazimuth query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/cansetazimuth query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.can_set_azimuth [malformed json]
+> GET /api/v1/dome/#/cansetazimuth query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/cansetazimuth query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/cansetazimuth query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.can_set_shutter [ok]
+> GET /api/v1/dome/#/cansetshutter query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## dome.can_set_shutter [ascom 0x400]
+> GET /api/v1/dome/#/cansetshutter query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.can_set_shutter [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/cansetshutter query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/cansetshutter query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/cansetshutter query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.can_set_shutter [http 400]
+> GET /api/v1/dome/#/cansetshutter query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.can_set_shutter [http 500]
+> GET /api/v1/dome/#/cansetshutter query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/cansetshutter query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/cansetshutter query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.can_set_shutter [malformed json]
+> GET /api/v1/dome/#/cansetshutter query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/cansetshutter query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/cansetshutter query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.can_slave [ok]
+> GET /api/v1/dome/#/canslave query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## dome.can_slave [ascom 0x400]
+> GET /api/v1/dome/#/canslave query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.can_slave [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/canslave query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/canslave query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/canslave query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.can_slave [http 400]
+> GET /api/v1/dome/#/canslave query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.can_slave [http 500]
+> GET /api/v1/dome/#/canslave query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/canslave query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/canslave query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.can_slave [malformed json]
+> GET /api/v1/dome/#/canslave query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/canslave query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/canslave query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.can_sync_azimuth [ok]
+> GET /api/v1/dome/#/cansyncazimuth query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## dome.can_sync_azimuth [ascom 0x400]
+> GET /api/v1/dome/#/cansyncazimuth query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.can_sync_azimuth [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/cansyncazimuth query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/cansyncazimuth query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/cansyncazimuth query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.can_sync_azimuth [http 400]
+> GET /api/v1/dome/#/cansyncazimuth query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.can_sync_azimuth [http 500]
+> GET /api/v1/dome/#/cansyncazimuth query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/cansyncazimuth query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/cansyncazimuth query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.can_sync_azimuth [malformed json]
+> GET /api/v1/dome/#/cansyncazimuth query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/dome/#/cansyncazimuth query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/dome/#/cansyncazimuth query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.abort_slew [ok]
+> PUT /api/v1/dome/#/abortslew query[] form[ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## dome.abort_slew [ascom 0x400]
+> PUT /api/v1/dome/#/abortslew query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.abort_slew [ascom 0x4FF without Value]
+> PUT /api/v1/dome/#/abortslew query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## dome.abort_slew [http 400]
+> PUT /api/v1/dome/#/abortslew query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.abort_slew [http 500]
+> PUT /api/v1/dome/#/abortslew query[] form[ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/dome/#/abortslew query[] form[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/dome/#/abortslew query[] form[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.abort_slew [malformed json]
+> PUT /api/v1/dome/#/abortslew query[] form[ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/dome/#/abortslew query[] form[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/dome/#/abortslew query[] form[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.close_shutter [ok]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## dome.close_shutter [ascom 0x400]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.close_shutter [ascom 0x4FF without Value]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## dome.close_shutter [http 400]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.close_shutter [http 500]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 500: Internal server error)
+
+## dome.close_shutter [malformed json]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.close_shutter [ascom 0x401]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1025: Invalid value)
+
+## dome.close_shutter [ascom 0x402]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1026: Value not set)
+
+## dome.close_shutter [ascom 0x407]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1031: Not connected)
+
+## dome.close_shutter [ascom 0x408]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1032: Invalid while parked)
+
+## dome.close_shutter [ascom 0x409]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1033: Invalid while slaved)
+
+## dome.close_shutter [ascom 0x40B]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1035: Invalid operation)
+
+## dome.close_shutter [ascom 0x40C without Value]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1036: Action not implemented)
+
+## dome.close_shutter [ascom 0x500]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1280: Driver specific error)
+
+## dome.close_shutter [http 404]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 404: Not Found)
+
+## dome.close_shutter [http 429 retry-after 0]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 429: Slow down)
+
+## dome.close_shutter [http 503]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 503: Service Unavailable)
+
+## dome.close_shutter [wrong value type]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## dome.close_shutter_typed [ok]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## dome.close_shutter_typed [ascom 0x400]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.close_shutter_typed [ascom 0x4FF without Value]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## dome.close_shutter_typed [http 400]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.close_shutter_typed [http 500]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 500: Internal server error)
+
+## dome.close_shutter_typed [malformed json]
+> PUT /api/v1/dome/#/closeshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.find_home [ok]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## dome.find_home [ascom 0x400]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.find_home [ascom 0x4FF without Value]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## dome.find_home [http 400]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.find_home [http 500]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 500: Internal server error)
+
+## dome.find_home [malformed json]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.find_home [ascom 0x401]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1025: Invalid value)
+
+## dome.find_home [ascom 0x402]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1026: Value not set)
+
+## dome.find_home [ascom 0x407]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1031: Not connected)
+
+## dome.find_home [ascom 0x408]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1032: Invalid while parked)
+
+## dome.find_home [ascom 0x409]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1033: Invalid while slaved)
+
+## dome.find_home [ascom 0x40B]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1035: Invalid operation)
+
+## dome.find_home [ascom 0x40C without Value]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1036: Action not implemented)
+
+## dome.find_home [ascom 0x500]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1280: Driver specific error)
+
+## dome.find_home [http 404]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 404: Not Found)
+
+## dome.find_home [http 429 retry-after 0]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 429: Slow down)
+
+## dome.find_home [http 503]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 503: Service Unavailable)
+
+## dome.find_home [wrong value type]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## dome.find_home_typed [ok]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## dome.find_home_typed [ascom 0x400]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.find_home_typed [ascom 0x4FF without Value]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## dome.find_home_typed [http 400]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.find_home_typed [http 500]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 500: Internal server error)
+
+## dome.find_home_typed [malformed json]
+> PUT /api/v1/dome/#/findhome query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.open_shutter [ok]
+> PUT /api/v1/dome/#/openshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## dome.open_shutter [ascom 0x400]
+> PUT /api/v1/dome/#/openshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.open_shutter [ascom 0x4FF without Value]
+> PUT /api/v1/dome/#/openshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## dome.open_shutter [http 400]
+> PUT /api/v1/dome/#/openshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.open_shutter [http 500]
+> PUT /api/v1/dome/#/openshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 500: Internal server error)
+
+## dome.open_shutter [malformed json]
+> PUT /api/v1/dome/#/openshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.open_shutter_typed [ok]
+> PUT /api/v1/dome/#/openshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## dome.open_shutter_typed [ascom 0x400]
+> PUT /api/v1/dome/#/openshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.open_shutter_typed [ascom 0x4FF without Value]
+> PUT /api/v1/dome/#/openshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## dome.open_shutter_typed [http 400]
+> PUT /api/v1/dome/#/openshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.open_shutter_typed [http 500]
+> PUT /api/v1/dome/#/openshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 500: Internal server error)
+
+## dome.open_shutter_typed [malformed json]
+> PUT /api/v1/dome/#/openshutter query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.park [ok]
+> PUT /api/v1/dome/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## dome.park [ascom 0x400]
+> PUT /api/v1/dome/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.park [ascom 0x4FF without Value]
+> PUT /api/v1/dome/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## dome.park [http 400]
+> PUT /api/v1/dome/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.park [http 500]
+> PUT /api/v1/dome/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 500: Internal server error)
+
+## dome.park [malformed json]
+> PUT /api/v1/dome/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.park_typed [ok]
+> PUT /api/v1/dome/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## dome.park_typed [ascom 0x400]
+> PUT /api/v1/dome/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.park_typed [ascom 0x4FF without Value]
+> PUT /api/v1/dome/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## dome.park_typed [http 400]
+> PUT /api/v1/dome/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.park_typed [http 500]
+> PUT /api/v1/dome/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 500: Internal server error)
+
+## dome.park_typed [malformed json]
+> PUT /api/v1/dome/#/park query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.set_park [ok]
+> PUT /api/v1/dome/#/setpark query[] form[ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## dome.set_park [ascom 0x400]
+> PUT /api/v1/dome/#/setpark query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.set_park [ascom 0x4FF without Value]
+> PUT /api/v1/dome/#/setpark query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## dome.set_park [http 400]
+> PUT /api/v1/dome/#/setpark query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.set_park [http 500]
+> PUT /api/v1/dome/#/setpark query[] form[ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/dome/#/setpark query[] form[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/dome/#/setpark query[] form[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.set_park [malformed json]
+> PUT /api/v1/dome/#/setpark query[] form[ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/dome/#/setpark query[] form[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/dome/#/setpark query[] form[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.slew_to_altitude [ok]
+> PUT /api/v1/dome/#/slewtoaltitude query[] form[Altitude=45.5&ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## dome.slew_to_altitude [ascom 0x400]
+> PUT /api/v1/dome/#/slewtoaltitude query[] form[Altitude=45.5&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.slew_to_altitude [ascom 0x4FF without Value]
+> PUT /api/v1/dome/#/slewtoaltitude query[] form[Altitude=45.5&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## dome.slew_to_altitude [http 400]
+> PUT /api/v1/dome/#/slewtoaltitude query[] form[Altitude=45.5&ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.slew_to_altitude [http 500]
+> PUT /api/v1/dome/#/slewtoaltitude query[] form[Altitude=45.5&ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 500: Internal server error)
+
+## dome.slew_to_altitude [malformed json]
+> PUT /api/v1/dome/#/slewtoaltitude query[] form[Altitude=45.5&ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.slew_to_altitude_typed [ok]
+> PUT /api/v1/dome/#/slewtoaltitude query[] form[Altitude=45.5&ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## dome.slew_to_altitude_typed [ascom 0x400]
+> PUT /api/v1/dome/#/slewtoaltitude query[] form[Altitude=45.5&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.slew_to_altitude_typed [ascom 0x4FF without Value]
+> PUT /api/v1/dome/#/slewtoaltitude query[] form[Altitude=45.5&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## dome.slew_to_altitude_typed [http 400]
+> PUT /api/v1/dome/#/slewtoaltitude query[] form[Altitude=45.5&ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.slew_to_altitude_typed [http 500]
+> PUT /api/v1/dome/#/slewtoaltitude query[] form[Altitude=45.5&ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 500: Internal server error)
+
+## dome.slew_to_altitude_typed [malformed json]
+> PUT /api/v1/dome/#/slewtoaltitude query[] form[Altitude=45.5&ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.slew_to_azimuth [ok]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## dome.slew_to_azimuth [ascom 0x400]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.slew_to_azimuth [ascom 0x4FF without Value]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## dome.slew_to_azimuth [http 400]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.slew_to_azimuth [http 500]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 500: Internal server error)
+
+## dome.slew_to_azimuth [malformed json]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.slew_to_azimuth_typed [ok]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## dome.slew_to_azimuth_typed [ascom 0x400]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.slew_to_azimuth_typed [ascom 0x4FF without Value]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## dome.slew_to_azimuth_typed [http 400]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.slew_to_azimuth_typed [http 500]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 500: Internal server error)
+
+## dome.slew_to_azimuth_typed [malformed json]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.sync_to_azimuth [ok]
+> PUT /api/v1/dome/#/synctoazimuth query[] form[Azimuth=123.456&ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## dome.sync_to_azimuth [ascom 0x400]
+> PUT /api/v1/dome/#/synctoazimuth query[] form[Azimuth=123.456&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.sync_to_azimuth [ascom 0x4FF without Value]
+> PUT /api/v1/dome/#/synctoazimuth query[] form[Azimuth=123.456&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## dome.sync_to_azimuth [http 400]
+> PUT /api/v1/dome/#/synctoazimuth query[] form[Azimuth=123.456&ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.sync_to_azimuth [http 500]
+> PUT /api/v1/dome/#/synctoazimuth query[] form[Azimuth=123.456&ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/dome/#/synctoazimuth query[] form[Azimuth=123.456&ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/dome/#/synctoazimuth query[] form[Azimuth=123.456&ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.sync_to_azimuth [malformed json]
+> PUT /api/v1/dome/#/synctoazimuth query[] form[Azimuth=123.456&ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/dome/#/synctoazimuth query[] form[Azimuth=123.456&ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/dome/#/synctoazimuth query[] form[Azimuth=123.456&ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## dome.get_status [ok]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
+= Ok(DomeStatus { shutter_status: Closed, azimuth: 180.5, altitude: Some(45.5), slewing: false, at_home: false, at_park: true, slaved: false })
+
+## dome.get_status [ascom 0x400]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Device error 1024: Property or method is not implemented)
+
+## dome.get_status [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## dome.get_status [http 400]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.get_status [http 500]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## dome.get_status [malformed json]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
