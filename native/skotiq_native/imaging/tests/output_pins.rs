@@ -912,6 +912,147 @@ fn pin_mosaic(pins: &mut Pins) {
     }
 }
 
+/// Every resampling kernel on mono and RGB data through each path that warps:
+/// the registration grid warp, the mosaic, the atlas fold and the difference
+/// reprojection.
+fn pin_resampling(pins: &mut Pins) {
+    let kernels = [
+        ("bilinear", Interpolator::Bilinear),
+        ("catmull", Interpolator::CatmullRom),
+        ("lanczos", Interpolator::Lanczos3),
+    ];
+    let mono = crop(&load(RIG, "focused_L_0005.fits"), 400);
+    let rgb = as_rgb(&mono, [0.8, 1.0, 0.65]);
+    let turned = {
+        let (s, c) = 0.7f64.to_radians().sin_cos();
+        TransformModel {
+            matrix: [[c, -s, 4.3], [s, c, -6.1], [0.0, 0.0, 1.0]],
+            kind: TransformKind::Similarity,
+        }
+    };
+    for (name, interp) in kernels {
+        let warped = warp_to_grid(&rgb, 400, 400, &turned, interp);
+        pins.add(
+            &format!("resample/warp_to_grid.rgb.{name}"),
+            f32_digest(&warped.pixels) ^ debug_digest(&warped.covered),
+        );
+    }
+
+    let scale = 1.9;
+    let right = crop(&load(RIG, "focused_L_0006.fits"), 400);
+    for (image_name, left, right) in [
+        ("mono", mono.clone(), right.clone()),
+        ("rgb", rgb.clone(), as_rgb(&right, [0.8, 1.0, 0.65])),
+    ] {
+        let panels = vec![
+            MosaicPanel {
+                image: left,
+                wcs: WcsInfo::from_plate_solve(5.5, 22.0, 0.0, scale, 400, 400),
+            },
+            MosaicPanel {
+                image: right,
+                wcs: WcsInfo::from_plate_solve(5.5 - 0.01, 22.02, 1.5, scale, 400, 400),
+            },
+        ];
+        for (name, interp) in kernels {
+            let cfg = MosaicStitchConfig {
+                resampler: interp,
+                ..MosaicStitchConfig::default()
+            };
+            let digest = match stitch_mosaic(&panels, &cfg) {
+                Ok(out) => {
+                    image_digest(&out.master)
+                        ^ image_digest(&out.coverage)
+                        ^ debug_digest(&out.stats)
+                }
+                Err(e) => debug_digest(&e),
+            };
+            pins.add(&format!("resample/mosaic.{image_name}.{name}"), digest);
+        }
+    }
+
+    let frame = load(RIG, "focused_L_0005.fits");
+    let pixel_scale = 1.9 / 3600.0;
+    let (ra, dec) = (83.8, 22.0);
+    let wcs = SipWcs::tan_only(
+        ra,
+        dec,
+        (frame.width as f64 + 1.0) / 2.0,
+        (frame.height as f64 + 1.0) / 2.0,
+        -pixel_scale,
+        0.0,
+        0.0,
+        pixel_scale,
+    );
+    let order = ATLAS_HEALPIX_ORDER;
+    let tile_id = radec_to_tile(ra, dec, order);
+    let science = perturbed(&frame, 91, 1.03, 20.0, 10.0);
+    for (name, interp) in kernels {
+        let mut tile = SkyTileAccumulator::create(tile_id, order, 1, AccumulationMode::default());
+        for i in 0..3u64 {
+            let sub = perturbed(&frame, 60 + i, 1.0 + 0.03 * i as f64, 10.0 * i as f64, 10.0);
+            tile.fold_frame(&sub, &wcs, 1.0, 120.0, interp, &format!("sub{i}"), "pin")
+                .expect("fold");
+        }
+        pins.add(
+            &format!("resample/atlas.mono.{name}"),
+            image_digest(&tile.finalize()) ^ image_digest(&tile.coverage_map()),
+        );
+        let digest = match difference_against_template(
+            &tile,
+            &science,
+            &wcs,
+            interp,
+            &StarDetectionConfig::default(),
+            &DifferenceOptions::default(),
+        ) {
+            Ok(result) => {
+                image_digest(&result.residual)
+                    ^ image_digest(&result.science)
+                    ^ image_digest(&result.template_image)
+                    ^ debug_digest(&result.candidates)
+            }
+            Err(e) => debug_digest(&e),
+        };
+        pins.add(&format!("resample/difference.mono.{name}"), digest);
+    }
+    let frame_rgb = as_rgb(&frame, [0.8, 1.0, 0.65]);
+    let mut tile = SkyTileAccumulator::create(tile_id, order, 3, AccumulationMode::default());
+    for i in 0..2u64 {
+        let sub = perturbed(
+            &frame_rgb,
+            70 + i,
+            1.0 + 0.03 * i as f64,
+            10.0 * i as f64,
+            10.0,
+        );
+        tile.fold_frame(
+            &sub,
+            &wcs,
+            1.0,
+            120.0,
+            Interpolator::Lanczos3,
+            &format!("rgb{i}"),
+            "pin",
+        )
+        .expect("fold");
+    }
+    pins.add(
+        "resample/atlas.rgb.lanczos",
+        image_digest(&tile.finalize()) ^ image_digest(&tile.coverage_map()),
+    );
+
+    let plane = to_f32_unit(&mono).samples_f32();
+    for sigma in [0.6, 1.7, 4.2] {
+        pins.add(
+            &format!("resample/gaussian_blur.{sigma}"),
+            f32_digest(&color_composite::mix::gaussian_blur(
+                &plane, 400, 400, sigma,
+            )),
+        );
+    }
+}
+
 fn pin_finishing(pins: &mut Pins) {
     let mono = crop(&load(RIG, "focused_L_0005.fits"), 384);
     let rgb = as_rgb(&mono, [0.8, 1.0, 0.65]);
@@ -1175,6 +1316,7 @@ fn outputs_match_the_pinned_digests() {
     pin_normalization_and_integration(&mut pins);
     pin_atlas_and_difference(&mut pins);
     pin_mosaic(&mut pins);
+    pin_resampling(&mut pins);
     pin_finishing(&mut pins);
     pin_recipe(&mut pins);
     pin_wcs(&mut pins);
