@@ -1,7 +1,6 @@
 part of '../ffi_backend.dart';
 
 mixin _FfiImagePolarOperations on _FfiBackendBase {
-  // Image processing
 
   @override
   Future<List<StarCrop>> getStarCropsFromLastImage(

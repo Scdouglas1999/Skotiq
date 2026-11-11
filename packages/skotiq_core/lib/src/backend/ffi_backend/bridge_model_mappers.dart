@@ -149,8 +149,6 @@ extension _FfiBackendBridgeModelMappers on _FfiBackendBase {
     );
   }
 
-  // Type conversion helpers
-
   bridge.DeviceType _toBridgeDeviceType(DeviceType type) {
     switch (type) {
       case DeviceType.camera:
@@ -220,7 +218,6 @@ extension _FfiBackendBridgeModelMappers on _FfiBackendBase {
     }
   }
 
-  // Mappers
   models.AppSettings _fromBridgeSettings(bridge.AppSettings s) {
     final loc = s.location != null ? _fromBridgeLocation(s.location!) : null;
     return models.AppSettings(
@@ -228,11 +225,9 @@ extension _FfiBackendBridgeModelMappers on _FfiBackendBase {
       theme: s.theme,
       language: s.language,
       autoConnect: s.autoConnect,
-      // Map location fields to direct fields for compatibility
       latitude: loc?.latitude ?? 0.0,
       longitude: loc?.longitude ?? 0.0,
       elevation: loc?.elevation ?? 0.0,
-      // Keep defaults for other fields
       fileNamingPattern: '',
       meridianFlipMinutes: 5,
       autoFocusEveryMinutes: 60,
@@ -246,7 +241,6 @@ extension _FfiBackendBridgeModelMappers on _FfiBackendBase {
   }
 
   bridge.AppSettings _toBridgeSettings(models.AppSettings s) {
-    // Use location if available, otherwise create from direct fields
     final loc =
         s.location ??
         (s.latitude != 0.0 || s.longitude != 0.0

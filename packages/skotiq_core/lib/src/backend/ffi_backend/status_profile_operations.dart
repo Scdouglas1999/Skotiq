@@ -1,7 +1,6 @@
 part of '../ffi_backend.dart';
 
 mixin _FfiStatusProfileOperations on _FfiBackendBase {
-  // Equipment status
 
   @override
   Future<CameraStatus> getCameraStatus(String deviceId) async {
@@ -111,9 +110,6 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
     }
   }
 
-  // Status conversion helpers
-  // Device capabilities
-
   @override
   Future<CameraCapabilities?> getCameraCapabilities(String deviceId) async {
     try {
@@ -171,7 +167,6 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
   @override
   Future<RotatorCapabilities?> getRotatorCapabilities(String deviceId) async {
     try {
-      // Use generic device capabilities and extract rotator
       final result = await bridge.apiGetDeviceCapabilities(deviceId: deviceId);
       if (result is bridge.DeviceCapabilities_Rotator) {
         return _fromBridgeRotatorCapabilities(result.field0);
@@ -182,8 +177,6 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       return null;
     }
   }
-
-  // Equipment profiles
 
   @override
   Future<List<EquipmentProfile>> getProfiles() async {
@@ -226,8 +219,6 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
     );
     return bridgeProfile != null ? _fromBridgeProfile(bridgeProfile) : null;
   }
-
-  // Settings & Location
 
   @override
   Future<models.AppSettings> getSettings() async {

@@ -1,25 +1,20 @@
 part of '../ffi_backend.dart';
 
 extension _FfiBackendEventMapping on _FfiBackendBase {
-  /// Extract eventType string and data map from an EventPayload
   (String, Map<String, dynamic>) _extractPayloadInfo(dynamic payload) {
-    // Handle guiding events with proper field extraction
     if (payload is bridge.EventPayload_Guiding) {
       final guidingEvent = payload.field0;
       return _extractGuidingEventInfo(guidingEvent);
     }
 
-    // Handle equipment events with proper field extraction
     if (payload is bridge.EventPayload_Equipment) {
       return _extractEquipmentEventInfo(payload.field0);
     }
 
-    // Handle sequencer events with proper field extraction
     if (payload is bridge.EventPayload_Sequencer) {
       return _extractSequencerEventInfo(payload.field0);
     }
 
-    // Handle imaging events with proper field extraction
     if (payload is bridge.EventPayload_Imaging) {
       return _extractImagingEventInfo(payload.field0);
     }
@@ -29,12 +24,10 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
       return _extractSafetyEventInfo(payload.field0);
     }
 
-    // Handle system events with proper field extraction
     if (payload is bridge.EventPayload_System) {
       return _extractSystemEventInfo(payload.field0);
     }
 
-    // Handle polar alignment events
     if (payload is bridge.EventPayload_PolarAlignment) {
       final pa = payload.field0;
       return (
@@ -79,7 +72,6 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
       return _extractDepthLockEventInfo(payload.field0);
     }
 
-    // For other event types, use string parsing as fallback
     final payloadStr = payload.toString();
     final match = RegExp(r'^EventPayload\.(\w+)\(').firstMatch(payloadStr);
     final eventType = match?.group(1) ?? 'unknown';
@@ -151,7 +143,6 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
     return _unreadEvent(depthLockEvent, 'DepthLockEvent', 'DepthLock');
   }
 
-  /// Extract event type and data from a SafetyEvent
   (String, Map<String, dynamic>) _extractSafetyEventInfo(dynamic safetyEvent) {
     if (safetyEvent is bridge.SafetyEvent_WeatherUnsafe) {
       return ('WeatherUnsafe', {'reason': safetyEvent.reason});
@@ -190,7 +181,6 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
     return _unreadEvent(safetyEvent, 'SafetyEvent', 'safety');
   }
 
-  /// Extract event type and data from a SystemEvent
   (String, Map<String, dynamic>) _extractSystemEventInfo(dynamic systemEvent) {
     if (systemEvent is bridge.SystemEvent_Initialized) {
       return ('Initialized', {});
@@ -223,11 +213,9 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
     return _unreadEvent(systemEvent, 'SystemEvent', 'system');
   }
 
-  /// Extract event type and data from an EquipmentEvent
   (String, Map<String, dynamic>) _extractEquipmentEventInfo(
     dynamic equipmentEvent,
   ) {
-    // Connection events
     if (equipmentEvent is bridge.EquipmentEvent_Connecting) {
       return (
         'Connecting',
@@ -294,7 +282,6 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
         },
       );
     }
-    // Mount events
     else if (equipmentEvent is bridge.EquipmentEvent_MountSlewStarted) {
       return (
         'MountSlewStarted',
@@ -316,7 +303,6 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
     } else if (equipmentEvent is bridge.EquipmentEvent_MountUnparked) {
       return ('MountUnparked', {});
     }
-    // Focuser events
     else if (equipmentEvent is bridge.EquipmentEvent_FocuserMoveStarted) {
       return (
         'FocuserMoveStarted',
@@ -340,7 +326,6 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
         {'temperature': equipmentEvent.temperature},
       );
     }
-    // Filter wheel events
     else if (equipmentEvent is bridge.EquipmentEvent_FilterChanging) {
       return (
         'FilterChanging',
@@ -362,7 +347,6 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
         },
       );
     }
-    // Rotator events
     else if (equipmentEvent is bridge.EquipmentEvent_RotatorMoveStarted) {
       return (
         'RotatorMoveStarted',
@@ -377,7 +361,6 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
         {'device_id': equipmentEvent.deviceId, 'angle': equipmentEvent.angle},
       );
     }
-    // Camera events
     else if (equipmentEvent is bridge.EquipmentEvent_CameraCoolingStarted) {
       return (
         'CameraCoolingStarted',
@@ -512,7 +495,6 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
     return _unreadEvent(equipmentEvent, 'EquipmentEvent', 'equipment');
   }
 
-  /// Extract event type and data from a GuidingEvent
   (String, Map<String, dynamic>) _extractGuidingEventInfo(
     dynamic guidingEvent,
   ) {
@@ -572,7 +554,6 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
     return _unreadEvent(guidingEvent, 'GuidingEvent', 'guiding');
   }
 
-  /// Extract event type and data from a SequencerEvent
   (String, Map<String, dynamic>) _extractSequencerEventInfo(
     dynamic sequencerEvent,
   ) {
@@ -1040,7 +1021,6 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
         : runtimeTypeName;
   }
 
-  /// Extract event type and data from an ImagingEvent
   (String, Map<String, dynamic>) _extractImagingEventInfo(
     dynamic imagingEvent,
   ) {

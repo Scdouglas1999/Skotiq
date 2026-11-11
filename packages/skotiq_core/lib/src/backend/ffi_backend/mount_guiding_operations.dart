@@ -1,7 +1,6 @@
 part of '../ffi_backend.dart';
 
 mixin _FfiMountGuidingOperations on _FfiBackendBase {
-  // Mount control
 
   @override
   Future<void> mountSlewToCoordinates(
@@ -159,8 +158,6 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     return await bridge.apiGetMountStatus(deviceId: deviceId);
   }
 
-  // Focuser control
-
   @override
   Future<void> focuserMoveTo(String deviceId, int position) async {
     await _native(
@@ -289,8 +286,6 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     }
   }
 
-  // Filter wheel control
-
   @override
   Future<void> filterWheelSetPosition(String deviceId, int position) async {
     await _native(
@@ -325,8 +320,6 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     }
     await filterWheelSetPosition(deviceId, index);
   }
-
-  // Rotator control
 
   @override
   Future<void> rotatorMoveTo(String deviceId, double angle) async {
@@ -383,8 +376,6 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     );
   }
 
-  // Dome control
-
   @override
   Future<void> domeOpenShutter(String deviceId) async {
     await bridge.apiDomeOpenShutter(deviceId: deviceId);
@@ -420,8 +411,6 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     await bridge.apiDomeAbortSlew(deviceId: deviceId);
   }
 
-  // Cover calibrator control
-
   @override
   Future<void> coverOpen(String deviceId) async {
     await bridge.apiCoverCalibratorOpenCover(deviceId: deviceId);
@@ -444,8 +433,6 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
   Future<void> calibratorOff(String deviceId) async {
     await bridge.apiCoverCalibratorCalibratorOff(deviceId: deviceId);
   }
-
-  // PHD2 Guiding
 
   @override
   Future<bool> isPhd2Running({
@@ -701,8 +688,6 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     await _native('phd2DeselectStar', () => bridge.apiPhd2DeselectStar());
   }
 
-  // Generic Guiding (driver-agnostic abstraction)
-
   @override
   Future<void> guiderStartGuiding({
     required String deviceId,
@@ -867,8 +852,6 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
       ),
     );
   }
-
-  // Plate solving
 
   @override
   Future<PlateSolveResult> plateSolve({

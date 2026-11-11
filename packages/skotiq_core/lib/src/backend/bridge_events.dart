@@ -22,12 +22,10 @@ library;
 
 export 'package:skotiq_bridge/skotiq_bridge.dart'
     show
-        // Top-level typed event + its envelope enums.
         SkotiqEvent,
         EventCategory,
         EventSeverity,
         EventPayload,
-        // Payload union variants (one per event family).
         EventPayload_Equipment,
         EventPayload_Imaging,
         EventPayload_Guiding,
@@ -81,7 +79,6 @@ export 'package:skotiq_bridge/skotiq_bridge.dart'
         EquipmentEvent_DeviceDiscovered,
         EquipmentEvent_DeviceLost,
         HeartbeatStatus,
-        // Guiding event family.
         GuidingEvent,
         GuidingEvent_Connected,
         GuidingEvent_Disconnected,
@@ -103,7 +100,6 @@ export 'package:skotiq_bridge/skotiq_bridge.dart'
         GuidingEvent_StarSelected,
         GuidingEvent_AppState,
         GuidingEvent_GuideStats,
-        // Imaging event family.
         ImagingEvent,
         ImagingEvent_ExposureStarted,
         ImagingEvent_ExposureStartedWithFrame,
@@ -174,7 +170,6 @@ export 'package:skotiq_bridge/skotiq_bridge.dart'
         // A Smart Exposure plan that ended on its DepthLock goal rather than
         // on its frame count.
         SequencerEvent_DepthGoalCompleted,
-        // System event family.
         SystemEvent,
         SystemEvent_Initialized,
         SystemEvent_ShuttingDown,

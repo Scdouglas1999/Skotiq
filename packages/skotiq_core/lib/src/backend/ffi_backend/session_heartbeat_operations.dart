@@ -1,7 +1,6 @@
 part of '../ffi_backend.dart';
 
 mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
-  // Image Download (for Mobile - local FFI)
 
   @override
   Future<List<CapturedImage>> getSessionImages(int sessionId) async {
@@ -57,7 +56,6 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
     }
 
     try {
-      // Get image metadata from database
       final imagesDao = ImagesDao(_database);
       final dbImage = await imagesDao.getImageById(imageId);
 
@@ -81,7 +79,6 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
       );
       if (sidecarBytes != null) return sidecarBytes;
 
-      // Check if file exists
       final file = File(dbImage.filePath);
       if (!await file.exists()) {
         throw dart_error.SkotiqError(
@@ -119,7 +116,6 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
     }
 
     try {
-      // Get image metadata from database
       final imagesDao = ImagesDao(_database);
       final dbImage = await imagesDao.getImageById(imageId);
 
@@ -130,7 +126,6 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
         );
       }
 
-      // Check if source file exists
       final sourceFile = File(dbImage.filePath);
       if (!await sourceFile.exists()) {
         throw dart_error.SkotiqError(
@@ -139,14 +134,11 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
         );
       }
 
-      // Create destination directory if needed
       final destFile = File(localPath);
       await destFile.parent.create(recursive: true);
 
-      // Get file size for progress tracking
       final fileSize = await sourceFile.length();
 
-      // Copy file with progress tracking
       final sourceStream = sourceFile.openRead();
       final sink = destFile.openWrite();
 
@@ -164,7 +156,6 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
         await sink.close();
       }
 
-      // Final progress callback
       if (onProgress != null) {
         onProgress(1.0);
       }
@@ -208,8 +199,6 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
     }
   }
 
-  // Device health monitoring
-
   @override
   Future<void> startDeviceHeartbeat({
     required DeviceType deviceType,
@@ -232,7 +221,6 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
   @override
   Future<(int, bool)> getDeviceHealth(String deviceId) async {
     final result = await bridge.apiGetDeviceHealth(deviceId: deviceId);
-    // Convert PlatformInt64 to int
     final timestamp = result.$1.toInt();
     final isHealthy = result.$2;
     return (timestamp, isHealthy);
