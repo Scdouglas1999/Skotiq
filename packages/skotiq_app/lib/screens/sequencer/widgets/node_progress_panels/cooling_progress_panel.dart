@@ -26,7 +26,6 @@ class _ProgressPanelContainer extends StatelessWidget {
   }
 }
 
-/// Progress panel for cooling/warming operations
 class _CoolingProgressPanel extends StatelessWidget {
   final SkotiqColors colors;
   final double progressPercent;
@@ -69,7 +68,6 @@ class _CoolingProgressPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row
           Row(
             children: [
               Icon(
@@ -87,10 +85,8 @@ class _CoolingProgressPanel extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Temperature display
           Row(
             children: [
-              // Current temp
               _TempDisplay(
                 colors: colors,
                 label: 'Current',
@@ -98,14 +94,12 @@ class _CoolingProgressPanel extends StatelessWidget {
                 isTarget: false,
               ),
               const SizedBox(width: 16),
-              // Arrow
               Icon(
                 SkotiqIcons.arrowRight,
                 size: 16,
                 color: colors.textMuted,
               ),
               const SizedBox(width: 16),
-              // Target temp
               _TempDisplay(
                 colors: colors,
                 label: 'Target',
@@ -113,13 +107,11 @@ class _CoolingProgressPanel extends StatelessWidget {
                 isTarget: true,
               ),
               const Spacer(),
-              // Power gauge
               if (power != null) _PowerGauge(colors: colors, power: power),
             ],
           ),
           const SizedBox(height: 12),
 
-          // Progress bar
           _AnimatedProgressBar(
             colors: colors,
             progress: progressPercent / 100.0,
