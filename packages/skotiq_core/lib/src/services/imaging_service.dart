@@ -361,7 +361,6 @@ class ImagingService {
     return true;
   }
 
-  /// Check if currently capturing
   bool get isCapturing => _isCapturing;
 
   /// All naming-pattern variables this service recognises.

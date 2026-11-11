@@ -53,7 +53,6 @@ class WcsOverlay {
     );
   }
 
-  /// Convert pixel coordinates to celestial coordinates (RA/Dec)
   (double ra, double dec) pixelToCelestial(double x, double y) {
     // Simple TAN projection
     final dx = (x - crpix1) * cdelt1;
@@ -74,7 +73,6 @@ class WcsOverlay {
     return (ra, dec);
   }
 
-  /// Convert celestial coordinates to pixel coordinates
   (double x, double y) celestialToPixel(double ra, double dec) {
     // Inverse TAN projection
     final raDelta = _normalizeDeltaDegrees(ra - crval1);

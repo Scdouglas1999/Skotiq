@@ -140,7 +140,6 @@ class _SnrAnnotationConstants {
   /// Minimum SNR improvement ratio before re-annotating (20% improvement)
   static const double snrImprovementThreshold = 1.2;
 
-  /// Minimum time between re-annotations (5 seconds)
   static const Duration reAnnotationDebounce = Duration(seconds: 5);
 
   /// Minimum SNR to even attempt annotation
@@ -370,7 +369,6 @@ class AnnotationService {
     return ObjectType.unknown;
   }
 
-  /// Parse spectral type from string to SpectralClass enum
   SpectralClass? _parseSpectralType(String? spectralType) {
     if (spectralType == null || spectralType.isEmpty) return null;
 

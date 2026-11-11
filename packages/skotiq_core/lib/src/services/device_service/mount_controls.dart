@@ -95,8 +95,6 @@ extension _DeviceServiceMountControls on DeviceService {
     }
   }
 
-  /// Format RA for display (hours:minutes)
-  /// Sync mount to coordinates
   Future<void> _syncMountToCoordinates(double ra, double dec) async {
     final deviceId = await _getMountDeviceId();
     if (deviceId == null || deviceId.isEmpty) {

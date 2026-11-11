@@ -217,7 +217,6 @@ class _TonightSuggestionScorer {
         continue;
       }
 
-      // Filter by preferred object types if specified
       if (config.preferredObjectTypes.isNotEmpty) {
         final objectType = target.objectType?.toLowerCase() ?? '';
         final matches = config.preferredObjectTypes.any(

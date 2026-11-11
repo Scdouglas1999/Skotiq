@@ -251,7 +251,6 @@ extension _ImagingServiceCapturePipeline on ImagingService {
         );
         if (!_hasBackendAuthority(backend)) return null;
 
-        // Check if cancelled
         if (!completed || _cancelRequested) {
           if (_cancelRequested) {
             await _abortActiveExposure();

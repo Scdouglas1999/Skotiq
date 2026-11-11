@@ -124,13 +124,10 @@ class CalibrationResult {
 
   final bool biasApplied;
 
-  /// Path of the dark used, if any.
   final String? darkUsed;
 
-  /// Path of the flat used, if any.
   final String? flatUsed;
 
-  /// Path of the bias used, if any.
   final String? biasUsed;
 
   const CalibrationResult({

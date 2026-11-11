@@ -182,7 +182,6 @@ class DarkLibraryService {
       _MedianCombineParams(pixelSets, imgWidth * imgHeight),
     );
 
-    // Write the master dark FITS file
     await _writeFitsFile(outputPath, masterPixels, imgWidth, imgHeight);
 
     double? avgTemp;

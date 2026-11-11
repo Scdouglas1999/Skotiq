@@ -70,7 +70,6 @@ class CameraWarmupController {
 
   _WarmupRun? _run;
 
-  /// True while a warm-up is in progress.
   bool get isWarming => _run != null;
 
   /// Begin a gradual warm-up, or report why there is nothing to warm.

@@ -60,7 +60,6 @@ extension _ImagingServicePersistence on ImagingService {
     );
     if (!_hasBackendAuthority(backend)) return;
 
-    // Build FITS header with complete metadata
     final header = FitsWriteHeader(
       objectName: targetName,
       exposureTime: exposureSettings.exposureTime,
@@ -146,7 +145,6 @@ extension _ImagingServicePersistence on ImagingService {
     if (!_hasBackendAuthority(backend)) return null;
     final records = _ref.read(imagingRecordsRepositoryProvider);
 
-    // Get current session ID if available
     final sessionState = _ref.read(sessionStateProvider);
     final sessionId = sessionState.dbSessionId;
 

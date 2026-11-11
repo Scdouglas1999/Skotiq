@@ -27,7 +27,6 @@ class RadarProviderFactory {
   /// If a provider of the same type already exists, it will be disposed
   /// and replaced.
   void registerProvider(RadarProvider provider) {
-    // Dispose existing provider if present
     final existing = _providers[provider.providerType];
     if (existing != null) {
       existing.dispose();
@@ -128,7 +127,6 @@ class RadarProviderFactory {
 
   int get providerCount => _providers.length;
 
-  /// Checks if a specific provider type is registered.
   bool hasProvider(RadarProviderType type) {
     return type != RadarProviderType.auto && _providers.containsKey(type);
   }

@@ -134,7 +134,6 @@ class ArtifactDownloadSidecar {
     required this.totalLength,
   });
 
-  /// The sidecar's JSON.
   Map<String, Object?> toJson() => <String, Object?>{
     'artifactId': artifactId,
     'etag': etag,

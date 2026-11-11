@@ -24,7 +24,6 @@ import '../../../models/weather/weather_models.dart';
 /// - Coverage: CONUS (lat 14-57, lon -153 to -53)
 /// - Works 24/7 (infrared doesn't require sunlight)
 class GoesSatelliteProvider extends RadarProvider {
-  /// HTTP client for fetching metadata.
   final http.Client _client;
 
   /// Base URL for the IEM GOES CONUS IR WMS service.

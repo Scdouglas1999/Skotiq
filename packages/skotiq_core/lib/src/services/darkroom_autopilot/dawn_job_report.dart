@@ -101,7 +101,6 @@ class DawnCalibrationSlot {
     return '${_capitalize(parts.first)}${parts.length > 1 ? '; ${parts.skip(1).join('; ')}' : ''}.';
   }
 
-  /// The slot as report JSON.
   Map<String, dynamic> toJson() => {
     'kind': kind,
     'path': path,
@@ -346,7 +345,6 @@ class DawnSourceStat {
   bool metadataMatches(DawnSourceStat other) =>
       bytes == other.bytes && modified.isAtSameMomentAs(other.modified);
 
-  /// The reading as report JSON.
   Map<String, dynamic> toJson() => {
     'bytes': bytes,
     'modified': modified.toUtc().toIso8601String(),
@@ -447,7 +445,6 @@ class DawnMasterReport {
     return failure ?? 'its pixels could not be read';
   }
 
-  /// The master as report JSON.
   Map<String, dynamic> toJson() => {
     'masterId': master.masterId,
     'name': master.name,
@@ -593,7 +590,6 @@ class DawnReportPending {
         'drafting finished.',
   );
 
-  /// The pending block as report JSON.
   Map<String, dynamic> toJson() => {'blocks': blocks, 'note': note};
 }
 
@@ -607,7 +603,6 @@ class DawnNotificationDecision {
 
   const DawnNotificationDecision({required this.sent, required this.reason});
 
-  /// The decision as report JSON.
   Map<String, dynamic> toJson() => {'sent': sent, 'reason': reason};
 }
 

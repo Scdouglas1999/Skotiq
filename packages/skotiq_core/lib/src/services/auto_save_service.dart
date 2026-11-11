@@ -401,9 +401,7 @@ class AutoSaveService {
     return true;
   }
 
-  /// Check if backup is needed and perform it
   Future<void> _checkAndPerformBackup() async {
-    // Check if enough time has passed since last backup
     if (_status.lastBackup != null) {
       final timeSinceLastBackup = DateTime.now().difference(
         _status.lastBackup!,

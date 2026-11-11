@@ -251,7 +251,6 @@ class SessionService {
     _currentSessionId = sessionId;
     _currentStats = SessionStats(lastUpdated: _now());
 
-    // Start checkpoint timer if enabled
     if (_config.enabled) {
       _startCheckpointTimer();
     }

@@ -209,8 +209,6 @@ class HealpixNested {
   /// direction, in units of the equatorial spacing.
   static const List<int> _jpll = [1, 3, 5, 7, 0, 2, 4, 6, 1, 3, 5, 7];
 
-  // Forward: sky -> pixel
-
   /// Converts a sky direction (RA/Dec in degrees) to a NESTED pixel index.
   ///
   /// [raDeg] is wrapped into `[0, 360)`; [decDeg] must lie in `[-90, 90]`.
@@ -244,8 +242,6 @@ class HealpixNested {
     final phi = _wrapTwoPi(math.atan2(v.y, v.x));
     return _zphiToNest(z, phi);
   }
-
-  // Inverse: pixel -> sky
 
   /// Converts a NESTED pixel index to its center sky direction (RA/Dec deg).
   HealpixAngle pix2ang(int ipix) {

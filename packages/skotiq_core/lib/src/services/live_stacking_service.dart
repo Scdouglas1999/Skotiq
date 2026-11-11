@@ -669,7 +669,6 @@ class LiveStackingService {
     await bridge.apiStackingStop();
   }
 
-  /// Check if live stacking is currently active.
   bool get isActive => bridge.apiStackingIsActive();
 
   int get frameCount => bridge.apiStackingFrameCount();

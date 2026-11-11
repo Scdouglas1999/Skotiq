@@ -492,7 +492,6 @@ class LoggingService {
     return '${d.inHours} hours';
   }
 
-  /// Read a specific log file
   Future<String> readLogFile(String path) async {
     try {
       final file = File(path);

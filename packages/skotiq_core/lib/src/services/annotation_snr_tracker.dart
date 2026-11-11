@@ -29,14 +29,12 @@ extension AnnotationSnrTracker on AnnotationService {
     final state = _ref.read(annotationStateProvider);
     if (state.isProcessing) return;
 
-    // Skip if SNR is too low
     if (currentSnr < _SnrAnnotationConstants.minimumSnrThreshold) return;
 
     // Skip if we don't have a previous annotation to build upon
     final currentAnnotation = _ref.read(currentAnnotationProvider);
     if (currentAnnotation == null || _lastPlateSolve == null) return;
 
-    // Check if enough time has passed since last annotation
     if (_lastAnnotationTime != null) {
       final elapsed = DateTime.now().difference(_lastAnnotationTime!);
       if (elapsed < _SnrAnnotationConstants.reAnnotationDebounce) return;
@@ -68,7 +66,6 @@ extension AnnotationSnrTracker on AnnotationService {
       }
     }
 
-    // Check if SNR improved significantly
     if (_lastAnnotationSnr != null) {
       final snrRatio = currentSnr / _lastAnnotationSnr!;
       if (snrRatio < _SnrAnnotationConstants.snrImprovementThreshold) return;

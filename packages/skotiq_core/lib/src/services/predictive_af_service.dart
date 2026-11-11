@@ -311,8 +311,6 @@ class PredictiveAfService {
     );
   }
 
-  // ── Drift tracking ────────────────────────────────────────────────────
-
   /// After a real AF run completes, call this with what the model predicted
   /// (BEFORE the AF) and the actual converged position. Updates the drift
   /// counters and, when the threshold is crossed, emits a [ShouldWarn]

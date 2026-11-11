@@ -56,7 +56,6 @@ class _TnsObjectOutcome {
 /// final alerts = await service.getAllAlerts(settings);
 /// ```
 class TransientAlertService {
-  /// HTTP client for making API requests.
   final http.Client _httpClient;
 
   /// Logging service for error and debug logging.
@@ -747,7 +746,6 @@ class TransientAlertService {
       return false;
     }
 
-    // Check magnitude threshold (if magnitude is known)
     if (alert.magnitude != null) {
       // Alert must be brighter than (less than) the threshold
       if (alert.magnitude! > settings.magnitudeThreshold) {

@@ -23,7 +23,6 @@ import '../../../models/weather/weather_models.dart';
 /// - Resolution: Base reflectivity (N0Q product)
 /// - Coverage: CONUS + southern Canada (lat 24-55, lon -130 to -60)
 class NoaaRadarProvider extends RadarProvider {
-  /// HTTP client for fetching radar metadata and tiles.
   final http.Client _client;
 
   /// Base URL for the IEM NEXRAD WMS service.

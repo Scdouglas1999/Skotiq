@@ -118,7 +118,6 @@ class QuickStartService {
     final sequence = results[2] as db.Sequence?;
     final checkpoint = results[3] as db.SequenceCheckpoint?;
 
-    // Parse equipment snapshot if available
     EquipmentSnapshot? equipmentSnapshot;
     if (equipmentSnapshotJson != null && equipmentSnapshotJson.isNotEmpty) {
       try {
@@ -143,7 +142,6 @@ class QuickStartService {
     final plannedFrames = checkpoint == null ? 0 : checkpoint.totalFrames;
     final totalFrames = plannedFrames >= completedFrames ? plannedFrames : 0;
 
-    // Calculate total integration in hours
     final totalIntegrationHours = session.totalIntegrationSecs / 3600.0;
 
     return QuickStartContext(

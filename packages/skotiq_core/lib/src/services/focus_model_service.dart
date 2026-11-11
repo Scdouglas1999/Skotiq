@@ -706,7 +706,6 @@ class FocusModelService {
     int predictedPosition = model.predictPosition(currentTemperature);
     double confidence = model.rSquared;
 
-    // Apply filter offset if applicable
     int filterOffset = 0;
     if (currentFilter != null &&
         data.filterOffsets.containsKey(currentFilter)) {
@@ -740,7 +739,6 @@ class FocusModelService {
     final model = data.temperatureModel!;
     if (!model.isReliableWith(config)) return false;
 
-    // Calculate expected focus drift
     final tempDelta = (currentTemperature - lastFocusTemperature).abs();
     final expectedDrift = tempDelta * model.slope.abs();
 

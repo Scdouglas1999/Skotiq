@@ -29,7 +29,6 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
       windowEnd = _minDate(span.end, windowEnd);
     }
 
-    // Update target header ID if this is a target header node
     final targetId = node is TargetHeaderNode ? node.id : currentTargetHeaderId;
 
     var nodeDuration = _estimateNodeDuration(
@@ -55,7 +54,6 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
       }
     }
 
-    // Add timing entry if this node has a meaningful duration
     if (nodeDuration.inSeconds > 0) {
       final endTime = currentTime.add(nodeDuration);
       final warnings = <String>[];

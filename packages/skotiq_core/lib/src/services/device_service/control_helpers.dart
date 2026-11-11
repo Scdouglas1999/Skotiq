@@ -424,13 +424,11 @@ extension _DeviceServiceControlHelpers on DeviceService {
         return;
       }
 
-      // Check if focuser is connected
       final focuserDeviceId = await _getFocuserDeviceId();
       if (focuserDeviceId == null || focuserDeviceId.isEmpty) {
         return;
       }
 
-      // Check if focuser is ready
       final focuserState = _ref.read(focuserStateProvider);
       if (focuserState.connectionState != DeviceConnectionState.connected) {
         return;

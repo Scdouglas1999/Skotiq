@@ -136,7 +136,6 @@ class WeatherRadarService {
       seconds: settingsRow.refreshIntervalSeconds,
     );
 
-    // Check if we have fresh cached data
     if (!forceRefresh && !isCacheStale(refreshInterval)) {
       if (_cachedResult != null && _cachedResult!.isSuccess) {
         developer.log(

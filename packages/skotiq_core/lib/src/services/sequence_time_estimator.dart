@@ -83,7 +83,6 @@ class SequenceTimeEstimator {
     final timings = <NodeTiming>[];
     var currentTime = startTime;
 
-    // Create location context if coordinates provided
     final locationContext = (latitude != null && longitude != null)
         ? _LocationContext(
             latitude: latitude,

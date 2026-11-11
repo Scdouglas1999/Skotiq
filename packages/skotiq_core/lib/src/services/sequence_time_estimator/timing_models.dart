@@ -35,7 +35,6 @@ class NodeTiming {
   /// Warning messages for timing conflicts (e.g., target below horizon)
   final List<String>? warnings;
 
-  /// ID of the parent target header node, if any
   final String? targetHeaderId;
 
   /// The node runs until it is stopped and nothing in the estimate bounds

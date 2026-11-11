@@ -186,7 +186,6 @@ class ProfileService {
     _requireAuthority(authority);
   }
 
-  /// Export a profile to JSON
   Future<String> exportProfileToJson(int profileId) async {
     final authority = _authority;
     final profile = await _getProfileModelById(profileId, authority: authority);
@@ -208,7 +207,6 @@ class ProfileService {
     await file.writeAsString(json);
   }
 
-  /// Export all profiles to JSON
   Future<String> exportAllProfilesToJson() async {
     final authority = _authority;
     final backend = authority.backend;
@@ -243,7 +241,6 @@ class ProfileService {
     await file.writeAsString(json);
   }
 
-  /// Import a profile from JSON
   Future<int> importProfileFromJson(String json) async {
     final authority = _authority;
     final profiles = profilesFromExportDocument(json);
@@ -263,7 +260,6 @@ class ProfileService {
     return await importProfileFromJson(json);
   }
 
-  /// Import all profiles from JSON (batch import)
   Future<List<int>> importAllProfilesFromJson(String json) async {
     final authority = _authority;
     final profilesData = profilesFromExportDocument(json);

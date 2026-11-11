@@ -107,7 +107,6 @@ class SequenceFileService {
       throw SequenceValidationFailedException(issues);
     }
 
-    // Prepare JSON
     final json = sequenceToMap(sequence);
     final jsonString = const JsonEncoder.withIndent('  ').convert(json);
 

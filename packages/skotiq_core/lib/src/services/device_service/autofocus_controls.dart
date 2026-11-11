@@ -434,7 +434,6 @@ extension _DeviceServiceAutofocusControls on DeviceService {
           operationId: operationId,
         );
 
-        // Resume guiding if it was paused
         if (guidingWasPaused) {
           try {
             final loggingService = _ref.read(loggingServiceProvider);

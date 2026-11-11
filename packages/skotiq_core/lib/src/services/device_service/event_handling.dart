@@ -522,7 +522,6 @@ extension _DeviceServiceEventHandling on DeviceService {
     // the guider reports. It is not the imaging camera and has no slot.
     if (_isGuideCameraEvent(deviceType, deviceId)) return;
 
-    // Check if this is a critical device and sequence is running
     final isCriticalDevice =
         deviceType.toLowerCase() == 'camera' ||
         deviceType.toLowerCase() == 'mount';

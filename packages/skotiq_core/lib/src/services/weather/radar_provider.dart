@@ -7,7 +7,6 @@ import '../../models/weather/weather_models.dart';
 class RadarFetchResult {
   final List<RadarFrame> frames;
 
-  /// Timestamp when the data was fetched.
   final DateTime fetchedAt;
 
   /// Human-readable name of the provider that produced these frames

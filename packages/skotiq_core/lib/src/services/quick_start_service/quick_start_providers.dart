@@ -161,7 +161,6 @@ final quickStartContextProvider = FutureProvider<QuickStartContext?>((
   return context.withCheckpointInfo(checkpoint);
 });
 
-/// Provider for checking if quick start is available
 final quickStartAvailableProvider = FutureProvider<bool>((ref) async {
   final backend = ref.watch(backendProvider);
   if (backend.remoteHost != null) {

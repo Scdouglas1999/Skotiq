@@ -168,7 +168,6 @@ class DeviceMatchingService {
       normalized = normalized.substring(0, instanceMatch.start).trim();
     }
 
-    // Remove known manufacturer prefixes
     for (final prefix in _manufacturerPrefixes) {
       if (normalized.toLowerCase().startsWith(prefix.toLowerCase())) {
         normalized = normalized.substring(prefix.length).trim();
@@ -181,7 +180,6 @@ class DeviceMatchingService {
       }
     }
 
-    // Remove common suffixes
     for (final suffix in _commonSuffixes) {
       if (normalized.toLowerCase().endsWith(suffix.toLowerCase())) {
         normalized = normalized
@@ -220,7 +218,6 @@ class DeviceMatchingService {
 
     // Also check if one contains the other (common case)
     if (a.contains(b) || b.contains(a)) {
-      // Give a high score if one is a substring of the other
       final shorter = a.length < b.length ? a : b;
       final longer = a.length >= b.length ? a : b;
       return shorter.length / longer.length * 0.95 + 0.05; // Min 0.05 bonus

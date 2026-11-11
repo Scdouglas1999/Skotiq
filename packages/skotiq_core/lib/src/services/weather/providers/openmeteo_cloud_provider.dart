@@ -13,7 +13,6 @@ import '../transient_http_retry.dart';
 /// Uses the free Open-Meteo API (no API key required) to fetch hourly
 /// cloud cover percentages with both historical and forecast data.
 class OpenMeteoCloudProvider extends RadarProvider {
-  /// HTTP client for API requests.
   final http.Client _httpClient;
 
   static const String _baseUrl = 'https://api.open-meteo.com/v1/forecast';
@@ -83,7 +82,6 @@ class OpenMeteoCloudProvider extends RadarProvider {
         );
       }
 
-      // Parse JSON response
       final Map<String, dynamic> json;
       try {
         json = jsonDecode(response.body) as Map<String, dynamic>;
@@ -152,7 +150,6 @@ class OpenMeteoCloudProvider extends RadarProvider {
         // Convert cloud cover percentage to opacity (0.0-1.0)
         final opacity = clampedCloudCover / 100.0;
 
-        // Determine if this is a forecast frame
         final isForecast = timestamp.isAfter(now);
 
         // Create point bounds (±0.5 degrees around the requested location)

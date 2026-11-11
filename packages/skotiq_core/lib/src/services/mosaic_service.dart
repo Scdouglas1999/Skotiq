@@ -437,7 +437,6 @@ class MosaicService {
       final targetGroupId = uuid.v4();
       final childIds = <String>[];
 
-      // Add autofocus if enabled and at the right interval
       if (options.autofocusPerPanel &&
           (options.autofocusInterval == 0 ||
               i % (options.autofocusInterval + 1) == 0)) {
@@ -463,7 +462,6 @@ class MosaicService {
         orderIndex: childIds.length - 1,
       );
 
-      // Add centering if enabled
       if (options.centerAfterSlew) {
         final centerId = uuid.v4();
         childIds.add(centerId);

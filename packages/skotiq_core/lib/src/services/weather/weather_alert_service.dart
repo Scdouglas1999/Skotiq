@@ -76,7 +76,6 @@ class WeatherAlertService {
       currentTime: now,
     );
 
-    // Emit alert if debouncing passed
     if (debouncedAlert != null) {
       emitAlert(debouncedAlert);
       _previousAlert = debouncedAlert;

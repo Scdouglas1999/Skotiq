@@ -48,7 +48,6 @@ extension AnnotationPipeline on AnnotationService {
       return;
     }
 
-    // Check if auto-annotate is enabled
     final AnnotationSettings settings;
     try {
       settings = await _ref.read(annotationSettingsProvider.future);
@@ -72,7 +71,6 @@ extension AnnotationPipeline on AnnotationService {
       return;
     }
 
-    // Check if annotations are enabled at all
     if (!settings.enabled) {
       _logger.debug('Annotations disabled, skipping', source: 'Annotation');
       _ref.read(annotationStateProvider.notifier).state =
@@ -572,7 +570,6 @@ extension AnnotationPipeline on AnnotationService {
           final pixelCoords = plateSolve.skyToPixel(raDeg, decDeg);
           if (pixelCoords == null) continue;
 
-          // Check if pixel coordinates are within image bounds
           if (pixelCoords.x < 0 ||
               pixelCoords.x >= plateSolve.imageWidth ||
               pixelCoords.y < 0 ||

@@ -75,7 +75,6 @@ extension _ImagingServiceFilePaths on ImagingService {
       substitutions: substitutions,
     );
 
-    // Create directory if needed
     final directory = Directory(path.dirname(fullPath));
     if (!await directory.exists()) {
       await directory.create(recursive: true);

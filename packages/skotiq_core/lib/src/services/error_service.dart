@@ -135,7 +135,6 @@ class ErrorService {
       level: entry.severity.toLogLevel().index * 200 + 500,
     );
 
-    // Log to file via logging service if available
     _loggingService?.log(
       entry.severity.toLogLevel(),
       entry.message,
@@ -243,7 +242,6 @@ class ErrorService {
     _listeners.remove(listener);
   }
 
-  /// Check if there are critical errors
   bool get hasCriticalErrors {
     return _errorHistory.any((e) => e.severity == ErrorSeverity.critical);
   }

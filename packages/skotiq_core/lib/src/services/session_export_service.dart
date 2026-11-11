@@ -162,7 +162,6 @@ class SessionExportService {
     final measuredFwhm = await _imagesDao.getFwhmForSession(sessionId);
     final grading = SessionFrameGrading.of(images);
 
-    // Build JSON structure
     final data = {
       'session': {
         'id': session.id,
@@ -257,7 +256,6 @@ class SessionExportService {
       'exportVersion': '1.0',
     };
 
-    // Convert to JSON
     final jsonString = const JsonEncoder.withIndent('  ').convert(data);
 
     final directory = await _getExportDirectory();

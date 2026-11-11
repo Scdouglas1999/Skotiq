@@ -651,7 +651,6 @@ class FlatWizardService {
 
       onProgress?.call(iteration, exposure, adu);
 
-      // Check if within tolerance
       final error = ((adu - targetAdu).abs() / targetAdu) * 100;
       if (error <= tolerance) {
         developer.log(
@@ -855,7 +854,6 @@ class FlatWizardService {
         timestamp: DateTime.now(),
       );
 
-      // Check if within tolerance
       final toleranceAdu = targetAdu * tolerance / 100.0;
       if ((adu - targetAdu).abs() <= toleranceAdu) {
         onProgress?.call(iteration, exposure, adu, 'On target');
@@ -1026,7 +1024,6 @@ class FlatWizardService {
     int orderIndex = 0;
 
     for (final cal in calibrations) {
-      // Skip failed calibrations if requested
       if (onlySuccessful && !cal.success) {
         developer.log(
           'FlatWizardService: Skipping failed calibration for filter: ${cal.filter}',

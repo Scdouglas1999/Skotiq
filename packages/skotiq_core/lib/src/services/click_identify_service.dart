@@ -3,14 +3,12 @@ part of 'annotation_service.dart';
 // Click-to-identify query logic
 
 extension ClickIdentifyService on AnnotationService {
-  /// Identify an object at specific pixel coordinates
   Future<CelestialObjectAnnotation?> identifyAtPixel({
     required PlateSolveData plateSolve,
     required double x,
     required double y,
     double? searchRadiusArcsec,
   }) async {
-    // Convert pixels to RA/Dec
     final coords = plateSolve.pixelToSky(x, y);
 
     _logger.debug(

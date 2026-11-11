@@ -269,7 +269,6 @@ class CloudMotionAnalyzer {
       motionVectors.map((v) => v.directionDegrees).toList(),
     );
 
-    // Calculate ETA if clouds are approaching
     final eta = calculateEta(
       cloudDistanceKm: cloudDistance,
       cloudSpeedKmh: avgSpeed,
@@ -384,7 +383,6 @@ class CloudMotionAnalyzer {
       userLongitude,
     );
 
-    // Check if clouds are approaching
     if (!areCloudsApproaching(
       cloudDirectionDeg: cloudDirectionDeg,
       bearingToUser: bearingToUser,

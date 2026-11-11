@@ -23,7 +23,6 @@ class EquipmentSnapshot {
   /// Last used exposure time in seconds
   final double? exposureTime;
 
-  /// When this snapshot was captured
   final DateTime capturedAt;
 
   const EquipmentSnapshot({
@@ -62,7 +61,6 @@ class EquipmentSnapshot {
     );
   }
 
-  /// Convert to JSON map for database storage
   Map<String, dynamic> toJson() {
     return {
       'coolerTargetTemp': coolerTargetTemp,
@@ -77,7 +75,6 @@ class EquipmentSnapshot {
     };
   }
 
-  /// Create from JSON map (from database)
   factory EquipmentSnapshot.fromJson(Map<String, dynamic> json) {
     return EquipmentSnapshot(
       coolerTargetTemp: jsonDouble(
@@ -121,10 +118,8 @@ class EquipmentSnapshot {
     );
   }
 
-  /// Convert to JSON string for database storage
   String toJsonString() => jsonEncode(toJson());
 
-  /// Create from JSON string (from database)
   factory EquipmentSnapshot.fromJsonString(String jsonStr) {
     final json = decodeJsonObjectString(
       jsonStr,
@@ -133,7 +128,6 @@ class EquipmentSnapshot {
     return EquipmentSnapshot.fromJson(json);
   }
 
-  /// Check if this snapshot has meaningful equipment data
   bool get hasEquipmentData {
     return coolerTargetTemp != null ||
         cameraGain != null ||
@@ -223,7 +217,6 @@ class QuickStartContext {
   /// Total frames planned in the sequence
   final int totalFrames;
 
-  /// When the session was last active
   final DateTime lastSessionDate;
 
   final EquipmentSnapshot? equipmentSnapshot;
@@ -298,13 +291,10 @@ class QuickStartContext {
     return (completedFrames / totalFrames * 100).clamp(0.0, 100.0);
   }
 
-  /// Check if the session has meaningful progress
   bool get hasProgress => completedFrames > 0 || totalIntegrationHours > 0;
 
-  /// Check if this context has target coordinates
   bool get hasTargetCoordinates => targetRa != null && targetDec != null;
 
-  /// Check if this context has equipment snapshot
   bool get hasEquipmentSnapshot =>
       equipmentSnapshot != null && equipmentSnapshot!.hasEquipmentData;
 
