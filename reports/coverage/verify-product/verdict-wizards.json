@@ -1,9 +1,0 @@
-[
-  {
-    "title": "Enabling Morning Report in the widget picker adds nothing and gives no explanation",
-    "verdict": "HOLDS",
-    "reasoning": "cockpit_morning_report.dart:35-43 now returns a _ReportStatusCard titled 'No completed runs yet' instead of SizedBox.shrink() on the empty-runs branch, exactly as claimed. The registry entry (dashboard_widget_registry.dart:332-340, selfChromed: true) builds the widget directly with no wrapper that would swallow a non-empty child, so the tile does reach the grid. Behaviour change, not a label change.",
-    "evidence": "SEVER TEST DONE: replaced the new empty-state branch with the original `return const SizedBox.shrink();` and re-ran cockpit_morning_report_empty_test.dart -> 'renders an empty state instead of vanishing' went RED (+1 -1); restored the file and both tests plus cockpit_morning_report_navigation_test.dart pass (+4). Stale-comment nit (not a defect in behaviour): dashboard_layout.dart:126 and :790 still say 'Self-hides when there's no last session' \u2014 no longer true. Left unedited because dashboard_layout.dart is shared with the dashboard area.",
-    "repaired": false
-  }
-]
