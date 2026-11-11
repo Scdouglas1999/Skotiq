@@ -42,6 +42,20 @@ bool _sanitizes(Setting<Object?> setting) => switch (setting) {
   _ => false,
 };
 
+/// Settings declared after the base build. A base store has no row for
+/// them, so they must read as their defaults; every other comparison here is
+/// made without them.
+const Set<String> _addedSinceBase = {
+  'qhy_discovery_enabled',
+  'catalog_base_url',
+};
+
+/// [rows] without the settings the base build did not have.
+Map<String, String> _baseOnly(Map<String, String> rows) => {
+  for (final entry in rows.entries)
+    if (!_addedSinceBase.contains(entry.key)) entry.key: entry.value,
+};
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -72,16 +86,27 @@ void main() {
       });
 
       final loaded = await container.read(appSettingsProvider.future);
-      final rows = container
+      final allRows = container
           .read(appSettingsProvider.notifier)
           .storedRowsOf(loaded);
+      final rows = _baseOnly(allRows);
       expect(rows, baseRows);
+      for (final key in _addedSinceBase) {
+        final setting = AppSettingsCodec.settingForKey(key)!;
+        expect(
+          allRows[key],
+          setting.toRows(setting.fallback)[key],
+          reason: '$key has no row in a base store, so it reads as its default',
+        );
+      }
 
       // Every setting the fixture could move off its default did move, so a
       // setting that silently fell back to its default would show up here.
       final atDefault = [
         for (final setting in kAppSettingsTable)
-          if (rows[setting.key] == baseDefaults[setting.key]) setting.key,
+          if (!_addedSinceBase.contains(setting.key) &&
+              rows[setting.key] == baseDefaults[setting.key])
+            setting.key,
       ];
       expect(atDefault, unorderedEquals(['image_format', 'bit_depth']));
 
@@ -124,16 +149,19 @@ void main() {
   );
 
   test('defaults and the stored form match the base build', () {
-    expect(AppSettingsCodec.storedKeys, {
+    expect(AppSettingsCodec.storedKeys.difference(_addedSinceBase), {
       ...(fixture['storedKeys'] as List).cast<String>(),
     });
-    expect(AppSettingsCodec.toRows(const AppSettingsState()), baseDefaults);
     expect(
-      AppSettingsCodec.toRows(
+      _baseOnly(AppSettingsCodec.toRows(const AppSettingsState())),
+      baseDefaults,
+    );
+    expect(
+      _baseOnly(AppSettingsCodec.toRows(
         AppSettingsCodec.fromRows(
           Map<String, String>.from(fixture['nonDefaultRows'] as Map),
         ),
-      ),
+      )),
       baseRows,
     );
   });
@@ -143,7 +171,9 @@ void main() {
       (perRaw as Map<String, dynamic>).forEach((raw, expected) {
         final got = _changed(
           baseDefaults,
-          AppSettingsCodec.toRows(AppSettingsCodec.fromRows({key: raw})),
+          _baseOnly(
+            AppSettingsCodec.toRows(AppSettingsCodec.fromRows({key: raw})),
+          ),
         );
         expect(got, expected, reason: '$key = ${jsonEncode(raw)}');
       });
@@ -166,7 +196,9 @@ void main() {
       perRaw.forEach((raw, expected) {
         final got = _changed(
           baseRows,
-          AppSettingsCodec.toRows(AppSettingsCodec.applyRows(b, {key: raw})),
+          _baseOnly(
+            AppSettingsCodec.toRows(AppSettingsCodec.applyRows(b, {key: raw})),
+          ),
         );
         if (_sanitizes(setting) && !_sameMap(got, expected)) return;
         expect(got, expected, reason: '$key = ${jsonEncode(raw)}');
@@ -186,18 +218,22 @@ void main() {
       fixture['wireNonDefault'],
     );
     expect(
-      AppSettingsCodec.toRows(
-        AppSettingsCodec.fromWire(
-          models.AppSettings.fromJson(
-            Map<String, dynamic>.from(fixture['wireNonDefault'] as Map),
+      _baseOnly(
+        AppSettingsCodec.toRows(
+          AppSettingsCodec.fromWire(
+            models.AppSettings.fromJson(
+              Map<String, dynamic>.from(fixture['wireNonDefault'] as Map),
+            ),
           ),
         ),
       ),
       fixture['fromWireNonDefault'],
     );
     expect(
-      AppSettingsCodec.toRows(
-        AppSettingsCodec.fromWire(const models.AppSettings()),
+      _baseOnly(
+        AppSettingsCodec.toRows(
+          AppSettingsCodec.fromWire(const models.AppSettings()),
+        ),
       ),
       fixture['fromWireEmpty'],
     );
@@ -219,7 +255,7 @@ void main() {
         );
         final got = next == null
             ? null
-            : _changed(baseRows, AppSettingsCodec.toRows(next));
+            : _changed(baseRows, _baseOnly(AppSettingsCodec.toRows(next)));
         if (setting == null) {
           // Not a wire field. The base build answered to one stored key
           // here, `sidebar_collapsed`, to replay a client's own display

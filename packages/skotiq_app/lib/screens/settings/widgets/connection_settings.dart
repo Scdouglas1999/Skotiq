@@ -212,6 +212,19 @@ class ConnectionSettings extends ConsumerWidget {
                   value: settings.alpacaAutoDiscover,
                   onChanged: settingsNotifier.setAlpacaAutoDiscover,
                 ),
+                isMobile: isMobile,
+              ),
+              SettingRow(
+                icon: LucideIcons.camera,
+                title: 'Look for QHY cameras',
+                subtitle: _qhyDiscoverySubtitle(
+                  linked: isNetwork,
+                  sdkAvailable: ref.watch(qhySdkAvailableProvider).valueOrNull,
+                ),
+                trailing: SettingsSwitch(
+                  value: settings.qhyDiscoveryEnabled,
+                  onChanged: settingsNotifier.setQhyDiscoveryEnabled,
+                ),
                 isLast: true,
                 isMobile: isMobile,
               ),
@@ -332,6 +345,24 @@ class ConnectionSettings extends ConsumerWidget {
       builder: (_) => const _ConnectToServerDialog(),
     );
   }
+}
+
+/// What the QHY switch does here. The QHY SDK runs on the computer that owns
+/// the rig, so on a linked client the switch is the host's.
+String _qhyDiscoverySubtitle({
+  required bool linked,
+  required bool? sdkAvailable,
+}) {
+  if (linked) {
+    return 'Set on the imaging host. Turn off if its device scan crashes or '
+        'hangs in the QHY SDK.';
+  }
+  if (sdkAvailable == false) {
+    return 'The QHY SDK is not installed on this computer, so scans find no '
+        'QHY devices either way.';
+  }
+  return 'Turn off if a device scan crashes or hangs in the QHY SDK. QHY '
+      'cameras and filter wheels then stay out of scans.';
 }
 
 class _HostSettingsRefreshButton extends ConsumerStatefulWidget {

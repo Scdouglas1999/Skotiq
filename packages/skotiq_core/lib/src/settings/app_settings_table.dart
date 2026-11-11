@@ -362,6 +362,25 @@ const List<Setting<Object?>> kAppSettingsTable = [
     false,
     seeded: true,
   ),
+
+  /// Whether device scans ask the QHY SDK for cameras and filter wheels. Off
+  /// on a computer where the QHY SDK crashes or hangs while enumerating.
+  /// Applied by the host at start-up and whenever it changes.
+  BoolSetting(
+    'qhyDiscoveryEnabled',
+    'qhy_discovery_enabled',
+    true,
+    sync: SettingSync.hostStore,
+  ),
+
+  /// A self-hoster's mirror of the catalog release, asked before each
+  /// catalog's own site. Empty: the Skotiq release.
+  TextSetting(
+    'catalogBaseUrl',
+    'catalog_base_url',
+    '',
+    sync: SettingSync.hostStore,
+  ),
   BoolSetting('webServerEnabled', 'web_server_enabled', false, seeded: true),
   IntSetting(
     'webServerPort',

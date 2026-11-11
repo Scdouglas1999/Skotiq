@@ -318,6 +318,7 @@ export 'src/providers/suggestion_filter_provider.dart';
 export 'src/providers/transient_alert_provider.dart';
 export 'src/providers/critical_alert_provider.dart';
 export 'src/providers/mount_guard_provider.dart';
+export 'src/providers/catalog_download_source_provider.dart';
 export 'src/providers/device_connection_progress_provider.dart';
 // Recovery Mode — providers for the recovery state machine
 // (currentRecoveryProvider, recoveryHistoryProvider, recoveryControlProvider,

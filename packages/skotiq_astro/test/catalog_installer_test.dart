@@ -276,6 +276,43 @@ void main() {
       expect(status.sizeBytes, utf8.encode(_ngcCsv).length);
     });
 
+    test('a mirror set for self-hosting is asked first, and clearing it '
+        'goes back to the release', () async {
+      final urls = <String>[];
+      CatalogInstaller.httpClientFactory = () => _FakeClient((url) {
+        urls.add(url);
+        return null;
+      });
+      addTearDown(() => manager.setCatalogBaseUrl(''));
+
+      manager.setCatalogBaseUrl(' https://mirror.example.org/catalogs/ ');
+      expect(manager.catalogBaseUrl, 'https://mirror.example.org/catalogs/');
+      await expectLater(
+        manager.install(SkyCatalog.dso),
+        throwsA(isA<CatalogDownloadException>()),
+      );
+      expect(urls, [
+        'https://mirror.example.org/catalogs/NGC.csv',
+        SkyCatalog.dso.upstreamUrl,
+      ]);
+
+      manager.setCatalogBaseUrl('');
+      expect(manager.catalogBaseUrl, kCatalogReleaseBaseUrl);
+    });
+
+    test('a mirror address that is not http or https is refused', () {
+      expect(
+        () => manager.setCatalogBaseUrl('ftp://mirror.example.org/c'),
+        throwsArgumentError,
+      );
+      expect(manager.catalogBaseUrl, kCatalogReleaseBaseUrl);
+      expect(catalogBaseUrlProblem('https://mirror.example.org/c'), isNull);
+      expect(catalogBaseUrlProblem('http://10.0.0.5:8080/c'), isNull);
+      expect(catalogBaseUrlProblem('mirror.example.org/c'), isNotNull);
+      expect(catalogBaseUrlProblem('https:///c'), isNotNull);
+      expect(catalogBaseUrlProblem('https://example.org/c?x=1'), isNotNull);
+    });
+
     test('servers that cannot be reached fail with a plain message', () async {
       CatalogInstaller.httpClientFactory = () => _FakeClient(
         (url) =>

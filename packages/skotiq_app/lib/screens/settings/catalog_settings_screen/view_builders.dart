@@ -98,6 +98,16 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
 
         // Actions
         _buildActionsSection(context),
+        const SizedBox(height: 32),
+
+        Text(
+          'Advanced',
+          style: SkotiqTypography.sectionTitle.copyWith(
+            color: colors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 16),
+        const CatalogDownloadSourceCard(),
       ],
     );
   }

@@ -186,6 +186,11 @@ class _SidePanelContent extends ConsumerWidget {
             onDisconnectAll: onDisconnectAll,
           ),
           const _SaveSessionDevicesButton(),
+          if (selectedProfile case final profile?)
+            ProfileScanNotice(
+              profile: profile,
+              padding: const EdgeInsets.only(top: SkotiqTokens.spaceMd),
+            ),
           const SizedBox(height: SidePanel.sectionGap),
           const EquipmentReadinessPanel(),
           const SizedBox(height: SidePanel.sectionGap),

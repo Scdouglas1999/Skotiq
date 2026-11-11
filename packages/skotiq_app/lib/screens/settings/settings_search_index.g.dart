@@ -187,6 +187,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
   ],
   'catalogs': [
     'Actions',
+    'Advanced',
     'Catalogs',
     'Deep-Star Tier (Tycho-2 / Gaia)',
     'Delete annotation catalog',
@@ -195,6 +196,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'GLADE+ galaxy catalog',
     'HYG Star Database',
     'Minor Planets & Comets (MPC)',
+    'Mirror address',
     'OpenNGC',
   ],
   'connection': [
@@ -207,6 +209,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Include the configured Alpaca server in automatic startup discovery',
     'Include the configured INDI server in automatic startup discovery',
     'INDI server address',
+    'Look for QHY cameras',
     'Query Alpaca on startup',
     'Query INDI on startup',
     'Refresh host settings',

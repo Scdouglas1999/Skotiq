@@ -10,6 +10,7 @@ import 'widgets/device_tile_width.dart';
 import 'widgets/discovery_panel.dart';
 import 'widgets/equipment_health_panel.dart';
 import 'widgets/equipment_readiness_panel.dart';
+import 'widgets/profile_scan_notice.dart';
 import 'widgets/switch_control_card.dart';
 import 'dialogs/profile_editor_dialog.dart';
 import 'tabs/settings_tab.dart';

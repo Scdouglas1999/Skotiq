@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/skotiq_app.dart';
 import 'package:skotiq_app/startup/always_on_services.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -164,6 +165,14 @@ final List<HostStartupStep> hostStartupSteps = [
       host.alwaysOn = services;
       host.onStop('always-on services', () async => services.stop());
     },
+  ),
+  HostStartupStep(
+    name: 'QHY discovery switch',
+    phase: _services,
+    needs: ['local backend', 'database'],
+    // Before anything scans: the auto-connect below enumerates the buses, and
+    // that is where a misbehaving QHY SDK hangs.
+    run: _followQhyDiscoverySetting,
   ),
   HostStartupStep(
     name: 'equipment auto-connect',
@@ -412,6 +421,34 @@ Future<void> _startUpdateReceiver(HostStartup host) async {
     'Update push discovery responder started',
     source: host.logSource,
   );
+}
+
+/// Applies "Look for QHY cameras" to the native SDK layer, which forgets it
+/// at every start, and again each time the setting changes, from this
+/// computer or from a linked client.
+Future<void> _followQhyDiscoverySetting(HostStartup host) async {
+  await host.backendReady;
+  Future<void> apply(bool enabled) async {
+    final backend = host.container.read(backendProvider);
+    if (backend is! VendorSdkBackend) return;
+    await (backend as VendorSdkBackend).setQhyDiscoveryEnabled(enabled);
+    if (!enabled) {
+      host.logger.info(
+        'QHY cameras are left out of device scans (Settings > Connection)',
+        source: host.logSource,
+      );
+    }
+  }
+
+  final settings = await host.container.read(appSettingsProvider.future);
+  await apply(settings.qhyDiscoveryEnabled);
+  final subscription = host.container.listen<bool?>(
+    appSettingsProvider.select((s) => s.valueOrNull?.qhyDiscoveryEnabled),
+    (previous, next) {
+      if (next != null && next != previous) unawaited(apply(next));
+    },
+  );
+  host.onStop('QHY discovery switch', () async => subscription.close());
 }
 
 /// Scans for devices once the window is up, when "Discover devices on

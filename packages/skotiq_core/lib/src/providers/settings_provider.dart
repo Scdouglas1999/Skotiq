@@ -61,6 +61,7 @@ part 'settings_sections/notifications.dart';
 part 'settings_sections/phd2.dart';
 part 'settings_sections/plate_solve.dart';
 part 'settings_sections/protocol.dart';
+part 'settings_sections/catalogs.dart';
 part 'settings_sections/remote_access.dart';
 part 'settings_sections/sequencer.dart';
 part 'settings_sections/app_settings_notifier.dart';

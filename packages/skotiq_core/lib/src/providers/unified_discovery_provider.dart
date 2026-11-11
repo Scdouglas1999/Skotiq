@@ -10,6 +10,10 @@ import '../services/device_matching_service.dart';
 import 'backend_provider.dart';
 import 'settings_provider.dart';
 
+/// The one bucket a linked client's discovery fills: its host answers for
+/// every driver in a single sweep (see `_getAvailableBackends`).
+const DriverType linkedHostScanBucket = DriverType.native;
+
 final deviceMatchingServiceProvider = Provider<DeviceMatchingService>((ref) {
   return DeviceMatchingService();
 });
@@ -299,7 +303,7 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
     // merged and rebuilt as one unit. (The scan at launch is a host start-up
     // step and never runs on a client.)
     if (_ref.read(isRemoteModeProvider)) {
-      return const [DriverType.native];
+      return const [linkedHostScanBucket];
     }
 
     final backends = <DriverType>[

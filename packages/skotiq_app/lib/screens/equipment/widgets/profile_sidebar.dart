@@ -5,6 +5,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/tutorial_keys/equipment_keys.dart';
+import 'profile_scan_notice.dart';
 
 /// Footer action that switches the app to the selected profile for this
 /// session. Exposed so tests can assert it is present (and absent on the
@@ -283,6 +284,10 @@ class ProfileSidebar extends ConsumerWidget {
             const SizedBox(height: 8),
           ],
           if (hasDisconnectedDevices) ...[
+            ProfileScanNotice(
+              profile: selectedProfile,
+              padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceSm),
+            ),
             SkotiqButton(
               // Spotlight target for the Equipment Setup tour's "Connect
               // Devices" step.

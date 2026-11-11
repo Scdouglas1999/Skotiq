@@ -16,7 +16,6 @@ import '../providers/profiles_provider.dart';
 import '../providers/profile_activation_writethrough.dart';
 import 'logging_service.dart';
 import '../providers/settings_provider.dart';
-import '../providers/unified_discovery_provider.dart';
 import '../utils/json_validation.dart';
 import 'device_service.dart';
 import 'optical_train_limits.dart';
@@ -39,46 +38,6 @@ class ProfileService {
   EquipmentProfilesNotifier get _profilesNotifier =>
       _ref.read(equipmentProfilesProvider.notifier);
 
-  /// Validate that all devices in a profile are currently discoverable
-  ///
-  /// Checks each device ID configured in the profile against currently
-  /// discovered devices. Returns a result indicating which devices are
-  /// available and which are missing.
-  Future<ProfileValidationResult> validateProfile(int profileId) async {
-    final authority = _authority;
-    final profile = await _getProfileModelById(profileId, authority: authority);
-
-    if (profile == null) {
-      throw Exception('Profile not found');
-    }
-
-    final discoveryState = _ref.read(unifiedDiscoveryProvider);
-    final rawDevices = discoveryState.rawDevices;
-
-    final discoveredIds = rawDevices.map((d) => d.id).toSet();
-
-    final missingDevices = <String>[];
-    final availableDevices = <String>[];
-    final missingDeviceIds = <String, String>{};
-
-    for (final slot in deviceSlots) {
-      final deviceId = profile.deviceIdFor(slot.type);
-      if (deviceId == null || deviceId.isEmpty) continue;
-      if (discoveredIds.contains(deviceId)) {
-        availableDevices.add(slot.label);
-      } else {
-        missingDevices.add(slot.label);
-        missingDeviceIds[slot.label] = deviceId;
-      }
-    }
-
-    return ProfileValidationResult(
-      isValid: missingDevices.isEmpty,
-      missingDevices: missingDevices,
-      availableDevices: availableDevices,
-      missingDeviceIds: missingDeviceIds,
-    );
-  }
 
   /// Load and activate a profile, optionally connecting devices
   Future<void> loadProfile(int profileId, {bool autoConnect = false}) async {

@@ -91,6 +91,46 @@ abstract interface class DomeStatusBackend {
   Future<HardwareDomeStatus> getHardwareDomeStatus(String deviceId);
 }
 
+/// A known quirk of a device model and the workaround the driver applies for
+/// it, as the native quirk table lists it.
+class DeviceQuirk {
+  const DeviceQuirk({required this.category, required this.description});
+
+  /// What the quirk concerns: `Temperature`, `Position`, `Timing`,
+  /// `Discovery` or `Camera`.
+  final String category;
+
+  /// The workaround in a short phrase, e.g. `500ms delay after move`.
+  final String description;
+
+  Map<String, dynamic> toJson() => {
+    'category': category,
+    'description': description,
+  };
+
+  factory DeviceQuirk.fromJson(Map<String, dynamic> json) => DeviceQuirk(
+    category: json['category'] as String,
+    description: json['description'] as String,
+  );
+}
+
+/// Backends that can list the workarounds their drivers apply to a connected
+/// device. Separate from [DeviceBackend] so test backends need not answer.
+abstract interface class DeviceQuirksBackend {
+  /// The quirks applied to [deviceId], empty when there are none.
+  Future<List<DeviceQuirk>> deviceQuirks(String deviceId);
+}
+
+/// Backends that run the vendor camera SDKs in this process.
+abstract interface class VendorSdkBackend {
+  /// Whether the QHY SDK library loaded on this computer.
+  Future<bool> qhySdkAvailable();
+
+  /// Whether device scans ask the QHY SDK for cameras and filter wheels, for
+  /// the life of this process. Open connections are not touched.
+  Future<void> setQhyDiscoveryEnabled(bool enabled);
+}
+
 /// Role interface covering driver-bound device operations.
 ///
 /// What this role owns:

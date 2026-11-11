@@ -9,13 +9,31 @@ import 'package:path/path.dart' as path;
 /// fallback when a release asset is unreachable.
 ///
 /// Repointable by a self-hoster at build time via
-/// `--dart-define=SKOTIQ_CATALOG_BASE_URL=<url>` or at runtime through the
-/// persisted override the catalog manager reads.
+/// `--dart-define=SKOTIQ_CATALOG_BASE_URL=<url>`, or at runtime through
+/// `CatalogInstaller.setCatalogBaseUrl` (Settings > Catalogs).
 const String kCatalogReleaseBaseUrl = String.fromEnvironment(
   'SKOTIQ_CATALOG_BASE_URL',
   defaultValue:
       'https://github.com/Scdouglas1999/Skotiq/releases/download/catalogs-v1',
 );
+
+/// Why [url] cannot be a catalog download source, or null when it can. The
+/// asset file names are appended to it, so it is an absolute http or https
+/// address with a host and nothing after the path.
+String? catalogBaseUrlProblem(String url) {
+  final uri = Uri.tryParse(url.trim());
+  if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
+    return 'Use an address that starts with https:// or http://.';
+  }
+  if (uri.host.isEmpty) {
+    return 'The address needs a host name, as in https://example.com/catalogs.';
+  }
+  if (uri.hasQuery || uri.hasFragment) {
+    return 'Leave out the ? or # part: file names are added to the end of the '
+        'address.';
+  }
+  return null;
+}
 
 /// The catalogs Skotiq installs as files, and everything that is fixed about
 /// each: its wire name (the enum name), where it downloads from, what it is

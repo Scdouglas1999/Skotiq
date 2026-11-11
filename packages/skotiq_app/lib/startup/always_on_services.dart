@@ -113,6 +113,13 @@ final List<AlwaysOnService> alwaysOnServices = [
     "the native guard following the operator's solve-sync-resume choice",
   ),
 
+  AlwaysOnService(
+    'catalog download source',
+    catalogDownloadSourceSyncProvider,
+    _everyRole,
+    'catalog downloads using the mirror set in Settings > Catalogs',
+  ),
+
   // Recovery.
   AlwaysOnService(
     'recovery events',
