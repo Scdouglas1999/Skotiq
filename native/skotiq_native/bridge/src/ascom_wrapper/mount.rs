@@ -773,21 +773,11 @@ impl DeviceDriver for AscomMountWrapper {
         result
     }
 
+    /// Releases the driver without commanding the mount, as the Alpaca path
+    /// does: a slew still running belongs to whoever started it (the user in
+    /// the driver's own app or the hand controller, often), and the driver
+    /// keeps the hardware for its other clients.
     async fn disconnect(&mut self) -> Result<(), DriverError> {
-        // Best-effort: halt any in-progress slew before disconnecting. A PARKED
-        // mount cannot be slewing, and some drivers (e.g. PegasusAstro NYX)
-        // raise "Mount is parked" from AbortSlew — that is an expected benign
-        // state, not a failure, so don't alarm the user with a WARN over it.
-        if let Err(err) = self.stop().await {
-            if err.to_string().to_lowercase().contains("parked") {
-                tracing::debug!(
-                    "Skipping slew-abort before disconnect (mount parked): {}",
-                    err
-                );
-            } else {
-                tracing::warn!("Failed to stop mount before disconnect: {}", err);
-            }
-        }
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::Disconnect(tx)).await?;
         let disconnect_result =
@@ -1238,47 +1228,27 @@ mod tests {
         assert!(wrapper.at_home().await.expect("at_home"));
     }
 
+    /// Disconnecting is not a motion command: a slew someone else started
+    /// keeps going, as it does when an Alpaca mount is released.
     #[tokio::test]
-    async fn test_disconnect_stops_before_disconnect() {
-        let order = Arc::new(Mutex::new(Vec::new()));
-        let order_flag = Arc::clone(&order);
-        let mut wrapper = build_test_wrapper(move |cmd| {
-            match cmd {
-                AscomMountCommand::Disconnect(reply) => {
-                    order_flag.lock().expect("lock order").push("disconnect");
-                    let _ = reply.send(Ok(()));
-                }
-                AscomMountCommand::Stop(reply) => {
-                    order_flag.lock().expect("lock order").push("stop");
-                    let _ = reply.send(Ok(()));
-                }
-                _ => {}
+    async fn disconnect_sends_no_motion_command() {
+        let sent = Arc::new(Mutex::new(Vec::new()));
+        let sent_log = Arc::clone(&sent);
+        let mut wrapper = build_test_wrapper(move |cmd| match cmd {
+            AscomMountCommand::Disconnect(reply) => {
+                sent_log.lock().expect("lock sent").push("disconnect");
+                let _ = reply.send(Ok(()));
+                true
             }
-            let done = order_flag.lock().expect("lock order").len() >= 2;
-            done
+            AscomMountCommand::Stop(reply) | AscomMountCommand::AbortSlew(reply) => {
+                sent_log.lock().expect("lock sent").push("abort");
+                let _ = reply.send(Ok(()));
+                false
+            }
+            _ => false,
         });
         wrapper.disconnect().await.expect("disconnect");
-        let order = order.lock().expect("lock order");
-        assert_eq!(order.as_slice(), ["stop", "disconnect"]);
-    }
-
-    #[tokio::test]
-    async fn test_disconnect_returns_ok_when_stop_fails_but_disconnect_succeeds() {
-        let mut wrapper = build_test_wrapper(|cmd| {
-            match cmd {
-                AscomMountCommand::Stop(reply) => {
-                    let _ = reply.send(Err(DriverError::SdkError("stop failed".to_string())));
-                }
-                AscomMountCommand::Disconnect(reply) => {
-                    let _ = reply.send(Ok(()));
-                    return true;
-                }
-                _ => {}
-            }
-            false
-        });
-
-        wrapper.disconnect().await.expect("disconnect");
+        assert_eq!(sent.lock().expect("lock sent").as_slice(), ["disconnect"]);
         assert!(!wrapper.is_connected());
     }
 }
