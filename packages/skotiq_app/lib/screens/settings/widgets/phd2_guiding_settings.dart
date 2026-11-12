@@ -8,6 +8,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:file_selector/file_selector.dart';
 
 import '../../../widgets/remote_host_path_dialog.dart';
+import 'admin_only.dart';
 import 'settings_widgets.dart';
 
 class Phd2GuidingSettings extends ConsumerStatefulWidget {
@@ -308,11 +309,13 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
                   subtitle: settings.phd2Path.isEmpty
                       ? 'Auto-detect (optional)'
                       : settings.phd2Path,
-                  trailing: SettingsPathInput(
-                    key: const ValueKey('phd2_executable_path'),
-                    path: settings.phd2Path,
-                    authorityKey: authority,
-                    onBrowse: _selectPhd2Path,
+                  trailing: AdminOnlyControl(
+                    child: SettingsPathInput(
+                      key: const ValueKey('phd2_executable_path'),
+                      path: settings.phd2Path,
+                      authorityKey: authority,
+                      onBrowse: _selectPhd2Path,
+                    ),
                   ),
                 ),
                 SettingRow(

@@ -979,6 +979,9 @@ final notificationRouterProvider = Provider<NotificationRouter>((ref) {
   // and Pushover through the three app settings that sync here. Whatever it
   // changes becomes the transport config.
   ref.listen(appSettingsProvider, (prev, next) {
+    // On a linked client these settings mirror the host's, as markers when
+    // the link has no admin access; they are not this computer's credentials.
+    if (ref.read(diagnosticsBackendProvider).remoteHost != null) return;
     final before = prev?.valueOrNull;
     final after = next.valueOrNull;
     if (before == null || after == null) return;

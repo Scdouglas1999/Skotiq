@@ -47,17 +47,15 @@ abstract final class AppSettingsCodec {
         setting.key,
   });
 
-  /// Rows that hold a credential ([Setting.credential]).
-  static final Set<String> credentialKeys = Set.unmodifiable({
-    for (final setting in kAppSettingsTable)
-      if (setting.credential) ...setting.keys,
+  /// Wire fields of the typed settings that a linked client changes only
+  /// with admin access to the host, and why ([Setting.adminOnly]).
+  static final Map<String, AdminOnly> adminOnlyWireFields = Map.unmodifiable({
+    for (final setting in _byWire.values)
+      if (setting.adminOnly != null) setting.wire: setting.adminOnly!,
   });
 
-  /// Wire fields of the typed settings that hold a credential.
-  static final Set<String> credentialWireKeys = Set.unmodifiable({
-    for (final setting in _byWire.values)
-      if (setting.credential) setting.wire,
-  });
+  /// Every wire field a setting stands behind.
+  static final Set<String> wireFields = Set.unmodifiable(_byWire.keys);
 
   /// The setting stored under [key], if any.
   static Setting<Object?>? settingForKey(String key) => _byKey[key];

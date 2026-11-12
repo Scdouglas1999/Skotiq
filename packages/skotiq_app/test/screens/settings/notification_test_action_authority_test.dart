@@ -121,4 +121,56 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets(
+    'a link without admin access sees whether each credential is set, and '
+    'no test that needs the value',
+    (tester) async {
+      final host = _networkBackend();
+      addTearDown(host.dispose);
+
+      await pumpAppScreen(
+        tester,
+        const NotificationSettings(),
+        size: const Size(1200, 1600),
+        settle: false,
+        extraOverrides: [
+          backendProvider.overrideWith(
+            (ref) => _SwappableBackendNotifier(ref, host),
+          ),
+          appSettingsProvider.overrideWith(_HiddenCredentials.new),
+          hostAdminAccessProvider.overrideWith((ref) async => false),
+        ],
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        find.text(
+          'Set. Change it on the imaging computer, or link with admin access.',
+        ),
+        findsNWidgets(2),
+        reason: 'the Discord webhook and the Pushover API key are set',
+      );
+      expect(
+        find.text(
+          'Not set. Set it on the imaging computer, or link with admin '
+          'access.',
+        ),
+        findsOneWidget,
+        reason: 'the Pushover user key is not',
+      );
+      expect(find.textContaining(credentialSetMarker), findsNothing);
+      expect(find.text('Test Discord'), findsNothing);
+      expect(find.text('Test Pushover'), findsNothing);
+    },
+  );
+}
+
+class _HiddenCredentials extends AppSettingsNotifier {
+  @override
+  Future<AppSettingsState> build() async => const AppSettingsState(
+        discordWebhook: credentialSetMarker,
+        pushoverKey: credentialSetMarker,
+      );
 }

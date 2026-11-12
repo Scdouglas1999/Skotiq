@@ -9,6 +9,7 @@ import 'package:skotiq_app/screens/night_control/panel/solve/recent_solves_provi
 import 'package:skotiq_app/services/manual_capture_controller.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
+import '../request_context.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
@@ -63,8 +64,10 @@ class RuntimeStateHandlers implements RouteSource {
   /// GET /api/runtime/recent-events?limit=N — the newest N events of the
   /// night a client connecting now missed, oldest first, without per-tick
   /// telemetry. A client seeds its event log with them so it opens on the
-  /// same log the host shows.
+  /// same log the host shows. A request without admin access gets credential
+  /// values hidden, as on the WebSocket.
   Future<Response> handleRecentEvents(Request request) async {
+    final adminAccess = requestHasAdminAccess(request);
     final requested = request.url.queryParameters['limit'];
     final parsed = requested == null ? null : int.tryParse(requested);
     final limit = (parsed ?? 100).clamp(1, 200);
@@ -90,7 +93,12 @@ class RuntimeStateHandlers implements RouteSource {
         ? kept.sublist(kept.length - limit)
         : kept;
     return jsonOk({
-      'events': [for (final event in newest) _jsonSafe(event.toJson())],
+      'events': [
+        for (final event in newest)
+          _jsonSafe(
+            (adminAccess ? event : eventWithCredentialsHidden(event)).toJson(),
+          ),
+      ],
     });
   }
 

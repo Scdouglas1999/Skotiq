@@ -13,6 +13,7 @@
 //     client holding an authenticated /events WebSocket open.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/pairing_screen.dart';
 import 'package:skotiq_app/screens/settings/widgets/remote_access_settings.dart';
@@ -65,6 +66,7 @@ const _authRequired = WebServerState(
 Future<void> _pumpRemoteAccess(
   WidgetTester tester, {
   WebServerState webState = _authRequired,
+  List<Override> linkOverrides = const [],
 }) async {
   final database = mockDatabase();
   addTearDown(database.close);
@@ -84,6 +86,7 @@ Future<void> _pumpRemoteAccess(
       webServerStateProvider.overrideWith(
         (ref) => _StubWebServerNotifier(webState),
       ),
+      ...linkOverrides,
     ],
   );
   await tester.pump();
@@ -92,6 +95,39 @@ Future<void> _pumpRemoteAccess(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('a link without admin access sees the host\'s server port and '
+      'where to change it, and cannot switch the server off', (tester) async {
+    await _pumpRemoteAccess(
+      tester,
+      linkOverrides: [
+        isRemoteModeProvider.overrideWithValue(true),
+        hostAdminAccessProvider.overrideWith((ref) async => false),
+      ],
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('remote-access-port')), findsNothing);
+    expect(
+      find.text(
+        'Port 8080. Change this on the imaging computer, or link with admin '
+        'access.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Change this on the imaging computer, or link with admin access.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('the imaging computer itself changes both', (tester) async {
+    await _pumpRemoteAccess(tester);
+    expect(find.byKey(const ValueKey('remote-access-port')), findsOneWidget);
+    expect(find.textContaining('link with admin access'), findsNothing);
+  });
 
   testWidgets('the page never claims localhost is exempt from pairing',
       (tester) async {

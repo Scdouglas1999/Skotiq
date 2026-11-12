@@ -661,6 +661,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
     }
     _socketViewerIds.clear();
     _socketAuthIdentities.clear();
+    _adminSockets.clear();
     _socketLastSeenAt.clear();
     _sockets.clear();
     _publishConnectedClientCount();

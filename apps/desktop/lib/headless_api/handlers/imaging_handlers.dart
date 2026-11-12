@@ -9,7 +9,9 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:path/path.dart' as path;
 import 'package:shelf/shelf.dart';
 
+import '../admin_only_settings.dart';
 import '../job_manager.dart';
+import '../request_context.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
 import 'device_handlers.dart' show requestPrefersLegacyBlocking;
@@ -226,12 +228,36 @@ class ImagingHandlers implements RouteSource {
     });
   }
 
+  /// Runs the solver at `executablePath` to read its version. A request
+  /// without admin access may run only a solver this host is already set to
+  /// use, configured or found.
   Future<Response> handleVerifyPlateSolver(Request request) async {
     _logInfo('[API] POST /api/plate-solver/verify');
     final payload = await readJsonObject(request);
     final executablePath = requireString(payload, 'executablePath');
 
     final backend = container.read(imagingBackendProvider);
+    if (!requestHasAdminAccess(request)) {
+      final configured = await backend.getPlateSolverConfig();
+      final detected = await backend.detectPlateSolvers();
+      final hostSolvers = {
+        configured.astapPath,
+        configured.astrometryPath,
+        detected.astapPath,
+        detected.astrometryPath,
+      }..removeWhere((path) => path == null || path.isEmpty);
+      if (!hostSolvers.contains(executablePath)) {
+        throw HandlerFailure(
+          code: adminOnlyRefusalCode(AdminOnly.hostProgram),
+          statusCode: HttpStatus.forbidden,
+          message:
+              'Only a link with admin access can run a program the imaging '
+              'computer is not set to use. Verify the configured solver, or '
+              'link with admin access.',
+          details: const {'requiredLevel': 'admin'},
+        );
+      }
+    }
     final info = await backend.verifyPlateSolver(executablePath);
     return jsonOk({
       'path': info.path,
@@ -276,6 +302,13 @@ class ImagingHandlers implements RouteSource {
     );
 
     final backend = container.read(imagingBackendProvider);
+    final current = await backend.getPlateSolverConfig();
+    refuseAdminOnlyChange(request, {
+      if (pref.astapPath != current.astapPath)
+        'astapPath': AdminOnly.hostProgram,
+      if (pref.astrometryPath != current.astrometryPath)
+        'astrometryPath': AdminOnly.hostProgram,
+    });
     await backend.setPlateSolverConfig(pref);
     return jsonOk({'status': 'saved'});
   }

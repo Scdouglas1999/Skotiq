@@ -64,6 +64,32 @@ void main() {
     );
   });
 
+  testWidgets('a link without admin access reads the source and where to '
+      'change it', (tester) async {
+    await pumpAppScreen(
+      tester,
+      const SingleChildScrollView(child: CatalogDownloadSourceCard()),
+      size: const Size(420, 900),
+      extraOverrides: [
+        appSettingsProvider.overrideWith(_StubAppSettingsNotifier.new),
+        hostAdminAccessProvider.overrideWith((ref) async => false),
+      ],
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('download from the Skotiq release'),
+      findsOneWidget,
+    );
+    expect(find.text('Change'), findsNothing);
+    expect(
+      find.text(
+        'Change this on the imaging computer, or link with admin access.',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('an address that is not http or https is refused with the '
       'reason', (tester) async {
     final handle = await _pump(tester);

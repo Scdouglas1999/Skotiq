@@ -198,6 +198,10 @@ class HeadlessApiServer {
   /// disabled (no token configured); those still get a viewerId, but it
   /// falls back to whatever the client provides.
   final Map<WebSocketChannel, String?> _socketAuthIdentities = {};
+
+  /// Sockets whose upgrade request had admin access. Every other socket gets
+  /// events with credential values hidden ([eventWithCredentialsHidden]).
+  final Set<WebSocketChannel> _adminSockets = {};
   final Map<WebSocketChannel, DateTime> _socketLastSeenAt = {};
 
   /// Broadcasts [_sockets].length on every attach/drop. Broadcast (not single

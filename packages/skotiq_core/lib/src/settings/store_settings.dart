@@ -11,8 +11,11 @@
 /// one, means "nothing saved", and the feature decodes the document itself.
 library;
 
+import '../models/notification/notification_categories.dart'
+    show NotificationTransportKind;
 import '../models/sequence/sequence_models.dart'
     show BinningMode, LiveStackingThumbnailSize;
+import '../services/sync/sync_service.dart' show SyncSettingsKeys;
 import 'setting.dart';
 
 abstract final class StoreSettings {
@@ -418,11 +421,14 @@ abstract final class StoreSettings {
     sync: SettingSync.hostStore,
   );
 
+  /// What the host publishes to Home Assistant through its MQTT broker, whose
+  /// password it keeps, and whether Home Assistant may command the rig.
   static const homeAssistantDiscovery = OptionalTextSetting(
     'homeAssistantDiscovery',
     'home_assistant_discovery',
     unsetText: '',
     sync: SettingSync.hostStore,
+    adminOnly: AdminOnly.credentialTarget,
   );
 
   static const pushNotifications = OptionalTextSetting(
@@ -446,6 +452,7 @@ abstract final class StoreSettings {
     'plugin_enablement',
     unsetText: '',
     sync: SettingSync.hostStore,
+    adminOnly: AdminOnly.hostProgram,
   );
 
   /// The camera's gain and offset presets.
@@ -530,7 +537,59 @@ abstract final class StoreSettings {
     cameraPresetOverrides,
   ];
 
+  /// Each notification transport's server and account. The passwords, tokens
+  /// and webhook addresses are in the host's keyring.
+  static const notificationTransports = SettingFamily(
+    NotificationTransportKind.settingKeyPrefix,
+    sync: SettingSync.hostStore,
+    adminOnly: AdminOnly.credentialTarget,
+  );
+
+  /// Where the host's cloud backup goes. Its password or secret key is in the
+  /// host's keyring.
+  static const cloudBackup = SettingFamily(
+    SyncSettingsKeys.prefix,
+    sync: SettingSync.hostStore,
+    adminOnly: AdminOnly.credentialTarget,
+  );
+
+  /// Where the host's backups are kept (`backup.directory`).
+  static const backups = SettingFamily(
+    'backup.',
+    sync: SettingSync.hostStore,
+    adminOnly: AdminOnly.administration,
+  );
+
+  /// Whether and how often the host backs itself up
+  /// (`autosave.backup_enabled`, `autosave.backup_interval_hours`).
+  static const automaticBackups = SettingFamily(
+    'autosave.backup_',
+    sync: SettingSync.hostStore,
+    adminOnly: AdminOnly.administration,
+  );
+
+  /// How many automatic backups the host keeps; lowering it deletes the
+  /// older ones.
+  static const automaticBackupsKept = SettingFamily(
+    'autosave.max_backups',
+    sync: SettingSync.hostStore,
+    adminOnly: AdminOnly.administration,
+  );
+
+  /// When the host last backed itself up.
+  static const lastAutomaticBackup = SettingFamily(
+    'autosave.last_backup_at',
+    sync: SettingSync.hostStore,
+    adminOnly: AdminOnly.administration,
+  );
+
   static const List<SettingFamily> families = [
+    backups,
+    automaticBackups,
+    automaticBackupsKept,
+    lastAutomaticBackup,
+    notificationTransports,
+    cloudBackup,
     constellation,
     mosaicUpload,
     assistant,

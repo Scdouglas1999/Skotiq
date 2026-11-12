@@ -47,25 +47,62 @@ fail-safe default.
 | Scope | Grants |
 |-------|--------|
 | `view` | Read status endpoints, subscribe to WebSocket events |
-| `control` | `view` plus device/capture/mount/guider/sequencer/dome/safety/switch/cover control, and the app settings (`POST /api/settings`, `/api/settings/store`, `/api/settings/meridian-flip`, `/api/settings/location`) except credential settings |
-| `admin` | Full protected API: credential settings, Home Assistant, self-test, file browse, backup/restore, plugins, updates, catalogs, clearing logs, pairing list |
+| `control` | `view` plus device/capture/mount/guider/sequencer/dome/safety/switch/cover control, the app settings (`POST /api/settings`, `/api/settings/store`, `/api/settings/meridian-flip`, `/api/settings/location`) except the admin-only settings below, and the folder check (`POST /api/files/validate`) |
+| `admin` | Full protected API: the admin-only settings, Home Assistant, self-test, file browse, backup/restore, plugins, updates, catalogs, clearing logs, pairing list |
 
 The legacy `--auth-token` / `SKOTIQ_AUTH_TOKEN` value is an **admin** token.
 Give monitoring clients a `view` token instead.
 
-**Credential settings.** A setting that holds a credential is declared so in
-the settings catalog (`credential: true` in
-`packages/skotiq_core/lib/src/settings/app_settings_table.dart`: the Discord
-webhook and the Pushover keys). Rows that say where the host sends a credential
-it keeps in its keyring (`notification_transport_*`, `cloud_sync_*`) count as
-credentials too (`credential_settings.dart`). The settings routes are `control`,
-but the host refuses a change to any of these from a request without admin
-access with `403 credential_setting`, naming the settings. A full settings
-document that carries a credential back unchanged is accepted. The auth
-middleware passes the grant it admitted the request with to the handler on the
-request context (`authGrantContextKey`), and a handler that finds none treats
-the request as not admin. `GET /api/settings/store` answers `adminAccess` so a
-client can mark these rows before anyone edits them.
+**Admin-only settings.** The settings routes are `control`, but some settings
+change only from a request with admin access. Each one says so where it is
+declared, with the reason (`adminOnly:` in
+`packages/skotiq_core/lib/src/settings/app_settings_table.dart` and
+`store_settings.dart`), and both settings routes ask the same question of that
+catalog (`adminOnlyRow`, `refuseAdminOnlyChange`); no route keeps a list of its
+own.
+
+| `adminOnly` | Settings | Refusal |
+|-------------|----------|---------|
+| `credential` | the Discord webhook and the Pushover keys | `403 credential_setting` |
+| `credentialTarget` | rows saying where the host sends a credential it keeps in its keyring: `notification_transport_*`, `cloud_sync_*`, `home_assistant_discovery` | `403 credential_setting` |
+| `hostProgram` | the ASTAP, Astrometry.net and PHD2 program paths, and which plugins run (`plugin_enablement`) | `403 host_program_setting` |
+| `administration` | where backups go and how many are kept (`backup.*`, `autosave.backup_*`, `autosave.max_backups`), the catalog download source, and the remote access server's switch and port | `403 admin_setting` |
+
+The refusal names the settings. A full settings document that carries an
+admin-only field back unchanged is accepted. The auth middleware passes the
+grant it admitted the request with to the handler on the request context
+(`authGrantContextKey`), and a handler that finds none treats the request as
+not admin. `GET /api/settings/store` answers `adminAccess` so a client can mark
+these rows before anyone edits them.
+
+`POST /api/settings` answers `400` for a changed field no setting stands
+behind (the update channel and server, for example), instead of dropping it
+and reporting the save as done.
+
+A request or WebSocket without admin access never receives a credential's
+value. `GET /api/settings`, `GET /api/settings/store`, the `settings.changed`
+events on `/events` (live and replayed) and `GET /api/runtime/recent-events`
+carry `(set on the imaging host)` in place of a credential that is set, and an
+empty value for one that is not (`credentialSetMarker`, `credential_settings.dart`).
+The host takes that marker posted back to `POST /api/settings` as "unchanged",
+so a client that saves the document it read leaves the credentials alone. The
+`credentialTarget` rows hold no secret themselves and stay readable. Backups, which
+hold the credentials, are admin only, and no settings value is written to the
+logs.
+
+**Folder check.** `POST /api/files/validate` answers whether one folder exists
+and can be written (it creates and deletes one probe file to find out), and
+only for a folder under the same roots `/api/files/browse` uses or one of the
+folders the settings name; it lists and reads nothing, and its refusal does not
+name the roots. It is `control`, because the rig card, the flat wizard and
+first-run setup on a linked client check the capture folder with it. Listing
+the host's folders (`GET /api/files/browse`) stays `admin`.
+
+**Program paths.** `POST /api/plate-solver/config` refuses a change to its
+ASTAP and `solve-field` paths from a request without admin access the same way
+(`403 host_program_setting`). `POST /api/plate-solver/verify` runs the program
+it is given, so without admin access it runs only a solver the host is already
+set to use (configured or found).
 
 **Fail-closed on unknown scope.** `HeadlessAuthPolicy.requiredScopeFor` resolves
 the scope required by a route from its metadata. If a route ever declares a
