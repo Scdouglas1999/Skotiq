@@ -45,7 +45,9 @@ fn retry_warnings(
 ) -> Vec<String> {
     let mut warnings = Vec::new();
     while let Ok(event) = events.try_recv() {
-        if let crate::executor::ExecutorEvent::Warning { message } = event {
+        if let crate::executor::ExecutorEvent::Warning { message }
+        | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             warnings.push(message);
         }
     }
@@ -204,11 +206,10 @@ async fn stop_during_the_retry_wait_returns_promptly() {
     let task = tokio::spawn(async move { execute_exposure(&darks(2), &ctx, |_, _, _| {}).await });
     loop {
         match events.recv().await {
-            Ok(crate::executor::ExecutorEvent::Warning { message })
-                if message.contains("Retrying in") =>
-            {
-                break
-            }
+            Ok(
+                crate::executor::ExecutorEvent::Warning { message }
+                | crate::executor::ExecutorEvent::NoticedWarning { message, .. },
+            ) if message.contains("Retrying in") => break,
             Ok(_) => {}
             Err(e) => panic!("no retry announced: {e}"),
         }

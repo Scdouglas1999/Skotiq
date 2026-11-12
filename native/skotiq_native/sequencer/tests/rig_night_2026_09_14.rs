@@ -442,9 +442,10 @@ async fn replay(
                     Ok(ExecutorEvent::Error { message })
                     | Ok(ExecutorEvent::RunHeld { message })
                     | Ok(ExecutorEvent::StepProblem { message })
-                    | Ok(ExecutorEvent::Warning { message }) => {
-                        messages.lock().unwrap().push(message)
-                    }
+                    | Ok(
+                        ExecutorEvent::Warning { message }
+                        | ExecutorEvent::NoticedWarning { message, .. },
+                    ) => messages.lock().unwrap().push(message),
                     Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
                     Err(_) => break,
                 }

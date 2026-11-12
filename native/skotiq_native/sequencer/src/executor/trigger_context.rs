@@ -431,6 +431,7 @@ pub(super) fn emit_lifecycle_decision(
         details,
         node_id: None,
         sequence_run_id: *active_run_id.read(),
+        notice: None,
     };
     let _ = tx.send(event);
 }

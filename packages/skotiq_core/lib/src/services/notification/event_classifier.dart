@@ -33,50 +33,15 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 
 import '../../backend/sequencer_error_kind.dart';
-import '../../backend/bridge_events.dart' show SequencerErrorKind;
+import '../../backend/sequencer_notice.dart';
+import '../../backend/bridge_events.dart'
+    show SequencerErrorKind, SequencerNotice;
 import '../../models/backend/event_types.dart';
 import '../../errors/error_text.dart';
 import '../../models/notification/notification_categories.dart';
 import '../../providers/sequence/run_stop_classification.dart';
 import '../../utils/device_id.dart';
 import 'notification_template.dart';
-
-/// Summary of the decision row the engine writes when a streak of rejected
-/// frames reaches the operator's limit (`IMAGE_GRADING_REJECT_STREAK_SUMMARY`
-/// in the native grading module).
-const String kImageGradingRejectStreakSummary =
-    'Frames rejected in a row — the run continues';
-
-/// Summary of the decision row the engine writes when it judged a quality
-/// problem — a Center that could not solve, guiding RMS over a limit, a dither
-/// that did not settle, a post-flip check — and the run carried on
-/// (`QUALITY_PROBLEM_CONTINUED_SUMMARY` in the native executor).
-const String kQualityProblemContinuedSummary =
-    'Problem noticed — the run continues';
-
-/// Sentences only the run's Warning for a continued happening carries: a
-/// quality problem (`QUALITY_PROBLEM_CONTINUES_NOTE`), an autofocus that did
-/// not converge (`autofocus_failure_continuation`) and a streak of rejected
-/// frames (the grading notice), word for word as the native sequencer writes
-/// them. The engine records each such happening twice, a decision row and
-/// that Warning, and the decision row and the Warning arrive in no fixed
-/// order, so the Warning is known by its words.
-const List<String> kContinuedHappeningWarningSentences = [
-  'The run continues. To have problems like this stop the run instead, turn '
-      'on Stop the run for quality problems in Settings > Sequencer.',
-  'and imaging continues on the last-good focus.',
-  'Imaging continues, but check focus before trusting these frames.',
-  'The run continues and every frame is kept; rejects are in the Reject '
-      'folder.',
-];
-
-/// Whether [message] is the run's Warning for a happening the notification
-/// router announces from its decision row ([NotificationCategory.problemNoticed],
-/// [NotificationCategory.autofocusContinued],
-/// [NotificationCategory.frameRejected]). Tonight lists the Warning with the
-/// run's warnings; a toast of it would tell the same happening twice.
-bool isContinuedHappeningWarning(String message) =>
-    kContinuedHappeningWarningSentences.any(message.contains);
 
 /// The devices the native side has said it is connecting and has not yet
 /// reported connected.
@@ -315,46 +280,42 @@ class NotificationEventClassifier {
           _failureContext((event.data['error'] as String?) ?? ''),
         );
       case 'DecisionLogged':
-        // The AF-trigger continuation row is the only decision that maps to
-        // its own push: the run continues on restored focus and the phone
-        // gets an INFO, not an alarm (owner decision 10). Stop-authorship
-        // decisions are consumed by [stopDecisionOf], not classified here.
-        if ((event.data['category'] as String?) == 'system_event' &&
-            (event.data['summary'] as String?) ==
-                'Autofocus failed — continuing with last-good focus') {
-          return (NotificationCategory.autofocusContinued, <String, String>{});
+        // A happening the run carried on through, told once from its decision
+        // row; the run never stops for these (owner decision 2026-10-06).
+        // Stop-authorship decisions are consumed by [stopDecisionOf], not
+        // classified here.
+        switch (sequencerNoticeOf(event)) {
+          // An autofocus that did not converge: the run continues on the
+          // restored focus and the phone gets an INFO, not an alarm.
+          case SequencerNotice.autofocusContinued:
+            return (
+              NotificationCategory.autofocusContinued,
+              <String, String>{},
+            );
+          // A streak of rejected frames reached the operator's limit; told
+          // once per streak.
+          case SequencerNotice.rejectStreak:
+            final details = _decisionDetails(event);
+            return (
+              NotificationCategory.frameRejected,
+              <String, String>{
+                'frame.streak': '${details['consecutive_rejects'] ?? ''}',
+                'frame.reason': (details['reason'] as String?) ?? '',
+              },
+            );
+          // A quality problem the operator has not asked to stop the run for.
+          case SequencerNotice.problemNoticed:
+            final details = _decisionDetails(event);
+            return (
+              NotificationCategory.problemNoticed,
+              <String, String>{
+                'problem.source': (details['source'] as String?) ?? '',
+                'problem.message': (details['problem'] as String?) ?? '',
+              },
+            );
+          case null:
+            return null;
         }
-        // A streak of rejected frames reached the operator's limit. Told once
-        // per streak, and the run keeps imaging (owner decision 2026-10-06:
-        // the limit never stops a sequence or ends a night).
-        if ((event.data['category'] as String?) == 'system_event' &&
-            (event.data['summary'] as String?) ==
-                kImageGradingRejectStreakSummary) {
-          final details = _decisionDetails(event);
-          return (
-            NotificationCategory.frameRejected,
-            <String, String>{
-              'frame.streak': '${details['consecutive_rejects'] ?? ''}',
-              'frame.reason': (details['reason'] as String?) ?? '',
-            },
-          );
-        }
-        // A quality problem the run carried on through, because the operator
-        // has not asked for such problems to stop it (owner decision
-        // 2026-10-06). Told once per episode by the engine.
-        if ((event.data['category'] as String?) == 'system_event' &&
-            (event.data['summary'] as String?) ==
-                kQualityProblemContinuedSummary) {
-          final details = _decisionDetails(event);
-          return (
-            NotificationCategory.problemNoticed,
-            <String, String>{
-              'problem.source': (details['source'] as String?) ?? '',
-              'problem.message': (details['problem'] as String?) ?? '',
-            },
-          );
-        }
-        return null;
       case 'Paused':
         return (NotificationCategory.sequencePaused, <String, String>{});
       case 'Resumed':

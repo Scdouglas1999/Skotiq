@@ -259,7 +259,9 @@ fn fired(log: &[ExecutorEvent], id: &str) -> usize {
 fn warnings(log: &[ExecutorEvent]) -> Vec<&str> {
     log.iter()
         .filter_map(|e| match e {
-            ExecutorEvent::Warning { message } => Some(message.as_str()),
+            ExecutorEvent::Warning { message } | ExecutorEvent::NoticedWarning { message, .. } => {
+                Some(message.as_str())
+            }
             _ => None,
         })
         .collect()

@@ -72,6 +72,17 @@ fn a_failed_autofocus_trigger_records_the_focus_the_run_kept() {
         "Autofocus failed — continuing with last-good focus"
     );
     assert_eq!(
+        continuation.decision.notice,
+        Some(crate::decision::RunNotice::AutofocusContinued)
+    );
+    assert!(matches!(
+        continuation.warning(continuation.operator_message.clone()),
+        super::ExecutorEvent::NoticedWarning {
+            notice: crate::decision::RunNotice::AutofocusContinued,
+            ..
+        }
+    ));
+    assert_eq!(
         continuation.decision.details["focuser_position_before"],
         serde_json::json!(21_400)
     );

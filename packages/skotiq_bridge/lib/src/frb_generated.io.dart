@@ -345,6 +345,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SequencerEvent dco_decode_box_autoadd_sequencer_event(dynamic raw);
 
   @protected
+  SequencerNotice dco_decode_box_autoadd_sequencer_notice(dynamic raw);
+
+  @protected
   ShutterStatus dco_decode_box_autoadd_shutter_status(dynamic raw);
 
   @protected
@@ -730,6 +733,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   (double, double)? dco_decode_opt_box_autoadd_record_f_64_f_64(dynamic raw);
 
   @protected
+  SequencerNotice? dco_decode_opt_box_autoadd_sequencer_notice(dynamic raw);
+
+  @protected
   ShutterStatus? dco_decode_opt_box_autoadd_shutter_status(dynamic raw);
 
   @protected
@@ -863,6 +869,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SequencerEvent dco_decode_sequencer_event(dynamic raw);
+
+  @protected
+  SequencerNotice dco_decode_sequencer_notice(dynamic raw);
 
   @protected
   SequencerState dco_decode_sequencer_state(dynamic raw);
@@ -1305,6 +1314,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SequencerEvent sse_decode_box_autoadd_sequencer_event(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SequencerNotice sse_decode_box_autoadd_sequencer_notice(
     SseDeserializer deserializer,
   );
 
@@ -1784,6 +1798,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SequencerNotice? sse_decode_opt_box_autoadd_sequencer_notice(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ShutterStatus? sse_decode_opt_box_autoadd_shutter_status(
     SseDeserializer deserializer,
   );
@@ -1959,6 +1978,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SequencerEvent sse_decode_sequencer_event(SseDeserializer deserializer);
+
+  @protected
+  SequencerNotice sse_decode_sequencer_notice(SseDeserializer deserializer);
 
   @protected
   SequencerState sse_decode_sequencer_state(SseDeserializer deserializer);
@@ -2569,6 +2591,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ptr = wire.cst_new_box_autoadd_sequencer_event();
     cst_api_fill_to_wire_sequencer_event(raw, ptr.ref);
     return ptr;
+  }
+
+  @protected
+  ffi.Pointer<ffi.Int32> cst_encode_box_autoadd_sequencer_notice(
+    SequencerNotice raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return wire.cst_new_box_autoadd_sequencer_notice(
+      cst_encode_sequencer_notice(raw),
+    );
   }
 
   @protected
@@ -3194,6 +3226,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     return raw == null
         ? ffi.nullptr
         : cst_encode_box_autoadd_record_f_64_f_64(raw);
+  }
+
+  @protected
+  ffi.Pointer<ffi.Int32> cst_encode_opt_box_autoadd_sequencer_notice(
+    SequencerNotice? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? ffi.nullptr
+        : cst_encode_box_autoadd_sequencer_notice(raw);
   }
 
   @protected
@@ -6104,9 +6146,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is SequencerEvent_Error) {
       var pre_message = cst_encode_String(apiObj.message);
       var pre_kind = cst_encode_sequencer_error_kind(apiObj.kind);
+      var pre_notice = cst_encode_opt_box_autoadd_sequencer_notice(
+        apiObj.notice,
+      );
       wireObj.tag = 13;
       wireObj.kind.Error.message = pre_message;
       wireObj.kind.Error.kind = pre_kind;
+      wireObj.kind.Error.notice = pre_notice;
       return;
     }
     if (apiObj is SequencerEvent_MeridianFlipOutcome) {
@@ -6562,6 +6608,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_sequence_run_id = cst_encode_opt_box_autoadd_i_64(
         apiObj.sequenceRunId,
       );
+      var pre_notice = cst_encode_opt_box_autoadd_sequencer_notice(
+        apiObj.notice,
+      );
       wireObj.tag = 33;
       wireObj.kind.DecisionLogged.timestamp_iso = pre_timestamp_iso;
       wireObj.kind.DecisionLogged.category = pre_category;
@@ -6569,6 +6618,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       wireObj.kind.DecisionLogged.details_json = pre_details_json;
       wireObj.kind.DecisionLogged.node_id = pre_node_id;
       wireObj.kind.DecisionLogged.sequence_run_id = pre_sequence_run_id;
+      wireObj.kind.DecisionLogged.notice = pre_notice;
       return;
     }
   }
@@ -7189,6 +7239,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int cst_encode_sequencer_error_kind(SequencerErrorKind raw);
 
   @protected
+  int cst_encode_sequencer_notice(SequencerNotice raw);
+
+  @protected
   int cst_encode_shutter_state(ShutterState raw);
 
   @protected
@@ -7650,6 +7703,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_sequencer_event(
     SequencerEvent self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_sequencer_notice(
+    SequencerNotice self,
     SseSerializer serializer,
   );
 
@@ -8281,6 +8340,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_sequencer_notice(
+    SequencerNotice? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_shutter_status(
     ShutterStatus? self,
     SseSerializer serializer,
@@ -8502,6 +8567,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_sequencer_event(
     SequencerEvent self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sequencer_notice(
+    SequencerNotice self,
     SseSerializer serializer,
   );
 
@@ -18545,6 +18616,18 @@ class RustLibWire implements BaseWire {
       _cst_new_box_autoadd_sequencer_eventPtr
           .asFunction<ffi.Pointer<wire_cst_sequencer_event> Function()>();
 
+  ffi.Pointer<ffi.Int32> cst_new_box_autoadd_sequencer_notice(int value) {
+    return _cst_new_box_autoadd_sequencer_notice(value);
+  }
+
+  late final _cst_new_box_autoadd_sequencer_noticePtr =
+      _lookup<ffi.NativeFunction<ffi.Pointer<ffi.Int32> Function(ffi.Int32)>>(
+        'frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_notice',
+      );
+  late final _cst_new_box_autoadd_sequencer_notice =
+      _cst_new_box_autoadd_sequencer_noticePtr
+          .asFunction<ffi.Pointer<ffi.Int32> Function(int)>();
+
   ffi.Pointer<ffi.Int32> cst_new_box_autoadd_shutter_status(int value) {
     return _cst_new_box_autoadd_shutter_status(value);
   }
@@ -21055,6 +21138,8 @@ final class wire_cst_SequencerEvent_Error extends ffi.Struct {
 
   @ffi.Int32()
   external int kind;
+
+  external ffi.Pointer<ffi.Int32> notice;
 }
 
 final class wire_cst_SequencerEvent_MeridianFlipOutcome extends ffi.Struct {
@@ -21495,6 +21580,8 @@ final class wire_cst_SequencerEvent_DecisionLogged extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> node_id;
 
   external ffi.Pointer<ffi.Int64> sequence_run_id;
+
+  external ffi.Pointer<ffi.Int32> notice;
 }
 
 final class SequencerEventKind extends ffi.Union {

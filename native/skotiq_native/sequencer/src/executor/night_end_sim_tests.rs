@@ -293,7 +293,10 @@ async fn a_stopped_run_leaves_guiding_it_did_not_start_and_says_so() {
     let mut warned = false;
     loop {
         match events.try_recv() {
-            Ok(super::ExecutorEvent::Warning { message }) => {
+            Ok(
+                super::ExecutorEvent::Warning { message }
+                | super::ExecutorEvent::NoticedWarning { message, .. },
+            ) => {
                 warned |= message.contains("started outside this run");
             }
             Ok(_) | Err(tokio::sync::broadcast::error::TryRecvError::Lagged(_)) => {}
@@ -500,7 +503,8 @@ async fn last_nights_stop_time_is_rolled_to_tonight_and_the_target_images() {
     let mut skipped = false;
     while let Ok(event) = events.try_recv() {
         match event {
-            super::ExecutorEvent::Warning { message } => warnings.push(message),
+            super::ExecutorEvent::Warning { message }
+            | super::ExecutorEvent::NoticedWarning { message, .. } => warnings.push(message),
             super::ExecutorEvent::TriggerFired { trigger_id, .. }
                 if trigger_id == crate::node::logic::target_header::TARGET_END_WHEN_TRIGGER_ID =>
             {

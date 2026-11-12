@@ -494,7 +494,9 @@ mod in_burst_dither_failure {
         let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
         let mut warnings = Vec::new();
         while let Ok(event) = events.try_recv() {
-            if let crate::executor::ExecutorEvent::Warning { message } = event {
+            if let crate::executor::ExecutorEvent::Warning { message }
+            | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+            {
                 warnings.push(message);
             }
         }
@@ -656,7 +658,9 @@ async fn a_frame_exposing_when_tracking_stops_is_rejected_with_the_reason() {
     assert_eq!(rejected_files, 1);
     let mut warned = false;
     while let Ok(event) = rx.try_recv() {
-        if let crate::executor::ExecutorEvent::Warning { message } = event {
+        if let crate::executor::ExecutorEvent::Warning { message }
+        | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             warned |= message.contains("stopped tracking during this exposure");
         }
     }
@@ -737,7 +741,9 @@ async fn a_frame_that_loses_tracking_halfway_through_is_rejected_with_the_reason
         };
         let mut warned = false;
         while let Ok(event) = rx.try_recv() {
-            if let crate::executor::ExecutorEvent::Warning { message } = event {
+            if let crate::executor::ExecutorEvent::Warning { message }
+            | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+            {
                 warned |= message.contains(expected_reason);
             }
         }

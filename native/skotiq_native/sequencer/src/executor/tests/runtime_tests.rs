@@ -2412,7 +2412,10 @@ async fn failed_trigger_autofocus(persisted: serde_json::Value) -> FailedTrigger
                 {
                     return;
                 }
-                Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+                Ok(
+                    ExecutorEvent::Warning { message }
+                    | ExecutorEvent::NoticedWarning { message, .. },
+                ) => warnings.push(message),
                 Ok(ExecutorEvent::Error { message }) => errors.push(message),
                 Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => continue,
                 Err(broadcast::error::RecvError::Closed) => return,
@@ -2424,7 +2427,9 @@ async fn failed_trigger_autofocus(persisted: serde_json::Value) -> FailedTrigger
     tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
     loop {
         match events.try_recv() {
-            Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+            Ok(
+                ExecutorEvent::Warning { message } | ExecutorEvent::NoticedWarning { message, .. },
+            ) => warnings.push(message),
             Ok(ExecutorEvent::Error { message }) => errors.push(message),
             Ok(_) | Err(broadcast::error::TryRecvError::Lagged(_)) => continue,
             Err(_) => break,
@@ -2617,7 +2622,9 @@ async fn a_failed_autofocus_node_notifies_and_the_sequence_goes_on() {
     loop {
         match events.try_recv() {
             Ok(ExecutorEvent::NodeCompleted { id, status }) => completed.push((id, status)),
-            Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+            Ok(
+                ExecutorEvent::Warning { message } | ExecutorEvent::NoticedWarning { message, .. },
+            ) => warnings.push(message),
             Ok(ExecutorEvent::Error { message }) => errors.push(message),
             Ok(_) | Err(broadcast::error::TryRecvError::Lagged(_)) => continue,
             Err(_) => break,
@@ -2777,7 +2784,9 @@ async fn a_failed_recovery_autofocus_notifies_and_the_retries_go_on() {
     );
     let mut warned = false;
     while let Ok(event) = events.try_recv() {
-        if let ExecutorEvent::Warning { message } = event {
+        if let ExecutorEvent::Warning { message } | ExecutorEvent::NoticedWarning { message, .. } =
+            event
+        {
             warned |= message.contains("Recovery autofocus did not converge");
         }
     }
@@ -2835,7 +2844,9 @@ async fn a_failed_exposure_trigger_autofocus_is_a_notice_not_a_failed_run() {
             ExecutorEvent::InstructionFailed { node_name, message } => {
                 errors.push(format!("{node_name}: {message}"))
             }
-            ExecutorEvent::Warning { message } => warnings.push(message),
+            ExecutorEvent::Warning { message } | ExecutorEvent::NoticedWarning { message, .. } => {
+                warnings.push(message)
+            }
             _ => {}
         }
     }
@@ -2932,7 +2943,9 @@ async fn a_notify_exposure_trigger_tells_once_per_episode_and_never_stops_the_ru
                 action,
                 ..
             } => fired.push(format!("{trigger_name} -> {action}")),
-            ExecutorEvent::Warning { message } => warnings.push(message),
+            ExecutorEvent::Warning { message } | ExecutorEvent::NoticedWarning { message, .. } => {
+                warnings.push(message)
+            }
             ExecutorEvent::Error { message } => errors.push(message),
             _ => {}
         }
@@ -3076,7 +3089,10 @@ async fn run_with_bad_guiding_trigger(
                 Ok(ExecutorEvent::TriggerFired {
                     trigger_id, action, ..
                 }) => fired.push(format!("{trigger_id} -> {action}")),
-                Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+                Ok(
+                    ExecutorEvent::Warning { message }
+                    | ExecutorEvent::NoticedWarning { message, .. },
+                ) => warnings.push(message),
                 Ok(ExecutorEvent::RecoveryStarted { .. }) => recovery_started = true,
                 Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => continue,
                 Err(broadcast::error::RecvError::Closed) => return,
@@ -3201,7 +3217,10 @@ async fn drift_recenter_on_cloud(stop_on_quality_problems: bool) -> FailedRecent
     let _ = tokio::time::timeout(std::time::Duration::from_secs(30), async {
         loop {
             match events.recv().await {
-                Ok(ExecutorEvent::Warning { message }) => {
+                Ok(
+                    ExecutorEvent::Warning { message }
+                    | ExecutorEvent::NoticedWarning { message, .. },
+                ) => {
                     let done = message.contains("recenter");
                     warnings.push(message);
                     if done {
@@ -3331,6 +3350,7 @@ async fn a_recovery_node_set_to_notify_carries_on_and_tells_the_operator() {
     assert_eq!(summaries, vec![super::QUALITY_PROBLEM_CONTINUED_SUMMARY]);
     let warned = std::iter::from_fn(|| events.try_recv().ok()).any(|e| {
         matches!(e, ExecutorEvent::Warning { message }
+            | ExecutorEvent::NoticedWarning { message, .. }
             if message.contains("Recovery 'Protect solve'") && message.contains("failed 2 times"))
     });
     assert!(

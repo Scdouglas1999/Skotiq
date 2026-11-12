@@ -996,7 +996,9 @@ mod tests {
     fn drain_warnings(events: &mut broadcast::Receiver<ExecutorEvent>) -> Vec<String> {
         let mut warnings = Vec::new();
         while let Ok(event) = events.try_recv() {
-            if let ExecutorEvent::Warning { message } = event {
+            if let ExecutorEvent::Warning { message }
+            | ExecutorEvent::NoticedWarning { message, .. } = event
+            {
                 warnings.push(message);
             }
         }

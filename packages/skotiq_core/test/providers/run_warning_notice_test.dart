@@ -6,14 +6,11 @@
 // toasted that Warning as well ("Sequence Warning"), so one problem read as
 // three notices with the same words.
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/services/notification/event_classifier.dart'
-    show kContinuedHappeningWarningSentences;
 
 class _MockFfiBackend extends Mock implements FfiBackend {}
 
@@ -24,14 +21,20 @@ class _FixedBackendNotifier extends BackendNotifier {
 }
 
 /// A sequencer Warning as the bridge publishes it (`ExecutorEvent::Warning`
-/// in `bridge/src/api/sequencer/event_bridge.rs`).
-SkotiqEvent _sequencerWarning(String message) => SkotiqEvent(
-  timestamp: DateTime.now().millisecondsSinceEpoch,
-  severity: EventSeverity.warning,
-  category: EventCategory.sequencer,
-  eventType: 'Error',
-  data: {'message': message},
-);
+/// and `NoticedWarning` in `bridge/src/api/sequencer/event_bridge.rs`). A host
+/// from before the notice field sends none.
+SkotiqEvent _sequencerWarning(String message, {SequencerNotice? notice}) =>
+    SkotiqEvent(
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+      severity: EventSeverity.warning,
+      category: EventCategory.sequencer,
+      eventType: 'Error',
+      data: {
+        'message': message,
+        'kind': 'advisory',
+        if (notice != null) kSequencerNoticeKey: notice.wireName,
+      },
+    );
 
 /// `quality_problem_continuation` in the native executor, word for word.
 const _continuedProblem =
@@ -112,22 +115,24 @@ void main() {
     });
   }
 
-  test('every sentence the bridge knows a continued happening by is in the '
-      'native sequencer, word for word', () {
-    // Rust string literals continue across lines with a trailing backslash,
-    // which drops the newline and the next line's indent.
-    String source(String path) => File(
-      '../../native/skotiq_native/sequencer/src/$path',
-    ).readAsStringSync().replaceAll(RegExp(r'\\\n\s*'), '');
-    final native = [
-      source('executor/mod.rs'),
-      source('instructions/grading.rs'),
-    ].join();
+  for (final notice in SequencerNotice.values) {
+    test('a Warning marked ${notice.wireName} is not toasted, whatever its '
+        'words', () async {
+      final (container, controller) = await _bridge();
+      addTearDown(container.dispose);
+      addTearDown(controller.close);
 
-    for (final sentence in kContinuedHappeningWarningSentences) {
-      expect(native, contains(sentence));
-    }
-  });
+      controller.add(
+        _sequencerWarning(
+          'Worded by a newer host in a way no older build wrote.',
+          notice: notice,
+        ),
+      );
+      await pumpEventQueue();
+
+      expect(container.read(uiNotificationProvider), isEmpty);
+    });
+  }
 
   test('another run warning still reaches the operator', () async {
     final (container, controller) = await _bridge();

@@ -146,6 +146,7 @@ pub(crate) async fn run_decision_event_loop(
             details_json,
             node_id: decision.node_id,
             sequence_run_id: decision.sequence_run_id,
+            notice: decision.notice.map(Into::into),
         };
         state.publish_event(create_event_auto_id(
             EventSeverity::Info,
@@ -311,6 +312,7 @@ pub(crate) async fn run_sequencer_event_loop(
                 ExecutorEvent::InstructionFailed { node_name, message } => Some(run_error_event(
                     SequencerErrorKind::StepFailed,
                     format!("{}: {}", node_name, message),
+                    None,
                 )),
                 ExecutorEvent::ExposureStarted {
                     frame,
@@ -432,18 +434,27 @@ pub(crate) async fn run_sequencer_event_loop(
                 ExecutorEvent::Error { message } => Some(run_error_event(
                     SequencerErrorKind::StepFailed,
                     message.clone(),
+                    None,
                 )),
                 ExecutorEvent::Warning { message } => Some(run_error_event(
                     SequencerErrorKind::Advisory,
                     message.clone(),
+                    None,
+                )),
+                ExecutorEvent::NoticedWarning { notice, message } => Some(run_error_event(
+                    SequencerErrorKind::Advisory,
+                    message.clone(),
+                    Some((*notice).into()),
                 )),
                 ExecutorEvent::StepProblem { message } => Some(run_error_event(
                     SequencerErrorKind::StepProblem,
                     message.clone(),
+                    None,
                 )),
                 ExecutorEvent::RunHeld { message } => Some(run_error_event(
                     SequencerErrorKind::RunHeld,
                     message.clone(),
+                    None,
                 )),
                 ExecutorEvent::MeridianFlipOutcome {
                     outcome,
@@ -664,11 +675,19 @@ pub(crate) async fn wait_for_no_event_listeners() {
 }
 
 /// A run's error-payload event of `kind`, at the severity that kind has.
-fn run_error_event(kind: SequencerErrorKind, message: String) -> crate::event::SkotiqEvent {
+fn run_error_event(
+    kind: SequencerErrorKind,
+    message: String,
+    notice: Option<crate::event::SequencerNotice>,
+) -> crate::event::SkotiqEvent {
     create_event_auto_id(
         kind.run_severity(),
         EventCategory::Sequencer,
-        EventPayload::Sequencer(SequencerEvent::Error { message, kind }),
+        EventPayload::Sequencer(SequencerEvent::Error {
+            message,
+            kind,
+            notice,
+        }),
     )
 }
 

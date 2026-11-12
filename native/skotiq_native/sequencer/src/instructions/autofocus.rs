@@ -49,12 +49,11 @@ pub(crate) async fn notify_autofocus_failed_continuing(
         position_after,
         origin_restored,
     );
-    ctx.run.emit_decision(continuation.decision);
     tracing::warn!("{}", continuation.operator_message);
+    let warning = continuation.warning(continuation.operator_message.clone());
+    ctx.run.emit_decision(continuation.decision);
     if let Some(event_tx) = &ctx.run.event_tx {
-        let _ = event_tx.send(crate::executor::ExecutorEvent::Warning {
-            message: continuation.operator_message,
-        });
+        let _ = event_tx.send(warning);
     }
 }
 

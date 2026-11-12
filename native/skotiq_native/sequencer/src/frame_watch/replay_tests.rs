@@ -70,7 +70,7 @@ fn the_grader_rejects_the_untracked_and_trailed_frames_and_no_good_frame() {
     let rows = rows();
     assert_eq!(rows.len(), 192);
     let graded = grade_night(&rows);
-    let reason = |id: u32| graded.iter().find(|(i, _)| *i == id).unwrap().1.clone();
+    let reason = |id: u32| graded.iter().find(|(i, _)| *i == id).unwrap().1;
 
     let row = |id: u32| rows.iter().find(|r| r.id == id).unwrap();
     assert!(
@@ -161,7 +161,7 @@ fn replay_rows(
     let mut watch = FrameWatch::new(config);
     let mut verdicts = Vec::new();
     for row in rows.iter().filter(|r| ids.contains(&r.id)) {
-        let reason = graded.iter().find(|(i, _)| *i == row.id).unwrap().1.clone();
+        let reason = graded.iter().find(|(i, _)| *i == row.id).unwrap().1;
         let obs = observation(row, reason);
         let mut verdict = watch.observe(&obs);
         let mut follow_ups = Vec::new();
@@ -533,7 +533,7 @@ fn an_obstruction_that_would_end_the_night_is_confirmed_twice() {
     let mut watch = FrameWatch::new(FrameWatchConfig::default());
     let mut confirmations = Vec::new();
     for row in rows.iter().filter(|r| r.id >= 529) {
-        let reason = graded.iter().find(|(i, _)| *i == row.id).unwrap().1.clone();
+        let reason = graded.iter().find(|(i, _)| *i == row.id).unwrap().1;
         let obs = FrameObservation {
             save_path: format!("row-{}", row.id),
             target_id: None,

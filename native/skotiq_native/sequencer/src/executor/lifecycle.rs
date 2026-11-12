@@ -230,6 +230,7 @@ impl SequenceExecutor {
             details: full,
             node_id: None,
             sequence_run_id: self.active_sequence_run_id(),
+            notice: None,
         };
         let _ = self.decision_tx.send(ev);
     }
@@ -249,6 +250,7 @@ impl SequenceExecutor {
             details,
             node_id: None,
             sequence_run_id: self.active_sequence_run_id(),
+            notice: None,
         };
         let _ = self.decision_tx.send(ev);
     }

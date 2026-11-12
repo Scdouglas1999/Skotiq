@@ -130,7 +130,10 @@ impl DomeRun {
                     Ok(ExecutorEvent::TriggerFired {
                         trigger_id, action, ..
                     }) => fired.push(format!("{trigger_id} -> {action}")),
-                    Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+                    Ok(
+                        ExecutorEvent::Warning { message }
+                        | ExecutorEvent::NoticedWarning { message, .. },
+                    ) => warnings.push(message),
                     Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => continue,
                     Err(broadcast::error::RecvError::Closed) => return,
                 }

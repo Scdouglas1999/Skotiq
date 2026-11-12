@@ -328,6 +328,14 @@ pub enum ExecutorEvent {
     Warning {
         message: String,
     },
+    /// The run's warning for a happening it carries on through and tells the
+    /// operator about once, from the decision row that carries the same
+    /// `notice`. The app lists it with the run's warnings and raises no second
+    /// notice for it.
+    NoticedWarning {
+        notice: crate::decision::RunNotice,
+        message: String,
+    },
     /// One step had a problem and the run carries on: a check that could not
     /// be made, a recovery step that did not take, a trigger action that was
     /// skipped. The operator is told as a warning; nothing about the run's

@@ -299,10 +299,11 @@ async fn judge_failed_sweep(sweep: FailedSweep<'_>) {
         position_after_af,
         origin_restored,
     );
-    decisions.send(continuation.decision);
     let message = format!("{}{}", continuation.operator_message, focus_note);
     tracing::warn!("{}", message);
-    run.warning(message);
+    let warning = continuation.warning(message);
+    decisions.send(continuation.decision);
+    run.send(warning);
 }
 
 #[cfg(test)]
