@@ -26,21 +26,6 @@ import 'safety_monitor_state_provider.dart';
 import 'switch_state_provider.dart';
 import 'weather_state_provider.dart';
 
-/// The device types the native heartbeat reconnects itself, so Dart must not
-/// schedule a second reconnect that would race it.
-///
-/// A copy of the native rule: `policy(type).heartbeat.auto_reconnect` in
-/// `native/skotiq_native/bridge/src/device_manager/policy.rs`. Nothing on the
-/// FFI publishes that table yet; when it does, this constant is replaced by
-/// the answer. Until then a change on either side has to be made on both.
-const Set<DeviceType> nativeReconnectedDeviceTypes = {
-  DeviceType.mount,
-  DeviceType.guider,
-  DeviceType.dome,
-  DeviceType.weather,
-  DeviceType.coverCalibrator,
-};
-
 class DeviceSlot {
   const DeviceSlot({
     required this.type,
@@ -67,9 +52,6 @@ class DeviceSlot {
   /// Part of the imaging chain that the profile list summarizes as
   /// connection dots and a connected/total count.
   final bool isCore;
-
-  /// See [nativeReconnectedDeviceTypes].
-  bool get nativeOwnsReconnect => nativeReconnectedDeviceTypes.contains(type);
 
   /// Dart starts and stops the native heartbeat around connect / disconnect.
   final bool heartbeat;

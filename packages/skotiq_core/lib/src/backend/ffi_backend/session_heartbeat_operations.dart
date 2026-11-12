@@ -1,7 +1,6 @@
 part of '../ffi_backend.dart';
 
 mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
-
   @override
   Future<List<CapturedImage>> getSessionImages(int sessionId) async {
     if (_database == null) {
@@ -211,6 +210,15 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
       deviceId: deviceId,
       intervalMs: BigInt.from(intervalMs),
     );
+  }
+
+  @override
+  Set<DeviceType> get nativeReconnectedDeviceTypes {
+    if (!bridge.NativeBridge.isNativeAvailable) return const {};
+    return _NativeProcessState.nativeReconnectedDeviceTypes ??= {
+      for (final type in bridge.apiNativeReconnectedDeviceTypes())
+        _fromBridgeDeviceType(type),
+    };
   }
 
   @override

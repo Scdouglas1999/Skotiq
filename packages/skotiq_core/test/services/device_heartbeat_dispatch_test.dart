@@ -39,6 +39,9 @@ void main() {
     when(
       () => mockBackend.polarAlignmentEvents,
     ).thenAnswer((_) => const Stream.empty());
+    when(
+      () => mockBackend.nativeReconnectedDeviceTypes,
+    ).thenReturn(const {DeviceType.mount});
 
     container = ProviderContainer(
       overrides: [
@@ -346,25 +349,29 @@ void main() {
     verifyNever(() => mockBackend.connectDevice(any(), any()));
   });
 
-  // `nativeReconnectedDeviceTypes` is a copy of the native rule
-  // (`policy(type).heartbeat.auto_reconnect` in
-  // native/skotiq_native/bridge/src/device_manager/policy.rs) until the FFI
-  // publishes it. A drift re-opens the dual-reconnect race (Dart competes
-  // with the native loop) or strands a device with no reconnect engine at
-  // all, so this pins the copy: change policy.rs and this list together.
-  test('the native-reconnected device types are the ones policy.rs names', () {
-    expect(nativeReconnectedDeviceTypes, {
-      DeviceType.mount,
-      DeviceType.guider,
-      DeviceType.dome,
-      DeviceType.weather,
-      DeviceType.coverCalibrator,
-    });
+  // The backend says which types its native side reconnects (the native
+  // policy table, read over the FFI); the coordinator defers exactly those and
+  // keeps every other type for itself.
+  test('the coordinator defers exactly the types the backend reconnects', () {
+    when(
+      () => mockBackend.nativeReconnectedDeviceTypes,
+    ).thenReturn(const {DeviceType.focuser, DeviceType.dome});
+    final coordinator = container.read(
+      Provider(
+        (ref) => DeviceReconnectCoordinator(
+          ref: ref,
+          backend: mockBackend,
+          resumeSequence: () async {},
+          pauseSequence: () async {},
+          surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},
+        ),
+      ),
+    );
     for (final type in DeviceType.values) {
       expect(
-        DeviceReconnectCoordinator.nativeOwnsReconnect(type),
-        nativeReconnectedDeviceTypes.contains(type),
-        reason: '${type.name}: the coordinator reads the one constant',
+        coordinator.nativeOwnsReconnect(type),
+        type == DeviceType.focuser || type == DeviceType.dome,
+        reason: type.name,
       );
     }
   });

@@ -112,8 +112,8 @@ class DeviceReconnectCoordinator {
   /// this coordinator must not schedule a reconnect of its own: the two raced
   /// and double-connected the same device. Resuming the sequence after a
   /// native reconnect is handled by [onAuthoritativeDeviceConnected].
-  static bool nativeOwnsReconnect(DeviceType type) =>
-      type.slot.nativeOwnsReconnect;
+  bool nativeOwnsReconnect(DeviceType type) =>
+      _backend.nativeReconnectedDeviceTypes.contains(type);
 
   String _reconnectKey(DeviceType type, String deviceId) =>
       '${type.name}:$deviceId';
