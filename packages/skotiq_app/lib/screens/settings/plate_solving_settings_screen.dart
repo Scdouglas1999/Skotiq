@@ -340,6 +340,7 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
     required PlateSolverSettingsState uiState,
     required SkotiqBackend authority,
   }) {
+    final canChoosePath = !hostRefusesAdminOnly(ref);
     return SettingsPage(
       title: 'Plate solving',
       description:
@@ -423,7 +424,8 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               subtitle: _verifyAstapSubtitle(
                   detection: detection,
                   preference: preference,
-                  uiState: uiState),
+                  uiState: uiState,
+                  canChoosePath: canChoosePath),
               trailing: SkotiqButton(
                 label: uiState.verifying ? 'Verifying…' : 'Verify',
                 icon: LucideIcons.play,
@@ -463,7 +465,8 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               subtitle: _verifyAstrometrySubtitle(
                   detection: detection,
                   preference: preference,
-                  uiState: uiState),
+                  uiState: uiState,
+                  canChoosePath: canChoosePath),
               trailing: SkotiqButton(
                 label: uiState.verifying ? 'Verifying…' : 'Verify',
                 icon: LucideIcons.play,
@@ -550,10 +553,13 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
     required PlateSolverDetection detection,
     required PlateSolverPreference preference,
     required PlateSolverSettingsState uiState,
+    required bool canChoosePath,
   }) {
     final target = _resolveAstapTarget(detection, preference);
     if (target == null) {
-      return 'No ASTAP path to verify. Browse for one above first.';
+      return canChoosePath
+          ? 'No ASTAP path to verify. Browse for one above first.'
+          : 'No ASTAP path to verify. Set one on the imaging computer first.';
     }
     if (uiState.astapVerifyError != null) {
       return 'Last verify failed: ${uiState.astapVerifyError}';
@@ -569,10 +575,14 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
     required PlateSolverDetection detection,
     required PlateSolverPreference preference,
     required PlateSolverSettingsState uiState,
+    required bool canChoosePath,
   }) {
     final target = _resolveAstrometryTarget(detection, preference);
     if (target == null) {
-      return 'No solve-field path to verify. Browse for one above first.';
+      return canChoosePath
+          ? 'No solve-field path to verify. Browse for one above first.'
+          : 'No solve-field path to verify. Set one on the imaging computer '
+              'first.';
     }
     if (uiState.astrometryVerifyError != null) {
       return 'Last verify failed: ${uiState.astrometryVerifyError}';
