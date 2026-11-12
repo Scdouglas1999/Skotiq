@@ -25,8 +25,8 @@ pub use align::{
     AlignmentCheck, Rect,
 };
 pub use filters::{
-    classify_filter, plan_filter_set, FilterRole, FilterSetInput, FilterSetPlan, Palette,
-    PlannedInput,
+    classify_filter, plan_filter_set, ChannelMix, FilterRole, FilterSetInput, FilterSetPlan,
+    Palette, PlannedInput, NARROWBAND_ROLES,
 };
 pub use mix::{apply_luminance, robust_fit, LinearFit};
 
