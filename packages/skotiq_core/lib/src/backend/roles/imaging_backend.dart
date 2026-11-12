@@ -30,9 +30,9 @@ import '../../models/plate_solver.dart'
 ///   * Profile / settings — see [ProfileSettingsBackend].
 abstract class ImagingBackend {
 
-  /// Save FITS file directly from the last captured image stored server-side.
-  /// This eliminates raw pixel data transfer across FFI/network boundaries.
-  /// More efficient than saveFitsFile for normal capture workflows.
+  /// Save the camera's last frame as FITS on the host, where its pixels
+  /// already are. The host reads the rig for the header when it writes the
+  /// file; [headerData] carries what a device cannot say.
   Future<void> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,

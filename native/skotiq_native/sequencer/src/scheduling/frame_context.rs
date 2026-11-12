@@ -16,7 +16,7 @@
 //! than written with a sentinel value (silent fallbacks are bugs; an absent
 //! keyword is the honest answer).
 //!
-//! The bridge-side `api_save_fits_file` reads this struct and emits the
+//! The bridge's `frame_header` reads this struct and emits the
 //! corresponding FITS keywords. Custom Skotiq-specific keywords use the
 //! `NS-*` prefix (SK-MOSNM, SK-PIDX, SK-PROW, SK-PCOL, SK-SESID, SK-FIDX,
 //! SK-NPLN) to stay clear of standard astrophotography conventions while
@@ -106,8 +106,8 @@ pub struct FrameContext {
     pub exposure_started_at: Option<chrono::DateTime<chrono::Utc>>,
 
     // Frame accounting (custom NS-* keywords)
-    /// 1-based frame index within the current TakeExposure burst.
-    /// Surfaced as the FITS keyword `SK-FIDX`.
+    /// 1-based frame index within the current TakeExposure burst; 0 for a
+    /// frame that belongs to no burst. Surfaced as the FITS keyword `SK-FIDX`.
     pub frame_index: u32,
     /// Total planned frames in the burst (1-based). Surfaced as `SK-NPLN`.
     pub total_planned_frames: Option<u32>,

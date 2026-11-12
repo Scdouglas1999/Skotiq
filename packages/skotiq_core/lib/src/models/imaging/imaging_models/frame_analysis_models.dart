@@ -8,6 +8,18 @@ enum FrameType {
   darkFlat,
   snapshot;
 
+  /// The frame type as the executor takes it (`ExposureConfig.frame_type`)
+  /// and as a saved frame's `IMAGETYP` card spells it, whoever took the
+  /// frame. PascalCase because it lands in the card verbatim.
+  String get imageType => switch (this) {
+    FrameType.light => 'Light',
+    FrameType.dark => 'Dark',
+    FrameType.flat => 'Flat',
+    FrameType.bias => 'Bias',
+    FrameType.darkFlat => 'DarkFlat',
+    FrameType.snapshot => 'Snapshot',
+  };
+
   String get displayName {
     switch (this) {
       case FrameType.light:
