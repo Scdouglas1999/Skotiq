@@ -47,8 +47,8 @@ fail-safe default.
 | Scope | Grants |
 |-------|--------|
 | `view` | Read status endpoints, subscribe to WebSocket events |
-| `control` | `view` plus device/capture/mount/guider/sequencer/dome/safety/switch/cover control, and the app settings (`POST /api/settings`, `/api/settings/store`, `/api/settings/meridian-flip`, `/api/settings/location`) except credential settings |
-| `admin` | Full protected API: credential settings, Home Assistant, self-test, file browse, backup/restore, plugins, updates, catalogs, clearing logs, pairing list |
+| `control` | `view` plus device/capture/mount/guider/sequencer/dome/safety/switch/cover control, and the app settings (`POST /api/settings`, `/api/settings/store`, `/api/settings/meridian-flip`, `/api/settings/location`) except credential settings and the programs the host runs |
+| `admin` | Full protected API: credential settings, program paths, Home Assistant, self-test, file browse, backup/restore, plugins, updates, catalogs, clearing logs, pairing list |
 
 The legacy `--auth-token` / `SKOTIQ_AUTH_TOKEN` value is an **admin** token.
 Give monitoring clients a `view` token instead.
@@ -78,6 +78,15 @@ rows saying where the host sends a keyring secret (`notification_transport_*`,
 `cloud_sync_*`) hold no secret themselves and stay readable. Backups, which
 hold the credentials, are admin only, and no settings value is written to the
 logs.
+
+**Program paths.** A setting whose value is a program the host runs is declared
+`runsOnHost: true` in the same catalog (the ASTAP and Astrometry.net solver
+paths and the PHD2 executable). The host refuses a change to one from a request
+without admin access with `403 host_program_setting`, the same way as a
+credential, and so does `POST /api/plate-solver/config` for its ASTAP and
+`solve-field` paths. `POST /api/plate-solver/verify` runs the program it is
+given, so without admin access it runs only a solver the host is already set
+to use (configured or found).
 
 **Fail-closed on unknown scope.** `HeadlessAuthPolicy.requiredScopeFor` resolves
 the scope required by a route from its metadata. If a route ever declares a

@@ -48,6 +48,7 @@ const List<Setting<Object?>> kAppSettingsTable = [
     true,
     seeded: true,
   ),
+
   /// `dark` or `light`.
   TextSetting('theme', 'theme', 'dark', clientKeepsOwn: true, seeded: true),
 
@@ -284,11 +285,18 @@ const List<Setting<Object?>> kAppSettingsTable = [
     null,
     sync: SettingSync.thisComputer,
   ),
+
   /// The label of the native plate-solver preference, kept as a stored copy
   /// for export. The preference itself is the authority.
   TextSetting('plateSolver', 'plate_solver', 'ASTAP', seed: 'Auto'),
-  TextSetting('astapPath', 'astap_path', '', seeded: true),
-  TextSetting('astrometryPath', 'astrometry_path', '', seeded: true),
+  TextSetting('astapPath', 'astap_path', '', seeded: true, runsOnHost: true),
+  TextSetting(
+    'astrometryPath',
+    'astrometry_path',
+    '',
+    seeded: true,
+    runsOnHost: true,
+  ),
   IntSetting('plateSolveTimeout', 'plate_solve_timeout', 60, seeded: true),
   DoubleSetting(
     'plateSolveSearchRadius',
@@ -298,7 +306,7 @@ const List<Setting<Object?>> kAppSettingsTable = [
   ),
   BoolSetting('blindSolve', 'blind_solve', false, seeded: true),
   BoolSetting('centeringSyncMount', 'centering_sync_mount', true, seeded: true),
-  TextSetting('phd2Path', 'phd2_path', '', seeded: true),
+  TextSetting('phd2Path', 'phd2_path', '', seeded: true, runsOnHost: true),
   TextSetting('phd2Host', 'phd2_host', 'localhost', seeded: true),
   IntSetting('phd2Port', 'phd2_port', 4400, seeded: true),
   BoolSetting(

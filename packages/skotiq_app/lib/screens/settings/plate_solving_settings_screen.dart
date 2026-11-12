@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../utils/snackbar_helper.dart';
 import '../../widgets/remote_host_path_dialog.dart';
+import 'widgets/admin_only.dart';
 import 'widgets/plate_solve_parameters_section.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/solver_detection_card.dart';
@@ -230,7 +231,8 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
       }
     } catch (e) {
       if (!mounted || !identical(ref.read(backendProvider), authority)) return;
-      context.showErrorSnackBar('Failed to save plate-solver settings: ${userFacingError(e)}');
+      context.showErrorSnackBar(
+          'Failed to save plate-solver settings: ${userFacingError(e)}');
     }
   }
 
@@ -393,11 +395,13 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               subtitle: preference.astapPath.isEmpty
                   ? (detection.astapPath ?? 'Auto-detect — not found')
                   : preference.astapPath,
-              trailing: SettingsPathInput(
-                key: const ValueKey('plate_solver_astap_path'),
-                path: preference.astapPath,
-                onBrowse: () => _browseAstapExecutable(preference),
-                authorityKey: authority,
+              trailing: AdminOnlyControl(
+                child: SettingsPathInput(
+                  key: const ValueKey('plate_solver_astap_path'),
+                  path: preference.astapPath,
+                  onBrowse: () => _browseAstapExecutable(preference),
+                  authorityKey: authority,
+                ),
               ),
             ),
             SettingRow(
@@ -444,11 +448,13 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               subtitle: preference.astrometryPath.isEmpty
                   ? (detection.astrometryPath ?? 'Auto-detect — not found')
                   : preference.astrometryPath,
-              trailing: SettingsPathInput(
-                key: const ValueKey('plate_solver_astrometry_path'),
-                path: preference.astrometryPath,
-                onBrowse: () => _browseAstrometryExecutable(preference),
-                authorityKey: authority,
+              trailing: AdminOnlyControl(
+                child: SettingsPathInput(
+                  key: const ValueKey('plate_solver_astrometry_path'),
+                  path: preference.astrometryPath,
+                  onBrowse: () => _browseAstrometryExecutable(preference),
+                  authorityKey: authority,
+                ),
               ),
             ),
             SettingRow(

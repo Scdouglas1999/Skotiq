@@ -59,6 +59,13 @@ abstract final class AppSettingsCodec {
       if (setting.credential) setting.wire,
   });
 
+  /// Wire fields of the typed settings that name a program the host runs
+  /// ([Setting.runsOnHost]).
+  static final Set<String> runsOnHostWireKeys = Set.unmodifiable({
+    for (final setting in _byWire.values)
+      if (setting.runsOnHost) setting.wire,
+  });
+
   /// The setting stored under [key], if any.
   static Setting<Object?>? settingForKey(String key) => _byKey[key];
 

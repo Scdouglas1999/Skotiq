@@ -60,6 +60,7 @@ sealed class Setting<T> {
     this.seed,
     this.seeded = false,
     this.credential = false,
+    this.runsOnHost = false,
   });
 
   /// Name of the field on `AppSettingsState`.
@@ -93,6 +94,10 @@ sealed class Setting<T> {
   /// client changes it only with admin access to the host; the host refuses
   /// the change from any lesser credential.
   final bool credential;
+
+  /// It names a program or script the imaging host runs. A linked client
+  /// changes it only with admin access to the host, like a [credential].
+  final bool runsOnHost;
 
   bool get hasInstallRow => seeded || seed != null;
 
@@ -408,6 +413,7 @@ final class TextSetting extends Setting<String> {
     super.seed,
     super.seeded,
     super.credential,
+    super.runsOnHost,
   });
 
   /// When set, any other stored or received text reads as [fallback].

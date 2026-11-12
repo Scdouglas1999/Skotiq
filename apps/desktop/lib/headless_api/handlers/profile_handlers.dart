@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io' show HttpStatus;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/database_entities.dart' as settings_models;
@@ -10,6 +9,7 @@ import 'package:skotiq_core/database_entities.dart' as settings_models;
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
+import '../admin_only_settings.dart';
 import '../request_context.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
@@ -516,7 +516,7 @@ class ProfileHandlers implements RouteSource {
       }
     }
 
-    _refuseCredentialChange(request, [
+    AdminOnlySetting.credential.refuseChange(request, [
       for (final key in {...settings.keys, ...remove, ...merge.keys})
         if (isCredentialSettingKey(key)) key,
     ]);
@@ -564,25 +564,6 @@ class ProfileHandlers implements RouteSource {
       'removed': remove,
       if (merged.isNotEmpty) 'merged': merged,
     });
-  }
-
-  /// Refuses a write naming the credential [settings] unless [request] has
-  /// admin access. A linked client paired the ordinary way may change the
-  /// host's settings, but not the credentials the host signs in with.
-  static void _refuseCredentialChange(Request request, List<String> settings) {
-    if (settings.isEmpty || requestHasAdminAccess(request)) return;
-    settings.sort();
-    final one = settings.length == 1;
-    throw HandlerFailure(
-      code: 'credential_setting',
-      statusCode: HttpStatus.forbidden,
-      message:
-          '${settings.join(', ')} ${one ? 'holds a credential' : 'hold credentials'}, '
-          'which only a link with admin access can change. Change '
-          '${one ? 'it' : 'them'} on the imaging computer, or link with admin '
-          'access.',
-      details: {'settings': settings, 'requiredLevel': 'admin'},
-    );
   }
 
   /// `payload[field]` as a map of key to JSON object, or empty when absent.
@@ -848,15 +829,23 @@ class ProfileHandlers implements RouteSource {
     final previousJson = previous == null
         ? const <String, dynamic>{}
         : jsonDecode(jsonEncode(previous.toJson())) as Map<String, dynamic>;
-    // A full snapshot carries every credential field back unchanged; only a
-    // field whose value would change counts as changing a credential.
-    _refuseCredentialChange(request, [
-      for (final key in AppSettingsNotifier.credentialWireKeys)
+    // A full snapshot carries every admin-only field back unchanged; only a
+    // field whose value would change counts as changing it.
+    List<String> changing(Set<String> keys) => [
+      for (final key in keys)
         if (settingsJson.containsKey(key) &&
             (previous == null ||
                 !_settingsValueEquals(settingsJson[key], previousJson[key])))
           key,
-    ]);
+    ];
+    AdminOnlySetting.credential.refuseChange(
+      request,
+      changing(AppSettingsNotifier.credentialWireKeys),
+    );
+    AdminOnlySetting.hostProgram.refuseChange(
+      request,
+      changing(AppSettingsNotifier.runsOnHostWireKeys),
+    );
     final mergedJson = <String, dynamic>{...previousJson, ...settingsJson};
 
     // WHAT THIS SAVE MAY DO TO THE OBSERVER SITE.

@@ -26,6 +26,14 @@ void main() {
     });
   });
 
+  test('the paths of the programs the host runs are declared', () {
+    expect(AppSettingsNotifier.runsOnHostWireKeys, {
+      'astapPath',
+      'astrometryPath',
+      'phd2Path',
+    });
+  });
+
   test('every notification server and the cloud backup target count too', () {
     for (final kind in NotificationTransportKind.values) {
       expect(

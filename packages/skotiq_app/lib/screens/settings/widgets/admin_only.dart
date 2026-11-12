@@ -9,8 +9,8 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../link_rig/link_rig_dialog.dart';
 
 /// What a linked client says where the imaging host lets only a link with
-/// admin access act: credentials, backups, plugins, updates, clearing logs,
-/// catalogs and the host's folders.
+/// admin access act: credentials, the programs it runs, backups, plugins,
+/// updates, clearing logs, catalogs and the host's folders.
 const String adminOnlyAdvice =
     'Change this on the imaging computer, or link with admin access.';
 

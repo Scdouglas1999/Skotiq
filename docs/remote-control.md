@@ -81,6 +81,7 @@ in `linked_rig.json` in the same folder.
 | Sequences, profiles, framing, calibration frames | yes | yes |
 | The imaging computer's settings, observing site, meridian flip settings | yes | yes |
 | Stored credentials: Discord webhook, Pushover keys, Home Assistant and mail servers, cloud backup target | no | yes |
+| Programs the imaging computer runs: ASTAP, Astrometry.net `solve-field`, PHD2 executable paths | no | yes |
 | Plugins, backups, host folder browser, updates, catalogs, clearing logs | no | yes |
 
 A linked desktop or phone changes the imaging computer's settings mid-session

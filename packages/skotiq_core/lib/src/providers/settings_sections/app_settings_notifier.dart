@@ -58,6 +58,11 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   static final Set<String> credentialWireKeys =
       AppSettingsCodec.credentialWireKeys;
 
+  /// Fields of the host's typed settings that name a program the host runs,
+  /// which only a credential with admin access to the host may change.
+  static final Set<String> runsOnHostWireKeys =
+      AppSettingsCodec.runsOnHostWireKeys;
+
   /// [settings] as the stored rows would hold them.
   Map<String, String> storedRowsOf(AppSettingsState settings) =>
       AppSettingsCodec.toRows(settings);

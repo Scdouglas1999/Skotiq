@@ -5,8 +5,10 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/auth_policy.dart';
 import 'package:skotiq_desktop/headless_api/handlers/imaging_handlers.dart';
 import 'package:skotiq_desktop/headless_api/job_manager.dart';
+import 'package:skotiq_desktop/headless_api/request_context.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -69,6 +71,7 @@ void main() {
                 'catalogPath': '/opt/astap/catalogs',
                 'solverChoice': 'astap',
               }),
+              context: _grant(HeadlessTokenScope.admin),
             ),
           ),
         );
@@ -108,6 +111,110 @@ void main() {
 
       expect(response.statusCode, HttpStatus.badRequest);
       expect(backend.saved, isNull);
+    });
+
+    group('the programs the host runs', () {
+      late _RecordingPlateSolverBackend backend;
+      late ImagingHandlers localHandlers;
+
+      setUp(() {
+        backend = _RecordingPlateSolverBackend()
+          ..saved = const PlateSolverPreference(
+            astapPath: '/opt/astap/astap',
+            choice: PlateSolverChoice.astap,
+          );
+        final local = ProviderContainer(
+          overrides: [
+            backendProvider.overrideWith(
+              (ref) => _TestBackendNotifier(ref, backend),
+            ),
+          ],
+        );
+        addTearDown(local.dispose);
+        localHandlers = ImagingHandlers(local);
+      });
+
+      Future<Response> saveConfig(
+        HeadlessTokenScope scope, {
+        required String astapPath,
+        String catalogPath = '',
+        String solverChoice = 'astap',
+      }) => translateHandlerErrors(
+        localHandlers.handleSetPlateSolverConfig(
+          Request(
+            'POST',
+            Uri.parse('http://localhost/api/plate-solver/config'),
+            body: jsonEncode({
+              'astapPath': astapPath,
+              'astrometryPath': '',
+              'catalogPath': catalogPath,
+              'solverChoice': solverChoice,
+            }),
+            context: _grant(scope),
+          ),
+        ),
+      );
+
+      Future<Response> verify(HeadlessTokenScope scope, String path) =>
+          translateHandlerErrors(
+            localHandlers.handleVerifyPlateSolver(
+              Request(
+                'POST',
+                Uri.parse('http://localhost/api/plate-solver/verify'),
+                body: jsonEncode({'executablePath': path}),
+                context: _grant(scope),
+              ),
+            ),
+          );
+
+      test('a link without admin access keeps the solver path but changes '
+          'the rest of the solver setup', () async {
+        var response = await saveConfig(
+          HeadlessTokenScope.control,
+          astapPath: '/tmp/not-astap',
+        );
+        expect(response.statusCode, HttpStatus.forbidden);
+        final body = jsonDecode(await response.readAsString()) as Map;
+        expect(body['code'], 'host_program_setting');
+        expect(body['settings'], ['astapPath']);
+        expect(backend.saved?.astapPath, '/opt/astap/astap');
+
+        response = await saveConfig(
+          HeadlessTokenScope.control,
+          astapPath: '/opt/astap/astap',
+          catalogPath: '/opt/astap/d50',
+          solverChoice: 'auto',
+        );
+        expect(response.statusCode, HttpStatus.ok);
+        expect(backend.saved?.catalogPath, '/opt/astap/d50');
+        expect(backend.saved?.choice, PlateSolverChoice.auto);
+
+        response = await saveConfig(
+          HeadlessTokenScope.admin,
+          astapPath: '/usr/local/bin/astap',
+        );
+        expect(response.statusCode, HttpStatus.ok);
+        expect(backend.saved?.astapPath, '/usr/local/bin/astap');
+      });
+
+      test('a link without admin access verifies only the solvers the host '
+          'is set to use', () async {
+        var response = await verify(HeadlessTokenScope.control, '/usr/bin/id');
+        expect(response.statusCode, HttpStatus.forbidden);
+        expect(backend.verified, isEmpty);
+
+        response = await verify(HeadlessTokenScope.control, '/opt/astap/astap');
+        expect(response.statusCode, HttpStatus.ok);
+        response = await verify(HeadlessTokenScope.control, '/detected/solve');
+        expect(response.statusCode, HttpStatus.ok);
+        response = await verify(HeadlessTokenScope.admin, '/usr/bin/id');
+        expect(response.statusCode, HttpStatus.ok);
+        expect(backend.verified, [
+          '/opt/astap/astap',
+          '/detected/solve',
+          '/usr/bin/id',
+        ]);
+      });
     });
 
     test(
@@ -471,12 +578,35 @@ Future<void> _pumpUntil(bool Function() condition) async {
   expect(condition(), isTrue);
 }
 
+Map<String, Object> _grant(HeadlessTokenScope scope) => {
+  authGrantContextKey: HeadlessAuthGrant.fromCoarse(scope),
+};
+
 class _RecordingPlateSolverBackend extends DisconnectedBackend {
   PlateSolverPreference? saved;
+  final List<String> verified = [];
 
   @override
   Future<void> setPlateSolverConfig(PlateSolverPreference pref) async {
     saved = pref;
+  }
+
+  @override
+  Future<PlateSolverPreference> getPlateSolverConfig() async =>
+      saved ?? const PlateSolverPreference(choice: PlateSolverChoice.auto);
+
+  @override
+  Future<PlateSolverDetection> detectPlateSolvers() async =>
+      const PlateSolverDetection(astrometryPath: '/detected/solve');
+
+  @override
+  Future<PlateSolverInfo> verifyPlateSolver(String executablePath) async {
+    verified.add(executablePath);
+    return PlateSolverInfo(
+      path: executablePath,
+      flavour: 'astap',
+      versionLine: 'ASTAP',
+    );
   }
 }
 

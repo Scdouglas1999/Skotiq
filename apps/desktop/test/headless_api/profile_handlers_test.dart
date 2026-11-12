@@ -548,6 +548,36 @@ void main() {
         );
       });
 
+      test('the path of a program the host runs changes only with admin '
+          'access', () async {
+        var response = await postAs(HeadlessTokenScope.control, {
+          'phd2Path': '/tmp/not-phd2',
+        });
+        expect(response.statusCode, HttpStatus.forbidden);
+        final body = jsonDecode(await response.readAsString()) as Map;
+        expect(body['code'], 'host_program_setting');
+        expect(body['settings'], ['phd2Path']);
+        expect(body['message'], contains('link with admin access'));
+        expect((await stored()).phd2Path, isEmpty);
+
+        response = await postAs(HeadlessTokenScope.admin, {
+          'phd2Path': '/usr/bin/phd2',
+        });
+        expect(response.statusCode, HttpStatus.ok);
+        expect((await stored()).phd2Path, '/usr/bin/phd2');
+
+        response = await postAs(HeadlessTokenScope.control, {
+          'phd2Path': '/usr/bin/phd2',
+          'phd2Port': 4401,
+        });
+        expect(
+          response.statusCode,
+          HttpStatus.ok,
+          reason: 'the path posted back unchanged is not a change',
+        );
+        expect((await stored()).phd2Port, 4401);
+      });
+
       Future<Map<String, dynamic>> getAs(HeadlessTokenScope scope) async {
         final response = await translateHandlerErrors(
           handlers.handleGetSettings(
