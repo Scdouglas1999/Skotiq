@@ -1,7 +1,6 @@
-//! Context the trigger-fired recovery actions run against: the device-id
-//! snapshot, the autofocus / meridian-flip context builders, the in-flight
-//! guard, camera claiming, and the small verdict helpers. Moved verbatim out
-//! of `executor/mod.rs`.
+//! What the trigger-fired recovery actions share: the recovery-trigger specs
+//! a sequence carries, the meridian-flip context builder, the in-flight
+//! guard, and the small verdict helpers.
 
 use super::*;
 
@@ -76,57 +75,6 @@ pub(super) fn build_runtime_node_from_map(
     }
 
     node
-}
-
-#[allow(clippy::too_many_arguments)]
-pub(super) fn trigger_instruction_context(
-    trigger_context: &RunRig,
-    target_name: Option<String>,
-    target_ra: Option<f64>,
-    target_dec: Option<f64>,
-    current_filter: Option<String>,
-    cancellation_token: Arc<AtomicBool>,
-    device_ops: SharedDeviceOps,
-    trigger_state: Arc<RwLock<TriggerState>>,
-    runtime_config: &RunConfigStore,
-    event_tx: Option<broadcast::Sender<ExecutorEvent>>,
-) -> crate::instructions::InstructionContext {
-    // The live settings, so a change made during the run reaches
-    // trigger-run autofocus, dither and recenter. Two cases fall back to the
-    // values the run started with: an empty offset map and an unset site.
-    // Clearing every offset, or the site, mid-run therefore does not reach
-    // these instructions until the next start.
-    let (live_offsets, rc_lat, rc_lon) = {
-        let rc = runtime_config.read();
-        (rc.filter_focus_offsets.clone(), rc.latitude, rc.longitude)
-    };
-    let filter_focus_offsets = if live_offsets.is_empty() {
-        trigger_context.filter_focus_offsets.clone()
-    } else {
-        live_offsets
-    };
-    let mut run = crate::instructions::RunShared::new(device_ops);
-    run.rig = RunRig {
-        latitude: rc_lat.or(trigger_context.latitude),
-        longitude: rc_lon.or(trigger_context.longitude),
-        filter_focus_offsets,
-        ..trigger_context.clone()
-    };
-    run.trigger_state = Some(trigger_state);
-    run.event_tx = event_tx;
-    // The run's retry policy, so a trigger-fired action's filter change
-    // retries like the sequence's own.
-    run.device_retry = runtime_config.slots().device_retry.clone();
-    // A trigger action is not a sequence node, saves no frames of the run
-    // and does not move the rotator: no node id, frame identity, grading
-    // state or rotation.
-    crate::instructions::InstructionContext {
-        target_ra,
-        target_dec,
-        target_name,
-        current_filter,
-        ..crate::instructions::InstructionContext::new(run, cancellation_token)
-    }
 }
 
 /// The target a trigger-initiated meridian flip is being built for.
@@ -311,16 +259,6 @@ impl AutofocusOutcome {
             Self::Unmeasurable => "there is no HFR measurement to judge focus by".to_string(),
         }
     }
-}
-
-/// Where the focuser is right now, or `None` when the rig has no focuser or the
-/// driver will not answer. Used either side of a trigger-fired sweep so the
-/// continuation record can name the focus the run kept.
-pub(super) async fn read_focuser_position(
-    device_ops: &SharedDeviceOps,
-    focuser_id: Option<&String>,
-) -> Option<i32> {
-    device_ops.focuser_get_position(focuser_id?).await.ok()
 }
 
 /// How the frames measure after autofocus failed, for the operator's notice.

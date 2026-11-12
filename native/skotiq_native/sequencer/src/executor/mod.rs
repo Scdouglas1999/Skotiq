@@ -451,36 +451,6 @@ pub(crate) struct AutofocusTriggerContinuation {
     pub(crate) operator_message: String,
 }
 
-/// Build the continuation record for a non-converging trigger autofocus. Lives
-/// outside the trigger loop so the policy — continue on the last-good focus,
-/// never pause, park or end the run — is testable without standing up an
-/// executor.
-///
-/// `origin_restored` is the `autofocus_origin_restored` marker from the failed
-/// result: `Some(true)` the focuser went back to where it started, `Some(false)`
-/// the return move failed and the motor is off its origin, `None` the run never
-/// moved the focuser at all (e.g. admission rejected).
-pub(crate) fn autofocus_trigger_continuation(
-    trigger_id: &str,
-    trigger_name: &str,
-    reason: &str,
-    position_before: Option<i32>,
-    position_after: Option<i32>,
-    origin_restored: Option<bool>,
-) -> AutofocusTriggerContinuation {
-    autofocus_failure_continuation(
-        &format!("Autofocus trigger '{trigger_name}'"),
-        serde_json::json!({
-            "trigger_id": trigger_id,
-            "trigger_name": trigger_name,
-        }),
-        reason,
-        position_before,
-        position_after,
-        origin_restored,
-    )
-}
-
 /// The continuation record for any autofocus that did not converge while the
 /// run carries on. `source` names it in the operator's notice ("Autofocus
 /// 'Refocus'", "Post-flip autofocus"), and the fields of `context` are added to

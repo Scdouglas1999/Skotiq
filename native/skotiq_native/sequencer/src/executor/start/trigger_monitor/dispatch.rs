@@ -73,8 +73,7 @@ impl Dispatcher {
         Self {
             run: run.control.clone(),
             rig: Rig {
-                device_ops: run.device_ops.clone(),
-                context: run.rig.clone(),
+                shared: custom_branch_context.run.clone(),
                 trigger_state,
                 runtime_config: run.config.clone(),
             },
@@ -198,7 +197,7 @@ impl Dispatcher {
             .clone()
             .unwrap_or_default();
         let ctx = build_trigger_flip_context(
-            &self.rig.context,
+            self.rig.devices(),
             TriggerFlipTarget {
                 name: target.name.clone().unwrap_or_else(|| "target".into()),
                 ra_hours: target.ra_hours,
@@ -221,7 +220,7 @@ impl Dispatcher {
         let result = if let Some(ctx) = ctx {
             let mut recovery = crate::meridian_flip_executor::MeridianFlipExecutor::new(
                 config,
-                self.rig.device_ops.clone(),
+                self.rig.device_ops().clone(),
             )
             .with_executor_event_tx(self.run.state.events().clone());
             let slew = crate::instructions::execute_slew(
@@ -481,7 +480,6 @@ impl Dispatcher {
                     trigger_name,
                     rig,
                     run,
-                    decisions: &self.decisions,
                     progress_context: &self.custom.context,
                     camera_claim,
                 })
@@ -540,5 +538,81 @@ impl Dispatcher {
                 custom_branch::run(trigger_id, trigger_name, &self.custom, run).await
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::actions::TargetSnapshot;
+    use super::*;
+
+    async fn dispatcher_for(run: &Run) -> (Dispatcher, ExecutionContext) {
+        let (requests, _) = mpsc::channel(4);
+        let context = run
+            .build_context(std::time::Instant::now(), requests.clone())
+            .await;
+        (
+            Dispatcher::new(run, context.clone(), requests).await,
+            context,
+        )
+    }
+
+    /// A trigger-run instruction runs against the run's own context, so its
+    /// decisions reach the run's log, a disconnect it settles reaches the
+    /// run's recovery, and its frames carry the run's session and rig.
+    #[tokio::test]
+    async fn a_trigger_action_runs_against_the_runs_own_context() {
+        let (events, _) = broadcast::channel(16);
+        let mut run = Run::detached(
+            Arc::new(crate::device_ops::NullDeviceOps),
+            RunCell::starting_in(events, ExecutorState::Running),
+        );
+        run.rig = RunRig {
+            camera_id: Some("camera".into()),
+            mount_id: Some("mount".into()),
+            focuser_id: Some("focuser".into()),
+            save_path: Some(std::path::PathBuf::from("/captures")),
+            latitude: Some(45.0),
+            longitude: Some(-122.0),
+            filter_focus_offsets: HashMap::from([("Ha".to_string(), 42)]),
+            ..RunRig::default()
+        };
+        let (dispatcher, context) = dispatcher_for(&run).await;
+
+        let ctx = dispatcher.rig.instruction_context(
+            TargetSnapshot {
+                name: Some("M31".into()),
+                ra_hours: Some(0.71),
+                dec_degrees: Some(41.27),
+                filter: Some("Ha".into()),
+            },
+            &dispatcher.run,
+        );
+
+        assert_eq!(ctx.target_name.as_deref(), Some("M31"));
+        assert_eq!(ctx.target_ra, Some(0.71));
+        assert_eq!(ctx.current_filter.as_deref(), Some("Ha"));
+        assert!(
+            ctx.node_id.is_empty(),
+            "a trigger action is not a sequence node"
+        );
+        assert_eq!(
+            ctx.run.identity.session_id, context.run.identity.session_id,
+            "one session per run"
+        );
+        assert!(ctx.run.decision_tx.is_some(), "the run's decision log");
+        assert!(ctx.run.recovery_request_tx.is_some(), "the run's recovery");
+        assert!(ctx.run.event_tx.is_some(), "the run's event feed");
+        assert!(Arc::ptr_eq(
+            ctx.run.trigger_state.as_ref().unwrap(),
+            &dispatcher.rig.trigger_state
+        ));
+        assert!(Arc::ptr_eq(
+            &ctx.run.device_disconnect_recovery_pending,
+            &context.run.device_disconnect_recovery_pending
+        ));
+        assert_eq!(ctx.run.rig.save_path, run.rig.save_path);
+        assert_eq!(ctx.run.rig.latitude, Some(45.0));
+        assert_eq!(ctx.run.rig.filter_focus_offsets.get("Ha"), Some(&42));
     }
 }

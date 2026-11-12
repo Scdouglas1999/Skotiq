@@ -377,48 +377,6 @@ fn test_executor_state_for_result_keeps_cancelled_distinct() {
 }
 
 #[test]
-fn test_trigger_autofocus_context_preserves_runtime_metadata() {
-    let trigger_context = RunRig {
-        camera_id: Some("camera".to_string()),
-        mount_id: Some("mount".to_string()),
-        focuser_id: Some("focuser".to_string()),
-        filterwheel_id: Some("wheel".to_string()),
-        rotator_id: Some("rotator".to_string()),
-        dome_id: Some("dome".to_string()),
-        cover_calibrator_id: Some("panel".to_string()),
-        save_path: Some(std::path::PathBuf::from("C:/captures")),
-        latitude: Some(45.0),
-        longitude: Some(-122.0),
-        filter_focus_offsets: HashMap::from([("Ha".to_string(), 42)]),
-    };
-    let runtime_config = RunConfigStore::default();
-    let instruction_ctx = trigger_instruction_context(
-        &trigger_context,
-        Some("M31".to_string()),
-        Some(1.25),
-        Some(41.0),
-        Some("Ha".to_string()),
-        Arc::new(AtomicBool::new(false)),
-        Arc::new(crate::device_ops::NullDeviceOps),
-        Arc::new(RwLock::new(TriggerState::new())),
-        &runtime_config,
-        None,
-    );
-
-    assert_eq!(instruction_ctx.target_name.as_deref(), Some("M31"));
-    assert_eq!(
-        instruction_ctx.run.rig.save_path,
-        Some(std::path::PathBuf::from("C:/captures"))
-    );
-    assert_eq!(instruction_ctx.run.rig.latitude, Some(45.0));
-    assert_eq!(instruction_ctx.run.rig.longitude, Some(-122.0));
-    assert_eq!(
-        instruction_ctx.run.rig.filter_focus_offsets.get("Ha"),
-        Some(&42)
-    );
-}
-
-#[test]
 fn test_trigger_flip_context_keeps_focuser_id() {
     let trigger_context = RunRig {
         mount_id: Some("mount".to_string()),
@@ -2493,22 +2451,33 @@ async fn a_failed_trigger_autofocus_never_parks_and_the_run_carries_on() {
             ExecutorState::Running,
             "{persisted}: the run must keep going on the previous focus"
         );
-        assert!(
-            run.decisions
-                .iter()
-                .any(|d| d.summary == super::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY),
-            "{persisted}: the operator must be notified (the decision row is what raises the \
-             notification): {:?}",
+        // The decision row is what raises the operator's notification: one
+        // missed focus, one row, one warning.
+        let rows: Vec<_> = run
+            .decisions
+            .iter()
+            .filter(|d| d.summary == super::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY)
+            .collect();
+        assert_eq!(
+            rows.len(),
+            1,
+            "{persisted}: the missed focus is recorded once: {:?}",
             run.decisions
                 .iter()
                 .map(|d| d.summary.clone())
                 .collect::<Vec<_>>()
         );
-        assert!(
-            run.warnings
-                .iter()
-                .any(|w| w.contains("did not converge") && w.contains("imaging continues")),
-            "{persisted}: the cause goes to the run's warnings: {:?}",
+        assert_eq!(rows[0].details["trigger_id"], "hfr_degraded");
+        assert_eq!(rows[0].details["trigger_name"], "HFR Degradation");
+        let notices: Vec<_> = run
+            .warnings
+            .iter()
+            .filter(|w| w.contains("did not converge") && w.contains("imaging continues"))
+            .collect();
+        assert_eq!(
+            notices.len(),
+            1,
+            "{persisted}: the cause goes to the run's warnings once: {:?}",
             run.warnings
         );
         assert!(
