@@ -735,7 +735,9 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionCheckMountTracking': 'unparked · tracking',
     'nightSessionCheckSite': 'Site',
     'nightSessionCheckSiteMissing': 'no observing site set',
+    'nightSessionCheckMountParkedStays': 'parked · this plan does not unpark it',
     'nightSessionCheckSolver': 'Solver',
+    'nightSessionCheckMountParkedUnparks': 'parked · the run unparks it',
     'nightSessionCheckSolverMissing':
         'not set up · solving and centering will fail',
     'nightSessionCheckSolverReady': 'ready',
@@ -2360,7 +2362,10 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionCheckWeatherOff':
         'la seguridad meteorológica está desactivada',
     'nightSessionCheckWeatherSafe': 'dispositivo activo · seguro',
+    'nightSessionCheckMountParkedStays':
+        'aparcada · este plan no la desaparca',
     'nightSessionCheckWeatherUnsafe': 'dispositivo activo · inseguro',
+    'nightSessionCheckMountParkedUnparks': 'aparcada · la sesión la desaparca',
     'nightSessionClouds': 'Nubes',
     'nightSessionCloudsForecast': 'Nubes (previsión)',
     'nightSessionCoolerPower': 'potencia',

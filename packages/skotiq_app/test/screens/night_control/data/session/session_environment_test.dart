@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/screens/night_control/data/session/before_you_start_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/conditions_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/equipment_summary_provider.dart';
@@ -506,6 +507,98 @@ void main() {
     });
   });
 
+  // A parked mount read "needs a look" before every run, although the run
+  // unparks it.
+  group('a parked mount before a run', () {
+    Override parked() => mountStateProvider.overrideWith(
+          (ref) => FixedMount(
+            ref,
+            const MountState(
+              connectionState: DeviceConnectionState.connected,
+              deviceName: 'EQ6-R',
+              isParked: true,
+            ),
+          ),
+        );
+
+    Override plan(SequenceNode step) => nightPlanTreeProvider.overrideWithValue(
+          buildNightPlanTree(
+            Sequence.create(
+              name: 'Run',
+              rootNodeId: 'root',
+              nodes: {
+                'root': InstructionSetNode(
+                  id: 'root',
+                  name: 'Run',
+                  childIds: const ['step', 'light'],
+                ),
+                'step': step,
+                'light': ExposureNode(
+                  id: 'light',
+                  parentId: 'root',
+                  orderIndex: 1,
+                ),
+              },
+            ),
+          ),
+        );
+
+    Future<ChecklistItemVm> mountRow(List<Override> more) async {
+      final h = await sessionHarness(
+        overrides: [..._readyRig(), parked(), ...more],
+      );
+      return _item(await _checklist(h), ChecklistItemId.mount);
+    }
+
+    test('no plan loaded: parked is where it rests', () async {
+      final row = await mountRow([
+        nightPlanTreeProvider.overrideWithValue(null),
+      ]);
+      expect(row.state, ChecklistItemState.ok);
+      expect(row.detail!.key, 'nightSessionCheckMountParked');
+    });
+
+    test('a plan with an Unpark step: fine, the run unparks it', () async {
+      final row = await mountRow([
+        plan(UnparkNode(id: 'step', parentId: 'root', orderIndex: 0)),
+      ]);
+      expect(row.state, ChecklistItemState.ok);
+      expect(row.detail!.key, 'nightSessionCheckMountParkedUnparks');
+    });
+
+    test('a plan that slews: fine, a slew unparks first', () async {
+      final row = await mountRow([
+        plan(SlewNode(id: 'step', parentId: 'root', orderIndex: 0)),
+      ]);
+      expect(row.state, ChecklistItemState.ok);
+      expect(row.detail!.key, 'nightSessionCheckMountParkedUnparks');
+    });
+
+    test('a plan that never moves the mount: it would stay parked', () async {
+      final row = await mountRow([
+        plan(
+          DelayNode(id: 'step', parentId: 'root', orderIndex: 0),
+        ),
+      ]);
+      expect(row.state, ChecklistItemState.attention);
+      expect(row.detail!.key, 'nightSessionCheckMountParkedStays');
+    });
+
+    test('a disabled Unpark step does not count', () async {
+      final row = await mountRow([
+        plan(
+          UnparkNode(
+            id: 'step',
+            parentId: 'root',
+            orderIndex: 0,
+            isEnabled: false,
+          ),
+        ),
+      ]);
+      expect(row.state, ChecklistItemState.attention);
+    });
+  });
+
   // The rig, Nov 8 2026: the mount's reads all failed and the row kept
   // saying "tracking · pier E · alt 2.5°" as if current.
   group('stale and failed devices', () {
@@ -687,36 +780,6 @@ void main() {
       expect(line, isNot(contains('sim_rotator_1')));
     });
 
-    test('past the cap the oldest lines go, the newest stay', () async {
-      final h = await sessionHarness();
-      for (var i = 0; i < kNightLogMaxEntries + 5; i++) {
-        await h.addFrame(minutes: i, hfr: 2.0);
-      }
-      final log = await h.settle(nightLogProvider);
-      expect(log, hasLength(kNightLogMaxEntries));
-      expect(log.first.message.params['n'], '${kNightLogMaxEntries + 5}');
-      expect(log.last.message.params['n'], '6');
-    });
-
-    test('frames carry their number, filter, verdict and HFR', () async {
-      final h = await sessionHarness();
-      await h.addFrame(minutes: 0, hfr: 2.10);
-      await h.addFrame(minutes: 3, hfr: 3.05, accepted: false);
-      final log = await h.settle(nightLogProvider);
-
-      expect(log, hasLength(2));
-      expect(log.first.message.key, 'nightSessionLogFrameRejected');
-      expect(log.first.tone, MetricTone.bad);
-      expect(log.first.message.params['n'], '2');
-      expect(log.last.message.params, <String, String>{
-        'n': '1',
-        'filter': ' Ha',
-        'hfr': ' · HFR 2.10 px',
-        'reason': '',
-      });
-    });
-  });
-}
     // The log read "Property changed · Filter Wheel · FilterNames" after
     // every connect.
     test('a device property change is not a line of the log', () async {
@@ -762,3 +825,33 @@ void main() {
       expect(lines.single, startsWith('Connected'));
     });
 
+    test('past the cap the oldest lines go, the newest stay', () async {
+      final h = await sessionHarness();
+      for (var i = 0; i < kNightLogMaxEntries + 5; i++) {
+        await h.addFrame(minutes: i, hfr: 2.0);
+      }
+      final log = await h.settle(nightLogProvider);
+      expect(log, hasLength(kNightLogMaxEntries));
+      expect(log.first.message.params['n'], '${kNightLogMaxEntries + 5}');
+      expect(log.last.message.params['n'], '6');
+    });
+
+    test('frames carry their number, filter, verdict and HFR', () async {
+      final h = await sessionHarness();
+      await h.addFrame(minutes: 0, hfr: 2.10);
+      await h.addFrame(minutes: 3, hfr: 3.05, accepted: false);
+      final log = await h.settle(nightLogProvider);
+
+      expect(log, hasLength(2));
+      expect(log.first.message.key, 'nightSessionLogFrameRejected');
+      expect(log.first.tone, MetricTone.bad);
+      expect(log.first.message.params['n'], '2');
+      expect(log.last.message.params, <String, String>{
+        'n': '1',
+        'filter': ' Ha',
+        'hfr': ' · HFR 2.10 px',
+        'reason': '',
+      });
+    });
+  });
+}
