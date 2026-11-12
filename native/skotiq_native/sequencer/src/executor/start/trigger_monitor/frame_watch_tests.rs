@@ -168,7 +168,7 @@ impl Harness {
             ProgressDetail::FrameRejected {
                 frame: 1,
                 total: 1,
-                reason: row.db_reason.clone(),
+                reason: row.db_reject().expect("a rejected row"),
                 hfr: row.hfr,
                 eccentricity: row.ecc,
                 star_count: row.stars,
@@ -539,6 +539,7 @@ async fn final_frames_all_finish_solving_without_starting_a_recenter() {
         };
     }
     frames[2].db_accepted = false;
+    frames[2].db_reason = "HFR 2.49 px exceeds absolute threshold 2.00 px".to_string();
     let mut h = Harness::with_plan_and_rows(plan(), frames.clone()).await;
     assert!(
         h.dispatcher

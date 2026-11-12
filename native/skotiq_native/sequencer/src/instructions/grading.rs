@@ -556,7 +556,7 @@ pub(crate) async fn emit_grade_progress(
                 hfr_baseline: baseline_snapshot,
                 environment: env_snapshot.clone(),
                 recent_frames: &history_snapshot,
-                grader_reason: reason.as_str(),
+                reason: *reason,
             });
             tracing::info!(
                 "[FORENSICS] Frame {}/{} cause={} evidence={:?}",
@@ -574,7 +574,7 @@ pub(crate) async fn emit_grade_progress(
             let structured = crate::node::ProgressDetail::FrameRejected {
                 frame,
                 total,
-                reason: reason.clone(),
+                reason: *reason,
                 hfr: *hfr,
                 eccentricity: *eccentricity,
                 star_count: *star_count,
@@ -641,7 +641,7 @@ pub(crate) async fn emit_grade_progress(
                 serde_json::json!({
                     "frame": frame,
                     "total": total,
-                    "reason": reason,
+                    "reason": reason.to_string(),
                     "hfr": hfr,
                     "eccentricity": eccentricity,
                     "star_count": star_count,
@@ -693,7 +693,7 @@ pub(crate) async fn emit_grade_progress(
                         "limit": max_consecutive,
                         "frame": frame,
                         "total": total,
-                        "reason": reason,
+                        "reason": reason.to_string(),
                         "reject_path": full_path.display().to_string(),
                         "accepted_total": accepted,
                         "rejected_total": rejected,

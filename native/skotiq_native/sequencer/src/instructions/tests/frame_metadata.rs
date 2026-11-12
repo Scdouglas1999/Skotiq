@@ -560,7 +560,10 @@ mod consecutive_reject_limit {
                 crate::quality::FrameGrade::Pass
             } else {
                 crate::quality::FrameGrade::Reject {
-                    reason: "star count 3 below minimum 20".to_string(),
+                    reason: crate::quality::RejectReason::StarCountBelowMinimum {
+                        count: 3,
+                        minimum: 20,
+                    },
                     hfr: None,
                     eccentricity: None,
                     star_count: Some(3),

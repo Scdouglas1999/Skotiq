@@ -200,7 +200,7 @@ pub enum ProgressDetail {
     FrameRejected {
         frame: u32,
         total: u32,
-        reason: String,
+        reason: crate::quality::RejectReason,
         hfr: Option<f64>,
         eccentricity: Option<f64>,
         star_count: Option<u32>,

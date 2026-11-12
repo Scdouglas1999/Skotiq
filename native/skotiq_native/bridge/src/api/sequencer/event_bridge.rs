@@ -747,7 +747,10 @@ mod frame_event_capture_tests {
         let detail = ProgressDetail::FrameRejected {
             frame: 8,
             total: 10,
-            reason: "HFR 4.9 above threshold 3.5".to_string(),
+            reason: skotiq_sequencer::quality::RejectReason::HfrAboveLimit {
+                hfr: 4.9,
+                limit: 3.5,
+            },
             hfr: Some(4.9),
             eccentricity: Some(0.62),
             star_count: Some(88),
@@ -770,8 +773,13 @@ mod frame_event_capture_tests {
 
         match event {
             SequencerEvent::FrameRejected {
-                capture: forwarded, ..
-            } => assert_eq!(forwarded, (&capture).into()),
+                capture: forwarded,
+                reason,
+                ..
+            } => {
+                assert_eq!(forwarded, (&capture).into());
+                assert_eq!(reason, "HFR 4.90 px exceeds absolute threshold 3.50 px");
+            }
             other => panic!("expected FrameRejected, got {:?}", other),
         }
     }

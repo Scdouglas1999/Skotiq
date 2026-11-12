@@ -288,7 +288,7 @@ mod light_frame_grading {
         frame_type: &str,
         metrics: (f64, usize, f64),
         check: crate::quality::ImageQualityCheck,
-    ) -> Result<(), (String, Option<f64>, Option<u32>)> {
+    ) -> Result<(), (crate::quality::RejectReason, Option<f64>, Option<u32>)> {
         let scratch = scratch_dir("light-grading");
         let ops = Arc::new(
             ScriptedDomeRotatorOps::new()
@@ -350,7 +350,10 @@ mod light_frame_grading {
         .await
         .expect_err("a 5 px frame against a 3 px limit must be rejected");
         assert_eq!(hfr, Some(5.0));
-        assert!(reason.contains("HFR"), "{reason}");
+        assert!(
+            matches!(reason, crate::quality::RejectReason::HfrAboveLimit { .. }),
+            "{reason:?}"
+        );
     }
 
     #[tokio::test]
@@ -374,7 +377,10 @@ mod light_frame_grading {
         )
         .await
         .expect_err("0.8 eccentricity against a 0.5 limit must be rejected");
-        assert!(reason.contains("eccentricity"), "{reason}");
+        assert!(
+            matches!(reason, crate::quality::RejectReason::Eccentricity { .. }),
+            "{reason:?}"
+        );
     }
 
     #[tokio::test]
@@ -444,7 +450,7 @@ mod light_frame_grading {
         let rejects = run(400, 1, baselines.clone()).await;
         assert_eq!(rejects.len(), 1, "{rejects:?}");
         assert!(
-            rejects[0].starts_with("star count 400 is 20%"),
+            rejects[0].to_string().starts_with("star count 400 is 20%"),
             "{rejects:?}"
         );
         assert!(run(1500, 1, baselines).await.is_empty());
