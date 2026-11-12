@@ -1709,6 +1709,9 @@ typedef struct wire_cst_api_live_stacking_stats {
   double avg_matched_pairs;
   double avg_alignment_residual;
   uint64_t total_sigma_rejected_pixels;
+  uint32_t other_filter_frames;
+  struct wire_cst_list_prim_u_8_strict *last_other_filter;
+  struct wire_cst_list_prim_u_8_strict *filter;
 } wire_cst_api_live_stacking_stats;
 
 typedef struct wire_cst_api_live_stacking_result {

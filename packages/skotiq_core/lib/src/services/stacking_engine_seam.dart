@@ -232,6 +232,9 @@ class BridgeStackingEngineSeam implements StackingEngineSeam {
       avgMatchedPairs: s.avgMatchedPairs,
       avgAlignmentResidual: s.avgAlignmentResidual,
       totalSigmaRejectedPixels: s.totalSigmaRejectedPixels.toInt(),
+      filter: s.filter,
+      otherFilterFrames: s.otherFilterFrames,
+      lastOtherFilter: s.lastOtherFilter,
     );
   }
 }

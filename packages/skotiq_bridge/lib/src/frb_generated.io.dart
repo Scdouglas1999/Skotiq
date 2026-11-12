@@ -3468,6 +3468,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.total_sigma_rejected_pixels = cst_encode_u_64(
       apiObj.totalSigmaRejectedPixels,
     );
+    wireObj.other_filter_frames = cst_encode_u_32(apiObj.otherFilterFrames);
+    wireObj.last_other_filter = cst_encode_opt_String(apiObj.lastOtherFilter);
+    wireObj.filter = cst_encode_opt_String(apiObj.filter);
   }
 
   @protected
@@ -21901,6 +21904,13 @@ final class wire_cst_api_live_stacking_stats extends ffi.Struct {
 
   @ffi.Uint64()
   external int total_sigma_rejected_pixels;
+
+  @ffi.Uint32()
+  external int other_filter_frames;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> last_other_filter;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> filter;
 }
 
 final class wire_cst_api_live_stacking_result extends ffi.Struct {

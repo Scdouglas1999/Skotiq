@@ -262,11 +262,11 @@ live_stack/mono.add0 f4563c76102c6470
 live_stack/mono.add1 8b6237523b031f0f
 live_stack/mono.add2 a646c1ef5be1e2b5
 live_stack/mono.stack bf02db60e2272a70
-live_stack/mono.stats ca4ef947f9f9dbb5
+live_stack/mono.stats 1d2ff207896a90e9
 live_stack/rgb.add0 690d64ccc712a1a5
 live_stack/rgb.add1 8b6237523b031f0f
 live_stack/rgb.stack 86a8e7ebf1677edb
-live_stack/rgb.stats e02d7fc81e08448b
+live_stack/rgb.stats 01ec91b7dcf90787
 mosaic/coverage 0f144f30ff5036f5
 mosaic/master 05632cea313a938d
 mosaic/wcs_stats 62042729d272320d
