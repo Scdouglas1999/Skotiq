@@ -146,10 +146,8 @@ impl DeviceDriver for AtikFilterWheel {
         let sdk = AtikSdk::lock().await?;
         let efw = sdk.efw()?;
         // SAFETY: the handle came from ArtemisEFWConnect and is released once.
-        check_artemis_error(
-            unsafe { (efw.disconnect)(self.handle.0) },
-            "release the filter wheel",
-        )?;
+        let result = unsafe { (efw.disconnect)(self.handle.0) };
+        check_artemis_error(result, "release the filter wheel")?;
         self.handle = SdkHandle(std::ptr::null_mut());
         self.connected = false;
         Ok(())
@@ -172,10 +170,8 @@ impl FilterWheelDriver for AtikFilterWheel {
         let sdk = AtikSdk::lock().await?;
         let efw = sdk.efw()?;
         // SAFETY: the handle is open and the position was bounds-checked.
-        check_artemis_error(
-            unsafe { (efw.set_position)(self.handle.0, position) },
-            &format!("turn to filter position {}", position + 1),
-        )
+        let result = unsafe { (efw.set_position)(self.handle.0, position) };
+        check_artemis_error(result, &format!("turn to filter position {}", position + 1))
     }
 
     async fn get_position(&self) -> Result<i32, DriverError> {
