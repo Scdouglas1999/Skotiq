@@ -211,6 +211,80 @@ const int _maxTargetEntries = 8;
 String _normalizeDesignation(String text) =>
     text.toLowerCase().replaceAll(RegExp(r'\s+'), '');
 
+typedef TargetSearchIndex = ({
+  List<_SearchableTarget> dsos,
+  List<_SearchableTarget> stars,
+});
+
+/// One catalog object as the palette searches it.
+class _SearchableTarget {
+  const _SearchableTarget({
+    required this.object,
+    required this.label,
+    required this.designations,
+    required this.names,
+  });
+
+  final CelestialObject object;
+  final String label;
+
+  /// Its catalog designations, lower-cased and without spaces.
+  final List<String> designations;
+
+  /// Its name and common names, lower-cased; a star's proper name.
+  final List<String> names;
+}
+
+/// The installed catalogs as the palette searches them, built once per
+/// catalog load.
+///
+/// A keystroke used to walk both catalogs (some 13,000 objects and 118,000
+/// stars), normalizing every designation with a regular expression and
+/// lower-casing every name: 50 to 100 ms on the UI isolate per letter typed.
+/// Only the 400 or so stars that have a name can be found, so the rest are
+/// not kept.
+final targetSearchIndexProvider = Provider<TargetSearchIndex>((ref) {
+  final dsos = ref.watch(loadedDsosProvider).valueOrNull ?? const [];
+  final stars = ref.watch(loadedStarsProvider).valueOrNull ?? const [];
+  return (
+    dsos: [
+      for (final dso in dsos)
+        () {
+          final common = dso.commonNames;
+          final designation =
+              dso.name == dso.id ? dso.id : '${dso.name} (${dso.id})';
+          final firstCommon = common?.split(',').first.trim();
+          return _SearchableTarget(
+            object: dso,
+            label: firstCommon != null &&
+                    firstCommon.isNotEmpty &&
+                    firstCommon != dso.name
+                ? '$designation · $firstCommon'
+                : designation,
+            designations: [
+              _normalizeDesignation(dso.id),
+              for (final id in dso.catalogIds) _normalizeDesignation(id),
+            ],
+            names: [
+              dso.name.toLowerCase(),
+              if (common != null) common.toLowerCase(),
+            ],
+          );
+        }(),
+    ],
+    stars: [
+      for (final star in stars)
+        if (star.name.isNotEmpty)
+          _SearchableTarget(
+            object: star,
+            label: star.name,
+            designations: const [],
+            names: [star.name.toLowerCase()],
+          ),
+    ],
+  );
+});
+
 /// Deep-sky objects and named stars from the installed catalogs that match
 /// [query]. Choosing one opens it in Framing, or, [inSky] (the planetarium on
 /// screen), centers the sky on it; Shift+Enter does the other.
@@ -225,33 +299,23 @@ List<CommandEntry> buildTargetEntries(
 }) {
   final normalized = _normalizeDesignation(query);
   if (normalized.length < 2) return const [];
-  final dsos = ref.read(loadedDsosProvider).valueOrNull ?? const [];
-  final stars = ref.read(loadedStarsProvider).valueOrNull ?? const [];
+  final index = ref.read(targetSearchIndexProvider);
 
   final found = <(int, CelestialObject, String)>[];
-  for (final dso in dsos) {
-    final ids = <String>[dso.id, ...dso.catalogIds];
-    final exact = ids.any((id) => _normalizeDesignation(id) == normalized);
-    final prefix = !exact &&
-        ids.any((id) => _normalizeDesignation(id).startsWith(normalized));
-    final common = dso.commonNames;
+  for (final dso in index.dsos) {
+    final exact = dso.designations.contains(normalized);
+    final prefix =
+        !exact && dso.designations.any((id) => id.startsWith(normalized));
     final byName = normalized.length >= 3 &&
-        (dso.name.toLowerCase().contains(query) ||
-            (common != null && common.toLowerCase().contains(query)));
+        dso.names.any((name) => name.contains(query));
     if (!exact && !prefix && !byName) continue;
-    final designation = dso.name == dso.id ? dso.id : '${dso.name} (${dso.id})';
-    final firstCommon = common?.split(',').first.trim();
-    final label =
-        firstCommon != null && firstCommon.isNotEmpty && firstCommon != dso.name
-            ? '$designation · $firstCommon'
-            : designation;
-    found.add((exact ? 0 : (prefix ? 1 : 2), dso, label));
+    found.add((exact ? 0 : (prefix ? 1 : 2), dso.object, dso.label));
   }
   if (normalized.length >= 3) {
-    for (final star in stars) {
-      final name = star.name.toLowerCase();
-      if (name.isEmpty || !name.startsWith(query)) continue;
-      found.add((name == query ? 0 : 1, star, star.name));
+    for (final star in index.stars) {
+      final name = star.names.first;
+      if (!name.startsWith(query)) continue;
+      found.add((name == query ? 0 : 1, star.object, star.label));
     }
   }
   found.sort((a, b) {
