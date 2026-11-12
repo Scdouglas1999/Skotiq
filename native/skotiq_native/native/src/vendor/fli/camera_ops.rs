@@ -1,24 +1,22 @@
 //! `CameraDriver` implementation for `FliCamera`.
 
 use super::*;
-use crate::camera_core::{unpack_samples, SampleLayout};
+use crate::camera_core::{image_dimension, unpack_samples, Frame, SampleLayout};
 
 #[async_trait]
 impl CameraDriver for FliCamera {
     fn capabilities(&self) -> CameraCapabilities {
-        self.capabilities.clone()
+        self.core.capabilities.clone()
     }
 
     async fn get_status(&self) -> Result<CameraStatus, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = FliSdk::lock().await?;
 
         let sensor_temp = {
             let mut temp: c_double = 0.0;
-            // SAFETY: self.handle is valid (connected=true checked); `temp` is a valid stack pointer.
+            // SAFETY: self.handle is valid (connection checked at entry); `temp` is a valid stack pointer.
             if unsafe { (sdk.get_temperature)(self.handle, &mut temp) } == 0 {
                 Some(temp)
             } else {
@@ -28,7 +26,7 @@ impl CameraDriver for FliCamera {
 
         let cooler_power = {
             let mut power: c_double = 0.0;
-            // SAFETY: self.handle is valid (connected=true checked); `power` is a valid stack pointer.
+            // SAFETY: self.handle is valid (connection checked at entry); `power` is a valid stack pointer.
             if unsafe { (sdk.get_cooler_power)(self.handle, &mut power) } == 0 {
                 Some(power)
             } else {
@@ -36,7 +34,7 @@ impl CameraDriver for FliCamera {
             }
         };
 
-        let exposure_remaining = if self.state == CameraState::Exposing {
+        let exposure_remaining = if self.core.state == CameraState::Exposing {
             let mut timeleft: c_long = 0;
             // SAFETY: self.handle is valid; `timeleft` is a valid stack pointer.
             if unsafe { (sdk.get_exposure_status)(self.handle, &mut timeleft) } == 0 {
@@ -49,23 +47,21 @@ impl CameraDriver for FliCamera {
         };
 
         Ok(CameraStatus {
-            state: self.state,
+            state: self.core.state,
             sensor_temp,
             cooler_power,
-            target_temp: Some(self.target_temp),
-            cooler_on: self.cooler_on,
-            gain: 0,
-            offset: 0,
-            bin_x: self.current_bin_x,
-            bin_y: self.current_bin_y,
+            target_temp: Some(self.core.cooler().target_c),
+            cooler_on: self.core.cooler().enabled,
+            gain: self.core.gain,
+            offset: self.core.offset,
+            bin_x: self.core.bin_x,
+            bin_y: self.core.bin_y,
             exposure_remaining,
         })
     }
 
     async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         // Set binning (has its own mutex lock)
         self.set_binning(params.bin_x, params.bin_y).await?;
@@ -84,7 +80,7 @@ impl CameraDriver for FliCamera {
         } else {
             FLI_FRAME_TYPE_DARK
         };
-        // SAFETY: self.handle is valid (connected=true checked at function start); frame type is a valid FLI frame-type constant.
+        // SAFETY: self.handle is valid (connection checked at entry); frame type is a valid FLI frame-type constant.
         let result = unsafe { (sdk.set_frame_type)(self.handle, fli_frame_type) };
         check_fli_error(result, "set frame type")?;
 
@@ -98,36 +94,32 @@ impl CameraDriver for FliCamera {
         let result = unsafe { (sdk.expose_frame)(self.handle) };
         check_fli_error(result, "expose frame")?;
 
-        self.exposure_duration = params.duration_secs;
-        self.state = CameraState::Exposing;
+        self.core.exposure_duration = params.duration_secs;
+        self.core.state = CameraState::Exposing;
 
         Ok(())
     }
 
     async fn abort_exposure(&mut self) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = FliSdk::lock().await?;
 
-        // SAFETY: self.handle is valid (connected=true checked).
+        // SAFETY: self.handle is valid (connection checked at entry).
         let result = unsafe { (sdk.cancel_exposure)(self.handle) };
         check_fli_error(result, "cancel exposure")?;
 
-        self.state = CameraState::Idle;
+        self.core.state = CameraState::Idle;
         Ok(())
     }
 
     async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = FliSdk::lock().await?;
 
         let mut status: c_long = 0;
-        // SAFETY: self.handle is valid (connected=true checked); `status` is a valid stack pointer.
+        // SAFETY: self.handle is valid (connection checked at entry); `status` is a valid stack pointer.
         let result = unsafe { (sdk.get_device_status)(self.handle, &mut status) };
         check_fli_error(result, "get device status")?;
 
@@ -135,28 +127,26 @@ impl CameraDriver for FliCamera {
     }
 
     async fn download_image(&mut self) -> Result<ImageData, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = FliSdk::lock().await?;
 
-        self.state = CameraState::Downloading;
+        self.core.state = CameraState::Downloading;
 
         // Calculate image dimensions based on subframe and binning.
-        // Why: current_bin_{x,y} are i32; a negative or zero value would divide-by-zero
+        // Why: bin_{x,y} are i32; a negative or zero value would divide-by-zero
         // or wrap to a giant usize. Reject explicitly. SubFrame.width/height are u32
         // sensor coords and widening to usize is value-preserving on every Tier 1 target.
-        let bin_x_usize = usize::try_from(self.current_bin_x).map_err(|_| {
+        let bin_x_usize = usize::try_from(self.core.bin_x).map_err(|_| {
             DriverError::InvalidParameter(format!(
                 "FLI current_bin_x not representable as usize: {}",
-                self.current_bin_x
+                self.core.bin_x
             ))
         })?;
-        let bin_y_usize = usize::try_from(self.current_bin_y).map_err(|_| {
+        let bin_y_usize = usize::try_from(self.core.bin_y).map_err(|_| {
             DriverError::InvalidParameter(format!(
                 "FLI current_bin_y not representable as usize: {}",
-                self.current_bin_y
+                self.core.bin_y
             ))
         })?;
         if bin_x_usize == 0 || bin_y_usize == 0 {
@@ -164,7 +154,7 @@ impl CameraDriver for FliCamera {
                 "FLI binning must be >= 1".into(),
             ));
         }
-        let (width, height) = if let Some(sf) = &self.subframe {
+        let (width, height) = if let Some(sf) = &self.core.subframe {
             // Why: sf.width/height are u32 sensor dims (<= 16k on FLI hardware); widening
             // to usize via `as` is always safe.
             (
@@ -205,17 +195,17 @@ impl CameraDriver for FliCamera {
             let row_offset = row * row_bytes;
             // SAFETY: row_offset = row * row_bytes is strictly less than total_bytes = height * row_bytes (row < height), so the resulting pointer remains within byte_buffer's allocation (in-bounds, single allocated object); both row and row_bytes are usize derived from validated overflow-checked multiplications above.
             let row_ptr = unsafe { byte_buffer.as_mut_ptr().add(row_offset) };
-            // SAFETY: self.handle is valid (connected=true checked); `row_ptr` points to `row_bytes` bytes inside byte_buffer (verified above). FLIGrabRow's third argument is a PIXEL count, not a byte count — it writes exactly `width` u16 elements = `width * 2` = `row_bytes` bytes into `row_ptr`. Passing `row_bytes` here (the previous bug) told the SDK to write `row_bytes` u16 pixels = 2x the row slot, overrunning the buffer on every bin>=2 frame (bin=1 was masked by the SDK's internal width clamp). Matches the reference (fli_ccd.cpp:667 passes pixel `width`).
+            // SAFETY: self.handle is valid (connection checked at entry); `row_ptr` points to `row_bytes` bytes inside byte_buffer (verified above). FLIGrabRow's third argument is a PIXEL count, not a byte count — it writes exactly `width` u16 elements = `width * 2` = `row_bytes` bytes into `row_ptr`. Passing `row_bytes` here (the previous bug) told the SDK to write `row_bytes` u16 pixels = 2x the row slot, overrunning the buffer on every bin>=2 frame (bin=1 was masked by the SDK's internal width clamp). Matches the reference (fli_ccd.cpp:667 passes pixel `width`).
             let result = unsafe { (sdk.grab_row)(self.handle, row_ptr, width) };
             if result != 0 {
                 tracing::error!(
                     "FLI GrabRow() failed for camera '{}'. Row: {}/{}, width: {} bytes, error code: {}",
-                    self.name, row, height, row_bytes, result
+                    self.core.name, row, height, row_bytes, result
                 );
-                self.state = CameraState::Error;
+                self.core.state = CameraState::Error;
                 return Err(DriverError::SdkError(format!(
                     "Failed to grab row {} of {} from FLI camera '{}'. SDK error: {}. Image download interrupted.",
-                    row, height, self.name, result
+                    row, height, self.core.name, result
                 )));
             }
         }
@@ -236,39 +226,21 @@ impl CameraDriver for FliCamera {
             }
         };
 
-        let metadata = ImageMetadata {
-            exposure_time: self.exposure_duration,
-            gain: 0,
-            offset: 0,
-            bin_x: self.current_bin_x,
-            bin_y: self.current_bin_y,
+        self.core.state = CameraState::Idle;
+
+        // width/height are sensor-bounded (validated non-negative values divided by
+        // bins >= 1); a usize wider than u32 is reported rather than truncated.
+        Ok(Frame {
             temperature,
-            timestamp: chrono::Utc::now(),
-            subframe: self.subframe.clone(),
-            readout_mode: None,
-            vendor_data: VendorFeatures::default(),
-            camera_file: None,
-        };
-
-        self.state = CameraState::Idle;
-
-        // Why: width/height were derived from validated non-negative values divided by
-        // bins >= 1, so they are sensor-bounded. On 64-bit hosts usize is wider than u32;
-        // surface overflow rather than truncate if dimensions ever exceed u32::MAX.
-        let width_u32 = u32::try_from(width).map_err(|_| {
-            DriverError::SdkError(format!("FLI image width does not fit in u32: {}", width))
-        })?;
-        let height_u32 = u32::try_from(height).map_err(|_| {
-            DriverError::SdkError(format!("FLI image height does not fit in u32: {}", height))
-        })?;
-        Ok(ImageData {
-            width: width_u32,
-            height: height_u32,
-            data,
-            bits_per_pixel: self.sensor_info.bit_depth,
-            bayer_pattern: self.sensor_info.bayer_pattern,
-            metadata,
-        })
+            ..self.core.frame(
+                image_dimension("FLI", "width", width)?,
+                image_dimension("FLI", "height", height)?,
+                data,
+                self.core.sensor_info.bit_depth,
+                self.core.sensor_info.bayer_pattern,
+            )
+        }
+        .into_image())
     }
 
     async fn set_cooler(
@@ -276,9 +248,7 @@ impl CameraDriver for FliCamera {
         enabled: bool,
         target_temp: Option<f64>,
     ) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = FliSdk::lock().await?;
 
@@ -286,34 +256,34 @@ impl CameraDriver for FliCamera {
         // setpoint, so when the caller names none we reuse the one this driver
         // already holds instead of inventing a temperature.
         let setpoint_c = if enabled {
-            target_temp.unwrap_or(self.target_temp)
+            target_temp.unwrap_or(self.core.cooler().target_c)
         } else {
             // Disabling needs no setpoint from the caller — a high target is
             // simply how this SDK parks the TEC.
             25.0
         };
 
-        // SAFETY: self.handle is valid (connected=true checked); `setpoint_c` is a pass-by-value c_double.
+        // SAFETY: self.handle is valid (connection checked at entry); `setpoint_c` is a pass-by-value c_double.
         let result = unsafe { (sdk.set_temperature)(self.handle, setpoint_c) };
         check_fli_error(result, "set temperature")?;
 
-        self.cooler_on = enabled;
-        if enabled {
-            self.target_temp = setpoint_c;
-        }
+        self.core.update_cooler(|cooler| {
+            cooler.enabled = enabled;
+            if enabled {
+                cooler.target_c = setpoint_c;
+            }
+        });
         Ok(())
     }
 
     async fn get_temperature(&self) -> Result<f64, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = FliSdk::lock().await?;
 
         let mut temp: c_double = 0.0;
 
-        // SAFETY: self.handle is valid (connected=true checked); `temp` is a valid stack pointer.
+        // SAFETY: self.handle is valid (connection checked at entry); `temp` is a valid stack pointer.
         let result = unsafe { (sdk.get_temperature)(self.handle, &mut temp) };
         check_fli_error(result, "get temperature")?;
 
@@ -321,15 +291,13 @@ impl CameraDriver for FliCamera {
     }
 
     async fn get_cooler_power(&self) -> Result<f64, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = FliSdk::lock().await?;
 
         let mut power: c_double = 0.0;
 
-        // SAFETY: self.handle is valid (connected=true checked); `power` is a valid stack pointer.
+        // SAFETY: self.handle is valid (connection checked at entry); `power` is a valid stack pointer.
         let result = unsafe { (sdk.get_cooler_power)(self.handle, &mut power) };
         check_fli_error(result, "get cooler power")?;
 
@@ -353,13 +321,11 @@ impl CameraDriver for FliCamera {
     }
 
     async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = FliSdk::lock().await?;
 
-        // SAFETY: self.handle is valid (connected=true checked); bin_x is a pass-by-value c_long bounded by max_bin_x=16 in capabilities.
+        // SAFETY: self.handle is valid (connection checked at entry); bin_x is a pass-by-value c_long bounded by max_bin_x=16 in capabilities.
         let result = unsafe { (sdk.set_hbin)(self.handle, bin_x as c_long) };
         check_fli_error(result, "set horizontal binning")?;
 
@@ -367,19 +333,17 @@ impl CameraDriver for FliCamera {
         let result = unsafe { (sdk.set_vbin)(self.handle, bin_y as c_long) };
         check_fli_error(result, "set vertical binning")?;
 
-        self.current_bin_x = bin_x;
-        self.current_bin_y = bin_y;
+        self.core.bin_x = bin_x;
+        self.core.bin_y = bin_y;
         Ok(())
     }
 
     async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
-        Ok((self.current_bin_x, self.current_bin_y))
+        Ok((self.core.bin_x, self.core.bin_y))
     }
 
     async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = FliSdk::lock().await?;
 
@@ -434,7 +398,7 @@ impl CameraDriver for FliCamera {
             ),
         };
 
-        // SAFETY: self.handle is valid (connected=true checked); the coordinates are computed from SDK-reported visible area bounds and the subframe parameters validated by upper layer.
+        // SAFETY: self.handle is valid (connection checked at entry); the coordinates are computed from SDK-reported visible area bounds and the subframe parameters validated by upper layer.
         let result = unsafe {
             (sdk.set_image_area)(
                 self.handle,
@@ -446,12 +410,12 @@ impl CameraDriver for FliCamera {
         };
         check_fli_error(result, "set image area")?;
 
-        self.subframe = subframe;
+        self.core.subframe = subframe;
         Ok(())
     }
 
     fn get_sensor_info(&self) -> SensorInfo {
-        self.sensor_info.clone()
+        self.core.sensor_info.clone()
     }
 
     async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
@@ -475,18 +439,14 @@ impl CameraDriver for FliCamera {
     }
 
     async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         // libfli exposes no gain control and no gain bounds to report.
         Err(DriverError::NotSupported)
     }
 
     async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         // libfli exposes no offset control and no offset bounds to report.
         Err(DriverError::NotSupported)
