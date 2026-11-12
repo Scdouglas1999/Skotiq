@@ -1,114 +1,122 @@
 //! Moravian device discovery.
 
 use super::*;
-
-/// Active enumeration sink for SDK callbacks.
-pub(crate) static ACTIVE_ENUMERATION_IDS: Mutex<Option<Arc<Mutex<Vec<c_int>>>>> = Mutex::new(None);
-
-/// Callback for camera enumeration (`enum_callback_t`, gxccd.h:63).
-pub(crate) unsafe extern "C" fn enumerate_callback(id: c_int) {
-    let target = ACTIVE_ENUMERATION_IDS
-        .lock()
-        .ok()
-        .and_then(|guard| guard.as_ref().cloned());
-    if let Some(ids) = target {
-        if let Ok(mut ids) = ids.lock() {
-            ids.push(id);
-        }
-    }
-}
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct MoravianCameraInfo {
-    pub camera_id: c_int,
+    pub library: Library,
+    pub camera_id: u32,
     pub name: String,
     pub serial_number: Option<String>,
     pub discovery_index: usize,
 }
 
-pub async fn discover_devices() -> Result<Vec<MoravianCameraInfo>, DriverError> {
-    let sdk = MoravianSdk::lock().await?;
-
-    let ids_sink = Arc::new(Mutex::new(Vec::new()));
-    *ACTIVE_ENUMERATION_IDS
-        .lock()
-        .unwrap_or_else(|e| e.into_inner()) = Some(ids_sink.clone());
-
-    // SAFETY: ACTIVE_ENUMERATION_IDS has been set to `ids_sink` so the callback has a sink to push to; `enumerate_callback` is a properly declared `unsafe extern "C" fn(c_int)` matching the enum_callback_t typedef.
-    unsafe { (sdk.enumerate_usb)(enumerate_callback) };
-    *ACTIVE_ENUMERATION_IDS
-        .lock()
-        .unwrap_or_else(|e| e.into_inner()) = None;
-
-    let ids: Vec<c_int> = ids_sink.lock().unwrap_or_else(|e| e.into_inner()).clone();
-
-    let mut devices = Vec::new();
-
-    for (index, &id) in ids.iter().enumerate() {
-        // Temporarily initialize to read camera info, then release.
-        // SAFETY: `id` was just emitted by gxccd_enumerate_usb via enumerate_callback so it is a valid camera ID for gxccd_initialize_usb.
-        let handle = unsafe { (sdk.initialize_usb)(id) };
-        if handle.is_null() {
-            continue;
+impl MoravianCameraInfo {
+    /// The device address [`MoravianCamera::from_address`] opens.
+    pub fn address(&self) -> String {
+        match self.library.address_tag() {
+            Some(tag) => format!("{}:{}", tag, self.camera_id),
+            None => self.camera_id.to_string(),
         }
-
-        let mut name_buf = [0 as c_char; 256];
-        // SAFETY: `handle` was just successfully initialized (non-null check above); name_buf is a 256-byte stack array and we pass its truthful length as `size_t` so the SDK cannot overrun.
-        if unsafe {
-            (sdk.get_string_parameter)(
-                handle,
-                GSP_CAMERA_DESCRIPTION,
-                name_buf.as_mut_ptr(),
-                name_buf.len(),
-            )
-        } >= 0
-        {
-            // SAFETY: name_buf is 256 bytes and the SDK guarantees NUL-termination within the buffer on success (>= 0) per gxccd.h:306-311.
-            let name = unsafe { std::ffi::CStr::from_ptr(name_buf.as_ptr()) }
-                .to_string_lossy()
-                .trim()
-                .to_string();
-
-            let mut serial_buf = [0 as c_char; 64];
-            // SAFETY: `handle` is still the successfully-initialized one from above; serial_buf is 64 bytes and its truthful length is passed as `size_t`.
-            let serial_number = if unsafe {
-                (sdk.get_string_parameter)(
-                    handle,
-                    GSP_CAMERA_SERIAL,
-                    serial_buf.as_mut_ptr(),
-                    serial_buf.len(),
-                )
-            } >= 0
-            {
-                // SAFETY: serial_buf is 64 bytes; the SDK guarantees NUL-termination on success.
-                let serial = unsafe { std::ffi::CStr::from_ptr(serial_buf.as_ptr()) }
-                    .to_string_lossy()
-                    .trim()
-                    .to_string();
-                if !serial.is_empty() {
-                    Some(serial)
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-
-            devices.push(MoravianCameraInfo {
-                camera_id: id,
-                name,
-                serial_number,
-                discovery_index: index,
-            });
-        }
-
-        // SAFETY: `handle` was successfully initialized at the top of this iteration; gxccd_release pairs with gxccd_initialize_usb per gxccd.h:206-211.
-        unsafe { (sdk.release)(handle) };
     }
+}
 
-    Ok(devices)
+/// Cameras this process holds open, with the name and serial read at connect.
+///
+/// A search lists these without initializing them again: the libraries
+/// describe a second initialize of an open camera as "already used" at best
+/// (MoravianCameraDriver.pdf, Initialize), and the hot-plug watcher searches
+/// every few minutes while a camera is exposing.
+static OPEN: std::sync::Mutex<Option<HashMap<(Library, u32), NameAndSerial>>> =
+    std::sync::Mutex::new(None);
+
+type NameAndSerial = (String, Option<String>);
+
+pub(crate) fn remember_open(camera: &MoravianCamera) {
+    OPEN.lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get_or_insert_with(HashMap::new)
+        .insert(
+            (camera.library, camera.camera_id),
+            (camera.core.name.clone(), camera.serial.clone()),
+        );
+}
+
+pub(crate) fn forget_open(camera: &MoravianCamera) {
+    if let Some(open) = OPEN.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
+        open.remove(&(camera.library, camera.camera_id));
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn forget_every_open_camera() {
+    *OPEN.lock().unwrap_or_else(|e| e.into_inner()) = None;
+}
+
+fn open_camera(library: Library, id: u32) -> Option<NameAndSerial> {
+    OPEN.lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .as_ref()
+        .and_then(|open| open.get(&(library, id)).cloned())
+}
+
+/// The cameras one library reports, each opened briefly for its name and
+/// serial (as NINA's MoravianCameraProvider does) unless this process has it open.
+pub(crate) fn list_cameras(api: &dyn Api) -> Vec<MoravianCameraInfo> {
+    let library = api.library();
+    let mut cameras = Vec::new();
+    for (index, id) in api.enumerate().into_iter().enumerate() {
+        let (name, serial_number) = match open_camera(library, id) {
+            Some(known) => known,
+            None => {
+                let Some(handle) = api.initialize(id) else {
+                    tracing::warn!(
+                        "Moravian {}: camera {} is listed but could not be opened (another program may have it)",
+                        library.file_name(),
+                        id
+                    );
+                    continue;
+                };
+                // SAFETY: `handle` was just returned by this library's initialize.
+                let session = unsafe { Session::new(api, handle) };
+                let name = session
+                    .string(GSP_CAMERA_DESCRIPTION)
+                    .filter(|n| !n.is_empty())
+                    .unwrap_or_else(|| format!("Moravian Camera {}", id));
+                let serial = session.string(GSP_CAMERA_SERIAL).filter(|s| !s.is_empty());
+                session.release();
+                (name, serial)
+            }
+        };
+        cameras.push(MoravianCameraInfo {
+            library,
+            camera_id: id,
+            name,
+            serial_number,
+            discovery_index: index,
+        });
+    }
+    cameras
+}
+
+pub async fn discover_devices() -> Result<Vec<MoravianCameraInfo>, DriverError> {
+    let mut cameras = Vec::new();
+    let mut last_error = None;
+    for &library in Library::on_this_platform() {
+        match library.lock().await {
+            Ok(sdk) => cameras.extend(list_cameras(sdk.api())),
+            Err(error) => last_error = Some(error),
+        }
+    }
+    match last_error {
+        Some(error) if cameras.is_empty() && !is_sdk_available() => Err(error),
+        _ => Ok(cameras),
+    }
 }
 
 pub fn is_sdk_available() -> bool {
-    MoravianSdk::is_available()
+    Library::on_this_platform()
+        .iter()
+        .any(|library| library.is_available())
 }

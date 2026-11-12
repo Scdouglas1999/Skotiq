@@ -400,7 +400,7 @@ async fn record() -> String {
         "moravian camera",
         moravian::is_sdk_available(),
         camera_rows,
-        || { moravian::MoravianCamera::new(0) }
+        || { moravian::MoravianCamera::new(moravian::Library::Gxccd, 0) }
     );
     section!(
         "gphoto2 camera",

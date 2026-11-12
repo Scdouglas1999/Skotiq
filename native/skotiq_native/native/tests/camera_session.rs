@@ -524,12 +524,21 @@ async fn session_moravian() {
         "moravian.discover_devices",
         format!("{:?}", cameras.as_ref().map(|c| c.len())),
     );
-    let ids: Vec<_> = cameras
-        .map(|c| c.iter().map(|c| c.camera_id).collect())
+    let addresses: Vec<_> = cameras
+        .map(|c| c.iter().map(|c| c.address()).collect())
         .unwrap_or_default();
-    for id in if ids.is_empty() { vec![0] } else { ids } {
-        let mut camera = moravian::MoravianCamera::new(id);
-        camera_session(&mut record, &format!("moravian.camera{}", id), &mut camera).await;
+    for address in if addresses.is_empty() {
+        vec!["0".to_string()]
+    } else {
+        addresses
+    } {
+        let mut camera = moravian::MoravianCamera::from_address(&address).expect("an address");
+        camera_session(
+            &mut record,
+            &format!("moravian.camera{}", address),
+            &mut camera,
+        )
+        .await;
     }
     record.finish("moravian");
 }
