@@ -151,7 +151,8 @@ async fn discovery_uses_the_camera_id_not_the_index() {
         vec![format!("POAInitCamera({MONO_ID})")]
     );
     // RAW16 is what the driver unpacks, so it must be the format the camera holds.
-    // SAFETY: plain int arguments.
+    // SAFETY: a plain int argument; the fake looks the id up and returns -1 when it has no
+    // such camera.
     assert_eq!(unsafe { (fake().format)(MONO_ID) }, 1, "POA_RAW16");
     let info = camera.get_sensor_info();
     assert_eq!((info.width, info.height), (128, 96));
@@ -186,8 +187,9 @@ async fn a_frame_is_one_single_shot_exposure_set_in_seconds() {
     assert_eq!(frame.data[0], 0);
     assert_eq!(frame.data[129], (1 << 8) | 1);
     // The camera stopped after its frame, so the next start is accepted as it is.
-    // SAFETY: plain int argument.
     assert_eq!(
+        // SAFETY: a plain int argument; the fake looks the id up and returns -1 when it
+        // has no such camera.
         unsafe { (fake().exposing)(COLOR_ID) },
         0,
         "a single frame leaves the camera idle"
