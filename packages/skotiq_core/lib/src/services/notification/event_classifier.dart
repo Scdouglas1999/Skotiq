@@ -52,13 +52,29 @@ const String kImageGradingRejectStreakSummary =
 const String kQualityProblemContinuedSummary =
     'Problem noticed — the run continues';
 
-/// How the run's Warning for that same problem ends
-/// (`QUALITY_PROBLEM_CONTINUES_NOTE` in the native executor). The problem is
-/// announced from the decision row and listed with the run's warnings, so the
-/// Warning itself is not toasted again.
-const String kQualityProblemContinuesNote =
-    'The run continues. To have problems like this stop the run instead, turn '
-    'on Stop the run for quality problems in Settings > Sequencer.';
+/// Sentences only the run's Warning for a continued happening carries: a
+/// quality problem (`QUALITY_PROBLEM_CONTINUES_NOTE`), an autofocus that did
+/// not converge (`autofocus_failure_continuation`) and a streak of rejected
+/// frames (the grading notice), word for word as the native sequencer writes
+/// them. The engine records each such happening twice, a decision row and
+/// that Warning, and the decision row and the Warning arrive in no fixed
+/// order, so the Warning is known by its words.
+const List<String> kContinuedHappeningWarningSentences = [
+  'The run continues. To have problems like this stop the run instead, turn '
+      'on Stop the run for quality problems in Settings > Sequencer.',
+  'and imaging continues on the last-good focus.',
+  'Imaging continues, but check focus before trusting these frames.',
+  'The run continues and every frame is kept; rejects are in the Reject '
+      'folder.',
+];
+
+/// Whether [message] is the run's Warning for a happening the notification
+/// router announces from its decision row ([NotificationCategory.problemNoticed],
+/// [NotificationCategory.autofocusContinued],
+/// [NotificationCategory.frameRejected]). Tonight lists the Warning with the
+/// run's warnings; a toast of it would tell the same happening twice.
+bool isContinuedHappeningWarning(String message) =>
+    kContinuedHappeningWarningSentences.any(message.contains);
 
 /// The result of classifying a single backend event: the semantic
 /// [NotificationCategory], the context key/value pairs the templates need,
