@@ -249,7 +249,7 @@ sealed class ExposureSensitivity {
   /// [value] in a sentence: "gain 100" or "ISO 800".
   String describe(int value);
 
-  /// [value] as a compact token, as in "300s @ G100" or "300s @ ISO 800".
+  /// [value] as a compact token, as in "g100 o50" or "ISO 800".
   String abbreviate(int value);
 
   /// Whether the camera also has an offset control. DSLR and mirrorless
@@ -276,7 +276,7 @@ class GainSensitivity extends ExposureSensitivity {
   String describe(int value) => 'gain $value';
 
   @override
-  String abbreviate(int value) => 'G$value';
+  String abbreviate(int value) => 'g$value';
 
   @override
   bool get hasOffset => true;

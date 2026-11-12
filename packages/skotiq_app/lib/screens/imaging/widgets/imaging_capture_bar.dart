@@ -65,6 +65,10 @@ class ImagingCaptureBar extends ConsumerStatefulWidget {
 
   static const double _filterWidth = 96;
 
+  /// Width of the ISO picker that replaces the gain field for a DSLR: room
+  /// for "ISO 25600" and the chevron.
+  static const double _isoWidth = 124;
+
   @override
   ConsumerState<ImagingCaptureBar> createState() => _ImagingCaptureBarState();
 }
@@ -134,6 +138,7 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
     final exposureSettings = ref.watch(exposureSettingsProvider);
     final cameraState = ref.watch(cameraStateProvider);
     final filterState = ref.watch(filterWheelStateProvider);
+    final sensitivity = ref.watch(cameraSensitivityProvider);
     final saveLoopFrames = ref.watch(loopSavesFramesProvider);
     final isConnected =
         cameraState.connectionState == DeviceConnectionState.connected;
@@ -246,8 +251,11 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
                   ),
                   const SizedBox(width: SkotiqTokens.spaceSm),
                   SizedBox(
-                    width: _fieldWidth,
+                    width: sensitivity is IsoSensitivity
+                        ? ImagingCaptureBar._isoWidth
+                        : _fieldWidth,
                     child: SensitivityField(
+                      sensitivity: sensitivity,
                       value: exposureSettings.gain,
                       labelled: true,
                       onChanged: (int gain) => ref

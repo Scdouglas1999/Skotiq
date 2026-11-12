@@ -122,6 +122,7 @@ EquipmentRowVm _notConnected(
 
 final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
   final camera = ref.watch(cameraStateProvider);
+  final sensitivity = ref.watch(cameraSensitivityProvider);
   final wheel = ref.watch(filterWheelStateProvider);
   final focuser = ref.watch(focuserStateProvider);
   final mount = ref.watch(mountStateProvider);
@@ -206,11 +207,11 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
                 : NightText.literal(nightCelsius(temp)),
           if (camera.coolerPower != null)
             NightText.literal('${camera.coolerPower!.round()}%'),
-          if (gain != null || offset != null)
+          if (gain != null || (offset != null && sensitivity.hasOffset))
             NightText.literal(
               [
-                if (gain != null) 'g$gain',
-                if (offset != null) 'o$offset',
+                if (gain != null) sensitivity.abbreviate(gain),
+                if (offset != null && sensitivity.hasOffset) 'o$offset',
               ].join(' '),
             ),
           if (binning != null && binning.isNotEmpty)

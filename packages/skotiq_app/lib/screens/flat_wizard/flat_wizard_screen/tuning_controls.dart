@@ -130,8 +130,10 @@ class _CaptureConfigSummary extends ConsumerWidget {
         KeyValueList(rows: rows),
         const SizedBox(height: SkotiqTokens.spaceXs),
         Text(
-          'Every filter uses these unless its own gain or offset is set '
-          'above.',
+          sensitivity.hasOffset
+              ? 'Every filter uses these unless its own gain or offset is set '
+                  'above.'
+              : 'Every filter uses these unless its own ISO is set above.',
           style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
         ),
         if (mismatches.isNotEmpty) ...[
