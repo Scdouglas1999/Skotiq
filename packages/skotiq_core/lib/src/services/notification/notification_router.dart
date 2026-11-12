@@ -80,11 +80,13 @@ class NotificationRouter {
   /// Per-category rate-limit window state.
   final Map<NotificationCategory, _RateWindow> _rateWindows = {};
 
-  /// Whether the run in progress has already been told as failed. A failing
-  /// run reports its fault more than once (the instruction's own error, the
-  /// node's failure, the terminal `SequenceFailed` restating the first one),
-  /// and the operator is told once, with the first.
-  bool _runFailureTold = false;
+  /// The reason the run in progress was last told as failed with, or null
+  /// when nothing told still stands. A failing run reports its fault more
+  /// than once (the instruction's own error, the node's failure, the terminal
+  /// `SequenceFailed` restating the first one), and the operator is told
+  /// once, with the first. A run that takes another frame has carried on
+  /// past what was told, so its next fault, hours later, is told again.
+  String? _toldFailureReason;
 
   /// Per-category last fire time (for debouncing).
   final Map<NotificationCategory, DateTime> _lastFireTime = {};
@@ -596,8 +598,13 @@ class NotificationRouter {
       _stopPushArbiter.noteRunBoundary();
     }
     if (event.category == EventCategory.sequencer &&
-        const {'Started', 'Completed', 'Stopped'}.contains(event.eventType)) {
-      _runFailureTold = false;
+        const {
+          'Started',
+          'Completed',
+          'Stopped',
+          'ExposureStarted',
+        }.contains(event.eventType)) {
+      _toldFailureReason = null;
     }
 
     // Single source of truth for event -> category classification, shared
@@ -605,14 +612,33 @@ class NotificationRouter {
     final classified = NotificationEventClassifier.classify(event);
     if (classified == null) return;
     if (classified.category == NotificationCategory.sequenceFailed) {
-      final alreadyTold = _runFailureTold;
-      // The terminal event ends the run, so a failure after it (a flat
-      // wizard's, say) is told again.
-      _runFailureTold = event.eventType != 'SequenceFailed';
-      if (alreadyTold) return;
+      final told = _toldFailureReason;
+      final reason = classified.context[kFailureReasonContextKey] ?? '';
+      if (event.eventType == 'SequenceFailed') {
+        // The terminal event ends the run, so a failure after it (a flat
+        // wizard's, say) is told again. The run's end itself is news unless
+        // it only restates the fault already told.
+        _toldFailureReason = null;
+        if (told != null && _restatesFault(reason, told)) return;
+      } else {
+        if (told != null) return;
+        _toldFailureReason = reason;
+      }
     }
     final context = _buildContext(event, classified.context);
     route(classified.category, context, severity: classified.severity);
+  }
+
+  /// Whether a failed run's terminal [reason] says nothing the notice already
+  /// told with [told] did not: it names no cause, or it is the same fault
+  /// with or without the step's name in front.
+  static bool _restatesFault(String reason, String told) {
+    String bare(String text) => text.replaceFirst(RegExp(r'[.!?]+$'), '');
+    final a = bare(reason);
+    final b = bare(told);
+    return reason == kUnexplainedFailureReason ||
+        a.contains(b) ||
+        b.contains(a);
   }
 
   /// Pull `explicit_transports` out of a NotificationNode Rust event
