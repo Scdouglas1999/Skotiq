@@ -1070,6 +1070,7 @@ async fn telescope_wire_transcript() {
         "can_set_tracking" => |d| d.can_set_tracking(),
         "can_pulse_guide" => |d| d.can_pulse_guide(),
         "can_set_guide_rates" => |d| d.can_set_guide_rates(),
+        "can_set_pier_side" => |d| d.can_set_pier_side(),
         "can_set_right_ascension_rate" => |d| d.can_set_right_ascension_rate(),
         "tracking_rates" => |d| d.tracking_rates(),
         "axis_rates" => |d| d.axis_rates(TelescopeAxis::Secondary),

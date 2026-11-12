@@ -392,6 +392,8 @@ fn member_lines() -> Vec<String> {
         row!("set_tracking_rate(1)", d.set_tracking_rate(1));
         row!("can_move_axis(1)", d.can_move_axis(1));
         row!("move_axis(1, 2.5)", d.move_axis(1, 2.5));
+        row!("equatorial_system()", d.equatorial_system());
+        row!("can_set_pier_side()", d.can_set_pier_side());
         row!("heartbeat()", d.heartbeat());
     }
     rows! { lines, "AscomObservingConditions", ObservingConditions;

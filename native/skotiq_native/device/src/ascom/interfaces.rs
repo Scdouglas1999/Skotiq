@@ -186,7 +186,7 @@ macro_rules! ascom_dome_members {
     };
 }
 
-/// `ITelescopeV3`
+/// `ITelescopeV4`
 #[macro_export]
 macro_rules! ascom_telescope_members {
     ($callback:ident) => {
@@ -245,6 +245,7 @@ macro_rules! ascom_telescope_members {
             get can_set_tracking() -> bool = "CanSetTracking";
             get can_pulse_guide() -> bool = "CanPulseGuide";
             get can_set_guide_rates() -> bool = "CanSetGuideRates";
+            get can_set_pier_side() -> bool = "CanSetPierSide";
             get can_set_right_ascension_rate() -> bool = "CanSetRightAscensionRate";
             get can_set_declination_rate() -> bool = "CanSetDeclinationRate";
             call can_move_axis(axis: i32 = "Axis") -> bool = "CanMoveAxis"

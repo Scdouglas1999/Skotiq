@@ -187,6 +187,8 @@ AscomMount::tracking_rate() | get TrackingRate() -> I4 | Failed to get property 
 AscomMount::set_tracking_rate(1) | put TrackingRate(I4 1) -> void | Failed to set property TrackingRate: {cause} | -
 AscomMount::can_move_axis(1) | method CanMoveAxis(I4 1) -> BOOL | Failed to call method CanMoveAxis: {cause} | Method CanMoveAxis did not return a boolean
 AscomMount::move_axis(1, 2.5) | method MoveAxis(I4 1, R8 2.5) -> void | Failed to call method MoveAxis: {cause} | -
+AscomMount::equatorial_system() | get EquatorialSystem() -> I4 | Failed to get property EquatorialSystem: {cause} | Property EquatorialSystem is not an int (VARIANT type={vt})
+AscomMount::can_set_pier_side() | get CanSetPierSide() -> BOOL | Failed to get property CanSetPierSide: {cause} | Property CanSetPierSide is not a bool
 AscomMount::heartbeat() | connection.heartbeat
 AscomObservingConditions::connect() | connection.connect
 AscomObservingConditions::disconnect() | connection.disconnect
