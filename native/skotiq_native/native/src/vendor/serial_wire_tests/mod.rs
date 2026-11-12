@@ -32,6 +32,7 @@ macro_rules! step {
 mod fakes;
 mod ioptron_documented;
 mod sessions;
+mod skywatcher_independent;
 mod skywatcher_sessions;
 
 use std::fs::File;
