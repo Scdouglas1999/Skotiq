@@ -143,7 +143,7 @@ void main() {
           severity: ValidationSeverity.warning,
           category: ValidationCategory.darkLibrary,
           title: 'Missing Dark Frames',
-          description: 'No matching darks for gain=100 offset=10',
+          description: 'No matching darks found for 1 exposure combination:\n  • 120 s darks at gain 100, offset 10, -10.0°C, binning 1x1',
           resolutionHint: 'Capture darks for the missing combinations',
         ),
       ],
@@ -525,7 +525,7 @@ void main() {
           severity: ValidationSeverity.warning,
           category: ValidationCategory.darkLibrary,
           title: 'Missing Dark Frames',
-          description: 'No matching darks for gain=100 offset=10',
+          description: 'No matching darks found for 1 exposure combination:\n  • 120 s darks at gain 100, offset 10, -10.0°C, binning 1x1',
         ),
       ],
     );
