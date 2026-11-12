@@ -92,7 +92,7 @@ Headless mode supports three token scopes:
 | Scope | Intended use | Allowed access |
 | --- | --- | --- |
 | `view` | Dashboards and monitoring clients | Read ordinary status endpoints and subscribe to WebSocket events. |
-| `control` | Imaging-control clients | View access plus device, capture, mount, guider, sequencer, dome, safety, switch, and cover control routes. |
+| `control` | Imaging-control clients | View access plus device, capture, mount, guider, sequencer, dome, safety, switch, and cover control routes, the app settings except credentials and program paths, and the capture-folder check. |
 | `admin` | Trusted operators and maintenance tools | Full protected API access, including self-test, settings, file browsing, and backup/restore. |
 
 The legacy `--auth-token` and `SKOTIQ_AUTH_TOKEN` values are admin tokens.

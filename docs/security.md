@@ -47,7 +47,7 @@ fail-safe default.
 | Scope | Grants |
 |-------|--------|
 | `view` | Read status endpoints, subscribe to WebSocket events |
-| `control` | `view` plus device/capture/mount/guider/sequencer/dome/safety/switch/cover control, and the app settings (`POST /api/settings`, `/api/settings/store`, `/api/settings/meridian-flip`, `/api/settings/location`) except credential settings and the programs the host runs |
+| `control` | `view` plus device/capture/mount/guider/sequencer/dome/safety/switch/cover control, the app settings (`POST /api/settings`, `/api/settings/store`, `/api/settings/meridian-flip`, `/api/settings/location`) except credential settings and the programs the host runs, and the folder check (`POST /api/files/validate`) |
 | `admin` | Full protected API: credential settings, program paths, Home Assistant, self-test, file browse, backup/restore, plugins, updates, catalogs, clearing logs, pairing list |
 
 The legacy `--auth-token` / `SKOTIQ_AUTH_TOKEN` value is an **admin** token.
@@ -78,6 +78,14 @@ rows saying where the host sends a keyring secret (`notification_transport_*`,
 `cloud_sync_*`) hold no secret themselves and stay readable. Backups, which
 hold the credentials, are admin only, and no settings value is written to the
 logs.
+
+**Folder check.** `POST /api/files/validate` answers whether one folder exists
+and can be written (it creates and deletes one probe file to find out), and
+only for a folder under the same roots `/api/files/browse` uses or one of the
+folders the settings name; it lists and reads nothing, and its refusal does not
+name the roots. It is `control`, because the rig card, the flat wizard and
+first-run setup on a linked client check the capture folder with it. Listing
+the host's folders (`GET /api/files/browse`) stays `admin`.
 
 **Program paths.** A setting whose value is a program the host runs is declared
 `runsOnHost: true` in the same catalog (the ASTAP and Astrometry.net solver
