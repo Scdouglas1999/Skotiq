@@ -218,8 +218,19 @@ impl SipWcs {
 
     /// Write this astrometry into `header` as a celestial TAN solution in
     /// ICRS: `CRVAL`, `CRPIX`, the `CD` matrix, `CTYPE`/`CUNIT`, and the SIP
-    /// cards when it carries distortion.
+    /// cards when it carries distortion. Every astrometry card the header
+    /// held before goes first, so no earlier `PC` matrix or SIP polynomial
+    /// is read on top of this solution.
     pub fn write_to_header(&self, header: &mut FitsHeader) {
+        let earlier: Vec<String> = header
+            .cards()
+            .map(|(key, _, _)| key)
+            .filter(|key| crate::fits::is_astrometry_keyword(key))
+            .map(str::to_string)
+            .collect();
+        for key in earlier {
+            header.remove(&key);
+        }
         header.set_float("CRVAL1", self.crval1);
         header.set_float("CRVAL2", self.crval2);
         header.set_float("CRPIX1", self.crpix1);
@@ -760,6 +771,30 @@ mod tests {
         assert!(header.get("A_ORDER").is_none());
         assert_eq!(SipWcs::from_header(&header), Some(plain.clone()));
         assert_eq!(SipWcs::from(&plain.cd_only()), plain);
+    }
+
+    #[test]
+    fn a_wcs_written_over_another_replaces_it_whole() {
+        let mut earlier = sample_wcs();
+        earlier.a_order = 2;
+        earlier.b_order = 2;
+        earlier.a_coeffs = sip_coeffs(2);
+        earlier.b_coeffs = sip_coeffs(2);
+        let mut header = FitsHeader::new();
+        header.set_string("OBJECT", "M 42");
+        earlier.write_to_header(&mut header);
+        for (key, value) in [("PC1_1", 0.5), ("PC2_2", 0.5), ("CDELT1", 1e-3), ("PV2_1", 0.1)] {
+            header.set_float(key, value);
+        }
+
+        let later = SipWcs::tan_only(84.0, -5.0, 10.5, 20.5, -1e-4, 0.0, 0.0, 1e-4);
+        later.write_to_header(&mut header);
+        assert_eq!(SipWcs::from_header(&header), Some(later));
+        for key in ["A_ORDER", "A_2_0", "B_ORDER", "PC1_1", "PC2_2", "CDELT1", "PV2_1"] {
+            assert!(header.get(key).is_none(), "{key} outlived the new solution");
+        }
+        assert_eq!(header.get_string("CTYPE1"), Some("RA---TAN"));
+        assert_eq!(header.get_string("OBJECT"), Some("M 42"));
     }
 
     #[test]
