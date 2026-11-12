@@ -1,4 +1,14 @@
 use super::*;
+use crate::guider::Guider;
+
+/// The rig's guider, or the sequencer's "no guider" when the profile names
+/// none and none is connected.
+async fn active_guider() -> DeviceResult<Guider> {
+    Guider::active()
+        .await
+        .map_err(|e| DeviceError::from(e.to_string()))?
+        .ok_or(DeviceError::NO_GUIDER)
+}
 
 #[async_trait]
 impl GuiderOps for UnifiedDeviceOps {
@@ -16,30 +26,19 @@ impl GuiderOps for UnifiedDeviceOps {
             settle_pixels,
             settle_time
         );
-
-        let guider_id = get_active_guider_id_for_ops()
+        active_guider()
+            .await?
+            .dither(pixels, ra_only, settle_pixels, settle_time, settle_timeout)
             .await
-            .ok_or(DeviceError::NO_GUIDER)?;
-        api_guider_dither(
-            guider_id,
-            pixels,
-            ra_only as u8,
-            settle_pixels,
-            settle_time,
-            settle_timeout,
-        )
-        .await
-        .map_err(|e| format!("Dither failed: {}", e).into())
+            .map_err(|e| format!("Dither failed: {}", e).into())
     }
 
     async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
-        let guider_id = get_active_guider_id_for_ops()
-            .await
-            .ok_or(DeviceError::NO_GUIDER)?;
-        let status = api_guider_get_status(guider_id)
+        let status = active_guider()
+            .await?
+            .status()
             .await
             .map_err(|e| format!("Failed to get guiding status: {}", e))?;
-
         Ok(GuidingStatus {
             is_guiding: status.state == "Guiding",
             rms_ra: status.rms_ra,
@@ -49,20 +48,18 @@ impl GuiderOps for UnifiedDeviceOps {
     }
 
     async fn guider_is_active(&self) -> DeviceResult<bool> {
-        let guider_id = get_active_guider_id_for_ops()
-            .await
-            .ok_or(DeviceError::NO_GUIDER)?;
-        let status = api_guider_get_status(guider_id)
+        let status = active_guider()
+            .await?
+            .status()
             .await
             .map_err(|e| format!("Failed to get guiding status: {}", e))?;
-        Ok(guider_state_may_move_mount(&status.state))
+        Ok(crate::guider::state_may_move_mount(&status.state))
     }
 
     async fn guider_get_calibration(&self) -> DeviceResult<GuidingCalibration> {
-        let guider_id = get_active_guider_id_for_ops()
-            .await
-            .ok_or(DeviceError::NO_GUIDER)?;
-        let calib = crate::api::phd2::api_guider_get_calibration(guider_id)
+        let calib = active_guider()
+            .await?
+            .calibration()
             .await
             .map_err(|e| format!("Failed to get guider calibration: {}", e))?;
         Ok(GuidingCalibration {
@@ -79,22 +76,18 @@ impl GuiderOps for UnifiedDeviceOps {
         settle_timeout: f64,
     ) -> DeviceResult<()> {
         tracing::info!("Starting guiding");
-
-        let guider_id = get_active_guider_id_for_ops()
-            .await
-            .ok_or(DeviceError::NO_GUIDER)?;
-        api_guider_start_guiding(guider_id, settle_pixels, settle_time, settle_timeout)
+        active_guider()
+            .await?
+            .start(settle_pixels, settle_time, settle_timeout)
             .await
             .map_err(|e| format!("Start guiding failed: {}", e).into())
     }
 
     async fn guider_select_fresh_star(&self) -> DeviceResult<()> {
-        let guider_id = get_active_guider_id_for_ops()
+        active_guider()
+            .await?
+            .select_fresh_star(None)
             .await
-            .ok_or(DeviceError::NO_GUIDER)?;
-        crate::api::phd2::select_fresh_guide_star(&guider_id, None)
-            .await
-            .map(|_| ())
             .map_err(|e| e.to_string().into())
     }
 
@@ -102,22 +95,19 @@ impl GuiderOps for UnifiedDeviceOps {
         &self,
         floor: skotiq_sequencer::GuideStarFloor,
     ) -> DeviceResult<()> {
-        let guider_id = get_active_guider_id_for_ops()
+        active_guider()
+            .await?
+            .select_fresh_star(Some(floor))
             .await
-            .ok_or(DeviceError::NO_GUIDER)?;
-        crate::api::phd2::select_fresh_guide_star(&guider_id, Some(floor))
-            .await
-            .map(|_| ())
             .map_err(|e| e.to_string().into())
     }
 
     async fn guider_star_quality(
         &self,
     ) -> DeviceResult<Option<skotiq_sequencer::GuideStarQuality>> {
-        let guider_id = get_active_guider_id_for_ops()
-            .await
-            .ok_or(DeviceError::NO_GUIDER)?;
-        let status = api_guider_get_status(guider_id)
+        let status = active_guider()
+            .await?
+            .status()
             .await
             .map_err(|e| format!("Failed to get guiding status: {}", e))?;
         Ok((status.snr > 0.0 && status.star_mass > 0.0).then_some(
@@ -130,56 +120,14 @@ impl GuiderOps for UnifiedDeviceOps {
 
     async fn guider_stop(&self) -> DeviceResult<()> {
         tracing::info!("Stopping guiding");
-
-        let guider_id = get_active_guider_id_for_ops()
-            .await
-            .ok_or(DeviceError::NO_GUIDER)?;
-        crate::api::phd2::guider_stop_for_run(guider_id)
+        active_guider()
+            .await?
+            .stop()
             .await
             .map_err(|e| format!("Stop guiding failed: {}", e).into())
     }
 
     async fn guider_note_stop_reason(&self, reason: Option<skotiq_sequencer::GuidingStopReason>) {
-        crate::api::phd2::set_guiding_stop_reason(reason);
-    }
-}
-
-/// Whether a guider in `state` (PHD2's app state, or the built-in guider's)
-/// may move the mount: anything but connected-and-idle, looping or paused.
-/// PHD2 in LostLock keeps searching and guides again the moment it finds the
-/// star; settling and calibrating move the mount; a state this build does not
-/// know is treated as active.
-pub(crate) fn guider_state_may_move_mount(state: &str) -> bool {
-    !matches!(
-        state,
-        "Disconnected" | "Connected" | "Stopped" | "Selected" | "Looping" | "Paused"
-    )
-}
-
-#[cfg(test)]
-mod guider_state_tests {
-    use super::guider_state_may_move_mount;
-
-    #[test]
-    fn a_guider_that_may_move_the_mount_is_any_but_idle_looping_or_paused() {
-        for state in [
-            "Guiding",
-            "Calibrating",
-            "Settling",
-            "LostLock",
-            "GuidingPaused",
-        ] {
-            assert!(guider_state_may_move_mount(state), "{state}");
-        }
-        for state in [
-            "Disconnected",
-            "Connected",
-            "Stopped",
-            "Selected",
-            "Looping",
-            "Paused",
-        ] {
-            assert!(!guider_state_may_move_mount(state), "{state}");
-        }
+        crate::guider::stop_reason::set(reason);
     }
 }

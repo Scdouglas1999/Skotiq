@@ -122,6 +122,11 @@ pub async fn dither(
                 "Built-in guider dither requires active guiding; not guiding".to_string(),
             ));
         }
+        if guard.paused {
+            return Err(SkotiqError::OperationFailed(
+                "The built-in guider is paused; resume guiding before dithering".to_string(),
+            ));
+        }
         // Advance the bounded pattern so each dither walks to fresh pixels
         // instead of re-treading the same spot (a fixed/random small jump
         // re-walks the same neighbourhood). Adaptive: scale by recent RMS so the

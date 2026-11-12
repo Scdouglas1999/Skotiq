@@ -1,13 +1,8 @@
-// PHD2 guiding status types.
+// Guider status types.
 import 'dart:convert';
 
-/// One tracked guide star surfaced by the built-in multi-star guider.
-///
-/// The internal guider tracks up to 8 reference stars natively. The
-/// PHD2-shaped *aggregate* stats (RMS/SNR/star mass) ride the guiding status;
-/// this DTO carries the per-star detail alongside that same status JSON (no
-/// FRB regen), so the guider UI can show a real star list (per-star SNR + lock
-/// + residual). See `builtin_guider.rs::BuiltinGuideTrackedStar`.
+/// One reference star the built-in multi-star guider tracks (up to 8), as
+/// the guider status carries it.
 class GuideStar {
   /// Stable 0-based index/identity within the tracked-star list.
   final int id;
@@ -47,9 +42,8 @@ class GuideStar {
     this.weight = 0.0,
   });
 
-  /// Decode one star from the native `#[frb(ignore)]` JSON shape. Tolerant of
-  /// either snake_case (native serde) or camelCase (network re-serialization)
-  /// keys so the same decoder works on both transports.
+  /// Decode one star from the status JSON a host serves. Takes snake_case
+  /// or camelCase keys.
   factory GuideStar.fromJson(Map<String, dynamic> json) {
     final isLock = json['is_lock'] ?? json['isLock'] ?? false;
     final residual = json['residual'];
@@ -93,15 +87,8 @@ class GuideStar {
       Object.hash(id, x, y, flux, snr, isLock, residual, weight);
 }
 
-/// Decode the per-star tracked-star list from a raw value that may be either a
-/// JSON-encoded string (the native `#[frb(ignore)]` `get_tracked_stars_json`
-/// payload) or an already-parsed list/map (network re-serialization).
-///
-/// Accepts:
-///   * a `List` of star maps,
-///   * a `Map` with a `stars` array (the `BuiltinGuideTrackedStars` shape),
-///   * a JSON `String` of either of the above,
-///   * `null` / anything else -> empty list.
+/// Decode the tracked-star list a host serves: a list of star maps, a map
+/// with a `stars` list, or a JSON string of either; anything else is none.
 List<GuideStar> decodeTrackedStars(Object? raw) {
   if (raw == null) return const [];
   Object? value = raw;
@@ -145,8 +132,13 @@ String? guidingStopReasonText(String? reason) {
   };
 }
 
+/// What the host's guider (PHD2 or the built-in multi-star guider) is doing.
 class Phd2Status {
-  /// Current PHD2 state (Stopped, Guiding, Calibrating, etc.)
+  /// The guider that answered: `phd2_guider` or the built-in guider's id.
+  /// Null when no guider answered (no host, no native library).
+  final String? deviceId;
+
+  /// Current guider state (Stopped, Guiding, Calibrating, etc.)
   final String state;
 
   final bool connected;
@@ -175,9 +167,8 @@ class Phd2Status {
   final double? pixelScale;
 
   /// Per-star tracked-star list. Populated by the built-in multi-star guider
-  /// (up to 8 stars); empty for PHD2 / external guiders, which report only the
-  /// single aggregate lock star above. Rides through the guiding status path
-  /// as JSON (no FRB regen).
+  /// (up to 8 stars); empty for PHD2, which reports only the single
+  /// aggregate lock star above.
   final List<GuideStar> trackedStars;
 
   /// Why the guider is stopped or held, as the native layer names it
@@ -188,6 +179,7 @@ class Phd2Status {
   final String? stopReason;
 
   const Phd2Status({
+    this.deviceId,
     required this.state,
     required this.connected,
     this.rmsRa = 0.0,
@@ -203,6 +195,7 @@ class Phd2Status {
 
   factory Phd2Status.fromJson(Map<String, dynamic> json) {
     return Phd2Status(
+      deviceId: json['deviceId'] as String?,
       state: json['state'] as String,
       connected: json['connected'] as bool,
       rmsRa: (json['rmsRa'] as num?)?.toDouble() ?? 0.0,
@@ -218,6 +211,7 @@ class Phd2Status {
   }
 
   Map<String, dynamic> toJson() => {
+    'deviceId': deviceId,
     'state': state,
     'connected': connected,
     'rmsRa': rmsRa,

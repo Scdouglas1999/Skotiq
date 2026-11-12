@@ -175,69 +175,10 @@ impl Default for BuiltinGuideStatus {
     }
 }
 
-// Per-star tracked-star export for the guider UI
-//
-// The built-in guider tracks up to `GUIDE_MAX_TRACKED_STARS` reference stars,
-// but `get_status()` only returns the PHD2-shaped *aggregate* `Phd2Status`
-// (rms/snr/star_mass), so the 8 tracked stars never reached the Dart UI and its
-// star-list panel rendered empty.
-//
-// These DTOs surface the per-star list. They are `#[frb(ignore)]` and serialize
-// to a JSON *string* so they ride alongside the existing guiding-status path
-// without changing any flutter_rust_bridge-generated struct shape (no regen).
-// The same `*_json: String` convention is used by the typed event payloads in
-// `event.rs` (FRB does not bridge `serde_json::Value` directly).
-
-/// One tracked reference star, as surfaced to the per-star guider UI.
-#[flutter_rust_bridge::frb(ignore)]
-#[derive(Clone, Debug, Serialize)]
-pub struct BuiltinGuideTrackedStar {
-    /// Stable index within the tracked-star list (0-based), used by the UI as
-    /// the per-star identity / lock-star key.
-    pub id: usize,
-    /// Centroid X in guide-camera pixels.
-    pub x: f64,
-    /// Centroid Y in guide-camera pixels.
-    pub y: f64,
-    /// Integrated flux (star mass / brightness).
-    pub flux: f64,
-    /// Signal-to-noise ratio.
-    pub snr: f64,
-    /// Whether this is the active lock star (the centroid the corrections key
-    /// off). `None` when no lock has been established yet.
-    pub is_lock: bool,
-    /// Per-star residual magnitude (pixels) on the most recent matched frame, or
-    /// `None` before the star has been matched at least once.
-    pub residual: Option<f64>,
-    /// Relative weight this star carries in the sigma-clipped weighted centroid
-    /// (flux/SNR derived). Higher means a brighter, cleaner star that pulls the
-    /// aggregate offset harder. Surfaced so the UI can show contribution.
-    pub weight: f64,
-}
-
-/// Per-star tracked-star snapshot. Serialized to JSON and exposed through the
-/// guiding-status path so the Dart guider UI can populate its star list + feed
-/// the same `CompactGuidingGraph` the PHD2 path uses.
-#[flutter_rust_bridge::frb(ignore)]
-#[derive(Clone, Debug, Serialize, Default)]
-pub struct BuiltinGuideTrackedStars {
-    /// Number of stars currently tracked (mirrors `stars.len()`; convenience for
-    /// consumers that only need the count).
-    pub count: usize,
-    /// The tracked reference stars, brightest-first as selected.
-    pub stars: Vec<BuiltinGuideTrackedStar>,
-}
-
-/// Build the per-star tracked-star DTO from the current reference-star set.
-///
-/// The lock star is the reference nearest the active manual lock position (the
-/// centroid the guider corrects to); ties fall back to the first/brightest star
-/// when no lock has been set.
-#[flutter_rust_bridge::frb(ignore)]
-pub(crate) fn build_tracked_stars(state: &BuiltinGuiderState) -> BuiltinGuideTrackedStars {
-    let lock = state.manual_lock;
-    // Choose the lock-star index: the reference closest to the manual lock.
-    let lock_index = lock.and_then(|target| {
+/// The reference stars as the status reports them. The lock star is the
+/// reference nearest the lock position.
+pub(crate) fn build_tracked_stars(state: &BuiltinGuiderState) -> Vec<TrackedGuideStar> {
+    let lock_index = state.manual_lock.and_then(|target| {
         state
             .reference_stars
             .iter()
@@ -251,12 +192,13 @@ pub(crate) fn build_tracked_stars(state: &BuiltinGuiderState) -> BuiltinGuideTra
             .map(|(i, _)| i)
     });
 
-    let stars = state
+    state
         .reference_stars
         .iter()
         .enumerate()
-        .map(|(i, r)| BuiltinGuideTrackedStar {
-            id: i,
+        .map(|(i, r)| TrackedGuideStar {
+            // At most GUIDE_MAX_TRACKED_STARS references.
+            id: i as u32,
             x: r.x,
             y: r.y,
             flux: r.flux,
@@ -265,25 +207,7 @@ pub(crate) fn build_tracked_stars(state: &BuiltinGuiderState) -> BuiltinGuideTra
             residual: r.last_residual.map(|v| v.magnitude()),
             weight: guide_reference_weight(r),
         })
-        .collect::<Vec<_>>();
-
-    BuiltinGuideTrackedStars {
-        count: stars.len(),
-        stars,
-    }
-}
-
-/// Per-star tracked-star list, serialized to a JSON string.
-///
-/// `#[frb(ignore)]` so it never touches the generated bridge: the JSON rides
-/// through the existing guiding-status network path (the headless API embeds it
-/// as a `trackedStars` array) where the Dart `Phd2Status`/`GuideStar` models
-/// decode it. Returns `{"count":0,"stars":[]}` when nothing is tracked.
-#[flutter_rust_bridge::frb(ignore)]
-pub async fn get_tracked_stars_json() -> String {
-    let guard = state().read().await;
-    let dto = build_tracked_stars(&guard);
-    serde_json::to_string(&dto).unwrap_or_else(|_| "{\"count\":0,\"stars\":[]}".to_string())
+        .collect()
 }
 
 /// The tolerance an OPEN settle episode is judged by.
@@ -322,6 +246,8 @@ pub(crate) struct BuiltinGuiderState {
     pub(crate) guiding: bool,
     pub(crate) looping: bool,
     pub(crate) calibrating: bool,
+    /// Guiding holds its corrections while the loop keeps measuring.
+    pub(crate) paused: bool,
     pub(crate) camera_id: Option<String>,
     pub(crate) mount_id: Option<String>,
     pub(crate) reference_stars: Vec<GuideReferenceStar>,
@@ -387,6 +313,7 @@ impl Default for BuiltinGuiderState {
             guiding: false,
             looping: false,
             calibrating: false,
+            paused: false,
             camera_id: None,
             mount_id: None,
             reference_stars: Vec::new(),

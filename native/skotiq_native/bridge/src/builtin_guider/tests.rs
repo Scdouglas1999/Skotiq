@@ -217,7 +217,7 @@ fn record_per_star_residuals_sets_matched_star_delta() {
 }
 
 #[test]
-fn build_tracked_stars_flags_lock_and_serializes() {
+fn tracked_stars_flag_the_reference_nearest_the_lock() {
     let mut state = BuiltinGuiderState {
         reference_stars: vec![
             GuideReferenceStar {
@@ -240,29 +240,19 @@ fn build_tracked_stars_flags_lock_and_serializes() {
     // Lock sits on top of the second reference star.
     state.manual_lock = Some(Vec2 { x: 60.0, y: 64.0 });
 
-    let dto = build_tracked_stars(&state);
-    assert_eq!(dto.count, 2);
-    assert_eq!(dto.stars[0].id, 0);
-    assert!(!dto.stars[0].is_lock);
-    assert!(
-        dto.stars[1].is_lock,
-        "nearest reference to lock is the lock"
-    );
+    let stars = build_tracked_stars(&state);
+    assert_eq!(stars.len(), 2);
+    assert_eq!(stars[0].id, 0);
+    assert!(!stars[0].is_lock);
+    assert!(stars[1].is_lock, "nearest reference to lock is the lock");
     // residual magnitude of (0.3,-0.4) is 0.5
-    assert!((dto.stars[0].residual.expect("residual") - 0.5).abs() < 1e-6);
-    assert!(dto.stars[1].residual.is_none());
-
-    let json = serde_json::to_string(&dto).expect("serialize");
-    assert!(json.contains("\"count\":2"));
-    assert!(json.contains("\"is_lock\":true"));
+    assert!((stars[0].residual.expect("residual") - 0.5).abs() < 1e-6);
+    assert!(stars[1].residual.is_none());
 }
 
 #[test]
-fn build_tracked_stars_empty_is_zero_count() {
-    let state = BuiltinGuiderState::default();
-    let dto = build_tracked_stars(&state);
-    assert_eq!(dto.count, 0);
-    assert!(dto.stars.is_empty());
+fn no_reference_stars_track_no_stars() {
+    assert!(build_tracked_stars(&BuiltinGuiderState::default()).is_empty());
 }
 
 #[test]

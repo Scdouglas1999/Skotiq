@@ -1909,18 +1909,14 @@ void main() {
 
     verifyNever(
       () => mockBackend.guiderStartGuiding(
-        deviceId: any(named: 'deviceId'),
         settlePixels: any(named: 'settlePixels'),
         settleTime: any(named: 'settleTime'),
         settleTimeout: any(named: 'settleTimeout'),
       ),
     );
-    verifyNever(
-      () => mockBackend.guiderStopGuiding(deviceId: any(named: 'deviceId')),
-    );
+    verifyNever(() => mockBackend.guiderStopGuiding());
     verifyNever(
       () => mockBackend.guiderDither(
-        deviceId: any(named: 'deviceId'),
         amount: any(named: 'amount'),
         raOnly: any(named: 'raOnly'),
         settlePixels: any(named: 'settlePixels'),

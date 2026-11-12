@@ -230,6 +230,7 @@ pub(crate) async fn stop_locked() -> Result<(), SkotiqError> {
         guard.guiding = false;
         guard.looping = false;
         guard.calibrating = false;
+        guard.paused = false;
         guard.reference_stars.clear();
         guard.desired_offset = Vec2::default();
         guard.settle_deadline = None;
@@ -390,7 +391,7 @@ pub async fn get_lock_position() -> Result<(f64, f64), SkotiqError> {
     ))
 }
 
-pub async fn get_star_image(size: u32) -> Result<Phd2StarImage, SkotiqError> {
+pub async fn get_star_image(size: u32) -> Result<GuideStarImage, SkotiqError> {
     // If there is no snapshot yet we must capture a fresh guide frame. That
     // capture MUST happen without holding the state lock: capture_guide_frame
     // re-acquires state().read(), and a tokio RwLock is not reentrant, so
@@ -416,7 +417,7 @@ pub async fn get_star_image(size: u32) -> Result<Phd2StarImage, SkotiqError> {
         .clone()
         .ok_or_else(|| SkotiqError::OperationFailed("No guide frame available".to_string()))?;
 
-    Ok(Phd2StarImage {
+    Ok(GuideStarImage {
         frame: snapshot.frame,
         width: snapshot.width,
         height: snapshot.height,
@@ -426,10 +427,11 @@ pub async fn get_star_image(size: u32) -> Result<Phd2StarImage, SkotiqError> {
     })
 }
 
-pub async fn get_status() -> Result<Phd2Status, SkotiqError> {
+pub async fn get_status() -> GuiderStatus {
     let guard = state().read().await;
     let status = &guard.last_status;
-    Ok(Phd2Status {
+    GuiderStatus {
+        device_id: BUILTIN_GUIDER_ID.to_string(),
         connected: status.connected,
         state: status.state.clone(),
         rms_ra: status.rms_ra,
@@ -440,22 +442,49 @@ pub async fn get_status() -> Result<Phd2Status, SkotiqError> {
         // The guider keeps 0 until a camera and binning give it a scale.
         pixel_scale: Some(status.pixel_scale).filter(|scale| scale.is_finite() && *scale > 0.0),
         stop_reason: None,
-    })
+        tracked_stars: build_tracked_stars(&guard),
+    }
 }
 
-/// The built-in guider's calibration in the shape PHD2 reports it, so the
-/// unified `api_guider_get_calibration` returns one type across backends.
-pub async fn get_calibration_data() -> Result<crate::api::phd2::Phd2CalibrationData, SkotiqError> {
-    Ok(calibration_data(state().read().await.calibration))
+/// Hold guide corrections while the loop keeps taking frames and measuring
+/// its star, or resume them. Only a guider that is guiding can pause.
+pub async fn set_paused(paused: bool) -> Result<(), SkotiqError> {
+    ensure_connected().await?;
+    {
+        let mut guard = state().write().await;
+        if !guard.guiding {
+            return Err(SkotiqError::OperationFailed(
+                "The built-in guider is not guiding, so there is nothing to pause".to_string(),
+            ));
+        }
+        if guard.paused == paused {
+            return Ok(());
+        }
+        guard.paused = paused;
+        if !guard.calibrating {
+            guard.last_status.state = if paused { "Paused" } else { "Guiding" }.to_string();
+        }
+    }
+    get_state().publish_guiding_event(
+        if paused {
+            GuidingEvent::Paused
+        } else {
+            GuidingEvent::Resumed
+        },
+        EventSeverity::Info,
+    );
+    Ok(())
+}
+
+pub async fn get_calibration_data() -> GuiderCalibration {
+    calibration_data(state().read().await.calibration)
 }
 
 /// Angles in degrees in (-180, 180] from the `east`/`north` vectors, and rates
 /// in pixels per second, the unit PHD2's `get_calibration_data` uses.
-pub(crate) fn calibration_data(
-    calibration: Option<GuideCalibration>,
-) -> crate::api::phd2::Phd2CalibrationData {
+pub(crate) fn calibration_data(calibration: Option<GuideCalibration>) -> GuiderCalibration {
     let Some(calib) = calibration else {
-        return crate::api::phd2::Phd2CalibrationData {
+        return GuiderCalibration {
             is_calibrated: false,
             ra_angle: None,
             dec_angle: None,
@@ -464,7 +493,7 @@ pub(crate) fn calibration_data(
         };
     };
     let per_second = |px_per_ms: f64| (calib.pulse_ms > 0.0).then_some(px_per_ms * 1000.0);
-    crate::api::phd2::Phd2CalibrationData {
+    GuiderCalibration {
         is_calibrated: true,
         ra_angle: Some(calib.east.y.atan2(calib.east.x).to_degrees()),
         dec_angle: Some(calib.north.y.atan2(calib.north.x).to_degrees()),

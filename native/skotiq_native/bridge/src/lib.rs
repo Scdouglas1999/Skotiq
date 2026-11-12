@@ -70,6 +70,7 @@ mod event;
 mod filter_matching;
 mod frame_display;
 mod frame_header;
+mod guider;
 mod hotplug;
 mod last_frame;
 /// THE simulated-capture entry point: the one place a simulated frame is

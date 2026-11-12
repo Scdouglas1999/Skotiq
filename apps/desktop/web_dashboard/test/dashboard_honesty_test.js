@@ -108,7 +108,7 @@ function guidingPanel(guidingStatus) {
   return { doc, badges };
 }
 
-// GET /api/phd2/status answers `rmsRa`/`rmsDec`/`rmsTotal`, all 0.0 while
+// GET /api/guider/status answers `rmsRa`/`rmsDec`/`rmsTotal`, all 0.0 while
 // disconnected. The panel read `rmsRA` — a key no response carries — so the RA
 // row was permanently "--", while Dec and Total rendered the disconnected
 // zeros as a flawless 0.00" guide.
@@ -136,7 +136,7 @@ test('the RA row reads the key the server sends', () => {
   const source = fn('renderGuidingPanel');
   assert.match(source, /g\.rmsRa\b/);
   assert.doesNotMatch(source, /g\.rmsRA\b/,
-    'rmsRA matches nothing in /api/phd2/status');
+    'rmsRA matches nothing in /api/guider/status');
 });
 
 // ---------------------------------------------------------------------------

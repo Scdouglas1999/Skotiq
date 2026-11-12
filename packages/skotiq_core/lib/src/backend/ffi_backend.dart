@@ -15,7 +15,7 @@ import '../models/backend/device_types.dart' as dart_types;
 import '../models/errors/skotiq_error.dart' as dart_error;
 import 'bridge_event_mapper.dart' show recoveryFieldsFromTyped;
 import '../services/ip_geolocation.dart';
-import '../utils/device_id.dart' show isPhd2WireToken, kPhd2CanonicalId;
+import '../utils/device_id.dart' show isPhd2WireToken;
 
 part 'ffi_backend/native_runtime.dart';
 part 'ffi_backend/event_mapping.dart';

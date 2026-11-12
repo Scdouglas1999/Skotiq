@@ -11,7 +11,9 @@ import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
 
-/// Handlers for PHD2 guiding endpoints
+/// Handlers for the guiding endpoints. `/api/guider/*` drives the host's
+/// guider, PHD2 or the built-in guider as its profile names; `/api/phd2/*` is
+/// PHD2's connection and its own settings.
 class GuidingHandlers implements RouteSource {
   @override
   Map<ApiEndpoint, Function> get routes => {
@@ -19,20 +21,8 @@ class GuidingHandlers implements RouteSource {
     GuidingApi.phd2Probe: handlePhd2Probe,
     GuidingApi.phd2Connect: handlePhd2Connect,
     GuidingApi.phd2Disconnect: handlePhd2Disconnect,
-    GuidingApi.phd2StartGuiding: handlePhd2StartGuiding,
-    GuidingApi.phd2StopGuiding: handlePhd2StopGuiding,
-    GuidingApi.phd2Dither: handlePhd2Dither,
-    GuidingApi.phd2GetStatus: handlePhd2GetStatus,
-    GuidingApi.phd2SetPaused: handlePhd2SetPaused,
     GuidingApi.phd2ClearCalibration: handlePhd2ClearCalibration,
     GuidingApi.phd2FlipCalibration: handlePhd2FlipCalibration,
-    GuidingApi.phd2GetCalibrationData: handlePhd2GetCalibrationData,
-    GuidingApi.phd2FindStar: handlePhd2FindStar,
-    GuidingApi.phd2SetLockPosition: handlePhd2SetLockPosition,
-    GuidingApi.phd2GetLockPosition: handlePhd2GetLockPosition,
-    GuidingApi.phd2Loop: handlePhd2Loop,
-    GuidingApi.phd2DeselectStar: handlePhd2DeselectStar,
-    GuidingApi.phd2GetStarImage: handlePhd2GetStarImage,
     GuidingApi.phd2GetAlgoParamNames: handlePhd2GetAlgoParamNames,
     GuidingApi.phd2GetAlgoParam: handlePhd2GetAlgoParam,
     GuidingApi.phd2SetAlgoParam: handlePhd2SetAlgoParam,
@@ -40,6 +30,7 @@ class GuidingHandlers implements RouteSource {
     GuidingApi.guiderStopGuiding: handleGuiderStopGuiding,
     GuidingApi.guiderDither: handleGuiderDither,
     GuidingApi.guiderLoop: handleGuiderLoop,
+    GuidingApi.guiderSetPaused: handleGuiderSetPaused,
     GuidingApi.guiderFindStar: handleGuiderFindStar,
     GuidingApi.guiderSetLockPosition: handleGuiderSetLockPosition,
     GuidingApi.guiderGetLockPosition: handleGuiderGetLockPosition,
@@ -52,14 +43,14 @@ class GuidingHandlers implements RouteSource {
   };
 
   final ProviderContainer container;
-  Future<void>? _phd2StartDrain;
-  bool _phd2StopInFlight = false;
+  Future<void>? _startDrain;
+  bool _stopInFlight = false;
 
   GuidingHandlers(this.container);
 
   /// Upper bound for a guide-star crop edge (pixels). The built-in guider clamps
-  /// the crop to the frame, but the PHD2 RPC path (`get_star_image`, min 15 /
-  /// default 32) and the returned width×height×2 byte buffer are driven by this
+  /// the crop to the frame, but PHD2's `get_star_image` (min 15, default 32)
+  /// and the returned width×height×2 byte buffer are driven by this
   /// value — so an unbounded `size` is a memory-abuse vector. 2048 comfortably
   /// exceeds any real guide-camera sensor edge while capping a single crop at
   /// ~8 MB of raw pixels.
@@ -142,8 +133,8 @@ class GuidingHandlers implements RouteSource {
     final deviceService = container.read(deviceServiceProvider);
     await deviceService.connect(DeviceType.guider, kPhd2CanonicalId, host: host, port: port);
 
-    // Mobile companions verify GET /api/phd2/status immediately after POST
-    // connect. Block until PHD2 RPC is live so we do not return success early.
+    // Linked clients read GET /api/guider/status right after POST connect.
+    // Block until PHD2 answers so we do not return success early.
     final backend = container.read(guidingBackendProvider);
     await pollPhd2Connected(backend);
 
@@ -161,9 +152,9 @@ class GuidingHandlers implements RouteSource {
     _logInfo('[API] POST /api/phd2/disconnect');
     final backend = container.read(guidingBackendProvider);
     final status = await readPhd2StatusOrDisconnected(backend);
-    if (_phd2StartDrain != null ||
+    if (_startDrain != null ||
         (status.connected && status.state.toLowerCase() != 'stopped')) {
-      await _runPhd2Stop(backend.phd2StopGuiding);
+      await _runStop(backend.guiderStopGuiding);
     }
     final deviceService = container.read(deviceServiceProvider);
     try {
@@ -181,78 +172,8 @@ class GuidingHandlers implements RouteSource {
     return jsonOk({"status": "disconnected"});
   }
 
-  Future<Response> handlePhd2StartGuiding(Request request) async {
-    _logInfo('[API] POST /api/phd2/start-guiding');
-    final payload = await readJsonObject(request);
-    final settle = _readSettle(payload);
-
-    final backend = container.read(guidingBackendProvider);
-    await _runPhd2Start(
-      () => backend.phd2StartGuiding(
-        settlePixels: settle.pixels,
-        settleTime: settle.time,
-        settleTimeout: settle.timeout,
-      ),
-    );
-
-    publishHostMutationFromContainer(
-      container,
-      entityType: HostMutationEntity.guider,
-      action: HostMutationAction.started,
-      entityId: 'phd2_guider',
-      extra: {'state': 'guiding'},
-    );
-    return jsonOk({"status": "guiding"});
-  }
-
-  Future<Response> handlePhd2StopGuiding(Request request) async {
-    _logInfo('[API] POST /api/phd2/stop-guiding');
-    final backend = container.read(guidingBackendProvider);
-    await _runPhd2Stop(backend.phd2StopGuiding);
-
-    publishHostMutationFromContainer(
-      container,
-      entityType: HostMutationEntity.guider,
-      action: HostMutationAction.stopped,
-      entityId: 'phd2_guider',
-      extra: {'state': 'stopped'},
-    );
-    return jsonOk({"status": "stopped"});
-  }
-
-  Future<Response> handlePhd2Dither(Request request) async {
-    _logInfo('[API] POST /api/phd2/dither');
-    final payload = await readJsonObject(request);
-    final amount = optionalDouble(payload, 'amount') ?? 5.0;
-    if (!amount.isFinite || amount < 0.1 || amount > 100) {
-      throw BadRequestError(
-        field: 'amount',
-        expected: 'finite number from 0.1 to 100',
-      );
-    }
-    final raOnly = optionalBool(payload, 'raOnly') ?? false;
-    final settle = _readSettle(payload);
-
-    final backend = container.read(guidingBackendProvider);
-    await backend.phd2Dither(
-      amount: amount,
-      raOnly: raOnly,
-      settlePixels: settle.pixels,
-      settleTime: settle.time,
-      settleTimeout: settle.timeout,
-    );
-
-    return jsonOk({"status": "dithering"});
-  }
-
-  Future<Response> handlePhd2GetStatus(Request request) async {
-    final backend = container.read(guidingBackendProvider);
-    final status = await readPhd2StatusOrDisconnected(backend);
-
-    return jsonOk(_statusJson(status));
-  }
-
   Map<String, Object?> _statusJson(Phd2Status status) => {
+    "deviceId": status.deviceId,
     "state": status.state,
     "connected": status.connected,
     "rmsRa": status.rmsRa,
@@ -273,24 +194,6 @@ class GuidingHandlers implements RouteSource {
     "stopReasonText": guidingStopReasonText(status.stopReason),
   };
 
-  Future<Response> handlePhd2SetPaused(Request request) async {
-    _logInfo('[API] POST /api/phd2/pause');
-    final payload = await readJsonObject(request);
-    final paused = requireBool(payload, 'paused');
-
-    final backend = container.read(guidingBackendProvider);
-    await backend.phd2SetPaused(paused);
-
-    publishHostMutationFromContainer(
-      container,
-      entityType: HostMutationEntity.guider,
-      action: paused ? HostMutationAction.paused : HostMutationAction.resumed,
-      entityId: 'phd2_guider',
-      extra: {'paused': paused},
-    );
-    return jsonOk({"status": "ok"});
-  }
-
   Future<Response> handlePhd2ClearCalibration(Request request) async {
     _logInfo('[API] POST /api/phd2/clear-calibration');
     final payload = await readJsonObject(request);
@@ -310,13 +213,6 @@ class GuidingHandlers implements RouteSource {
     return jsonOk({"status": "ok"});
   }
 
-  Future<Response> handlePhd2GetCalibrationData(Request request) async {
-    _logInfo('[API] POST /api/phd2/get-calibration-data');
-    final backend = container.read(guidingBackendProvider);
-    final data = await backend.phd2GetCalibrationData();
-    return jsonOk(_calibrationJson(data));
-  }
-
   Map<String, Object?> _calibrationJson(Phd2CalibrationData data) => {
     "isCalibrated": data.isCalibrated,
     "raAngle": data.rotationAngle,
@@ -324,101 +220,7 @@ class GuidingHandlers implements RouteSource {
     "decRate": data.decRate,
   };
 
-  Future<Response> handlePhd2FindStar(Request request) async {
-    _logInfo('[API] POST /api/phd2/find-star');
-    final backend = container.read(guidingBackendProvider);
-    final (x, y) = await backend.phd2FindStar();
-
-    return jsonOk({"x": x, "y": y});
-  }
-
-  Future<Response> handlePhd2SetLockPosition(Request request) async {
-    _logInfo('[API] POST /api/phd2/set-lock-position');
-    final payload = await readJsonObject(request);
-    final x = requireDouble(payload, 'x');
-    final y = requireDouble(payload, 'y');
-    final exact = optionalBool(payload, 'exact') ?? false;
-
-    final backend = container.read(guidingBackendProvider);
-    await backend.phd2SetLockPosition(x: x, y: y, exact: exact);
-
-    return jsonOk({"status": "ok"});
-  }
-
-  Future<Response> handlePhd2GetLockPosition(Request request) async {
-    final backend = container.read(guidingBackendProvider);
-    try {
-      final (x, y) = await backend.phd2GetLockPosition();
-
-      return jsonOk({"x": x, "y": y});
-    } catch (error) {
-      if (_isPhd2NoLockPosition(error)) {
-        return jsonError(
-          code: 'no_lock_position',
-          message: 'PHD2 has no guide-star lock position.',
-          statusCode: 409,
-        );
-      }
-      rethrow;
-    }
-  }
-
-  Future<Response> handlePhd2Loop(Request request) async {
-    _logInfo('[API] POST /api/phd2/loop');
-    final backend = container.read(guidingBackendProvider);
-    await backend.phd2Loop();
-
-    return jsonOk({"status": "ok"});
-  }
-
-  Future<Response> handlePhd2DeselectStar(Request request) async {
-    _logInfo('[API] POST /api/phd2/deselect-star');
-    final backend = container.read(guidingBackendProvider);
-    await backend.phd2DeselectStar();
-
-    return jsonOk({"status": "ok"});
-  }
-
-  Future<Response> handlePhd2GetStarImage(Request request) async {
-    // Absent → the 50 px default thumbnail. A supplied value must be a positive
-    // whole integer bounded by [_maxStarImageSize]; validate before the backend
-    // read so a malformed size does no work and never reaches the RPC.
-    final size =
-        optionalQueryInt(
-          request.url.queryParameters,
-          'size',
-          min: 1,
-          max: _maxStarImageSize,
-        ) ??
-        50;
-
-    final backend = container.read(guidingBackendProvider);
-    final Phd2StarImage starImage;
-    try {
-      starImage = await backend.phd2GetStarImage(size: size);
-    } catch (error) {
-      if (_isPhd2NoStarSelected(error)) {
-        return jsonError(
-          code: 'no_star_selected',
-          message: 'PHD2 has no guide star selected.',
-          statusCode: 409,
-        );
-      }
-      rethrow;
-    }
-
-    // Return the star image data as JSON with base64-encoded pixels
-    return jsonOk({
-      "frame": starImage.frame,
-      "width": starImage.width,
-      "height": starImage.height,
-      "starX": starImage.starX,
-      "starY": starImage.starY,
-      "pixels": base64Encode(starImage.pixels),
-    });
-  }
-
-  static bool _isPhd2NoLockPosition(Object error) {
+  static bool _isNoLockPosition(Object error) {
     if (error is bridge.SkotiqError) {
       return error.maybeMap(
         operationFailed: (failure) {
@@ -433,7 +235,7 @@ class GuidingHandlers implements RouteSource {
     return false;
   }
 
-  static bool _isPhd2NoStarSelected(Object error) {
+  static bool _isNoStarSelected(Object error) {
     if (error is bridge.SkotiqError) {
       return error.maybeMap(
         operationFailed: (failure) =>
@@ -505,45 +307,43 @@ class GuidingHandlers implements RouteSource {
   Future<Response> handleGuiderStartGuiding(Request request) async {
     _logInfo('[API] POST /api/guider/start-guiding');
     final payload = await readJsonObject(request);
-    final deviceId = requireString(payload, 'deviceId');
     final settle = _readSettle(payload);
 
     final backend = container.read(guidingBackendProvider);
-    Future<void> start() => backend.guiderStartGuiding(
-      deviceId: deviceId,
-      settlePixels: settle.pixels,
-      settleTime: settle.time,
-      settleTimeout: settle.timeout,
+    await _runStart(
+      () => backend.guiderStartGuiding(
+        settlePixels: settle.pixels,
+        settleTime: settle.time,
+        settleTimeout: settle.timeout,
+      ),
     );
-    if (isPhd2DeviceId(deviceId)) {
-      await _runPhd2Start(start);
-    } else {
-      await start();
-    }
 
-    return jsonOk({"status": "guiding", "deviceId": deviceId});
+    publishHostMutationFromContainer(
+      container,
+      entityType: HostMutationEntity.guider,
+      action: HostMutationAction.started,
+      extra: {'state': 'guiding'},
+    );
+    return jsonOk({"status": "guiding"});
   }
 
   Future<Response> handleGuiderStopGuiding(Request request) async {
     _logInfo('[API] POST /api/guider/stop-guiding');
-    final payload = await readJsonObject(request);
-    final deviceId = requireString(payload, 'deviceId');
-
     final backend = container.read(guidingBackendProvider);
-    Future<void> stop() => backend.guiderStopGuiding(deviceId: deviceId);
-    if (isPhd2DeviceId(deviceId)) {
-      await _runPhd2Stop(stop);
-    } else {
-      await stop();
-    }
+    await _runStop(backend.guiderStopGuiding);
 
-    return jsonOk({"status": "stopped", "deviceId": deviceId});
+    publishHostMutationFromContainer(
+      container,
+      entityType: HostMutationEntity.guider,
+      action: HostMutationAction.stopped,
+      extra: {'state': 'stopped'},
+    );
+    return jsonOk({"status": "stopped"});
   }
 
   Future<Response> handleGuiderDither(Request request) async {
     _logInfo('[API] POST /api/guider/dither');
     final payload = await readJsonObject(request);
-    final deviceId = requireString(payload, 'deviceId');
     final amount = optionalDouble(payload, 'amount') ?? 5.0;
     if (!amount.isFinite || amount < 0.1 || amount > 100) {
       throw BadRequestError(
@@ -555,7 +355,6 @@ class GuidingHandlers implements RouteSource {
 
     final backend = container.read(guidingBackendProvider);
     await backend.guiderDither(
-      deviceId: deviceId,
       amount: amount,
       raOnly: optionalBool(payload, 'raOnly') ?? false,
       settlePixels: settle.pixels,
@@ -563,30 +362,41 @@ class GuidingHandlers implements RouteSource {
       settleTimeout: settle.timeout,
     );
 
-    return jsonOk({"status": "dithering", "deviceId": deviceId});
+    return jsonOk({"status": "dithering"});
   }
 
   Future<Response> handleGuiderLoop(Request request) async {
     _logInfo('[API] POST /api/guider/loop');
+    final backend = container.read(guidingBackendProvider);
+    await backend.guiderLoop();
+
+    return jsonOk({"status": "looping"});
+  }
+
+  Future<Response> handleGuiderSetPaused(Request request) async {
+    _logInfo('[API] POST /api/guider/pause');
     final payload = await readJsonObject(request);
-    final deviceId = requireString(payload, 'deviceId');
+    final paused = requireBool(payload, 'paused');
 
     final backend = container.read(guidingBackendProvider);
-    await backend.guiderLoop(deviceId: deviceId);
+    await backend.guiderSetPaused(paused);
 
-    return jsonOk({"status": "looping", "deviceId": deviceId});
+    publishHostMutationFromContainer(
+      container,
+      entityType: HostMutationEntity.guider,
+      action: paused ? HostMutationAction.paused : HostMutationAction.resumed,
+      extra: {'paused': paused},
+    );
+    return jsonOk({"status": "ok"});
   }
 
   Future<Response> handleGuiderFindStar(Request request) async {
     _logInfo('[API] POST /api/guider/find-star');
-    final payload = await readJsonObject(request);
-    final deviceId = requireString(payload, 'deviceId');
-
     final backend = container.read(guidingBackendProvider);
     final double x;
     final double y;
     try {
-      (x, y) = await backend.guiderFindStar(deviceId: deviceId);
+      (x, y) = await backend.guiderFindStar();
     } catch (error, stackTrace) {
       // "No guide star found" is an ordinary outcome — a sparse field, clouds,
       // or a defocused frame — not a server fault. The native layer raises it as
@@ -618,7 +428,6 @@ class GuidingHandlers implements RouteSource {
               'No guide star found in the current frame. Check focus, '
               'exposure length, and that the guide camera is on sky.',
           statusCode: 404,
-          details: {'deviceId': deviceId},
           cause: error,
           stackTrace: stackTrace,
         );
@@ -626,76 +435,71 @@ class GuidingHandlers implements RouteSource {
       rethrow;
     }
 
-    return jsonOk({"x": x, "y": y, "deviceId": deviceId});
+    return jsonOk({"x": x, "y": y});
   }
 
   Future<Response> handleGuiderSetLockPosition(Request request) async {
     _logInfo('[API] POST /api/guider/set-lock-position');
     final payload = await readJsonObject(request);
-    final deviceId = requireString(payload, 'deviceId');
     final x = requireDouble(payload, 'x');
     final y = requireDouble(payload, 'y');
 
     final backend = container.read(guidingBackendProvider);
     await backend.guiderSetLockPosition(
-      deviceId: deviceId,
       x: x,
       y: y,
       exact: optionalBool(payload, 'exact') ?? false,
     );
 
-    return jsonOk({"status": "ok", "deviceId": deviceId, "x": x, "y": y});
-  }
-
-  /// The `deviceId` query parameter of a guider read.
-  String _queryDeviceId(Request request) {
-    final deviceId = request.url.queryParameters['deviceId']?.trim();
-    if (deviceId == null || deviceId.isEmpty) {
-      throw BadRequestError(
-        field: 'deviceId',
-        expected: 'string',
-        message: "Missing 'deviceId' query parameter",
-      );
-    }
-    return deviceId;
+    return jsonOk({"status": "ok", "x": x, "y": y});
   }
 
   Future<Response> handleGuiderGetStatus(Request request) async {
-    final deviceId = _queryDeviceId(request);
     final backend = container.read(guidingBackendProvider);
-    final status = await backend.guiderGetStatus(deviceId: deviceId);
-    return jsonOk({..._statusJson(status), "deviceId": deviceId});
+    try {
+      return jsonOk(_statusJson(await backend.guiderGetStatus()));
+    } catch (e) {
+      // A watcher polls this whether or not the host has a guider: no guider
+      // answering reads as a disconnected guider, not a server failure.
+      _logger.debug('Guider status unavailable: $e', source: 'GuidingHandlers');
+      return jsonOk(_statusJson(kPhd2DisconnectedStatus));
+    }
   }
 
   Future<Response> handleGuiderGetCalibration(Request request) async {
-    final deviceId = _queryDeviceId(request);
     final backend = container.read(guidingBackendProvider);
-    final data = await backend.guiderGetCalibration(deviceId: deviceId);
-    return jsonOk({..._calibrationJson(data), "deviceId": deviceId});
+    final data = await backend.guiderGetCalibration();
+    return jsonOk(_calibrationJson(data));
   }
 
   Future<Response> handleGuiderGetLockPosition(Request request) async {
-    final deviceId = _queryDeviceId(request);
-
     final backend = container.read(guidingBackendProvider);
-    final (x, y) = await backend.guiderGetLockPosition(deviceId: deviceId);
-    return jsonOk({"x": x, "y": y, "deviceId": deviceId});
+    try {
+      final (x, y) = await backend.guiderGetLockPosition();
+      return jsonOk({"x": x, "y": y});
+    } catch (error) {
+      if (_isNoLockPosition(error)) {
+        return jsonError(
+          code: 'no_lock_position',
+          message: 'The guider has no guide-star lock position.',
+          statusCode: 409,
+        );
+      }
+      rethrow;
+    }
   }
 
   Future<Response> handleGuiderDeselectStar(Request request) async {
     _logInfo('[API] POST /api/guider/deselect-star');
-    final payload = await readJsonObject(request);
-    final deviceId = requireString(payload, 'deviceId');
-
     final backend = container.read(guidingBackendProvider);
-    await backend.guiderDeselectStar(deviceId: deviceId);
-    return jsonOk({"status": "ok", "deviceId": deviceId});
+    await backend.guiderDeselectStar();
+    return jsonOk({"status": "ok"});
   }
 
   Future<Response> handleGuiderGetStarImage(Request request) async {
-    final deviceId = _queryDeviceId(request);
-    // Same contract as PHD2 star-image: absent → 50; supplied must be a
-    // positive whole integer bounded by [_maxStarImageSize].
+    // Absent → the 50 px default thumbnail. A supplied value must be a positive
+    // whole integer bounded by [_maxStarImageSize]; validate before the backend
+    // read so a malformed size does no work and never reaches the guider.
     final size =
         optionalQueryInt(
           request.url.queryParameters,
@@ -708,14 +512,13 @@ class GuidingHandlers implements RouteSource {
     final backend = container.read(guidingBackendProvider);
     final Phd2StarImage image;
     try {
-      image = await backend.guiderGetStarImage(deviceId: deviceId, size: size);
+      image = await backend.guiderGetStarImage(size: size);
     } catch (error) {
-      // Looping with no star selected is a normal state, answered the same
-      // way as GET /api/phd2/star-image rather than as a server failure.
-      if (_isPhd2NoStarSelected(error)) {
+      // Looping with no star selected is a normal state, not a server failure.
+      if (_isNoStarSelected(error)) {
         return jsonError(
           code: 'no_star_selected',
-          message: 'PHD2 has no guide star selected.',
+          message: 'The guider has no guide star selected.',
           statusCode: 409,
         );
       }
@@ -729,7 +532,6 @@ class GuidingHandlers implements RouteSource {
       "starX": image.starX,
       "starY": image.starY,
       "pixels": base64Encode(image.pixels),
-      "deviceId": deviceId,
     });
   }
 
@@ -780,42 +582,44 @@ class GuidingHandlers implements RouteSource {
     );
   }
 
-  Future<void> _runPhd2Start(Future<void> Function() start) async {
-    if (_phd2StartDrain != null || _phd2StopInFlight) {
+  /// One start or stop of guiding at a time; a stop always waits out a
+  /// start in progress and stops again after it.
+  Future<void> _runStart(Future<void> Function() start) async {
+    if (_startDrain != null || _stopInFlight) {
       throw HandlerFailure(
         code: 'guiding_command_busy',
-        message: 'Another PHD2 start/stop command is already in progress.',
+        message: 'Another guiding start or stop is already in progress.',
         statusCode: 409,
       );
     }
     final operation = Future<void>.sync(start);
     final drain = operation.then<void>((_) {}, onError: (_, __) {});
-    _phd2StartDrain = drain;
+    _startDrain = drain;
     try {
       await operation;
     } finally {
-      if (identical(_phd2StartDrain, drain)) _phd2StartDrain = null;
+      if (identical(_startDrain, drain)) _startDrain = null;
     }
   }
 
-  Future<void> _runPhd2Stop(Future<void> Function() stop) async {
-    if (_phd2StopInFlight) {
+  Future<void> _runStop(Future<void> Function() stop) async {
+    if (_stopInFlight) {
       throw HandlerFailure(
         code: 'guiding_command_busy',
-        message: 'A PHD2 stop command is already in progress.',
+        message: 'A guiding stop is already in progress.',
         statusCode: 409,
       );
     }
-    _phd2StopInFlight = true;
+    _stopInFlight = true;
     try {
-      final start = _phd2StartDrain;
+      final start = _startDrain;
       await stop();
       if (start != null) {
         await start;
         await stop();
       }
     } finally {
-      _phd2StopInFlight = false;
+      _stopInFlight = false;
     }
   }
 }

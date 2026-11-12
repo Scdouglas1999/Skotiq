@@ -142,9 +142,7 @@ void main() {
     'calibration complete refreshes calibration data through public API',
     () async {
       var fetchCount = 0;
-      when(
-        () => mockBackend.guiderGetCalibration(deviceId: any(named: 'deviceId')),
-      ).thenAnswer((_) async {
+      when(() => mockBackend.guiderGetCalibration()).thenAnswer((_) async {
         fetchCount++;
         return const Phd2CalibrationData(
           isCalibrated: true,
@@ -186,9 +184,7 @@ void main() {
   ]) {
     test('$eventType re-reads the calibration rates from the guider', () async {
       var reads = 0;
-      when(
-        () => mockBackend.guiderGetCalibration(deviceId: any(named: 'deviceId')),
-      ).thenAnswer((_) async {
+      when(() => mockBackend.guiderGetCalibration()).thenAnswer((_) async {
         reads++;
         return reads == 1
             ? const Phd2CalibrationData(
@@ -234,9 +230,7 @@ void main() {
   // The Guiding screen showed no calibration for the built-in guider: only
   // PHD2's was ever read.
   test('the built-in guider\'s calibration is read when it connects', () async {
-    when(
-      () => mockBackend.guiderGetCalibration(deviceId: builtinGuiderDeviceId),
-    ).thenAnswer(
+    when(() => mockBackend.guiderGetCalibration()).thenAnswer(
       (_) async => const Phd2CalibrationData(
         isCalibrated: true,
         rotationAngle: 10.2,

@@ -7,8 +7,6 @@ import 'package:skotiq_bridge/skotiq_bridge.dart'
         BuiltinGuiderConfig,
         DeviceType,
         EventCategory,
-        Phd2StarImage,
-        Phd2CalibrationData,
         SkotiqEvent;
 import '../backend/remote_host.dart';
 import '../backend/network_backend.dart';

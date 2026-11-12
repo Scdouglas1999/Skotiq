@@ -1,6 +1,7 @@
 //! Exercise connection recovery through the same bridge entry point the flip uses.
 use super::super::*;
 use std::io::{BufRead, BufReader, Write};
+use crate::event::EventPayload;
 use std::net::TcpListener;
 
 #[tokio::test]
@@ -55,11 +56,11 @@ async fn stop_guiding_recovers_the_connection_and_waits_for_stopped() {
         }
         (stops, confirmation_reads)
     });
-    api_phd2_connect(Some("127.0.0.1".into()), Some(port))
+    connect(Some("127.0.0.1".into()), Some(port))
         .await
         .unwrap();
     let mut events = get_state().event_bus.subscribe();
-    let result = api_phd2_stop_guiding().await;
+    let result = stop_guiding().await;
     let mut disconnected = false;
     while let Ok(event) = events.try_recv() {
         disconnected |= matches!(
@@ -67,7 +68,7 @@ async fn stop_guiding_recovers_the_connection_and_waits_for_stopped() {
             EventPayload::Guiding(GuidingEvent::Disconnected)
         );
     }
-    api_phd2_disconnect().await.unwrap();
+    disconnect().await.unwrap();
     result.unwrap();
     assert!(
         !disconnected,

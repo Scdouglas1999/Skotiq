@@ -232,9 +232,7 @@ class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
     final backendGeneration = _backendGeneration;
     final fetchGeneration = ++_fetchGeneration;
     try {
-      final guiderId =
-          ref.read(guiderStateProvider).deviceId ?? kPhd2CanonicalId;
-      final data = await backend.guiderGetCalibration(deviceId: guiderId);
+      final data = await backend.guiderGetCalibration();
       if (!_isCurrentFetch(backend, backendGeneration, fetchGeneration)) return;
       _hasFetched = true;
       state = data;
@@ -244,7 +242,10 @@ class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
       );
     } catch (e) {
       if (_isCurrentFetch(backend, backendGeneration, fetchGeneration)) {
-        _logger.error('Failed to fetch calibration data: $e', source: 'Guiding');
+        _logger.error(
+          'Failed to fetch calibration data: $e',
+          source: 'Guiding',
+        );
       }
     }
   }
