@@ -3099,11 +3099,15 @@ pub enum RecoveryAction {
     /// Continue execution (ignore error)
     #[default]
     Continue,
+    /// Pause the sequence
     Pause,
     /// Run autofocus
     Autofocus,
+    /// Skip to next target
     NextTarget,
+    /// Retry the failed node
     Retry { max_attempts: u32 },
+    /// Park and abort
     ParkAndAbort,
     /// Reserved variant — see the enum-level rustdoc. Stored sequences may
     /// still contain this value, so it must round-trip; the executor refuses
