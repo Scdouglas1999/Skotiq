@@ -113,6 +113,13 @@ final List<AlwaysOnService> alwaysOnServices = [
   ),
 
   AlwaysOnService(
+    'capture file format',
+    captureFileFormatSyncProvider,
+    _hosts,
+    'captured frames saved in the format chosen in Settings > Imaging',
+  ),
+
+  AlwaysOnService(
     'catalog download source',
     catalogDownloadSourceSyncProvider,
     _everyRole,

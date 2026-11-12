@@ -462,9 +462,7 @@ class RunFrameRecorder {
         final rowId = await dao.insertSequenceFrame(
           filePath: filePath,
           fileName: fileName,
-          fileFormat: filePath.toLowerCase().endsWith('.xisf')
-              ? 'xisf'
-              : 'fits',
+          fileFormat: frameFileFormatOf(filePath).extension,
           exposureDuration: exposureSecs ?? 0.0,
           targetId: targetId,
           capturedAt: DateTime.now(),

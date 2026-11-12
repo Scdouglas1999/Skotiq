@@ -120,6 +120,13 @@ const List<Setting<Object?>> kAppSettingsTable = [
     seeded: true,
   ),
   TextSetting(
+    'xisfCompression',
+    'xisf_compression',
+    kXisfCompressionNone,
+    normalize: normalizeXisfCompression,
+  ),
+  BoolSetting('xisfChecksums', 'xisf_checksums', false),
+  TextSetting(
     'fileNamingPattern',
     'file_naming_pattern',
     r'$TARGET_$FILTER_$DATE_$SEQ',

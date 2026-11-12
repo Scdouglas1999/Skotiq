@@ -83,6 +83,64 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
     );
   }
 
+  /// The archive format and, for XISF, how it is compressed and checked.
+  List<Widget> _formatRows(AppSettingsState settings) {
+    final notifier = ref.read(appSettingsProvider.notifier);
+    final format = normalizeCaptureImageFormat(settings.imageFormat);
+    final isXisf = format == kCaptureImageFormatXisf;
+    return [
+      SettingRow(
+        icon: LucideIcons.file,
+        title: 'Archive format',
+        subtitle: isXisf
+            ? 'Lossless $kCaptureBitDepth XISF, the format PixInsight works in; '
+                  'keywords and sky position land where PixInsight reads them'
+            : 'Lossless $kCaptureBitDepth FITS, which every astronomy program '
+                  'opens',
+        trailing: SettingsDropdown(
+          key: const Key('imaging.archiveFormat'),
+          value: format,
+          items: kSupportedCaptureImageFormats,
+          onChanged: notifier.setImageFormat,
+          width: widget.isMobile ? 120 : 140,
+        ),
+        isMobile: widget.isMobile,
+      ),
+      if (isXisf) ...[
+        SettingRow(
+          icon: LucideIcons.archive,
+          title: 'XISF compression',
+          subtitle:
+              'Smaller files at no cost to the pixels. Byte shuffling helps '
+              '16-bit frames compress further',
+          trailing: SettingsDropdown(
+            key: const Key('imaging.xisfCompression'),
+            value: normalizeXisfCompression(settings.xisfCompression),
+            items: kXisfCompressionLabels.keys.toList(),
+            itemLabels: kXisfCompressionLabels.values.toList(),
+            onChanged: notifier.setXisfCompression,
+            width: widget.isMobile ? 200 : 280,
+          ),
+          isMobile: widget.isMobile,
+          stackOnMobile: widget.isMobile,
+        ),
+        SettingRow(
+          icon: LucideIcons.shieldCheck,
+          title: 'XISF checksums',
+          subtitle:
+              'Store a SHA-1 checksum with each frame so damage on disk is '
+              'caught when the frame is opened',
+          trailing: SettingsSwitch(
+            key: const Key('imaging.xisfChecksums'),
+            value: settings.xisfChecksums,
+            onChanged: notifier.setXisfChecksums,
+          ),
+          isMobile: widget.isMobile,
+        ),
+      ],
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(appSettingsProvider);
@@ -109,17 +167,7 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
               title: 'File format',
               isMobile: widget.isMobile,
               children: [
-                SettingRow(
-                  icon: LucideIcons.file,
-                  title: 'Archive format',
-                  subtitle:
-                      'Captured images are saved as lossless 16-bit FITS files',
-                  trailing: Text(
-                    '$kCaptureImageFormat · $kCaptureBitDepth',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  isMobile: widget.isMobile,
-                ),
+                ..._formatRows(settings),
                 SettingRow(
                   icon: LucideIcons.fileText,
                   title: 'File naming pattern',

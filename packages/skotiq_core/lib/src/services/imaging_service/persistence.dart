@@ -188,7 +188,7 @@ extension _ImagingServicePersistence on ImagingService {
     final companion = CapturedImagesCompanion(
       filePath: drift.Value(filePath),
       fileName: drift.Value(path.basename(filePath)),
-      fileFormat: const drift.Value('fits'),
+      fileFormat: drift.Value(frameFileFormatOf(filePath).extension),
       fileSize: drift.Value(fileSize),
       sessionId: drift.Value(sessionId),
       targetId: const drift.Value(null), // Link to target if available

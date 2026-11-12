@@ -360,10 +360,13 @@ const Map<String, List<String>> kSettingsSearchTerms = {
   ],
   'imaging': [
     'Archive format',
-    'Captured images are saved as lossless 16-bit FITS files',
     'File format',
     'File naming pattern',
     'Imaging',
+    'Smaller files at no cost to the pixels. Byte shuffling helps',
+    'Store a SHA-1 checksum with each frame so damage on disk is',
+    'XISF checksums',
+    'XISF compression',
   ],
   'integrations': [
     'Application token',
@@ -961,7 +964,10 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Reject folder path',
   },
   'imaging': {
-    'Captured images are saved as lossless 16-bit FITS files': 'Archive format',
+    'Smaller files at no cost to the pixels. Byte shuffling helps':
+        'XISF compression',
+    'Store a SHA-1 checksum with each frame so damage on disk is':
+        'XISF checksums',
   },
   'integrations': {
     'Open Skotiq on the rig to enable plugins and enter':

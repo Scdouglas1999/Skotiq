@@ -1178,6 +1178,27 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
   }
 
   @override
+  Future<void> updateFrameCards(
+    String filePath,
+    List<FitsKeywordWrite> cards,
+  ) async {
+    throw UnsupportedError(
+      'Frame metadata is written on the host that keeps the frame.',
+    );
+  }
+
+  @override
+  Future<void> setCaptureFileFormat({
+    required String format,
+    required String xisfCompression,
+    required bool xisfChecksums,
+  }) async {
+    throw UnsupportedError(
+      'The host sets its own capture file format from its settings.',
+    );
+  }
+
+  @override
   Future<void> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,

@@ -1,5 +1,22 @@
 part of '../imaging_models.dart';
 
+/// Extensions, lower case and without the dot, of the frame files the app
+/// opens: the formats the native frame reader decodes with their metadata.
+const List<String> kFrameFileExtensions = ['fits', 'fit', 'fts', 'xisf'];
+
+/// Whether [path] names a frame file the app opens.
+bool isFrameFilePath(String path) {
+  final lower = path.toLowerCase();
+  return kFrameFileExtensions.any((ext) => lower.endsWith('.$ext'));
+}
+
+/// The format of a frame file by its extension: XISF for `.xisf`, FITS
+/// otherwise.
+ImageFileFormat frameFileFormatOf(String path) =>
+    path.toLowerCase().endsWith('.xisf')
+    ? ImageFileFormat.xisf
+    : ImageFileFormat.fits;
+
 enum ImageFileFormat {
   fits,
   xisf,
