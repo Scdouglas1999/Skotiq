@@ -337,15 +337,3 @@ fn get_local_subnets() -> Vec<(u8, u8, u8)> {
     subnets.sort_unstable();
     subnets
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_discover_localhost() {
-        // This test only passes if an INDI server is running locally
-        let result = discover_localhost().await;
-        println!("Localhost discovery result: {:?}", result);
-    }
-}
