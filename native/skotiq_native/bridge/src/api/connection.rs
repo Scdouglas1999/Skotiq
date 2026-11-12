@@ -110,7 +110,7 @@ pub(crate) fn device_info_from_id(device_id: &str, device_type: DeviceType) -> O
             device_type: simulator_type,
             instance,
         } => {
-            let name = crate::api::discovery::simulator_display_name(device_id, device_type)
+            let name = crate::discovery::simulator_display_name(device_id, device_type)
                 .unwrap_or_else(|| format!("Simulator {} {}", simulator_type, instance));
             Some(DeviceInfo {
                 id: device_id.to_string(),

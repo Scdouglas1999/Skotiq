@@ -457,8 +457,8 @@ pub fn api_sequencer_clear_checkpoint() -> Result<(), SkotiqError> {
 
 #[cfg(test)]
 mod executor_site_tests {
-    use crate::api::get_state;
     use crate::api::sequencer::{api_sequencer_start, get_sequence_executor};
+    use crate::state::get_state;
     use crate::storage::ObserverLocation;
 
     /// A run must not be able to start without the site the app already knows.

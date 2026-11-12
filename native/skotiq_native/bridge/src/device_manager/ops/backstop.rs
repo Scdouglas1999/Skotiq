@@ -170,7 +170,7 @@ impl DeviceManager {
         runtime.handle().spawn(async move {
             // The task outlives the call, so it reads through the
             // process-wide manager, as the heartbeat tasks do.
-            let manager = crate::api::get_device_manager().clone();
+            let manager = crate::device_manager::get_device_manager().clone();
             loop {
                 tokio::time::sleep(BACKSTOP_INTERVAL).await;
                 manager.backstop_round().await;

@@ -63,7 +63,7 @@ impl Mount for SimMount {
         // read (see `sim_gate::read_mount_status`). Writing alt/az here
         // instead left them frozen at the commanded value while the sky
         // moved on underneath.
-        let site = crate::api::get_state()
+        let site = crate::state::get_state()
             .get_observer_location()
             .ok()
             .flatten();
@@ -326,7 +326,7 @@ impl Mount for SimMount {
     }
 
     async fn site(&self) -> Result<MountSite, DeviceOpError> {
-        let location = crate::api::get_state()
+        let location = crate::state::get_state()
             .get_observer_location()
             .map_err(|e| DeviceOpError::from(e.to_string()))?;
         match location {

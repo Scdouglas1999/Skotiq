@@ -2,7 +2,7 @@
 //! its reason before it stops the guider, so a planned stop (autofocus, a
 //! flip, a mount move) never reads as lost guiding.
 
-use crate::api::get_state;
+use crate::state::get_state;
 use crate::event::{EventSeverity, GuidingEvent};
 use skotiq_sequencer::GuidingStopReason;
 

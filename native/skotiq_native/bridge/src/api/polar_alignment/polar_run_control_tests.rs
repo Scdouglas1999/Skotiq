@@ -106,7 +106,7 @@ async fn polar_solve_frame_is_the_cameras_own_samples() {
     data[5 * width as usize + 10] = 52_000;
     data[5 * width as usize + 11] = 61_000;
 
-    let path = crate::api::create_unique_temp_fits_path("polar_raw_solve_test");
+    let path = crate::util::temp_fits::create_unique_temp_fits_path("polar_raw_solve_test");
     let path_str = path.to_string_lossy().to_string();
     write_polar_solve_frame(
         raw_frame(width, height, data.clone()),
@@ -133,7 +133,7 @@ async fn polar_solve_frame_is_the_cameras_own_samples() {
 async fn polar_solve_frame_carries_the_field_scale_hints() {
     use super::{write_polar_solve_frame, SolveHints};
 
-    let path = crate::api::create_unique_temp_fits_path("polar_hint_test");
+    let path = crate::util::temp_fits::create_unique_temp_fits_path("polar_hint_test");
     let path_str = path.to_string_lossy().to_string();
     // A 416 mm scope and a 3.76 um sensor binned 2x2 — the operator's own
     // profile entry and what the camera reports.
@@ -163,7 +163,7 @@ async fn polar_solve_frame_carries_the_field_scale_hints() {
 async fn polar_solve_frame_omits_scale_cards_when_nothing_is_known() {
     use super::{write_polar_solve_frame, SolveHints};
 
-    let path = crate::api::create_unique_temp_fits_path("polar_hint_absent_test");
+    let path = crate::util::temp_fits::create_unique_temp_fits_path("polar_hint_absent_test");
     let path_str = path.to_string_lossy().to_string();
     write_polar_solve_frame(
         raw_frame(4, 4, vec![0; 16]),
@@ -316,9 +316,9 @@ fn polar_globals_test_lock() -> &'static tokio::sync::Mutex<()> {
 #[tokio::test]
 async fn a_rotation_step_leaves_an_of_date_mounts_declination_alone() {
     use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock};
-    use crate::api::get_device_manager;
     use crate::device::{DeviceInfo, DeviceType, DriverType};
     use crate::device_manager::epoch::{SimFrameGuard, SimMountFrame};
+    use crate::device_manager::get_device_manager;
 
     let _serialized = sim_singleton_test_lock().lock().await;
     let _globals = polar_globals_test_lock().lock().await;
@@ -403,9 +403,9 @@ async fn a_rotation_step_leaves_an_of_date_mounts_declination_alone() {
 #[tokio::test]
 async fn the_pole_region_slew_lands_on_the_meridian_of_date() {
     use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock};
-    use crate::api::get_device_manager;
     use crate::device::{DeviceInfo, DeviceType, DriverType};
     use crate::device_manager::epoch::{SimFrameGuard, SimMountFrame};
+    use crate::device_manager::get_device_manager;
     use skotiq_sequencer::meridian::{julian_day, local_sidereal_time};
 
     let _serialized = sim_singleton_test_lock().lock().await;

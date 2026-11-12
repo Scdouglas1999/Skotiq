@@ -533,7 +533,7 @@ pub(crate) async fn gather_solve_hints_for_camera(camera_id: Option<&str>) -> So
         None => match profile.as_ref().and_then(|p| p.camera_id.clone()) {
             Some(id) => Some(id),
             None => {
-                let connected: Vec<String> = crate::api::get_device_manager()
+                let connected: Vec<String> = crate::device_manager::get_device_manager()
                     .get_devices_by_type(DeviceType::Camera)
                     .await
                     .into_iter()

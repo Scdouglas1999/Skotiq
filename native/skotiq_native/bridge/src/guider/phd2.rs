@@ -4,7 +4,8 @@
 
 use super::stop_reason;
 use super::{GuideStarImage, GuiderCalibration, GuiderStatus};
-use crate::api::{get_device_manager, get_state};
+use crate::device_manager::get_device_manager;
+use crate::state::get_state;
 use crate::device::{DeviceInfo, DeviceType, DriverType};
 use crate::error::SkotiqError;
 use crate::event::{EventSeverity, GuidingEvent};

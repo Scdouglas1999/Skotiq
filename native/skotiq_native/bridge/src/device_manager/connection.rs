@@ -446,7 +446,7 @@ impl DeviceManager {
                     device_id,
                     e
                 );
-                crate::api::api_invalidate_discovery_cache().await;
+                crate::discovery::forget().await;
             }
         }
 
@@ -674,7 +674,7 @@ impl DeviceManager {
             // the discovery cache holds is out of date: drop it, so the
             // caller's next look for the device it wanted sees where it
             // went.
-            crate::api::api_invalidate_discovery_cache().await;
+            crate::discovery::forget().await;
 
             if let Err(e) = self.disconnect_device(&info.id).await {
                 tracing::warn!(
@@ -710,8 +710,8 @@ impl DeviceManager {
     /// The discovery cache is dropped first: after a re-enumeration it still
     /// describes the bus as it was, which is exactly the question here.
     async fn enumeration_names(&self, info: &DeviceInfo, expected_model: &str) -> bool {
-        crate::api::api_invalidate_discovery_cache().await;
-        match crate::api::api_discover_devices(info.device_type.clone()).await {
+        crate::discovery::forget().await;
+        match crate::discovery::discover_devices(info.device_type.clone()).await {
             Ok(devices) => devices.iter().any(|d| {
                 d.id == info.id
                     && (crate::device_manager::identity::same_model(&d.name, expected_model)
@@ -769,7 +769,7 @@ impl DeviceManager {
             .status
             .clone();
         DeviceIdentity {
-            model: crate::api::discovery::simulator_display_name(device_id, DeviceType::Camera),
+            model: crate::discovery::simulator_display_name(device_id, DeviceType::Camera),
             serial_number: None,
             sensor: DeviceIdentity::sensor_fingerprint(
                 status.sensor_width,

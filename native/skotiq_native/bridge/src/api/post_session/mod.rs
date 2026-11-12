@@ -58,8 +58,8 @@ use skotiq_imaging::{
 };
 use std::path::Path;
 
-use crate::api::get_state;
 use crate::event::{EventSeverity, ImagingEvent};
+use crate::state::get_state;
 
 mod args;
 pub(crate) use args::*;

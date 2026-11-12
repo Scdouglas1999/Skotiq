@@ -22,8 +22,15 @@ use crate::device::*;
 use crate::state::SharedAppState;
 use skotiq_device::DeviceDriver;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
+
+static DEVICE_MANAGER: OnceLock<Arc<DeviceManager>> = OnceLock::new();
+
+/// The process's one device manager.
+pub(crate) fn get_device_manager() -> &'static Arc<DeviceManager> {
+    DEVICE_MANAGER.get_or_init(|| DeviceManager::new(crate::state::get_state().clone()))
+}
 
 #[derive(Debug, Clone)]
 pub struct ReconnectConfig {

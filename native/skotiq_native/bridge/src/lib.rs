@@ -63,6 +63,7 @@ mod device;
 mod device_capabilities;
 mod device_id;
 mod device_manager;
+mod discovery;
 mod dispatch;
 mod error;
 mod event;

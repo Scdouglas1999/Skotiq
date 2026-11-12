@@ -53,9 +53,10 @@
 //! (see `event.rs`); the FRB bindings carry the typed fields directly, so the
 //! Dart side maps the variant without decoding a hand-built JSON payload.
 
-use crate::api::{api_invalidate_discovery_cache, get_device_manager, get_state};
 use crate::device::{DeviceInfo, DeviceType, DriverType};
+use crate::device_manager::get_device_manager;
 use crate::event::{EquipmentEvent, EventSeverity};
+use crate::state::get_state;
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex as StdMutex;
@@ -331,7 +332,7 @@ async fn poll_once(suppress_events: bool) {
             NativeScan::Scan(serial) => Some(serial),
         };
         if let Some(serial) = serial {
-            match crate::api::discovery::scan_native_for_type_public(device_type, serial).await {
+            match crate::discovery::scan_native_for_type_with(device_type, serial).await {
                 Ok(devices) => {
                     for dev in devices {
                         observed.insert(
@@ -373,7 +374,7 @@ async fn poll_once(suppress_events: bool) {
             );
             carry_forward_cached(&mut observed, DriverType::Ascom, device_type);
         } else {
-            match crate::api::discovery::scan_ascom_for_type_public(device_type).await {
+            match crate::discovery::scan_ascom_for_type(device_type).await {
                 Ok(devices) => {
                     for dev in devices {
                         observed.insert(
@@ -541,7 +542,7 @@ fn invalidate_discovery_caches() {
     match crate::get_runtime() {
         Ok(runtime) => {
             runtime.spawn(async {
-                api_invalidate_discovery_cache().await;
+                crate::discovery::forget().await;
             });
         }
         Err(err) => {

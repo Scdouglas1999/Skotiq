@@ -382,7 +382,7 @@ mod tests {
 
 /// The simulated flat panel, driven the way the app drives a real one.
 ///
-/// These go the long way round — `api_discover_devices` for the id,
+/// These go the long way round — `discover_devices` for the id,
 /// `connect_device` to open it, then `skotiq_sequencer::DeviceOps` for
 /// every operation — because that is the whole path the sequencer's
 /// `OpenCover` and `CalibratorOn` nodes take. Calling `sim_cover_move`
@@ -391,9 +391,9 @@ mod tests {
 #[cfg(test)]
 mod simulator_tests {
     use crate::api::devices::simulation::sim_singleton_test_lock;
-    use crate::api::discovery::api_discover_devices;
-    use crate::api::get_device_manager;
     use crate::device::{DeviceType, DriverType};
+    use crate::device_manager::get_device_manager;
+    use crate::discovery::discover_devices;
     use skotiq_sequencer::DeviceOps;
     use std::sync::Arc;
     use std::time::{Duration, Instant};
@@ -413,7 +413,7 @@ mod simulator_tests {
     /// the sequencer-facing ops handle the instruction nodes use.
     async fn connect_simulated_panel() -> (String, Arc<dyn DeviceOps>) {
         crate::api::devices::simulation::reset_sim_cover_calibrator().await;
-        let devices = api_discover_devices(DeviceType::CoverCalibrator)
+        let devices = discover_devices(DeviceType::CoverCalibrator)
             .await
             .expect("cover calibrator discovery should succeed");
         let info = devices

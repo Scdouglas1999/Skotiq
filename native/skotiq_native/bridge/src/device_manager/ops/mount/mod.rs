@@ -32,8 +32,9 @@ pub(crate) mod tracking;
 #[cfg(test)]
 mod sim_mount_tests {
     use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock, SimulatedMount};
-    use crate::api::{get_device_manager, get_state};
     use crate::device::{DeviceInfo, DeviceType, DriverType, PierSide};
+    use crate::device_manager::get_device_manager;
+    use crate::state::get_state;
     use crate::storage::ObserverLocation;
 
     const TEST_LATITUDE: f64 = 40.0;

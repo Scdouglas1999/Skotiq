@@ -30,7 +30,7 @@ pub fn init(settings_dir: &Path) -> Result<(), String> {
     let runtime = crate::ensure_runtime().map_err(|e| e.to_string())?;
     let root = settings_dir.join("depthlock");
     let sink: engine::EventSink = Arc::new(|event| {
-        crate::api::get_state().publish_event(event);
+        crate::state::get_state().publish_event(event);
     });
     let service = DepthLockService::open(&root, sink, runtime.handle())?;
     let service = match SERVICE.set(service) {

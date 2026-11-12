@@ -206,7 +206,7 @@ pub(crate) fn pier_side_after_slew_to(ra_hours: f64, lst_hours: f64) -> PierSide
 
 /// Local sidereal time now for the configured site, if there is one.
 pub(crate) fn sim_local_sidereal_time(now: chrono::DateTime<chrono::Utc>) -> Option<f64> {
-    let longitude = crate::api::get_state()
+    let longitude = crate::state::get_state()
         .get_observer_location()
         .ok()
         .flatten()?
@@ -391,7 +391,7 @@ pub(crate) enum SimParkPose {
 static SIM_SET_PARK: std::sync::Mutex<Option<SimParkPose>> = std::sync::Mutex::new(None);
 
 fn sim_site() -> Option<ObserverLocation> {
-    crate::api::get_state()
+    crate::state::get_state()
         .get_observer_location()
         .ok()
         .flatten()

@@ -24,6 +24,10 @@ use tokio::sync::RwLock;
 // Sibling-module items via the parent's pub use re-exports.
 use super::*;
 
+/// Events dropped across all event streams, counted when a receiver falls
+/// behind and the bus skips events for it.
+static TOTAL_DROPPED_EVENTS: AtomicU64 = AtomicU64::new(0);
+
 /// Stream of events from the native side
 /// The Dart side should listen to this stream for UI updates
 ///

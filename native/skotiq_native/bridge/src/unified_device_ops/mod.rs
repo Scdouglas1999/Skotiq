@@ -57,6 +57,7 @@
 use crate::adaptive_polling::{AdaptivePoller, PollerPreset};
 use crate::api::*;
 use crate::device::DeviceType;
+use crate::device_manager::get_device_manager;
 use crate::dispatch::DeviceOpError;
 use crate::event::*;
 use crate::filter_matching::find_filter_match;
@@ -255,7 +256,7 @@ impl UnifiedDeviceOps {
 /// This is the recommended way to get a DeviceOps implementation.
 /// It uses the unified implementation that routes through the bridge API.
 pub fn create_unified_device_ops() -> Arc<dyn skotiq_sequencer::DeviceOps> {
-    Arc::new(UnifiedDeviceOps::new(crate::api::get_state().clone()))
+    Arc::new(UnifiedDeviceOps::new(crate::state::get_state().clone()))
 }
 
 /// Create a unified DeviceOps instance with a specific app state

@@ -398,6 +398,13 @@ impl Default for AppState {
 /// Thread-safe shared application state
 pub type SharedAppState = Arc<AppState>;
 
+static APP_STATE: OnceLock<SharedAppState> = OnceLock::new();
+
+/// The process's one application state.
+pub(crate) fn get_state() -> &'static SharedAppState {
+    APP_STATE.get_or_init(AppState::new)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -6,9 +6,10 @@
 //! device moves and the `DeviceManager` hears nothing.
 
 use crate::api::devices::simulation as sim;
-use crate::api::{get_device_manager, get_state};
 use crate::device::{DeviceInfo, DeviceType, DriverType};
+use crate::device_manager::get_device_manager;
 use crate::event::{EquipmentEvent, EventPayload, SkotiqEvent};
+use crate::state::get_state;
 use tokio::sync::broadcast::error::TryRecvError;
 use tokio::sync::broadcast::Receiver;
 

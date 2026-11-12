@@ -89,7 +89,7 @@ pub(crate) async fn unplug_sim_camera(device_id: &str, reorder: bool) {
             SIM_IMAGING_CAMERA_ID,
             SIM_GUIDE_CAMERA_ID
         );
-        crate::api::api_invalidate_discovery_cache().await;
+        crate::discovery::forget().await;
     }
 }
 

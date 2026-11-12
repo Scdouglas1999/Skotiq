@@ -349,8 +349,8 @@ fn a_runaway_that_ends_at_home_is_a_lost_position() {
 #[tokio::test]
 async fn the_simulated_runaway_is_caught_and_recovered_end_to_end() {
     use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock, SimulatedMount};
-    use crate::api::get_device_manager;
     use crate::device::{DeviceInfo, DeviceType, DriverType};
+    use crate::device_manager::get_device_manager;
     use crate::device_manager::ops::{sim_faults, sim_runaway};
 
     let _serialized = sim_singleton_test_lock().lock().await;
@@ -388,7 +388,7 @@ async fn the_simulated_runaway_is_caught_and_recovered_end_to_end() {
         mount.status.right_ascension = skotiq_sequencer::meridian::local_sidereal_time(jd, 0.0);
         mount.status.declination = 80.0;
     }
-    crate::api::get_state()
+    crate::state::get_state()
         .set_observer_location(Some(crate::storage::ObserverLocation {
             latitude: 40.0,
             longitude: 0.0,

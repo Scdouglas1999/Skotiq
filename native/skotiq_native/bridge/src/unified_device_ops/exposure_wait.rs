@@ -181,7 +181,7 @@ mod wait_tests {
             duration,
             exposure_completion_timeout(duration),
             exposure_abort_generation("wait-test-camera").await,
-            crate::api::get_state(),
+            crate::state::get_state(),
             || async move { Ok(started.elapsed().as_secs_f64() >= duration) },
         )
         .await
@@ -210,7 +210,7 @@ mod readout_tests {
             duration,
             exposure_completion_timeout(duration),
             exposure_abort_generation("readout-test-camera").await,
-            crate::api::get_state(),
+            crate::state::get_state(),
             || async move { Ok(started.elapsed().as_secs_f64() >= duration + readout) },
         )
         .await

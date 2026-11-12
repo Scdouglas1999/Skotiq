@@ -113,7 +113,7 @@ pub use types::*;
 /// Not covered: [`DeviceCapabilities::Switch`] — refreshing it needs one
 /// round trip per switch, and [`WeatherCapabilities`] has no live fields.
 async fn refresh_volatile_state(device_id: &str, capabilities: &mut DeviceCapabilities) {
-    let mgr = crate::api::get_device_manager();
+    let mgr = crate::device_manager::get_device_manager();
     match capabilities {
         DeviceCapabilities::Camera(caps) => {
             if let Ok(status) = mgr.camera_get_status(device_id).await {
@@ -272,7 +272,7 @@ async fn read_capabilities(
     parsed: &crate::device_id::ParsedDeviceId,
 ) -> Result<DeviceCapabilities, SkotiqError> {
     use crate::device::{DeviceType, DriverType};
-    let mgr = crate::api::get_device_manager();
+    let mgr = crate::device_manager::get_device_manager();
     let registered_type = mgr.get_device(device_id).await.map(|d| d.info.device_type);
     match registered_type {
         Some(

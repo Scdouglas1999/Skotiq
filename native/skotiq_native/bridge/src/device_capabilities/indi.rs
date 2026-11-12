@@ -45,7 +45,7 @@ pub(crate) async fn get_indi_capabilities(
         }
     };
 
-    let client = crate::api::get_device_manager()
+    let client = crate::device_manager::get_device_manager()
         .indi_server(&host, port)
         .await
         .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;

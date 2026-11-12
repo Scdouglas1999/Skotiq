@@ -59,7 +59,7 @@ where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = ()>,
 {
-    let state = crate::api::get_state();
+    let state = crate::state::get_state();
     let previous = state.get_observer_location().ok().flatten();
     state
         .set_observer_location(Some(ObserverLocation {

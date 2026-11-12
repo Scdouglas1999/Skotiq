@@ -1505,7 +1505,7 @@ async fn the_builtin_guider_calibrates_and_guides_on_the_simulated_guide_camera(
     crate::device_manager::ops::sim_faults::clear_all();
     crate::api::devices::simulation::reset_sim_guide_offset().await;
 
-    let manager = crate::api::get_device_manager();
+    let manager = crate::device_manager::get_device_manager();
     for (id, device_type) in [
         (SIM_IMAGING_CAMERA_ID, DeviceType::Camera),
         (SIM_GUIDE_CAMERA_ID, DeviceType::Camera),

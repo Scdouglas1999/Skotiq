@@ -11,7 +11,8 @@ impl PlateSolveOps for UnifiedDeviceOps {
     ) -> DeviceResult<PlateSolveResult> {
         tracing::info!("Plate solving image");
 
-        let temp_file = create_unique_temp_fits_path("skotiq_platesolve_temp");
+        let temp_file =
+            crate::util::temp_fits::create_unique_temp_fits_path("skotiq_platesolve_temp");
         let temp_path = temp_file.to_string_lossy().to_string();
 
         // The optics, so the solver is told the field scale instead of hunting

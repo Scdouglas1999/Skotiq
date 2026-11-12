@@ -873,8 +873,8 @@ mod event_bridge_idempotence_tests {
 #[cfg(test)]
 mod terminal_announcement_tests {
     use super::run_sequencer_event_loop;
-    use crate::api::get_state;
     use crate::event::{EventPayload, SequencerEvent};
+    use crate::state::get_state;
     use skotiq_sequencer::{ExecutorEvent, ExecutorState};
 
     /// Sequencer lifecycle events the bridge publishes for `sent`, in order.

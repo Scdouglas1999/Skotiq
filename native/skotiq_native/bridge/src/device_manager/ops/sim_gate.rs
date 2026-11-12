@@ -223,7 +223,7 @@ async fn advance_mount_motion() {
 
 /// Configured observer location as `(latitude, longitude)`, if the app has one.
 fn observer_site() -> Option<(f64, f64)> {
-    crate::api::get_state()
+    crate::state::get_state()
         .get_observer_location()
         .ok()
         .flatten()
@@ -533,9 +533,10 @@ mod fault_injection_tests {
 #[cfg(test)]
 mod mount_motion_tests {
     use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock, SimulatedMount};
-    use crate::api::{get_device_manager, get_state};
     use crate::device::{DeviceInfo, DeviceType, DriverType, PierSide};
+    use crate::device_manager::get_device_manager;
     use crate::device_manager::ops::sim_faults::{self, Effect, FaultSpec, Trigger};
+    use crate::state::get_state;
     use crate::storage::ObserverLocation;
     use std::time::Duration;
 

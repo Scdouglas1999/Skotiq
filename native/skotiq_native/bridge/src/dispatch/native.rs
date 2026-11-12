@@ -53,7 +53,7 @@ impl DeviceManager {
             .nth(2)
             .ok_or("Invalid native device ID format")?;
         let site: skotiq_device::SiteSource = Arc::new(|| {
-            let location = crate::api::get_state()
+            let location = crate::state::get_state()
                 .get_observer_location()
                 .ok()
                 .flatten()?;

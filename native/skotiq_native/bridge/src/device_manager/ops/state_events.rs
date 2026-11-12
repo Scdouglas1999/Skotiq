@@ -197,7 +197,7 @@ impl DeviceManager {
         let mount_id = mount_id.to_string();
         // The watch outlives this call, so it reads through the process-wide
         // manager, the same one the heartbeat tasks use.
-        let manager = crate::api::get_device_manager().clone();
+        let manager = crate::device_manager::get_device_manager().clone();
         tokio::spawn(async move {
             // Once a second: every read is a driver round trip, and the
             // caller usually runs its own faster watch beside this one.

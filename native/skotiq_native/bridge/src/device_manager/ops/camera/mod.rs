@@ -217,8 +217,8 @@ mod sim_camera_tests {
     use crate::api::devices::simulation::{
         clear_sim_exposure, get_sim_camera, sim_singleton_test_lock,
     };
-    use crate::api::get_device_manager;
     use crate::device::{CameraState, DeviceInfo, DeviceType, DriverType};
+    use crate::device_manager::get_device_manager;
     use skotiq_device::FrameType;
 
     /// `expect_err` on a `Result<ImageData, _>` would dump a whole 1920x1080
@@ -449,8 +449,8 @@ mod sim_sky_wiring_tests {
     use crate::api::devices::simulation::{
         clear_sim_exposure, get_sim_camera, get_sim_mount, sim_singleton_test_lock,
     };
-    use crate::api::get_device_manager;
     use crate::device::{DeviceInfo, DeviceType, DriverType};
+    use crate::device_manager::get_device_manager;
     use skotiq_device::FrameType;
 
     /// The declared simulated rig: 3.76 um pixels behind the default 1000 mm

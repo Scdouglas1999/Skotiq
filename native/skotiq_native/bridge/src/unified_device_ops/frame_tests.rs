@@ -264,11 +264,11 @@ async fn a_flip_without_pier_side_telemetry_verifies_on_an_of_date_mount() {
     let _frame = FrameGuard::pin(SimMountFrame::OfDate);
     // No site: the simulated mount then has no hour angle to pick a pier side
     // from and keeps reporting Unknown, like a driver without SideOfPier.
-    let previous_site = crate::api::get_state()
+    let previous_site = crate::state::get_state()
         .get_observer_location()
         .ok()
         .flatten();
-    crate::api::get_state().set_observer_location(None).unwrap();
+    crate::state::get_state().set_observer_location(None).unwrap();
     let mount_id = "sim_mount_frame_flip";
     attach_sim_mount(mount_id).await;
     get_sim_mount().write().await.status.side_of_pier = Some(crate::device::PierSide::Unknown);
@@ -298,7 +298,7 @@ async fn a_flip_without_pier_side_telemetry_verifies_on_an_of_date_mount() {
     let mut executor =
         skotiq_sequencer::MeridianFlipExecutor::new(config, create_unified_device_ops());
     let result = executor.execute(&ctx).await;
-    let _ = crate::api::get_state().set_observer_location(previous_site);
+    let _ = crate::state::get_state().set_observer_location(previous_site);
 
     assert!(
         matches!(result, skotiq_sequencer::FlipResult::Success { .. }),
@@ -430,11 +430,11 @@ async fn a_manual_frame_and_a_sequence_frame_carry_the_same_header() {
         .unwrap();
     // The simulated mount takes its hour angle, and so its pier side, from the
     // app's site.
-    let previous_site = crate::api::get_state()
+    let previous_site = crate::state::get_state()
         .get_observer_location()
         .ok()
         .flatten();
-    crate::api::get_state()
+    crate::state::get_state()
         .set_observer_location(Some(crate::storage::ObserverLocation {
             latitude: site.0,
             longitude: site.1,
@@ -609,5 +609,5 @@ async fn a_manual_frame_and_a_sequence_frame_carry_the_same_header() {
         !date_obs.contains('Z'),
         "DATE-OBS carries a zone suffix, which the FITS standard does not allow: {date_obs}"
     );
-    let _ = crate::api::get_state().set_observer_location(previous_site);
+    let _ = crate::state::get_state().set_observer_location(previous_site);
 }

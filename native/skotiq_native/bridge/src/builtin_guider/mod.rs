@@ -35,7 +35,8 @@
 //!   star detection with a real `NoStarsDetected` error.
 //! * `unwrap_or_default()` on profile-name lookup — guider profile may not
 //!   yet exist on first run; empty name flows through to default config.
-use crate::api::{get_device_manager, get_state};
+use crate::device_manager::get_device_manager;
+use crate::state::get_state;
 use crate::guider::{GuideStarImage, GuiderCalibration, GuiderStatus, TrackedGuideStar};
 use crate::device::DeviceType;
 use crate::error::SkotiqError;

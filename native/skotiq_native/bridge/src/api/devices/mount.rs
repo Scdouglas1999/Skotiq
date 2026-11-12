@@ -246,9 +246,9 @@ pub async fn mount_set_time(
 mod tests {
     use super::api_mount_set_tracking;
     use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock};
-    use crate::api::get_device_manager;
     use crate::api::sequencer::{api_sequencer_start, api_sequencer_stop, get_sequence_executor};
     use crate::device::{DeviceInfo, DeviceType, DriverType};
+    use crate::device_manager::get_device_manager;
     use skotiq_sequencer::{
         DelayConfig, ExecutorState, NodeDefinition, NodeType, SequenceDefinition,
     };

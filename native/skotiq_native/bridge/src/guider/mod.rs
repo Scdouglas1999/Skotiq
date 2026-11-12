@@ -8,7 +8,8 @@
 pub(crate) mod phd2;
 pub(crate) mod stop_reason;
 
-use crate::api::{get_device_manager, get_state};
+use crate::device_manager::get_device_manager;
+use crate::state::get_state;
 use crate::device::DeviceType;
 use crate::error::SkotiqError;
 

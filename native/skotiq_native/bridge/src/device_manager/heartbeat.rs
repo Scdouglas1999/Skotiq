@@ -337,7 +337,7 @@ impl DeviceManager {
         let device_id_clone = device_id.to_string();
         let app_state = self.app_state.clone();
         // We need a reference to perform health checks - clone Arc pointer from the global singleton
-        let manager = crate::api::get_device_manager().clone();
+        let manager = crate::device_manager::get_device_manager().clone();
 
         let give_up_app_state = app_state.clone();
         let give_up_device_type_str = device_type_str.clone();

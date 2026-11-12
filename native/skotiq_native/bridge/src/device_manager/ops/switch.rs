@@ -197,10 +197,10 @@ impl DeviceManager {
 #[cfg(test)]
 mod simulator_tests {
     use crate::api::devices::simulation::{reset_sim_switch, sim_singleton_test_lock};
-    use crate::api::discovery::api_discover_devices;
-    use crate::api::get_device_manager;
     use crate::device::{DeviceType, DriverType};
+    use crate::device_manager::get_device_manager;
     use crate::device_manager::DeviceManager;
+    use crate::discovery::discover_devices;
     use std::sync::Arc;
     use std::time::Duration;
 
@@ -212,7 +212,7 @@ mod simulator_tests {
 
     async fn connect_simulated_switch() -> (String, Arc<DeviceManager>) {
         reset_sim_switch().await;
-        let devices = api_discover_devices(DeviceType::Switch)
+        let devices = discover_devices(DeviceType::Switch)
             .await
             .expect("switch discovery should succeed");
         let info = devices
