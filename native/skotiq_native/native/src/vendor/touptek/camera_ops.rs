@@ -105,6 +105,16 @@ fn configure_stream(
     if rc < 0 {
         return Err(touptek_failure("switch to software trigger", name, rc));
     }
+    // A cancelled exposure must not come out later as a frame (a camera can keep cancel
+    // mode 1 from another program); an SDK that predates the option always drops it.
+    let rc = put(OGMACAM_OPTION_TRIGGER_CANCEL_MODE, 0);
+    if rc < 0 && rc != OGMACAM_E_NOTIMPL {
+        tracing::warn!(
+            "{name}: asking for cancelled exposures to be dropped failed: {}",
+            describe_hresult(rc)
+        );
+    }
+
     // The camera keeps the conversion gain another program left it in. Skotiq offers no
     // choice of it yet, so every frame is taken in low conversion gain, as NINA and INDI
     // do by default.

@@ -323,6 +323,27 @@ fn the_offset_is_the_black_level() {
 /// must not be delivered as the next exposure.
 #[test]
 #[ignore = "needs the independent fake SDK on LD_LIBRARY_PATH"]
+fn a_late_cancelled_frame_is_not_the_next_exposure() {
+    let fake = fake();
+    let cam = fake.camera(COOLED_MONO_12, 64, 48, 12);
+    fake.set(cam, "cancel_mode", 1);
+    fake.set(cam, "cancel_ms", 15);
+    fake.set(cam, "deliver_ms", 60);
+    run(async {
+        let mut camera = connected().await;
+        camera.start_exposure(exposure(1, None)).await.unwrap();
+        camera.abort_exposure().await.unwrap();
+        let mut params = exposure(1, None);
+        params.duration_secs = 0.031;
+        let image = take(&mut camera, params).await;
+        assert!(
+            (image.metadata.exposure_time - 0.031).abs() < 1e-9,
+            "the aborted 0.02 s frame was delivered"
+        );
+        camera.disconnect().await.unwrap();
+    });
+}
+
 /// The cooler is reported as the camera has it at connect, set-point included.
 #[test]
 #[ignore = "needs the independent fake SDK on LD_LIBRARY_PATH"]

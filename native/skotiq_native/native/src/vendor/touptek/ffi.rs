@@ -64,6 +64,8 @@ pub(crate) const OGMACAM_OPTION_HEAT: c_uint = 0x37;
 pub(crate) const OGMACAM_OPTION_FLUSH: c_uint = 0x3d;
 /// [RO] cooler set-point range in 0.1 C: minimum in the low 16 bits, maximum in the high.
 pub(crate) const OGMACAM_OPTION_TECTARGET_RANGE: c_uint = 0x6d;
+/// [RW] what Trigger(0) does to the frame being exposed: 0 = drops it, 1 = outputs it.
+pub(crate) const OGMACAM_OPTION_TRIGGER_CANCEL_MODE: c_uint = 0x75;
 /// [RW] where the unused bits of a 10..14-bit sample go: 0 = high bits (the sample keeps
 /// its own value), 1 = low bits (the sample is scaled up to 16 bits).
 pub(crate) const OGMACAM_OPTION_ZERO_PADDING: c_uint = 0x78;
